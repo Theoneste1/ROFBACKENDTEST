@@ -3,188 +3,138 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
-  Request,
+  Query,
   Res,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { createReadStream } from 'fs';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
-import {
-  AssignmentsService,
-  assignmentStorage,
-  ASSIGNMENT_FILE_FILTER,
-  ASSIGNMENT_MAX_FILE_SIZE,
-} from './assignments.service.js';
-import { CreateAssignmentDto } from './dto/create-assignment.dto.js';
+import { AssignmentsService } from './assignments.service.js';
+import { CreateAssignmentDto, ListAssignmentsDto } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { RejectAssignmentDto } from './dto/reject-assignment.dto.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
-import { resolveUploadPath, contentDisposition } from '../common/file.utils.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { uploadOptions } from '../common/storage/upload-options.js';
+import type { AuthUser } from '../common/auth-user.js';
 
-const fileUploadOpts = {
-  storage:    assignmentStorage,
-  fileFilter: ASSIGNMENT_FILE_FILTER,
-  limits:     { fileSize: ASSIGNMENT_MAX_FILE_SIZE },
-};
-
+@ApiTags('Assignments')
 @Controller('assignments')
 export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
-  // ─── MENTOR (+ADMIN): Create draft assignment ─────────────────────────────
+  // ─── MENTOR: prepare ──────────────────────────────────────────────────────
+
+  /** Create a draft (multipart/form-data; optional brief in field `file`). */
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MENTOR')
-  @UseInterceptors(FileInterceptor('file', fileUploadOpts))
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', uploadOptions('ASSIGNMENT_BRIEF')))
   create(
     @Body() body: CreateAssignmentDto,
-    @Request() req: any,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.assignmentsService.create(body, { id: req.user.id, role: req.user.role }, file);
+    return this.assignmentsService.create(body, user, file);
   }
 
-  // ─── MENTOR (+ADMIN): View own assignments ────────────────────────────────
-  @Get('mine')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  findMine(@Request() req: any) {
-    return this.assignmentsService.findMine(req.user.id);
-  }
-
-  // ─── ADMIN: Full list ─────────────────────────────────────────────────────
-  @Get('admin/all')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  findAllAdmin() {
-    return this.assignmentsService.findAllAdmin();
-  }
-
-  // ─── STUDENT (+ADMIN): Browse published assignments with display status ──────
-  //
-  // Returns every published assignment annotated with the student's personal
-  // display status (New / Opened / Submitted / In Review / Marked / Redo).
-  @Get('my-assignments')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('STUDENT')
-  getStudentAssignments(@Request() req: any) {
-    return this.assignmentsService.getStudentAssignments(req.user.id);
-  }
-
-  // ─── ANY AUTHENTICATED: Published assignments ─────────────────────────────
-  @Get()
-  @UseGuards(JwtAuthGuard)
-  findAll() {
-    return this.assignmentsService.findAll();
-  }
-
-  // ─── ANY AUTHENTICATED: Single assignment ─────────────────────────────────
-  // For students: also records the view event that drives New → Opened.
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  async findOne(@Param('id') id: string, @Request() req: any) {
-    const assignment = await this.assignmentsService.findOne(id, { id: req.user.id, role: req.user.role });
-
-    // Record view for students (fire-and-forget — don't block the response).
-    if (req.user.role === 'STUDENT' && assignment.status === 'PUBLISHED') {
-      void this.assignmentsService.recordView(id, req.user.id);
-    }
-
-    return assignment;
-  }
-
-  // ─── MENTOR (+ADMIN): Edit DRAFT/REJECTED assignment ─────────────────────
+  /** Edit a DRAFT or REJECTED assignment. */
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MENTOR')
-  @UseInterceptors(FileInterceptor('file', fileUploadOpts))
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', uploadOptions('ASSIGNMENT_BRIEF')))
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateAssignmentDto,
-    @Request() req: any,
-    @UploadedFile() file?: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.assignmentsService.update(id, body, { id: req.user.id, role: req.user.role }, file);
+    return this.assignmentsService.update(id, body, user, file);
   }
 
-  // ─── MENTOR (+ADMIN): Submit for admin review ────────────────────────────
+  /** Send to the administrators for official publication. */
   @Patch(':id/submit')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MENTOR')
-  submitForReview(@Param('id') id: string, @Request() req: any) {
-    return this.assignmentsService.submitForReview(id, { id: req.user.id, role: req.user.role });
+  submitForReview(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.assignmentsService.submitForReview(id, user);
   }
 
-  // ─── MENTOR (+ADMIN): Recall pending back to draft ───────────────────────
+  /** Withdraw from review back to draft. */
   @Patch(':id/recall')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MENTOR')
-  recall(@Param('id') id: string, @Request() req: any) {
-    return this.assignmentsService.recall(id, { id: req.user.id, role: req.user.role });
+  recall(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.assignmentsService.recall(id, user);
   }
 
-  // ─── ADMIN: Publish ───────────────────────────────────────────────────────
+  // ─── ADMIN: official publication ──────────────────────────────────────────
+
   @Patch(':id/publish')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  publish(@Param('id') id: string, @Request() req: any) {
-    return this.assignmentsService.publish(id, { id: req.user.id, role: req.user.role });
+  publish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.assignmentsService.publish(id, user);
   }
 
-  // ─── ADMIN: Reject ────────────────────────────────────────────────────────
   @Patch(':id/reject')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  rejectAssignment(
-    @Param('id') id: string,
+  reject(
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: RejectAssignmentDto,
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.assignmentsService.rejectAssignment(id, body, { id: req.user.id, role: req.user.role });
+    return this.assignmentsService.reject(id, body, user);
   }
 
-  // ─── ADMIN: Unpublish ─────────────────────────────────────────────────────
+  /** Only possible while the assignment has no submissions. */
   @Patch(':id/unpublish')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  unpublish(@Param('id') id: string, @Request() req: any) {
-    return this.assignmentsService.unpublish(id, { id: req.user.id, role: req.user.role });
+  unpublish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.assignmentsService.unpublish(id, user);
   }
 
-  // ─── ANY AUTHENTICATED: Download / view assignment attachment ───────────────
-  //
-  // Access rule (enforced in AssignmentsService.findOne):
-  //   - ADMIN: always.
-  //   - Creator: always (even while unpublished).
-  //   - Everyone else: only when the assignment is PUBLISHED.
-  //
-  // Path traversal is prevented by resolveUploadPath().
-  @Get(':id/download')
-  @UseGuards(JwtAuthGuard)
-  async download(@Param('id') id: string, @Request() req: any, @Res() res: Response) {
-    const assignment = await this.assignmentsService.findOne(
-      id,
-      { id: req.user.id, role: req.user.role },
-    );
+  // ─── Read (scoped by role) ────────────────────────────────────────────────
 
-    if (!assignment.fileUrl) {
-      return res.status(404).json({ message: 'No file attached to this assignment.' });
-    }
+  /**
+   * Students: published assignments of their division.
+   * Mentors: all statuses within their courses × divisions. Admins: everything.
+   */
+  @Get()
+  findAll(@CurrentUser() user: AuthUser, @Query() query: ListAssignmentsDto) {
+    return this.assignmentsService.findAll(user, query);
+  }
 
-    const filePath = resolveUploadPath(assignment.fileUrl, 'assignments');
-    const mime     = 'application/pdf'; // assignments are always PDFs per MIME filter
-    const disp     = contentDisposition(mime, assignment.title + '.pdf');
+  /** Detail. For students this records the view and includes their submission state. */
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.assignmentsService.findOne(id, user);
+  }
 
-    res.setHeader('Content-Type', mime);
-    res.setHeader('Content-Disposition', disp);
-    createReadStream(filePath).pipe(res);
+  /** Download the assignment brief. */
+  @Get(':id/file')
+  async download(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('download') download: string | undefined,
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+  ) {
+    await this.assignmentsService.serveFile(id, user, res, download === 'true' || download === '1');
+  }
+}
+
+@ApiTags('Me')
+@Controller('me/assignments')
+@Roles('STUDENT')
+export class MyAssignmentsController {
+  constructor(private readonly assignmentsService: AssignmentsService) {}
+
+  /** Every assignment for the student's division with New / Opened / Submitted / In Review / Marked. */
+  @Get()
+  findMine(@CurrentUser() user: AuthUser, @Query() query: ListAssignmentsDto) {
+    return this.assignmentsService.getStudentAssignments(user, query);
   }
 }

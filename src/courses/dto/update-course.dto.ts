@@ -1,5 +1,5 @@
-import { IsOptional, IsString, Length } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class UpdateCourseDto {
   @IsOptional()
@@ -14,9 +14,11 @@ export class UpdateCourseDto {
   @Transform(({ value }: { value: string }) => value?.trim())
   description?: string;
 
+  /** Display order on course lists (lower first). */
   @IsOptional()
-  @IsString()
-  @Length(2, 100)
-  @Transform(({ value }: { value: string }) => value?.trim())
-  subject?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  sortOrder?: number;
 }

@@ -1,0 +1,222 @@
+# ROF LMS backend — architecture
+
+This document describes the backend as implemented. It is the reference for
+anyone extending the API or building a client against it.
+
+## 1. Overview
+
+```
+HTTP ─► Helmet · CORS · Throttler ─► JwtAuthGuard (global) ─► RolesGuard (global) ─► ValidationPipe
+                                     │
+          Controllers — parse input, declare roles, call one service method
+                                     │
+          Services — business rules, state machines, AccessService scope checks
+             │              │                 │                    │
+        PrismaService   StorageService    EventEmitter ──► NotificationListener
+         (PostgreSQL)   (local | S3)                         │
+                                                  Notification rows + EmailDelivery outbox
+                                                             │
+                                          EmailWorker (every 10 s, SKIP LOCKED) ─► SMTP
+
+Cross-cutting: AllExceptionsFilter · request id · AuditService · SettingsService
+```
+
+- **Stateless API.** All state is in PostgreSQL and the storage driver, so any
+  number of instances can run behind a load balancer (with `STORAGE_DRIVER=s3`).
+- **Background work runs in-process** (`@nestjs/schedule`) and is safe across
+  instances: the e-mail worker claims rows with `FOR UPDATE SKIP LOCKED`;
+  reminders and state changes use conditional updates. `WORKERS_ENABLED=false`
+  turns workers off on a given instance.
+
+## 2. Academic model
+
+- **Divisions** — exactly two rows: `JUNIOR` (S1–S3) and `SENIOR` (S4–S6).
+  A student's `gradeLevel` determines their `divisionId`.
+- **Courses** — exactly four rows (`code`: ALGEBRA, GEOMETRY, NUMBER_THEORY,
+  COMBINATORICS), created by the seed. Admins edit text and publish/unpublish;
+  they cannot create or delete courses.
+- **Scope** — content is owned by a **(course × division)** pair. Resources,
+  assignments, live sessions and course discussions all carry `courseId` and
+  `divisionId`. Junior and Senior Algebra share a course record but have
+  separate content.
+- **Mentor assignments** — admins assign mentors to scopes
+  (`MentorAssignment`). A mentor can only act inside their active scopes.
+- **Enrollment** — a student is enrolled in all four courses of their division.
+  `CourseEnrollment` tracks per-course progress (Unrolled → Rolled → Completed).
+- **Annual promotion** — `POST /admin/users/promote-students` moves every active
+  student up one grade (S3 → S4 changes division) and can graduate S6.
+
+## 3. Authorization
+
+Three layers, all enforced server-side:
+
+1. **Authentication** — global `JwtAuthGuard`; routes opt out with `@Public()`.
+   The user is reloaded from the database on every request, so suspension,
+   role or division changes apply immediately.
+2. **Role** — global `RolesGuard`; each route lists its roles with `@Roles()`.
+   There is **no implicit admin override**. Grading routes are `MENTOR` only,
+   so administrators cannot score or give academic feedback.
+3. **Scope / ownership** — `AccessService`:
+   - students: own division, published courses, published content;
+   - mentors: their assigned scopes; submissions assigned to them;
+   - admins: everything.
+   Out-of-scope students get `404` (existence is not revealed); mentors get
+   `403 NOT_ASSIGNED_TO_SCOPE`.
+
+**Tokens.** Access JWT (HS256, 15 min, `sub` + `jti`). Refresh token: 48 random
+bytes, stored as SHA-256, rotated on every use, grouped in a family; replaying
+a used token revokes the family (`REFRESH_TOKEN_REUSED`). Browsers get it as an
+`httpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`; other
+clients use the response body. Logout blacklists the access `jti` and revokes
+the refresh family. Password change/reset revokes all sessions.
+
+**Passwords.** bcrypt cost 12; login timing is equalised for unknown users;
+account state (suspended/pending) is only revealed after a correct password;
+credential endpoints are rate-limited per IP.
+
+## 4. Workflows (state machines)
+
+All transitions use `UPDATE … WHERE status IN (allowed)`; a request that loses a
+race gets `409 INVALID_STATE_TRANSITION` instead of corrupting state.
+
+**Assignment** — mentors prepare, admins publish:
+
+```
+DRAFT ─submit─► PENDING_APPROVAL ─publish─► PUBLISHED
+  ▲  ◄──recall──┘        │reject(note)           │unpublish (only with 0 submissions)
+  └── REJECTED ◄─────────┘                       ▼ DRAFT
+```
+
+**Submission** — the eight-step review pipeline:
+
+```
+SUBMITTED ─assign/distribute─► ASSIGNED ─start─► IN_REVIEW ─mark─► MARKED ─return─► SUBMITTED_TO_ADMIN
+   ▲ resubmit (unassigns)         ▲                  ▲                                │approve      │reject(reason)
+   └──────── student ─────────────┘                  └──── REJECTED ◄─────────────────┼─────────────┘
+                                                              ▲                        ▼
+                                                              └──── reopen ◄── PUBLISHED ◄─publish── APPROVED
+```
+
+- Students may resubmit while `SUBMITTED`/`ASSIGNED`, before the deadline, within
+  `maxResubmissions`. Revisions are numbered 1, 2, 3 … and kept with their files.
+- `allowLateSubmission` accepts a first submission after the deadline, flagged `isLate`.
+- Distribution strategies: `BALANCED` (fewest open reviews) or `ROUND_ROBIN`,
+  limited to active mentors of the assignment's scope.
+- Students never see score/feedback before `PUBLISHED`. `coordinationNote` is
+  internal (admins only).
+
+**Points.** On publication a result earns
+`round(assignment.points × score / maximumMarks)`. `User.points` and
+`problemsSolved` are a cache recomputed from published results inside the same
+transaction, so they cannot drift; `POST /admin/leaderboard/recompute` rebuilds
+them. Leaderboards are per division and use SQL `RANK()`.
+
+**Live session** — `SCHEDULED → CANCELLED` (host/admin) or `→ COMPLETED`
+(worker, after `endsAt`). Reminders are sent once, ~1 hour before start.
+
+## 5. Data model
+
+See `prisma/schema.prisma` (commented). Groups:
+
+| Area | Models |
+|---|---|
+| Identity | User, RefreshToken, PasswordResetToken, TokenBlacklist, MentorRequest, School |
+| Structure | Division, Course, MentorAssignment, CourseEnrollment |
+| Content | CourseResource, ResourceView, LiveSession, FileObject |
+| Assessment | Assignment, AssignmentView, Submission, SubmissionRevision |
+| Community | Comment, CommentReaction, StudyGroup, StudyGroupMember |
+| Messaging | Notification, NotificationPreference, EmailJob, EmailDelivery |
+| Admin | SystemSetting, AuditLog |
+
+Database-level guarantees beyond foreign keys: one submission per
+(assignment, student); unique revision numbers; CHECK constraints for comment
+targets, student grade/division, positive marks and session times.
+
+**Migrations.** The pre-2026-11 history could not build a database and was
+moved to `prisma/migrations_archive/`. `prisma/migrations/` starts from a single
+baseline. From now on, change `schema.prisma`, run `npm run db:migrate:dev`,
+and commit the generated migration. Prefer additive changes (add → backfill →
+enforce → drop later); never edit an applied migration.
+
+## 6. Files
+
+`StorageService` is the only way to store or serve files.
+
+- **Upload**: multer keeps the file in memory (never on disk) until the service
+  has authorized the request. The **type is detected from the bytes** and checked
+  against a per-purpose allow-list and size limit:
+
+  | Purpose | Allowed | Max |
+  |---|---|---|
+  | SUBMISSION | PDF, images (incl. HEIC), DOC/DOCX, ZIP, TXT | 20 MB |
+  | FEEDBACK | PDF, images, DOC/DOCX, TXT | 10 MB |
+  | ASSIGNMENT_BRIEF | PDF, images, DOC/DOCX, ZIP, TXT | 20 MB |
+  | RESOURCE | + PPT/PPTX, EPUB | 50 MB |
+
+  Files are stored under a random key; a `FileObject` row records the original
+  name, detected type, size and SHA-256.
+- **Download**: always through an authorized endpoint, streamed with the stored
+  type, `Content-Disposition` (inline only for PDF/images), `nosniff` and a
+  sandboxing CSP.
+- **Drivers**: `local` (disk, single instance) or `s3` (AWS S3, Cloudflare R2,
+  MinIO …). A nightly job deletes files nothing references any more.
+
+## 7. Notifications
+
+Services emit domain events after their changes commit (`events.ts`).
+`NotificationListener` maps them to recipients and writes:
+
+- **in-app** `Notification` rows (list, unread count, mark read);
+- **e-mail** rows in the `EmailDelivery` outbox, respecting per-category
+  opt-outs (`ACCOUNT` e-mails cannot be disabled) and the global
+  `notifications.emailEnabled` setting.
+
+`EmailWorker` sends the outbox with bounded concurrency, retries with
+exponential backoff (5 attempts) and recomputes bulk-job counters from the
+delivery rows. E-mails are plain text. Adding SMS or push later means adding a
+channel to `NotificationsService`; no schema change is needed.
+
+| Event | Recipients |
+|---|---|
+| Assignment submitted for review | Admins |
+| Assignment published | Students of the division; the author |
+| Assignment rejected | The author |
+| Submission received | The student (in-app) |
+| Submissions assigned | Each mentor |
+| Review returned | Admins (in-app) |
+| Review sent back / result reopened | The mentor |
+| Results published | Each student |
+| Resource published | Students of the division (in-app) |
+| Live session scheduled / changed / cancelled / reminder | Students of the division |
+| Mentor application decided, password reset | The person |
+
+## 8. Errors and logging
+
+`AllExceptionsFilter` returns one JSON shape for every error with a stable
+`code` (e.g. `DEADLINE_PASSED`, `NOT_ASSIGNED_MENTOR`, `FILE_TYPE_NOT_ALLOWED`).
+Prisma errors map to 409/404; unexpected errors become a generic 500 and are
+logged with the request id. Every response carries `X-Request-Id`. Logs are
+JSON in production. Audit entries are written in the same transaction where
+atomicity matters; otherwise a failed audit write is logged and never fails a
+successful request.
+
+## 9. Testing
+
+| Layer | Where | What |
+|---|---|---|
+| Unit | `src/**/*.spec.ts` | Pure rules, guards, filter, storage, authorization metadata |
+| End-to-end | `test/*.e2e-spec.ts` | Real app + real PostgreSQL: the full 8-step workflow, auth flows, role and scope boundaries, uploads, discussions, live sessions, notifications, e-mail outbox, admin tools |
+| CI | `.github/workflows/ci.yml` | lint → typecheck → unit → migrate empty DB → drift check → e2e → build → Docker image |
+
+## 10. Decisions taken
+
+| Question | Decision |
+|---|---|
+| Student data | Grade/division/school stored on `User` (nullable for staff), enforced by a CHECK constraint |
+| Points | Proportional to the score; per-division leaderboards; students see first name + initial |
+| Registration | Open self-signup; admin can close it or require approval (settings) |
+| Score corrections | Admin "reopen" returns the result to the mentor; admins never edit scores |
+| Study groups | Kept as-is (admin-managed), contact details no longer exposed |
+| Storage | Abstracted; local for dev, S3-compatible for production |
+| Job queue | PostgreSQL outbox + in-process workers (no Redis) |
+| Academic years | Bulk promotion endpoint; no per-year history model yet |

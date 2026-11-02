@@ -5,7 +5,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 /**
  * Score validation layers:
@@ -23,7 +23,9 @@ export class MarkSubmissionDto {
   @Type(() => Number)
   score: number;
 
+  /** Formal academic feedback shown to the student once results are published. */
   @IsString()
-  @Length(2, 5000)
+  @Length(2, 10000)
+  @Transform(({ value }: { value: string }) => value?.trim())
   mentorFeedback: string;
 }

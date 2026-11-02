@@ -3,6 +3,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Min,
 } from 'class-validator';
@@ -10,6 +11,10 @@ import { Transform, Type } from 'class-transformer';
 import { ResourceType } from '../../generated/prisma/client.js';
 
 export class CreateResourceDto {
+  /** Which division (Junior/Senior) this material is for. */
+  @IsUUID()
+  divisionId: string;
+
   @IsEnum(ResourceType, {
     message: `type must be one of: ${Object.values(ResourceType).join(', ')}`,
   })
@@ -35,4 +40,15 @@ export class CreateResourceDto {
   @Min(0)
   @Type(() => Number)
   sortOrder?: number;
+}
+
+export class ListResourcesDto {
+  /** Admins and mentors: filter to one division. Ignored for students. */
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
+
+  @IsOptional()
+  @IsEnum(ResourceType)
+  type?: ResourceType;
 }

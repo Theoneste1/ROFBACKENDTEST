@@ -1,208 +1,175 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service.js';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface LeaderboardEntry {
-  rank:           number;
-  id:             string;
-  firstName:      string;
-  lastName:       string;
-  username:       string;
-  avatarUrl:      string | null;
-  points:         number;
-  problemsSolved: number;
-  school:         { id: string; name: string; location: string } | null;
-}
+import { SettingsService } from '../settings/settings.service.js';
+import { AccessService } from '../common/access/access.service.js';
+import { AppError } from '../common/errors/app-error.js';
+import { pageArgs, paginated } from '../common/pagination.js';
+import type { AuthUser } from '../common/auth-user.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { LeaderboardQueryDto } from './dto/leaderboard-query.dto.js';
 
 // ─── Ranking metric ───────────────────────────────────────────────────────────
 //
-// Primary:   points DESC          (awarded only on published result — no double-awarding)
-// Secondary: problemsSolved DESC  (more problems solved breaks ties)
-// Tertiary:  createdAt ASC        (earlier registration breaks remaining ties — stable)
+// Points are a cache of published results (see SubmissionsService), so only
+// published work counts and points are never awarded twice.
 //
-// Dense ranking: equal points → equal rank.
-// Example: scores 100, 100, 80, 60 → ranks 1, 1, 2, 3  (not 1, 1, 3, 4).
+//   Primary:   points DESC
+//   Secondary: problemsSolved DESC
+//
+// Standard competition ranking (SQL RANK()): equal → same rank, next rank
+// skips. Example: 100, 100, 80 → ranks 1, 1, 3. Remaining ties are listed in
+// registration order.
+//
+// Leaderboards are per division — Junior and Senior students never compete
+// on the same board. Only active students are ranked.
 
-function assignRanks(rows: Omit<LeaderboardEntry, 'rank'>[]): LeaderboardEntry[] {
-  const result: LeaderboardEntry[] = [];
-  let rank     = 1;
-  let lastPts  = -1;
-  let lastSolv = -1;
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    // Two students share a rank only when both points AND problemsSolved match.
-    if (row.points !== lastPts || row.problemsSolved !== lastSolv) {
-      rank   = i + 1;  // dense rank = position after all higher-ranked entries
-      lastPts  = row.points;
-      lastSolv = row.problemsSolved;
-    }
-    result.push({ rank, ...row });
-  }
-
-  return result;
+interface RankedRow {
+  rank:           bigint;
+  id:             string;
+  firstName:      string;
+  lastName:       string;
+  avatarUrl:      string | null;
+  points:         number;
+  problemsSolved: number;
+  schoolId:       string | null;
+  schoolName:     string | null;
 }
 
 @Injectable()
 export class LeaderboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma:    PrismaService,
+    private readonly settings:  SettingsService,
+    private readonly access:    AccessService,
+  ) {}
 
-  // ─── General leaderboard ──────────────────────────────────────────────────
-  //
-  // All STUDENT users ranked by points (published results only — enforced by
-  // the points-increment-on-publish logic in SubmissionsService).
-  // Mentors and Admins are excluded by the role filter.
-  // Students with no points are included (they rank at the bottom).
-  //
-  async findGeneral(): Promise<LeaderboardEntry[]> {
-    const rows = await this.prisma.user.findMany({
-      where: { role: 'STUDENT' },
-      select: {
-        id:             true,
-        firstName:      true,
-        lastName:       true,
-        username:       true,
-        avatarUrl:      true,
-        points:         true,
-        problemsSolved: true,
-        school: {
-          select: { id: true, name: true, location: true },
-        },
-      },
-      orderBy: [
-        { points:         'desc' },
-        { problemsSolved: 'desc' },
-        { createdAt:      'asc'  },  // stable tie-breaker
-      ],
-    });
+  /** Ranked students of one division, optionally narrowed to a school. */
+  async findGeneral(user: AuthUser, q: LeaderboardQueryDto) {
+    const divisionId = await this.resolveDivision(user, q.divisionId);
+    const { page, limit, skip, take } = pageArgs(q);
 
-    return assignRanks(rows);
+    const filter = Prisma.sql`
+      u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
+      ${q.schoolId ? Prisma.sql`AND u."schoolId" = ${q.schoolId}` : Prisma.empty}`;
+
+    const [rows, countRows] = await Promise.all([
+      this.prisma.$queryRaw<RankedRow[]>`
+        SELECT RANK() OVER (ORDER BY u."points" DESC, u."problemsSolved" DESC) AS "rank",
+               u."id", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
+               s."id" AS "schoolId", s."name" AS "schoolName"
+        FROM "User" u
+        LEFT JOIN "School" s ON s."id" = u."schoolId"
+        WHERE ${filter}
+        ORDER BY "rank" ASC, u."createdAt" ASC
+        LIMIT ${take} OFFSET ${skip}`,
+      this.prisma.$queryRaw<{ count: bigint }[]>`SELECT COUNT(*) AS "count" FROM "User" u WHERE ${filter}`,
+    ]);
+
+    return {
+      divisionId,
+      ...paginated(rows.map((r) => this.toEntry(r, user)), Number(countRows[0]?.count ?? 0), page, limit),
+    };
   }
 
-  // ─── School leaderboard ───────────────────────────────────────────────────
-  //
-  // Ranks students within a single school.
-  // Enforces school isolation — only students whose school FK matches the
-  // requested schoolId are included.
-  // Students from other schools never appear, even if they somehow share the
-  // same school name string.
-  //
-  async findBySchool(schoolId: string): Promise<LeaderboardEntry[]> {
-    // Verify the school exists first so we return 404, not an empty list.
-    const school = await this.prisma.school.findUnique({
-      where:  { id: schoolId },
-      select: { id: true, name: true, location: true },
-    });
+  /** The current student's own position in their division. */
+  async findMine(user: AuthUser) {
+    const divisionId = await this.resolveDivision(user, undefined);
+    const rows = await this.prisma.$queryRaw<RankedRow[]>`
+      SELECT * FROM (
+        SELECT RANK() OVER (ORDER BY u."points" DESC, u."problemsSolved" DESC) AS "rank",
+               u."id", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
+               u."schoolId", NULL AS "schoolName"
+        FROM "User" u
+        WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
+      ) ranked
+      WHERE ranked."id" = ${user.id}`;
+    const total = await this.prisma.user.count({ where: { role: 'STUDENT', isActive: true, divisionId } });
 
-    if (!school) {
-      throw new NotFoundException(`School not found.`);
-    }
-
-    const rows = await this.prisma.user.findMany({
-      where: {
-        role:     'STUDENT',
-        schoolId,                 // strict FK filter — no cross-school leakage
-      },
-      select: {
-        id:             true,
-        firstName:      true,
-        lastName:       true,
-        username:       true,
-        avatarUrl:      true,
-        points:         true,
-        problemsSolved: true,
-        school: {
-          select: { id: true, name: true, location: true },
-        },
-      },
-      orderBy: [
-        { points:         'desc' },
-        { problemsSolved: 'desc' },
-        { createdAt:      'asc'  },
-      ],
-    });
-
-    return assignRanks(rows);
+    const me = rows[0];
+    return {
+      divisionId,
+      rank:           me ? Number(me.rank) : null,
+      outOf:          total,
+      points:         me?.points ?? 0,
+      problemsSolved: me?.problemsSolved ?? 0,
+    };
   }
 
-  // ─── School summary leaderboard ───────────────────────────────────────────
-  //
-  // Ranks schools by their aggregate student points.
-  // Useful for a "school vs school" overview without exposing individual student data.
-  // Uses a raw aggregate query for performance at scale.
-  //
-  async findSchoolSummary(): Promise<
-    Array<{
-      rank:           number;
-      schoolId:       string;
-      schoolName:     string;
-      schoolLocation: string;
-      totalPoints:    number;
-      studentCount:   number;
-      topStudent:     { username: string; points: number } | null;
-    }>
-  > {
-    // Aggregate total points and count per school in one DB round-trip.
-    const aggregates = await this.prisma.user.groupBy({
-      by:    ['schoolId'],
-      where: { role: 'STUDENT', schoolId: { not: null } },
-      _sum:  { points: true },
-      _count: { id: true },
-      orderBy: { _sum: { points: 'desc' } },
+  /** Schools ranked by total student points within a division. */
+  async findSchoolSummary(user: AuthUser, q: LeaderboardQueryDto) {
+    const divisionId = await this.resolveDivision(user, q.divisionId);
+    const { page, limit, skip, take } = pageArgs(q);
+
+    const rows = await this.prisma.$queryRaw<Array<{
+      rank: bigint; schoolId: string; schoolName: string; schoolLocation: string;
+      totalPoints: bigint; studentCount: bigint; averagePoints: number;
+    }>>`
+      SELECT RANK() OVER (ORDER BY SUM(u."points") DESC) AS "rank",
+             s."id" AS "schoolId", s."name" AS "schoolName", s."location" AS "schoolLocation",
+             SUM(u."points") AS "totalPoints", COUNT(u."id") AS "studentCount",
+             ROUND(AVG(u."points")::numeric, 1)::float AS "averagePoints"
+      FROM "User" u
+      JOIN "School" s ON s."id" = u."schoolId"
+      WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
+      GROUP BY s."id", s."name", s."location"
+      ORDER BY "rank" ASC, s."name" ASC
+      LIMIT ${take} OFFSET ${skip}`;
+
+    const total = await this.prisma.school.count({
+      where: { students: { some: { role: 'STUDENT', isActive: true, divisionId } } },
     });
 
-    if (aggregates.length === 0) return [];
+    return {
+      divisionId,
+      ...paginated(
+        rows.map((r) => ({
+          rank:           Number(r.rank),
+          schoolId:       r.schoolId,
+          schoolName:     r.schoolName,
+          schoolLocation: r.schoolLocation,
+          totalPoints:    Number(r.totalPoints),
+          studentCount:   Number(r.studentCount),
+          averagePoints:  r.averagePoints,
+        })),
+        total, page, limit,
+      ),
+    };
+  }
 
-    // Fetch school names for all referenced school IDs.
-    const schoolIds = aggregates.map((a) => a.schoolId as string);
-    const schools   = await this.prisma.school.findMany({
-      where:  { id: { in: schoolIds } },
-      select: { id: true, name: true, location: true },
-    });
-    const schoolMap = new Map(schools.map((s) => [s.id, s]));
+  // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    // Fetch the top-scoring student per school.
-    const topStudents = await this.prisma.user.findMany({
-      where: { role: 'STUDENT', schoolId: { in: schoolIds } },
-      select: {
-        schoolId: true,
-        username: true,
-        points:   true,
-      },
-      orderBy: [{ points: 'desc' }, { problemsSolved: 'desc' }],
-    });
-
-    // Build a map: schoolId → top student (first match = highest points).
-    const topStudentMap = new Map<string, { username: string; points: number }>();
-    for (const s of topStudents) {
-      if (s.schoolId && !topStudentMap.has(s.schoolId)) {
-        topStudentMap.set(s.schoolId, { username: s.username, points: s.points });
+  /**
+   * Students always see their own division (and only if the setting allows).
+   * Staff must choose a division.
+   */
+  private async resolveDivision(user: AuthUser, requested?: string): Promise<string> {
+    if (user.role === 'STUDENT') {
+      if (!(await this.settings.get('leaderboard.visibleToStudents'))) {
+        throw new AppError(HttpStatus.FORBIDDEN, 'LEADERBOARD_HIDDEN', 'The leaderboard is currently not available.');
       }
+      return this.access.studentDivision(user);
     }
+    if (!requested) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId.');
+    }
+    const exists = await this.prisma.division.findUnique({ where: { id: requested }, select: { id: true } });
+    if (!exists) throw new NotFoundException('Division not found.');
+    return requested;
+  }
 
-    // Assign dense ranks based on total points.
-    let rank     = 1;
-    let lastPts  = -1;
-
-    return aggregates.map((agg, i) => {
-      const totalPoints = agg._sum.points ?? 0;
-      const school      = schoolMap.get(agg.schoolId as string);
-
-      if (totalPoints !== lastPts) {
-        rank    = i + 1;
-        lastPts = totalPoints;
-      }
-
-      return {
-        rank,
-        schoolId:       agg.schoolId as string,
-        schoolName:     school?.name     ?? 'Unknown',
-        schoolLocation: school?.location ?? 'Unknown',
-        totalPoints,
-        studentCount:   agg._count.id,
-        topStudent:     topStudentMap.get(agg.schoolId as string) ?? null,
-      };
-    });
+  /** Students see first name + last initial; staff see full names. */
+  private toEntry(r: RankedRow, user: AuthUser) {
+    const isStaff = user.role !== 'STUDENT';
+    return {
+      rank:           Number(r.rank),
+      id:             r.id,
+      displayName:    isStaff ? `${r.firstName} ${r.lastName}` : `${r.firstName} ${r.lastName.charAt(0)}.`,
+      avatarUrl:      r.avatarUrl,
+      points:         r.points,
+      problemsSolved: r.problemsSolved,
+      school:         r.schoolId ? { id: r.schoolId, name: r.schoolName } : null,
+      isMe:           r.id === user.id,
+    };
   }
 }

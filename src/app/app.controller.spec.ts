@@ -1,22 +1,27 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
 
 describe('AppController', () => {
-  let appController: AppController;
+  const controller = new AppController(new AppService());
 
-  beforeEach(async () => {
-    const app: TestingModule = await Test.createTestingModule({
-      controllers: [AppController],
-      providers: [AppService],
-    }).compile();
-
-    appController = app.get<AppController>(AppController);
+  it('getInfo returns the API description', () => {
+    expect(controller.getInfo()).toEqual({
+      name:    'ROF LMS API',
+      version: '1.0.0',
+      docs:    '/api/docs',
+      health:  '/health',
+    });
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
-    });
+  it('getInfo delegates to AppService', () => {
+    const service = { getInfo: vi.fn().mockReturnValue({ name: 'x' }) };
+    const c = new AppController(service as unknown as AppService);
+    expect(c.getInfo()).toEqual({ name: 'x' });
+    expect(service.getInfo).toHaveBeenCalledOnce();
+  });
+
+  it('getInfo is public', () => {
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, AppController.prototype.getInfo)).toBe(true);
   });
 });

@@ -57,6 +57,9 @@ export class SmtpService implements OnModuleInit {
     const pass   = this.config.get<string>('SMTP_PASS');
 
     this.transporter = nodemailer.createTransport({
+      // Reuse connections across the worker's concurrent sends.
+      pool:           true,
+      maxConnections: 5,
       host,
       port,
       secure,

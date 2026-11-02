@@ -5,10 +5,13 @@ import {
   IsOptional,
   IsString,
   Length,
+  Max,
   Min,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { toBoolean } from './create-assignment.dto.js';
 
+/** Course and division cannot change; create a new assignment instead. */
 export class UpdateAssignmentDto {
   @IsOptional()
   @IsString()
@@ -18,7 +21,7 @@ export class UpdateAssignmentDto {
 
   @IsOptional()
   @IsString()
-  @Length(10, 5000)
+  @Length(10, 10000)
   @Transform(({ value }: { value: string }) => value?.trim())
   instructions?: string;
 
@@ -28,24 +31,32 @@ export class UpdateAssignmentDto {
 
   @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(0)
+  @Max(10000)
   @Type(() => Number)
   points?: number;
 
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(10000)
   @Type(() => Number)
   maximumMarks?: number;
 
   @IsOptional()
+  @Transform(toBoolean)
   @IsBoolean()
-  @Transform(({ value }: { value: unknown }) => value === 'true' || value === true)
   allowResubmission?: boolean;
 
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(50)
   @Type(() => Number)
   maxResubmissions?: number;
+
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  allowLateSubmission?: boolean;
 }

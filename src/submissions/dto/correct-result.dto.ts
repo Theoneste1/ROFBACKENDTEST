@@ -1,21 +1,18 @@
-import { IsInt, IsString, Length, Max, Min } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
-
-const ABSOLUTE_MAX_SCORE = 10_000;
+import { IsString, Length } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 /**
- * Admin corrects a published result.
- * Requires a mandatory correction note — silent score changes are not permitted.
+ * Correcting a PUBLISHED result.
+ *
+ * Administrators must not grade, so they cannot change a score themselves.
+ * Instead they REOPEN the result: it is withdrawn from the student, its points
+ * are removed, and it goes back to the mentor with this note. The mentor
+ * re-scores and the normal approve → publish flow runs again. The previous
+ * score is kept in `previousScore` and in the audit log.
  */
-export class CorrectResultDto {
-  @IsInt({ message: 'Score must be a whole number.' })
-  @Min(0, { message: 'Score cannot be negative.' })
-  @Max(ABSOLUTE_MAX_SCORE, { message: `Score cannot exceed ${ABSOLUTE_MAX_SCORE}.` })
-  @Type(() => Number)
-  score: number;
-
+export class ReopenResultDto {
   @IsString()
   @Length(5, 2000)
   @Transform(({ value }: { value: string }) => value?.trim())
-  correctionNote: string;
+  reopenNote: string;
 }

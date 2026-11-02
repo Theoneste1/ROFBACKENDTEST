@@ -1,23 +1,20 @@
 import {
-  BadRequestException,
-  ForbiddenException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { AccessService } from '../common/access/access.service.js';
+import { AppError, invalidState } from '../common/errors/app-error.js';
+import { pageArgs, paginated } from '../common/pagination.js';
+import type { AuthUser } from '../common/auth-user.js';
+import { Prisma } from '../generated/prisma/client.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
 import { UpdateCommentDto } from './dto/update-comment.dto.js';
 import { ReactCommentDto } from './dto/react-comment.dto.js';
 import { ListCommentsDto } from './dto/list-comments.dto.js';
-import type { CallerCtx } from '../submissions/submissions.service.js';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const MAX_PAGE_SIZE = 100;
-const DEFAULT_PAGE_SIZE = 20;
 
 // ─── Safe author select ───────────────────────────────────────────────────────
 // Return only public profile fields — never email, passwordHash, etc.
@@ -31,137 +28,122 @@ const AUTHOR_SELECT = {
   role:      true,
 } as const;
 
-// ─── Comment shape returned to callers ───────────────────────────────────────
-
 const COMMENT_SELECT = {
-  id:         true,
-  content:    true,
-  status:     true,
-  parentId:   true,
-  createdAt:  true,
-  updatedAt:  true,
-  author:     { select: AUTHOR_SELECT },
-  reactions: {
-    select: {
-      id:   true,
-      type: true,
-      user: { select: { id: true, username: true } },
-    },
-  },
-  _count: { select: { replies: true } },
+  id:          true,
+  content:     true,
+  status:      true,
+  parentId:    true,
+  divisionId:  true,
+  createdAt:   true,
+  updatedAt:   true,
+  moderatedAt: true,
+  author:      { select: AUTHOR_SELECT },
+  reactions:   { select: { type: true, userId: true } },
+  _count:      { select: { replies: { where: { status: 'ACTIVE' as const } } } },
 } as const;
 
+type Target = { courseId: string; divisionId: string } | { assignmentId: string; divisionId: string };
+
+/**
+ * Course and assignment discussions.
+ *
+ * Course threads are separate per division (Junior and Senior never see each
+ * other's course discussion). Assignment threads inherit the assignment's
+ * division. Visibility follows AccessService: students in their division on
+ * published content, mentors in their assigned scopes, admins everywhere.
+ */
 @Injectable()
 export class DiscussionsService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly audit:  AuditService,
+    private readonly prisma:  PrismaService,
+    private readonly audit:   AuditService,
+    private readonly access:  AccessService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // List top-level comments (threaded, paginated)
+  // List
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** List top-level comments on a course. */
-  async listCourseComments(courseId: string, caller: CallerCtx, query: ListCommentsDto) {
-    await this.assertCourseAccess(courseId, caller);
-    return this.listTopLevel({ courseId }, caller, query);
+  async listCourseComments(courseId: string, user: AuthUser, query: ListCommentsDto) {
+    const target = await this.courseTarget(courseId, user, query.divisionId);
+    return this.listTopLevel(target, user, query);
   }
 
-  /** List top-level comments on an assignment. */
-  async listAssignmentComments(assignmentId: string, caller: CallerCtx, query: ListCommentsDto) {
-    await this.assertAssignmentAccess(assignmentId, caller);
-    return this.listTopLevel({ assignmentId }, caller, query);
+  async listAssignmentComments(assignmentId: string, user: AuthUser, query: ListCommentsDto) {
+    const target = await this.assignmentTarget(assignmentId, user);
+    return this.listTopLevel(target, user, query);
   }
 
-  /** List replies to a specific comment. */
-  async listReplies(commentId: string, caller: CallerCtx, query: ListCommentsDto) {
+  /** Replies to a comment (one level of nesting). */
+  async listReplies(commentId: string, user: AuthUser, query: ListCommentsDto) {
     const parent = await this.requireComment(commentId);
-    // Check access to the parent comment's target.
-    if (parent.courseId)     await this.assertCourseAccess(parent.courseId, caller);
-    if (parent.assignmentId) await this.assertAssignmentAccess(parent.assignmentId, caller);
+    await this.assertCanSeeComment(parent, user);
 
-    const page  = query.page  ?? 1;
-    const limit = Math.min(query.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
-    const skip  = (page - 1) * limit;
-
-    // Replies to replies are not supported (one level of nesting).
-    // Only show replies that belong directly to this parent.
+    const { page, limit, skip, take } = pageArgs(query);
+    const where = { parentId: commentId, ...this.visibleFilter(user) };
     const [replies, total] = await this.prisma.$transaction([
-      this.prisma.comment.findMany({
-        where:   { parentId: commentId, ...this.visibleFilter(caller) },
-        orderBy: { createdAt: 'asc' },
-        skip,
-        take:    limit,
-        select:  COMMENT_SELECT,
-      }),
-      this.prisma.comment.count({
-        where: { parentId: commentId, ...this.visibleFilter(caller) },
-      }),
+      this.prisma.comment.findMany({ where, orderBy: { createdAt: 'asc' }, skip, take, select: COMMENT_SELECT }),
+      this.prisma.comment.count({ where }),
     ]);
-
-    return {
-      data: replies.map((r) => this.sanitizeComment(r, caller)),
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-    };
+    return paginated(replies.map((r) => this.sanitizeComment(r, user)), total, page, limit);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Create
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Post a comment on a course. */
-  async createCourseComment(courseId: string, dto: CreateCommentDto, caller: CallerCtx) {
-    await this.assertCourseAccess(courseId, caller);
-    return this.createComment({ courseId }, dto, caller);
+  async createCourseComment(courseId: string, dto: CreateCommentDto, user: AuthUser) {
+    const target = await this.courseTarget(courseId, user, dto.divisionId, true);
+    return this.createComment(target, dto, user);
   }
 
-  /** Post a comment on an assignment. */
-  async createAssignmentComment(assignmentId: string, dto: CreateCommentDto, caller: CallerCtx) {
-    await this.assertAssignmentAccess(assignmentId, caller);
-    return this.createComment({ assignmentId }, dto, caller);
+  async createAssignmentComment(assignmentId: string, dto: CreateCommentDto, user: AuthUser) {
+    const target = await this.assignmentTarget(assignmentId, user);
+    return this.createComment(target, dto, user);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Edit
+  // Edit / delete (authors only; admins moderate with hide/restore/delete)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Edit own comment content. Admin may edit any comment. */
-  async update(commentId: string, dto: UpdateCommentDto, caller: CallerCtx) {
+  async update(commentId: string, dto: UpdateCommentDto, user: AuthUser) {
     const comment = await this.requireComment(commentId);
-    this.assertCommentEditAccess(comment, caller);
-
-    if (comment.status !== 'ACTIVE') {
-      throw new BadRequestException('Only ACTIVE comments can be edited.');
+    if (comment.authorId !== user.id) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'You can only edit your own comments.');
     }
+    await this.assertCanSeeComment(comment, user);
+    if (comment.status !== 'ACTIVE') throw invalidState('Only active comments can be edited.');
 
     const updated = await this.prisma.comment.update({
       where:  { id: commentId },
       data:   { content: dto.content },
       select: COMMENT_SELECT,
     });
-
-    return this.sanitizeComment(updated, caller);
+    return this.sanitizeComment(updated, user);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Delete (soft — preserves thread structure)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /** Soft-delete own comment (sets status to DELETED). */
-  async remove(commentId: string, caller: CallerCtx) {
+  /** Soft delete: content is replaced so the thread structure is preserved. */
+  async remove(commentId: string, user: AuthUser) {
     const comment = await this.requireComment(commentId);
-    this.assertCommentEditAccess(comment, caller);
-
-    if (comment.status === 'DELETED') {
-      throw new BadRequestException('Comment is already deleted.');
+    const isAuthor = comment.authorId === user.id;
+    if (!isAuthor && user.role !== 'ADMIN') {
+      throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'You can only delete your own comments.');
     }
+    if (isAuthor) await this.assertCanSeeComment(comment, user);
+    if (comment.status === 'DELETED') throw invalidState('Comment is already deleted.');
 
     await this.prisma.comment.update({
       where: { id: commentId },
       data:  { status: 'DELETED', content: '[deleted]' },
     });
 
+    if (!isAuthor) {
+      await this.audit.log({
+        actorId: user.id, actorRole: user.role,
+        action: 'DELETE_COMMENT', entity: 'Comment', entityId: commentId,
+        metadata: { authorId: comment.authorId },
+      });
+    }
     return { message: 'Comment deleted.' };
   }
 
@@ -169,41 +151,27 @@ export class DiscussionsService {
   // Moderation (Admin only)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Admin: hide a comment from public view. */
-  async hide(commentId: string, caller: CallerCtx) {
+  async hide(commentId: string, user: AuthUser) {
     const comment = await this.requireComment(commentId);
-
-    if (comment.status === 'HIDDEN') {
-      throw new BadRequestException('Comment is already hidden.');
-    }
-    if (comment.status === 'DELETED') {
-      throw new BadRequestException('Cannot hide a deleted comment.');
-    }
+    if (comment.status === 'HIDDEN')  throw invalidState('Comment is already hidden.');
+    if (comment.status === 'DELETED') throw invalidState('Cannot hide a deleted comment.');
 
     const updated = await this.prisma.comment.update({
       where:  { id: commentId },
-      data:   { status: 'HIDDEN', moderatedAt: new Date(), moderatedById: caller.id },
+      data:   { status: 'HIDDEN', moderatedAt: new Date(), moderatedById: user.id },
       select: COMMENT_SELECT,
     });
 
     await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'HIDE_COMMENT',
-      entity:    'Comment',
-      entityId:  commentId,
+      actorId: user.id, actorRole: user.role,
+      action: 'HIDE_COMMENT', entity: 'Comment', entityId: commentId,
     });
-
-    return this.sanitizeComment(updated, caller);
+    return this.sanitizeComment(updated, user);
   }
 
-  /** Admin: restore a hidden comment. */
-  async restore(commentId: string, caller: CallerCtx) {
+  async restore(commentId: string, user: AuthUser) {
     const comment = await this.requireComment(commentId);
-
-    if (comment.status !== 'HIDDEN') {
-      throw new BadRequestException('Only HIDDEN comments can be restored.');
-    }
+    if (comment.status !== 'HIDDEN') throw invalidState('Only hidden comments can be restored.');
 
     const updated = await this.prisma.comment.update({
       where:  { id: commentId },
@@ -212,56 +180,45 @@ export class DiscussionsService {
     });
 
     await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'RESTORE_COMMENT',
-      entity:    'Comment',
-      entityId:  commentId,
+      actorId: user.id, actorRole: user.role,
+      action: 'RESTORE_COMMENT', entity: 'Comment', entityId: commentId,
     });
+    return this.sanitizeComment(updated, user);
+  }
 
-    return this.sanitizeComment(updated, caller);
+  /** Admin moderation queue: hidden comments across all discussions. */
+  async listHidden(query: ListCommentsDto) {
+    const { page, limit, skip, take } = pageArgs(query);
+    const where = { status: 'HIDDEN' as const };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.comment.findMany({
+        where, skip, take, orderBy: { moderatedAt: 'desc' },
+        select: { ...COMMENT_SELECT, courseId: true, assignmentId: true, moderatedBy: { select: { id: true, username: true } } },
+      }),
+      this.prisma.comment.count({ where }),
+    ]);
+    return paginated(rows, total, page, limit);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Reactions
+  // Reactions — toggle
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Add a reaction to a comment. Idempotent — reacting with the same type
-   * a second time removes the reaction (toggle behaviour).
-   */
-  async react(commentId: string, dto: ReactCommentDto, caller: CallerCtx) {
+  async react(commentId: string, dto: ReactCommentDto, user: AuthUser) {
     const comment = await this.requireComment(commentId);
+    if (comment.status !== 'ACTIVE') throw invalidState('Cannot react to a hidden or deleted comment.');
+    await this.assertCanSeeComment(comment, user);
 
-    if (comment.status !== 'ACTIVE') {
-      throw new BadRequestException('Cannot react to a hidden or deleted comment.');
+    const key = { commentId_userId_type: { commentId, userId: user.id, type: dto.type } };
+    const { count } = await this.prisma.commentReaction.deleteMany({ where: key.commentId_userId_type });
+    if (count > 0) return { reacted: false, type: dto.type };
+
+    try {
+      await this.prisma.commentReaction.create({ data: { commentId, userId: user.id, type: dto.type } });
+    } catch (err) {
+      // A concurrent identical request already added it — the end state is the same.
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
     }
-
-    // Check access to the comment's parent content.
-    if (comment.courseId)     await this.assertCourseAccess(comment.courseId, caller);
-    if (comment.assignmentId) await this.assertAssignmentAccess(comment.assignmentId, caller);
-
-    const existing = await this.prisma.commentReaction.findUnique({
-      where: {
-        commentId_userId_type: { commentId, userId: caller.id, type: dto.type },
-      },
-    });
-
-    if (existing) {
-      // Toggle off — remove the reaction.
-      await this.prisma.commentReaction.delete({ where: { id: existing.id } });
-      return { reacted: false, type: dto.type };
-    }
-
-    await this.prisma.commentReaction.create({
-      data: {
-        id:        randomUUID(),
-        commentId,
-        userId:    caller.id,
-        type:      dto.type,
-      },
-    });
-
     return { reacted: true, type: dto.type };
   }
 
@@ -269,174 +226,121 @@ export class DiscussionsService {
   // Private helpers
   // ═══════════════════════════════════════════════════════════════════════════
 
-  private async listTopLevel(
-    target:  { courseId?: string; assignmentId?: string },
-    caller:  CallerCtx,
-    query:   ListCommentsDto,
-  ) {
-    const page  = query.page  ?? 1;
-    const limit = Math.min(query.limit ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
-    const skip  = (page - 1) * limit;
+  /**
+   * Resolve the division of a course thread.
+   *   Students: always their own division.
+   *   Mentors/admins: `divisionId` required when posting; when listing, admins
+   *   may omit it to see every division's thread.
+   */
+  private async courseTarget(courseId: string, user: AuthUser, divisionId: string | undefined, forWrite = false) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
+    if (!course) throw new NotFoundException('Course not found.');
 
-    const where = {
-      ...target,
-      parentId: null,
-      ...this.visibleFilter(caller),
-    };
+    const division = user.role === 'STUDENT' ? this.access.studentDivision(user) : divisionId;
+    if (!division) {
+      if (user.role === 'ADMIN' && !forWrite) return { courseId } as unknown as Target;
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId for course discussions.');
+    }
+    await this.access.assertCanView(user, { courseId, divisionId: division });
+    return { courseId, divisionId: division };
+  }
+
+  private async assignmentTarget(assignmentId: string, user: AuthUser): Promise<Target> {
+    const a = await this.prisma.assignment.findUnique({
+      where:  { id: assignmentId },
+      select: { id: true, courseId: true, divisionId: true, status: true },
+    });
+    if (!a) throw new NotFoundException('Assignment not found.');
+    await this.access.assertCanView(user, a);
+    if (user.role === 'STUDENT' && a.status !== 'PUBLISHED') throw new NotFoundException('Assignment not found.');
+    return { assignmentId, divisionId: a.divisionId };
+  }
+
+  /** Re-check access to the thread a comment belongs to; hidden/deleted parents block non-admins. */
+  private async assertCanSeeComment(
+    comment: { courseId: string | null; assignmentId: string | null; divisionId: string; status: string },
+    user: AuthUser,
+  ) {
+    if (comment.courseId) {
+      await this.access.assertCanView(user, { courseId: comment.courseId, divisionId: comment.divisionId });
+    } else if (comment.assignmentId) {
+      await this.assignmentTarget(comment.assignmentId, user);
+    }
+    if (user.role !== 'ADMIN' && comment.status === 'HIDDEN') {
+      throw new NotFoundException('Comment not found.');
+    }
+  }
+
+  private async listTopLevel(target: Target, user: AuthUser, query: ListCommentsDto) {
+    const { page, limit, skip, take } = pageArgs(query);
+    const where = { ...target, parentId: null, ...this.visibleFilter(user) };
 
     const [comments, total] = await this.prisma.$transaction([
-      this.prisma.comment.findMany({
-        where,
-        orderBy: { createdAt: 'asc' },
-        skip,
-        take:    limit,
-        select:  COMMENT_SELECT,
-      }),
+      this.prisma.comment.findMany({ where, orderBy: { createdAt: 'asc' }, skip, take, select: COMMENT_SELECT }),
       this.prisma.comment.count({ where }),
     ]);
 
-    return {
-      data: comments.map((c) => this.sanitizeComment(c, caller)),
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-    };
+    return paginated(comments.map((c) => this.sanitizeComment(c, user)), total, page, limit);
   }
 
-  private async createComment(
-    target:  { courseId?: string; assignmentId?: string },
-    dto:     CreateCommentDto,
-    caller:  CallerCtx,
-  ) {
+  private async createComment(target: Target, dto: CreateCommentDto, user: AuthUser) {
     let parentId: string | null = null;
 
     if (dto.parentId) {
-      const parent = await this.prisma.comment.findUnique({
-        where: { id: dto.parentId },
-      });
-      if (!parent) {
-        throw new NotFoundException('Parent comment not found.');
+      const parent = await this.prisma.comment.findUnique({ where: { id: dto.parentId } });
+      if (!parent) throw new NotFoundException('Parent comment not found.');
+
+      const sameThread =
+        parent.divisionId === target.divisionId &&
+        ('courseId' in target ? parent.courseId === target.courseId : parent.assignmentId === target.assignmentId);
+      if (!sameThread) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'WRONG_THREAD', 'Parent comment belongs to a different discussion.');
       }
-      // Verify parent belongs to the same target.
-      const targetKey = 'courseId' in target ? 'courseId' : 'assignmentId';
-      if ((parent as any)[targetKey] !== (target as any)[targetKey]) {
-        throw new BadRequestException('Parent comment belongs to a different target.');
-      }
-      // Replies to replies not supported.
       if (parent.parentId !== null) {
-        throw new BadRequestException('Replies to replies are not supported.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'NESTING_LIMIT', 'Replies to replies are not supported.');
       }
-      if (parent.status !== 'ACTIVE') {
-        throw new BadRequestException('Cannot reply to a hidden or deleted comment.');
-      }
+      if (parent.status !== 'ACTIVE') throw invalidState('Cannot reply to a hidden or deleted comment.');
       parentId = dto.parentId;
     }
 
     const comment = await this.prisma.comment.create({
-      data: {
-        id:       randomUUID(),
-        content:  dto.content,
-        status:   'ACTIVE',
-        ...target,
-        parentId,
-        authorId: caller.id,
-      },
+      data:   { content: dto.content, status: 'ACTIVE', ...target, parentId, authorId: user.id },
       select: COMMENT_SELECT,
     });
 
-    return this.sanitizeComment(comment, caller);
+    return this.sanitizeComment(comment, user);
   }
 
-  /**
-   * Status filter for comments:
-   * - ADMIN sees ACTIVE + HIDDEN (not DELETED).
-   * - Everyone else sees ACTIVE only.
-   */
-  private visibleFilter(caller: CallerCtx): Record<string, unknown> {
-    return caller.role === 'ADMIN'
+  /** Admins see ACTIVE + HIDDEN (not DELETED); everyone else ACTIVE only. */
+  private visibleFilter(user: AuthUser): Prisma.CommentWhereInput {
+    return user.role === 'ADMIN'
       ? { status: { in: ['ACTIVE', 'HIDDEN'] } }
       : { status: 'ACTIVE' };
   }
 
-  /**
-   * For DELETED comments: replace content with placeholder.
-   * Admin sees the moderation fields; others do not.
-   */
-  private sanitizeComment(comment: any, caller: CallerCtx) {
-    const base = {
-      id:        comment.id,
-      content:   comment.status === 'DELETED' ? '[deleted]' : comment.content,
-      status:    comment.status,
-      parentId:  comment.parentId,
-      createdAt: comment.createdAt,
-      updatedAt: comment.updatedAt,
-      author:    comment.status === 'DELETED' ? null : comment.author,
-      reactions: comment.reactions ?? [],
-      replyCount: comment._count?.replies ?? 0,
+  private sanitizeComment(comment: Prisma.CommentGetPayload<{ select: typeof COMMENT_SELECT }>, user: AuthUser) {
+    const counts: Record<string, number> = {};
+    for (const r of comment.reactions) counts[r.type] = (counts[r.type] ?? 0) + 1;
+
+    return {
+      id:         comment.id,
+      content:    comment.status === 'DELETED' ? '[deleted]' : comment.content,
+      status:     comment.status,
+      parentId:   comment.parentId,
+      divisionId: comment.divisionId,
+      createdAt:  comment.createdAt,
+      updatedAt:  comment.updatedAt,
+      author:     comment.status === 'DELETED' ? null : comment.author,
+      reactions:  counts,
+      myReactions: comment.reactions.filter((r) => r.userId === user.id).map((r) => r.type),
+      replyCount: comment._count.replies,
+      ...(user.role === 'ADMIN' && comment.status === 'HIDDEN' && { moderatedAt: comment.moderatedAt }),
     };
-
-    if (caller.role === 'ADMIN' && comment.status === 'HIDDEN') {
-      return { ...base, moderatedAt: comment.moderatedAt };
-    }
-
-    return base;
   }
 
   private async requireComment(id: string) {
     const c = await this.prisma.comment.findUnique({ where: { id } });
     if (!c) throw new NotFoundException('Comment not found.');
     return c;
-  }
-
-  private assertCommentEditAccess(
-    comment: { authorId: string; status: string },
-    caller: CallerCtx,
-  ) {
-    if (caller.role === 'ADMIN') return;
-    if (comment.authorId !== caller.id) {
-      throw new ForbiddenException('You can only edit your own comments.');
-    }
-  }
-
-  /**
-   * Check that the caller may access the course discussion.
-   * - ADMIN: always.
-   * - Course creator: always (even unpublished).
-   * - Others: only on PUBLISHED courses.
-   */
-  private async assertCourseAccess(courseId: string, caller: CallerCtx) {
-    if (caller.role === 'ADMIN') return;
-
-    const course = await this.prisma.course.findUnique({
-      where:  { id: courseId },
-      select: { status: true, createdById: true },
-    });
-    if (!course) throw new NotFoundException('Course not found.');
-
-    if (course.createdById === caller.id) return;
-
-    if (course.status !== 'PUBLISHED') {
-      throw new NotFoundException('Course not found.');
-    }
-  }
-
-  /**
-   * Check that the caller may access the assignment discussion.
-   * - ADMIN: always.
-   * - Assignment creator: always (even unpublished).
-   * - Others: only on PUBLISHED assignments.
-   */
-  private async assertAssignmentAccess(assignmentId: string, caller: CallerCtx) {
-    if (caller.role === 'ADMIN') return;
-
-    const assignment = await this.prisma.assignment.findUnique({
-      where:  { id: assignmentId },
-      select: { status: true, createdById: true },
-    });
-    if (!assignment) throw new NotFoundException('Assignment not found.');
-
-    if (assignment.createdById === caller.id) return;
-
-    if (assignment.status !== 'PUBLISHED') {
-      throw new NotFoundException('Assignment not found.');
-    }
   }
 }

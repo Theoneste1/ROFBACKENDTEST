@@ -1,17 +1,12 @@
 import { Module } from '@nestjs/common';
-import { CoursesController } from './courses.controller.js';
+import { AdminCoursesController, CoursesController, MyCoursesController } from './courses.controller.js';
 import { CoursesService } from './courses.service.js';
 import { CourseResourcesService } from './course-resources.service.js';
-import { PrismaModule } from '../prisma/prisma.module.js';
-import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
-  imports:     [PrismaModule, AuthModule],
-  controllers: [CoursesController],
-  // AuditService is provided by the @Global() AuditModule.
+  controllers: [CoursesController, AdminCoursesController, MyCoursesController],
+  // Prisma, Audit, Access and Storage come from @Global() modules.
   providers:   [CoursesService, CourseResourcesService],
   exports:     [CoursesService, CourseResourcesService],
 })
 export class CoursesModule {}
-
-

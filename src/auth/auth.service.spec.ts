@@ -1,18 +1,202 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { UnauthorizedException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service.js';
+import { hashToken } from './token.service.js';
+
+const PASSWORD = 'CorrectHorse1!';
+const HASH     = bcrypt.hashSync(PASSWORD, 4);
+const CLIENT   = { userAgent: 'vitest', ip: '127.0.0.1' };
+
+function makeMocks() {
+  const prisma = {
+    user: {
+      findFirst:  vi.fn().mockResolvedValue(null),
+      findUnique: vi.fn().mockResolvedValue(null),
+      create:     vi.fn(),
+      update:     vi.fn(),
+    },
+    mentorRequest:      { findFirst: vi.fn().mockResolvedValue(null) },
+    passwordResetToken: {
+      create:     vi.fn(),
+      findUnique: vi.fn().mockResolvedValue(null),
+      updateMany: vi.fn(),
+    },
+    school: { upsert: vi.fn() },
+    $transaction: vi.fn(),
+  };
+  // Interactive transactions run the callback against the same mock.
+  prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
+
+  const tokens = {
+    issue:                vi.fn().mockResolvedValue({ access_token: 'a', refresh_token: 'r' }),
+    rotate:               vi.fn(),
+    revoke:               vi.fn(),
+    revokeAllForUser:     vi.fn(),
+    blacklistAccessToken: vi.fn(),
+  };
+  const audit         = { log: vi.fn() };
+  const settings      = { get: vi.fn() };
+  const divisions     = { idForGrade: vi.fn().mockResolvedValue('div-junior') };
+  const notifications = { queueEmail: vi.fn() };
+
+  const service = new AuthService(
+    prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
+  );
+  return { service, prisma, tokens, audit, settings, divisions, notifications };
+}
+
+const activeUser = (overrides: Record<string, unknown> = {}) => ({
+  id: 'u1', role: 'STUDENT', passwordHash: HASH, isActive: true, isApproved: true, ...overrides,
+});
 
 describe('AuthService', () => {
-  let service: AuthService;
+  describe('login', () => {
+    it('rejects an unknown user with 401', async () => {
+      const { service, tokens } = makeMocks();
+      await expect(service.login({ username: 'ghost', password: PASSWORD }, CLIENT))
+        .rejects.toBeInstanceOf(UnauthorizedException);
+      expect(tokens.issue).not.toHaveBeenCalled();
+    });
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [AuthService],
-    }).compile();
+    it('rejects a wrong password with 401', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.user.findFirst.mockResolvedValue(activeUser());
+      await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT))
+        .rejects.toBeInstanceOf(UnauthorizedException);
+    });
 
-    service = module.get<AuthService>(AuthService);
+    it('does not reveal suspension when the password is wrong', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.user.findFirst.mockResolvedValue(activeUser({ isActive: false }));
+      await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT))
+        .rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('reports ACCOUNT_SUSPENDED for an inactive user with the correct password', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findFirst.mockResolvedValue(activeUser({ isActive: false }));
+      await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT))
+        .rejects.toMatchObject({ code: 'ACCOUNT_SUSPENDED', status: 403 });
+      expect(tokens.issue).not.toHaveBeenCalled();
+    });
+
+    it('reports ACCOUNT_PENDING_APPROVAL for an unapproved user', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.user.findFirst.mockResolvedValue(activeUser({ isApproved: false }));
+      await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT))
+        .rejects.toMatchObject({ code: 'ACCOUNT_PENDING_APPROVAL' });
+    });
+
+    it('looks up by email when the identifier contains @', async () => {
+      const { service, prisma } = makeMocks();
+      await expect(service.login({ username: 'a@x.rw', password: PASSWORD }, CLIENT)).rejects.toThrow();
+      expect(prisma.user.findFirst.mock.calls[0][0].where).toEqual({ email: 'a@x.rw' });
+    });
+
+    it('issues tokens and returns the profile on success', async () => {
+      const { service, prisma, tokens, audit } = makeMocks();
+      prisma.user.findFirst.mockResolvedValue(activeUser());
+      prisma.user.update.mockResolvedValue({ id: 'u1', username: 'alice' });
+
+      const result = await service.login({ username: 'alice', password: PASSWORD }, CLIENT);
+
+      expect(tokens.issue).toHaveBeenCalledWith('u1', CLIENT);
+      expect(prisma.user.update.mock.calls[0][0].data.lastLoginAt).toBeInstanceOf(Date);
+      expect(result).toEqual({ access_token: 'a', refresh_token: 'r', user: { id: 'u1', username: 'alice' } });
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'LOGIN', actorId: 'u1' }));
+    });
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  describe('registerStudent', () => {
+    const dto = {
+      firstName: 'A', lastName: 'B', username: 'ab', email: 'ab@x.rw', password: 'Passw0rd!!',
+      gradeLevel: 'S2', schoolName: 'GS Kigali', schoolLocation: 'Kigali', homeLocation: 'Gasabo',
+    } as any;
+
+    it('fails with REGISTRATION_CLOSED when self-signup is disabled', async () => {
+      const { service, prisma, settings } = makeMocks();
+      settings.get.mockResolvedValue(false);
+      await expect(service.registerStudent(dto)).rejects.toMatchObject({ code: 'REGISTRATION_CLOSED', status: 403 });
+      expect(settings.get).toHaveBeenCalledWith('registration.studentSelfSignup');
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('fails with IDENTITY_TAKEN when a pending mentor request uses the username', async () => {
+      const { service, prisma, settings } = makeMocks();
+      settings.get.mockResolvedValue(true);
+      prisma.mentorRequest.findFirst.mockResolvedValue({ id: 'mr1' });
+      await expect(service.registerStudent(dto)).rejects.toMatchObject({ code: 'IDENTITY_TAKEN', status: 409 });
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('forgotPassword', () => {
+    const GENERIC = { message: 'If an account exists for that e-mail, a reset link has been sent.' };
+
+    it('returns the generic message and sends nothing for an unknown email', async () => {
+      const { service, prisma, notifications } = makeMocks();
+      await expect(service.forgotPassword('nobody@x.rw')).resolves.toEqual(GENERIC);
+      expect(notifications.queueEmail).not.toHaveBeenCalled();
+      expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+    });
+
+    it('sends nothing for a suspended account', async () => {
+      const { service, prisma, notifications } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1', firstName: 'A', email: 'a@x.rw', isActive: false, provider: 'LOCAL',
+      });
+      await expect(service.forgotPassword('a@x.rw')).resolves.toEqual(GENERIC);
+      expect(notifications.queueEmail).not.toHaveBeenCalled();
+    });
+
+    it('stores a hashed token and e-mails a link for an active local account', async () => {
+      const { service, prisma, notifications } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1', firstName: 'A', email: 'a@x.rw', isActive: true, provider: 'LOCAL',
+      });
+
+      await expect(service.forgotPassword('a@x.rw')).resolves.toEqual(GENERIC);
+
+      expect(notifications.queueEmail).toHaveBeenCalledOnce();
+      const [to, , , opts] = notifications.queueEmail.mock.calls[0];
+      expect(to).toBe('a@x.rw');
+      const token = decodeURIComponent((opts.link as string).split('token=')[1]);
+      const stored = prisma.passwordResetToken.create.mock.calls[0][0].data;
+      expect(stored.tokenHash).toBe(hashToken(token));
+      expect(stored.tokenHash).not.toBe(token);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('rejects an unknown token with INVALID_RESET_TOKEN', async () => {
+      const { service } = makeMocks();
+      await expect(service.resetPassword('nope', 'NewPassw0rd!')).rejects.toMatchObject({ code: 'INVALID_RESET_TOKEN' });
+    });
+
+    it('rejects an expired token', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.passwordResetToken.findUnique.mockResolvedValue({
+        id: 't1', userId: 'u1', usedAt: null, expiresAt: new Date(Date.now() - 1000),
+      });
+      await expect(service.resetPassword('tok', 'NewPassw0rd!')).rejects.toMatchObject({ code: 'INVALID_RESET_TOKEN' });
+    });
+  });
+
+  describe('changePassword', () => {
+    it('rejects a wrong current password with WRONG_PASSWORD', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ passwordHash: HASH, role: 'STUDENT' });
+      await expect(service.changePassword('u1', 'wrong', 'NewPassw0rd!')).rejects.toMatchObject({ code: 'WRONG_PASSWORD' });
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('logout', () => {
+    it('blacklists the access token and revokes the refresh token', async () => {
+      const { service, tokens } = makeMocks();
+      await service.logout({ id: 'u1', role: 'STUDENT', jti: 'j1', exp: 123 }, 'refresh');
+      expect(tokens.blacklistAccessToken).toHaveBeenCalledWith('j1', 123);
+      expect(tokens.revoke).toHaveBeenCalledWith('refresh');
+    });
   });
 });

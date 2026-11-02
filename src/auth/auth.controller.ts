@@ -1,71 +1,165 @@
 import {
   Body,
   Controller,
-  Get,
+  HttpCode,
+  Patch,
   Post,
-  Request,
-  UseGuards,
+  Req,
+  Res,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { CookieOptions, Request, Response } from 'express';
 
 import { AuthService } from './auth.service.js';
 import { RegisterStudentDto } from './dto/register-student.dto.js';
 import { RegisterAdminDto } from './dto/register-admin.dto.js';
 import { LoginDto } from './dto/login.dto.js';
-import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
-import { RolesGuard } from './guards/roles.guard.js';
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  RefreshTokenDto,
+  ResetPasswordDto,
+} from './dto/password.dto.js';
 import { Roles } from './decorators/roles.decorator.js';
+import { Public } from '../common/decorators/public.decorator.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import type { AuthUser } from '../common/auth-user.js';
+import type { ClientInfo, IssuedTokens } from './token.service.js';
 
+export const REFRESH_COOKIE = 'rof_refresh';
+
+/** Strict limit for credential endpoints: 10 requests per minute per IP. */
+const CREDENTIAL_LIMIT = { default: { limit: 10, ttl: 60_000 } };
+
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly config:      ConfigService,
+  ) {}
 
   // ─── Student self-registration (public) ────────────────────────────────────
+  @Public()
+  @Throttle(CREDENTIAL_LIMIT)
   @Post('register/student')
-  async registerStudent(@Body() body: RegisterStudentDto) {
+  registerStudent(@Body() body: RegisterStudentDto) {
     return this.authService.registerStudent(body);
   }
 
   // ─── Admin account creation (ADMIN only) ───────────────────────────────────
-  @Post('register/admin')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @Roles('ADMIN')
-  async registerAdmin(@Body() body: RegisterAdminDto, @Request() req: any) {
-    return this.authService.registerAdmin(body, req.user.id);
+  @Post('register/admin')
+  registerAdmin(@Body() body: RegisterAdminDto, @CurrentUser() user: AuthUser) {
+    return this.authService.registerAdmin(body, user.id);
   }
 
   // ─── Login (all roles, public) ─────────────────────────────────────────────
+  /**
+   * Returns a short-lived access token and a refresh token. The refresh token
+   * is also set as an httpOnly cookie for browser clients.
+   */
+  @Public()
+  @Throttle(CREDENTIAL_LIMIT)
+  @HttpCode(200)
   @Post('login')
-  async login(@Body() body: LoginDto) {
-    return this.authService.login(body);
+  async login(
+    @Body() body: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(body, clientInfo(req));
+    this.setRefreshCookie(res, result);
+    return result;
   }
 
-  // ─── Logout (any authenticated user) ──────────────────────────────────────
+  // ─── Refresh (public — authenticated by the refresh token itself) ──────────
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('refresh')
+  async refresh(
+    @Body() body: RefreshTokenDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token  = body.refreshToken ?? req.cookies?.[REFRESH_COOKIE];
+    const tokens = await this.authService.refresh(token ?? '', clientInfo(req));
+    this.setRefreshCookie(res, tokens);
+    return tokens;
+  }
+
+  // ─── Logout (current session) ──────────────────────────────────────────────
+  @ApiBearerAuth()
+  @HttpCode(200)
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  async logout(@Request() req: any) {
-    const { jti, exp, id, role } = req.user;
-
-    if (!jti) {
-      // Token was issued before jti support was added — nothing to blacklist.
-      return { message: 'Logged out successfully.' };
-    }
-
-    // exp is in seconds (Unix epoch); convert to Date for the blacklist record.
-    const expiresAt = exp ? new Date(exp * 1000) : new Date(Date.now() + 86_400_000);
-
-    await this.authService.logout(jti, expiresAt, id, role);
-
+  async logout(
+    @CurrentUser() user: AuthUser,
+    @Body() body: RefreshTokenDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(user, body.refreshToken ?? req.cookies?.[REFRESH_COOKIE]);
+    res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
     return { message: 'Logged out successfully.' };
   }
 
-  // ─── Who am I? (any authenticated user) ───────────────────────────────────
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  getMe(@Request() req: any) {
+  // ─── Logout everywhere ─────────────────────────────────────────────────────
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @Post('logout-all')
+  async logoutAll(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
+    await this.authService.logoutAll(user);
+    res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
+    return { message: 'All sessions have been signed out.' };
+  }
+
+  // ─── Passwords ─────────────────────────────────────────────────────────────
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('forgot-password')
+  forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.authService.forgotPassword(body.email);
+  }
+
+  @Public()
+  @Throttle(CREDENTIAL_LIMIT)
+  @HttpCode(200)
+  @Post('reset-password')
+  resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body.token, body.newPassword);
+  }
+
+  @ApiBearerAuth()
+  @Throttle(CREDENTIAL_LIMIT)
+  @Patch('password')
+  changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto) {
+    return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
+  }
+
+  // ─── Cookie helpers ────────────────────────────────────────────────────────
+
+  private cookieOptions(): CookieOptions {
     return {
-      id:       req.user.id,
-      username: req.user.username,
-      role:     req.user.role,
+      httpOnly: true,
+      secure:   this.config.get('NODE_ENV') === 'production',
+      sameSite: 'strict',
+      path:     '/api/v1/auth',
     };
   }
+
+  private setRefreshCookie(res: Response, tokens: Pick<IssuedTokens, 'refresh_token' | 'refresh_expires_at'>) {
+    res.cookie(REFRESH_COOKIE, tokens.refresh_token, {
+      ...this.cookieOptions(),
+      expires: tokens.refresh_expires_at,
+    });
+  }
+}
+
+function clientInfo(req: Request): ClientInfo {
+  return { userAgent: req.get('user-agent') ?? undefined, ip: req.ip };
 }

@@ -1,18 +1,13 @@
-import { IsInt, IsOptional, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsUUID } from 'class-validator';
+import { PaginationQueryDto } from '../../common/pagination.js';
 
-export class ListCommentsDto {
-  /** Page number (1-based). Default: 1. */
+export class ListCommentsDto extends PaginationQueryDto {
+  /**
+   * Course threads only: which division's thread to read.
+   * Ignored for students (always their own division); required for mentors;
+   * optional for admins (omit to see all divisions).
+   */
   @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number;
-
-  /** Page size. Default: 20. Maximum: 100. */
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  limit?: number;
+  @IsUUID()
+  divisionId?: string;
 }

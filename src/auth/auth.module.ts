@@ -1,35 +1,31 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
-import { ScheduleModule } from '@nestjs/schedule';
 
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { TokenService } from './token.service.js';
 import { TokenCleanupService } from './token-cleanup.service.js';
-import { PrismaModule } from '../prisma/prisma.module.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
 @Module({
   imports: [
-    PrismaModule,
-    ConfigModule,
-    ScheduleModule.forRoot(),
-
     PassportModule.register({ defaultStrategy: 'jwt' }),
-
     JwtModule.registerAsync({
-      imports: [ConfigModule],
       inject:  [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret:      configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1d' },
+      useFactory: (config: ConfigService) => ({
+        // getOrThrow: never sign tokens with an undefined secret.
+        secret:      config.getOrThrow<string>('JWT_SECRET'),
+        signOptions: { algorithm: 'HS256', expiresIn: Number(config.get('JWT_ACCESS_TTL_SECONDS') ?? 900) },
+        verifyOptions: { algorithms: ['HS256'] },
       }),
     }),
   ],
   controllers: [AuthController],
-  // AuditService is provided by the @Global() AuditModule — no re-provision needed.
-  providers: [AuthService, JwtStrategy, TokenCleanupService],
-  exports:   [AuthService, PassportModule, JwtModule],
+  // AuditService, SettingsService, DivisionsService and NotificationsService
+  // come from @Global() modules.
+  providers: [AuthService, TokenService, JwtStrategy, TokenCleanupService],
+  exports:   [AuthService, TokenService],
 })
 export class AuthModule {}

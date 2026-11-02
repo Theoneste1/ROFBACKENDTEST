@@ -2,8 +2,12 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHello(): string {
-    return 'Hello World!';
+  getInfo() {
+    return {
+      name:    'ROF LMS API',
+      version: '1.0.0',
+      docs:    '/api/docs',
+      health:  '/health',
+    };
   }
-  
 }

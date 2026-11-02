@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
+import { IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateCommentDto {
@@ -13,10 +13,18 @@ export class CreateCommentDto {
 
   /**
    * If set, this comment is a reply to the specified parent comment.
-   * The parent must belong to the same course or assignment.
+   * The parent must belong to the same discussion.
    * Only one level of nesting is supported: a reply cannot itself have a parentId.
    */
   @IsOptional()
   @IsUUID()
   parentId?: string;
+
+  /**
+   * Course threads posted by mentors/admins: which division's thread.
+   * Ignored for students and for assignment threads.
+   */
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
 }

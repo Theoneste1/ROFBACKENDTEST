@@ -3,50 +3,52 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
-  Request,
-  UseGuards,
+  Query,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 
 import { MentorRequestsService } from './mentor-requests.service.js';
-import { CreateMentorRequestDto } from './dto/create-mentor-request.dto.js';
-
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { CreateMentorRequestDto, ListMentorRequestsDto } from './dto/create-mentor-request.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { Public } from '../common/decorators/public.decorator.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import type { AuthUser } from '../common/auth-user.js';
 
+@ApiTags('Mentor requests')
 @Controller('mentor-requests')
 export class MentorRequestsController {
   constructor(private readonly mentorRequestsService: MentorRequestsService) {}
 
   // ─── Public: submit a mentor application ──────────────────────────────────
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post()
-  async create(@Body() body: CreateMentorRequestDto) {
+  create(@Body() body: CreateMentorRequestDto) {
     return this.mentorRequestsService.create(body);
   }
 
-  // ─── ADMIN: list all requests ──────────────────────────────────────────────
+  // ─── ADMIN: list requests (filter with ?status=PENDING) ────────────────────
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  async findAll() {
-    return this.mentorRequestsService.findAll();
+  findAll(@Query() query: ListMentorRequestsDto) {
+    return this.mentorRequestsService.findAll(query);
   }
 
-  // ─── ADMIN: approve ────────────────────────────────────────────────────────
+  // ─── ADMIN: approve (creates the mentor account) ───────────────────────────
   @Patch(':id/approve')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  async approve(@Param('id') id: string, @Request() req: any) {
-    return this.mentorRequestsService.approve(id, { id: req.user.id, role: req.user.role });
+  approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.mentorRequestsService.approve(id, user);
   }
 
   // ─── ADMIN: reject ─────────────────────────────────────────────────────────
   @Patch(':id/reject')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  async reject(@Param('id') id: string, @Request() req: any) {
-    return this.mentorRequestsService.reject(id, { id: req.user.id, role: req.user.role });
+  reject(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.mentorRequestsService.reject(id, user);
   }
 }

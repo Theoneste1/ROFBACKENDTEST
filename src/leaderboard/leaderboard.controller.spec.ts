@@ -1,18 +1,32 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Reflector } from '@nestjs/core';
 import { LeaderboardController } from './leaderboard.controller.js';
+import { ROLES_KEY } from '../auth/decorators/roles.decorator.js';
+import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
 
-describe('LeaderboardController', () => {
-  let controller: LeaderboardController;
+const reflector = new Reflector();
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [LeaderboardController],
-    }).compile();
+function effective(method: string, key: string) {
+  const handler = (LeaderboardController.prototype as unknown as Record<string, Function>)[method];
+  return reflector.getAllAndOverride(key, [handler, LeaderboardController]);
+}
 
-    controller = module.get<LeaderboardController>(LeaderboardController);
+describe('LeaderboardController authorization metadata', () => {
+  it('has no class-level roles', () => {
+    expect(Reflect.getMetadata(ROLES_KEY, LeaderboardController)).toBeUndefined();
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('findMine is STUDENT only', () => {
+    expect(effective('findMine', ROLES_KEY)).toEqual(['STUDENT']);
+  });
+
+  it.each(['findGeneral', 'findSchoolSummary'])(
+    '%s is open to any authenticated role (the service scopes the division)',
+    (method) => {
+      expect(effective(method, ROLES_KEY)).toBeUndefined();
+    },
+  );
+
+  it.each(['findGeneral', 'findMine', 'findSchoolSummary'])('%s is not public', (method) => {
+    expect(effective(method, IS_PUBLIC_KEY)).toBeUndefined();
   });
 });

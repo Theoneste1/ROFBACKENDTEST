@@ -1,18 +1,22 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from './prisma.service.js';
 
 describe('PrismaService', () => {
-  let service: PrismaService;
+  const original = process.env.DATABASE_URL;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [PrismaService],
-    }).compile();
-
-    service = module.get<PrismaService>(PrismaService);
+  beforeAll(() => {
+    process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/unit_test_dummy';
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterAll(() => {
+    process.env.DATABASE_URL = original;
+  });
+
+  // Assertions stay on primitives: the Prisma client is a Proxy that neither
+  // `instanceof` nor the matcher's object formatter handles well.
+  it('constructs without connecting to the database', () => {
+    const service = new PrismaService();
+    expect(typeof service.$connect).toBe('function');
+    expect(typeof service.onModuleInit).toBe('function');
+    expect(typeof service.onModuleDestroy).toBe('function');
   });
 });

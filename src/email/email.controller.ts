@@ -3,18 +3,28 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
-  Request,
-  UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
+import { IsEnum, IsOptional } from 'class-validator';
 
 import { EmailService } from './email.service.js';
 import { SendEmailDto } from './dto/send-email.dto.js';
 import { ListUsersDto } from './dto/list-users.dto.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { PaginationQueryDto } from '../common/pagination.js';
+import type { AuthUser } from '../common/auth-user.js';
+import { EmailDeliveryStatus } from '../generated/prisma/client.js';
+
+class ListDeliveriesDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsEnum(EmailDeliveryStatus)
+  status?: EmailDeliveryStatus;
+}
 
 /**
  * All routes in this controller are ADMIN only.
@@ -22,73 +32,49 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
  * Email addresses and recipient lists are sensitive — they must never be
  * exposed to non-admin roles.
  */
+@ApiTags('Admin · Email')
 @Controller('admin/email')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class EmailController {
   constructor(private readonly emailService: EmailService) {}
 
-  // ─── User search ──────────────────────────────────────────────────────────
-
-  /**
-   * Paginated, filterable user list with email addresses.
-   * Supports filtering by role, school, approval status, and free-text search.
-   *
-   * GET /admin/email/users?role=STUDENT&search=alice&page=1&limit=50
-   */
+  /** Paginated, filterable user list with email addresses. */
   @Get('users')
   listUsers(@Query() query: ListUsersDto) {
     return this.emailService.listUsers(query);
   }
 
-  // ─── Bulk email ───────────────────────────────────────────────────────────
-
   /**
-   * Dispatch a bulk email job.
-   *
-   * Returns a job record immediately. Delivery runs in the background.
-   * Use the idempotencyKey to safely retry without duplicate sends.
-   *
-   * Response includes `alreadyExisted: true` when the key was already used,
-   * which means the original job is returned unchanged.
-   *
-   * POST /admin/email/send
+   * Queue a bulk e-mail. Returns the job immediately; sending happens in the
+   * background. Re-using an idempotencyKey returns the original job
+   * (`alreadyExisted: true`) instead of sending again.
    */
   @Post('send')
-  send(@Body() body: SendEmailDto, @Request() req: any) {
-    return this.emailService.sendBulk(body, { id: req.user.id, role: req.user.role });
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  send(@Body() body: SendEmailDto, @CurrentUser() user: AuthUser) {
+    return this.emailService.sendBulk(body, user);
   }
 
-  /**
-   * List all email jobs (no message bodies — subject + counts only).
-   *
-   * GET /admin/email/jobs
-   */
+  /** Jobs with progress counters (no message bodies). */
   @Get('jobs')
-  listJobs() {
-    return this.emailService.listJobs();
+  listJobs(@Query() query: PaginationQueryDto) {
+    return this.emailService.listJobs(query);
   }
 
-  /**
-   * Get a single job with full per-recipient delivery records.
-   * Shows which addresses were accepted or failed and any error messages.
-   * Message body is not included in the response.
-   *
-   * GET /admin/email/jobs/:id
-   */
   @Get('jobs/:id')
-  getJob(@Param('id') id: string) {
+  getJob(@Param('id', ParseUUIDPipe) id: string) {
     return this.emailService.getJob(id);
   }
 
-  /**
-   * Retry all FAILED deliveries for a job.
-   * SENT deliveries are never re-processed — no duplicate sends.
-   *
-   * POST /admin/email/jobs/:id/retry
-   */
+  /** Per-recipient delivery status (filter with ?status=FAILED). */
+  @Get('jobs/:id/deliveries')
+  listDeliveries(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListDeliveriesDto) {
+    return this.emailService.listDeliveries(id, query);
+  }
+
+  /** Re-queue FAILED deliveries. SENT deliveries are never re-sent. */
   @Post('jobs/:id/retry')
-  retryJob(@Param('id') id: string, @Request() req: any) {
-    return this.emailService.retryJob(id, { id: req.user.id, role: req.user.role });
+  retryJob(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.emailService.retryJob(id, user);
   }
 }

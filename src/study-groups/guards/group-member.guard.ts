@@ -15,11 +15,11 @@ import { PrismaService } from '../../prisma/prisma.service.js';
  *
  * ADMIN always passes (they manage groups, not participate as members).
  *
- * IMPORTANT: This guard supplements the global RolesGuard; it does not replace
- * it.  Routes that need this guard should also apply JwtAuthGuard first.
+ * IMPORTANT: This guard runs after the global JwtAuthGuard and RolesGuard; it
+ * adds the membership check on top of them.
  *
  * Authorization chain for member-only content:
- *   @UseGuards(JwtAuthGuard, GroupMemberGuard)
+ *   @UseGuards(GroupMemberGuard)
  *
  * This guard reads `StudyGroupMember.groupRole` only to let the handler
  * know the user's in-group role.  It never elevates or changes global Role.

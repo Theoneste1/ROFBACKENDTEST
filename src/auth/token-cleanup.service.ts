@@ -1,41 +1,56 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 /**
  * TokenCleanupService
  *
- * Periodically removes expired rows from the TokenBlacklist table.
+ * Hourly removal of rows that can never be used again:
+ *   - TokenBlacklist entries whose access token has expired anyway.
+ *   - Refresh tokens that expired, or were revoked/rotated more than a day ago
+ *     (kept briefly so reuse detection still works for recently rotated tokens).
+ *   - Password-reset tokens that expired or were used.
  *
- * Why this is needed:
- *   On logout we write the JWT's jti into TokenBlacklist with its expiry time.
- *   Once a token's expiresAt is in the past, the JWT itself would be rejected
- *   by Passport/JWT before the blacklist is even checked, so those rows are
- *   permanently dead weight. Without cleanup the table grows unboundedly.
- *
- * Schedule: every hour (CronExpression.EVERY_HOUR).
- *   Tokens expire after 1 day (configured in JwtModule). In the worst case
- *   the table holds at most (activeUsers × logoutsPerDay) rows.  Hourly
- *   cleanup keeps this bounded to roughly 1 hour's worth of stale records.
- *
- * Safety: `deleteMany` with a `expiresAt < now()` filter is purely additive-
- *   safe — it never removes a still-valid blacklist entry.
+ * `deleteMany` with time filters never removes a still-meaningful record.
  */
 @Injectable()
 export class TokenCleanupService {
   private readonly logger = new Logger(TokenCleanupService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma:  PrismaService,
+    private readonly config:  ConfigService,
+  ) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_HOUR, { name: 'token-cleanup' })
   async cleanupExpiredTokens(): Promise<void> {
-    const now = new Date();
-    const result = await this.prisma.tokenBlacklist.deleteMany({
-      where: { expiresAt: { lt: now } },
-    });
+    if (this.config.get('WORKERS_ENABLED') === 'false') return;
 
-    if (result.count > 0) {
-      this.logger.log(`Cleaned up ${result.count} expired token blacklist record(s).`);
+    const now     = new Date();
+    const dayAgo  = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [blacklist, refresh, resets] = await this.prisma.$transaction([
+      this.prisma.tokenBlacklist.deleteMany({ where: { expiresAt: { lt: now } } }),
+      this.prisma.refreshToken.deleteMany({
+        where: {
+          OR: [
+            { expiresAt: { lt: now } },
+            { revokedAt: { lt: dayAgo } },
+            { rotatedAt: { lt: dayAgo } },
+          ],
+        },
+      }),
+      this.prisma.passwordResetToken.deleteMany({
+        where: { OR: [{ expiresAt: { lt: now } }, { usedAt: { not: null } }] },
+      }),
+    ]);
+
+    const total = blacklist.count + refresh.count + resets.count;
+    if (total > 0) {
+      this.logger.log(
+        `Cleaned up ${blacklist.count} blacklisted, ${refresh.count} refresh and ${resets.count} reset token(s).`,
+      );
     }
   }
 }

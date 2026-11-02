@@ -1,60 +1,67 @@
 import {
   IsEmail,
+  IsEnum,
   IsString,
   Length,
   Matches,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { GradeLevel } from '../../generated/prisma/client.js';
+import { IsStrongPassword, lower, trim } from './password.rules.js';
 
 /** Normalise a string to Title Case, trim whitespace. */
-const toTitleCase = (value: string) =>
+export const toTitleCase = (value: string) =>
   value
     .trim()
+    .replace(/\s+/g, ' ')
     .replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+const titleCase = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? toTitleCase(value) : value;
 
 export class RegisterStudentDto {
   @IsString()
   @Length(1, 100)
-  @Transform(({ value }: { value: string }) => value?.trim())
+  @Transform(trim)
   firstName: string;
 
   @IsString()
   @Length(1, 100)
-  @Transform(({ value }: { value: string }) => value?.trim())
+  @Transform(trim)
   lastName: string;
 
   @IsString()
   @Length(3, 30)
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
+  @Matches(/^[a-z0-9._-]+$/, { message: 'Username may contain letters, digits, ".", "_" and "-" only.' })
+  @Transform(lower)
   username: string;
 
   @IsEmail()
-  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
+  @Transform(lower)
   email: string;
 
-  @IsString()
-  @Length(8, 100)
-  @Matches(/(?=.*[a-zA-Z])(?=.*[0-9])/, {
-    message: 'Password must contain at least one letter and one number.',
-  })
+  @IsStrongPassword()
   password: string;
 
-  /** Name of the school attended. Will be normalised to Title Case and
-   *  matched against existing School records to avoid duplicates. */
+  /** S1–S3 places the student in the Junior division, S4–S6 in Senior. */
+  @IsEnum(GradeLevel, { message: 'gradeLevel must be one of S1, S2, S3, S4, S5, S6.' })
+  gradeLevel: GradeLevel;
+
+  /** Name of the school attended. Normalised to Title Case and de-duplicated. */
   @IsString()
   @Length(2, 200)
-  @Transform(({ value }: { value: string }) => toTitleCase(value))
+  @Transform(titleCase)
   schoolName: string;
 
   /** City / region where the school is located. */
   @IsString()
   @Length(2, 200)
-  @Transform(({ value }: { value: string }) => toTitleCase(value))
+  @Transform(titleCase)
   schoolLocation: string;
 
   /** Student's home city / region. */
   @IsString()
   @Length(2, 200)
-  @Transform(({ value }: { value: string }) => toTitleCase(value))
+  @Transform(titleCase)
   homeLocation: string;
 }

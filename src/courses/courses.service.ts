@@ -1,446 +1,234 @@
-
 import {
-  BadRequestException,
-  ForbiddenException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
-import { CreateCourseDto } from './dto/create-course.dto.js';
+import { AccessService } from '../common/access/access.service.js';
+import { AppError, invalidState } from '../common/errors/app-error.js';
+import type { AuthUser, CallerCtx } from '../common/auth-user.js';
+import type { CourseEnrollmentStatus } from '../generated/prisma/client.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
-import { RejectCourseDto } from './dto/reject-course.dto.js';
-import type { CallerCtx } from '../submissions/submissions.service.js';
 
 // ─── Student-facing display labels ───────────────────────────────────────────
 //
-// The requirement mandates these exact strings in API responses.
 // Internal enum values are UNROLLED / ROLLED / COMPLETED.
 
-const DISPLAY_LABELS: Record<string, string> = {
+const DISPLAY_LABELS: Record<CourseEnrollmentStatus, string> = {
   UNROLLED:  'Unrolled',
   ROLLED:    'Rolled',
   COMPLETED: 'Completed',
 };
 
-/** Statuses that are safe to edit (draft or sent back after rejection). */
-const EDITABLE_STATUSES = ['DRAFT', 'REJECTED'] as const;
-
-const COURSE_SUMMARY_SELECT = {
+const COURSE_SELECT = {
   id:          true,
+  code:        true,
   title:       true,
   description: true,
-  subject:     true,
   status:      true,
+  sortOrder:   true,
   publishedAt: true,
-  createdAt:   true,
-  createdById: true,
-  createdBy: {
-    select: { id: true, firstName: true, lastName: true, username: true },
-  },
 } as const;
 
+/**
+ * The four fixed Mathematics courses (Algebra, Geometry, Number Theory,
+ * Combinatorics). Courses are created by the seed; admins may edit their
+ * text and visibility but cannot create or delete them.
+ */
 @Injectable()
 export class CoursesService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly audit:  AuditService,
+    private readonly prisma:  PrismaService,
+    private readonly audit:   AuditService,
+    private readonly access:  AccessService,
   ) {}
 
-  // ─── MENTOR (+ADMIN): Create a course draft ───────────────────────────────
-  async create(data: CreateCourseDto, caller: CallerCtx) {
-    const course = await this.prisma.course.create({
-      data: {
-        title:       data.title,
-        description: data.description,
-        subject:     data.subject,
-        status:      'DRAFT',
-        createdById: caller.id,
-      },
-      select: COURSE_SUMMARY_SELECT,
-    });
-
-    await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'CREATE_COURSE',
-      entity:    'Course',
-      entityId:  course.id,
-      metadata:  { title: course.title, subject: course.subject },
-    });
-
-    return course;
-  }
-
-  // ─── MENTOR (+ADMIN): Update own draft / rejected course ─────────────────
-  async update(courseId: string, data: UpdateCourseDto, caller: CallerCtx) {
-    const course = await this.findOrThrow(courseId);
-
-    // Only creator or admin may edit.
-    if (caller.role !== 'ADMIN' && course.createdById !== caller.id) {
-      throw new ForbiddenException('You can only edit your own courses.');
-    }
-
-    // Can only edit while in DRAFT or REJECTED state.
-    if (!EDITABLE_STATUSES.includes(course.status as any)) {
-      throw new BadRequestException(
-        `A course in "${course.status}" status cannot be edited. Recall it first.`,
-      );
-    }
-
-    if (Object.keys(data).length === 0) {
-      throw new BadRequestException('At least one field must be provided.');
-    }
-
-    const updated = await this.prisma.course.update({
-      where:  { id: courseId },
-      data:   {
-        title:       data.title,
-        description: data.description,
-        subject:     data.subject,
-      },
-      select: COURSE_SUMMARY_SELECT,
-    });
-
-    await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'UPDATE_COURSE',
-      entity:    'Course',
-      entityId:  courseId,
-    });
-
-    return updated;
-  }
-
-  // ─── MENTOR (+ADMIN): Submit a draft for admin review ─────────────────────
-  async submitForReview(courseId: string, caller: CallerCtx) {
-    const course = await this.findOrThrow(courseId);
-
-    if (caller.role !== 'ADMIN' && course.createdById !== caller.id) {
-      throw new ForbiddenException('You can only submit your own courses.');
-    }
-
-    if (!EDITABLE_STATUSES.includes(course.status as any)) {
-      throw new BadRequestException(
-        `Only DRAFT or REJECTED courses can be submitted for review. Current status: "${course.status}".`,
-      );
-    }
-
-    const updated = await this.prisma.course.update({
-      where: { id: courseId },
-      data:  {
-        status:       'PENDING_APPROVAL',
-        submittedAt:  new Date(),
-        rejectedAt:   null,
-        rejectionNote: null,
-      },
-      select: COURSE_SUMMARY_SELECT,
-    });
-
-    await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'SUBMIT_COURSE_FOR_REVIEW',
-      entity:    'Course',
-      entityId:  courseId,
-      metadata:  { title: course.title },
-    });
-
-    return updated;
-  }
-
-  // ─── MENTOR (+ADMIN): Recall a pending-approval course back to draft ──────
-  async recall(courseId: string, caller: CallerCtx) {
-    const course = await this.findOrThrow(courseId);
-
-    if (caller.role !== 'ADMIN' && course.createdById !== caller.id) {
-      throw new ForbiddenException('You can only recall your own courses.');
-    }
-
-    if (course.status !== 'PENDING_APPROVAL') {
-      throw new BadRequestException(
-        `Only PENDING_APPROVAL courses can be recalled. Current status: "${course.status}".`,
-      );
-    }
-
-    const updated = await this.prisma.course.update({
-      where: { id: courseId },
-      data:  { status: 'DRAFT', submittedAt: null },
-      select: COURSE_SUMMARY_SELECT,
-    });
-
-    await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'RECALL_COURSE',
-      entity:    'Course',
-      entityId:  courseId,
-    });
-
-    return updated;
-  }
-
-  // ─── ADMIN: Approve and publish a course ──────────────────────────────────
-  async publish(courseId: string, caller: CallerCtx) {
-    const course = await this.findOrThrow(courseId);
-
-    if (course.status !== 'PENDING_APPROVAL') {
-      throw new BadRequestException(
-        `Only PENDING_APPROVAL courses can be published. Current status: "${course.status}".`,
-      );
-    }
-
-    const updated = await this.prisma.course.update({
-      where: { id: courseId },
-      data:  {
-        status:      'PUBLISHED',
-        publishedAt: new Date(),
-        rejectedAt:  null,
-        rejectionNote: null,
-      },
-      select: COURSE_SUMMARY_SELECT,
-    });
-
-    await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'PUBLISH_COURSE',
-      entity:    'Course',
-      entityId:  courseId,
-      metadata:  { title: course.title },
-    });
-
-    return updated;
-  }
-
-  // ─── ADMIN: Reject a pending course ───────────────────────────────────────
-  async reject(courseId: string, body: RejectCourseDto, caller: CallerCtx) {
-    const course = await this.findOrThrow(courseId);
-
-    if (course.status !== 'PENDING_APPROVAL') {
-      throw new BadRequestException(
-        `Only PENDING_APPROVAL courses can be rejected. Current status: "${course.status}".`,
-      );
-    }
-
-    const updated = await this.prisma.course.update({
-      where: { id: courseId },
-      data:  {
-        status:       'REJECTED',
-        rejectedAt:   new Date(),
-        rejectionNote: body.rejectionNote,
-        submittedAt:  null,
-      },
-      select: COURSE_SUMMARY_SELECT,
-    });
-
-    await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'REJECT_COURSE',
-      entity:    'Course',
-      entityId:  courseId,
-      metadata:  { rejectionNote: body.rejectionNote },
-    });
-
-    return updated;
-  }
-
-  // ─── ADMIN: Unpublish a published course ──────────────────────────────────
-  async unpublish(courseId: string, caller: CallerCtx) {
-    const course = await this.findOrThrow(courseId);
-
-    if (course.status !== 'PUBLISHED') {
-      throw new BadRequestException(
-        `Only PUBLISHED courses can be unpublished. Current status: "${course.status}".`,
-      );
-    }
-
-    const updated = await this.prisma.course.update({
-      where: { id: courseId },
-      data:  { status: 'DRAFT', publishedAt: null },
-      select: COURSE_SUMMARY_SELECT,
-    });
-
-    await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'UNPUBLISH_COURSE',
-      entity:    'Course',
-      entityId:  courseId,
-    });
-
-    return updated;
-  }
-
-  // ─── ADMIN: Full list (all statuses) ──────────────────────────────────────
-  async findAllAdmin() {
-    return this.prisma.course.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        ...COURSE_SUMMARY_SELECT,
-        submittedAt:   true,
-        rejectedAt:    true,
-        rejectionNote: true,
-        updatedAt:     true,
-        _count: { select: { assignments: true } },
-      },
-    });
-  }
-
-  // ─── MENTOR: Own courses (all statuses) ───────────────────────────────────
-  async findMine(creatorId: string) {
-    return this.prisma.course.findMany({
-      where:   { createdById: creatorId },
-      orderBy: { updatedAt: 'desc' },
-      select: {
-        ...COURSE_SUMMARY_SELECT,
-        submittedAt:   true,
-        rejectedAt:    true,
-        rejectionNote: true,
-        updatedAt:     true,
-        _count: { select: { assignments: true } },
-      },
-    });
-  }
-
-  // ─── ANY AUTHENTICATED USER: Published courses ────────────────────────────
+  // ─── List courses visible to the caller ────────────────────────────────────
   //
-  // When the caller is a STUDENT, each course is annotated with their
-  // personal enrollment status (displayStatus) and the internal enum value.
-  async findAllPublished(caller: CallerCtx) {
-    const courses = await this.prisma.course.findMany({
-      where:   { status: 'PUBLISHED' },
-      orderBy: { publishedAt: 'desc' },
-      select: {
-        ...COURSE_SUMMARY_SELECT,
-        _count: { select: { assignments: true } },
-        ...(caller.role === 'STUDENT' || caller.role === 'ADMIN'
-          ? {
-              enrollments: {
-                where:  { studentId: caller.id },
-                select: { status: true },
-                take:   1,
-              },
-            }
-          : {}),
-      },
-    });
-
-    return courses.map((c) => {
-      const raw = (c as any).enrollments?.[0]?.status ?? 'UNROLLED';
-      return {
-        ...c,
-        enrollments:   undefined,
-        enrollmentStatus: raw,
-        displayStatus:    DISPLAY_LABELS[raw] ?? raw,
-      };
-    });
-  }
-
-  // ─── ANY AUTHENTICATED USER: Single published course ──────────────────────
-  //
-  // For STUDENT callers:
-  //   1. Records the view (UNROLLED → ROLLED if first open).
-  //   2. Returns the current enrollment status.
-  //   3. Re-opening a COMPLETED course does NOT reset the status.
-  async findOne(courseId: string, caller: CallerCtx) {
-    const course = await this.prisma.course.findUnique({
-      where:  { id: courseId },
-      select: {
-        ...COURSE_SUMMARY_SELECT,
-        submittedAt:   true,
-        rejectedAt:    true,
-        rejectionNote: true,
-        updatedAt:     true,
-        assignments: {
-          where:   caller.role === 'ADMIN' ? {} : { status: 'PUBLISHED' as const },
-          orderBy: { deadline: 'asc' },
-          select: {
-            id:           true,
-            title:        true,
-            instructions: true,
-            deadline:     true,
-            points:       true,
-            maximumMarks: true,
-            fileUrl:      true,
-            status:       true,
-            publishedAt:  true,
+  // STUDENT: published courses, with their enrollment status and the number of
+  //          published resources/assignments in THEIR division.
+  // MENTOR:  courses they teach, with the divisions they are assigned to.
+  // ADMIN:   every course with totals.
+  async findAll(user: AuthUser) {
+    if (user.role === 'STUDENT') {
+      const divisionId = this.access.studentDivision(user);
+      const courses = await this.prisma.course.findMany({
+        where:   { status: 'PUBLISHED' },
+        orderBy: { sortOrder: 'asc' },
+        select: {
+          ...COURSE_SELECT,
+          enrollments: { where: { studentId: user.id }, select: { status: true }, take: 1 },
+          _count: {
+            select: {
+              resources:   { where: { divisionId, isPublished: true } },
+              assignments: { where: { divisionId, status: 'PUBLISHED' } },
+            },
           },
         },
+      });
+      return courses.map(({ enrollments, _count, ...c }) => {
+        const status = enrollments[0]?.status ?? 'UNROLLED';
+        return {
+          ...c,
+          enrollmentStatus: status,
+          displayStatus:    DISPLAY_LABELS[status],
+          counts:           _count,
+        };
+      });
+    }
+
+    if (user.role === 'MENTOR') {
+      const scopes = await this.prisma.mentorAssignment.findMany({
+        where:  { mentorId: user.id, isActive: true },
+        select: { courseId: true, division: { select: { id: true, code: true, name: true } } },
+      });
+      const courseIds = [...new Set(scopes.map((s) => s.courseId))];
+      const courses = await this.prisma.course.findMany({
+        where:   { id: { in: courseIds } },
+        orderBy: { sortOrder: 'asc' },
+        select:  COURSE_SELECT,
+      });
+      return courses.map((c) => ({
+        ...c,
+        divisions: scopes.filter((s) => s.courseId === c.id).map((s) => s.division),
+      }));
+    }
+
+    return this.prisma.course.findMany({
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        ...COURSE_SELECT,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { assignments: true, resources: true, mentorAssignments: { where: { isActive: true } } } },
       },
     });
-
-    if (!course) throw new NotFoundException('Course not found.');
-
-    // Non-admin cannot see the course unless it is published or they created it.
-    if (
-      caller.role !== 'ADMIN' &&
-      course.status !== 'PUBLISHED' &&
-      course.createdById !== caller.id
-    ) {
-      throw new NotFoundException('Course not found.');
-    }
-
-    // ── Record view for students ─────────────────────────────────────────────
-    let enrollmentStatus = 'UNROLLED';
-
-    if (caller.role === 'STUDENT' && course.status === 'PUBLISHED') {
-      enrollmentStatus = await this.recordCourseView(courseId, caller.id);
-    } else if (caller.role === 'ADMIN') {
-      // Admins get the raw enrollment status if it exists (no view recording).
-      const existing = await this.prisma.courseEnrollment.findUnique({
-        where:  { courseId_studentId: { courseId, studentId: caller.id } },
-        select: { status: true },
-      });
-      enrollmentStatus = existing?.status ?? 'UNROLLED';
-    }
-
-    return {
-      ...course,
-      enrollmentStatus,
-      displayStatus: DISPLAY_LABELS[enrollmentStatus] ?? enrollmentStatus,
-    };
   }
 
-  // ─── STUDENT (+ADMIN): Mark course as COMPLETED ──────────────────────────
+  // ─── Single course ─────────────────────────────────────────────────────────
   //
-  // Called when the student checks the completion checkbox at the end
-  // of the course. The checkbox is a frontend element; this endpoint
-  // persists the completion.
-  //
-  // Rules:
-  //   - Course must be PUBLISHED.
-  //   - Student must have opened the course (status must be ROLLED).
-  //   - Re-checking the box on a COMPLETED course is idempotent (200, no change).
-  //   - Completion is NEVER derived from books/notes/resources opened.
-  async completeCourse(courseId: string, caller: CallerCtx) {
-    const course = await this.findOrThrow(courseId);
+  // For STUDENT callers this records the view (UNROLLED → ROLLED on first open);
+  // re-opening a COMPLETED course never regresses it.
+  async findOne(courseId: string, user: AuthUser) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: COURSE_SELECT });
+    if (!course) throw new NotFoundException('Course not found.');
 
-    if (course.status !== 'PUBLISHED') {
-      throw new NotFoundException('Course not found.');
+    if (user.role === 'STUDENT') {
+      if (course.status !== 'PUBLISHED') throw new NotFoundException('Course not found.');
+      const divisionId = this.access.studentDivision(user);
+      const enrollment = await this.recordCourseView(courseId, user.id);
+      const counts = await this.prisma.course.findUnique({
+        where:  { id: courseId },
+        select: {
+          _count: {
+            select: {
+              resources:    { where: { divisionId, isPublished: true } },
+              assignments:  { where: { divisionId, status: 'PUBLISHED' } },
+              liveSessions: { where: { divisionId, status: 'SCHEDULED', startsAt: { gte: new Date() } } },
+            },
+          },
+        },
+      });
+      return {
+        ...course,
+        enrollmentStatus: enrollment.status,
+        displayStatus:    DISPLAY_LABELS[enrollment.status],
+        completedAt:      enrollment.completedAt,
+        counts:           { ...counts!._count, upcomingLiveSessions: counts!._count.liveSessions },
+      };
     }
 
-    const enrollment = await this.prisma.courseEnrollment.findUnique({
-      where:  { courseId_studentId: { courseId, studentId: caller.id } },
+    if (user.role === 'MENTOR') {
+      const divisions = await this.prisma.mentorAssignment.findMany({
+        where:  { mentorId: user.id, courseId, isActive: true },
+        select: { division: { select: { id: true, code: true, name: true } } },
+      });
+      if (divisions.length === 0) {
+        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course.');
+      }
+      return { ...course, divisions: divisions.map((d) => d.division) };
+    }
+
+    const mentors = await this.prisma.mentorAssignment.findMany({
+      where:  { courseId, isActive: true },
+      select: {
+        id:       true,
+        division: { select: { id: true, code: true, name: true } },
+        mentor:   { select: { id: true, firstName: true, lastName: true, username: true } },
+      },
+    });
+    return { ...course, mentorAssignments: mentors };
+  }
+
+  // ─── ADMIN: Edit course text / order ───────────────────────────────────────
+  async update(courseId: string, data: UpdateCourseDto, caller: CallerCtx) {
+    await this.findOrThrow(courseId);
+
+    if (Object.keys(data).length === 0) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
+    }
+
+    const updated = await this.prisma.course.update({
+      where:  { id: courseId },
+      data:   { title: data.title, description: data.description, sortOrder: data.sortOrder },
+      select: COURSE_SELECT,
     });
 
-    // Must have opened the course before completing it.
-    if (!enrollment || enrollment.status === 'UNROLLED') {
-      throw new BadRequestException(
-        'You must open the course before marking it as completed.',
-      );
+    await this.audit.log({
+      actorId: caller.id, actorRole: caller.role,
+      action: 'UPDATE_COURSE', entity: 'Course', entityId: courseId, metadata: { fields: Object.keys(data) },
+    });
+    return updated;
+  }
+
+  // ─── ADMIN: Publish / unpublish ────────────────────────────────────────────
+  //
+  // An unpublished course hides ALL of its content from students (resources,
+  // assignments, sessions, discussions) and blocks new submissions.
+  async setPublished(courseId: string, publish: boolean, caller: CallerCtx) {
+    const course = await this.findOrThrow(courseId);
+    const target = publish ? 'PUBLISHED' : 'DRAFT';
+    if (course.status === target) {
+      throw invalidState(`Course is already ${publish ? 'published' : 'unpublished'}.`);
     }
 
-    // Idempotent — if already COMPLETED, return the current state without change.
+    const updated = await this.prisma.course.update({
+      where:  { id: courseId },
+      data:   { status: target, publishedAt: publish ? new Date() : null },
+      select: COURSE_SELECT,
+    });
+
+    await this.audit.log({
+      actorId: caller.id, actorRole: caller.role,
+      action: publish ? 'PUBLISH_COURSE' : 'UNPUBLISH_COURSE', entity: 'Course', entityId: courseId,
+    });
+    return updated;
+  }
+
+  // ─── STUDENT: Mark course as COMPLETED ─────────────────────────────────────
+  //
+  // Rules:
+  //   - Course must be PUBLISHED and already opened (ROLLED).
+  //   - Re-checking a COMPLETED course is idempotent.
+  async completeCourse(courseId: string, user: AuthUser) {
+    const course = await this.findOrThrow(courseId);
+    if (course.status !== 'PUBLISHED') throw new NotFoundException('Course not found.');
+
+    const enrollment = await this.prisma.courseEnrollment.findUnique({
+      where: { courseId_studentId: { courseId, studentId: user.id } },
+    });
+
+    if (!enrollment || enrollment.status === 'UNROLLED') {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'COURSE_NOT_OPENED', 'You must open the course before marking it as completed.');
+    }
+
     if (enrollment.status === 'COMPLETED') {
       return {
         courseId,
         enrollmentStatus: 'COMPLETED',
-        displayStatus:    DISPLAY_LABELS['COMPLETED'],
+        displayStatus:    DISPLAY_LABELS.COMPLETED,
         completedAt:      enrollment.completedAt,
         alreadyCompleted: true,
       };
@@ -448,58 +236,54 @@ export class CoursesService {
 
     const now = new Date();
     const updated = await this.prisma.courseEnrollment.update({
-      where: { courseId_studentId: { courseId, studentId: caller.id } },
+      where: { courseId_studentId: { courseId, studentId: user.id } },
       data:  { status: 'COMPLETED', completedAt: now },
     });
 
     await this.audit.log({
-      actorId:   caller.id,
-      actorRole: caller.role,
-      action:    'COMPLETE_COURSE',
-      entity:    'CourseEnrollment',
-      entityId:  updated.id,
-      metadata:  { courseId, completedAt: now },
+      actorId: user.id, actorRole: user.role,
+      action: 'COMPLETE_COURSE', entity: 'CourseEnrollment', entityId: updated.id, metadata: { courseId },
     });
 
     return {
       courseId,
       enrollmentStatus: 'COMPLETED',
-      displayStatus:    DISPLAY_LABELS['COMPLETED'],
+      displayStatus:    DISPLAY_LABELS.COMPLETED,
       completedAt:      now,
       alreadyCompleted: false,
     };
   }
 
-  // ─── STUDENT: Get own enrollment status across all enrolled courses ───────
+  // ─── STUDENT: Status across all published courses ──────────────────────────
   async getMyEnrollments(studentId: string) {
-    const enrollments = await this.prisma.courseEnrollment.findMany({
-      where:   { studentId },
-      orderBy: { lastOpenedAt: 'desc' },
+    const courses = await this.prisma.course.findMany({
+      where:   { status: 'PUBLISHED' },
+      orderBy: { sortOrder: 'asc' },
       select: {
-        id:           true,
-        status:       true,
-        firstOpenedAt: true,
-        lastOpenedAt:  true,
-        completedAt:   true,
-        course: {
-          select: {
-            id:          true,
-            title:       true,
-            description: true,
-            subject:     true,
-            publishedAt: true,
-          },
+        id: true, code: true, title: true,
+        enrollments: {
+          where:  { studentId },
+          select: { status: true, firstOpenedAt: true, lastOpenedAt: true, completedAt: true },
+          take:   1,
         },
       },
     });
 
-    return enrollments.map((e) => ({
-      ...e,
-      displayStatus: DISPLAY_LABELS[e.status] ?? e.status,
-    }));
+    return courses.map(({ enrollments, ...course }) => {
+      const e = enrollments[0];
+      const status = e?.status ?? 'UNROLLED';
+      return {
+        course,
+        status,
+        displayStatus: DISPLAY_LABELS[status],
+        firstOpenedAt: e?.firstOpenedAt ?? null,
+        lastOpenedAt:  e?.lastOpenedAt  ?? null,
+        completedAt:   e?.completedAt   ?? null,
+      };
+    });
   }
 
-  // ─── Private helpers ──────────────────────────────────────────────────────
+  // ─── Private helpers ───────────────────────────────────────────────────────
   private async findOrThrow(id: string) {
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException('Course not found.');
@@ -507,44 +291,23 @@ export class CoursesService {
   }
 
   /**
-   * Records a student view of a course and advances the enrollment status
-   * from UNROLLED → ROLLED on the first open.
-   *
-   * Idempotent:
-   *   - UNROLLED  → advances to ROLLED
-   *   - ROLLED    → updates lastOpenedAt only (no status change)
-   *   - COMPLETED → updates lastOpenedAt only (does NOT regress to ROLLED)
-   *
-   * Returns the current status after the operation.
+   * Records a student view and advances UNROLLED → ROLLED on first open.
+   * Uses upsert so concurrent first opens cannot collide.
    */
-  private async recordCourseView(courseId: string, studentId: string): Promise<string> {
-    const existing = await this.prisma.courseEnrollment.findUnique({
+  private async recordCourseView(courseId: string, studentId: string) {
+    const now = new Date();
+    const enrollment = await this.prisma.courseEnrollment.upsert({
       where:  { courseId_studentId: { courseId, studentId } },
+      create: { courseId, studentId, status: 'ROLLED', firstOpenedAt: now, lastOpenedAt: now },
+      update: { lastOpenedAt: now },
     });
 
-    if (!existing) {
-      // First open — create enrollment as ROLLED.
-      const created = await this.prisma.courseEnrollment.create({
-        data: {
-          id:            randomUUID(),
-          courseId,
-          studentId,
-          status:        'ROLLED',
-          firstOpenedAt: new Date(),
-          lastOpenedAt:  new Date(),
-        },
+    if (enrollment.status === 'UNROLLED') {
+      return this.prisma.courseEnrollment.update({
+        where: { id: enrollment.id },
+        data:  { status: 'ROLLED' },
       });
-      return created.status;
     }
-
-    // Already has a record — advance only if UNROLLED; never regress from COMPLETED.
-    const newStatus = existing.status === 'UNROLLED' ? 'ROLLED' : existing.status;
-
-    await this.prisma.courseEnrollment.update({
-      where: { courseId_studentId: { courseId, studentId } },
-      data:  { status: newStatus, lastOpenedAt: new Date() },
-    });
-
-    return newStatus;
+    return enrollment;
   }
 }

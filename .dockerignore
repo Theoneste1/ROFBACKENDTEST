@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+storage
+uploads
+.env
+.env.*
+!.env.example
+.git
+.vscode
+.idea
+*.log
+*.tsbuildinfo
+src/generated

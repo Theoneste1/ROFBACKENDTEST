@@ -1,4 +1,10 @@
 /**
+ * @deprecated No longer used (2026-11-03). File storage and serving moved to
+ * src/common/storage/storage.service.ts (content-type detection, storage
+ * drivers, Windows-safe paths). Kept only because existing files are not
+ * deleted without approval; safe to remove.
+ */
+/**
  * file.utils.ts — Central file-serving security utilities
  *
  * All download/serve handlers in the application must use these helpers.

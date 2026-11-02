@@ -5,6 +5,8 @@ import {
   IsOptional,
   IsString,
   Length,
+  IsUUID,
+  Max,
   Min,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
@@ -23,8 +25,13 @@ export class ListUsersDto {
 
   /** Filter to students enrolled at this school (by school ID). */
   @IsOptional()
-  @IsString()
+  @IsUUID()
   schoolId?: string;
+
+  /** Filter to students of a division. */
+  @IsOptional()
+  @IsUUID()
+  divisionId?: string;
 
   /** Free-text search across firstName, lastName, username, and email. */
   @IsOptional()
@@ -52,6 +59,7 @@ export class ListUsersDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  @Max(100)
   @Type(() => Number)
   limit?: number;
 }

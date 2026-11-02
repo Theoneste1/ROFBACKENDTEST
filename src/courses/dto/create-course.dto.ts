@@ -1,3 +1,8 @@
+/**
+ * @deprecated No longer used (2026-11-03). The four Mathematics courses are
+ * fixed and created by the seed; courses cannot be created through the API.
+ * Kept only because existing files are not deleted without approval; safe to remove.
+ */
 import { IsString, Length } from 'class-validator';
 import { Transform } from 'class-transformer';
 

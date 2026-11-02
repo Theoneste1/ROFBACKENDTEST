@@ -2,28 +2,27 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
-  IsEmail,
   IsEnum,
-  IsISO8601,
-  IsOptional,
   IsString,
   IsUUID,
   Length,
   ValidateIf,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 
 /**
  * How recipients are selected for a bulk send.
  *
  * EXPLICIT  – caller provides a list of user IDs.
  * ROLE      – all users with a given role.
+ * DIVISION  – all students in a division (Junior or Senior).
  * SCHOOL    – all students in a given school.
- * ALL       – every active user on the platform.
+ * ALL       – every active, approved user on the platform.
  */
 export enum RecipientMode {
   EXPLICIT = 'EXPLICIT',
   ROLE     = 'ROLE',
+  DIVISION = 'DIVISION',
   SCHOOL   = 'SCHOOL',
   ALL      = 'ALL',
 }
@@ -62,6 +61,13 @@ export class SendEmailDto {
     message: 'recipientRole must be STUDENT, MENTOR, or ADMIN.',
   })
   recipientRole?: string;
+
+  /**
+   * Required when recipientMode is DIVISION.
+   */
+  @ValidateIf((o) => o.recipientMode === RecipientMode.DIVISION)
+  @IsUUID()
+  recipientDivisionId?: string;
 
   /**
    * Required when recipientMode is SCHOOL.

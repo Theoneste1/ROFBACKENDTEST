@@ -11,7 +11,7 @@ import { CreateStudyGroupDto } from './dto/create-study-group.dto.js';
 import { UpdateStudyGroupDto } from './dto/update-study-group.dto.js';
 import { AddMemberDto } from './dto/add-member.dto.js';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto.js';
-import type { CallerCtx } from '../submissions/submissions.service.js';
+import type { CallerCtx } from '../common/auth-user.js';
 
 // ─── Shared selects ───────────────────────────────────────────────────────────
 
@@ -24,7 +24,8 @@ const GROUP_SUMMARY = {
   createdAt:   true,
   updatedAt:   true,
   createdBy: { select: { id: true, username: true, firstName: true, lastName: true } },
-  _count: { select: { members: true } },
+  // Active members only (soft-removed members are excluded).
+  _count: { select: { members: { where: { removedAt: null } } } },
 } as const;
 
 const MEMBER_SELECT = {
@@ -38,7 +39,7 @@ const MEMBER_SELECT = {
       username:  true,
       firstName: true,
       lastName:  true,
-      email:     true,
+      // email deliberately omitted: members must not see each other's contact details.
       role:      true,           // global role — for information only
       avatarUrl: true,
     },

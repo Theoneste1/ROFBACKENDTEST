@@ -1,6 +1,5 @@
 datasource db {
   provider = "postgresql"
-  //url = env("DATABASE_URL")
 }
 
 generator client {
@@ -9,7 +8,9 @@ generator client {
   moduleFormat = "esm"
 }
 
-// ─── Enums ───────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Enums
+// ═══════════════════════════════════════════════════════════════════════════════
 
 enum Role {
   STUDENT
@@ -17,6 +18,90 @@ enum Role {
   ADMIN
 }
 
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+/// The two fixed academic divisions.
+///   JUNIOR → S1, S2, S3
+///   SENIOR → S4, S5, S6
+enum DivisionCode {
+  JUNIOR
+  SENIOR
+}
+
+/// Secondary-school grade level. Determines a student's division.
+enum GradeLevel {
+  S1
+  S2
+  S3
+  S4
+  S5
+  S6
+}
+
+/// The four fixed Mathematics courses.
+enum CourseCode {
+  ALGEBRA
+  GEOMETRY
+  NUMBER_THEORY
+  COMBINATORICS
+}
+
+/// Courses are fixed and admin-managed: they are either visible or not.
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+}
+
+/**
+ * CourseEnrollmentStatus — the student-facing course activity label.
+ * UNROLLED  → "Unrolled"   (student has never opened the course)
+ * ROLLED    → "Rolled"     (student has opened the course at least once)
+ * COMPLETED → "Completed"  (student explicitly checked the completion box)
+ * Transitions are one-way only: UNROLLED → ROLLED → COMPLETED.
+ */
+enum CourseEnrollmentStatus {
+  UNROLLED
+  ROLLED
+  COMPLETED
+}
+
+/**
+ * ResourceType — the category of a course learning material.
+ * BOOK       – Textbook or reference book
+ * EBOOK      – Digital-only book / interactive e-book
+ * NOTE       – Lecture notes or study notes
+ * PAST_PAPER – Past examination paper
+ * ATTACHMENT – General course attachment (slides, templates, etc.)
+ */
+enum ResourceType {
+  BOOK
+  EBOOK
+  NOTE
+  PAST_PAPER
+  ATTACHMENT
+}
+
+/// Assignment workflow: mentors prepare, admins officially publish.
+///   DRAFT → PENDING_APPROVAL → PUBLISHED   (or REJECTED → edited → PENDING_APPROVAL)
+enum AssignmentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  PUBLISHED
+  REJECTED
+}
+
+/// Submission / review workflow.
+///   SUBMITTED          – student submitted, waiting for distribution
+///   ASSIGNED           – admin distributed it to a mentor
+///   IN_REVIEW          – mentor is reviewing
+///   MARKED             – mentor saved a score + feedback (draft review)
+///   SUBMITTED_TO_ADMIN – mentor returned the completed review
+///   APPROVED           – admin accepted the review, ready to publish
+///   PUBLISHED          – result visible to the student
+///   REJECTED           – admin sent the review back to the mentor for rework
 enum SubmissionStatus {
   SUBMITTED
   ASSIGNED
@@ -28,71 +113,17 @@ enum SubmissionStatus {
   REJECTED
 }
 
-enum AuthProvider {
-  LOCAL
-  GOOGLE
-}
-
 enum MentorRequestStatus {
   PENDING
   APPROVED
   REJECTED
 }
 
-enum CourseStatus {
-  DRAFT
-  PENDING_APPROVAL
-  PUBLISHED
-  REJECTED
-}
-
-/**
- * CourseEnrollmentStatus — the student-facing course activity label.
- *
- * Internal name  →  Displayed label
- *   UNROLLED     →  "Unrolled"   (student has never opened the course)
- *   ROLLED       →  "Rolled"     (student has opened the course at least once)
- *   COMPLETED    →  "Completed"  (student explicitly checked the completion box)
- *
- * Transitions are one-way only: UNROLLED → ROLLED → COMPLETED.
- * Re-opening a COMPLETED course does not regress it to ROLLED.
- */
-enum CourseEnrollmentStatus {
-  UNROLLED
-  ROLLED
-  COMPLETED
-}
-
-/**
- * ResourceType — the category of a course learning material.
- *
- *   BOOK       – Textbook or reference book
- *   EBOOK      – Digital-only book / interactive e-book
- *   NOTE       – Lecture notes or study notes
- *   PAST_PAPER – Past examination paper
- *   ATTACHMENT – General course attachment (slides, templates, etc.)
- */
-enum ResourceType {
-  BOOK
-  EBOOK
-  NOTE
-  PAST_PAPER
-  ATTACHMENT
-}
-
-enum AssignmentStatus {
-  DRAFT
-  PENDING_APPROVAL
-  PUBLISHED
-  REJECTED
-}
-
 /**
  * CommentStatus — moderation state of a discussion comment.
- *
- *   ACTIVE  – visible to all eligible users
- *   HIDDEN  – hidden by admin moderation (admin can still see it)
- *   DELETED – removed by the author; shown as "[deleted]" to preserve thread structure
+ * ACTIVE  – visible to all eligible users
+ * HIDDEN  – hidden by admin moderation (admin can still see it)
+ * DELETED – removed by the author; shown as "[deleted]" to preserve thread structure
  */
 enum CommentStatus {
   ACTIVE
@@ -100,10 +131,6 @@ enum CommentStatus {
   DELETED
 }
 
-/**
- * ReactionType — the emoji/reaction a user adds to a comment.
- * The unique constraint on (commentId, userId, type) prevents duplicates.
- */
 enum ReactionType {
   LIKE
   HELPFUL
@@ -112,76 +139,189 @@ enum ReactionType {
 
 /**
  * GroupRole — a role scoped to a single StudyGroup.
- *
- * IMPORTANT: this enum has NO connection to the global Role enum.
- * A user with GroupRole.MENTOR inside a group does NOT gain the global
- * MENTOR role and cannot perform any actions reserved for global MENTORs
- * (e.g. marking submissions).  Global privileges are always governed by
- * User.role and the RolesGuard.
+ * It has NO connection to the global Role enum and grants no global privileges.
  */
 enum GroupRole {
   STUDENT
   MENTOR
 }
 
-// ─── Study Group ─────────────────────────────────────────────────────────────
-//
-// Admin-managed learning cohort.  Membership grants access to group-specific
-// content and activities only; it does not alter a member's global Role.
+enum EmailJobStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  PARTIAL_FAILURE
+  FAILED
+}
 
-model StudyGroup {
-  id          String  @id @default(uuid())
-  name        String
-  description String
-  /// Optional metadata: e.g. school year, subject focus, cohort tag.
-  tags        String?
-  /// Soft-deactivation: deactivated groups are hidden from members but
-  /// remain visible to admins.
-  isActive    Boolean @default(true)
+enum EmailDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
 
-  createdById String
-  createdBy   User   @relation("StudyGroupCreator", fields: [createdById], references: [id])
+enum LiveSessionProvider {
+  ZOOM
+  GOOGLE_MEET
+  MICROSOFT_TEAMS
+  OTHER
+}
 
-  members     StudyGroupMember[]
+enum LiveSessionStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+/// What a stored file is used for. Drives size/type limits and access rules.
+enum FilePurpose {
+  ASSIGNMENT_BRIEF
+  SUBMISSION
+  FEEDBACK
+  RESOURCE
+}
+
+/// Notification categories. Users may opt out of e-mail per category
+/// (except ACCOUNT, which carries security-relevant messages).
+enum NotificationCategory {
+  ASSIGNMENTS
+  SUBMISSIONS
+  REVIEWS
+  RESULTS
+  LIVE_SESSIONS
+  RESOURCES
+  ACCOUNT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Identity
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model User {
+  id           String       @id @default(uuid())
+  firstName    String
+  lastName     String
+  username     String       @unique
+  email        String       @unique
+  passwordHash String?
+  provider     AuthProvider @default(LOCAL)
+  providerId   String?
+  role         Role         @default(STUDENT)
+
+  /// Mentor accounts and (optionally) self-registered students require approval.
+  isApproved  Boolean   @default(true)
+  /// Suspended accounts cannot log in and lose access immediately.
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+
+  avatarUrl      String?
+  /// Cached leaderboard total — always recomputable from published submissions.
+  points         Int     @default(0)
+  problemsSolved Int     @default(0)
+
+  // ── Student-only fields (NULL for mentors and admins) ──────────────────────
+  gradeLevel   GradeLevel?
+  divisionId   String?
+  division     Division?   @relation(fields: [divisionId], references: [id])
+  schoolId     String?
+  school       School?     @relation(fields: [schoolId], references: [id])
+  homeLocation String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([isActive])
-  @@index([createdById])
+  assignmentsCreated    Assignment[]             @relation("AssignmentCreator")
+  assignmentsApproved   Assignment[]             @relation("AssignmentApprover")
+  courseEnrollments     CourseEnrollment[]       @relation("CourseEnrollments")
+  resourcesUploaded     CourseResource[]         @relation("ResourceUploader")
+  resourceViews         ResourceView[]
+  comments              Comment[]                @relation("CommentAuthor")
+  moderatedComments     Comment[]                @relation("CommentModerator")
+  commentReactions      CommentReaction[]        @relation("CommentReactions")
+  studyGroupsCreated    StudyGroup[]             @relation("StudyGroupCreator")
+  studyGroupMemberships StudyGroupMember[]       @relation("StudyGroupMemberships")
+  emailJobsCreated      EmailJob[]               @relation("EmailJobCreator")
+  submissions           Submission[]             @relation("StudentSubmissions")
+  assignedSubmissions   Submission[]             @relation("MentorSubmissions")
+  submissionsReopened   Submission[]             @relation("SubmissionReopener")
+  submissionRevisions   SubmissionRevision[]
+  assignmentViews       AssignmentView[]         @relation("AssignmentViewer")
+  auditLogs             AuditLog[]               @relation("AuditActor")
+  mentorAssignments     MentorAssignment[]       @relation("MentorAssignmentMentor")
+  mentorAssignmentsMade MentorAssignment[]       @relation("MentorAssignmentAssigner")
+  liveSessions          LiveSession[]            @relation("LiveSessionHost")
+  notifications         Notification[]
+  notificationPrefs     NotificationPreference[]
+  refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
+  filesUploaded         FileObject[]
+  settingsUpdated       SystemSetting[]
+
+  @@index([points])
+  @@index([role])
+  @@index([schoolId])
+  @@index([divisionId])
 }
 
-// ─── Study Group Member ───────────────────────────────────────────────────────
-//
-// Junction table: one row per (user × group) pairing.
-//
-// groupRole is LOCAL TO THE GROUP.  A user with groupRole = MENTOR in this
-// table has no global MENTOR privileges.  The global authorization system
-// reads User.role, not StudyGroupMember.groupRole.
-
-model StudyGroupMember {
+model RefreshToken {
   id        String    @id @default(uuid())
-
-  groupId   String
-  group     StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
   userId    String
-  user      User   @relation("StudyGroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the opaque token. The raw token is never stored.
+  tokenHash String    @unique
+  /// All tokens produced by rotating one login share a family; reuse of a
+  /// rotated token revokes the whole family.
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  /// Set when this token was exchanged for a new one.
+  rotatedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
 
-  /// Role within this group only — does not affect global authorization.
-  groupRole GroupRole @default(STUDENT)
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+}
 
-  joinedAt  DateTime  @default(now())
-  /// Set on soft-removal; null while the membership is active.
-  removedAt DateTime?
-  removedById String?
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
-  @@unique([groupId, userId])
-  @@index([groupId])
   @@index([userId])
 }
 
-// ─── School (shared lookup — many students, one school) ──────────────────────
+/// Access-token revocation list (logout). Rows are purged after expiry.
+model TokenBlacklist {
+  id        String   @id @default(uuid())
+  jti       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+/// Staging table for mentor applications. Approval creates the User.
+model MentorRequest {
+  id           String              @id @default(uuid())
+  firstName    String
+  lastName     String
+  username     String              @unique
+  email        String              @unique
+  /// Cleared once the request is decided.
+  passwordHash String?
+  status       MentorRequestStatus @default(PENDING)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status])
+}
 
 model School {
   id        String   @id @default(uuid())
@@ -190,303 +330,260 @@ model School {
   location  String
   createdAt DateTime @default(now())
 
-  students  User[]
-
-  @@index([name])
+  students User[]
 }
 
-// ─── User (single identity table, role-discriminated) ────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Academic structure
+// ═══════════════════════════════════════════════════════════════════════════════
 
-model User {
-  id             String       @id @default(uuid())
-  firstName      String
-  lastName       String
-  username       String       @unique
-  email          String       @unique
-  passwordHash   String?
-  provider       AuthProvider @default(LOCAL)
-  providerId     String?
-  role           Role         @default(STUDENT)
+/// Exactly two rows (JUNIOR, SENIOR), created by the seed. Admins may edit
+/// name/description/isActive but never create or delete divisions.
+model Division {
+  id          String       @id @default(uuid())
+  code        DivisionCode @unique
+  name        String
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  isApproved     Boolean      @default(true)
-
-  avatarUrl      String?
-  points         Int          @default(0)
-  problemsSolved Int          @default(0)
-
-  /// The school this student attends. NULL for mentors and admins.
-  schoolId       String?
-  school         School?      @relation(fields: [schoolId], references: [id])
-
-  /// Student's home location (city/region). NULL for mentors and admins.
-  homeLocation   String?
-
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  assignmentsCreated    Assignment[]       @relation("AssignmentCreator")
-  assignmentsApproved   Assignment[]       @relation("AssignmentApprover")
-  coursesCreated        Course[]           @relation("CourseCreator")
-  courseEnrollments     CourseEnrollment[] @relation("CourseEnrollments")
-  resourcesUploaded     CourseResource[]   @relation("ResourceUploader")
-  comments              Comment[]          @relation("CommentAuthor")
-  moderatedComments     Comment[]          @relation("CommentModerator")
-  commentReactions      CommentReaction[]  @relation("CommentReactions")
-  studyGroupsCreated    StudyGroup[]       @relation("StudyGroupCreator")
-  studyGroupMemberships StudyGroupMember[] @relation("StudyGroupMemberships")
-  emailJobsCreated      EmailJob[]         @relation("EmailJobCreator")
-  submissions           Submission[]       @relation("StudentSubmissions")
-  assignedSubmissions   Submission[]       @relation("MentorSubmissions")
-  submissionsCorreected Submission[]       @relation("SubmissionCorrector")
-  assignmentViews       AssignmentView[]   @relation("AssignmentViewer")
-  auditLogs             AuditLog[]         @relation("AuditActor")
-
-  @@index([points])
-  @@index([role])
-  @@index([schoolId])
+  students          User[]
+  mentorAssignments MentorAssignment[]
+  resources         CourseResource[]
+  assignments       Assignment[]
+  liveSessions      LiveSession[]
+  comments          Comment[]
 }
 
-
-// ─── Token Blacklist (for JWT logout) ────────────────────────────────────────
-
-model TokenBlacklist {
-  id        String   @id @default(uuid())
-  jti       String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([jti])
-  @@index([expiresAt])
-}
-
-// ─── Mentor Request (staging table for mentor applications) ──────────────────
-
-model MentorRequest {
-  id           String              @id @default(uuid())
-  firstName    String
-  lastName     String
-  username     String              @unique
-  email        String              @unique
-  passwordHash String
-
-  status       MentorRequestStatus @default(PENDING)
-
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-
-  @@index([status])
-}
-
-// ─── Course ───────────────────────────────────────────────────────────────────
-//
-// Curriculum-level container (e.g. "Algebra", "Geometry").
-// Mentors create courses; Admins review and publish them.
-// Assignments are grouped under a published Course.
-//
-// Workflow: DRAFT → PENDING_APPROVAL → PUBLISHED (or REJECTED → DRAFT to revise)
-
+/// One of the four fixed Mathematics courses. Content (resources,
+/// assignments, live sessions, discussions) is scoped per (course × division).
 model Course {
   id          String       @id @default(uuid())
+  code        CourseCode   @unique
   title       String
-  /// Short description shown on course listings.
   description String
-  /// The mathematics area / subject (free text; e.g. "Algebra", "Number Theory").
-  subject     String
+  status      CourseStatus @default(PUBLISHED)
+  publishedAt DateTime?
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  status      CourseStatus @default(DRAFT)
-
-  /// Set when the mentor submits for review.
-  submittedAt  DateTime?
-  /// Set when the admin publishes.
-  publishedAt  DateTime?
-  /// Set when the admin rejects; cleared on re-submission.
-  rejectedAt   DateTime?
-  /// Admin note explaining a rejection. Visible to the creator.
-  rejectionNote String?
-
-  createdById String
-  createdBy   User   @relation("CourseCreator", fields: [createdById], references: [id])
-
-  assignments Assignment[]
-  enrollments CourseEnrollment[]
-  resources   CourseResource[]   @relation("CourseResources")
-  comments    Comment[]          @relation("CourseComments")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  assignments       Assignment[]
+  enrollments       CourseEnrollment[]
+  resources         CourseResource[]
+  comments          Comment[]
+  mentorAssignments MentorAssignment[]
+  liveSessions      LiveSession[]
 
   @@index([status])
-  @@index([createdById])
-  @@index([subject])
 }
 
-// ─── Course Resource (learning material attached to a course) ────────────────
-//
-// Books, e-books, notes, past papers and other attachments belonging to a
-// Course.  Resources are ordered by sortOrder for document-style reading.
-//
-// Access rules:
-//   - ADMIN + course creator: can manage resources regardless of course status.
-//   - MENTOR (non-creator): can manage resources on PUBLISHED courses.
-//   - STUDENT: read-only access on PUBLISHED courses only.
+/// Admin assigns a mentor to a (course × division). This is the mentor's scope
+/// for resources, assignments, live sessions, discussions and analytics.
+model MentorAssignment {
+  id           String   @id @default(uuid())
+  mentorId     String
+  mentor       User     @relation("MentorAssignmentMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  divisionId   String
+  division     Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  assignedById String?
+  assignedBy   User?    @relation("MentorAssignmentAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-model CourseResource {
-  id       String       @id @default(uuid())
-
-  courseId String
-  course   Course @relation("CourseResources", fields: [courseId], references: [id], onDelete: Cascade)
-
-  type        ResourceType
-  title       String
-  description String?
-
-  /// Stored path: /uploads/resources/<filename>
-  fileUrl  String?
-  /// Original filename shown to the user on download.
-  originalFilename String?
-  /// MIME type of the uploaded file (set on upload).
-  mimeType String?
-  /// File size in bytes.
-  fileSize Int?
-
-  /// Display order within the course (lower = first).
-  sortOrder Int @default(0)
-
-  isPublished Boolean  @default(false)
-  publishedAt DateTime?
-
-  uploadedById String
-  uploadedBy   User @relation("ResourceUploader", fields: [uploadedById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([courseId])
-  @@index([type])
-  @@index([isPublished])
-  @@index([sortOrder])
+  @@unique([mentorId, courseId, divisionId])
+  @@index([courseId, divisionId])
 }
 
-// ─── Course Enrollment (per-student course activity) ─────────────────────────
-//
-// One row per (student × course) pair.  Created when the student first opens
-// the course; updated when they check the completion box.
-//
-// Status transitions (one-directional — never regress):
-//   UNROLLED → ROLLED   : student opens the course for the first time
-//   ROLLED   → COMPLETED: student explicitly checks the completion checkbox
-//
-// UNROLLED is the implicit state before this row exists.  It is also stored
-// explicitly so the row creation timestamp captures the first-open time.
-
+/// Per-student course progress. Created on first open.
 model CourseEnrollment {
-  id       String                 @id @default(uuid())
-
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  studentId String
-  student   User   @relation("CourseEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
-
-  status CourseEnrollmentStatus @default(UNROLLED)
-
-  /// Timestamp of the student's first open.
-  firstOpenedAt DateTime  @default(now())
-  /// Timestamp of the most recent open (updated on every view).
-  lastOpenedAt  DateTime  @default(now())
-  /// Timestamp when the completion checkbox was checked.
+  id            String                 @id @default(uuid())
+  courseId      String
+  course        Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User                   @relation("CourseEnrollments", fields: [studentId], references: [id], onDelete: Cascade)
+  status        CourseEnrollmentStatus @default(UNROLLED)
+  firstOpenedAt DateTime               @default(now())
+  lastOpenedAt  DateTime               @default(now())
   completedAt   DateTime?
 
   @@unique([courseId, studentId])
   @@index([studentId])
-  @@index([courseId])
   @@index([status])
 }
 
-// ─── Assignment ──────────────────────────────────────────────────────────────
-//
-// Workflow: DRAFT → PENDING_APPROVAL → PUBLISHED (or REJECTED → DRAFT to revise)
-// Created by MENTOR or ADMIN; approved/published by ADMIN only.
+// ═══════════════════════════════════════════════════════════════════════════════
+// Files
+// ═══════════════════════════════════════════════════════════════════════════════
 
+/// Metadata for every stored file. The bytes live in the configured storage
+/// driver (local disk or S3-compatible) under `storageKey`.
+model FileObject {
+  id           String      @id @default(uuid())
+  storageKey   String      @unique
+  purpose      FilePurpose
+  originalName String
+  /// Detected from file content (magic bytes), not trusted from the client.
+  mimeType     String
+  size         Int
+  sha256       String
+  uploadedById String?
+  uploadedBy   User?       @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+
+  resources           CourseResource[]
+  assignments         Assignment[]
+  submissions         Submission[]         @relation("SubmissionFile")
+  feedbackSubmissions Submission[]         @relation("FeedbackFile")
+  revisions           SubmissionRevision[]
+
+  @@index([purpose])
+  @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Learning content
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model CourseResource {
+  id           String       @id @default(uuid())
+  courseId     String
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  divisionId   String
+  division     Division     @relation(fields: [divisionId], references: [id])
+  type         ResourceType
+  title        String
+  description  String?
+  fileId       String?
+  file         FileObject?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  /// Display order within the course (lower = first).
+  sortOrder    Int          @default(0)
+  isPublished  Boolean      @default(false)
+  publishedAt  DateTime?
+  uploadedById String
+  uploadedBy   User         @relation("ResourceUploader", fields: [uploadedById], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  views ResourceView[]
+
+  @@index([courseId, divisionId, isPublished])
+  @@index([sortOrder])
+}
+
+model ResourceView {
+  id            String         @id @default(uuid())
+  resourceId    String
+  resource      CourseResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  firstViewedAt DateTime       @default(now())
+  lastViewedAt  DateTime       @default(now())
+  viewCount     Int            @default(1)
+
+  @@unique([resourceId, studentId])
+  @@index([studentId])
+}
+
+model LiveSession {
+  id             String              @id @default(uuid())
+  courseId       String
+  course         Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  divisionId     String
+  division       Division            @relation(fields: [divisionId], references: [id])
+  hostId         String
+  host           User                @relation("LiveSessionHost", fields: [hostId], references: [id])
+  title          String
+  description    String?
+  startsAt       DateTime
+  endsAt         DateTime
+  provider       LiveSessionProvider @default(OTHER)
+  /// External meeting link (https only). Never exposed to ineligible users.
+  meetingUrl     String
+  status         LiveSessionStatus   @default(SCHEDULED)
+  cancelReason   String?
+  /// Set once the "starting soon" reminder has been sent.
+  reminderSentAt DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([courseId, divisionId, startsAt])
+  @@index([hostId])
+  @@index([status, startsAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Assessment
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model Assignment {
-  id           String           @id @default(uuid())
+  id           String   @id @default(uuid())
   title        String
   instructions String
   deadline     DateTime
+  /// Leaderboard points available. Awarded proportionally to the score.
   points       Int
   maximumMarks Int
 
-  /// Attached resource file (e.g. PDF brief).
-  fileUrl      String?
+  fileId String?
+  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
-  /// Whether students may resubmit before the deadline.
-  allowResubmission  Boolean @default(false)
-  /// 0 = unlimited resubmissions while deadline not passed.
-  maxResubmissions   Int     @default(0)
+  allowResubmission   Boolean @default(false)
+  /// 0 = unlimited resubmissions while the deadline has not passed.
+  maxResubmissions    Int     @default(0)
+  /// When true, first submissions after the deadline are accepted and flagged late.
+  allowLateSubmission Boolean @default(false)
 
-  status       AssignmentStatus @default(DRAFT)
+  status             AssignmentStatus @default(DRAFT)
+  submittedAt        DateTime?
+  publishedAt        DateTime?
+  rejectedAt         DateTime?
+  rejectionNote      String?
+  /// Set when the admin publishes results for the whole assignment.
+  resultsPublishedAt DateTime?
 
-  /// Set when creator submits for admin review.
-  submittedAt  DateTime?
-  /// Set when admin publishes.
-  publishedAt  DateTime?
-  /// Set when admin rejects; cleared on re-submission.
-  rejectedAt   DateTime?
-  /// Admin note explaining a rejection.
-  rejectionNote String?
-
-  /// Who approved/published the assignment.
   approvedById String?
-  approvedBy   User?   @relation("AssignmentApprover", fields: [approvedById], references: [id])
+  approvedBy   User?   @relation("AssignmentApprover", fields: [approvedById], references: [id], onDelete: SetNull)
 
-  courseId     String
-  course       Course   @relation(fields: [courseId], references: [id])
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id])
 
-  createdById  String
-  createdBy    User     @relation("AssignmentCreator", fields: [createdById], references: [id])
+  createdById String
+  createdBy   User   @relation("AssignmentCreator", fields: [createdById], references: [id])
 
-  submissions  Submission[]
-  views        AssignmentView[]
-  comments     Comment[]        @relation("AssignmentComments")
+  submissions Submission[]
+  views       AssignmentView[]
+  comments    Comment[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
+  @@index([courseId, divisionId, status])
   @@index([deadline])
   @@index([createdById])
   @@index([status])
-  @@index([courseId])
 }
 
-
-// ─── Assignment View (tracks when a student first opens an assignment) ────────
-//
-// One row per (student, assignment) pair.
-// Used to derive the "New" vs "Opened" student-facing display status.
-
+/// One row per (student, assignment): drives the "New" vs "Opened" status.
 model AssignmentView {
-  id           String   @id @default(uuid())
-
-  assignmentId String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id])
-
-  studentId    String
-  student      User   @relation("AssignmentViewer", fields: [studentId], references: [id])
-
-  /// Timestamp of the student's first view.
-  firstViewedAt DateTime @default(now())
-  /// Timestamp of the most recent view.
-  lastViewedAt  DateTime @default(now())
-  /// Total number of times the student has opened this assignment.
-  viewCount     Int      @default(1)
+  id            String     @id @default(uuid())
+  assignmentId  String
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       User       @relation("AssignmentViewer", fields: [studentId], references: [id], onDelete: Cascade)
+  firstViewedAt DateTime   @default(now())
+  lastViewedAt  DateTime   @default(now())
+  viewCount     Int        @default(1)
 
   @@unique([assignmentId, studentId])
   @@index([studentId])
-  @@index([assignmentId])
 }
-
-// ─── Submission ───────────────────────────────────────────────────────────────
 
 model Submission {
   id     String           @id @default(uuid())
@@ -494,34 +591,42 @@ model Submission {
 
   assignmentId String
   assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  studentId    String
+  student      User       @relation("StudentSubmissions", fields: [studentId], references: [id])
+  mentorId     String?
+  mentor       User?      @relation("MentorSubmissions", fields: [mentorId], references: [id], onDelete: SetNull)
 
-  studentId String
-  student   User   @relation("StudentSubmissions", fields: [studentId], references: [id])
+  fileId        String?
+  file          FileObject? @relation("SubmissionFile", fields: [fileId], references: [id], onDelete: SetNull)
+  /// Number of resubmissions made after the first submission.
+  revisionCount Int         @default(0)
+  /// True when the latest (re)submission arrived after the deadline.
+  isLate        Boolean     @default(false)
 
-  mentorId String?
-  mentor   User?  @relation("MentorSubmissions", fields: [mentorId], references: [id])
+  // ── Mentor's formal academic review (mentors only) ──────────────────────────
+  score          Int?
+  percentage     Float?
+  mentorFeedback String?
+  feedbackFileId String?
+  feedbackFile   FileObject? @relation("FeedbackFile", fields: [feedbackFileId], references: [id], onDelete: SetNull)
 
-  /// Current submission file.
-  fileUrl  String?
-  /// Number of times this submission has been revised.
-  revisionCount Int @default(0)
+  // ── Admin coordination (never academic feedback; never shown to students) ──
+  coordinationNote String?
+  /// Why the admin sent the review back to the mentor.
+  rejectionReason  String?
 
-  score    Int?
-  percentage Float?
+  /// Leaderboard points granted when published (0 until then).
+  pointsAwarded Int @default(0)
 
-  mentorFeedback     String?
-  mentorFeedbackFileUrl String?
-  adminFeedback      String?
-  rejectionReason    String?
-
-  /// For admin result corrections after publish: stores previous score.
-  previousScore    Int?
-  correctionNote   String?
-  correctedAt      DateTime?
-  correctedById    String?
-  correctedBy      User?    @relation("SubmissionCorrector", fields: [correctedById], references: [id])
+  // ── Reopen after publish (admin returns result to mentor for re-review) ─────
+  previousScore Int?
+  reopenNote    String?
+  reopenedAt    DateTime?
+  reopenedById  String?
+  reopenedBy    User?     @relation("SubmissionReopener", fields: [reopenedById], references: [id], onDelete: SetNull)
 
   submittedAt        DateTime?
+  assignedAt         DateTime?
   reviewStartedAt    DateTime?
   markedAt           DateTime?
   submittedToAdminAt DateTime?
@@ -533,111 +638,47 @@ model Submission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([assignmentId])
+  @@unique([assignmentId, studentId])
   @@index([studentId])
-  @@index([mentorId])
-  @@index([status])
+  @@index([mentorId, status])
+  @@index([assignmentId, status])
 }
 
-// ─── Submission Revision (immutable history of each submission attempt) ────────
-
+/// Immutable history of every submission attempt (revision 1 = first submission).
 model SubmissionRevision {
-  id           String   @id @default(uuid())
-
-  submissionId String
-  submission   Submission @relation(fields: [submissionId], references: [id])
-
-  /// Revision number (1-based).
+  id             String      @id @default(uuid())
+  submissionId   String
+  submission     Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   revisionNumber Int
-  fileUrl        String?
+  fileId         String?
+  file           FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
   note           String?
-
+  isLate         Boolean     @default(false)
   submittedById  String
-  submittedAt    DateTime @default(now())
+  submittedBy    User        @relation(fields: [submittedById], references: [id])
+  submittedAt    DateTime    @default(now())
 
-  @@index([submissionId])
+  @@unique([submissionId, revisionNumber])
 }
 
-// ─── Email Job (one per bulk-send request) ────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Discussions
+// ═══════════════════════════════════════════════════════════════════════════════
 
-enum EmailJobStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  PARTIAL_FAILURE
-  FAILED
-}
-
-model EmailJob {
-  id               String        @id @default(uuid())
-  /// Caller-supplied key; re-submitting the same key is a safe no-op.
-  idempotencyKey   String        @unique
-  subject          String
-  /// Body is stored to allow retry without re-submitting from the client.
-  /// It is never written to audit logs.
-  body             String
-  status           EmailJobStatus @default(PENDING)
-  totalRecipients  Int
-  sentCount        Int            @default(0)
-  failedCount      Int            @default(0)
-  createdById      String
-  createdBy        User           @relation("EmailJobCreator", fields: [createdById], references: [id])
-  completedAt      DateTime?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-
-  deliveries EmailDelivery[]
-
-  @@index([createdById])
-  @@index([status])
-  @@index([idempotencyKey])
-}
-
-// ─── Email Delivery (one per recipient per job) ───────────────────────────────
-
-enum EmailDeliveryStatus {
-  PENDING
-  SENT
-  FAILED
-}
-
-model EmailDelivery {
-  id         String              @id @default(uuid())
-  jobId      String
-  job        EmailJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  /// Stored at job-creation time; valid even if the user is later deleted.
-  recipientEmail String
-  recipientId    String?          // nullable — allow sending to non-users in future
-  status         EmailDeliveryStatus @default(PENDING)
-  /// SMTP message ID returned by the transport on success.
-  messageId    String?
-  errorMessage String?
-  attemptedAt  DateTime?
-  createdAt    DateTime @default(now())
-
-  @@index([jobId])
-  @@index([status])
-  @@index([recipientEmail])
-}
-
-// ─── Comment (shared discussion for courses and assignments) ─────────────────
-//
-// Exactly one of courseId / assignmentId must be non-null (enforced in
-// service layer).  Replies set parentId to the top-level comment's ID;
-// top-level comments have parentId = null.
-
+/// Shared discussion for courses and assignments. Exactly one of
+/// courseId / assignmentId is set (CHECK constraint in the migration).
+/// divisionId keeps Junior and Senior course threads separate.
 model Comment {
-  id       String        @id @default(uuid())
-  content  String
-  status   CommentStatus @default(ACTIVE)
+  id      String        @id @default(uuid())
+  content String
+  status  CommentStatus @default(ACTIVE)
 
-  /// The course this comment belongs to (null for assignment comments).
   courseId     String?
-  course       Course?     @relation("CourseComments",      fields: [courseId],     references: [id], onDelete: Cascade)
-
-  /// The assignment this comment belongs to (null for course comments).
+  course       Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   assignmentId String?
-  assignment   Assignment? @relation("AssignmentComments",  fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  divisionId   String
+  division     Division    @relation(fields: [divisionId], references: [id])
 
   /// Null for top-level comments; set for replies.
   parentId String?
@@ -645,65 +686,186 @@ model Comment {
   replies  Comment[] @relation("CommentReplies")
 
   authorId String
-  author   User @relation("CommentAuthor", fields: [authorId], references: [id])
+  author   User   @relation("CommentAuthor", fields: [authorId], references: [id])
 
   reactions CommentReaction[]
 
-  /// Set when admin hides the comment.
-  moderatedAt     DateTime?
-  moderatedById   String?
-  moderatedBy     User? @relation("CommentModerator", fields: [moderatedById], references: [id])
+  moderatedAt   DateTime?
+  moderatedById String?
+  moderatedBy   User?     @relation("CommentModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([courseId])
+  @@index([courseId, divisionId])
   @@index([assignmentId])
   @@index([authorId])
   @@index([parentId])
   @@index([status])
 }
 
-// ─── Comment Reaction ─────────────────────────────────────────────────────────
-//
-// One reaction per (user × comment × type).
-
 model CommentReaction {
   id        String       @id @default(uuid())
-
   commentId String
-  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-
+  comment   Comment      @relation(fields: [commentId], references: [id], onDelete: Cascade)
   userId    String
-  user      User   @relation("CommentReactions", fields: [userId], references: [id], onDelete: Cascade)
-
+  user      User         @relation("CommentReactions", fields: [userId], references: [id], onDelete: Cascade)
   type      ReactionType
-
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
   @@unique([commentId, userId, type])
-  @@index([commentId])
   @@index([userId])
 }
 
-// ─── Audit Log ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Study groups (admin-managed cohorts)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model StudyGroup {
+  id          String  @id @default(uuid())
+  name        String
+  description String
+  tags        String?
+  isActive    Boolean @default(true)
+
+  createdById String
+  createdBy   User   @relation("StudyGroupCreator", fields: [createdById], references: [id])
+
+  members StudyGroupMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([createdById])
+}
+
+model StudyGroupMember {
+  id          String     @id @default(uuid())
+  groupId     String
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User       @relation("StudyGroupMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  /// Role within this group only — does not affect global authorization.
+  groupRole   GroupRole  @default(STUDENT)
+  joinedAt    DateTime   @default(now())
+  removedAt   DateTime?
+  removedById String?
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Notifications & e-mail
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  NotificationCategory
+  /// Machine-readable event type, e.g. "assignment.published".
+  type      String
+  title     String
+  body      String
+  /// Ids the frontend needs to deep-link (assignmentId, submissionId, …).
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime             @default(now())
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id           String               @id @default(uuid())
+  userId       String
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     NotificationCategory
+  emailEnabled Boolean              @default(true)
+  updatedAt    DateTime             @updatedAt
+
+  @@unique([userId, category])
+}
+
+/// One per admin bulk-send request.
+model EmailJob {
+  id              String         @id @default(uuid())
+  /// Caller-supplied key; re-submitting the same key is a safe no-op.
+  idempotencyKey  String         @unique
+  subject         String
+  /// Stored to allow retry. Never written to audit logs.
+  body            String
+  status          EmailJobStatus @default(PENDING)
+  totalRecipients Int
+  sentCount       Int            @default(0)
+  failedCount     Int            @default(0)
+  createdById     String
+  createdBy       User           @relation("EmailJobCreator", fields: [createdById], references: [id])
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  deliveries EmailDelivery[]
+
+  @@index([createdById])
+  @@index([status])
+}
+
+/// Outbox for every outgoing e-mail (bulk-job recipients and transactional
+/// notifications). A background worker claims PENDING rows with
+/// FOR UPDATE SKIP LOCKED, so it is safe with several API instances.
+model EmailDelivery {
+  id             String              @id @default(uuid())
+  /// Set for bulk-job deliveries; null for transactional e-mails.
+  jobId          String?
+  job            EmailJob?           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  recipientEmail String
+  recipientId    String?
+  /// Transactional e-mails carry their own subject/body; bulk deliveries use the job's.
+  subject        String?
+  body           String?
+  status         EmailDeliveryStatus @default(PENDING)
+  attempts       Int                 @default(0)
+  nextAttemptAt  DateTime            @default(now())
+  lockedAt       DateTime?
+  messageId      String?
+  errorMessage   String?
+  attemptedAt    DateTime?
+  createdAt      DateTime            @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([jobId, status])
+  @@index([recipientEmail])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Administration
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Key/value system settings. Keys are restricted to an allow-list in code.
+model SystemSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime @updatedAt
+}
 
 model AuditLog {
   id        String   @id @default(uuid())
-
   actorId   String?
   actorRole String?
-  actor     User?    @relation("AuditActor", fields: [actorId], references: [id])
-
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
   action    String
   entity    String
   entityId  String?
   metadata  Json?
-
   createdAt DateTime @default(now())
 
   @@index([actorId])
   @@index([action])
-  @@index([entity])
+  @@index([entity, entityId])
   @@index([createdAt])
 }

@@ -2,53 +2,40 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
+  ParseIntPipe,
+  ParseUUIDPipe,
   Patch,
   Post,
-  Request,
+  Query,
   Res,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { createReadStream } from 'fs';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { SubmissionsService } from './submissions.service.js';
-import {
-  submissionStorage,
-  submissionFileFilter,
-  SUBMISSION_MAX_FILE_SIZE,
-  feedbackStorage,
-  feedbackFileFilter,
-  FEEDBACK_MAX_FILE_SIZE,
-} from './submissions.constants.js';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
-import { AssignSubmissionDto } from './dto/assign-submission.dto.js';
+import { AssignSubmissionDto, DistributeSubmissionsDto } from './dto/assign-submission.dto.js';
 import { MarkSubmissionDto } from './dto/mark-submission.dto.js';
 import { ApproveResultDto, RejectResultDto } from './dto/review-result.dto.js';
-import { CorrectResultDto } from './dto/correct-result.dto.js';
-import { resolveUploadPath, contentDisposition } from '../common/file.utils.js';
-
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { ReopenResultDto } from './dto/correct-result.dto.js';
+import { ListSubmissionsDto } from './dto/list-submissions.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { uploadOptions } from '../common/storage/upload-options.js';
+import type { AuthUser } from '../common/auth-user.js';
 
-// ─── Multer option objects ────────────────────────────────────────────────────
-
-const submissionUploadOpts = {
-  storage:    submissionStorage,
-  fileFilter: submissionFileFilter,
-  limits:     { fileSize: SUBMISSION_MAX_FILE_SIZE },
-};
-
-const feedbackUploadOpts = {
-  storage:    feedbackStorage,
-  fileFilter: feedbackFileFilter,
-  limits:     { fileSize: FEEDBACK_MAX_FILE_SIZE },
-};
-
+/**
+ * Submission and review workflow.
+ *
+ * Static routes are declared before `:id` routes so that paths such as
+ * `/submissions/my` are never captured as an id.
+ */
+@ApiTags('Submissions')
 @Controller('submissions')
 export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
@@ -58,254 +45,204 @@ export class SubmissionsController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * STUDENT (+ADMIN): Submit or resubmit an assignment.
-   * Handles first submission and revisions in one endpoint.
-   * Deadline + resubmission rules enforced in the service.
+   * Submit or resubmit (multipart/form-data: `assignmentId`, optional `note`,
+   * file in field `file`). Deadline and resubmission rules apply.
    */
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('STUDENT')
-  @UseInterceptors(FileInterceptor('file', submissionUploadOpts))
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', uploadOptions('SUBMISSION')))
   submit(
     @Body() body: CreateSubmissionDto,
-    @UploadedFile() file: Express.Multer.File,
-    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.submissionsService.submit(body, { id: req.user.id, role: req.user.role }, file);
-  }
-
-  /**
-   * STUDENT (+ADMIN): View own submissions.
-   * Published results include score, percentage, mentor name, feedback.
-   * Pre-publish submissions show status only — no score/feedback leak.
-   */
-  @Get('my-submissions')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('STUDENT')
-  getMySubmissions(@Request() req: any) {
-    return this.submissionsService.getMySubmissions(req.user.id);
+    return this.submissionsService.submit(body, user, file);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE 4 — Admin views and assigns
+  // ADMIN — list
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** ADMIN: Full list of all submissions with current status. */
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  findAll() {
-    return this.submissionsService.findAll();
+  findAll(@Query() query: ListSubmissionsDto) {
+    return this.submissionsService.findAll(query);
   }
 
-  /** ADMIN: Single submission with full revision history. */
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Any role — single submission (projected for the caller)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /** Students: own only. Mentors: assigned to them. Admins: any. */
   @Get(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  findOne(@Param('id') id: string) {
-    return this.submissionsService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.findOne(id, user);
   }
 
-  /** ADMIN: Assign a mentor to a SUBMITTED submission. */
+  /** Latest submitted file. */
+  @Get(':id/file')
+  async file(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
+    await this.submissionsService.serveSubmissionFile(id, user, res);
+  }
+
+  /** File of a specific revision (1 = first submission). */
+  @Get(':id/revisions/:revisionNumber/file')
+  async revisionFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('revisionNumber', ParseIntPipe) revisionNumber: number,
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+  ) {
+    await this.submissionsService.serveSubmissionFile(id, user, res, revisionNumber);
+  }
+
+  /** Mentor feedback attachment (students: only after publication). */
+  @Get(':id/feedback-file')
+  async feedbackFile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
+    await this.submissionsService.serveFeedbackFile(id, user, res);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 4 — Admin distributes
+  // ═══════════════════════════════════════════════════════════════════════════
+
   @Patch(':id/assign')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  assign(
-    @Param('id') id: string,
-    @Body() body: AssignSubmissionDto,
-    @Request() req: any,
-  ) {
-    return this.submissionsService.assign(id, body, { id: req.user.id, role: req.user.role });
+  assign(@Param('id', ParseUUIDPipe) id: string, @Body() body: AssignSubmissionDto, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.assign(id, body, user);
   }
 
-  /** ADMIN: Reassign a different mentor to an already-assigned submission. */
   @Patch(':id/reassign')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  reassign(
-    @Param('id') id: string,
-    @Body() body: AssignSubmissionDto,
-    @Request() req: any,
-  ) {
-    return this.submissionsService.reassign(id, body, { id: req.user.id, role: req.user.role });
+  reassign(@Param('id', ParseUUIDPipe) id: string, @Body() body: AssignSubmissionDto, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.reassign(id, body, user);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE 5 — Mentor reviews, marks, and sends to admin
+  // STAGE 5 — Mentor reviews (MENTOR only: administrators do not grade)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * MENTOR (+ADMIN): Get submissions assigned to this mentor.
-   * Admin calling this sees their own mentor queue (empty unless directly assigned).
-   * Use GET /submissions for the admin's full list.
-   */
-  @Get('my-assignments')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  getByMentor(@Request() req: any) {
-    return this.submissionsService.getByMentor(req.user.id);
-  }
-
-  /** MENTOR (+ADMIN): Start reviewing an ASSIGNED submission. */
   @Patch(':id/start-review')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MENTOR')
-  startReview(@Param('id') id: string, @Request() req: any) {
-    return this.submissionsService.startReview(id, { id: req.user.id, role: req.user.role });
+  startReview(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.startReview(id, user);
   }
 
-  /**
-   * MENTOR (+ADMIN): Submit score + feedback.
-   * Accepts an optional `feedbackFile` field for an attachment.
-   */
+  /** Score + formal feedback; optional attachment in field `feedbackFile`. */
   @Patch(':id/mark')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MENTOR')
-  @UseInterceptors(FileInterceptor('feedbackFile', feedbackUploadOpts))
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('feedbackFile', uploadOptions('FEEDBACK')))
   mark(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: MarkSubmissionDto,
-    @UploadedFile() feedbackFile: Express.Multer.File,
-    @Request() req: any,
+    @UploadedFile() feedbackFile: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.submissionsService.mark(
-      id,
-      body,
-      { id: req.user.id, role: req.user.role },
-      feedbackFile,
-    );
+    return this.submissionsService.mark(id, body, user, feedbackFile);
   }
 
-  /** MENTOR (+ADMIN): Send MARKED submission to admin for approval. */
+  /** Return the completed review to the administrators. */
   @Patch(':id/submit-to-admin')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('MENTOR')
-  submitToAdmin(@Param('id') id: string, @Request() req: any) {
-    return this.submissionsService.submitToAdmin(id, { id: req.user.id, role: req.user.role });
+  submitToAdmin(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.submitToAdmin(id, user);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE 6 — Admin approves, rejects, publishes, and corrects
+  // STAGE 6–7 — Admin coordinates results
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** ADMIN: Approve a SUBMITTED_TO_ADMIN result. */
   @Patch(':id/approve')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  approve(
-    @Param('id') id: string,
-    @Body() body: ApproveResultDto,
-    @Request() req: any,
-  ) {
-    return this.submissionsService.approve(id, body, { id: req.user.id, role: req.user.role });
+  approve(@Param('id', ParseUUIDPipe) id: string, @Body() body: ApproveResultDto, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.approve(id, body, user);
   }
 
-  /** ADMIN: Reject a SUBMITTED_TO_ADMIN result — returns it to the mentor. */
+  /** Send the review back to the mentor with a reason. */
   @Patch(':id/reject')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  reject(
-    @Param('id') id: string,
-    @Body() body: RejectResultDto,
-    @Request() req: any,
-  ) {
-    return this.submissionsService.reject(id, body, { id: req.user.id, role: req.user.role });
+  reject(@Param('id', ParseUUIDPipe) id: string, @Body() body: RejectResultDto, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.reject(id, body, user);
   }
 
-  /** ADMIN: Publish an APPROVED result to the student. Awards leaderboard points. */
+  /** Publish one approved result to the student. */
   @Patch(':id/publish')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  publish(@Param('id') id: string, @Request() req: any) {
-    return this.submissionsService.publish(id, { id: req.user.id, role: req.user.role });
+  publish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.publish(id, user);
   }
 
-  /**
-   * ADMIN: Correct a PUBLISHED result.
-   * Snapshots the previous score, requires a mandatory correction note,
-   * adjusts leaderboard points by the delta, and writes a full audit entry.
-   */
-  @Patch(':id/correct')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  /** Correct a published result by returning it to the mentor (replaces the old score-correction endpoint). */
+  @Patch(':id/reopen')
   @Roles('ADMIN')
-  correctResult(
-    @Param('id') id: string,
-    @Body() body: CorrectResultDto,
-    @Request() req: any,
+  reopen(@Param('id', ParseUUIDPipe) id: string, @Body() body: ReopenResultDto, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.reopen(id, body, user);
+  }
+}
+
+@ApiTags('Submissions')
+@Controller('assignments/:assignmentId')
+@Roles('ADMIN')
+export class AssignmentResultsController {
+  constructor(private readonly submissionsService: SubmissionsService) {}
+
+  /** Spread all unassigned submissions across the mentors of this course × division. */
+  @Post('distribute')
+  @HttpCode(200)
+  distribute(
+    @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
+    @Body() body: DistributeSubmissionsDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.submissionsService.correctResult(id, body, { id: req.user.id, role: req.user.role });
+    return this.submissionsService.distribute(assignmentId, body, user);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // File downloads
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /**
-   * ADMIN (+MENTOR): Download a student submission file.
-   *
-   * Access rule:
-   *   - ADMIN: any submission.
-   *   - MENTOR: only submissions assigned to them.
-   *   - STUDENT: cannot reach this endpoint (blocked by @Roles('MENTOR')).
-   *              Students download their own submissions via my-submissions response.
-   */
-  @Get(':id/download-submission')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  async downloadSubmission(
-    @Param('id') id: string,
-    @Request() req: any,
-    @Res() res: Response,
-  ) {
-    const sub    = await this.submissionsService.findOne(id);
-    const caller = { id: req.user.id, role: req.user.role };
-
-    if (caller.role !== 'ADMIN' && sub.mentor?.id !== caller.id) {
-      return res.status(403).json({ message: 'You are not assigned to this submission.' });
-    }
-
-    if (!sub.fileUrl) {
-      return res.status(404).json({ message: 'No file attached to this submission.' });
-    }
-
-    const filePath = resolveUploadPath(sub.fileUrl, 'submissions');
-    const disp     = contentDisposition(null, `submission-${id}`);
-    res.setHeader('Content-Disposition', disp);
-    createReadStream(filePath).pipe(res);
+  /** Publish every approved result of the assignment. */
+  @Post('results/publish')
+  @HttpCode(200)
+  publishResults(@Param('assignmentId', ParseUUIDPipe) assignmentId: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.publishAssignmentResults(assignmentId, user);
   }
+}
 
-  /**
-   * STUDENT (+ADMIN): Download the mentor feedback file for a published result.
-   *
-   * Access rule: Student may only download feedback for their own submission
-   * once the result is PUBLISHED.
-   */
-  @Get(':id/download-feedback')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('STUDENT')
-  async downloadFeedback(
-    @Param('id') id: string,
-    @Request() req: any,
-    @Res() res: Response,
-  ) {
-    const mySubmissions = await this.submissionsService.getMySubmissions(req.user.id);
-    const sub           = mySubmissions.find((s) => s.id === id);
+@ApiTags('Me')
+@Controller('me/submissions')
+@Roles('STUDENT')
+export class MySubmissionsController {
+  constructor(private readonly submissionsService: SubmissionsService) {}
 
-    if (!sub) {
-      return res.status(404).json({ message: 'Submission not found.' });
-    }
-    if (sub.status !== 'PUBLISHED') {
-      return res.status(403).json({ message: 'Feedback is not available until results are published.' });
-    }
+  /** Own submissions; scores and feedback appear once results are published. */
+  @Get()
+  findMine(@CurrentUser() user: AuthUser, @Query() query: ListSubmissionsDto) {
+    return this.submissionsService.getMySubmissions(user, query);
+  }
+}
 
-    const feedbackUrl = (sub as any).mentorFeedbackFileUrl as string | undefined;
-    if (!feedbackUrl) {
-      return res.status(404).json({ message: 'No feedback file attached to this result.' });
-    }
+@ApiTags('Mentor')
+@Controller('mentor/reviews')
+@Roles('MENTOR')
+export class MentorReviewsController {
+  constructor(private readonly submissionsService: SubmissionsService) {}
 
-    const filePath = resolveUploadPath(feedbackUrl, 'feedback');
-    const disp     = contentDisposition(null, `feedback-${id}`);
-    res.setHeader('Content-Disposition', disp);
-    createReadStream(filePath).pipe(res);
+  /** Submissions assigned to me (open reviews by default; filter with ?status=). */
+  @Get()
+  queue(@CurrentUser() user: AuthUser, @Query() query: ListSubmissionsDto) {
+    return this.submissionsService.getReviewQueue(user, query);
+  }
+}
+
+@ApiTags('Admin · Leaderboard')
+@Controller('admin/leaderboard')
+@Roles('ADMIN')
+export class AdminPointsController {
+  constructor(private readonly submissionsService: SubmissionsService) {}
+
+  /** Rebuild every student's points from published results (maintenance). */
+  @Post('recompute')
+  @HttpCode(200)
+  recompute(@CurrentUser() user: AuthUser) {
+    return this.submissionsService.recomputeAllPoints(user);
   }
 }

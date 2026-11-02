@@ -1,67 +1,30 @@
-import { BadRequestException } from '@nestjs/common';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { randomUUID } from 'crypto';
+import type { SubmissionStatus } from '../generated/prisma/client.js';
 
-/** Allowed MIME types for student submission files. */
-const ALLOWED_SUBMISSION_TYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'application/zip',
-  'application/x-zip-compressed',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
-];
+/**
+ * Submission status groups used across the review workflow.
+ *
+ * (Upload type/size rules now live in common/storage/file-rules.ts and are
+ * enforced on the detected file content.)
+ */
 
-/** Allowed MIME types for mentor feedback files. */
-const ALLOWED_FEEDBACK_TYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
-];
+/** A student may still replace their work (before the mentor starts reviewing). */
+export const RESUBMITTABLE: SubmissionStatus[] = ['SUBMITTED', 'ASSIGNED'];
 
-/** 20 MB max for student submissions. */
-export const SUBMISSION_MAX_FILE_SIZE = 20 * 1024 * 1024;
+/** Review is the mentor's responsibility in these states — counts as mentor workload. */
+export const OPEN_REVIEW: SubmissionStatus[] = ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED'];
 
-/** 10 MB max for mentor feedback files. */
-export const FEEDBACK_MAX_FILE_SIZE = 10 * 1024 * 1024;
+/** An admin may move the review to a different mentor. */
+export const REASSIGNABLE: SubmissionStatus[] = ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED'];
 
-export const submissionFileFilter = (
-  _req: any,
-  file: Express.Multer.File,
-  cb: (error: Error | null, accept: boolean) => void,
-) => {
-  if (ALLOWED_SUBMISSION_TYPES.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new BadRequestException(`File type "${file.mimetype}" is not permitted for submissions.`), false);
-  }
-};
+/** The mentor may start (or restart) reviewing. */
+export const REVIEW_STARTABLE: SubmissionStatus[] = ['ASSIGNED', 'REJECTED'];
 
-export const feedbackFileFilter = (
-  _req: any,
-  file: Express.Multer.File,
-  cb: (error: Error | null, accept: boolean) => void,
-) => {
-  if (ALLOWED_FEEDBACK_TYPES.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new BadRequestException(`File type "${file.mimetype}" is not permitted for feedback.`), false);
-  }
-};
+/** The mentor may save a score and feedback (re-marking before returning is allowed). */
+export const MARKABLE: SubmissionStatus[] = ['IN_REVIEW', 'MARKED'];
 
-export const submissionStorage = diskStorage({
-  destination: join(process.cwd(), 'uploads', 'submissions'),
-  filename: (_req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname)}`),
-});
-
-export const feedbackStorage = diskStorage({
-  destination: join(process.cwd(), 'uploads', 'feedback'),
-  filename: (_req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname)}`),
-});
+export enum DistributionStrategy {
+  /** Each submission goes to the eligible mentor with the fewest open reviews. */
+  BALANCED    = 'BALANCED',
+  /** Submissions are dealt to eligible mentors in turn. */
+  ROUND_ROBIN = 'ROUND_ROBIN',
+}

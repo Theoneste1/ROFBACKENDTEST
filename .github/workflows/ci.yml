@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rof
+          POSTGRES_PASSWORD: rof
+          POSTGRES_DB: rof_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U rof -d rof_ci"
+          --health-interval 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://rof:rof@localhost:5432/rof_ci?schema=public
+      TEST_DATABASE_URL: postgresql://rof:rof@localhost:5432/rof_ci?schema=public&application_name=e2e
+      JWT_SECRET: ci-only-secret-that-is-long-enough-0123456789
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # Proves the migration history builds an empty database from scratch.
+      - name: Apply migrations to an empty database
+        run: npx prisma migrate deploy
+
+      # Fails if schema.prisma was changed without a migration.
+      - name: Check for schema drift
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+      - name: End-to-end tests
+        run: npm run test:e2e
+
+      - name: Build
+        run: npm run build
+
+      - name: Build Docker image
+        run: docker build --target runtime -t rof-api:ci .

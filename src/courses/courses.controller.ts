@@ -1,338 +1,197 @@
-
 import {
   Body,
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
-  Request,
   Res,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { CoursesService } from './courses.service.js';
-import { CourseResourcesService, resourceStorage, resourceFileFilter, RESOURCE_MAX_FILE_SIZE } from './course-resources.service.js';
-import { CreateCourseDto } from './dto/create-course.dto.js';
+import { CourseResourcesService } from './course-resources.service.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
-import { RejectCourseDto } from './dto/reject-course.dto.js';
-import { CreateResourceDto } from './dto/create-resource.dto.js';
+import { CreateResourceDto, ListResourcesDto } from './dto/create-resource.dto.js';
 import { UpdateResourceDto } from './dto/update-resource.dto.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { uploadOptions } from '../common/storage/upload-options.js';
+import type { AuthUser } from '../common/auth-user.js';
 
-const resourceUploadOpts = {
-  storage:    resourceStorage,
-  fileFilter: resourceFileFilter,
-  limits:     { fileSize: RESOURCE_MAX_FILE_SIZE },
-};
-
+@ApiTags('Courses')
 @Controller('courses')
 export class CoursesController {
   constructor(
-    private readonly coursesService:          CoursesService,
-    private readonly courseResourcesService:  CourseResourcesService,
+    private readonly coursesService:         CoursesService,
+    private readonly courseResourcesService: CourseResourcesService,
   ) {}
 
-  // ─── MENTOR (+ADMIN): Create a draft course ───────────────────────────────
-  @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  create(@Body() body: CreateCourseDto, @Request() req: any) {
-    return this.coursesService.create(body, { id: req.user.id, role: req.user.role });
-  }
-
-  // ─── MENTOR (+ADMIN): View own courses ────────────────────────────────────
-  @Get('mine')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  findMine(@Request() req: any) {
-    return this.coursesService.findMine(req.user.id);
-  }
-
-  // ─── ADMIN: View ALL courses (all statuses) ────────────────────────────────
-  @Get('admin/all')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  findAllAdmin() {
-    return this.coursesService.findAllAdmin();
-  }
-
-  // ─── ANY AUTHENTICATED: Browse published courses with enrollment status ─────
+  /** Courses visible to the caller (students: published, with progress; mentors: taught). */
   @Get()
-  @UseGuards(JwtAuthGuard)
-  findAllPublished(@Request() req: any) {
-    return this.coursesService.findAllPublished({ id: req.user.id, role: req.user.role });
+  findAll(@CurrentUser() user: AuthUser) {
+    return this.coursesService.findAll(user);
   }
 
-  // ─── ANY AUTHENTICATED: Get single course ─────────────────────────────────
-  // For STUDENT callers: records the view (UNROLLED → ROLLED on first open).
-  // Re-opening a COMPLETED course does NOT reset the status.
+  /** Course detail. Opening a course as a student moves it from Unrolled to Rolled. */
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string, @Request() req: any) {
-    return this.coursesService.findOne(id, { id: req.user.id, role: req.user.role });
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.coursesService.findOne(id, user);
   }
 
-  // ─── STUDENT (+ADMIN): Mark course as COMPLETED ───────────────────────────
-  // Called when the student checks the completion checkbox at the end of the
-  // course. Idempotent — checking the box again on a completed course is fine.
+  /** Student ticks the completion box. Idempotent. */
   @Post(':id/complete')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('STUDENT')
-  completeCourse(@Param('id') id: string, @Request() req: any) {
-    return this.coursesService.completeCourse(id, { id: req.user.id, role: req.user.role });
-  }
-
-  // ─── STUDENT (+ADMIN): View own course enrollments ────────────────────────
-  @Get('my/enrollments')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('STUDENT')
-  getMyEnrollments(@Request() req: any) {
-    return this.coursesService.getMyEnrollments(req.user.id);
-  }
-
-  // ─── MENTOR (+ADMIN): Edit a DRAFT or REJECTED course ────────────────────
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  update(
-    @Param('id') id: string,
-    @Body() body: UpdateCourseDto,
-    @Request() req: any,
-  ) {
-    return this.coursesService.update(id, body, { id: req.user.id, role: req.user.role });
-  }
-
-  // ─── MENTOR (+ADMIN): Submit a draft for admin review ────────────────────
-  @Patch(':id/submit')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  submitForReview(@Param('id') id: string, @Request() req: any) {
-    return this.coursesService.submitForReview(id, { id: req.user.id, role: req.user.role });
-  }
-
-  // ─── MENTOR (+ADMIN): Recall a pending course back to draft ──────────────
-  @Patch(':id/recall')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  recall(@Param('id') id: string, @Request() req: any) {
-    return this.coursesService.recall(id, { id: req.user.id, role: req.user.role });
-  }
-
-  // ─── ADMIN: Publish a pending course ──────────────────────────────────────
-  @Patch(':id/publish')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  publish(@Param('id') id: string, @Request() req: any) {
-    return this.coursesService.publish(id, { id: req.user.id, role: req.user.role });
-  }
-
-  // ─── ADMIN: Reject a pending course ───────────────────────────────────────
-  @Patch(':id/reject')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  reject(
-    @Param('id') id: string,
-    @Body() body: RejectCourseDto,
-    @Request() req: any,
-  ) {
-    return this.coursesService.reject(id, body, { id: req.user.id, role: req.user.role });
-  }
-
-  // ─── ADMIN: Unpublish a live course ───────────────────────────────────────
-  @Patch(':id/unpublish')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  unpublish(@Param('id') id: string, @Request() req: any) {
-    return this.coursesService.unpublish(id, { id: req.user.id, role: req.user.role });
+  @HttpCode(200)
+  completeCourse(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.coursesService.completeCourse(id, user);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Course Resources — nested under /courses/:courseId/resources
+  // Course resources — /courses/:courseId/resources
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * MENTOR (+ADMIN): Upload a new learning resource to a course.
-   * File field name: `file` (multipart/form-data).
-   * Allowed types: PDF, images, Word, PowerPoint, ZIP, ePub, plain text.
-   * Max size: 50 MB.
-   *
-   * POST /courses/:courseId/resources
+   * Upload a learning resource (multipart/form-data, file field `file`).
+   * Mentors: only for a division they teach in this course.
    */
   @Post(':courseId/resources')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  @UseInterceptors(FileInterceptor('file', resourceUploadOpts))
+  @Roles('MENTOR', 'ADMIN')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', uploadOptions('RESOURCE')))
   createResource(
-    @Param('courseId') courseId: string,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
     @Body() body: CreateResourceDto,
-    @UploadedFile() file: Express.Multer.File,
-    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.create(
-      courseId,
-      body,
-      { id: req.user.id, role: req.user.role },
-      file,
-    );
+    return this.courseResourcesService.create(courseId, body, user, file);
   }
 
-  /**
-   * ANY AUTHENTICATED: List resources for a course.
-   * ADMIN / creator → all resources (published + draft).
-   * Everyone else   → published resources on published courses only.
-   *
-   * GET /courses/:courseId/resources
-   */
+  /** Students: published resources of their division. Mentors/admins: all, filterable by division. */
   @Get(':courseId/resources')
-  @UseGuards(JwtAuthGuard)
-  listResources(@Param('courseId') courseId: string, @Request() req: any) {
-    return this.courseResourcesService.findAll(
-      courseId,
-      { id: req.user.id, role: req.user.role },
-    );
-  }
-
-  /**
-   * ANY AUTHENTICATED: Get a single resource's metadata.
-   *
-   * GET /courses/:courseId/resources/:resourceId
-   */
-  @Get(':courseId/resources/:resourceId')
-  @UseGuards(JwtAuthGuard)
-  getResource(
-    @Param('courseId')   courseId:   string,
-    @Param('resourceId') resourceId: string,
-    @Request() req: any,
+  listResources(
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Query() query: ListResourcesDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.findOne(
-      courseId,
-      resourceId,
-      { id: req.user.id, role: req.user.role },
-    );
+    return this.courseResourcesService.findAll(courseId, user, query);
   }
 
-  /**
-   * ANY AUTHENTICATED: View or download the resource file.
-   *
-   * Content-Disposition behaviour:
-   *   PDF, images, plain text → inline  (browser can display)
-   *   Word, ZIP, ePub, etc.   → attachment (browser downloads)
-   *
-   * Add ?download=true to force attachment disposition for any type.
-   *
-   * GET /courses/:courseId/resources/:resourceId/file
-   * GET /courses/:courseId/resources/:resourceId/file?download=true
-   */
+  @Get(':courseId/resources/:resourceId')
+  getResource(
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.courseResourcesService.findOne(courseId, resourceId, user);
+  }
+
+  /** View (PDF/images inline) or download the file. `?download=true` forces download. */
   @Get(':courseId/resources/:resourceId/file')
-  @UseGuards(JwtAuthGuard)
   async serveResourceFile(
-    @Param('courseId')   courseId:   string,
-    @Param('resourceId') resourceId: string,
-    @Query('download')   download:   string,
-    @Request() req: any,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @Query('download') download: string | undefined,
+    @CurrentUser() user: AuthUser,
     @Res() res: Response,
   ) {
-    const forceDownload = download === 'true' || download === '1';
     await this.courseResourcesService.serveFile(
-      courseId,
-      resourceId,
-      { id: req.user.id, role: req.user.role },
-      res,
-      forceDownload,
+      courseId, resourceId, user, res, download === 'true' || download === '1',
     );
   }
 
-  /**
-   * MENTOR (+ADMIN): Update resource metadata or replace the file.
-   *
-   * PATCH /courses/:courseId/resources/:resourceId
-   */
+  /** Update metadata and/or replace the file. */
   @Patch(':courseId/resources/:resourceId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
-  @UseInterceptors(FileInterceptor('file', resourceUploadOpts))
+  @Roles('MENTOR', 'ADMIN')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', uploadOptions('RESOURCE')))
   updateResource(
-    @Param('courseId')   courseId:   string,
-    @Param('resourceId') resourceId: string,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
     @Body() body: UpdateResourceDto,
-    @UploadedFile() file: Express.Multer.File,
-    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.update(
-      courseId,
-      resourceId,
-      body,
-      { id: req.user.id, role: req.user.role },
-      file,
-    );
+    return this.courseResourcesService.update(courseId, resourceId, body, user, file);
   }
 
-  /**
-   * MENTOR (+ADMIN): Publish a resource (make it visible to students).
-   *
-   * PATCH /courses/:courseId/resources/:resourceId/publish
-   */
   @Patch(':courseId/resources/:resourceId/publish')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
+  @Roles('MENTOR', 'ADMIN')
   publishResource(
-    @Param('courseId')   courseId:   string,
-    @Param('resourceId') resourceId: string,
-    @Request() req: any,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.publish(
-      courseId,
-      resourceId,
-      { id: req.user.id, role: req.user.role },
-    );
+    return this.courseResourcesService.setPublished(courseId, resourceId, true, user);
   }
 
-  /**
-   * MENTOR (+ADMIN): Unpublish a resource.
-   *
-   * PATCH /courses/:courseId/resources/:resourceId/unpublish
-   */
   @Patch(':courseId/resources/:resourceId/unpublish')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
+  @Roles('MENTOR', 'ADMIN')
   unpublishResource(
-    @Param('courseId')   courseId:   string,
-    @Param('resourceId') resourceId: string,
-    @Request() req: any,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.unpublish(
-      courseId,
-      resourceId,
-      { id: req.user.id, role: req.user.role },
-    );
+    return this.courseResourcesService.setPublished(courseId, resourceId, false, user);
   }
 
-  /**
-   * ADMIN (+course creator): Delete a resource.
-   *
-   * DELETE /courses/:courseId/resources/:resourceId
-   */
   @Delete(':courseId/resources/:resourceId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('MENTOR')
+  @Roles('MENTOR', 'ADMIN')
   removeResource(
-    @Param('courseId')   courseId:   string,
-    @Param('resourceId') resourceId: string,
-    @Request() req: any,
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.remove(
-      courseId,
-      resourceId,
-      { id: req.user.id, role: req.user.role },
-    );
+    return this.courseResourcesService.remove(courseId, resourceId, user);
+  }
+}
+
+@ApiTags('Admin · Courses')
+@Controller('admin/courses')
+@Roles('ADMIN')
+export class AdminCoursesController {
+  constructor(private readonly coursesService: CoursesService) {}
+
+  /** Edit title, description or display order. The four courses cannot be created or deleted. */
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateCourseDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.coursesService.update(id, body, user);
+  }
+
+  @Patch(':id/publish')
+  publish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.coursesService.setPublished(id, true, user);
+  }
+
+  /** Hides the course and all of its content from students. */
+  @Patch(':id/unpublish')
+  unpublish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.coursesService.setPublished(id, false, user);
+  }
+}
+
+@ApiTags('Me')
+@Controller('me/courses')
+@Roles('STUDENT')
+export class MyCoursesController {
+  constructor(private readonly coursesService: CoursesService) {}
+
+  /** Progress (Unrolled / Rolled / Completed) for every published course. */
+  @Get()
+  findMine(@CurrentUser() user: AuthUser) {
+    return this.coursesService.getMyEnrollments(user.id);
   }
 }

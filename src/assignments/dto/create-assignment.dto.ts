@@ -1,14 +1,22 @@
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
   Length,
+  Max,
   Min,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import { AssignmentStatus } from '../../generated/prisma/client.js';
+import { PaginationQueryDto } from '../../common/pagination.js';
+
+/** multipart/form-data sends booleans as strings. */
+export const toBoolean = ({ value }: { value: unknown }) =>
+  value === 'true' || value === true ? true : value === 'false' || value === false ? false : value;
 
 export class CreateAssignmentDto {
   @IsString()
@@ -16,44 +24,62 @@ export class CreateAssignmentDto {
   @Transform(({ value }: { value: string }) => value?.trim())
   title: string;
 
-  /** The published course this assignment belongs to. */
+  /** One of the four courses. */
   @IsUUID()
   courseId: string;
 
+  /** Junior or Senior — the mentor must be assigned to this course × division. */
+  @IsUUID()
+  divisionId: string;
+
   @IsString()
-  @Length(10, 5000)
+  @Length(10, 10000)
   @Transform(({ value }: { value: string }) => value?.trim())
   instructions: string;
 
-  /** ISO-8601 datetime string for the submission deadline. */
+  /** ISO-8601 datetime for the submission deadline. */
   @IsISO8601()
   deadline: string;
 
-  /** Points awarded on the leaderboard when the result is published. */
+  /** Leaderboard points available; awarded in proportion to the score. */
   @IsInt()
-  @Min(1)
+  @Min(0)
+  @Max(10000)
   @Type(() => Number)
   points: number;
 
   /** Ceiling for mentor scores. All submitted scores are validated against this. */
   @IsInt()
   @Min(1)
+  @Max(10000)
   @Type(() => Number)
   maximumMarks: number;
 
-  /** Whether students may resubmit before the deadline. Defaults to false. */
+  /** Whether students may resubmit before the deadline (while not yet under review). */
   @IsOptional()
+  @Transform(toBoolean)
   @IsBoolean()
-  @Transform(({ value }: { value: unknown }) => value === 'true' || value === true)
   allowResubmission?: boolean;
 
-  /**
-   * Maximum number of resubmissions allowed (0 = unlimited while deadline not passed).
-   * Ignored when allowResubmission is false.
-   */
+  /** Maximum resubmissions (0 = unlimited). Requires allowResubmission. */
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(50)
   @Type(() => Number)
   maxResubmissions?: number;
+
+  /** Accept first submissions after the deadline (flagged as late). */
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  allowLateSubmission?: boolean;
+}
+
+export class ListAssignmentsDto extends PaginationQueryDto {
+  @IsOptional() @IsUUID() courseId?: string;
+  /** Mentors/admins only. */
+  @IsOptional() @IsUUID() divisionId?: string;
+  /** Mentors/admins only. */
+  @IsOptional() @IsEnum(AssignmentStatus) status?: AssignmentStatus;
 }

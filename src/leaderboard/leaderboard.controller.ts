@@ -1,61 +1,37 @@
-import {
-  Controller,
-  Get,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
 import { LeaderboardService } from './leaderboard.service.js';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { LeaderboardQueryDto } from './dto/leaderboard-query.dto.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import type { AuthUser } from '../common/auth-user.js';
 
 /**
- * Leaderboard endpoints.
- *
- * Access: any authenticated user may view leaderboards.
- * Mentors and Admins are excluded from student rankings at the query level —
- * they will not appear in any leaderboard even if authenticated.
+ * Division leaderboards. Mentors and admins never appear in rankings.
+ * Students see their own division only (when enabled in settings).
  */
+@ApiTags('Leaderboard')
 @Controller('leaderboard')
-@UseGuards(JwtAuthGuard)
 export class LeaderboardController {
   constructor(private readonly leaderboardService: LeaderboardService) {}
 
-  /**
-   * General leaderboard — all STUDENT users ranked by points.
-   *
-   * Rankings use dense ranking: equal points → equal rank.
-   * Tie-breaking order: points DESC → problemsSolved DESC → joinedAt ASC.
-   * Includes school name for each student (null if no school on record).
-   *
-   * GET /leaderboard
-   */
+  /** Students ranked by points (optionally within one school). */
   @Get()
-  findGeneral() {
-    return this.leaderboardService.findGeneral();
+  findGeneral(@CurrentUser() user: AuthUser, @Query() query: LeaderboardQueryDto) {
+    return this.leaderboardService.findGeneral(user, query);
   }
 
-  /**
-   * School summary leaderboard — schools ranked by their aggregate student points.
-   * Shows total points, student count and top student per school.
-   * Useful for an inter-school comparison without exposing individual rankings.
-   *
-   * GET /leaderboard/schools
-   */
+  /** The current student's rank. */
+  @Get('me')
+  @Roles('STUDENT')
+  findMine(@CurrentUser() user: AuthUser) {
+    return this.leaderboardService.findMine(user);
+  }
+
+  /** Schools ranked by total student points. */
   @Get('schools')
-  findSchoolSummary() {
-    return this.leaderboardService.findSchoolSummary();
-  }
-
-  /**
-   * School leaderboard — students within a single school, ranked by points.
-   * Only students whose school FK matches :schoolId are included.
-   * Cross-school data cannot appear regardless of shared names.
-   * Returns 404 if the school does not exist.
-   *
-   * GET /leaderboard/schools/:schoolId
-   */
-  @Get('schools/:schoolId')
-  findBySchool(@Param('schoolId') schoolId: string) {
-    return this.leaderboardService.findBySchool(schoolId);
+  findSchoolSummary(@CurrentUser() user: AuthUser, @Query() query: LeaderboardQueryDto) {
+    return this.leaderboardService.findSchoolSummary(user, query);
   }
 }
