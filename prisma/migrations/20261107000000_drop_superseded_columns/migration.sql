@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- CONTRACT migration — NOT APPLIED. REQUIRES APPROVAL (destructive).
+-- CONTRACT migration (destructive) — approved by the project owner on 2026-11-03.
 --
 -- Drops the columns superseded by 20261104000000_academic_structure_reviews_
 -- moderation. Their data was copied into the new tables by that migration and
@@ -7,7 +7,7 @@
 --
 -- Before running, this script VERIFIES that every value it is about to drop
 -- exists in the new structure and aborts (changing nothing) if not.
--- See prisma/pending-migrations/README.md for the procedure.
+-- A full backup was taken before it was applied (backups/, not in git).
 -- ═══════════════════════════════════════════════════════════════════════════
 
 DO $$

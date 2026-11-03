@@ -123,8 +123,15 @@ describe('Access control (e2e)', () => {
       const res = await ctx.http().post('/api/v1/submissions').set(bearer(studentJ))
         .field('assignmentId', juniorAssignment).attach('file', PDF, 'v2.pdf').expect(201);
       expect(res.body.status).toBe('SUBMITTED');
-      const row = await ctx.prisma.submission.findUniqueOrThrow({ where: { id: submissionJ } });
-      expect(row.mentorId).toBeNull();
+      const row = await ctx.prisma.submission.findUniqueOrThrow({
+        where: { id: submissionJ }, include: { reviews: { orderBy: { cycle: 'asc' } } },
+      });
+      // No active review any more; the cancelled cycle is kept as history.
+      expect(row.currentReviewId).toBeNull();
+      expect(row.reviews.map((r) => r.status)).toEqual(['CANCELLED']);
+      // The mentor no longer has it in their queue.
+      const queue = await ctx.http().get('/api/v1/mentor/reviews').set(bearer(mentorJ)).expect(200);
+      expect(queue.body.data.some((s: any) => s.id === submissionJ)).toBe(false);
     });
 
     it('work under review can no longer be replaced', async () => {
@@ -177,6 +184,17 @@ describe('Access control (e2e)', () => {
       // Senior students don't see junior resources.
       const senior = await ctx.http().get(`/api/v1/courses/${ctx.ids.algebra}/resources`).set(bearer(studentS)).expect(200);
       expect(senior.body).toHaveLength(0);
+    });
+  });
+
+  describe('unassigning a mentor', () => {
+    it('reports the open reviews that now need another mentor', async () => {
+      // submissionJ is IN_REVIEW with mentor.j (see the ownership tests above).
+      const scope = await ctx.prisma.mentorAssignment.findFirstOrThrow({
+        where: { mentorId: ctx.ids.mentorJunior, courseId: ctx.ids.algebra, divisionId: ctx.ids.junior },
+      });
+      const res = await ctx.http().delete(`/api/v1/admin/mentor-assignments/${scope.id}`).set(bearer(admin)).expect(200);
+      expect(res.body).toMatchObject({ isActive: false, openReviewsToReassign: 1 });
     });
   });
 });

@@ -149,9 +149,11 @@ export class StorageService {
   }
 
   /**
-   * Nightly: delete files no record refers to any more (replaced resource
-   * files, uploads whose request failed after storing, …). Submission files
-   * stay referenced by their revision history and are never removed here.
+   * Nightly: delete files no record refers to any more (detached resource
+   * files, uploads whose request failed after storing, …). Every reference to
+   * a file goes through an attachment table, so a file is an orphan only when
+   * no attachment of any kind points to it. Submission files stay attached to
+   * their revision history and are never removed here.
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'storage-orphan-cleanup' })
   async cleanupOrphans(): Promise<number> {
@@ -159,12 +161,11 @@ export class StorageService {
 
     const orphans = await this.prisma.fileObject.findMany({
       where: {
-        createdAt:           { lt: new Date(Date.now() - ORPHAN_GRACE_MS) },
-        resources:           { none: {} },
-        assignments:         { none: {} },
-        submissions:         { none: {} },
-        feedbackSubmissions: { none: {} },
-        revisions:           { none: {} },
+        createdAt:             { lt: new Date(Date.now() - ORPHAN_GRACE_MS) },
+        resourceAttachments:   { none: {} },
+        assignmentAttachments: { none: {} },
+        submissionAttachments: { none: {} },
+        reviewAttachments:     { none: {} },
       },
       select: { id: true, storageKey: true },
       take:   500,

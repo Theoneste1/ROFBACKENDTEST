@@ -3,6 +3,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AppError } from '../common/errors/app-error.js';
+import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -88,17 +89,20 @@ export class MentorAssignmentsService {
       where: { id }, data: { isActive: false }, select: SELECT,
     });
 
-    const openReviews = await this.prisma.submission.count({
+    // The mentor's still-open review cycles in this scope (current cycles only).
+    const openReviews = await this.prisma.mentorReview.count({
       where: {
         mentorId:   existing.mentorId,
-        status:     { in: ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED'] },
-        assignment: { courseId: existing.courseId, divisionId: existing.divisionId },
+        status:     { in: OPEN_REVIEW_STATUSES },
+        currentFor: { isNot: null },
+        submission: { assignment: { courseId: existing.courseId, divisionId: existing.divisionId } },
       },
     });
 
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
       action: 'UNASSIGN_MENTOR', entity: 'MentorAssignment', entityId: id,
+      metadata: { openReviewsToReassign: openReviews },
     });
     return { ...updated, openReviewsToReassign: openReviews };
   }

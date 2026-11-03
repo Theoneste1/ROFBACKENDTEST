@@ -1,38 +1,26 @@
 # Pending migrations (require approval)
 
-Migrations here are **not** applied by `prisma migrate deploy` — Prisma only
-reads `prisma/migrations/`. They are destructive and wait for explicit
-approval.
+Destructive migrations are prepared here and applied only after explicit
+approval. `prisma migrate deploy` does not read this folder.
 
-## 20261105000000_drop_superseded_columns
+**Currently none are pending.**
 
-**What it does.** Drops the columns superseded by the
-`20261104000000_academic_structure_reviews_moderation` migration:
+## Procedure for a destructive migration
 
-| Table | Columns dropped | Data now lives in |
+1. Describe its impact (what is dropped, where the data lives instead,
+   reversibility) and ask for approval.
+2. Take a database backup.
+3. Make the migration verify its preconditions and abort (changing nothing)
+   when they do not hold.
+4. Rehearse it on a disposable copy of the database.
+5. Move the folder into `prisma/migrations/` with a timestamp later than the
+   last applied migration, update `schema.prisma`, run `npx prisma generate`.
+6. `npm run db:migrate`, then confirm
+   `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`
+   reports no difference.
+
+## History
+
+| Migration | Approved | Applied |
 |---|---|---|
-| Submission | mentorId, score, percentage, mentorFeedback, feedbackFileId, coordinationNote, rejectionReason, previousScore, reopenNote, reopenedAt, reopenedById, assignedAt, reviewStartedAt, markedAt, submittedToAdminAt, approvedAt | MentorReview (+ ReviewEvent, ReviewAttachment) |
-| Submission, SubmissionRevision | fileId | SubmissionAttachment |
-| CourseResource | fileId | ResourceAttachment |
-| Assignment | fileId | AssignmentAttachment |
-| Comment | courseId, assignmentId, divisionId | DiscussionThread |
-| Comment | moderatedAt, moderatedById | ModerationAction |
-
-**Impact.**
-- No information is lost: the expand migration copied every value into the new
-  tables, and this script verifies that before dropping anything (it aborts
-  and changes nothing otherwise).
-- The application already ignores these columns, so behaviour does not change.
-- Irreversible: once dropped, the old columns can only be restored from a
-  backup.
-
-**Procedure (after approval).**
-
-1. Take a database backup.
-2. Move the folder into `prisma/migrations/`.
-3. In `prisma/schema.prisma`, delete every field marked `@deprecated` (and the
-   matching back-relations on `User`, `FileObject`, `Course`, `Assignment`,
-   `Division`), then run `npx prisma generate`.
-4. `npm run db:migrate` (production) — or `npx prisma migrate deploy`.
-5. Verify: `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code`
-   must report no difference.
+| `20261107000000_drop_superseded_columns` — drops the old single-file, review and comment-target columns | 2026-11-03 | 2026-11-03, after a full backup; data verified identical before and after |

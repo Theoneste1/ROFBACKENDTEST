@@ -36,7 +36,8 @@ migrations and seeds.
 5. **Constraints in the database,** not only in code: foreign keys, unique
    keys and CHECK constraints guard the invariants even against buggy code.
 6. **Safe evolution.** Schema changes use *expand → backfill → contract*;
-   destructive steps wait for approval in `prisma/pending-migrations/`.
+   destructive steps are prepared in `prisma/pending-migrations/` and applied
+   only after approval and a backup.
 
 ## 2. Entity-relationship diagrams
 
@@ -329,7 +330,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261103000000_baseline` | initial | Full schema as of 3 Nov 2026 (the original broken chain is archived in `prisma/migrations_archive/`). |
 | `20261104000000_academic_structure_reviews_moderation` | expand (additive) | Disciplines, academic years and enrolments, attachment tables, review cycles/events, distribution batches, result releases, threads, reports, moderation actions, activity log; **backfills** all existing data into them. |
 | `20261106000000_account_activation` | expand (additive) | `User.activatedAt` and `AccountActivationToken`; existing accounts with a password are backfilled as activated. |
-| `pending-migrations/20261105000000_drop_superseded_columns` | contract (destructive) | **Not applied.** Drops the columns superseded above after verifying their data was copied. Requires approval — see [`prisma/pending-migrations/README.md`](../prisma/pending-migrations/README.md). |
+| `20261107000000_drop_superseded_columns` | contract (destructive, approved 2026-11-03) | Drops the 27 columns superseded by the expand migration, after verifying every value exists in the new tables (it aborts otherwise). Applied after a full backup. |
 
 **Making a schema change.**
 

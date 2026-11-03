@@ -8,7 +8,7 @@ import { Transform } from 'class-transformer';
  * Instead they REOPEN the result: it is withdrawn from the student, its points
  * are removed, and it goes back to the mentor with this note. The mentor
  * re-scores and the normal approve → publish flow runs again. The previous
- * score is kept in `previousScore` and in the audit log.
+ * score stays on the superseded review cycle (review history) and in the audit log.
  */
 export class ReopenResultDto {
   @IsString()

@@ -361,14 +361,11 @@ model User {
   resourcesUploaded     CourseResource[]         @relation("ResourceUploader")
   resourceViews         ResourceView[]
   comments              Comment[]                @relation("CommentAuthor")
-  moderatedComments     Comment[]                @relation("CommentModerator")
   commentReactions      CommentReaction[]        @relation("CommentReactions")
   studyGroupsCreated    StudyGroup[]             @relation("StudyGroupCreator")
   studyGroupMemberships StudyGroupMember[]       @relation("StudyGroupMemberships")
   emailJobsCreated      EmailJob[]               @relation("EmailJobCreator")
   submissions           Submission[]             @relation("StudentSubmissions")
-  assignedSubmissions   Submission[]             @relation("MentorSubmissions")
-  submissionsReopened   Submission[]             @relation("SubmissionReopener")
   submissionRevisions   SubmissionRevision[]
   assignmentViews       AssignmentView[]         @relation("AssignmentViewer")
   auditLogs             AuditLog[]               @relation("AuditActor")
@@ -517,7 +514,6 @@ model Division {
   assignments        Assignment[]
   liveSessions       LiveSession[]
   threads            DiscussionThread[]
-  comments           Comment[]
 }
 
 /// A subject area (e.g. Mathematics). The platform launches with Mathematics
@@ -602,7 +598,6 @@ model Course {
   enrollments       CourseEnrollment[]
   resources         CourseResource[]
   threads           DiscussionThread[]
-  comments          Comment[]
   mentorAssignments MentorAssignment[]
   liveSessions      LiveSession[]
   activityLogs      ActivityLog[]
@@ -672,13 +667,6 @@ model FileObject {
   submissionAttachments SubmissionAttachment[]
   reviewAttachments     ReviewAttachment[]
 
-  // Deprecated single-file references (see the contract migration).
-  resources           CourseResource[]
-  assignments         Assignment[]
-  submissions         Submission[]         @relation("SubmissionFile")
-  feedbackSubmissions Submission[]         @relation("FeedbackFile")
-  revisions           SubmissionRevision[]
-
   @@index([purpose])
   @@index([createdAt])
 }
@@ -709,10 +697,6 @@ model CourseResource {
 
   attachments ResourceAttachment[]
   views       ResourceView[]
-
-  /// @deprecated Replaced by ResourceAttachment. Dropped by the pending contract migration.
-  fileId String?
-  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@index([courseId, divisionId, isPublished])
   @@index([sortOrder])
@@ -824,14 +808,8 @@ model Assignment {
   distributionBatches DistributionBatch[]
   resultReleases      ResultRelease[]
   threads             DiscussionThread[]
-  comments            Comment[]
-
-  /// @deprecated Replaced by AssignmentAttachment. Dropped by the pending contract migration.
-  fileId String?
-  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   @@index([courseId, divisionId, status])
   @@index([academicYearId, status])
@@ -906,34 +884,8 @@ model Submission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // ── @deprecated — superseded by MentorReview and attachment tables. Kept
-  // (unused) until the contract migration in prisma/pending-migrations is
-  // approved. Do not read or write these fields. ──────────────────────────────
-  mentorId           String?
-  mentor             User?       @relation("MentorSubmissions", fields: [mentorId], references: [id], onDelete: SetNull)
-  fileId             String?
-  file               FileObject? @relation("SubmissionFile", fields: [fileId], references: [id], onDelete: SetNull)
-  score              Int?
-  percentage         Float?
-  mentorFeedback     String?
-  feedbackFileId     String?
-  feedbackFile       FileObject? @relation("FeedbackFile", fields: [feedbackFileId], references: [id], onDelete: SetNull)
-  coordinationNote   String?
-  rejectionReason    String?
-  previousScore      Int?
-  reopenNote         String?
-  reopenedAt         DateTime?
-  reopenedById       String?
-  reopenedBy         User?       @relation("SubmissionReopener", fields: [reopenedById], references: [id], onDelete: SetNull)
-  assignedAt         DateTime?
-  reviewStartedAt    DateTime?
-  markedAt           DateTime?
-  submittedToAdminAt DateTime?
-  approvedAt         DateTime?
-
   @@unique([assignmentId, studentId])
   @@index([studentId])
-  @@index([mentorId, status])
   @@index([assignmentId, status])
   @@index([resultReleaseId])
 }
@@ -951,10 +903,6 @@ model SubmissionRevision {
   submittedAt    DateTime   @default(now())
 
   attachments SubmissionAttachment[]
-
-  /// @deprecated Replaced by SubmissionAttachment. Dropped by the pending contract migration.
-  fileId String?
-  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@unique([submissionId, revisionNumber])
 }
@@ -1146,21 +1094,7 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // ── @deprecated — target moved to DiscussionThread; moderation history moved
-  // to ModerationAction. Dropped by the pending contract migration. ────────────
-  courseId      String?
-  course        Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  assignmentId  String?
-  assignment    Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  divisionId    String?
-  division      Division?   @relation(fields: [divisionId], references: [id])
-  moderatedAt   DateTime?
-  moderatedById String?
-  moderatedBy   User?       @relation("CommentModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
-
   @@index([threadId, parentId, createdAt])
-  @@index([courseId, divisionId])
-  @@index([assignmentId])
   @@index([authorId])
   @@index([parentId])
   @@index([status])
