@@ -10,10 +10,24 @@ courses (Algebra, Geometry, Number Theory, Combinatorics).
 - Local-disk or S3-compatible file storage
 - In-app notifications and e-mail via a background outbox
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design,
-[docs/DATABASE.md](docs/DATABASE.md) for the data model (ERD, policies,
-migrations and seeding) and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for
-running it in production.
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Backend architecture: modules, authorization layers, state machines, files, notifications, reports, settings and audit, errors, testing, decisions |
+| [docs/WORKFLOWS.md](docs/WORKFLOWS.md) | Business workflows step by step, with the endpoints for each step |
+| [docs/DATABASE.md](docs/DATABASE.md) | Database schema, ERDs, integrity rules, deletion/retention policy, migration history, seeding |
+| [docs/API.md](docs/API.md) | Endpoint reference (generated) |
+| [docs/api/openapi.json](docs/api/openapi.json) | OpenAPI 3 specification (generated); live Swagger UI at `/api/docs` |
+| [docs/api/ROF-LMS.postman_collection.json](docs/api/ROF-LMS.postman_collection.json) | Postman collection (generated): set `username`/`password`, run *Auth → POST /auth/login*, then any request |
+| [docs/AUTHORIZATION.md](docs/AUTHORIZATION.md) | Authorization matrix: every endpoint × role (generated from the guards' metadata) |
+| [docs/STORAGE.md](docs/STORAGE.md) | File storage: types and limits, upload pipeline, download rules, drivers, cleanup |
+| [docs/TESTING.md](docs/TESTING.md) | Running the tests, what each suite covers, the security suite, smoke testing, CI |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment, backups, scaling |
+| [.env.example](.env.example) | Every environment variable, with defaults and notes |
+
+The generated documents come from the compiled code: run `npm run docs:api`
+after changing endpoints (CI fails when they are out of date).
 
 ---
 
@@ -65,6 +79,8 @@ The seed prints the generated admin password once (or uses `SEED_ADMIN_PASSWORD`
 | `npm test` | Unit tests (no database) |
 | `npm run test:e2e` | End-to-end tests — needs `TEST_DATABASE_URL` (**truncated on every run**) |
 | `npm run test:cov` | Unit test coverage |
+| `npm run test:routes` | Fail if any API route has no e2e test |
+| `npm run docs:api` | Regenerate OpenAPI, Postman collection, API reference and authorization matrix |
 | `npm run lint` / `npm run typecheck` | Static checks |
 | `npm run db:migrate` | Apply migrations (production-safe) |
 | `npm run db:migrate:dev` | Create a new migration after editing `schema.prisma` |
@@ -97,12 +113,12 @@ Key endpoints, in order:
 
 1. `POST /assignments` → `PATCH /assignments/:id/submit` (mentor)
 2. `PATCH /assignments/:id/publish` (admin)
-3. `POST /submissions` (student, multipart with `file`)
-4. `POST /assignments/:id/distribute` (admin)
+3. `POST /submissions` (student, multipart: `answerText` and/or `files`)
+4. `POST /assignments/:id/distribute` or `PATCH /submissions/:id/assign` (admin)
 5. `PATCH /submissions/:id/start-review` → `PATCH /submissions/:id/mark` (mentor)
 6. `PATCH /submissions/:id/submit-to-admin` (mentor)
 7. `PATCH /submissions/:id/approve` → `POST /assignments/:id/results/publish` (admin)
-8. `GET /me/submissions`, `GET /submissions/:id` (student)
+8. `GET /me/results`, `GET /me/results/:submissionId` (student: score, mentor feedback, feedback files)
 
 Corrections after publication: `PATCH /submissions/:id/reopen` (admin) sends the
 result back to the mentor and removes its points; the admin never edits scores.
@@ -120,6 +136,40 @@ result back to the mentor and removes its points; the admin never edits scores.
 { "statusCode": 409, "error": "Conflict", "code": "INVALID_STATE_TRANSITION",
   "message": "…", "details": {…}, "requestId": "…", "path": "…", "timestamp": "…" }
 ```
+
+---
+
+## Security in brief
+
+- **Sign-in and tokens:**
+  - every route needs a valid token unless explicitly public;
+  - access tokens last 15 minutes; refresh tokens rotate, with reuse detection;
+  - password change, suspension, role change or "sign out everywhere" ends
+    every session at once.
+- **Roles and scope:** roles are checked on every route, and records are
+  scoped:
+  - students get only their own work and their division's published content;
+  - mentors get only their assigned scopes and the submissions assigned to
+    them;
+  - administrators can't grade.
+- **Login protection:**
+  - per-IP rate limits on credential endpoints;
+  - a per-account lockout after 5 wrong passwords;
+  - responses never reveal whether an account exists.
+- **Files:**
+  - the type is detected from the file's content, never trusted from its name;
+  - stored under random keys and served only through endpoints that check
+    access, with `nosniff` and a sandboxing CSP;
+  - request size is capped.
+- **Input and database:**
+  - unknown fields are rejected;
+  - all SQL is parameterised;
+  - CSV exports guard against formula injection.
+- **Audit:** an append-only audit trail; the database itself rejects changes
+  to it.
+
+`test/security.e2e-spec.ts` checks all of this, including every route
+against every role.
 
 ---
 

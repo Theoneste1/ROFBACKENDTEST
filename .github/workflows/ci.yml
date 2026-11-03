@@ -62,5 +62,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The OpenAPI file, Postman collection, API reference and authorization
+      # matrix are generated from the code; fail if they were not regenerated.
+      - name: API documentation is up to date
+        run: node scripts/generate-api-docs.mjs && git diff --exit-code -- docs/api docs/API.md docs/AUTHORIZATION.md
+
+      - name: Every API route has an end-to-end test
+        run: npm run test:routes
+
       - name: Build Docker image
         run: docker build --target runtime -t rof-api:ci .

@@ -19,6 +19,8 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "test:routes": "node scripts/check-route-coverage.mjs",
+    "docs:api": "nest build && node scripts/generate-api-docs.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",

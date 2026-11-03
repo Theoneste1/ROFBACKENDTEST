@@ -69,7 +69,7 @@ erDiagram
   Division { enum code UK "JUNIOR|SENIOR" }
   AcademicYear { string name UK "2026-2027" date startsOn date endsOn enum status "PLANNED|ACTIVE|CLOSED" bool isCurrent UK "TRUE or NULL" }
   StudentEnrollment { string studentId FK string academicYearId FK enum gradeLevel "S1…S6" enum status "ACTIVE|PROMOTED|GRADUATED|WITHDRAWN" }
-  User { enum role "STUDENT|MENTOR|ADMIN" bool isActive bool isApproved datetime activatedAt "NULL = invited/unverified" enum gradeLevel "current" int points "cache" }
+  User { enum role "STUDENT|MENTOR|ADMIN" bool isActive bool isApproved datetime activatedAt "NULL = invited/unverified" enum gradeLevel "current" int points "cache" int failedLoginCount datetime lockedUntil datetime tokensValidAfter }
   AccountActivationToken { enum purpose "INVITATION|EMAIL_VERIFICATION" string tokenHash UK datetime expiresAt datetime usedAt datetime revokedAt }
   MentorAssignment { string mentorId FK string courseId FK string divisionId FK bool isActive }
   CourseEnrollment { enum status "UNROLLED|ROLLED|COMPLETED" }
@@ -343,6 +343,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261113000000_notification_settings` | additive | New `NotificationSetting` table: per-type in-app / e-mail switches chosen by admins and mentors. Empty at creation (no row = on). |
 | `20261114000000_reporting_indexes` | additive (indexes only) | Indexes for the dashboard and reports: `MentorReview.returnedAt`, `Submission.submittedAt`, `Submission.publishedAt`, `ResultRelease.publishedAt`, `User` (`role`, `isActive`). |
 | `20261115000000_audit_log_append_only` | additive + backfill + triggers | `AuditLog.actorUsername` (backfilled from `User`), trigger filling it on insert, and a trigger rejecting UPDATE/DELETE of audit rows (except the FK clearing `actorId`). |
+| `20261116000000_login_lockout_token_cutoff` | additive | `User.failedLoginCount`, `User.lockedUntil` (per-account login lockout) and `User.tokensValidAfter` (ends earlier access tokens). |
 
 **Making a schema change.**
 

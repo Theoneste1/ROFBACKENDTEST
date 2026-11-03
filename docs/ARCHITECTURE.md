@@ -77,7 +77,12 @@ bytes, stored as SHA-256, rotated on every use, grouped in a family; replaying
 a used token revokes the family (`REFRESH_TOKEN_REUSED`). Browsers get it as an
 `httpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`; other
 clients use the response body. Logout blacklists the access `jti` and revokes
-the refresh family. Password change/reset revokes all sessions.
+the refresh family. Password change/reset, "sign out everywhere", suspension
+and role changes end every session: refresh tokens are revoked and
+`User.tokensValidAfter` makes earlier access tokens invalid at once.
+
+The full role-by-route table is [AUTHORIZATION.md](AUTHORIZATION.md),
+generated from the same metadata the guards enforce.
 
 **Account lifecycle.**
 
@@ -103,9 +108,24 @@ invited, and `?dryRun=true` validates without creating anything.
 
 **Passwords.** bcrypt cost 12; login timing is equalised for unknown users;
 account state (suspended/pending) is only revealed after a correct password;
-credential endpoints are rate-limited per IP.
+credential endpoints are rate-limited per IP. Five wrong passwords in a row
+lock the account for 15 minutes whatever the source address (answered exactly
+like a wrong password; audited as `LOCK_ACCOUNT`). Issuing a password-reset
+link retires earlier unused ones, and one-time links are not kept in the
+e-mail outbox once sent.
+
+**HTTP.** Helmet headers; no `X-Powered-By`; CORS only for `CORS_ORIGINS`
+(none when unset); `TRUST_PROXY` hops (default 1) so per-IP limits see the real
+client and cannot be bypassed with a forged `X-Forwarded-For` when set
+correctly; request bodies over `MAX_UPLOAD_REQUEST_MB` are refused before they
+are read; unknown body/query fields are rejected; errors never include stack
+traces or database details.
 
 ## 4. Workflows (state machines)
+
+Step-by-step business workflows (accounts, academic year, assignment → result,
+resubmissions, corrections, moderation, live sessions) are in
+[WORKFLOWS.md](WORKFLOWS.md). In short:
 
 All transitions use `UPDATE … WHERE status IN (allowed)`; a request that loses a
 race gets `409 INVALID_STATE_TRANSITION` instead of corrupting state.
@@ -113,9 +133,10 @@ race gets `409 INVALID_STATE_TRANSITION` instead of corrupting state.
 **Assignment** — mentors prepare, admins publish:
 
 ```
-DRAFT ─submit─► PENDING_APPROVAL ─publish─► PUBLISHED
+DRAFT ─submit─► PENDING_APPROVAL ─publish─► PUBLISHED ─deadline / admin─► CLOSED
   ▲  ◄──recall──┘        │reject(note)           │unpublish (only with 0 submissions)
   └── REJECTED ◄─────────┘                       ▼ DRAFT
+any state ─admin / year closes─► ARCHIVED
 ```
 
 **Submission** — the eight-step review pipeline:
@@ -133,6 +154,8 @@ SUBMITTED ─assign/distribute─► ASSIGNED ─start─► IN_REVIEW ─mark�
   history (SUPERSEDED / CANCELLED) and every step is a `ReviewEvent`. Each
   distribution run is a `DistributionBatch`; each results publication a
   `ResultRelease`.
+- A mentor may ask for a resubmission (`RESUBMISSION_REQUESTED`, with a due
+  date); the new attempt returns to the same mentor.
 - Students may resubmit while `SUBMITTED`/`ASSIGNED`, before the deadline, within
   `maxResubmissions`. Revisions are numbered 1, 2, 3 … and each keeps its files
   (several per attempt).
@@ -188,6 +211,8 @@ deletion/archival/retention policies, migrations and seeding. Groups:
   sandboxing CSP.
 - **Drivers**: `local` (disk, single instance) or `s3` (AWS S3, Cloudflare R2,
   MinIO …). A nightly job deletes files nothing references any more.
+
+Details: [STORAGE.md](STORAGE.md).
 
 ## 7. Notifications
 
@@ -332,7 +357,11 @@ successful request.
 |---|---|---|
 | Unit | `src/**/*.spec.ts` | Pure rules, guards, filter, storage, authorization metadata |
 | End-to-end | `test/*.e2e-spec.ts` | Real app + real PostgreSQL: the full 8-step workflow, auth flows, role and scope boundaries, uploads, discussions, live sessions, notifications, e-mail outbox, admin tools |
-| CI | `.github/workflows/ci.yml` | lint → typecheck → unit → migrate empty DB → drift check → e2e → build → Docker image |
+| Security | `test/security.e2e-spec.ts` | Every route against every role, token forgery/expiry/revocation, lockout, isolation, uploads, injection, data exposure, headers |
+| Route coverage | `npm run test:routes` | Fails if any API route has no e2e test |
+| CI | `.github/workflows/ci.yml` | lint → typecheck → unit → migrate empty DB → drift check → e2e → build → API docs up to date → route coverage → Docker image |
+
+How to run them, and what each suite covers: [TESTING.md](TESTING.md).
 
 ## 10. Decisions taken
 

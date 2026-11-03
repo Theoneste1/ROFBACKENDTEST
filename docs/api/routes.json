@@ -1,0 +1,1752 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/v1/academic-years",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Academic years"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/academic-years/current",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Academic years"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/academic-years",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Academic years"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/academic-years/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Academic years"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/academic-years/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Academic years"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/academic-years/{id}/activate",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Academic years"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/academic-years/{id}/enrollments",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Academic years"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/enrollments/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Academic years"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/activity",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Activity"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/activity/summary",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Activity"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/audit-logs",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Audit"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/audit-logs/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Audit"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/audit-logs/actions",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Audit"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/audit-logs/export.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Audit"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/courses/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/courses/{id}/archive",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/courses/{id}/publish",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/courses/{id}/unpublish",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/dashboard",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Dashboard"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/email/jobs",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/email/jobs/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/email/jobs/{id}/deliveries",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/email/jobs/{id}/retry",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/email/send",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/email/users",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/leaderboard/recompute",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Leaderboard"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/mentor-assignments",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Mentor assignments"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/mentor-assignments",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Mentor assignments"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/mentor-assignments/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Mentor assignments"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/assignments",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/assignments.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/course-participation",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/course-participation.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/enrollment",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/enrollment.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/mentor-activity",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/mentor-activity.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/mentor-workload.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/mentors",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/mentors.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/overview",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/results-publication",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/results-publication.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/results.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/reviews",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/reviews.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/student-progress.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/students",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/reports/students.csv",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/settings",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Settings"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/settings",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Settings"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/users/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/users/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/resend-invitation",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/send-password-reset",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/users/{id}/status",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/import",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/invite",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/analytics/courses/{courseId}",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Analytics"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/assignments",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/archive",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/assignments/{id}/attachments",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/assignments/{id}/attachments/{attachmentId}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments/{id}/attachments/{attachmentId}/file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/close",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments/{id}/file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments/{id}/history",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/publish",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/recall",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/reject",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/reopen",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/submit",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/assignments/{id}/unpublish",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Assignments"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/activate",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/activation/inspect",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/forgot-password",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/logout-all",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/auth/password",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/refresh",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/register/admin",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/register/student",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/resend-activation",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/reset-password",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/courses",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/courses/{courseId}/resources",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/courses/{courseId}/resources",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/archive",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/attachments",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}/file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/publish",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/restore",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/courses/{courseId}/resources/{resourceId}/unpublish",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/courses/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/courses/{id}/complete",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/disciplines",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Courses"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/comments/hidden",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/moderation/actions",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/moderation/reports",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/moderation/reports/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/moderation/reports/{id}/resolve",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments/{assignmentId}/threads",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/assignments/{assignmentId}/threads",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/comments/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/comments/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/comments/{id}/hide",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/comments/{id}/reactions",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/comments/{id}/replies",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/comments/{id}/report",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/comments/{id}/restore",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/courses/{courseId}/threads",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/courses/{courseId}/threads",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/threads/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/threads/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/threads/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/threads/{id}/{op}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/threads/{id}/comments",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/threads/{id}/comments",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/threads/{id}/report",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Discussions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/divisions",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/divisions/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/divisions",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Divisions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Health"
+  },
+  {
+    "method": "GET",
+    "path": "/health",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Health"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/leaderboard",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Leaderboard"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/leaderboard/me",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Leaderboard"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/leaderboard/schools",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Leaderboard"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/live-sessions",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Live sessions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/live-sessions",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Live sessions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/live-sessions/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Live sessions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/live-sessions/{id}",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Live sessions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/live-sessions/{id}/cancel",
+    "roles": [
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Live sessions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/me",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/assignments",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/courses",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/enrollments",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/permissions",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/results",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/results/{submissionId}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/results/{submissionId}/feedback-files/{attachmentId}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/submissions",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/teaching",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/mentor/reviews",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Mentor"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/mentor-requests",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/mentor-requests",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/mentor-requests/{id}/approve",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/mentor-requests/{id}/reject",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/notification-preferences",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/notification-preferences",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/notification-settings",
+    "roles": [
+      "ADMIN",
+      "MENTOR"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/me/notification-settings",
+    "roles": [
+      "ADMIN",
+      "MENTOR"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/notification-settings/reset",
+    "roles": [
+      "ADMIN",
+      "MENTOR"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/notifications/{id}/read",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/notifications/{id}/unread",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/notifications/read",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/notifications/read-all",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications/unread-count",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/schools",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/schools/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/schools/search",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/assignments/{assignmentId}/distribute",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments/{assignmentId}/distribution-batches",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assignments/{assignmentId}/result-releases",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/assignments/{assignmentId}/results/publish",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/submissions",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/approve",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/assign",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/attachments/{attachmentId}/file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/feedback-file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/feedback-files/{attachmentId}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/history",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/mark",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/publish",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/reassign",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/reject",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/reopen",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/request-resubmission",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/result-history",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/submissions/{id}/review/attachments/{attachmentId}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/reviews",
+    "roles": [
+      "ADMIN",
+      "MENTOR"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/revisions/{revisionNumber}/file",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/start-review",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/submit-to-admin",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/submissions/{id}/withdraw-resubmission-request",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Submissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/support",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Support"
+  }
+]
