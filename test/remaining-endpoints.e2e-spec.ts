@@ -246,6 +246,46 @@ describe('Remaining endpoints (e2e)', () => {
       expect(await ctx.prisma.user.count({ where: { username: 'jean.app' } })).toBe(0);
     });
 
+    it('administrators add users of any role directly, active at once', async () => {
+      for (const role of ['MENTOR', 'ADMIN'] as const) {
+        const username = `added.${role.toLowerCase()}`;
+        const created = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+          firstName: 'Added', lastName: role, username, email: `${username}@test.local`, password: 'Str0ng!Passw0rd', role,
+        }).expect(201);
+        expect(created.body.role).toBe(role);
+        await http().post('/api/v1/auth/login').send({ username, password: 'Str0ng!Passw0rd' }).expect(200);
+      }
+      // An admin can also change anyone's role.
+      const changed = await http().patch(`/api/v1/admin/users/${ctx.ids.studentSenior}`).set(bearer(admin)).send({ role: 'MENTOR' }).expect(200);
+      expect(changed.body.role).toBe('MENTOR');
+      await http().patch(`/api/v1/admin/users/${ctx.ids.studentSenior}`).set(bearer(admin)).send({ role: 'STUDENT', gradeLevel: 'S5' }).expect(200);
+    });
+
+    it('with e-mail verification on, an approved mentor applicant must confirm the address before logging in', async () => {
+      await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': true }).expect(200);
+      try {
+        const apply = await http().post('/api/v1/mentor-requests')
+          .send({ firstName: 'Vera', lastName: 'Verify', username: 'vera.verify', email: 'vera@example.com', password: 'Mentor123' }).expect(201);
+        const approved = await http().patch(`/api/v1/mentor-requests/${apply.body.id}/approve`).set(bearer(admin)).expect(200);
+        expect(approved.body).toMatchObject({ emailVerificationRequired: true, mentor: { role: 'MENTOR' } });
+
+        const blocked = await http().post('/api/v1/auth/login').send({ username: 'vera.verify', password: 'Mentor123' }).expect(403);
+        expect(blocked.body.code).toBe('ACCOUNT_NOT_ACTIVATED');
+
+        const mail = await ctx.prisma.emailDelivery.findFirstOrThrow({
+          where: { recipientEmail: 'vera@example.com' }, orderBy: { createdAt: 'desc' },
+        });
+        expect(mail.subject).toContain('Confirm your e-mail address');
+        const token = decodeURIComponent(mail.body!.match(/token=([^\s]+)/)![1]);
+        await http().post('/api/v1/auth/activate').send({ token }).expect((r) => {
+          if (r.status >= 300) throw new Error(JSON.stringify(r.body));
+        });
+        await http().post('/api/v1/auth/login').send({ username: 'vera.verify', password: 'Mentor123' }).expect(200);
+      } finally {
+        await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': false }).expect(200);
+      }
+    });
+
     it('bulk e-mail: recipients, jobs, deliveries and retry', async () => {
       const users = await http().get('/api/v1/admin/email/users').query({ role: 'STUDENT' }).set(bearer(admin)).expect(200);
       expect((users.body.data ?? users.body).every((u: any) => !('passwordHash' in u))).toBe(true);

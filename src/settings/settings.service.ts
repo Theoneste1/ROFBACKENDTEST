@@ -6,6 +6,7 @@ import { AppError } from '../common/errors/app-error.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { Prisma } from '../generated/prisma/client.js';
 import {
+  defaultValue,
   isSettingKey,
   SETTINGS,
   validateSettingValue,
@@ -27,7 +28,7 @@ export class SettingsService {
 
   async get<K extends SettingKey>(key: K): Promise<SettingValue<K>> {
     const values = await this.load();
-    return (values.has(key) ? values.get(key) : SETTINGS[key].default) as SettingValue<K>;
+    return (values.has(key) ? values.get(key) : defaultValue(key)) as SettingValue<K>;
   }
 
   /** Every setting with its current value, default, type, limits and who last changed it. */
@@ -42,8 +43,8 @@ export class SettingsService {
       return {
         key,
         category:    def.category,
-        value:       row ? row.value : def.default,
-        default:     def.default,
+        value:       row ? row.value : defaultValue(key as SettingKey),
+        default:     defaultValue(key as SettingKey),
         type:        def.type,
         description: def.description,
         ...(def.options   && { options: def.options }),
@@ -93,7 +94,7 @@ export class SettingsService {
     const current = new Map(Object.keys(SETTINGS).map((k) => [k, undefined as unknown]));
     const values = await this.load(true);
     for (const key of current.keys()) {
-      current.set(key, values.has(key) ? values.get(key) : SETTINGS[key as SettingKey].default);
+      current.set(key, values.has(key) ? values.get(key) : defaultValue(key as SettingKey));
     }
     const next = new Map(current);
     for (const [key, value] of entries) next.set(key, value);

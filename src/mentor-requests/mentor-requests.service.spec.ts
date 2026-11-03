@@ -32,8 +32,13 @@ function makeMocks() {
 
   const audit  = { log: vi.fn() };
   const events = { emit: vi.fn() };
-  const service = new MentorRequestsService(prisma as any, audit as any, events as any);
-  return { service, prisma, audit, events };
+  const activation = {
+    issue: vi.fn().mockResolvedValue({ token: 't', userId: 'u-new', purpose: 'EMAIL_VERIFICATION' }),
+    send:  vi.fn().mockResolvedValue(undefined),
+  };
+  const settings = { get: vi.fn().mockResolvedValue(false) }; // e-mail verification off
+  const service = new MentorRequestsService(prisma as any, audit as any, events as any, activation as any, settings as any);
+  return { service, prisma, audit, events, activation, settings };
 }
 
 describe('MentorRequestsService', () => {
@@ -112,6 +117,19 @@ describe('MentorRequestsService', () => {
       expect(events.emit).toHaveBeenCalledWith(Events.MentorRequestDecided, {
         email: 'jean@x.rw', firstName: 'Jean', approved: true,
       });
+    });
+
+    it('with e-mail verification on, the account waits for the applicant to confirm the address', async () => {
+      const { service, prisma, events, activation, settings } = makeMocks();
+      settings.get.mockResolvedValue(true);
+
+      const result = await service.approve('mr1', ADMIN);
+
+      expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ role: 'MENTOR', activatedAt: null });
+      expect(activation.issue).toHaveBeenCalledWith('u-new', 'EMAIL_VERIFICATION', 'a1', prisma);
+      expect(activation.send).toHaveBeenCalledOnce();
+      expect(events.emit).not.toHaveBeenCalled();
+      expect(result.emailVerificationRequired).toBe(true);
     });
   });
 

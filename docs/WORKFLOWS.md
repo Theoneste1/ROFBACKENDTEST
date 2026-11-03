@@ -23,12 +23,19 @@ flowchart LR
   I[Admin invites / CSV import] -->|e-mailed link, 7 days| SET[Sets password] --> ACT
   S[Student self-registers] -->|verification on: e-mail link, 48 h| ACT
   S -->|verification off| ACT
-  M[Mentor applies] -->|admin approves| ACT
+  M[Someone applies as a mentor] -->|admin approves, then e-mail link if verification is on| ACT
   M -->|admin rejects| X[No account]
   ACT -->|admin suspends| SUS((Suspended))
   SUS -->|admin reactivates| ACT
 ```
 
+- Administrators add users of any role (student, mentor, administrator) and
+  can edit any account: details, role, password, status. Mentors are normally
+  added by an administrator; anyone signing up as a mentor needs an
+  administrator's approval.
+- E-mail verification (`registration.requireEmailVerification`) is on by
+  default in production: self-registered students and approved mentor
+  applicants confirm their address before their first login.
 - Accounts that were never activated cannot log in. "Forgot password" sends
   them a fresh activation link instead.
 - Suspending an account, changing its role, or a password change/reset ends

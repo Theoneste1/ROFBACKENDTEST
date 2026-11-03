@@ -12,6 +12,8 @@ import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { BCRYPT_COST } from '../auth/auth.service.js';
+import { ActivationService, type IssuedActivation } from '../auth/activation.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { Events } from '../notifications/events.js';
 import { CreateMentorRequestDto, ListMentorRequestsDto } from './dto/create-mentor-request.dto.js';
 
@@ -26,6 +28,8 @@ export class MentorRequestsService {
     private readonly prisma:  PrismaService,
     private readonly audit:   AuditService,
     private readonly events:  EventEmitter2,
+    private readonly activation: ActivationService,
+    private readonly settings:   SettingsService,
   ) {}
 
   // ─── Submit a mentor application (public) ─────────────────────────────────
@@ -85,9 +89,15 @@ export class MentorRequestsService {
   }
 
   // ─── ADMIN: Approve → creates a Mentor account ────────────────────────────
+  //
+  // With e-mail verification on (the production default), the account is
+  // created unactivated and the applicant must confirm the address before the
+  // first login — so nobody can apply in someone else's name.
   async approve(requestId: string, caller: CallerCtx) {
     const request = await this.requireRequest(requestId);
+    const verify = await this.settings.get('registration.requireEmailVerification');
 
+    let issued: IssuedActivation | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
       // Claim the request: only one concurrent approval can succeed.
       const { count } = await tx.mentorRequest.updateMany({
@@ -112,10 +122,12 @@ export class MentorRequestsService {
           email:        request.email,
           passwordHash: request.passwordHash,
           role:         'MENTOR',
-          activatedAt:  new Date(), // the applicant chose this password
+          // The applicant chose this password; the address may still need confirming.
+          activatedAt:  verify ? null : new Date(),
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
+      if (verify) issued = await this.activation.issue(mentor.id, 'EMAIL_VERIFICATION', caller.id, tx);
 
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
@@ -126,13 +138,19 @@ export class MentorRequestsService {
       return mentor;
     });
 
-    this.events.emit(Events.MentorRequestDecided, {
-      email: request.email, firstName: request.firstName, approved: true,
-    });
+    if (issued) {
+      // The confirmation e-mail doubles as the approval notice.
+      await this.activation.send(issued);
+    } else {
+      this.events.emit(Events.MentorRequestDecided, {
+        email: request.email, firstName: request.firstName, approved: true,
+      });
+    }
 
     return {
       mentor:  result,
       request: { id: requestId, status: 'APPROVED' },
+      emailVerificationRequired: verify,
       next:    'Assign the mentor to courses and divisions via POST /api/v1/admin/mentor-assignments.',
     };
   }

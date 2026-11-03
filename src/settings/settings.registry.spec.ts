@@ -1,4 +1,4 @@
-import { SETTINGS, isSettingKey, validateSettingValue } from './settings.registry.js';
+import { SETTINGS, defaultValue, isSettingKey, validateSettingValue } from './settings.registry.js';
 
 describe('isSettingKey', () => {
   it('accepts declared keys', () => {
@@ -96,6 +96,19 @@ describe('validateSettingValue', () => {
       expect(validateSettingValue('support.phone', '   ')).toBe('support.phone cannot be empty (use null to clear it).');
       expect(validateSettingValue('support.phone', null)).toBeNull();
     });
+  });
+
+  it('e-mail verification is on by default in production only', () => {
+    const before = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      expect(defaultValue('registration.requireEmailVerification')).toBe(true);
+      process.env.NODE_ENV = 'development';
+      expect(defaultValue('registration.requireEmailVerification')).toBe(false);
+      expect(defaultValue('platform.name')).toBe('ROF Learning Platform');
+    } finally {
+      process.env.NODE_ENV = before;
+    }
   });
 
   it('every setting has a category', () => {

@@ -90,8 +90,12 @@ generated from the same metadata the guards enforce.
 |---|---|
 | Admin creates it with a password (`POST /admin/users`) | immediately |
 | Admin invites (`POST /admin/users/invite`) or imports CSV (`POST /admin/users/import`) | when the person opens the e-mailed link and chooses a password (`POST /auth/activate`, 7 days) |
-| Student self-registers | immediately, or after confirming their e-mail when `registration.requireEmailVerification` is on (48 h) |
-| Mentor application approved | immediately (the applicant chose the password) |
+| Student self-registers | after confirming their e-mail (48 h) when `registration.requireEmailVerification` is on — the default in production; otherwise immediately |
+| Mentor applies (`POST /mentor-requests`) and an admin approves | after confirming their e-mail when verification is on (the applicant chose the password); otherwise on approval. Applications an admin rejects never become accounts |
+
+Administrators can create (`POST /admin/users`) or invite any user with any
+role — student, mentor or administrator — and change anyone's role, details,
+password and status. Mentors are normally added this way; applying is optional.
 
 Un-activated accounts cannot log in (`ACCOUNT_NOT_ACTIVATED`) and can never
 hold a session. `POST /auth/resend-activation` and "forgot password" send a

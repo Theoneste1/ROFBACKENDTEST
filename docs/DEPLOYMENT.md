@@ -22,6 +22,8 @@ DATABASE_URL=postgresql://…
 JWT_SECRET=<48+ random characters>
 CORS_ORIGINS=https://lms.example.org
 APP_URL=https://lms.example.org
+# E-mail verification for sign-ups is on by default in production (system
+# setting registration.requireEmailVerification), so SMTP must work.
 APP_TIMEZONE=Africa/Kigali   # optional; live-session dates and times (IANA name)
 STORAGE_DRIVER=s3
 S3_BUCKET=… S3_REGION=… S3_ACCESS_KEY_ID=… S3_SECRET_ACCESS_KEY=… (S3_ENDPOINT for non-AWS)

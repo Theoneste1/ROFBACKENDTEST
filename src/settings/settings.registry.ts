@@ -23,6 +23,8 @@ export interface SettingDefinition {
   min?:        number;
   max?:        number;
   unit?:       string;
+  /** Default when NODE_ENV=production (otherwise `default`). */
+  productionDefault?: unknown;
 }
 
 export const SETTINGS = {
@@ -40,10 +42,11 @@ export const SETTINGS = {
     description: 'Self-registered students must be approved by an admin before they can log in.',
   },
   'registration.requireEmailVerification': {
-    category:    'REGISTRATION',
-    type:        'boolean',
-    default:     false,
-    description: 'Self-registered students must confirm their e-mail address before they can log in.',
+    category:          'REGISTRATION',
+    type:              'boolean',
+    default:           false,
+    productionDefault: true,
+    description:       'People who sign up themselves (students, and mentor applicants once approved) must confirm their e-mail address before they can log in. On by default in production.',
   },
 
   // ── Assignments and submissions ────────────────────────────────────────────
@@ -199,6 +202,12 @@ export type SettingValue<K extends SettingKey> =
   (typeof SETTINGS)[K] extends { options: readonly (infer O)[] } ? O :
   (typeof SETTINGS)[K] extends { nullable: true } ? string | null :
   string;
+
+/** The value a setting has until an administrator changes it. */
+export function defaultValue(key: SettingKey): unknown {
+  const def: SettingDefinition = SETTINGS[key];
+  return process.env.NODE_ENV === 'production' && def.productionDefault !== undefined ? def.productionDefault : def.default;
+}
 
 export function isSettingKey(key: string): key is SettingKey {
   return Object.prototype.hasOwnProperty.call(SETTINGS, key);
