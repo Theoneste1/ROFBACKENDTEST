@@ -64,6 +64,44 @@ describe('validateSettingValue', () => {
     });
   });
 
+  describe('integer settings', () => {
+    const key = 'notifications.deadlineReminderHours';
+
+    it.each([1, 24, 168])('accepts %d', (value) => {
+      expect(validateSettingValue(key, value)).toBeNull();
+    });
+
+    it('rejects values outside the limits', () => {
+      expect(validateSettingValue(key, 0)).toBe(`${key} must be at least 1.`);
+      expect(validateSettingValue(key, 169)).toBe(`${key} must be at most 168.`);
+    });
+
+    it.each([1.5, '24', true, null])('rejects %j', (value) => {
+      expect(validateSettingValue(key, value)).not.toBeNull();
+    });
+  });
+
+  describe('e-mail and link settings', () => {
+    it('validates e-mail addresses', () => {
+      expect(validateSettingValue('platform.supportEmail', 'not-an-email')).toBe('platform.supportEmail must be an e-mail address.');
+    });
+
+    it('requires https links', () => {
+      expect(validateSettingValue('support.helpUrl', 'https://help.rof.rw/guide')).toBeNull();
+      expect(validateSettingValue('support.helpUrl', 'http://help.rof.rw')).toBe('support.helpUrl must be an https:// link.');
+      expect(validateSettingValue('support.helpUrl', 'javascript:alert(1)')).toBe('support.helpUrl must be an https:// link.');
+    });
+
+    it('rejects blank text (null clears a value)', () => {
+      expect(validateSettingValue('support.phone', '   ')).toBe('support.phone cannot be empty (use null to clear it).');
+      expect(validateSettingValue('support.phone', null)).toBeNull();
+    });
+  });
+
+  it('every setting has a category', () => {
+    for (const def of Object.values(SETTINGS)) expect(def.category).toBeTruthy();
+  });
+
   it('every default value passes its own validation', () => {
     for (const [key, def] of Object.entries(SETTINGS)) {
       expect(validateSettingValue(key as keyof typeof SETTINGS, def.default)).toBeNull();

@@ -1,80 +1,81 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { IsISO8601, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { Controller, Get, Header, Param, ParseUUIDPipe, Query, Res } from '@nestjs/common';
+import { ApiProduces, ApiTags } from '@nestjs/swagger';
+import { IsEnum, IsIn, IsISO8601, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import type { Response } from 'express';
 
-import { PrismaService } from '../prisma/prisma.service.js';
+import { AuditQueryService } from './audit-query.service.js';
+import { AuditService } from './audit.service.js';
+import { AUDIT_CATEGORY_NAMES, type AuditCategory } from './audit-categories.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
-import { PaginationQueryDto, pageArgs, paginated } from '../common/pagination.js';
-import type { Prisma } from '../generated/prisma/client.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { PaginationQueryDto } from '../common/pagination.js';
+import type { AuthUser } from '../common/auth-user.js';
+import { Role } from '../generated/prisma/client.js';
 
 class AuditQueryDto extends PaginationQueryDto {
+  /** USERS, ENROLLMENT, MENTOR_ASSIGNMENTS, ASSIGNMENTS, DISTRIBUTION, REVIEWS, RESULTS, MODERATION, SETTINGS, … */
   @IsOptional()
-  @IsUUID()
-  actorId?: string;
+  @IsIn(AUDIT_CATEGORY_NAMES, { message: `category must be one of: ${AUDIT_CATEGORY_NAMES.join(', ')}` })
+  category?: AuditCategory;
 
-  @IsOptional()
-  @IsString()
-  @Length(1, 100)
-  entity?: string;
+  /** Action name contains (case-insensitive), e.g. "PUBLISH". */
+  @IsOptional() @IsString() @Length(1, 100) action?: string;
 
-  @IsOptional()
-  @IsUUID()
-  entityId?: string;
+  /** Who acted. */
+  @IsOptional() @IsUUID() actorId?: string;
+  @IsOptional() @IsEnum(Role) actorRole?: Role;
 
-  @IsOptional()
-  @IsString()
-  @Length(1, 100)
-  action?: string;
+  /** The affected record: its type (e.g. "User", "Submission", "SystemSetting") and id. */
+  @IsOptional() @IsString() @Length(1, 100) entity?: string;
+  @IsOptional() @IsString() @Length(1, 200) entityId?: string;
 
-  @IsOptional()
-  @IsISO8601()
-  from?: string;
-
-  @IsOptional()
-  @IsISO8601()
-  to?: string;
+  /** ISO 8601; a plain date covers that whole day. */
+  @IsOptional() @IsISO8601({ strict: true }) from?: string;
+  @IsOptional() @IsISO8601({ strict: true }) to?: string;
 }
 
+/**
+ * The audit trail — administrators only, read-only. There are no routes that
+ * create, change or delete audit records, and the database rejects changes.
+ */
 @ApiTags('Admin · Audit')
 @Controller('admin/audit-logs')
 @Roles('ADMIN')
 export class AuditController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly query: AuditQueryService,
+    private readonly audit: AuditService,
+  ) {}
 
-  /**
-   * Read audit logs with filters and pagination (max 100 per page).
-   * Records are read-only; no create/update/delete routes are exposed.
-   */
+  /** Newest first; filter by category, action, actor, record and date range. */
   @Get()
-  async findAll(@Query() query: AuditQueryDto) {
-    const { page, limit, skip, take } = pageArgs(query);
+  findAll(@Query() q: AuditQueryDto) {
+    return this.query.list(q);
+  }
 
-    const where: Prisma.AuditLogWhereInput = {
-      ...(query.actorId  && { actorId: query.actorId }),
-      ...(query.entity   && { entity: query.entity }),
-      ...(query.entityId && { entityId: query.entityId }),
-      ...(query.action   && { action: { contains: query.action, mode: 'insensitive' } }),
-      ...((query.from || query.to) && {
-        createdAt: {
-          ...(query.from && { gte: new Date(query.from) }),
-          ...(query.to   && { lte: new Date(query.to) }),
-        },
-      }),
-    };
+  /** Every action with its category and how many times it was recorded (for filters). */
+  @Get('actions')
+  actions() {
+    return this.query.actions();
+  }
 
-    const [logs, total] = await this.prisma.$transaction([
-      this.prisma.auditLog.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take,
-        include: {
-          actor: { select: { id: true, username: true, firstName: true, lastName: true, role: true } },
-        },
-      }),
-      this.prisma.auditLog.count({ where }),
-    ]);
+  /** The filtered trail as CSV (up to 50 000 rows). The export itself is audited. */
+  @Get('export.csv')
+  @ApiProduces('text/csv')
+  @Header('Cache-Control', 'no-store')
+  async export(@Query() q: AuditQueryDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
+    const csv = await this.query.csv(q);
+    await this.audit.log({
+      actorId: user.id, actorRole: user.role, action: 'EXPORT_AUDIT_LOG', entity: 'AuditLog', metadata: { filters: { ...q } },
+    });
+    const date = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="audit-log-${date}.csv"`);
+    res.send(csv);
+  }
 
-    return paginated(logs, total, page, limit);
+  @Get(':id')
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.query.findOne(id);
   }
 }

@@ -118,7 +118,10 @@ export class UsersService {
   async update(id: string, data: UpdateUserDto, caller: CallerCtx) {
     const existing = await this.prisma.user.findUnique({
       where:  { id },
-      select: { id: true, role: true, gradeLevel: true, username: true, email: true },
+      select: {
+        id: true, role: true, gradeLevel: true, username: true, email: true,
+        firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
+      },
     });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
 
@@ -161,28 +164,51 @@ export class UsersService {
     const placementChanged =
       role !== existing.role || (grade && grade !== existing.gradeLevel) || data.schoolId !== undefined;
 
+    const actor = { actorId: caller.id, actorRole: caller.role };
     const user = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.user.update({ where: { id }, data: updateData, select: { schoolId: true } });
+      const updated = await tx.user.update({
+        where: { id }, data: updateData,
+        select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true },
+      });
+      let enrollment: 'PLACED' | 'WITHDRAWN' | null = null;
       if (placementChanged && role === 'STUDENT') {
         // Keep the current-year enrolment in step with the new placement.
         await this.academicYears.enrollInCurrentYear(tx, id, grade!, updated.schoolId);
+        enrollment = 'PLACED';
       } else if (existing.role === 'STUDENT' && role !== 'STUDENT') {
         await tx.studentEnrollment.updateMany({
           where: { studentId: id, status: 'ACTIVE' },
           data:  { status: 'WITHDRAWN', endedAt: new Date() },
         });
+        enrollment = 'WITHDRAWN';
+      }
+
+      // The audit entries commit with the change: what changed, from what, to what.
+      const changes = diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
+      await this.audit.log({
+        ...actor, action: 'UPDATE_USER', entity: 'User', entityId: id,
+        metadata: { changes, passwordChanged: !!data.password },
+      }, tx);
+      if (existing.role !== updated.role) {
+        await this.audit.log({
+          ...actor, action: 'CHANGE_USER_ROLE', entity: 'User', entityId: id,
+          metadata: { from: existing.role, to: updated.role },
+        }, tx);
+      }
+      if (enrollment && (changes.gradeLevel || changes.divisionId || changes.schoolId || changes.role)) {
+        await this.audit.log({
+          ...actor, action: 'CHANGE_STUDENT_ENROLLMENT', entity: 'User', entityId: id,
+          metadata: {
+            change: enrollment,
+            from: { gradeLevel: existing.gradeLevel, divisionId: existing.divisionId, schoolId: existing.schoolId },
+            to:   { gradeLevel: updated.gradeLevel, divisionId: updated.divisionId, schoolId: updated.schoolId },
+          },
+        }, tx);
       }
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
     });
 
     if (data.password || data.role) await this.tokens.revokeAllForUser(id);
-
-    await this.audit.log({
-      actorId: caller.id, actorRole: caller.role,
-      action: 'UPDATE_USER', entity: 'User', entityId: id,
-      metadata: { fields: Object.keys(data).filter((k) => k !== 'password'), passwordChanged: !!data.password },
-    });
-
     return user;
   }
 
@@ -191,20 +217,29 @@ export class UsersService {
     if (id === caller.id && data.isActive === false) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_SUSPEND_SELF', 'You cannot suspend your own account.');
     }
-    await this.findOne(id);
+    const before = await this.findOne(id);
 
-    const user = await this.prisma.user.update({
-      where:  { id },
-      data:   { isActive: data.isActive, isApproved: data.isApproved },
-      select: SAFE_SELECT,
+    const user = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where:  { id },
+        data:   { isActive: data.isActive, isApproved: data.isApproved },
+        select: SAFE_SELECT,
+      });
+      // Deactivation / reactivation / approval, with the previous state.
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'UPDATE_USER_STATUS', entity: 'User', entityId: id,
+        metadata: {
+          ...data,
+          changes: diff(before, updated, ['isActive', 'isApproved']),
+          ...(before.isActive && updated.isActive === false && { deactivated: true }),
+          ...(!before.isActive && updated.isActive && { reactivated: true }),
+        },
+      }, tx);
+      return updated;
     });
 
     if (data.isActive === false) await this.tokens.revokeAllForUser(id);
-
-    await this.audit.log({
-      actorId: caller.id, actorRole: caller.role,
-      action: 'UPDATE_USER_STATUS', entity: 'User', entityId: id, metadata: { ...data },
-    });
     return user;
   }
 
@@ -294,4 +329,13 @@ export class UsersService {
       throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
     }
   }
+}
+
+/** `{ field: { from, to } }` for the fields whose value changed. */
+function diff<T extends Record<string, unknown>>(before: T, after: Partial<T>, fields: Array<keyof T & string>) {
+  const out: Record<string, { from: unknown; to: unknown }> = {};
+  for (const f of fields) {
+    if (f in after && before[f] !== after[f]) out[f] = { from: before[f] ?? null, to: after[f] ?? null };
+  }
+  return out;
 }

@@ -52,7 +52,7 @@ type Tx = Prisma.TransactionClient;
 type Attempt = { fileIds: string[]; note?: string; answerText?: string };
 
 const MAX_RESUBMISSION_WINDOW_MS = 60 * 24 * 3600 * 1000;
-const DEFAULT_RESUBMISSION_WINDOW_MS = 7 * 24 * 3600 * 1000;
+const DAY_MS = 24 * 3600 * 1000;
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 //
@@ -677,7 +677,8 @@ export class SubmissionsService {
     const now   = new Date();
     const dueAt = body.dueAt
       ? new Date(body.dueAt)
-      : new Date(Math.max(a.deadline.getTime(), now.getTime() + DEFAULT_RESUBMISSION_WINDOW_MS));
+      // Default window: the administrator's setting, or until the deadline if later.
+      : new Date(Math.max(a.deadline.getTime(), now.getTime() + (await this.settings.get('submissions.resubmissionRequestDays')) * DAY_MS));
     if (dueAt <= now) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'DEADLINE_IN_PAST', 'The resubmission due date must be in the future.');
     }

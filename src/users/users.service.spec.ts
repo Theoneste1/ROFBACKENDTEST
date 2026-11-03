@@ -46,7 +46,11 @@ describe('UsersService', () => {
       await service.updateStatus('u2', { isActive: false }, ADMIN);
       expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({ isActive: false });
       expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2');
-      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'UPDATE_USER_STATUS' }));
+      // Written in the same transaction as the change (second argument).
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'UPDATE_USER_STATUS' }),
+        prisma,
+      );
     });
 
     it('does not revoke sessions when only approving', async () => {

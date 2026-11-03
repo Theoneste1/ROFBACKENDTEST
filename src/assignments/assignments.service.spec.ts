@@ -38,11 +38,15 @@ function makeMocks() {
   const events  = { emit: vi.fn() };
   const academicYears = { current: vi.fn().mockResolvedValue({ id: 'y1', name: '2026-2027' }) };
   const activity = { record: vi.fn() };
+  const settingValues: Record<string, unknown> = {
+    'assignments.defaultAllowResubmission': false, 'assignments.defaultMaxResubmissions': 0, 'assignments.defaultAllowLateSubmission': false,
+  };
+  const settings = { get: vi.fn().mockImplementation((key: string) => Promise.resolve(settingValues[key])), values: settingValues };
 
   const service = new AssignmentsService(
-    prisma as any, audit as any, access as any, storage as any, events as any, academicYears as any, activity as any,
+    prisma as any, audit as any, access as any, storage as any, events as any, academicYears as any, activity as any, settings as any,
   );
-  return { service, prisma, audit, access, storage, events, academicYears, activity };
+  return { service, prisma, audit, access, storage, events, academicYears, activity, settings };
 }
 
 const createDto = (overrides: Record<string, unknown> = {}) => ({

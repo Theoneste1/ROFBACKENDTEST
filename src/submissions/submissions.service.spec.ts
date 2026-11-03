@@ -99,7 +99,10 @@ function makeMocks() {
   const audit    = { log: vi.fn() };
   const access   = { assertCanView: vi.fn().mockResolvedValue(undefined), isAssignedMentor: vi.fn().mockResolvedValue(true) };
   const storage  = { store: vi.fn().mockResolvedValue({ id: 'file-1' }) };
-  const settings = { get: vi.fn().mockResolvedValue('BALANCED') };
+  const settings = {
+    get: vi.fn().mockImplementation((key: string) =>
+      Promise.resolve(({ 'submissions.defaultDistributionStrategy': 'BALANCED', 'submissions.resubmissionRequestDays': 7 } as Record<string, unknown>)[key])),
+  };
   const events   = { emit: vi.fn() };
   const activity = { record: vi.fn() };
 

@@ -1416,16 +1416,22 @@ model SystemSetting {
   updatedAt   DateTime @updatedAt
 }
 
+/// Append-only: a database trigger rejects UPDATE and DELETE (the only
+/// permitted change is the foreign key clearing actorId when an account is
+/// deleted). There are no API routes that modify audit records.
 model AuditLog {
-  id        String   @id @default(uuid())
-  actorId   String?
-  actorRole String?
-  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
-  action    String
-  entity    String
-  entityId  String?
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id            String   @id @default(uuid())
+  actorId       String?
+  actorRole     String?
+  actor         User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  /// The actor's username at the time, filled in by the database on insert, so
+  /// the record still says who acted if the account is later deleted.
+  actorUsername String?
+  action        String
+  entity        String
+  entityId      String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
 
   @@index([actorId])
   @@index([action])

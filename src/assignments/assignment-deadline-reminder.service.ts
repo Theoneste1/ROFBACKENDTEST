@@ -4,21 +4,23 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Events } from '../notifications/events.js';
+import { SettingsService } from '../settings/settings.service.js';
 
-/** How long before the deadline students are reminded. */
-export const DEADLINE_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 /**
  * AssignmentDeadlineReminderService
  *
  * Every 10 minutes, finds PUBLISHED assignments (in published courses) whose
- * deadline is within the next 24 hours and emits one AssignmentDeadlineApproaching
+ * deadline is within the reminder window (setting
+ * notifications.deadlineReminderHours, default 24) and emits one AssignmentDeadlineApproaching
  * event each; NotificationListener reminds the students who have not submitted.
  *
  * `deadlineRemindedFor` records which deadline was reminded about, so each
  * deadline is reminded once — and a moved deadline (edit or reopen) gets a
  * fresh reminder. The claim is a single UPDATE … RETURNING, so several
- * instances never send the same reminder twice.
+ * instances never send the same reminder twice. Administrators can switch the
+ * reminders off (notifications.deadlineRemindersEnabled).
  */
 @Injectable()
 export class AssignmentDeadlineReminderService {
@@ -28,6 +30,7 @@ export class AssignmentDeadlineReminderService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly events: EventEmitter2,
+    private readonly settings: SettingsService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES, { name: 'assignment-deadline-reminders' })
@@ -43,7 +46,8 @@ export class AssignmentDeadlineReminderService {
 
   /** Claim every assignment due soon and not yet reminded; returns how many. */
   async sendDue(now = new Date()): Promise<number> {
-    const until = new Date(now.getTime() + DEADLINE_REMINDER_WINDOW_MS);
+    if (!(await this.settings.get('notifications.deadlineRemindersEnabled'))) return 0;
+    const until = new Date(now.getTime() + (await this.settings.get('notifications.deadlineReminderHours')) * HOUR_MS);
     const claimed = await this.prisma.$queryRaw<{ id: string }[]>`
       UPDATE "Assignment" a
          SET "deadlineRemindedFor" = a."deadline"

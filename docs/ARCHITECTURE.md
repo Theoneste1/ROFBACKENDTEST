@@ -278,6 +278,44 @@ medians are computed in SQL. Indexes support the date-range filters
 (`MentorReview.returnedAt`, `Submission.submittedAt`/`publishedAt`,
 `ResultRelease.publishedAt`) and users by role and state.
 
+## 7b. System settings and audit trail
+
+**Settings** (`GET/PATCH /admin/settings`, admins only) are declared in
+`settings.registry.ts` — only declared keys exist, each validated by type and
+limits — and grouped by category:
+
+| Category | Settings |
+|---|---|
+| Registration | self sign-up, approval, e-mail verification |
+| Assignments | default resubmission rules (allow, limit), default late submissions, default resubmission-request window, distribution strategy |
+| Notifications | e-mail on/off, deadline reminders (on/off, hours before), live-session reminders (on/off, minutes before) |
+| Live sessions | maximum length |
+| Platform | name, leaderboard visibility |
+| Support | e-mail, phone, hours, help link (https), message — public at `GET /support` |
+
+Academic years (dates, which one is current) are managed under
+`/admin/academic-years`. Every changed setting is written to the audit log
+(`UPDATE_SETTING`, record = the key, `{ from, to }`) in the same transaction.
+
+**Audit trail.** `AuditService.log` records who acted (`actorId`,
+`actorRole`, and `actorUsername`, filled in by the database), the action, the
+affected record (`entity`, `entityId`), details (`metadata`, never passwords)
+and the time. Important changes are written in the same transaction as the
+change itself. Recorded among others: user creation (including each imported
+account), updates with before/after values, role changes
+(`CHANGE_USER_ROLE`), placement/enrolment changes (`CHANGE_STUDENT_ENROLLMENT`,
+`UPDATE_ENROLLMENT`), activation/deactivation (`UPDATE_USER_STATUS`), mentor
+scopes, assignment creation and publication, distribution, every review step
+and grade, results publication, moderation, settings and academic years.
+
+The table is append-only: a database trigger rejects UPDATE and DELETE (the
+only allowed change is the foreign key clearing `actorId` when an account is
+deleted; the username stays). There are no API routes that write audit
+records. Administrators read it at `GET /admin/audit-logs` (filters:
+`category`, `action`, `actorId`, `actorRole`, `entity`, `entityId`, `from`,
+`to`), `GET /admin/audit-logs/:id`, `GET /admin/audit-logs/actions` and
+`GET /admin/audit-logs/export.csv` (the export itself is audited).
+
 ## 8. Errors and logging
 
 `AllExceptionsFilter` returns one JSON shape for every error with a stable

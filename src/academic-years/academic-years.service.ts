@@ -253,7 +253,12 @@ export class AcademicYearsService {
 
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
-      action: 'UPDATE_ENROLLMENT', entity: 'StudentEnrollment', entityId: enrollmentId, metadata: { ...dto },
+      action: 'UPDATE_ENROLLMENT', entity: 'StudentEnrollment', entityId: enrollmentId,
+      metadata: {
+        ...dto, studentId: e.studentId, academicYearId: e.academicYearId,
+        from: { gradeLevel: e.gradeLevel, divisionId: e.divisionId, status: e.status },
+        to:   { gradeLevel: updated.gradeLevel, divisionId: updated.divisionId, status: updated.status },
+      },
     });
     return updated;
   }

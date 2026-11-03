@@ -282,7 +282,7 @@ their scope; status transitions (conditional `UPDATE … WHERE status IN …`).
 | Submissions, revisions, reviews, review events, result releases | Never deleted. Corrections create new review cycles. |
 | Threads | Lock, hide or archive. "Deleting" sets `DELETED` + `deletedAt` (authors: only while nobody else has posted; admins: any); the row stays for the moderation record and is visible to admins only. |
 | Comments | Soft-deleted (`[deleted]` placeholder keeps the thread readable). An author's own deletion erases the text; an admin's removal keeps it for the moderation record. |
-| Reports, moderation actions, audit log | Never deleted. |
+| Reports, moderation actions, audit log | Never deleted. The audit log is append-only, enforced by a database trigger. |
 | Files | Deleted only when nothing references them (nightly, after 24 h). |
 
 **Retention (nightly jobs):**
@@ -342,6 +342,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261112000000_deadline_reminders_notification_links` | additive | `Assignment.deadlineRemindedFor` (which deadline the "due soon" reminder covered), `Notification.link`, index `Notification` (`userId`, `createdAt`). |
 | `20261113000000_notification_settings` | additive | New `NotificationSetting` table: per-type in-app / e-mail switches chosen by admins and mentors. Empty at creation (no row = on). |
 | `20261114000000_reporting_indexes` | additive (indexes only) | Indexes for the dashboard and reports: `MentorReview.returnedAt`, `Submission.submittedAt`, `Submission.publishedAt`, `ResultRelease.publishedAt`, `User` (`role`, `isActive`). |
+| `20261115000000_audit_log_append_only` | additive + backfill + triggers | `AuditLog.actorUsername` (backfilled from `User`), trigger filling it on insert, and a trigger rejecting UPDATE/DELETE of audit rows (except the FK clearing `actorId`). |
 
 **Making a schema change.**
 

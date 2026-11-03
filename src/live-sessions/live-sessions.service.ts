@@ -9,7 +9,8 @@
  * Times are stored as UTC instants. They can be given and are always returned
  * as a date + start/end time in the programme time zone (APP_TIMEZONE).
  *
- * Validation: start in the future, end after start, at most 8 hours, starting
+ * Validation: start in the future, end after start, at most the configured
+ * length (liveSessions.maxDurationHours, default 8 hours), starting
  * within the academic year; no overlap with another scheduled session of the
  * same host or the same division (students could not attend both); a provider,
  * when given, must match the link.
@@ -24,6 +25,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../common/access/access.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import {
@@ -43,8 +45,7 @@ import {
   UpdateLiveSessionDto,
 } from './dto/live-session.dto.js';
 
-const MAX_DURATION_MS = 8 * 60 * 60 * 1000;
-const REMINDER_WINDOW_MS = 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const PROVIDER_LABEL: Record<LiveSessionProvider, string> = {
@@ -76,6 +77,7 @@ export class LiveSessionsService {
     private readonly notifications: NotificationsService,
     private readonly config:        ConfigService,
     private readonly academicYears: AcademicYearsService,
+    private readonly settings:      SettingsService,
   ) {}
 
   private get timeZone(): string {
@@ -89,7 +91,7 @@ export class LiveSessionsService {
     await this.access.assertCanManage(user, scope);
 
     const times = this.resolveTimes(dto)!;
-    this.validateTimes(times);
+    await this.validateTimes(times);
     const year = await this.academicYears.current();
     this.assertWithinYear(times, year);
     const provider = this.resolveProvider(dto.provider, dto.meetingUrl);
@@ -130,7 +132,7 @@ export class LiveSessionsService {
     if (times) {
       // The link and description can still be fixed during a session, but not its time.
       if (session.startsAt <= now) throw invalidState('The time of a session that has started cannot be changed.');
-      this.validateTimes(times);
+      await this.validateTimes(times);
       const year = await this.prisma.academicYear.findUniqueOrThrow({ where: { id: session.academicYearId } });
       this.assertWithinYear(times, year);
       await this.assertNoConflict({ ...times, hostId: session.hostId, divisionId: session.divisionId }, id);
@@ -256,14 +258,19 @@ export class LiveSessionsService {
     return count;
   }
 
-  /** Notify students once, about an hour before a session starts. */
+  /**
+   * Notify students once, shortly before a session starts
+   * (notifications.liveSessionReminderMinutes; can be switched off).
+   */
   async sendReminders() {
+    if (!(await this.settings.get('notifications.liveSessionRemindersEnabled'))) return 0;
+    const windowMs = (await this.settings.get('notifications.liveSessionReminderMinutes')) * 60_000;
     const now  = new Date();
     const soon = await this.prisma.liveSession.findMany({
       where: {
         status:         'SCHEDULED',
         reminderSentAt: null,
-        startsAt:       { gt: now, lte: new Date(now.getTime() + REMINDER_WINDOW_MS) },
+        startsAt:       { gt: now, lte: new Date(now.getTime() + windowMs) },
         course:         { status: 'PUBLISHED' },
       },
       select: { id: true, title: true, startsAt: true, endsAt: true, divisionId: true, courseId: true, course: { select: { title: true } } },
@@ -337,15 +344,16 @@ export class LiveSessionsService {
     return { startsAt, endsAt };
   }
 
-  private validateTimes({ startsAt, endsAt }: Times) {
+  private async validateTimes({ startsAt, endsAt }: Times) {
     if (startsAt <= new Date()) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'START_IN_PAST', 'The session must start in the future.');
     }
     if (endsAt <= startsAt) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_TIME_RANGE', 'The end time must be after the start time.');
     }
-    if (endsAt.getTime() - startsAt.getTime() > MAX_DURATION_MS) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_TIME_RANGE', 'A session cannot last longer than 8 hours.');
+    const maxHours = await this.settings.get('liveSessions.maxDurationHours');
+    if (endsAt.getTime() - startsAt.getTime() > maxHours * HOUR_MS) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_TIME_RANGE', `A session cannot last longer than ${maxHours} hours.`);
     }
   }
 

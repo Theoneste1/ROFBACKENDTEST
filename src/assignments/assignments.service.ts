@@ -37,6 +37,7 @@ import { AccessService } from '../common/access/access.service.js';
 import { StorageService } from '../common/storage/storage.service.js';
 import { ATTACHMENT_SELECT, MAX_ATTACHMENTS } from '../common/storage/attachments.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -120,6 +121,7 @@ export class AssignmentsService {
     private readonly events:   EventEmitter2,
     private readonly academicYears: AcademicYearsService,
     private readonly activity: ActivityService,
+    private readonly settings: SettingsService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -130,7 +132,8 @@ export class AssignmentsService {
     const course = await this.prisma.course.findUnique({ where: { id: data.courseId }, select: { id: true, title: true } });
     if (!course) throw new NotFoundException('Course not found.');
     await this.access.assertMentorOf(user, { courseId: data.courseId, divisionId: data.divisionId });
-    this.assertResubmissionRules(data.allowResubmission ?? false, data.maxResubmissions ?? 0);
+    const rules = await this.submissionRules(data);
+    this.assertResubmissionRules(rules.allowResubmission, rules.maxResubmissions);
 
     const year = await this.academicYears.current();
 
@@ -149,9 +152,7 @@ export class AssignmentsService {
         maximumMarks:        data.maximumMarks,
         academicYearId:      year.id,
         attachments:         { create: stored.map((s, i) => ({ fileId: s.id, sortOrder: i })) },
-        allowResubmission:   data.allowResubmission   ?? false,
-        maxResubmissions:    data.maxResubmissions    ?? 0,
-        allowLateSubmission: data.allowLateSubmission ?? false,
+        ...rules,
         status:              'DRAFT',
         createdById:         user.id,
         events: {
@@ -687,6 +688,18 @@ export class AssignmentsService {
         })),
       }),
     };
+  }
+
+  /**
+   * Resubmission and late rules for a new assignment: what the mentor chose,
+   * otherwise the administrator's defaults (system settings).
+   */
+  private async submissionRules(data: Pick<CreateAssignmentDto, 'allowResubmission' | 'maxResubmissions' | 'allowLateSubmission'>) {
+    const allowResubmission = data.allowResubmission ?? await this.settings.get('assignments.defaultAllowResubmission');
+    const maxResubmissions  = data.maxResubmissions
+      ?? (allowResubmission ? await this.settings.get('assignments.defaultMaxResubmissions') : 0);
+    const allowLateSubmission = data.allowLateSubmission ?? await this.settings.get('assignments.defaultAllowLateSubmission');
+    return { allowResubmission, maxResubmissions, allowLateSubmission };
   }
 
   private assertResubmissionRules(allow: boolean, max: number) {

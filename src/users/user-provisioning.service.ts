@@ -230,6 +230,11 @@ export class UserProvisioningService {
       users:     created,
     };
 
+    // One entry per account created (the affected record), then the import summary.
+    await this.audit.logMany(created.map((c) => ({
+      actorId: caller.id, actorRole: caller.role,
+      action: 'CREATE_USER', entity: 'User', entityId: c.id, metadata: { via: 'IMPORT', fileName: file.originalname },
+    })));
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
       action: dryRun ? 'IMPORT_USERS_DRY_RUN' : 'IMPORT_USERS', entity: 'User',
