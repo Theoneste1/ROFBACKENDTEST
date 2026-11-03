@@ -244,7 +244,7 @@ successful request.
 | Points | Proportional to the score; per-division leaderboards; students see first name + initial |
 | Registration | Open self-signup; admin can close it or require approval (settings) |
 | Score corrections | Admin "reopen" returns the result to the mentor; admins never edit scores |
-| Study groups | Kept as-is (admin-managed), contact details no longer exposed |
+| Study groups | Switched off: the module is not registered, so `/study-groups` does not exist. Code and tables are kept (re-register `StudyGroupsModule` in `AppModule` to restore). |
 | Storage | Abstracted; local for dev, S3-compatible for production |
 | Job queue | PostgreSQL outbox + in-process workers (no Redis) |
 | Academic years | Bulk promotion endpoint; no per-year history model yet |

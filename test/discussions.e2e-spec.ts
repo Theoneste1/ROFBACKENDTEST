@@ -242,5 +242,11 @@ describe('Discussions and moderation (e2e)', () => {
         await ctx.http().get(path).set(bearer(studentJ)).expect(404);
       }
     });
+
+    it('there are no separate study groups', async () => {
+      await ctx.http().get('/api/v1/study-groups').set(bearer(admin)).expect(404);
+      await ctx.http().post('/api/v1/study-groups').set(bearer(admin)).send({ name: 'Circle', description: 'x' }).expect(404);
+      await ctx.http().get('/api/v1/study-groups/my/groups').set(bearer(studentJ)).expect(404);
+    });
   });
 });

@@ -221,7 +221,7 @@ erDiagram
 | | `CommentReaction` | LIKE / HELPFUL / CONFUSED | unique (`commentId`, `userId`, `type`) |
 | | `ContentReport` | A user's report of a thread or comment, with a snapshot of the reported text | unique (`reporterId`, `commentId`), (`reporterId`, `threadId`) |
 | | `ModerationAction` | Every moderation decision | idx `commentId`, `threadId`, (`moderatorId`, `createdAt`) |
-| | `StudyGroup`, `StudyGroupMember` | Admin-managed cohorts | unique (`groupId`, `userId`) |
+| | `StudyGroup`, `StudyGroupMember` | Admin-managed cohorts — **unused**: the API module is switched off; tables and data are kept | unique (`groupId`, `userId`) |
 | Messaging | `Notification`, `NotificationPreference` | In-app notifications; e-mail opt-outs | idx (`userId`, `readAt`) |
 | | `EmailJob`, `EmailDelivery` | Bulk sends; outbox for every e-mail | unique `idempotencyKey`; idx (`status`, `nextAttemptAt`) |
 | Admin | `SystemSetting` | Allow-listed key/value settings | PK `key` |

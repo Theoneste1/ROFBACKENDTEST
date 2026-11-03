@@ -135,7 +135,7 @@ src/
   courses/             the 4 courses + resources + progress
   assignments/ submissions/
   discussions/ live-sessions/ notifications/ email/
-  leaderboard/ analytics/ reports/ settings/ audit/ study-groups/
+  leaderboard/ analytics/ reports/ settings/ audit/ study-groups/ (switched off)
 prisma/
   schema.prisma        data model
   migrations/          migration history (baseline 2026-11-03)
