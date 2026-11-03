@@ -9,6 +9,7 @@ import { DivisionsService } from '../divisions/divisions.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { ActivityService } from '../activity/activity.service.js';
+import { ActivationService } from './activation.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { TokenService, hashToken, type ClientInfo } from './token.service.js';
 import { RegisterStudentDto } from './dto/register-student.dto.js';
@@ -43,6 +44,7 @@ export class AuthService {
     private readonly notifications: NotificationsService,
     private readonly academicYears: AcademicYearsService,
     private readonly activity:      ActivityService,
+    private readonly activation:    ActivationService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -54,8 +56,9 @@ export class AuthService {
 
     await this.assertIdentityFree(data.username, data.email);
 
-    const requiresApproval = await this.settings.get('registration.studentRequiresApproval');
-    const passwordHash     = await bcrypt.hash(data.password, BCRYPT_COST);
+    const requiresApproval     = await this.settings.get('registration.studentRequiresApproval');
+    const requiresVerification = await this.settings.get('registration.requireEmailVerification');
+    const passwordHash         = await bcrypt.hash(data.password, BCRYPT_COST);
     const divisionId       = await this.divisions.idForGrade(data.gradeLevel);
 
     const student = await this.prisma.$transaction(async (tx) => {
@@ -75,6 +78,7 @@ export class AuthService {
           passwordHash,
           role:         'STUDENT',
           isApproved:   !requiresApproval,
+          activatedAt:  requiresVerification ? null : new Date(),
           gradeLevel:   data.gradeLevel,
           divisionId,
           schoolId:     school.id,
@@ -95,10 +99,20 @@ export class AuthService {
         metadata:  { gradeLevel: data.gradeLevel, schoolName: school.name },
       }, tx);
 
-      return created;
+      const verification = requiresVerification
+        ? await this.activation.issue(created.id, 'EMAIL_VERIFICATION', null, tx)
+        : null;
+
+      return { created, verification };
     });
 
-    return { ...student, requiresApproval };
+    if (student.verification) await this.activation.send(student.verification);
+
+    return {
+      ...student.created,
+      requiresApproval,
+      requiresEmailVerification: requiresVerification,
+    };
   }
 
   // ─── Admin Registration (ADMIN only — enforced by the controller) ──────────
@@ -114,6 +128,7 @@ export class AuthService {
         email:        data.email,
         passwordHash: await bcrypt.hash(data.password, BCRYPT_COST),
         role:         'ADMIN',
+        activatedAt:  new Date(),
       },
       select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
     });
@@ -136,7 +151,7 @@ export class AuthService {
     const identifier = data.username;
     const user = await this.prisma.user.findFirst({
       where: identifier.includes('@') ? { email: identifier } : { username: identifier },
-      select: { id: true, role: true, passwordHash: true, isActive: true, isApproved: true },
+      select: { id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true },
     });
 
     const passwordMatches = await bcrypt.compare(data.password, user?.passwordHash ?? (await getDummyHash()));
@@ -147,6 +162,13 @@ export class AuthService {
     // Account state is only revealed after a correct password.
     if (!user.isActive) {
       throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_SUSPENDED', 'This account has been suspended.');
+    }
+    if (!user.activatedAt) {
+      throw new AppError(
+        HttpStatus.FORBIDDEN,
+        'ACCOUNT_NOT_ACTIVATED',
+        'Please activate your account using the link we e-mailed you (or request a new one).',
+      );
     }
     if (!user.isApproved) {
       throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_PENDING_APPROVAL', 'This account is waiting for administrator approval.');
@@ -207,36 +229,48 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({
       where:  { email },
-      select: { id: true, firstName: true, email: true, isActive: true, provider: true },
+      select: { id: true, isActive: true, provider: true, activatedAt: true, passwordHash: true },
     });
 
     if (user?.isActive && user.provider === 'LOCAL') {
-      const token = randomBytes(32).toString('base64url');
-      await this.prisma.passwordResetToken.create({
-        data: {
-          userId:    user.id,
-          tokenHash: hashToken(token),
-          expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
-        },
-      });
-      await this.notifications.queueEmail(
-        user.email,
-        'Reset your password',
-        'We received a request to reset your password. The link below is valid for 30 minutes. ' +
-          'If you did not ask for this, you can ignore this e-mail.',
-        {
-          firstName:   user.firstName,
-          recipientId: user.id,
-          link:        `/reset-password?token=${encodeURIComponent(token)}`,
-        },
-      );
-      await this.audit.log({
-        actorId: user.id, action: 'REQUEST_PASSWORD_RESET', entity: 'User', entityId: user.id,
-      });
+      if (user.activatedAt) {
+        await this.sendPasswordResetLink(user.id, null);
+      } else {
+        // Never activated: a reset makes no sense — send a fresh activation link.
+        await this.activation.issueAndSend(user.id, user.passwordHash ? 'EMAIL_VERIFICATION' : 'INVITATION', null);
+      }
     }
 
     return { message: 'If an account exists for that e-mail, a reset link has been sent.' };
   }
+
+  /**
+   * E-mail a single-use password-reset link (30 minutes). Used by
+   * "forgot password" and by administrators helping a user.
+   */
+  async sendPasswordResetLink(userId: string, requestedById: string | null) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where:  { id: userId },
+      select: { id: true, firstName: true, email: true },
+    });
+
+    const token = randomBytes(32).toString('base64url');
+    await this.prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
+    });
+    await this.notifications.queueEmail(
+      user.email,
+      'Reset your password',
+      'We received a request to reset your password. The link below is valid for 30 minutes. ' +
+        'If you did not ask for this, you can ignore this e-mail.',
+      { firstName: user.firstName, recipientId: user.id, link: `/reset-password?token=${encodeURIComponent(token)}` },
+    );
+    await this.audit.log({
+      actorId: requestedById ?? user.id, action: 'REQUEST_PASSWORD_RESET', entity: 'User', entityId: user.id,
+      metadata: { byAdmin: !!requestedById },
+    });
+  }
+
 
   async resetPassword(token: string, newPassword: string) {
     const record = await this.prisma.passwordResetToken.findUnique({

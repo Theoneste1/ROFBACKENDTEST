@@ -83,7 +83,7 @@ The seed prints the generated admin password once (or uses `SEED_ADMIN_PASSWORD`
 | Academic years | Own enrolment history | — | Plan, activate (promotes students), enrolments |
 | Live sessions | View (own division) | Schedule (assigned scopes) | All |
 | Analytics / reports | — | Course analytics (own scopes) | Everything + CSV exports |
-| Accounts & settings | Own profile | Own profile | Users, divisions, mentor assignments, settings |
+| Accounts & settings | Own profile | Own profile | Create / invite / CSV-import users, activate, suspend, reset passwords; divisions, mentor assignments, settings |
 
 ### The assignment workflow
 

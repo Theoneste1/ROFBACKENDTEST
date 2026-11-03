@@ -138,6 +138,7 @@ async function seedAdmin() {
       email:        process.env.SEED_ADMIN_EMAIL ?? 'admin@rof.local',
       passwordHash: await bcrypt.hash(password, BCRYPT_COST),
       role:         'ADMIN',
+      activatedAt:  new Date(),
     },
   });
 
@@ -170,7 +171,7 @@ async function seedDemo() {
   for (const m of mentors) {
     const user = await prisma.user.upsert({
       where:  { username: m.username },
-      create: { username: m.username, firstName: m.firstName, lastName: m.lastName, email: `${m.username}@rof.local`, passwordHash: password, role: 'MENTOR' },
+      create: { username: m.username, firstName: m.firstName, lastName: m.lastName, email: `${m.username}@rof.local`, passwordHash: password, role: 'MENTOR', activatedAt: new Date() },
       update: {},
     });
     for (const c of courses) {
@@ -192,7 +193,7 @@ async function seedDemo() {
       where:  { username: s.username },
       create: {
         username: s.username, firstName: s.firstName, lastName: 'Student', email: `${s.username}@rof.local`,
-        passwordHash: password, role: 'STUDENT', gradeLevel: s.gradeLevel,
+        passwordHash: password, role: 'STUDENT', gradeLevel: s.gradeLevel, activatedAt: new Date(),
         divisionId: divisions.get(division)!, schoolId: school.id, homeLocation: 'Kigali',
       },
       update: {},

@@ -26,6 +26,11 @@ export const SETTINGS = {
     default:     false,
     description: 'Self-registered students must be approved by an admin before they can log in.',
   },
+  'registration.requireEmailVerification': {
+    type:        'boolean',
+    default:     false,
+    description: 'Self-registered students must confirm their e-mail address before they can log in.',
+  },
   'notifications.emailEnabled': {
     type:        'boolean',
     default:     true,

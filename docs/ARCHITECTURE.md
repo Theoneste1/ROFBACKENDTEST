@@ -79,6 +79,28 @@ a used token revokes the family (`REFRESH_TOKEN_REUSED`). Browsers get it as an
 clients use the response body. Logout blacklists the access `jti` and revokes
 the refresh family. Password change/reset revokes all sessions.
 
+**Account lifecycle.**
+
+| How the account is created | Activated |
+|---|---|
+| Admin creates it with a password (`POST /admin/users`) | immediately |
+| Admin invites (`POST /admin/users/invite`) or imports CSV (`POST /admin/users/import`) | when the person opens the e-mailed link and chooses a password (`POST /auth/activate`, 7 days) |
+| Student self-registers | immediately, or after confirming their e-mail when `registration.requireEmailVerification` is on (48 h) |
+| Mentor application approved | immediately (the applicant chose the password) |
+
+Un-activated accounts cannot log in (`ACCOUNT_NOT_ACTIVATED`) and can never
+hold a session. `POST /auth/resend-activation` and "forgot password" send a
+fresh activation link to such accounts. Admins can re-send invitations, send a
+password-reset link (`POST /admin/users/:id/send-password-reset`) — they never
+see or set someone else's password after creation — and suspend/reactivate
+accounts. Every one of these actions is written to the audit log.
+
+**CSV import.** Header `firstName,lastName,email` plus optional
+`role,gradeLevel,schoolName,schoolLocation,homeLocation,username`; UTF-8, ≤1 MB,
+≤1000 rows. Every row is validated (same rules as an invitation), duplicates
+within the file and against existing accounts are reported, valid rows are
+invited, and `?dryRun=true` validates without creating anything.
+
 **Passwords.** bcrypt cost 12; login timing is equalised for unknown users;
 account state (suspended/pending) is only revealed after a correct password;
 credential endpoints are rate-limited per IP.

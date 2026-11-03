@@ -13,10 +13,14 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
 
 import { AuthService } from './auth.service.js';
+import { ActivationService } from './activation.service.js';
 import { RegisterStudentDto } from './dto/register-student.dto.js';
 import { RegisterAdminDto } from './dto/register-admin.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import {
+  ActivateAccountDto,
+  ActivationTokenDto,
+  ResendActivationDto,
   ChangePasswordDto,
   ForgotPasswordDto,
   RefreshTokenDto,
@@ -39,6 +43,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly config:      ConfigService,
+    private readonly activation:  ActivationService,
   ) {}
 
   // ─── Student self-registration (public) ────────────────────────────────────
@@ -115,6 +120,35 @@ export class AuthController {
     await this.authService.logoutAll(user);
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
     return { message: 'All sessions have been signed out.' };
+  }
+
+  // ─── Account activation (public — authenticated by the link token) ────────
+
+  /** Check an activation link before showing the form (who it is for, whether a password is needed). */
+  @Public()
+  @Throttle(CREDENTIAL_LIMIT)
+  @HttpCode(200)
+  @Post('activation/inspect')
+  inspectActivation(@Body() body: ActivationTokenDto) {
+    return this.activation.inspect(body.token);
+  }
+
+  /** Activate an invited (choose a password) or unverified account. */
+  @Public()
+  @Throttle(CREDENTIAL_LIMIT)
+  @HttpCode(200)
+  @Post('activate')
+  activate(@Body() body: ActivateAccountDto) {
+    return this.activation.activate(body.token, body.password);
+  }
+
+  /** Send a new activation link. Same answer whether or not the e-mail exists. */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('resend-activation')
+  resendActivation(@Body() body: ResendActivationDto) {
+    return this.activation.resendForEmail(body.email);
   }
 
   // ─── Passwords ─────────────────────────────────────────────────────────────

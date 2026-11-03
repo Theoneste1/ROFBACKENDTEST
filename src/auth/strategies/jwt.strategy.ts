@@ -46,12 +46,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.prisma.user.findUnique({
       where:  { id: payload.sub },
       select: {
-        id: true, username: true, role: true, isActive: true, isApproved: true,
+        id: true, username: true, role: true, isActive: true, isApproved: true, activatedAt: true,
         divisionId: true, gradeLevel: true,
       },
     });
 
-    if (!user || !user.isActive || !user.isApproved) {
+    if (!user || !user.isActive || !user.isApproved || !user.activatedAt) {
       throw new UnauthorizedException('Your session is no longer valid. Please log in again.');
     }
 

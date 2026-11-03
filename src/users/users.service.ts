@@ -25,6 +25,7 @@ const SAFE_SELECT = {
   provider:   true,
   isApproved: true,
   isActive:   true,
+  activatedAt: true,
   updatedAt:  true,
 } as const;
 
@@ -49,6 +50,7 @@ export class UsersService {
       ...(q.schoolId   && { schoolId: q.schoolId }),
       ...(q.isApproved !== undefined && { isApproved: q.isApproved }),
       ...(q.isActive   !== undefined && { isActive: q.isActive }),
+      ...(q.isActivated !== undefined && { activatedAt: q.isActivated ? { not: null } : null }),
       ...(q.search && {
         OR: [
           { firstName: { contains: q.search, mode: 'insensitive' } },
@@ -84,6 +86,7 @@ export class UsersService {
           email:        data.email,
           passwordHash,
           role,
+          activatedAt:  new Date(), // the admin set the password
           homeLocation: role === 'STUDENT' ? data.homeLocation : null,
           ...studentFields,
         },

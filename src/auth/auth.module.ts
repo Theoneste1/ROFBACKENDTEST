@@ -6,6 +6,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { TokenService } from './token.service.js';
+import { ActivationService } from './activation.service.js';
 import { TokenCleanupService } from './token-cleanup.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 
@@ -25,7 +26,7 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
   controllers: [AuthController],
   // AuditService, SettingsService, DivisionsService and NotificationsService
   // come from @Global() modules.
-  providers: [AuthService, TokenService, JwtStrategy, TokenCleanupService],
-  exports:   [AuthService, TokenService],
+  providers: [AuthService, TokenService, ActivationService, JwtStrategy, TokenCleanupService],
+  exports:   [AuthService, TokenService, ActivationService],
 })
 export class AuthModule {}

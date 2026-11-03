@@ -3,15 +3,22 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
 
 import { UsersService } from './users.service.js';
+import { IMPORT_MAX_BYTES, UserProvisioningService } from './user-provisioning.service.js';
+import { ImportUsersQueryDto, InviteUserDto } from './dto/invite-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -28,7 +35,10 @@ import { permissionsFor } from '../auth/permissions.js';
 @Controller('admin/users')
 @Roles('ADMIN')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly provisioning: UserProvisioningService,
+  ) {}
 
   /** List users with filters (role, division, grade, school, status, search). */
   @Get()
@@ -40,6 +50,32 @@ export class UsersController {
   @Post()
   create(@Body() body: CreateUserDto, @CurrentUser() user: AuthUser) {
     return this.usersService.create(body, user);
+  }
+
+  /**
+   * Invite a person: the account is created without a password and an
+   * activation link (valid 7 days) is e-mailed. Students need a gradeLevel.
+   */
+  @Post('invite')
+  invite(@Body() body: InviteUserDto, @CurrentUser() user: AuthUser) {
+    return this.provisioning.invite(body, user);
+  }
+
+  /**
+   * Bulk-invite from a CSV file (field "file", UTF-8, max 1 MB / 1000 rows).
+   * Header: firstName,lastName,email[,role,gradeLevel,schoolName,schoolLocation,homeLocation,username].
+   * Valid rows are invited; invalid rows are reported. ?dryRun=true validates only.
+   */
+  @Post('import')
+  @HttpCode(200)
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_MAX_BYTES, files: 1 } }))
+  import(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Query() query: ImportUsersQueryDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.provisioning.importCsv(file, query.dryRun ?? false, user);
   }
 
   @Get(':id')
@@ -54,6 +90,20 @@ export class UsersController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.usersService.update(id, body, user);
+  }
+
+  /** Send a new activation link to an invited account that has not activated yet. */
+  @Post(':id/resend-invitation')
+  @HttpCode(200)
+  resendInvitation(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.provisioning.resendInvitation(id, user);
+  }
+
+  /** E-mail the user a password-reset link. */
+  @Post(':id/send-password-reset')
+  @HttpCode(200)
+  sendPasswordReset(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.provisioning.sendPasswordReset(id, user);
   }
 
   /** Suspend/reactivate (`isActive`) or approve (`isApproved`) an account. */

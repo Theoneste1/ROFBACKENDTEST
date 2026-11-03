@@ -33,3 +33,26 @@ export class ChangePasswordDto {
   @IsStrongPassword()
   newPassword: string;
 }
+
+export class ActivationTokenDto {
+  @IsString()
+  @Length(20, 200)
+  token: string;
+}
+
+export class ActivateAccountDto {
+  @IsString()
+  @Length(20, 200)
+  token: string;
+
+  /** Required for invitations; omitted for e-mail verification. */
+  @IsOptional()
+  @IsStrongPassword()
+  password?: string;
+}
+
+export class ResendActivationDto {
+  @IsEmail()
+  @Transform(lower)
+  email: string;
+}

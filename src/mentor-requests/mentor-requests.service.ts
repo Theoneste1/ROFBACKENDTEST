@@ -112,6 +112,7 @@ export class MentorRequestsService {
           email:        request.email,
           passwordHash: request.passwordHash,
           role:         'MENTOR',
+          activatedAt:  new Date(), // the applicant chose this password
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });

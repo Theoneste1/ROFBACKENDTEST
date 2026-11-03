@@ -12,6 +12,7 @@ function makeMocks() {
     user: {
       findFirst:  vi.fn().mockResolvedValue(null),
       findUnique: vi.fn().mockResolvedValue(null),
+      findUniqueOrThrow: vi.fn(),
       create:     vi.fn(),
       update:     vi.fn(),
     },
@@ -40,16 +41,22 @@ function makeMocks() {
   const notifications = { queueEmail: vi.fn() };
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
   const activity      = { record: vi.fn() };
+  const issued        = { token: 't', expiresAt: new Date(), purpose: 'EMAIL_VERIFICATION', userId: 'u-new', email: 'a@x.rw', firstName: 'A' };
+  const activation    = {
+    issue:        vi.fn().mockResolvedValue(issued),
+    send:         vi.fn().mockResolvedValue({}),
+    issueAndSend: vi.fn().mockResolvedValue({}),
+  };
 
   const service = new AuthService(
     prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
-    academicYears as any, activity as any,
+    academicYears as any, activity as any, activation as any,
   );
-  return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity };
+  return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({
-  id: 'u1', role: 'STUDENT', passwordHash: HASH, isActive: true, isApproved: true, ...overrides,
+  id: 'u1', role: 'STUDENT', passwordHash: HASH, isActive: true, isApproved: true, activatedAt: new Date(), ...overrides,
 });
 
 describe('AuthService', () => {
@@ -88,6 +95,14 @@ describe('AuthService', () => {
       prisma.user.findFirst.mockResolvedValue(activeUser({ isApproved: false }));
       await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT))
         .rejects.toMatchObject({ code: 'ACCOUNT_PENDING_APPROVAL' });
+    });
+
+    it('reports ACCOUNT_NOT_ACTIVATED for an unactivated account with the correct password', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findFirst.mockResolvedValue(activeUser({ activatedAt: null }));
+      await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT))
+        .rejects.toMatchObject({ code: 'ACCOUNT_NOT_ACTIVATED', status: 403 });
+      expect(tokens.issue).not.toHaveBeenCalled();
     });
 
     it('looks up by email when the identifier contains @', async () => {
@@ -154,9 +169,26 @@ describe('AuthService', () => {
       expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({
         role: 'STUDENT', gradeLevel: 'S2', divisionId: 'div-junior', schoolId: 'sch1', isApproved: true,
       });
+      // Verification is off: the account is active immediately.
+      expect(prisma.user.create.mock.calls[0][0].data.activatedAt).toBeInstanceOf(Date);
       expect(academicYears.enrollInCurrentYear).toHaveBeenCalledWith(prisma, 'u-new', 'S2', 'sch1');
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'REGISTER', entityId: 'u-new' }), prisma);
-      expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false });
+      expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false, requiresEmailVerification: false });
+    });
+
+    it('with e-mail verification on: not activated, token issued in the transaction, e-mail sent after commit', async () => {
+      const { service, prisma, settings, activation, issued } = makeMocks();
+      settings.get.mockImplementation(async (key: string) =>
+        key === 'registration.studentSelfSignup' || key === 'registration.requireEmailVerification');
+      prisma.school.upsert.mockResolvedValue({ id: 'sch1', name: 'GS Kigali' });
+      prisma.user.create.mockResolvedValue({ id: 'u-new', username: 'ab' });
+
+      const result = await service.registerStudent(dto);
+
+      expect(prisma.user.create.mock.calls[0][0].data.activatedAt).toBeNull();
+      expect(activation.issue).toHaveBeenCalledWith('u-new', 'EMAIL_VERIFICATION', null, prisma);
+      expect(activation.send).toHaveBeenCalledWith(issued);
+      expect(result.requiresEmailVerification).toBe(true);
     });
 
     it('fails the registration when no academic year is current', async () => {
@@ -190,11 +222,23 @@ describe('AuthService', () => {
       expect(notifications.queueEmail).not.toHaveBeenCalled();
     });
 
+    it('sends an activation link (not a reset) to an account that was never activated', async () => {
+      const { service, prisma, notifications, activation } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1', isActive: true, provider: 'LOCAL', activatedAt: null, passwordHash: null,
+      });
+      await expect(service.forgotPassword('a@x.rw')).resolves.toEqual(GENERIC);
+      expect(activation.issueAndSend).toHaveBeenCalledWith('u1', 'INVITATION', null);
+      expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
+      expect(notifications.queueEmail).not.toHaveBeenCalled();
+    });
+
     it('stores a hashed token and e-mails a link for an active local account', async () => {
       const { service, prisma, notifications } = makeMocks();
       prisma.user.findUnique.mockResolvedValue({
-        id: 'u1', firstName: 'A', email: 'a@x.rw', isActive: true, provider: 'LOCAL',
+        id: 'u1', isActive: true, provider: 'LOCAL', activatedAt: new Date(), passwordHash: HASH,
       });
+      prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 'u1', firstName: 'A', email: 'a@x.rw' });
 
       await expect(service.forgotPassword('a@x.rw')).resolves.toEqual(GENERIC);
 

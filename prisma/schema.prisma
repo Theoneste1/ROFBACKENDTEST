@@ -23,6 +23,11 @@ enum AuthProvider {
   GOOGLE
 }
 
+enum ActivationPurpose {
+  INVITATION
+  EMAIL_VERIFICATION
+}
+
 /// The two fixed academic divisions.
 ///   JUNIOR → S1, S2, S3
 ///   SENIOR → S4, S5, S6
@@ -325,6 +330,9 @@ model User {
   isApproved  Boolean   @default(true)
   /// Suspended accounts cannot log in and lose access immediately.
   isActive    Boolean   @default(true)
+  /// Set when the person activates the account (accepts an invitation or
+  /// verifies their e-mail). NULL = invited / unverified: cannot log in.
+  activatedAt DateTime?
   lastLoginAt DateTime?
 
   avatarUrl      String?
@@ -371,6 +379,8 @@ model User {
   notificationPrefs     NotificationPreference[]
   refreshTokens         RefreshToken[]
   passwordResetTokens   PasswordResetToken[]
+  activationTokens      AccountActivationToken[] @relation("ActivationUser")
+  invitationsSent       AccountActivationToken[] @relation("ActivationInviter")
   filesUploaded         FileObject[]
   settingsUpdated       SystemSetting[]
   studentEnrollments    StudentEnrollment[]
@@ -424,6 +434,28 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+/// Single-use link that activates an account.
+///   INVITATION         – an admin invited the person; they choose a password.
+///   EMAIL_VERIFICATION – a self-registered student confirms their e-mail.
+/// Only the SHA-256 of the token is stored. Issuing a new token for a user
+/// invalidates the previous unused ones.
+model AccountActivationToken {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation("ActivationUser", fields: [userId], references: [id], onDelete: Cascade)
+  purpose     ActivationPurpose
+  tokenHash   String            @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  createdById String?
+  createdBy   User?             @relation("ActivationInviter", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime          @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 /// Access-token revocation list (logout). Rows are purged after expiry.

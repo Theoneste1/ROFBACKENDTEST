@@ -15,7 +15,7 @@ describe('UsersController authorization metadata', () => {
     expect(Reflect.getMetadata(ROLES_KEY, UsersController)).toEqual(['ADMIN']);
   });
 
-  it.each(['findAll', 'create', 'findOne', 'update', 'updateStatus', 'delete'])(
+  it.each(['findAll', 'create', 'invite', 'import', 'findOne', 'update', 'resendInvitation', 'sendPasswordReset', 'updateStatus', 'delete'])(
     '%s resolves to ADMIN and is not public',
     (method) => {
       expect(effective(UsersController, method, ROLES_KEY)).toEqual(['ADMIN']);

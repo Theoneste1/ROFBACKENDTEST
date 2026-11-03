@@ -110,6 +110,12 @@ export class ListUsersQueryDto extends PaginationQueryDto {
   @IsBoolean()
   isActive?: boolean;
 
+  /** false = invited / unverified accounts waiting for activation. */
+  @IsOptional()
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @IsBoolean()
+  isActivated?: boolean;
+
   @IsOptional()
   @IsString()
   @Length(1, 100)

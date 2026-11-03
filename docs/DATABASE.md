@@ -40,7 +40,7 @@ migrations and seeds.
 
 ## 2. Entity-relationship diagrams
 
-The model has 43 tables; the diagrams are split by area. `||--o{` = one to
+The model has 44 tables; the diagrams are split by area. `||--o{` = one to
 many, `|o--o|` = optional one to one.
 
 ### 2.1 People and academic structure
@@ -61,13 +61,15 @@ erDiagram
   Course ||--o{ CourseEnrollment : ""
   User ||--o{ RefreshToken : ""
   User ||--o{ PasswordResetToken : ""
+  User ||--o{ AccountActivationToken : "invitation / verification"
 
   Discipline { string code UK "MATHEMATICS" }
   Course { string code "ALGEBRA…" string disciplineId FK "unique(disciplineId, code)" enum status "DRAFT|PUBLISHED|ARCHIVED" }
   Division { enum code UK "JUNIOR|SENIOR" }
   AcademicYear { string name UK "2026-2027" date startsOn date endsOn enum status "PLANNED|ACTIVE|CLOSED" bool isCurrent UK "TRUE or NULL" }
   StudentEnrollment { string studentId FK string academicYearId FK enum gradeLevel "S1…S6" enum status "ACTIVE|PROMOTED|GRADUATED|WITHDRAWN" }
-  User { enum role "STUDENT|MENTOR|ADMIN" bool isActive bool isApproved enum gradeLevel "current" int points "cache" }
+  User { enum role "STUDENT|MENTOR|ADMIN" bool isActive bool isApproved datetime activatedAt "NULL = invited/unverified" enum gradeLevel "current" int points "cache" }
+  AccountActivationToken { enum purpose "INVITATION|EMAIL_VERIFICATION" string tokenHash UK datetime expiresAt datetime usedAt datetime revokedAt }
   MentorAssignment { string mentorId FK string courseId FK string divisionId FK bool isActive }
   CourseEnrollment { enum status "UNROLLED|ROLLED|COMPLETED" }
 ```
@@ -183,6 +185,7 @@ erDiagram
 | Identity | `User` | Every account; `role` = STUDENT, MENTOR or ADMIN | unique `username`, `email`; idx `role`, `divisionId`, `points` |
 | | `RefreshToken` | Rotating refresh tokens (SHA-256 only) | unique `tokenHash`; idx `familyId` |
 | | `PasswordResetToken` | Single-use reset links | unique `tokenHash` |
+| | `AccountActivationToken` | Single-use invitation / e-mail-verification links (hash only; a new link revokes older ones) | unique `tokenHash`; idx `userId` |
 | | `TokenBlacklist` | Revoked access tokens until expiry | unique `jti` |
 | | `MentorRequest` | Mentor applications before an account exists | unique `username`, `email` |
 | | `School` | Normalised school names | unique `name` |
@@ -267,7 +270,7 @@ their scope; status transitions (conditional `UPDATE … WHERE status IN …`).
 
 | Entity | Policy |
 |---|---|
-| Users | Suspend (`isActive=false`); hard delete only without academic history. Withdrawn students: enrolment `WITHDRAWN` + suspended. |
+| Users | Suspend (`isActive=false`); hard delete only without academic history. Withdrawn students: enrolment `WITHDRAWN` + suspended. Invited accounts stay un-activated until the link is used; unused links expire (7 days invitation, 48 h verification). |
 | Academic years | Never deleted; `CLOSED` when the next year is activated. |
 | Courses | Never deleted; `ARCHIVED` (hidden from students, kept). |
 | Assignments | `ARCHIVED` by admin or automatically when their year closes (read-only; results stay visible). Unpublish only while no submissions exist. |
@@ -325,6 +328,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 |---|---|---|
 | `20261103000000_baseline` | initial | Full schema as of 3 Nov 2026 (the original broken chain is archived in `prisma/migrations_archive/`). |
 | `20261104000000_academic_structure_reviews_moderation` | expand (additive) | Disciplines, academic years and enrolments, attachment tables, review cycles/events, distribution batches, result releases, threads, reports, moderation actions, activity log; **backfills** all existing data into them. |
+| `20261106000000_account_activation` | expand (additive) | `User.activatedAt` and `AccountActivationToken`; existing accounts with a password are backfilled as activated. |
 | `pending-migrations/20261105000000_drop_superseded_columns` | contract (destructive) | **Not applied.** Drops the columns superseded above after verifying their data was copied. Requires approval — see [`prisma/pending-migrations/README.md`](../prisma/pending-migrations/README.md). |
 
 **Making a schema change.**
