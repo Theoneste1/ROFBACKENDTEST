@@ -86,28 +86,32 @@ export class NotificationsService {
     const isAccount = payload.category === 'ACCOUNT';
     if (!isAccount && !(await this.settings.get('notifications.emailEnabled'))) return;
 
-    // Respect per-category opt-outs (account e-mails cannot be turned off).
-    const optedOut = isAccount
-      ? new Set<string>()
-      : new Set(
-          (
-            await this.prisma.notificationPreference.findMany({
-              where:  { userId: { in: recipients }, category: payload.category, emailEnabled: false },
-              select: { userId: true },
-            })
-          ).map((p) => p.userId),
-        );
-
-    const users = await this.prisma.user.findMany({
-      where:  { id: { in: recipients.filter((id) => !optedOut.has(id)) }, isActive: true },
-      select: { id: true, email: true, firstName: true },
-    });
-
+    // In chunks, so a division-wide broadcast never builds one huge IN list.
     const subject = await this.subject(payload.title);
-    for (let i = 0; i < users.length; i += CHUNK) {
+    for (let i = 0; i < recipients.length; i += CHUNK) {
+      const chunk = recipients.slice(i, i + CHUNK);
+
+      // Respect per-category opt-outs (account e-mails cannot be turned off).
+      const optedOut = isAccount
+        ? new Set<string>()
+        : new Set(
+            (
+              await this.prisma.notificationPreference.findMany({
+                where:  { userId: { in: chunk }, category: payload.category, emailEnabled: false },
+                select: { userId: true },
+              })
+            ).map((p) => p.userId),
+          );
+
+      const users = await this.prisma.user.findMany({
+        where:  { id: { in: chunk.filter((id) => !optedOut.has(id)) }, isActive: true },
+        select: { id: true, email: true, firstName: true },
+      });
+      if (users.length === 0) continue;
+
       await this.prisma.emailDelivery.createMany({
         data: await Promise.all(
-          users.slice(i, i + CHUNK).map(async (u) => ({
+          users.map(async (u) => ({
             recipientEmail: u.email,
             recipientId:    u.id,
             subject,
