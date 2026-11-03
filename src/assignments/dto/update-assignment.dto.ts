@@ -19,6 +19,13 @@ export class UpdateAssignmentDto {
   @Transform(({ value }: { value: string }) => value?.trim())
   title?: string;
 
+  /** Short summary shown in lists (the full brief goes in instructions). */
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  @Transform(({ value }: { value: string }) => value?.trim())
+  description?: string;
+
   @IsOptional()
   @IsString()
   @Length(10, 10000)

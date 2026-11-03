@@ -395,7 +395,7 @@ export class DiscussionsService {
     });
     if (!a) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, a);
-    if (user.role === 'STUDENT' && !['PUBLISHED', 'ARCHIVED'].includes(a.status)) {
+    if (user.role === 'STUDENT' && !['PUBLISHED', 'CLOSED', 'ARCHIVED'].includes(a.status)) {
       throw new NotFoundException('Assignment not found.');
     }
     return { assignmentId, divisionId: a.divisionId };

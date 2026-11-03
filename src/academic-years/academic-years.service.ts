@@ -132,9 +132,19 @@ export class AcademicYearsService {
           where: { id: previous.id },
           data:  { isCurrent: null, status: 'CLOSED', closedAt: now },
         });
+        const toArchive = await tx.assignment.findMany({
+          where:  { academicYearId: previous.id, status: { not: 'ARCHIVED' } },
+          select: { id: true, status: true },
+        });
         const archived = await tx.assignment.updateMany({
           where: { academicYearId: previous.id, status: { not: 'ARCHIVED' } },
           data:  { status: 'ARCHIVED', archivedAt: now },
+        });
+        await tx.assignmentEvent.createMany({
+          data: toArchive.map((a) => ({
+            assignmentId: a.id, type: 'ARCHIVED' as const, fromStatus: a.status, toStatus: 'ARCHIVED' as const,
+            actorId: caller.id, note: `Academic year ${previous.name} closed`, createdAt: now,
+          })),
         });
         counts.assignmentsArchived = archived.count;
       }

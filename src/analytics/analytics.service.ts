@@ -44,7 +44,7 @@ export class AnalyticsService {
         by: ['status'], where: { courseId, student: studentWhere }, _count: { _all: true },
       }),
       this.prisma.assignment.findMany({
-        where:   { ...scope, status: 'PUBLISHED' },
+        where:   { ...scope, status: { in: ['PUBLISHED', 'CLOSED'] } },
         orderBy: { deadline: 'asc' },
         select:  {
           id: true, title: true, deadline: true, maximumMarks: true, resultsPublishedAt: true,

@@ -108,6 +108,7 @@ erDiagram
   User ||--o{ Assignment : "prepares (mentor)"
   Assignment ||--o{ AssignmentAttachment : "brief files"
   Assignment ||--o{ AssignmentView : "opened by"
+  Assignment ||--o{ AssignmentEvent : "history"
   Assignment ||--o{ Submission : ""
   User ||--o{ Submission : "submits (student)"
   Submission ||--o{ SubmissionRevision : "attempts"
@@ -123,7 +124,8 @@ erDiagram
   Assignment ||--o{ ResultRelease : "results releases"
   ResultRelease |o--o{ Submission : "published in"
 
-  Assignment { enum status "DRAFT|PENDING_APPROVAL|PUBLISHED|REJECTED|ARCHIVED" datetime deadline int points int maximumMarks string approvedById FK }
+  Assignment { enum status "DRAFT|PENDING_APPROVAL|PUBLISHED|REJECTED|CLOSED|ARCHIVED" string description datetime deadline datetime closedAt int points int maximumMarks string approvedById FK }
+  AssignmentEvent { enum type "CREATED|UPDATED|ATTACHMENT_ADDED|ATTACHMENT_REMOVED|SUBMITTED_FOR_REVIEW|RECALLED|PUBLISHED|REJECTED|UNPUBLISHED|CLOSED|REOPENED|ARCHIVED" enum fromStatus enum toStatus string actorId FK json changes string note }
   Submission { enum status "overall workflow" int revisionCount bool isLate int pointsAwarded "unique(assignmentId, studentId)" }
   SubmissionRevision { int revisionNumber "unique per submission" }
   MentorReview { int cycle "unique per submission" enum status int score float percentage string feedback string decisionNote string coordinationNote "admin-only" }
@@ -205,6 +207,7 @@ erDiagram
 | Assessment | `Assignment` | Prepared by a mentor, published by an admin | idx (`courseId`, `divisionId`, `status`), (`academicYearId`, `status`) |
 | | `AssignmentAttachment` | Brief files | unique (`assignmentId`, `fileId`) |
 | | `AssignmentView` | Drives “New” vs “Opened” | unique (`assignmentId`, `studentId`) |
+| | `AssignmentEvent` | Append-only assignment history (edits with before/after values, every status change, file changes) | idx (`assignmentId`, `createdAt`), (`actorId`) |
 | | `Submission` | One per student per assignment; overall status | unique (`assignmentId`, `studentId`); unique `currentReviewId`, `publishedReviewId` |
 | | `SubmissionRevision` | Every attempt (1, 2, 3 …) | unique (`submissionId`, `revisionNumber`) |
 | | `SubmissionAttachment` | Files of an attempt | unique (`revisionId`, `fileId`) |
@@ -274,7 +277,7 @@ their scope; status transitions (conditional `UPDATE … WHERE status IN …`).
 | Users | Suspend (`isActive=false`); hard delete only without academic history. Withdrawn students: enrolment `WITHDRAWN` + suspended. Invited accounts stay un-activated until the link is used; unused links expire (7 days invitation, 48 h verification). |
 | Academic years | Never deleted; `CLOSED` when the next year is activated. |
 | Courses | Never deleted; `ARCHIVED` (hidden from students, kept). |
-| Assignments | `ARCHIVED` by admin or automatically when their year closes (read-only; results stay visible). Unpublish only while no submissions exist. |
+| Assignments | `CLOSED` automatically at the deadline (unless late work is accepted) or by an admin; reopening needs a future deadline. `ARCHIVED` by admin or automatically when their year closes (read-only; results stay visible). Unpublish only while no submissions exist. Every change is kept in `AssignmentEvent`. |
 | Resources | Archive (hidden, kept) or delete (attachments cascade; file bytes removed by the nightly orphan cleanup). |
 | Submissions, revisions, reviews, review events, result releases | Never deleted. Corrections create new review cycles. |
 | Threads | Lock, hide or archive; never deleted by the API. Comments are soft-deleted (`[deleted]` placeholder keeps the thread readable). |
@@ -332,6 +335,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261106000000_account_activation` | expand (additive) | `User.activatedAt` and `AccountActivationToken`; existing accounts with a password are backfilled as activated. |
 | `20261107000000_drop_superseded_columns` | contract (destructive, approved 2026-11-03) | Drops the 27 columns superseded by the expand migration, after verifying every value exists in the new tables (it aborts otherwise). Applied after a full backup. |
 | `20261108000000_course_discussions_resource_metadata` | additive | `Course.discussionsEnabled` (admins turn a course's discussions off; default on) and resource metadata `author`, `source`, `year`, `tags`. |
+| `20261109000000_assignment_history_closed_status` | additive + backfill | `AssignmentStatus.CLOSED`, `Assignment.description`/`closedAt`, and the `AssignmentEvent` history table, backfilled from the audit log (plus a `CREATED` entry for assignments without one). |
 
 **Making a schema change.**
 

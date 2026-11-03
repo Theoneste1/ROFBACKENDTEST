@@ -97,6 +97,9 @@ export class SubmissionsService {
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, assignment);
+    if (assignment.status === 'CLOSED') {
+      throw new AppError(HttpStatus.CONFLICT, 'ASSIGNMENT_CLOSED', 'This assignment is closed and no longer accepts submissions.');
+    }
     if (assignment.status !== 'PUBLISHED') throw new NotFoundException('Assignment not found.');
 
     const isLate   = new Date() > assignment.deadline;

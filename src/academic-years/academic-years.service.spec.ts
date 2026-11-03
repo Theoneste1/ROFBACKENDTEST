@@ -16,7 +16,11 @@ function makeMocks() {
       create:     vi.fn().mockResolvedValue(year()),
       update:     vi.fn().mockResolvedValue({}),
     },
-    assignment:        { updateMany: vi.fn().mockResolvedValue({ count: 4 }) },
+    assignment:        {
+      findMany:   vi.fn().mockResolvedValue([{ id: 'as1', status: 'PUBLISHED' }, { id: 'as2', status: 'CLOSED' }]),
+      updateMany: vi.fn().mockResolvedValue({ count: 2 }),
+    },
+    assignmentEvent:   { createMany: vi.fn().mockResolvedValue({ count: 2 }) },
     studentEnrollment: {
       findMany: vi.fn().mockResolvedValue([]),
       update:   vi.fn().mockResolvedValue({}),
@@ -110,6 +114,11 @@ describe('AcademicYearsService', () => {
         where: { academicYearId: 'y1', status: { not: 'ARCHIVED' } },
         data:  { status: 'ARCHIVED' },
       });
+      // ...and each one gets an ARCHIVED history entry.
+      expect(prisma.assignmentEvent.createMany.mock.calls[0][0].data).toEqual([
+        expect.objectContaining({ assignmentId: 'as1', type: 'ARCHIVED', fromStatus: 'PUBLISHED', toStatus: 'ARCHIVED' }),
+        expect.objectContaining({ assignmentId: 'as2', type: 'ARCHIVED', fromStatus: 'CLOSED', toStatus: 'ARCHIVED' }),
+      ]);
 
       const enrollmentUpdates = prisma.studentEnrollment.update.mock.calls.map((c) => c[0]);
       const upserts = prisma.studentEnrollment.upsert.mock.calls.map((c) => c[0]);
@@ -137,7 +146,7 @@ describe('AcademicYearsService', () => {
       expect(upserts.find((u) => u.create.studentId === 'st-s6')).toBeUndefined();
       expect(userUpdates).toContainEqual({ where: { id: 'st-s6' }, data: { isActive: false } });
 
-      expect(result).toMatchObject({ promoted: 2, graduated: 1, carriedOver: 0, assignmentsArchived: 4 });
+      expect(result).toMatchObject({ promoted: 2, graduated: 1, carriedOver: 0, assignmentsArchived: 2 });
     });
 
     it('keeps graduates active when deactivateGraduates=false', async () => {

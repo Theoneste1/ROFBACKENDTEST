@@ -103,12 +103,32 @@ enum ResourceType {
 
 /// Assignment workflow: mentors prepare, admins officially publish.
 ///   DRAFT → PENDING_APPROVAL → PUBLISHED   (or REJECTED → edited → PENDING_APPROVAL)
-///   ARCHIVED: closed after its academic year (read-only; results stay visible).
+///   PUBLISHED → CLOSED (deadline passed, or admin closes; admin may reopen)
+///   ARCHIVED: retired, e.g. when its academic year closes (read-only; results stay visible).
 enum AssignmentStatus {
   DRAFT
   PENDING_APPROVAL
   PUBLISHED
   REJECTED
+  ARCHIVED
+  /// Published but no longer accepting submissions (deadline passed or closed
+  /// by an admin). Students still see it, their work and their results.
+  CLOSED
+}
+
+/// What happened to an assignment (its history).
+enum AssignmentEventType {
+  CREATED
+  UPDATED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  SUBMITTED_FOR_REVIEW
+  RECALLED
+  PUBLISHED
+  REJECTED
+  UNPUBLISHED
+  CLOSED
+  REOPENED
   ARCHIVED
 }
 
@@ -357,6 +377,7 @@ model User {
 
   assignmentsCreated    Assignment[]             @relation("AssignmentCreator")
   assignmentsApproved   Assignment[]             @relation("AssignmentApprover")
+  assignmentEvents      AssignmentEvent[]
   courseEnrollments     CourseEnrollment[]       @relation("CourseEnrollments")
   resourcesUploaded     CourseResource[]         @relation("ResourceUploader")
   resourceViews         ResourceView[]
@@ -778,6 +799,8 @@ model LiveSession {
 model Assignment {
   id           String   @id @default(uuid())
   title        String
+  /// Short summary shown in lists; the full brief is in instructions.
+  description  String?
   instructions String
   deadline     DateTime
   /// Leaderboard points available. Awarded proportionally to the score.
@@ -799,6 +822,8 @@ model Assignment {
   resultsPublishedAt DateTime?
   /// Set when archived (status ARCHIVED).
   archivedAt         DateTime?
+  /// Set when it stopped accepting submissions (status CLOSED).
+  closedAt           DateTime?
 
   approvedById String?
   approvedBy   User?   @relation("AssignmentApprover", fields: [approvedById], references: [id], onDelete: SetNull)
@@ -820,6 +845,7 @@ model Assignment {
   distributionBatches DistributionBatch[]
   resultReleases      ResultRelease[]
   threads             DiscussionThread[]
+  events              AssignmentEvent[]
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
 
@@ -831,6 +857,27 @@ model Assignment {
 }
 
 /// Files attached to an assignment brief (ordered).
+/// Assignment history: one row per creation, edit, file change and status
+/// change. Append-only.
+model AssignmentEvent {
+  id           String              @id @default(uuid())
+  assignmentId String
+  assignment   Assignment          @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  type         AssignmentEventType
+  fromStatus   AssignmentStatus?
+  toStatus     AssignmentStatus?
+  /// Null for automatic events (deadline closing, academic-year rollover).
+  actorId      String?
+  actor        User?               @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  note         String?
+  /// For UPDATED: { field: { from, to } }. For attachments: { attachmentIds }.
+  changes      Json?
+  createdAt    DateTime            @default(now())
+
+  @@index([assignmentId, createdAt])
+  @@index([actorId])
+}
+
 model AssignmentAttachment {
   id           String     @id @default(uuid())
   assignmentId String

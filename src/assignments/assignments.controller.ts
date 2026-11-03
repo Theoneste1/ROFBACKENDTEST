@@ -19,7 +19,7 @@ import type { Response } from 'express';
 import { AssignmentsService } from './assignments.service.js';
 import { CreateAssignmentDto, ListAssignmentsDto } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
-import { RejectAssignmentDto } from './dto/reject-assignment.dto.js';
+import { CloseAssignmentDto, RejectAssignmentDto, ReopenAssignmentDto } from './dto/reject-assignment.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
@@ -125,6 +125,28 @@ export class AssignmentsController {
     return this.assignmentsService.unpublish(id, user);
   }
 
+  /** Stop accepting submissions now. Reviews and results carry on. */
+  @Patch(':id/close')
+  @Roles('ADMIN')
+  close(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CloseAssignmentDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.assignmentsService.close(id, body, user);
+  }
+
+  /** Accept submissions again; a new deadline is required if the old one has passed. */
+  @Patch(':id/reopen')
+  @Roles('ADMIN')
+  reopen(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ReopenAssignmentDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.assignmentsService.reopen(id, body, user);
+  }
+
   /** Read-only from now on; results stay visible. */
   @Patch(':id/archive')
   @Roles('ADMIN')
@@ -135,8 +157,10 @@ export class AssignmentsController {
   // ─── Read (scoped by role) ────────────────────────────────────────────────
 
   /**
-   * Students: published assignments of their division.
+   * Students: published and closed assignments of their division.
    * Mentors: all statuses within their courses × divisions. Admins: everything.
+   * Filters: courseId, divisionId, status, academicYearId, createdById, q (text),
+   * deadlineFrom / deadlineTo.
    */
   @Get()
   findAll(@CurrentUser() user: AuthUser, @Query() query: ListAssignmentsDto) {
@@ -147,6 +171,13 @@ export class AssignmentsController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.findOne(id, user);
+  }
+
+  /** Everything that happened to the assignment, oldest first (mentors of the scope, admins). */
+  @Get(':id/history')
+  @Roles('MENTOR', 'ADMIN')
+  history(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.assignmentsService.history(id, user);
   }
 
   /** Download the (first) brief file. */

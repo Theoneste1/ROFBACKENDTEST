@@ -32,6 +32,13 @@ export class CreateAssignmentDto {
   @IsUUID()
   divisionId: string;
 
+  /** Short summary shown in lists (the full brief goes in instructions). */
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  @Transform(({ value }: { value: string }) => value?.trim())
+  description?: string;
+
   @IsString()
   @Length(10, 10000)
   @Transform(({ value }: { value: string }) => value?.trim())
@@ -81,6 +88,17 @@ export class ListAssignmentsDto extends PaginationQueryDto {
   /** Mentors/admins only. */
   @IsOptional() @IsUUID() divisionId?: string;
   /** Mentors/admins only. */
+  /** Students: PUBLISHED or CLOSED only. */
   @IsOptional() @IsEnum(AssignmentStatus) status?: AssignmentStatus;
   @IsOptional() @IsUUID() academicYearId?: string;
+  /** Mentors/admins only: assignments prepared by this mentor. */
+  @IsOptional() @IsUUID() createdById?: string;
+  /** Search title, description and instructions. */
+  @IsOptional() @IsString() @Length(1, 100)
+  @Transform(({ value }: { value: string }) => value?.trim())
+  q?: string;
+  /** Deadline on or after this instant. */
+  @IsOptional() @IsISO8601() deadlineFrom?: string;
+  /** Deadline on or before this instant. */
+  @IsOptional() @IsISO8601() deadlineTo?: string;
 }

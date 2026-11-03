@@ -23,10 +23,15 @@ function makeMocks() {
       findUnique:         vi.fn().mockResolvedValue(assignment()),
       findUniqueOrThrow:  vi.fn().mockResolvedValue({ id: 'as1' }),
       create:             vi.fn().mockResolvedValue({ id: 'as1', title: 'Fractions' }),
-      updateMany:         vi.fn().mockResolvedValue({ count: 1 }),
+      update:             vi.fn().mockResolvedValue({ id: 'as1' }),
     },
+    assignmentEvent: { create: vi.fn().mockResolvedValue({ id: 'ev1' }) },
     submission: { count: vi.fn().mockResolvedValue(0) },
+    // transition() locks the row and reads its status first.
+    $queryRaw:    vi.fn().mockResolvedValue([{ status: 'DRAFT' }]),
+    $transaction: vi.fn(),
   };
+  prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
   const audit   = { log: vi.fn() };
   const access  = { assertMentorOf: vi.fn().mockResolvedValue(undefined) };
   const storage = { store: vi.fn().mockResolvedValue({ id: 'file-1' }) };
@@ -108,7 +113,7 @@ describe('AssignmentsService', () => {
       prisma.assignment.findUnique.mockResolvedValue(assignment({ status: 'PUBLISHED' }));
       await expect(service.update('as1', { title: 'New' } as any, MENTOR))
         .rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION', status: 409 });
-      expect(prisma.assignment.updateMany).not.toHaveBeenCalled();
+      expect(prisma.assignment.update).not.toHaveBeenCalled();
     });
 
     it('requires at least one change', async () => {
@@ -124,10 +129,28 @@ describe('AssignmentsService', () => {
 
     it('only updates while still DRAFT or REJECTED', async () => {
       const { service, prisma } = makeMocks();
-      await service.update('as1', { title: 'New' } as any, MENTOR);
-      expect(prisma.assignment.updateMany.mock.calls[0][0].where).toEqual({
-        id: 'as1', status: { in: ['DRAFT', 'REJECTED'] },
+      prisma.$queryRaw.mockResolvedValue([{ status: 'PENDING_APPROVAL' }]);   // changed concurrently
+      await expect(service.update('as1', { title: 'New' } as any, MENTOR))
+        .rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
+      expect(prisma.assignment.update).not.toHaveBeenCalled();
+    });
+
+    it('records the changed fields (before and after) in the history', async () => {
+      const { service, prisma } = makeMocks();
+      await service.update('as1', { title: 'Fractions II', allowResubmission: false } as any, MENTOR);
+      expect(prisma.assignmentEvent.create.mock.calls[0][0].data).toMatchObject({
+        assignmentId: 'as1', type: 'UPDATED', fromStatus: 'DRAFT', toStatus: 'DRAFT', actorId: 'm1',
+        changes: { title: { from: 'Fractions', to: 'Fractions II' } },
       });
+      // Unchanged fields are left out.
+      expect(prisma.assignmentEvent.create.mock.calls[0][0].data.changes).not.toHaveProperty('allowResubmission');
+    });
+
+    it('does not write when nothing actually changes', async () => {
+      const { service, prisma } = makeMocks();
+      await service.update('as1', { title: 'Fractions' } as any, MENTOR);
+      expect(prisma.assignment.update).not.toHaveBeenCalled();
+      expect(prisma.assignmentEvent.create).not.toHaveBeenCalled();
     });
   });
 
@@ -141,30 +164,35 @@ describe('AssignmentsService', () => {
     it('submitForReview moves to PENDING_APPROVAL and emits an event', async () => {
       const { service, prisma, events } = makeMocks();
       await service.submitForReview('as1', MENTOR);
-      expect(prisma.assignment.updateMany.mock.calls[0][0].data).toMatchObject({ status: 'PENDING_APPROVAL' });
+      expect(prisma.assignment.update.mock.calls[0][0].data).toMatchObject({ status: 'PENDING_APPROVAL' });
+      expect(prisma.assignmentEvent.create.mock.calls[0][0].data).toMatchObject({
+        type: 'SUBMITTED_FOR_REVIEW', fromStatus: 'DRAFT', toStatus: 'PENDING_APPROVAL', actorId: 'm1',
+      });
       expect(events.emit).toHaveBeenCalledWith(Events.AssignmentSubmittedForReview, { assignmentId: 'as1' });
     });
 
-    it('throws INVALID_STATE_TRANSITION when the conditional update matches nothing', async () => {
+    it('throws INVALID_STATE_TRANSITION when the locked row is in another status', async () => {
       const { service, prisma } = makeMocks();
-      prisma.assignment.updateMany.mockResolvedValue({ count: 0 });
-      prisma.assignment.findUnique
-        .mockResolvedValueOnce(assignment({ status: 'DRAFT' }))
-        .mockResolvedValueOnce({ status: 'DRAFT' });
 
       const err = await service.recall('as1', MENTOR).catch((e) => e);
 
       expect(err).toMatchObject({ code: 'INVALID_STATE_TRANSITION', status: 409 });
       expect(err.getResponse().details).toEqual({ currentStatus: 'DRAFT', allowedFrom: ['PENDING_APPROVAL'] });
+      expect(prisma.assignment.update).not.toHaveBeenCalled();
+      expect(prisma.assignmentEvent.create).not.toHaveBeenCalled();
     });
 
     it('publish requires PENDING_APPROVAL, records the approver and emits an event', async () => {
       const { service, prisma, events } = makeMocks();
       prisma.assignment.findUnique.mockResolvedValue(assignment({ status: 'PENDING_APPROVAL' }));
+      prisma.$queryRaw.mockResolvedValue([{ status: 'PENDING_APPROVAL' }]);
       await service.publish('as1', ADMIN);
-      const call = prisma.assignment.updateMany.mock.calls[0][0];
-      expect(call.where).toEqual({ id: 'as1', status: { in: ['PENDING_APPROVAL'] } });
+      const call = prisma.assignment.update.mock.calls[0][0];
+      expect(call.where).toEqual({ id: 'as1' });
       expect(call.data).toMatchObject({ status: 'PUBLISHED', approvedById: 'a1' });
+      expect(prisma.assignmentEvent.create.mock.calls[0][0].data).toMatchObject({
+        type: 'PUBLISHED', fromStatus: 'PENDING_APPROVAL', toStatus: 'PUBLISHED', actorId: 'a1',
+      });
       expect(events.emit).toHaveBeenCalledWith(Events.AssignmentPublished, { assignmentId: 'as1' });
     });
 
@@ -176,8 +204,10 @@ describe('AssignmentsService', () => {
 
     it('reject stores the note and emits an event', async () => {
       const { service, prisma, events } = makeMocks();
+      prisma.$queryRaw.mockResolvedValue([{ status: 'PENDING_APPROVAL' }]);
       await service.reject('as1', { rejectionNote: 'Fix Q2' } as any, ADMIN);
-      expect(prisma.assignment.updateMany.mock.calls[0][0].data).toMatchObject({ status: 'REJECTED', rejectionNote: 'Fix Q2' });
+      expect(prisma.assignment.update.mock.calls[0][0].data).toMatchObject({ status: 'REJECTED', rejectionNote: 'Fix Q2' });
+      expect(prisma.assignmentEvent.create.mock.calls[0][0].data).toMatchObject({ type: 'REJECTED', note: 'Fix Q2' });
       expect(events.emit).toHaveBeenCalledWith(Events.AssignmentRejected, { assignmentId: 'as1', note: 'Fix Q2' });
     });
 
@@ -185,14 +215,15 @@ describe('AssignmentsService', () => {
       const { service, prisma } = makeMocks();
       prisma.submission.count.mockResolvedValue(3);
       await expect(service.unpublish('as1', ADMIN)).rejects.toMatchObject({ code: 'ASSIGNMENT_HAS_SUBMISSIONS', status: 409 });
-      expect(prisma.assignment.updateMany).not.toHaveBeenCalled();
+      expect(prisma.assignment.update).not.toHaveBeenCalled();
     });
 
     it('unpublish returns a PUBLISHED assignment to DRAFT', async () => {
       const { service, prisma } = makeMocks();
+      prisma.$queryRaw.mockResolvedValue([{ status: 'PUBLISHED' }]);
       await service.unpublish('as1', ADMIN);
-      const call = prisma.assignment.updateMany.mock.calls[0][0];
-      expect(call.where).toEqual({ id: 'as1', status: { in: ['PUBLISHED'] } });
+      const call = prisma.assignment.update.mock.calls[0][0];
+      expect(call.where).toEqual({ id: 'as1' });
       expect(call.data).toEqual({ status: 'DRAFT', publishedAt: null, approvedById: null });
     });
 

@@ -69,7 +69,7 @@ export class CoursesService {
           _count: {
             select: {
               resources:   { where: { divisionId, isPublished: true } },
-              assignments: { where: { divisionId, status: 'PUBLISHED' } },
+              assignments: { where: { divisionId, status: { in: ['PUBLISHED', 'CLOSED'] } } },
             },
           },
         },
@@ -132,7 +132,7 @@ export class CoursesService {
           _count: {
             select: {
               resources:    { where: { divisionId, isPublished: true } },
-              assignments:  { where: { divisionId, status: 'PUBLISHED' } },
+              assignments:  { where: { divisionId, status: { in: ['PUBLISHED', 'CLOSED'] } } },
               liveSessions: { where: { divisionId, status: 'SCHEDULED', startsAt: { gte: new Date() } } },
             },
           },
