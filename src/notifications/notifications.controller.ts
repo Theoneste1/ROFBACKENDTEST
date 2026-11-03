@@ -1,7 +1,18 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsOptional, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  ValidateNested,
+} from 'class-validator';
 
 import { NotificationsService } from './notifications.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -14,6 +25,19 @@ class ListNotificationsDto extends PaginationQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   unreadOnly?: boolean;
+
+  @IsOptional() @IsEnum(NotificationCategory) category?: NotificationCategory;
+
+  /** Event type, e.g. "assignment.published". */
+  @IsOptional() @IsString() @Length(1, 100) type?: string;
+}
+
+class MarkReadDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  ids: string[];
 }
 
 class PreferenceDto {
@@ -47,9 +71,26 @@ export class NotificationsController {
     return this.notifications.unreadCount(user.id);
   }
 
+  /** Mark up to 100 notifications read. Declared before :id routes. */
+  @Post('notifications/read')
+  @HttpCode(200)
+  markManyRead(@CurrentUser() user: AuthUser, @Body() body: MarkReadDto) {
+    return this.notifications.markManyRead(user.id, body.ids);
+  }
+
+  @Get('notifications/:id')
+  findOne(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.notifications.findOne(user.id, id);
+  }
+
   @Patch('notifications/:id/read')
   markRead(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.notifications.markRead(user.id, id);
+  }
+
+  @Patch('notifications/:id/unread')
+  markUnread(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.notifications.markUnread(user.id, id);
   }
 
   @Post('notifications/read-all')

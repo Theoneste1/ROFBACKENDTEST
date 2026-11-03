@@ -9,6 +9,7 @@ export const Events = {
   AssignmentSubmittedForReview: 'assignment.submitted_for_review',
   AssignmentPublished:          'assignment.published',
   AssignmentRejected:           'assignment.rejected',
+  AssignmentDeadlineApproaching: 'assignment.deadline_approaching',
   SubmissionReceived:           'submission.received',
   SubmissionsAssigned:          'submissions.assigned',
   ReviewReturned:               'review.returned',

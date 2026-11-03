@@ -7,7 +7,7 @@
  * E-mails are never sent inline: the EmailWorker drains the outbox in the
  * background with retries, so a slow SMTP server never slows a request.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -27,6 +27,21 @@ export interface NotificationPayload {
 }
 
 const CHUNK = 1000;
+
+const NOTIFICATION_SELECT = {
+  id: true, category: true, type: true, title: true, body: true, data: true, link: true,
+  readAt: true, createdAt: true,
+} as const;
+
+type NotificationRow = Prisma.NotificationGetPayload<{ select: typeof NOTIFICATION_SELECT }>;
+
+export interface ListNotificationsQuery extends PaginationQueryDto {
+  unreadOnly?: boolean;
+  category?:   NotificationCategory;
+  type?:       string;
+}
+
+const present = (n: NotificationRow) => ({ ...n, isRead: n.readAt !== null });
 
 @Injectable()
 export class NotificationsService {
@@ -53,6 +68,7 @@ export class NotificationsService {
           title:    payload.title,
           body:     payload.body,
           data:     (payload.data as Prisma.InputJsonValue) ?? undefined,
+          link:     payload.link ?? null,
         })),
       });
     }
@@ -128,18 +144,41 @@ export class NotificationsService {
   // Reading (current user)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async list(userId: string, query: PaginationQueryDto & { unreadOnly?: boolean }) {
+  /**
+   * The caller's own notifications, newest first. Every query is scoped by
+   * userId, so nobody can read or change another user's notifications.
+   */
+  async list(userId: string, query: ListNotificationsQuery) {
     const { page, limit, skip, take } = pageArgs(query);
-    const where = { userId, ...(query.unreadOnly && { readAt: null }) };
+    const where: Prisma.NotificationWhereInput = {
+      userId,
+      ...(query.unreadOnly && { readAt: null }),
+      ...(query.category   && { category: query.category }),
+      ...(query.type       && { type: query.type }),
+    };
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, select: NOTIFICATION_SELECT }),
       this.prisma.notification.count({ where }),
     ]);
-    return paginated(rows, total, page, limit);
+    return paginated(rows.map(present), total, page, limit);
   }
 
+  async findOne(userId: string, id: string) {
+    const row = await this.prisma.notification.findFirst({ where: { id, userId }, select: NOTIFICATION_SELECT });
+    // Someone else's notification is indistinguishable from a missing one.
+    if (!row) throw new NotFoundException('Notification not found.');
+    return present(row);
+  }
+
+  /** Total unread, and unread per category (for badges). */
   async unreadCount(userId: string) {
-    return { unread: await this.prisma.notification.count({ where: { userId, readAt: null } }) };
+    const groups = await this.prisma.notification.groupBy({
+      by: ['category'], where: { userId, readAt: null }, _count: { _all: true },
+    });
+    const byCategory = Object.fromEntries(
+      Object.values(NotificationCategory).map((c) => [c, groups.find((g) => g.category === c)?._count._all ?? 0]),
+    ) as Record<NotificationCategory, number>;
+    return { unread: groups.reduce((n, g) => n + g._count._all, 0), byCategory };
   }
 
   async markRead(userId: string, id: string) {
@@ -147,6 +186,23 @@ export class NotificationsService {
     const { count } = await this.prisma.notification.updateMany({
       where: { id, userId, readAt: null },
       data:  { readAt: new Date() },
+    });
+    return { updated: count };
+  }
+
+  /** Mark several of the caller's notifications read at once (ids of others are ignored). */
+  async markManyRead(userId: string, ids: string[]) {
+    const { count } = await this.prisma.notification.updateMany({
+      where: { id: { in: ids }, userId, readAt: null },
+      data:  { readAt: new Date() },
+    });
+    return { updated: count };
+  }
+
+  async markUnread(userId: string, id: string) {
+    const { count } = await this.prisma.notification.updateMany({
+      where: { id, userId, readAt: { not: null } },
+      data:  { readAt: null },
     });
     return { updated: count };
   }

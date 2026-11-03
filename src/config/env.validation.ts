@@ -12,6 +12,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsTimeZone,
   IsUrl,
   Max,
   Min,
@@ -73,6 +74,11 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsUrl({ require_tld: false, require_protocol: true })
   APP_URL?: string;
+
+  /** IANA time zone for wall-clock dates and times (live sessions). Default Africa/Kigali. */
+  @IsOptional()
+  @IsTimeZone()
+  APP_TIMEZONE?: string;
 
   // ── Storage ────────────────────────────────────────────────────────────────
   @IsEnum(StorageDriverName)

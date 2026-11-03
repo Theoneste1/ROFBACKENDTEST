@@ -194,7 +194,11 @@ deletion/archival/retention policies, migrations and seeding. Groups:
 Services emit domain events after their changes commit (`events.ts`).
 `NotificationListener` maps them to recipients and writes:
 
-- **in-app** `Notification` rows (list, unread count, mark read);
+- **in-app** `Notification` rows, each with a category, type, deep-link
+  `link`, `createdAt` and `readAt`. Users list their own (filter by category,
+  type or unread), read one, mark one/several/all read or one unread, and get
+  unread counts per category. Every query is scoped to the caller, so another
+  user's notification answers 404 (or a no-op update);
 - **e-mail** rows in the `EmailDelivery` outbox, respecting per-category
   opt-outs (`ACCOUNT` e-mails cannot be disabled) and the global
   `notifications.emailEnabled` setting.
@@ -204,18 +208,31 @@ exponential backoff (5 attempts) and recomputes bulk-job counters from the
 delivery rows. E-mails are plain text. Adding SMS or push later means adding a
 channel to `NotificationsService`; no schema change is needed.
 
+Scale: recipients are written with chunked `createMany` (1 000 rows per
+statement), e-mails go through the outbox rather than inline, the inbox is
+served by the (`userId`, `createdAt`) and (`userId`, `readAt`) indexes, read
+notifications are pruned after 180 days, and reminder jobs claim their work
+with a single conditional UPDATE so several instances never double-send.
+
 | Event | Recipients |
 |---|---|
 | Assignment submitted for review | Admins |
 | Assignment published | Students of the division; the author |
 | Assignment rejected | The author |
+| Assignment due within 24 h (once per deadline; a moved deadline is reminded again) | Students of the division who have not submitted |
 | Submission received | The student (in-app) |
-| Submissions assigned | Each mentor |
+| Submissions assigned (awaiting review) | Each mentor |
+| Resubmission requested / request withdrawn | The student |
 | Review returned | Admins (in-app) |
 | Review sent back / result reopened | The mentor |
 | Results published | Each student |
 | Resource published | Students of the division (in-app) |
-| Live session scheduled / changed / cancelled / reminder | Students of the division |
+| Live session scheduled / changed (time or link) / cancelled / starting within the hour | Students of the division |
+| New discussion thread | Mentors of that course × division (in-app) |
+| New comment / reply | The thread's author / the comment's author (in-app) |
+| Content reported | Admins (in-app) |
+| Content hidden, removed, restored or locked | Its author |
+| Report reviewed | The reporters (in-app) |
 | Mentor application decided, password reset | The person |
 
 ## 8. Errors and logging

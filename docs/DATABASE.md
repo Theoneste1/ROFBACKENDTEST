@@ -95,7 +95,7 @@ erDiagram
   FileObject { string storageKey UK enum purpose string mimeType "detected" int size string sha256 }
   CourseResource { enum type string author string source int year string_array tags bool isPublished datetime archivedAt }
   ResourceAttachment { string resourceId FK string fileId FK int sortOrder }
-  LiveSession { datetime startsAt datetime endsAt string meetingUrl "https" enum status }
+  LiveSession { datetime startsAt datetime endsAt string meetingUrl "https" enum provider enum status }
 ```
 
 ### 2.3 Assessment workflow
@@ -174,7 +174,7 @@ erDiagram
   User ||--o{ StudyGroupMember : ""
   User ||--o{ MentorRequest : "(applications, pre-account)"
 
-  Notification { enum category string type datetime readAt }
+  Notification { enum category string type string link datetime readAt datetime createdAt }
   EmailDelivery { enum status "outbox: PENDING|SENT|FAILED" int attempts datetime nextAttemptAt }
   ActivityLog { enum type "LOGIN, COURSE_OPENED, …" }
   AuditLog { string action string entity string entityId json metadata }
@@ -222,7 +222,7 @@ erDiagram
 | | `ContentReport` | A user's report of a thread or comment, with a snapshot of the reported text | unique (`reporterId`, `commentId`), (`reporterId`, `threadId`) |
 | | `ModerationAction` | Every moderation decision | idx `commentId`, `threadId`, (`moderatorId`, `createdAt`) |
 | | `StudyGroup`, `StudyGroupMember` | Admin-managed cohorts — **unused**: the API module is switched off; tables and data are kept | unique (`groupId`, `userId`) |
-| Messaging | `Notification`, `NotificationPreference` | In-app notifications; e-mail opt-outs | idx (`userId`, `readAt`) |
+| Messaging | `Notification`, `NotificationPreference` | In-app notifications; e-mail opt-outs | idx (`userId`, `readAt`), (`userId`, `createdAt`) |
 | | `EmailJob`, `EmailDelivery` | Bulk sends; outbox for every e-mail | unique `idempotencyKey`; idx (`status`, `nextAttemptAt`) |
 | Admin | `SystemSetting` | Allow-listed key/value settings | PK `key` |
 | | `AuditLog` | Who changed what (security/governance) | idx `actorId`, `action`, (`entity`, `entityId`), `createdAt` |
@@ -339,6 +339,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261109000000_assignment_history_closed_status` | additive + backfill | `AssignmentStatus.CLOSED`, `Assignment.description`/`closedAt`, and the `AssignmentEvent` history table, backfilled from the audit log (plus a `CREATED` entry for assignments without one). |
 | `20261110000000_submission_answers_resubmission_requests` | additive | `RESUBMISSION_REQUESTED` in `SubmissionStatus`/`ReviewStatus` (+ request/withdraw `ReviewEventType`s), `Submission.resubmissionRequestedAt/DueAt/Note`, `SubmissionRevision.answerText`. |
 | `20261111000000_discussion_removal_report_snapshots` | additive + backfill | `ThreadStatus.DELETED`, `DiscussionThread.deletedAt`, `Comment.deletedAt` (backfilled from `updatedAt` for already-deleted comments), `ModerationActionType.DELETE_THREAD`, `ContentReport.contentSnapshot`, `NotificationCategory.DISCUSSIONS`. |
+| `20261112000000_deadline_reminders_notification_links` | additive | `Assignment.deadlineRemindedFor` (which deadline the "due soon" reminder covered), `Notification.link`, index `Notification` (`userId`, `createdAt`). |
 
 **Making a schema change.**
 
