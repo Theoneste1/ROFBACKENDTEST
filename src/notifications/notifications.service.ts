@@ -7,13 +7,15 @@
  * E-mails are never sent inline: the EmailWorker drains the outbox in the
  * background with retries, so a slow SMTP server never slows a request.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
-import { NotificationCategory, Prisma } from '../generated/prisma/client.js';
+import { NotificationCategory, Prisma, type Role } from '../generated/prisma/client.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
+import { AppError } from '../common/errors/app-error.js';
+import { configurableTypesFor, isConfigurableType } from './notification-types.js';
 
 export interface NotificationPayload {
   category: NotificationCategory;
@@ -56,12 +58,16 @@ export class NotificationsService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   async notify(userIds: string[], payload: NotificationPayload, opts: { email?: boolean } = {}) {
-    const recipients = [...new Set(userIds)];
+    let recipients = [...new Set(userIds)];
     if (recipients.length === 0) return;
 
-    for (let i = 0; i < recipients.length; i += CHUNK) {
+    // Admins and mentors may have switched this type off (in-app and/or e-mail).
+    const off = isConfigurableType(payload.type) ? await this.switchedOff(recipients, payload.type) : undefined;
+    const inApp = off ? recipients.filter((id) => !off.inApp.has(id)) : recipients;
+
+    for (let i = 0; i < inApp.length; i += CHUNK) {
       await this.prisma.notification.createMany({
-        data: recipients.slice(i, i + CHUNK).map((userId) => ({
+        data: inApp.slice(i, i + CHUNK).map((userId) => ({
           userId,
           category: payload.category,
           type:     payload.type,
@@ -74,6 +80,8 @@ export class NotificationsService {
     }
 
     if (opts.email === false) return;
+    if (off) recipients = recipients.filter((id) => !off.email.has(id));
+    if (recipients.length === 0) return;
 
     const isAccount = payload.category === 'ACCOUNT';
     if (!isAccount && !(await this.settings.get('notifications.emailEnabled'))) return;
@@ -120,6 +128,23 @@ export class NotificationsService {
         body:           await this.composeBody(opts.firstName ?? null, body, opts.link),
       },
     });
+  }
+
+  /** Recipients who switched a type off, per channel. Only "off" rows exist to read. */
+  private async switchedOff(recipients: string[], type: string) {
+    const inApp = new Set<string>();
+    const email = new Set<string>();
+    for (let i = 0; i < recipients.length; i += CHUNK) {
+      const rows = await this.prisma.notificationSetting.findMany({
+        where:  { type, userId: { in: recipients.slice(i, i + CHUNK) }, OR: [{ inAppEnabled: false }, { emailEnabled: false }] },
+        select: { userId: true, inAppEnabled: true, emailEnabled: true },
+      });
+      for (const r of rows) {
+        if (!r.inAppEnabled) inApp.add(r.userId);
+        if (!r.emailEnabled) email.add(r.userId);
+      }
+    }
+    return { inApp, email };
   }
 
   /** Active admins — recipients for coordination events. */
@@ -238,6 +263,88 @@ export class NotificationsService {
         ),
     );
     return this.getPreferences(userId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Notification settings (admins and mentors, per type)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * The notifications the caller's role receives, each with its in-app and
+   * e-mail switch. `emailAvailable: false` marks in-app-only types. E-mail is
+   * also subject to the category e-mail preference (`categoryEmailEnabled`).
+   */
+  async getSettings(user: { id: string; role: Role }) {
+    const types = configurableTypesFor(user.role);
+    const [rows, categoryPrefs] = await this.prisma.$transaction([
+      this.prisma.notificationSetting.findMany({ where: { userId: user.id } }),
+      this.prisma.notificationPreference.findMany({ where: { userId: user.id } }),
+    ]);
+    const byType = new Map(rows.map((r) => [r.type, r]));
+    const categoryEmail = new Map(categoryPrefs.map((p) => [p.category, p.emailEnabled]));
+
+    return {
+      settings: types.map((t) => {
+        const row = byType.get(t.type);
+        return {
+          type:                 t.type,
+          category:             t.category,
+          label:                t.label,
+          description:          t.description,
+          inAppEnabled:         row?.inAppEnabled ?? true,
+          emailAvailable:       t.email,
+          emailEnabled:         t.email ? (row?.emailEnabled ?? true) : false,
+          categoryEmailEnabled: categoryEmail.get(t.category) ?? true,
+        };
+      }),
+    };
+  }
+
+  /** Switch types on or off. Only types the caller's role receives can be changed. */
+  async updateSettings(
+    user: { id: string; role: Role },
+    changes: Array<{ type: string; inAppEnabled?: boolean; emailEnabled?: boolean }>,
+  ) {
+    const allowed = new Map(configurableTypesFor(user.role).map((t) => [t.type, t]));
+    const seen = new Set<string>();
+    for (const c of changes) {
+      const info = allowed.get(c.type);
+      if (!info) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_NOTIFICATION_TYPE',
+          `"${c.type}" is not a notification you can configure.`);
+      }
+      if (seen.has(c.type)) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'DUPLICATE_NOTIFICATION_TYPE', `"${c.type}" is listed more than once.`);
+      }
+      seen.add(c.type);
+      if (c.inAppEnabled === undefined && c.emailEnabled === undefined) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', `Give inAppEnabled and/or emailEnabled for "${c.type}".`);
+      }
+      if (c.emailEnabled !== undefined && !info.email) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'EMAIL_NOT_AVAILABLE', `"${info.label}" is only shown in the app, never e-mailed.`);
+      }
+    }
+
+    await this.prisma.$transaction(
+      changes.map((c) => {
+        const data = {
+          ...(c.inAppEnabled !== undefined && { inAppEnabled: c.inAppEnabled }),
+          ...(c.emailEnabled !== undefined && { emailEnabled: c.emailEnabled }),
+        };
+        return this.prisma.notificationSetting.upsert({
+          where:  { userId_type: { userId: user.id, type: c.type } },
+          create: { userId: user.id, type: c.type, ...data },
+          update: data,
+        });
+      }),
+    );
+    return this.getSettings(user);
+  }
+
+  /** Back to the defaults: everything on. */
+  async resetSettings(user: { id: string; role: Role }) {
+    await this.prisma.notificationSetting.deleteMany({ where: { userId: user.id } });
+    return this.getSettings(user);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

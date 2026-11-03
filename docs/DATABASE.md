@@ -222,7 +222,7 @@ erDiagram
 | | `ContentReport` | A user's report of a thread or comment, with a snapshot of the reported text | unique (`reporterId`, `commentId`), (`reporterId`, `threadId`) |
 | | `ModerationAction` | Every moderation decision | idx `commentId`, `threadId`, (`moderatorId`, `createdAt`) |
 | | `StudyGroup`, `StudyGroupMember` | Admin-managed cohorts — **unused**: the API module is switched off; tables and data are kept | unique (`groupId`, `userId`) |
-| Messaging | `Notification`, `NotificationPreference` | In-app notifications; e-mail opt-outs | idx (`userId`, `readAt`), (`userId`, `createdAt`) |
+| Messaging | `Notification`, `NotificationPreference`, `NotificationSetting` | In-app notifications; per-category e-mail opt-outs; admins' and mentors' per-type in-app/e-mail switches (unique `userId`, `type`) | idx (`userId`, `readAt`), (`userId`, `createdAt`) |
 | | `EmailJob`, `EmailDelivery` | Bulk sends; outbox for every e-mail | unique `idempotencyKey`; idx (`status`, `nextAttemptAt`) |
 | Admin | `SystemSetting` | Allow-listed key/value settings | PK `key` |
 | | `AuditLog` | Who changed what (security/governance) | idx `actorId`, `action`, (`entity`, `entityId`), `createdAt` |
@@ -340,6 +340,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261110000000_submission_answers_resubmission_requests` | additive | `RESUBMISSION_REQUESTED` in `SubmissionStatus`/`ReviewStatus` (+ request/withdraw `ReviewEventType`s), `Submission.resubmissionRequestedAt/DueAt/Note`, `SubmissionRevision.answerText`. |
 | `20261111000000_discussion_removal_report_snapshots` | additive + backfill | `ThreadStatus.DELETED`, `DiscussionThread.deletedAt`, `Comment.deletedAt` (backfilled from `updatedAt` for already-deleted comments), `ModerationActionType.DELETE_THREAD`, `ContentReport.contentSnapshot`, `NotificationCategory.DISCUSSIONS`. |
 | `20261112000000_deadline_reminders_notification_links` | additive | `Assignment.deadlineRemindedFor` (which deadline the "due soon" reminder covered), `Notification.link`, index `Notification` (`userId`, `createdAt`). |
+| `20261113000000_notification_settings` | additive | New `NotificationSetting` table: per-type in-app / e-mail switches chosen by admins and mentors. Empty at creation (no row = on). |
 
 **Making a schema change.**
 

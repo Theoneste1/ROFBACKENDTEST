@@ -408,6 +408,7 @@ model User {
   liveSessions          LiveSession[]            @relation("LiveSessionHost")
   notifications         Notification[]
   notificationPrefs     NotificationPreference[]
+  notificationSettings  NotificationSetting[]
   refreshTokens         RefreshToken[]
   passwordResetTokens   PasswordResetToken[]
   activationTokens      AccountActivationToken[] @relation("ActivationUser")
@@ -1323,6 +1324,24 @@ model NotificationPreference {
   updatedAt    DateTime             @updatedAt
 
   @@unique([userId, category])
+}
+
+/// Per-notification-type switches that admins and mentors set in their
+/// profile settings (in-app and e-mail separately). No row means the default:
+/// both on. The configurable types are listed in notification-types.ts.
+model NotificationSetting {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Notification type, e.g. "submissions.assigned".
+  type         String
+  inAppEnabled Boolean  @default(true)
+  emailEnabled Boolean  @default(true)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, type])
+  /// Sending looks up the recipients who turned a type off.
+  @@index([type, userId])
 }
 
 /// One per admin bulk-send request.

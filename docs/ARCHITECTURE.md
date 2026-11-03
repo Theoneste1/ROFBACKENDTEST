@@ -203,6 +203,15 @@ Services emit domain events after their changes commit (`events.ts`).
   opt-outs (`ACCOUNT` e-mails cannot be disabled) and the global
   `notifications.emailEnabled` setting.
 
+**Choosing notifications (admins and mentors).** In their profile settings
+(`GET/PATCH /me/notification-settings`, `POST …/reset`) administrators and
+mentors switch each notification type they receive on or off, separately for
+in-app and e-mail. The switchable types, with labels and descriptions, are
+listed in `notification-types.ts`; everything is on by default and only
+"off" choices are stored (`NotificationSetting`). `NotificationsService.notify`
+drops recipients who switched a type off before writing rows or queuing
+e-mail. Students' notifications are not switchable.
+
 `EmailWorker` sends the outbox with bounded concurrency, retries with
 exponential backoff (5 attempts) and recomputes bulk-job counters from the
 delivery rows. E-mails are plain text. Adding SMS or push later means adding a

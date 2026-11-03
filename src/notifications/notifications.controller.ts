@@ -19,6 +19,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { NotificationCategory } from '../generated/prisma/client.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 
 class ListNotificationsDto extends PaginationQueryDto {
   @IsOptional()
@@ -46,6 +47,31 @@ class PreferenceDto {
 
   @IsBoolean()
   emailEnabled: boolean;
+}
+
+class NotificationSettingDto {
+  /** A type from GET /me/notification-settings, e.g. "submissions.assigned". */
+  @IsString()
+  @Length(1, 100)
+  type: string;
+
+  @IsOptional()
+  @IsBoolean()
+  inAppEnabled?: boolean;
+
+  /** Only for types that are e-mailed (`emailAvailable: true`). */
+  @IsOptional()
+  @IsBoolean()
+  emailEnabled?: boolean;
+}
+
+class UpdateSettingsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => NotificationSettingDto)
+  settings: NotificationSettingDto[];
 }
 
 class UpdatePreferencesDto {
@@ -107,5 +133,29 @@ export class NotificationsController {
   @Put('me/notification-preferences')
   updatePreferences(@CurrentUser() user: AuthUser, @Body() body: UpdatePreferencesDto) {
     return this.notifications.updatePreferences(user.id, body.preferences);
+  }
+
+  // ─── Profile settings: choose which notifications to get (admins, mentors) ──
+
+  /** Every notification your role receives, with its in-app and e-mail switches. */
+  @Get('me/notification-settings')
+  @Roles('ADMIN', 'MENTOR')
+  settings(@CurrentUser() user: AuthUser) {
+    return this.notifications.getSettings(user);
+  }
+
+  /** Turn notifications on or off; only the switches you send change. */
+  @Patch('me/notification-settings')
+  @Roles('ADMIN', 'MENTOR')
+  updateSettings(@CurrentUser() user: AuthUser, @Body() body: UpdateSettingsDto) {
+    return this.notifications.updateSettings(user, body.settings);
+  }
+
+  /** Back to the defaults: every notification on. */
+  @Post('me/notification-settings/reset')
+  @Roles('ADMIN', 'MENTOR')
+  @HttpCode(200)
+  resetSettings(@CurrentUser() user: AuthUser) {
+    return this.notifications.resetSettings(user);
   }
 }
