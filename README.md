@@ -82,6 +82,8 @@ The seed prints the generated admin password once (or uses `SEED_ADMIN_PASSWORD`
 | `npm run test:cov` | Unit test coverage |
 | `npm run test:routes` | Fail if any API route has no e2e test |
 | `npm run docs:api` | Regenerate OpenAPI, Postman collection, API reference and authorization matrix |
+| `npm run docs:responses` | Re-record response schemas from the e2e run (then `npm run docs:api`) |
+| `npm run test:coverage:all` | Combined unit + e2e coverage, with the least-covered files |
 | `npm run lint` / `npm run typecheck` | Static checks |
 | `npm run db:migrate` | Apply migrations (production-safe) |
 | `npm run db:migrate:dev` | Create a new migration after editing `schema.prisma` |

@@ -333,9 +333,9 @@ by category, actor or record, and export as CSV). Exports are audited too.
 
 Most users are minors. The platform follows data-minimisation defaults:
 
-- on the leaderboard, students see other students' first name and last
-  initial only. **In discussions, posts show the author's full name and
-  username.** Decide whether that is acceptable before go-live;
+- students see other students as first name and last initial only, with no
+  username, on the leaderboard and in discussions. Staff appear in full.
+  Tested from each viewpoint;
 - e-mail addresses and other contact details are visible to administrators
   only (tested: no student-facing response contains another user's e-mail);
 - every report export is audited.

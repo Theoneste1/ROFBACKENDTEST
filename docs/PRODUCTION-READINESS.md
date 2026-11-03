@@ -5,11 +5,10 @@ comes from a test or check that was actually run; anything that could not be
 run here is marked **Not tested**.
 
 **Verdict.** The backend is **ready for frontend integration** and
-**functionally ready for production**. Before go-live:
-
-- the deployment-environment checks that could not run here must pass
-  (S3, real SMTP, Docker image, load);
-- the decisions listed in §8 need an answer.
+**ready for production**, once the staging checks in §8 pass in the real
+hosting environment. Those are the Docker image, the docker-compose stack
+(both automated in CI), S3 against the real bucket, SMTP with the real
+provider, and load against managed PostgreSQL. No open code issues remain.
 
 ---
 
@@ -72,30 +71,41 @@ deletion and retention policy, migration history and seeding.
 |---|---|
 | Prisma models vs tables | 46 / 46 |
 | Migrations applied, schema drift | 14 applied, no drift (development and test databases) |
-| Foreign keys / CHECK constraints / indexes | 91 / 12 / 190 (every foreign key now indexed) |
+| Foreign keys / CHECK constraints / indexes | 91 / 12 / 190 (every foreign key indexed) |
 | Audit-log triggers | installed (append-only + actor username) |
 | Seed: 4 courses, 2 divisions, discipline, one current year, active admin | correct |
 | Duplicate users (case-insensitive e-mail/username), schools | none |
 | Student placement vs grade, enrolment vs placement, staff without student data | consistent |
 | Reviews belong to mentors; published results complete; points cache matches results | consistent |
-| Stored files present on disk | **4 of 4 missing** — sample rows from 2026-11-02 in the development database only (§8) |
+| Stored files present on disk | 4 / 4 (the 4 development sample records now have their placeholder files) |
 
 ## 4. API documentation
 
 - **Swagger UI** at `/api/docs` (development; production when
   `SWAGGER_ENABLED=true`). Verified live: it serves all 203 operations, each
   with its roles (`x-roles`).
-- **OpenAPI 3:** [api/openapi.json](api/openapi.json).
+- **OpenAPI 3:** [api/openapi.json](api/openapi.json). Every operation
+  documents:
+  - who may call it;
+  - its parameters and request body;
+  - its success response: **181 JSON response schemas**, plus 22 CSV or file
+    downloads with their content types;
+  - the shared `Error` schema, as the default response.
 - **Postman:** [api/ROF-LMS.postman_collection.json](api/ROF-LMS.postman_collection.json),
   203 requests in 28 folders. The login request stores the token for the rest.
-- **Reference:** [API.md](API.md). **Authorization matrix:** [AUTHORIZATION.md](AUTHORIZATION.md).
+- **Reference:** [API.md](API.md), which lists each endpoint's access,
+  parameters, body and the fields it returns. **Authorization matrix:**
+  [AUTHORIZATION.md](AUTHORIZATION.md).
 - **Guides:** [WORKFLOWS.md](WORKFLOWS.md), [STORAGE.md](STORAGE.md),
-  [ARCHITECTURE.md](ARCHITECTURE.md).
+  [ARCHITECTURE.md](ARCHITECTURE.md), [TESTING.md](TESTING.md).
 
-All generated documents come from the compiled code (`npm run docs:api`), and
-CI fails if they are out of date. **Limitation:** request bodies, parameters,
-roles and status codes are documented, but only 11 of 203 operations describe
-their **response body** in OpenAPI (§8).
+The response schemas are **recorded from what the end-to-end tests actually
+received** (`npm run docs:responses`): types, uuid and date-time formats, and
+nullable and always-present fields. They are therefore accurate to the real
+API, as far as the tests exercise it. Numbers come out as `integer` when
+every value seen was whole, for example a percentage of 80. Everything else
+is generated from the compiled code (`npm run docs:api`), and CI fails if
+it's out of date.
 
 ## 5. Test results
 
@@ -106,24 +116,23 @@ Run on 2026-11-03, after the last code change:
 | TypeScript (`tsc --noEmit`, app + tests) | 0 errors |
 | Lint (`oxlint`) | 0 warnings, 0 errors |
 | Production build (`nest build`) | succeeds |
-| Unit tests | **442 / 442 passed** (34 files) |
-| End-to-end tests (real PostgreSQL) | **287 / 287 passed** (19 files) |
-| End-to-end code coverage | 88.0% lines, 72.9% branches, 91.2% functions |
-| Routes called by e2e tests | **203 / 203** |
-| Security suite | every non-public route refuses anonymous callers (401) and every role it does not allow (403); token forgery/expiry/revocation, lockout, isolation, uploads, validation, SQL-injection probes, data exposure, headers — all passing |
-| `npm audit --omit=dev` (production dependencies) | 0 vulnerabilities |
-| Compiled code imports only declared production dependencies | yes (`multer` now declared) |
-| Live run of the built app | `/health` database + storage up; Swagger served; security headers present; scheduled reminders and e-mail outbox fired on schedule (smoke test with workers on) |
-| Independent security review | no high-severity findings; all confirmed medium/low findings fixed and covered by tests |
+| Unit tests | **454 / 454 passed** (36 files) |
+| End-to-end tests (real PostgreSQL) | **300 / 300 passed** (20 files). 3 S3 tests are skipped locally because no S3 endpoint is configured; see the S3 row |
+| Combined code coverage (unit + e2e) | **92.7% lines, 80.4% branches**, 94.5% functions |
+| Routes called by e2e tests | **203 / 203**; every route's success path exercised |
+| Security suite | every non-public route refuses anonymous callers (401) and every role it doesn't allow (403). Token forgery, expiry and revocation, lockout, isolation, uploads, validation, SQL-injection probes, data exposure and headers all pass |
+| Real SMTP delivery | **passed**: e-mails received by an SMTP server, the reset link works, all bulk modes, retries, giving up after 5 attempts, administrator retry, nothing sent twice |
+| S3 driver over the S3 API | **passed** against an S3-compatible emulator (s3rver): upload, byte-for-byte download, access rules, health, clean-up deleting objects. CI runs the same test against **MinIO** |
+| `npm audit` (all dependencies, including development) | **0 vulnerabilities** |
+| Compiled code imports only declared production dependencies | yes |
+| Live run of the built app | `/health` reports database and storage up; Swagger served; security headers present; CORS allows the configured frontend and refuses others; scheduled jobs fired on time |
+| Load baseline, 20 concurrent clients | 0 errors on 5 endpoints. Per-request time with 1 client: 7–26 ms for student pages, 65 ms for the dashboard ([TESTING.md](TESTING.md#load-baseline)) |
+| Independent security review | no high-severity findings; all confirmed findings fixed and covered by tests |
 
-**Not tested here** (no infrastructure available in this environment):
-
-- S3 / R2 / MinIO storage (the S3 driver has 0% coverage; tests use local disk);
-- delivery through a real SMTP server (only the dry-run);
-- the Docker image and docker-compose stack (Docker isn't installed here; CI
-  builds the image);
-- performance under load or with production-size data. The slowest endpoint
-  answered in 0.3 s on test data.
+**Automated in CI but not run on this machine** (Docker isn't installed
+here): the Docker image build, and the `compose-smoke` job. That job starts
+the full docker-compose stack and checks health, login, the dashboard and the
+OpenAPI document.
 
 ## 6. Deployment
 
@@ -158,19 +167,30 @@ Step-by-step in [DEPLOYMENT.md](DEPLOYMENT.md):
 | Messages are in English | No translations |
 | Mathematics only | The data model has a discipline, but the four courses are fixed |
 | Dead code kept | `src/common/file.utils.ts` (deprecated) and the switched-off `src/study-groups/` are kept because existing files are not deleted without approval |
+| Discussions show students to each other as first name + last initial | Same as the leaderboard; staff appear in full; administrators see everything |
 
 ## 8. Outstanding issues
 
-| # | Issue | Impact | Suggested action |
-|---|---|---|---|
-| 1 | OpenAPI documents response bodies for only 11 of 203 operations | The frontend can't generate typed response models from the spec | Add response DTOs/decorators module by module; meanwhile use API.md, Postman and real responses |
-| 2 | **Privacy decision:** discussion posts show the author's full name and username to other students | Most users are minors | Decide; showing first name + last initial as on the leaderboard is a small change |
-| 3 | Development database: 4 sample file records (1 brief, 2 submissions, 1 feedback) point to files that don't exist; `uploads/submissions/` holds 10 unreferenced files from the old upload system | Development only; downloads of those return 404. Production starts empty | With approval: add the files, or remove the sample rows and the old folder |
-| 4 | The dev `.env` has no `CORS_ORIGINS` / `APP_URL` / `SMTP_HOST` | A local frontend on `localhost:5173` is blocked by CORS until `CORS_ORIGINS` is set | Add them to the dev `.env` |
-| 5 | Not tested here: S3, real SMTP, Docker image, load | Unknown until run | Run on staging: upload/download via S3, receive an invitation e-mail, `docker compose up`, a basic load test |
-| 6 | 5 moderate advisories in development tools (vitest and its mocker, coverage-v8, minimatch through `@nestjs/cli`) | Development machines only; nothing in production | Upgrade when non-breaking fixes are released (the only fix today is a breaking `@nestjs/cli` downgrade) |
-| 7 | 11 tests wait a fixed time (300 ms for event handlers, 1.1 s for token timestamps) | Possible flakiness on a slow CI runner | Replace with polling waits if it ever flakes |
-| 8 | Lower coverage areas | S3 driver 0%; error-filter database-error mapping 56%; older CSV exports 50%; academic-year rollover branches 41%; mentor-assignment branches 35% | Add focused tests |
+All eight issues from the previous report have been dealt with:
+
+| # | Issue | Resolution |
+|---|---|---|
+| 1 | OpenAPI documented response bodies for 11 of 203 operations | **Fixed:** all 203 operations now document their success response: 181 JSON schemas recorded from real responses, plus 22 CSV or file downloads. A shared `Error` schema covers errors, and `API.md` lists the fields each endpoint returns |
+| 2 | Discussions showed students' full names and usernames to other students | **Fixed:** other students appear as first name + last initial, with no username, as on the leaderboard. Tested from each viewpoint |
+| 3 | Development database: 4 file records pointed to missing files | **Fixed** without touching the database: the 4 placeholder files were created at their recorded keys and sizes. The integrity check passes 4/4 |
+| 4 | The dev `.env` had no `CORS_ORIGINS` / `APP_URL` | **Fixed:** set to `http://localhost:5173`; verified that the built app accepts that origin and refuses others |
+| 5 | Not tested: S3, real SMTP, Docker image, load | **SMTP:** tested against a real SMTP server. **S3:** tested against an S3-compatible emulator here and MinIO in CI. **Docker:** image build and full compose smoke test now run in CI. **Load:** baseline measured (§5). The final check against the real bucket, SMTP provider and managed PostgreSQL belongs on staging (below) |
+| 6 | 5 moderate advisories in development tools | **Fixed:** vitest 4.1.12, and minimatch 11 for the Nest CLI (override, build verified). `npm audit`: 0 |
+| 7 | Tests waiting a fixed 300 ms for background work | **Fixed:** `waitForEvents()` now waits for the actual event handlers, and is stable over repeated runs. The remaining 1.1 s waits are deterministic (whole-second token timestamps) |
+| 8 | Lower-coverage areas | **Improved** from 90.4% to 92.7% lines (combined). New tests cover the older CSV exports, mentor-assignment rules, the health check's failure path, the reminder job and its schedule, storage clean-up, real e-mail delivery and the S3 driver |
+
+**Remaining items:**
+
+| Item | Why it is open | Action |
+|---|---|---|
+| Staging checks | They need the real environment | On staging: upload and download through the real bucket; receive an invitation through the real SMTP provider; repeat the load baseline against managed PostgreSQL (`DATABASE_POOL_MAX=10`); run the go-live checklist in [DEPLOYMENT.md](DEPLOYMENT.md#13-go-live-checklist) |
+| `uploads/submissions/` (10 files from the old upload system) | Nothing references them; they may contain student work, and deleting them can't be undone | Your decision: delete, or archive outside the project. They're excluded from git and never served |
+| CI jobs not yet run | The new MinIO step and `compose-smoke` job are written and the workflow validates, but they can only run on GitHub | Push and check the first run |
 
 ## 9. Frontend integration checklist
 
@@ -185,13 +205,13 @@ Step-by-step in [DEPLOYMENT.md](DEPLOYMENT.md):
 | Roles and permissions for UI decisions (`GET /me`, `GET /me/permissions`) | ✅ |
 | Who may call what | ✅ [AUTHORIZATION.md](AUTHORIZATION.md), generated from the guards |
 | Request bodies, parameters and validation rules | ✅ OpenAPI / API.md / Postman |
-| Response body schemas in OpenAPI | ⚠️ 11 / 203 (outstanding #1) |
+| Response body schemas in OpenAPI | ✅ 203 / 203 (181 JSON schemas recorded from real responses; 22 CSV or file downloads) |
 | File uploads (multipart: `files` / `file`) and downloads (`Content-Disposition`, inline only for PDF/images) | ✅ tested |
 | Dates: ISO 8601 UTC; live sessions also give `date`, `startTime`, `endTime`, `timeZone` | ✅ |
 | Notifications: polling endpoints, unread counts per category, mark read/unread | ✅ (no push) |
-| CORS for the frontend origin | ✅ configurable; ⚠️ set `CORS_ORIGINS` in the dev `.env` (outstanding #4) |
+| CORS for the frontend origin | ✅ configurable; dev `.env` set to `http://localhost:5173` and verified |
 | Swagger UI for exploring the API | ✅ `/api/docs` in development |
 | Seeded demo users for development (`SEED_DEMO=true`) | ✅ `mentor.junior`, `mentor.senior`, `student.s2`, `student.s5` / `Demo1234` |
 
-**Result:** ready for frontend integration. Items marked ⚠️ don't block
-starting; #1 mainly affects generating typed clients.
+**Result:** ready for frontend integration. Typed clients can be generated
+from `docs/api/openapi.json`.

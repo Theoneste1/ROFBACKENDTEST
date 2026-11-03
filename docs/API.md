@@ -50,9 +50,17 @@ Unknown body or query fields are rejected (`VALIDATION_FAILED`).
 
 All academic years (newest first), e.g. for filters.
 
+Returns `200` JSON, an array of objects with:
+
+`_count` object · `closedAt` any or null · `createdAt` string (date-time) · `endsOn` string (date-time) · `id` string (uuid) · `isCurrent` boolean · `name` string · `startsOn` string (date-time) · `status` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/academic-years/current`
 
 **Access:** STUDENT, MENTOR, ADMIN
+
+Returns `200` JSON with:
+
+`closedAt` any or null · `createdAt` string (date-time) · `endsOn` string (date-time) · `id` string (uuid) · `isCurrent` boolean · `name` string · `startsOn` string (date-time) · `status` string · `updatedAt` string (date-time)
 
 ## Admin · Academic years
 
@@ -70,6 +78,10 @@ Body (JSON):
 | `startsOn` | string | ✓ | First day (YYYY-MM-DD). |
 | `endsOn` | string | ✓ | Last day (YYYY-MM-DD). |
 
+Returns `201` JSON with:
+
+`closedAt` any or null · `createdAt` string (date-time) · `endsOn` string (date-time) · `id` string (uuid) · `isCurrent` any or null · `name` string · `startsOn` string (date-time) · `status` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/admin/academic-years/{id}`
 
 **Access:** ADMIN
@@ -77,6 +89,8 @@ Body (JSON):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON.
 
 ### PATCH `/api/v1/admin/academic-years/{id}`
 
@@ -93,6 +107,10 @@ Body (JSON):
 | `name` | string |  |  |
 | `startsOn` | string |  |  |
 | `endsOn` | string |  |  |
+
+Returns `200` JSON with:
+
+`closedAt` any or null · `createdAt` string (date-time) · `endsOn` string (date-time) · `id` string (uuid) · `isCurrent` any or null · `name` string · `startsOn` string (date-time) · `status` string · `updatedAt` string (date-time)
 
 ### POST `/api/v1/admin/academic-years/{id}/activate`
 
@@ -112,6 +130,10 @@ Body (JSON):
 | `promoteStudents` | boolean | ✓ | Move every active student up one grade (true at the start of a new school year). |
 | `deactivateGraduates` | boolean |  | When promoting, deactivate S6 students who graduate (default true). |
 
+Returns `200` JSON with:
+
+`academicYear` object · `assignmentsArchived` integer · `carriedOver` integer · `graduated` integer · `newlyEnrolled` integer · `promoted` integer
+
 ### GET `/api/v1/admin/academic-years/{id}/enrollments`
 
 **Access:** ADMIN
@@ -123,6 +145,10 @@ Body (JSON):
 | `gradeLevel` | query | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  |  |
 | `status` | query | ACTIVE \| PROMOTED \| GRADUATED \| WITHDRAWN |  |  |
 | `schoolId` | query | string |  |  |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### PATCH `/api/v1/admin/enrollments/{id}`
 
@@ -141,6 +167,10 @@ Body (JSON):
 | `gradeLevel` | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  | Correct the student's grade in the current year (moves division if needed). |
 | `status` | WITHDRAWN |  | WITHDRAWN ends the enrolment and suspends the account. |
 
+Returns `200` JSON with:
+
+`academicYearId` string (uuid) · `divisionId` string (uuid) · `endedAt` any or null · `enrolledAt` string (date-time) · `gradeLevel` string · `id` string (uuid) · `schoolId` string (uuid) · `status` string · `studentId` string (uuid)
+
 ## Admin · Activity
 
 ### GET `/api/v1/admin/activity`
@@ -157,6 +187,10 @@ Learning activity log, filterable by user, course, type and period.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### GET `/api/v1/admin/activity/summary`
 
 **Access:** ADMIN
@@ -168,6 +202,10 @@ Activity counts per type and number of active users (default: last 30 days).
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`activeUsers` integer · `byType` object · `from` string (date-time) · `to` string (date-time)
+
 ## Admin · Audit
 
 ### GET `/api/v1/admin/audit-logs`
@@ -175,6 +213,10 @@ Activity counts per type and number of active users (default: last 30 days).
 **Access:** ADMIN
 
 Newest first; filter by category, action, actor, record and date range.
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### GET `/api/v1/admin/audit-logs/{id}`
 
@@ -184,17 +226,27 @@ Newest first; filter by category, action, actor, record and date range.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`action` string · `actor` object or null · `actorRole` string · `actorUsername` string · `category` string · `createdAt` string (date-time) · `entity` string · `entityId` string · `id` string (uuid) · `metadata` object or null
+
 ### GET `/api/v1/admin/audit-logs/actions`
 
 **Access:** ADMIN
 
 Every action with its category and how many times it was recorded (for filters).
 
+Returns `200` JSON, an array of objects with:
+
+`action` string · `category` string · `count` integer
+
 ### GET `/api/v1/admin/audit-logs/export.csv`
 
 **Access:** ADMIN
 
 The filtered trail as CSV (up to 50 000 rows). The export itself is audited.
+
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ## Admin · Courses
 
@@ -217,6 +269,10 @@ Body (JSON):
 | `sortOrder` | number |  | Display order on course lists (lower first). |
 | `discussionsEnabled` | boolean |  | Turn the course's discussions on or off (existing threads stay readable). |
 
+Returns `200` JSON with:
+
+`archivedAt` any or null · `code` string · `description` string · `discipline` object · `discussionsEnabled` boolean · `id` string (uuid) · `publishedAt` string (date-time) · `sortOrder` integer · `status` string · `title` string
+
 ### PATCH `/api/v1/admin/courses/{id}/archive`
 
 **Access:** ADMIN
@@ -227,6 +283,10 @@ Retire a course: read-only, hidden from students, kept for history.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`archivedAt` string (date-time) · `code` string · `description` string · `discipline` object · `discussionsEnabled` boolean · `id` string (uuid) · `publishedAt` string (date-time) · `sortOrder` integer · `status` string · `title` string
+
 ### PATCH `/api/v1/admin/courses/{id}/publish`
 
 **Access:** ADMIN
@@ -234,6 +294,10 @@ Retire a course: read-only, hidden from students, kept for history.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`archivedAt` any or null · `code` string · `description` string · `discipline` object · `discussionsEnabled` boolean · `id` string (uuid) · `publishedAt` string (date-time) · `sortOrder` integer · `status` string · `title` string
 
 ### PATCH `/api/v1/admin/courses/{id}/unpublish`
 
@@ -244,6 +308,10 @@ Hides the course and all of its content from students.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`archivedAt` any or null · `code` string · `description` string · `discipline` object · `discussionsEnabled` boolean · `id` string (uuid) · `publishedAt` any or null · `sortOrder` integer · `status` string · `title` string
 
 ## Admin · Dashboard
 
@@ -259,6 +327,10 @@ Hides the course and all of its content from students.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`accountsAwaitingSetup` object · `assignments` object · `filters` object · `generatedAt` string (date-time) · `mentors` object · `reportedContent` object · `results` object · `reviews` object · `students` object · `submissions` object
+
 ## Admin · Email
 
 ### GET `/api/v1/admin/email/jobs`
@@ -267,6 +339,10 @@ Hides the course and all of its content from students.
 
 Jobs with progress counters (no message bodies).
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### GET `/api/v1/admin/email/jobs/{id}`
 
 **Access:** ADMIN
@@ -274,6 +350,10 @@ Jobs with progress counters (no message bodies).
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`completedAt` string (date-time) · `createdAt` string (date-time) · `createdBy` object · `failedCount` integer · `id` string (uuid) · `idempotencyKey` string · `sentCount` integer · `status` string · `subject` string · `totalRecipients` integer
 
 ### GET `/api/v1/admin/email/jobs/{id}/deliveries`
 
@@ -285,6 +365,10 @@ Per-recipient delivery status (filter with ?status=FAILED).
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### POST `/api/v1/admin/email/jobs/{id}/retry`
 
 **Access:** ADMIN
@@ -294,6 +378,10 @@ Re-queue FAILED deliveries. SENT deliveries are never re-sent.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `201` JSON with:
+
+`jobId` string (uuid) · `message` string · `requeued` integer
 
 ### POST `/api/v1/admin/email/send`
 
@@ -316,6 +404,10 @@ Body (JSON):
 | `subject` | string | ✓ |  |
 | `body` | string | ✓ | Plain-text message body. HTML is intentionally not supported to reduce XSS risk and simplify the implementation. Add HTML support here when needed. |
 
+Returns `201` JSON with:
+
+`alreadyExisted` boolean · `completedAt` any or null · `createdAt` string (date-time) · `createdBy` object · `dryRun` boolean · `failedCount` integer · `id` string (uuid) · `sentCount` integer · `status` string · `subject` string · `totalRecipients` integer
+
 ### GET `/api/v1/admin/email/users`
 
 **Access:** ADMIN
@@ -332,6 +424,10 @@ Paginated, filterable user list with email addresses.
 | `page` | query | number |  | Page number (1-based). |
 | `limit` | query | number |  | Page size (default: 50, max enforced in service). |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ## Admin · Leaderboard
 
 ### POST `/api/v1/admin/leaderboard/recompute`
@@ -339,6 +435,10 @@ Paginated, filterable user list with email addresses.
 **Access:** ADMIN
 
 Rebuild every student's points from published results (maintenance).
+
+Returns `200` JSON with:
+
+`recomputed` integer
 
 ## Admin · Mentor assignments
 
@@ -352,6 +452,10 @@ Rebuild every student's points from published results (maintenance).
 | `courseId` | query | string |  |  |
 | `divisionId` | query | string |  |  |
 | `isActive` | query | boolean |  |  |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/admin/mentor-assignments`
 
@@ -367,6 +471,10 @@ Body (JSON):
 | `courseId` | string (uuid) | ✓ |  |
 | `divisionId` | string (uuid) | ✓ |  |
 
+Returns `201` JSON with:
+
+`assignedBy` object · `course` object · `createdAt` string (date-time) · `division` object · `id` string (uuid) · `isActive` boolean · `mentor` object · `updatedAt` string (date-time)
+
 ### DELETE `/api/v1/admin/mentor-assignments/{id}`
 
 **Access:** ADMIN
@@ -376,6 +484,10 @@ Deactivate. The response reports open reviews that should be reassigned.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`assignedBy` object or null · `course` object · `createdAt` string (date-time) · `division` object · `id` string (uuid) · `isActive` boolean · `mentor` object · `openReviewsToReassign` integer · `updatedAt` string (date-time)
 
 ## Admin · Reports
 
@@ -392,6 +504,10 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `to` | query | string |  |  |
 | `status` | query | DRAFT \| PUBLISHED \| ARCHIVED \| CLOSED \| PENDING_APPROVAL \| REJECTED |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `filters` object · `meta` object · `summary` object
+
 ### GET `/api/v1/admin/reports/assignments.csv`
 
 **Access:** ADMIN
@@ -405,6 +521,8 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `to` | query | string |  |  |
 | `status` | query | DRAFT \| PUBLISHED \| ARCHIVED \| CLOSED \| PENDING_APPROVAL \| REJECTED |  |  |
 
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
+
 ### GET `/api/v1/admin/reports/course-participation`
 
 **Access:** ADMIN
@@ -416,6 +534,10 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `courseId` | query | string |  |  |
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
+
+Returns `200` JSON with:
+
+`filters` object · `rows` object[]
 
 ### GET `/api/v1/admin/reports/course-participation.csv`
 
@@ -429,6 +551,8 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
+
 ### GET `/api/v1/admin/reports/enrollment`
 
 **Access:** ADMIN
@@ -441,6 +565,10 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`byDivision` object[] · `filters` object · `rows` object[] · `totals` object
+
 ### GET `/api/v1/admin/reports/enrollment.csv`
 
 **Access:** ADMIN
@@ -452,6 +580,8 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `courseId` | query | string |  |  |
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
+
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/mentor-activity`
 
@@ -467,6 +597,10 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `filters` object · `meta` object · `summary` object
+
 ### GET `/api/v1/admin/reports/mentor-activity.csv`
 
 **Access:** ADMIN
@@ -481,9 +615,13 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
+
 ### GET `/api/v1/admin/reports/mentor-workload.csv`
 
 **Access:** ADMIN
+
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/mentors`
 
@@ -499,6 +637,10 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `filters` object · `meta` object
+
 ### GET `/api/v1/admin/reports/mentors.csv`
 
 **Access:** ADMIN
@@ -513,11 +655,17 @@ Deactivate. The response reports open reviews that should be reassigned.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
+
 ### GET `/api/v1/admin/reports/overview`
 
 **Access:** ADMIN
 
 What is waiting for an administrator right now.
+
+Returns `200` JSON with:
+
+`actionRequired` object · `activeUsers` object · `assignments` object · `generatedAt` string (date-time) · `studentsByDivision` object[] · `submissions` object
 
 ### GET `/api/v1/admin/reports/results-publication`
 
@@ -531,6 +679,10 @@ What is waiting for an administrator right now.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `filters` object · `meta` object · `summary` object
+
 ### GET `/api/v1/admin/reports/results-publication.csv`
 
 **Access:** ADMIN
@@ -543,9 +695,13 @@ What is waiting for an administrator right now.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
+
 ### GET `/api/v1/admin/reports/results.csv`
 
 **Access:** ADMIN
+
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/reviews`
 
@@ -559,6 +715,10 @@ What is waiting for an administrator right now.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`completed` object · `filters` object · `pending` object
+
 ### GET `/api/v1/admin/reports/reviews.csv`
 
 **Access:** ADMIN
@@ -571,9 +731,13 @@ What is waiting for an administrator right now.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
+
 ### GET `/api/v1/admin/reports/student-progress.csv`
 
 **Access:** ADMIN
+
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/students`
 
@@ -589,6 +753,10 @@ What is waiting for an administrator right now.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `filters` object · `meta` object
+
 ### GET `/api/v1/admin/reports/students.csv`
 
 **Access:** ADMIN
@@ -603,6 +771,8 @@ What is waiting for an administrator right now.
 | `from` | query | string |  |  |
 | `to` | query | string |  |  |
 
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
+
 ## Admin · Settings
 
 ### GET `/api/v1/admin/settings`
@@ -614,11 +784,19 @@ live sessions, platform, support) with current value, default, type,
 limits and who changed it last. Academic years are managed under
 /admin/academic-years.
 
+Returns `200` JSON, an array of objects with:
+
+`category` string · `default` any or null · `description` string · `key` string · `max` integer · `maxLength` integer · `min` integer · `nullable` boolean · `options` string[] · `type` string · `unit` string · `updatedAt` any or null · `updatedBy` any or null · `value` any or null
+
 ### PATCH `/api/v1/admin/settings`
 
 **Access:** ADMIN
 
 Change one or more settings: `{ "notifications.deadlineReminderHours": 48 }`. Every change is audited.
+
+Returns `200` JSON, an array of objects with:
+
+`category` string · `default` any or null · `description` string · `key` string · `max` integer · `maxLength` integer · `min` integer · `nullable` boolean · `options` string[] · `type` string · `unit` string · `updatedAt` string (date-time) or null · `updatedBy` object or null · `value` any or null
 
 ## Admin · Users
 
@@ -638,6 +816,10 @@ List users with filters (role, division, grade, school, status, search).
 | `isActive` | query | boolean |  |  |
 | `isActivated` | query | boolean |  | false = invited / unverified accounts waiting for activation. |
 | `search` | query | string |  |  |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/admin/users`
 
@@ -659,6 +841,10 @@ Body (JSON):
 | `schoolId` | string (uuid) |  |  |
 | `homeLocation` | string |  |  |
 
+Returns `201` JSON with:
+
+`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` any or null · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
+
 ### GET `/api/v1/admin/users/{id}`
 
 **Access:** ADMIN
@@ -666,6 +852,10 @@ Body (JSON):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object · `updatedAt` string (date-time) · `username` string
 
 ### PATCH `/api/v1/admin/users/{id}`
 
@@ -689,6 +879,10 @@ Body (JSON):
 | `schoolId` | string (uuid) |  |  |
 | `homeLocation` | string |  |  |
 
+Returns `200` JSON with:
+
+`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
+
 ### DELETE `/api/v1/admin/users/{id}`
 
 **Access:** ADMIN
@@ -698,6 +892,10 @@ Only accounts without academic history can be deleted; suspend the others.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`message` string
 
 ### POST `/api/v1/admin/users/{id}/resend-invitation`
 
@@ -709,6 +907,10 @@ Send a new activation link to an invited account that has not activated yet.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`expiresAt` string (date-time) · `purpose` string
+
 ### POST `/api/v1/admin/users/{id}/send-password-reset`
 
 **Access:** ADMIN
@@ -718,6 +920,10 @@ E-mail the user a password-reset link.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`message` string
 
 ### PATCH `/api/v1/admin/users/{id}/status`
 
@@ -736,6 +942,10 @@ Body (JSON):
 | `isActive` | boolean |  | false suspends the account immediately (all sessions are revoked). |
 | `isApproved` | boolean |  | Approve a student or mentor waiting for approval. |
 
+Returns `200` JSON with:
+
+`activatedAt` string (date-time) or null · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object or null · `updatedAt` string (date-time) · `username` string
+
 ### POST `/api/v1/admin/users/import`
 
 **Access:** ADMIN
@@ -747,6 +957,10 @@ Valid rows are invited; invalid rows are reported. ?dryRun=true validates only.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `dryRun` | query | boolean |  | Validate only; create nothing. |
+
+Returns `200` JSON with:
+
+`created` integer · `dryRun` boolean · `errors` object[] · `failed` integer · `totalRows` integer · `users` object[] · `valid` integer
 
 ### POST `/api/v1/admin/users/invite`
 
@@ -770,6 +984,10 @@ Body (JSON):
 | `schoolLocation` | string |  |  |
 | `homeLocation` | string |  |  |
 
+Returns `201` JSON with:
+
+`invitation` object · `user` object
+
 ## Analytics
 
 ### GET `/api/v1/analytics/courses/{courseId}`
@@ -783,6 +1001,10 @@ engagement and live sessions. Mentors: only scopes they teach.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `courseId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`assignments` object[] · `course` object · `division` object · `generatedAt` string (date-time) · `liveSessions` object · `resources` object · `reviewPipeline` object · `students` object
 
 ## Assignments
 
@@ -800,6 +1022,10 @@ engagement and live sessions. Mentors: only scopes they teach.
 | `q` | query | string |  | Search title, description and instructions. |
 | `deadlineFrom` | query | string |  | Deadline on or after this instant. |
 | `deadlineTo` | query | string |  | Deadline on or before this instant. |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/assignments`
 
@@ -821,6 +1047,10 @@ Body (multipart/form-data):
 | `maxResubmissions` | number |  | Maximum resubmissions (0 = unlimited). Requires allowResubmission. |
 | `allowLateSubmission` | boolean |  | Accept first submissions after the deadline (flagged as late). |
 
+Returns `201` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` any or null · `title` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/assignments/{id}`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -830,6 +1060,10 @@ Detail. For students this records the view and includes their submission state.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` object[] · `canSubmit` boolean · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string or null · `displayStatus` string · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` string (date-time) or null · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submission` object or null · `submittedAt` any or null · `title` string · `updatedAt` string (date-time)
 
 ### PATCH `/api/v1/assignments/{id}`
 
@@ -855,6 +1089,10 @@ Body (multipart/form-data):
 | `maxResubmissions` | number |  |  |
 | `allowLateSubmission` | boolean |  |  |
 
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` string (date-time) or null · `rejectionNote` string or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` any or null · `title` string · `updatedAt` string (date-time)
+
 ### PATCH `/api/v1/assignments/{id}/archive`
 
 **Access:** ADMIN
@@ -864,6 +1102,10 @@ Read-only from now on; results stay visible.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` object · `archivedAt` string (date-time) · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` string (date-time) · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` string (date-time) · `title` string · `updatedAt` string (date-time)
 
 ### POST `/api/v1/assignments/{id}/attachments`
 
@@ -875,6 +1117,10 @@ Add brief files (DRAFT/REJECTED only).
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `201` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` any or null · `title` string · `updatedAt` string (date-time)
+
 ### DELETE `/api/v1/assignments/{id}/attachments/{attachmentId}`
 
 **Access:** MENTOR
@@ -883,6 +1129,10 @@ Add brief files (DRAFT/REJECTED only).
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 | `attachmentId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` any or null · `title` string · `updatedAt` string (date-time)
 
 ### GET `/api/v1/assignments/{id}/attachments/{attachmentId}/file`
 
@@ -895,6 +1145,8 @@ Download a specific brief file.
 | `id` | path | string | ✓ |  |
 | `attachmentId` | path | string | ✓ |  |
 | `download` | query | string |  |  |
+
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
 
 ### PATCH `/api/v1/assignments/{id}/close`
 
@@ -912,6 +1164,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `note` | string |  | Optional reason, kept in the assignment history. |
 
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` object or null · `archivedAt` any or null · `attachments` object[] · `closedAt` string (date-time) · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` string (date-time) · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` string (date-time) or null · `title` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/assignments/{id}/file`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -923,6 +1179,8 @@ Download the (first) brief file.
 | `id` | path | string | ✓ |  |
 | `download` | query | string |  |  |
 
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
+
 ### GET `/api/v1/assignments/{id}/history`
 
 **Access:** MENTOR, ADMIN
@@ -933,6 +1191,10 @@ Everything that happened to the assignment, oldest first (mentors of the scope, 
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON, an array of objects with:
+
+`actor` object · `changes` object or null · `createdAt` string (date-time) · `fromStatus` string or null · `id` string (uuid) · `note` string or null · `toStatus` string · `type` string
+
 ### PATCH `/api/v1/assignments/{id}/publish`
 
 **Access:** ADMIN
@@ -940,6 +1202,10 @@ Everything that happened to the assignment, oldest first (mentors of the scope, 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` object · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` string (date-time) · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` string (date-time) · `title` string · `updatedAt` string (date-time)
 
 ### PATCH `/api/v1/assignments/{id}/recall`
 
@@ -950,6 +1216,10 @@ Withdraw from review back to draft.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` any[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` any or null · `title` string · `updatedAt` string (date-time)
 
 ### PATCH `/api/v1/assignments/{id}/reject`
 
@@ -964,6 +1234,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `rejectionNote` | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` string (date-time) · `rejectionNote` string · `resultsPublishedAt` any or null · `status` string · `submittedAt` any or null · `title` string · `updatedAt` string (date-time)
 
 ### PATCH `/api/v1/assignments/{id}/reopen`
 
@@ -982,6 +1256,10 @@ Body (JSON):
 | `note` | string |  | Optional reason, kept in the assignment history. |
 | `deadline` | string |  | New deadline (ISO-8601). Required when the current one has passed. |
 
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` object · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` string (date-time) · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` string (date-time) · `title` string · `updatedAt` string (date-time)
+
 ### PATCH `/api/v1/assignments/{id}/submit`
 
 **Access:** MENTOR
@@ -992,6 +1270,10 @@ Send to the administrators for official publication.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` object[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` string (date-time) · `title` string · `updatedAt` string (date-time)
+
 ### PATCH `/api/v1/assignments/{id}/unpublish`
 
 **Access:** ADMIN
@@ -1001,6 +1283,10 @@ Only possible while the assignment has no submissions.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `academicYear` object · `allowLateSubmission` boolean · `allowResubmission` boolean · `approvedBy` any or null · `archivedAt` any or null · `attachments` any[] · `closedAt` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deadline` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `instructions` string · `maxResubmissions` integer · `maximumMarks` integer · `points` integer · `publishedAt` any or null · `rejectedAt` any or null · `rejectionNote` any or null · `resultsPublishedAt` any or null · `status` string · `submittedAt` string (date-time) · `title` string · `updatedAt` string (date-time)
 
 ## Auth
 
@@ -1017,6 +1303,10 @@ Body (JSON):
 | `token` | string | ✓ |  |
 | `password` | string |  | Required for invitations; omitted for e-mail verification. |
 
+Returns `200` JSON with:
+
+`message` string · `username` string
+
 ### POST `/api/v1/auth/activation/inspect`
 
 **Access:** Public
@@ -1027,6 +1317,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `token` | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`email` string · `expiresAt` string (date-time) · `firstName` string · `purpose` string · `requiresPassword` boolean · `username` string
+
 ### POST `/api/v1/auth/forgot-password`
 
 **Access:** Public
@@ -1036,6 +1330,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `email` | string (email) | ✓ |  |
+
+Returns `200` JSON with:
+
+`message` string
 
 ### POST `/api/v1/auth/login`
 
@@ -1048,6 +1346,10 @@ Body (JSON):
 | `username` | string | ✓ | Username or e-mail address (case-insensitive). |
 | `password` | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`access_token` string · `expires_in` integer · `refresh_expires_at` string (date-time) · `refresh_token` string · `token_type` string · `user` object
+
 ### POST `/api/v1/auth/logout`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1058,9 +1360,17 @@ Body (JSON):
 |---|---|:-:|---|
 | `refreshToken` | string |  | Optional when the refresh token is sent as the httpOnly cookie. |
 
+Returns `200` JSON with:
+
+`message` string
+
 ### POST `/api/v1/auth/logout-all`
 
 **Access:** STUDENT, MENTOR, ADMIN
+
+Returns `200` JSON with:
+
+`message` string
 
 ### PATCH `/api/v1/auth/password`
 
@@ -1073,6 +1383,10 @@ Body (JSON):
 | `currentPassword` | string | ✓ |  |
 | `newPassword` | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`message` string
+
 ### POST `/api/v1/auth/refresh`
 
 **Access:** Public
@@ -1082,6 +1396,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `refreshToken` | string |  | Optional when the refresh token is sent as the httpOnly cookie. |
+
+Returns `200` JSON with:
+
+`access_token` string · `expires_in` integer · `refresh_expires_at` string (date-time) · `refresh_token` string · `token_type` string
 
 ### POST `/api/v1/auth/register/admin`
 
@@ -1096,6 +1414,10 @@ Body (JSON):
 | `username` | string | ✓ |  |
 | `email` | string (email) | ✓ |  |
 | `password` | string | ✓ |  |
+
+Returns `201` JSON with:
+
+`email` string · `firstName` string · `id` string (uuid) · `lastName` string · `role` string · `username` string
 
 ### POST `/api/v1/auth/register/student`
 
@@ -1115,6 +1437,10 @@ Body (JSON):
 | `schoolLocation` | string | ✓ | City / region where the school is located. |
 | `homeLocation` | string | ✓ | Student's home city / region. |
 
+Returns `201` JSON with:
+
+`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` any or null · `lastName` string · `points` integer · `problemsSolved` integer · `requiresApproval` boolean · `requiresEmailVerification` boolean · `role` string · `school` object · `username` string
+
 ### POST `/api/v1/auth/resend-activation`
 
 **Access:** Public
@@ -1127,6 +1453,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `email` | string (email) | ✓ |  |
 
+Returns `200` JSON with:
+
+`message` string
+
 ### POST `/api/v1/auth/reset-password`
 
 **Access:** Public
@@ -1138,6 +1468,10 @@ Body (JSON):
 | `token` | string | ✓ |  |
 | `newPassword` | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`message` string
+
 ## Courses
 
 ### GET `/api/v1/courses`
@@ -1145,6 +1479,10 @@ Body (JSON):
 **Access:** STUDENT, MENTOR, ADMIN
 
 Courses visible to the caller (students: published, with progress; mentors: taught).
+
+Returns `200` JSON, an array of objects with:
+
+`archivedAt` any or null · `code` string · `counts` object · `description` string · `discipline` object · `discussionsEnabled` boolean · `displayStatus` string · `enrollmentStatus` string · `id` string (uuid) · `publishedAt` string (date-time) · `sortOrder` integer · `status` string · `title` string
 
 ### GET `/api/v1/courses/{courseId}/resources`
 
@@ -1161,6 +1499,10 @@ Students: published resources of their division. Mentors/admins: all, filterable
 | `year` | query | number |  | Exam / publication year. |
 | `q` | query | string |  | Search title, description, author and source. |
 | `includeArchived` | query | boolean |  | Mentors/admins: include archived resources. |
+
+Returns `200` JSON, an array of objects with:
+
+`archivedAt` string (date-time) or null · `attachments` object[] · `author` string or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` string (date-time) or null · `sortOrder` integer · `source` string or null · `tags` string[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` integer or null
 
 ### POST `/api/v1/courses/{courseId}/resources`
 
@@ -1184,6 +1526,10 @@ Body (multipart/form-data):
 | `year` | number |  | Publication year, or the year of the exam. |
 | `tags` | string[] |  | Up to 20 labels, e.g. ["inequalities", "olympiad"]. |
 
+Returns `201` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` string or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` any or null · `sortOrder` integer · `source` string or null · `tags` string[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` integer or null
+
 ### GET `/api/v1/courses/{courseId}/resources/{resourceId}`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1192,6 +1538,10 @@ Body (multipart/form-data):
 |---|---|---|:-:|---|
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` string (date-time) · `sortOrder` integer · `source` any or null · `tags` any[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` any or null
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}`
 
@@ -1217,6 +1567,10 @@ Body (multipart/form-data):
 | `year` | number |  | Publication year, or the year of the exam. |
 | `tags` | string[] |  | Up to 20 labels, e.g. ["inequalities", "olympiad"]. |
 
+Returns `200` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` string · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` string (date-time) · `sortOrder` integer · `source` string · `tags` string[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` integer
+
 ### DELETE `/api/v1/courses/{courseId}/resources/{resourceId}`
 
 **Access:** MENTOR, ADMIN
@@ -1225,6 +1579,10 @@ Body (multipart/form-data):
 |---|---|---|:-:|---|
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`message` string
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/archive`
 
@@ -1237,6 +1595,10 @@ Hide from students but keep (reversible with /restore).
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`archivedAt` string (date-time) · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` any or null · `sortOrder` integer · `source` any or null · `tags` any[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` any or null
+
 ### POST `/api/v1/courses/{courseId}/resources/{resourceId}/attachments`
 
 **Access:** MENTOR, ADMIN
@@ -1248,6 +1610,10 @@ Add files to a resource.
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
 
+Returns `201` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` string (date-time) · `sortOrder` integer · `source` any or null · `tags` any[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` any or null
+
 ### DELETE `/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}`
 
 **Access:** MENTOR, ADMIN
@@ -1257,6 +1623,10 @@ Add files to a resource.
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
 | `attachmentId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` string (date-time) · `sortOrder` integer · `source` any or null · `tags` any[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` any or null
 
 ### GET `/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}/file`
 
@@ -1271,6 +1641,8 @@ A specific attachment of the resource.
 | `attachmentId` | path | string | ✓ |  |
 | `download` | query | string |  |  |
 
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
+
 ### GET `/api/v1/courses/{courseId}/resources/{resourceId}/file`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1283,6 +1655,8 @@ The first file of the resource. ?download=true forces download.
 | `resourceId` | path | string | ✓ |  |
 | `download` | query | string |  |  |
 
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
+
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/publish`
 
 **Access:** MENTOR, ADMIN
@@ -1291,6 +1665,10 @@ The first file of the resource. ?download=true forces download.
 |---|---|---|:-:|---|
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` string (date-time) · `sortOrder` integer · `source` string or null · `tags` string[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` integer or null
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/restore`
 
@@ -1301,6 +1679,10 @@ The first file of the resource. ?download=true forces download.
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` any or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` any or null · `sortOrder` integer · `source` any or null · `tags` any[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` any or null
+
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/unpublish`
 
 **Access:** MENTOR, ADMIN
@@ -1309,6 +1691,10 @@ The first file of the resource. ?download=true forces download.
 |---|---|---|:-:|---|
 | `courseId` | path | string | ✓ |  |
 | `resourceId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`archivedAt` any or null · `attachments` object[] · `author` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `description` string or null · `division` object · `divisionId` string (uuid) · `id` string (uuid) · `isPublished` boolean · `publishedAt` any or null · `sortOrder` integer · `source` string or null · `tags` string[] · `title` string · `type` string · `updatedAt` string (date-time) · `uploadedBy` object · `year` integer or null
 
 ### GET `/api/v1/courses/{id}`
 
@@ -1320,6 +1706,10 @@ Course detail. Opening a course as a student moves it from Unrolled to Rolled.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`archivedAt` any or null · `code` string · `completedAt` any or null · `counts` object · `description` string · `discipline` object · `discussionsEnabled` boolean · `displayStatus` string · `enrollmentStatus` string · `id` string (uuid) · `publishedAt` string (date-time) · `sortOrder` integer · `status` string · `title` string
+
 ### POST `/api/v1/courses/{id}/complete`
 
 **Access:** STUDENT
@@ -1330,17 +1720,29 @@ Student ticks the completion box. Idempotent.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`alreadyCompleted` boolean · `completedAt` string (date-time) · `courseId` string (uuid) · `displayStatus` string · `enrollmentStatus` string
+
 ### GET `/api/v1/disciplines`
 
 **Access:** STUDENT, MENTOR, ADMIN
 
 Subject areas (Mathematics at launch).
 
+Returns `200` JSON, an array of objects with:
+
+`_count` object · `code` string · `description` any or null · `id` string (uuid) · `name` string
+
 ## Discussions
 
 ### GET `/api/v1/admin/comments/hidden`
 
 **Access:** ADMIN
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### GET `/api/v1/admin/moderation/actions`
 
@@ -1355,6 +1757,10 @@ Every moderation decision, newest first.
 | `threadId` | query | string |  |  |
 | `commentId` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### GET `/api/v1/admin/moderation/reports`
 
 **Access:** ADMIN
@@ -1365,6 +1771,10 @@ Every moderation decision, newest first.
 | `reason` | query | SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY \| OTHER |  |  |
 | `targetType` | query | THREAD \| COMMENT |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### GET `/api/v1/admin/moderation/reports/{id}`
 
 **Access:** ADMIN
@@ -1374,6 +1784,10 @@ The reported item, its other reports and the moderation already taken.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`comment` object · `contentSnapshot` string · `createdAt` string (date-time) · `details` string · `id` string (uuid) · `moderationHistory` any[] · `otherReports` object[] · `reason` string · `reporter` object · `resolutionNote` any or null · `resolvedAt` any or null · `resolvedBy` any or null · `status` string · `targetType` string · `thread` object
 
 ### POST `/api/v1/admin/moderation/reports/{id}/resolve`
 
@@ -1392,6 +1806,10 @@ Body (JSON):
 | `action` | HIDE \| DELETE \| LOCK \| NONE | ✓ | HIDE or DELETE the item, LOCK a thread, or NONE to dismiss the report. |
 | `note` | string |  |  |
 
+Returns `200` JSON with:
+
+`commentId` string (uuid) or null · `contentSnapshot` string · `createdAt` string (date-time) · `details` string or null · `id` string (uuid) · `reason` string · `reporterId` string (uuid) · `resolutionNote` string · `resolvedAt` string (date-time) · `resolvedById` string (uuid) · `status` string · `threadId` string (uuid) or null
+
 ### GET `/api/v1/assignments/{assignmentId}/threads`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1401,6 +1819,10 @@ Body (JSON):
 | `assignmentId` | path | string | ✓ |  |
 | `divisionId` | query | string |  | Course threads: which division (students: always their own). |
 | `status` | query | ARCHIVED \| HIDDEN \| DELETED \| OPEN \| LOCKED |  |  |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/assignments/{assignmentId}/threads`
 
@@ -1418,6 +1840,10 @@ Body (JSON):
 | `content` | string | ✓ | The opening message. |
 | `divisionId` | string (uuid) |  | Course threads posted by mentors/admins: which division. Ignored for students. |
 
+Returns `201` JSON with:
+
+`_count` object · `archivedAt` any or null · `assignmentId` string (uuid) · `courseId` any or null · `createdAt` string (date-time) · `createdBy` object · `deletedAt` any or null · `divisionId` string (uuid) · `id` string (uuid) · `isPinned` boolean · `lastActivityAt` string (date-time) · `status` string · `title` string · `updatedAt` string (date-time)
+
 ### PATCH `/api/v1/comments/{id}`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1431,6 +1857,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `content` | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`author` object · `content` string · `createdAt` string (date-time) · `editedAt` string (date-time) · `id` string (uuid) · `myReactions` string[] · `parentId` string (uuid) or null · `reactions` object · `replyCount` integer · `status` string · `threadId` string (uuid) · `updatedAt` string (date-time)
 
 ### DELETE `/api/v1/comments/{id}`
 
@@ -1448,6 +1878,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `reason` | string |  |  |
 
+Returns `200` JSON with:
+
+`message` string
+
 ### PATCH `/api/v1/comments/{id}/hide`
 
 **Access:** ADMIN
@@ -1461,6 +1895,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `reason` | string |  |  |
+
+Returns `200` JSON with:
+
+`author` object · `content` string · `createdAt` string (date-time) · `editedAt` any or null · `id` string (uuid) · `myReactions` any[] · `parentId` any or null · `reactions` object · `replyCount` integer · `status` string · `threadId` string (uuid) · `updatedAt` string (date-time)
 
 ### POST `/api/v1/comments/{id}/reactions`
 
@@ -1478,6 +1916,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `type` | LIKE \| HELPFUL \| CONFUSED | ✓ |  |
 
+Returns `201` JSON with:
+
+`reacted` boolean · `type` string
+
 ### GET `/api/v1/comments/{id}/replies`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1485,6 +1927,10 @@ Body (JSON):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/comments/{id}/report`
 
@@ -1501,6 +1947,10 @@ Body (JSON):
 | `reason` | SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY \| OTHER | ✓ |  |
 | `details` | string |  |  |
 
+Returns `201` JSON with:
+
+`createdAt` string (date-time) · `id` string (uuid) · `reason` string · `status` string
+
 ### PATCH `/api/v1/comments/{id}/restore`
 
 **Access:** ADMIN
@@ -1515,6 +1965,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `reason` | string |  |  |
 
+Returns `200` JSON with:
+
+`author` object · `content` string · `createdAt` string (date-time) · `editedAt` string (date-time) · `id` string (uuid) · `myReactions` any[] · `parentId` any or null · `reactions` object · `replyCount` integer · `status` string · `threadId` string (uuid) · `updatedAt` string (date-time)
+
 ### GET `/api/v1/courses/{courseId}/threads`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1524,6 +1978,10 @@ Body (JSON):
 | `courseId` | path | string | ✓ |  |
 | `divisionId` | query | string |  | Course threads: which division (students: always their own). |
 | `status` | query | ARCHIVED \| HIDDEN \| DELETED \| OPEN \| LOCKED |  |  |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/courses/{courseId}/threads`
 
@@ -1543,6 +2001,10 @@ Body (JSON):
 | `content` | string | ✓ | The opening message. |
 | `divisionId` | string (uuid) |  | Course threads posted by mentors/admins: which division. Ignored for students. |
 
+Returns `201` JSON with:
+
+`_count` object · `archivedAt` any or null · `assignmentId` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deletedAt` any or null · `divisionId` string (uuid) · `id` string (uuid) · `isPinned` boolean · `lastActivityAt` string (date-time) · `status` string · `title` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/threads/{id}`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1550,6 +2012,10 @@ Body (JSON):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `archivedAt` string (date-time) or null · `assignmentId` string (uuid) or null · `courseId` string (uuid) or null · `createdAt` string (date-time) · `createdBy` object · `deletedAt` string (date-time) or null · `divisionId` string (uuid) · `id` string (uuid) · `isPinned` boolean · `lastActivityAt` string (date-time) · `status` string · `title` string · `updatedAt` string (date-time)
 
 ### PATCH `/api/v1/threads/{id}`
 
@@ -1566,6 +2032,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `title` | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`_count` object · `archivedAt` any or null · `assignmentId` string (uuid) · `courseId` any or null · `createdAt` string (date-time) · `createdBy` object · `deletedAt` any or null · `divisionId` string (uuid) · `id` string (uuid) · `isPinned` boolean · `lastActivityAt` string (date-time) · `status` string · `title` string · `updatedAt` string (date-time)
 
 ### DELETE `/api/v1/threads/{id}`
 
@@ -1584,6 +2054,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `reason` | string |  |  |
 
+Returns `200` JSON with:
+
+`message` string
+
 ### PATCH `/api/v1/threads/{id}/{op}`
 
 **Access:** ADMIN
@@ -1601,6 +2075,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `reason` | string |  |  |
 
+Returns `200` JSON with:
+
+`_count` object · `archivedAt` string (date-time) or null · `assignmentId` any or null · `courseId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `deletedAt` any or null · `divisionId` string (uuid) · `id` string (uuid) · `isPinned` boolean · `lastActivityAt` string (date-time) · `status` string · `title` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/threads/{id}/comments`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1608,6 +2086,10 @@ Body (JSON):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/threads/{id}/comments`
 
@@ -1626,6 +2108,10 @@ Body (JSON):
 | `content` | string | ✓ | The comment body. 1–2000 characters. Trimmed before storage. |
 | `parentId` | string (uuid) |  | If set, this comment is a reply to the specified parent comment in the same thread. Only one level of nesting is supported. |
 
+Returns `201` JSON with:
+
+`author` object · `content` string · `createdAt` string (date-time) · `editedAt` any or null · `id` string (uuid) · `myReactions` any[] · `parentId` string (uuid) or null · `reactions` object · `replyCount` integer · `status` string · `threadId` string (uuid) · `updatedAt` string (date-time)
+
 ### POST `/api/v1/threads/{id}/report`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1641,6 +2127,10 @@ Body (JSON):
 | `reason` | SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY \| OTHER | ✓ |  |
 | `details` | string |  |  |
 
+Returns `201` JSON with:
+
+`createdAt` string (date-time) · `id` string (uuid) · `reason` string · `status` string
+
 ## Divisions
 
 ### GET `/api/v1/admin/divisions`
@@ -1648,6 +2138,10 @@ Body (JSON):
 **Access:** ADMIN
 
 Admin view with student and mentor-assignment counts.
+
+Returns `200` JSON, an array of objects with:
+
+`_count` object · `code` string · `description` any or null · `gradeLevels` string[] · `id` string (uuid) · `isActive` boolean · `name` string
 
 ### PATCH `/api/v1/admin/divisions/{id}`
 
@@ -1665,11 +2159,19 @@ Body (JSON):
 | `description` | string |  |  |
 | `isActive` | boolean |  |  |
 
+Returns `200` JSON with:
+
+`code` string · `createdAt` string (date-time) · `description` any or null · `gradeLevels` string[] · `id` string (uuid) · `isActive` boolean · `name` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/divisions`
 
 **Access:** Public
 
 The two divisions and their grade levels (public — needed by the sign-up form).
+
+Returns `200` JSON, an array of objects with:
+
+`code` string · `description` any or null · `gradeLevels` string[] · `id` string (uuid) · `isActive` boolean · `name` string
 
 ## Health
 
@@ -1679,9 +2181,17 @@ The two divisions and their grade levels (public — needed by the sign-up form)
 
 GET /api/v1 — basic API information.
 
+Returns `200` JSON with:
+
+`docs` string · `health` string · `name` string · `version` string
+
 ### GET `/health`
 
 **Access:** Public
+
+Returns `200` JSON with:
+
+`checks` object · `status` string · `timestamp` string (date-time)
 
 ## Leaderboard
 
@@ -1696,11 +2206,19 @@ Students ranked by points (optionally within one school).
 | `divisionId` | query | string |  | Required for mentors/admins; students always see their own division. |
 | `schoolId` | query | string |  | Narrow the student board to one school. |
 
+Returns `200` JSON with:
+
+`data` object[] · `divisionId` string (uuid) · `meta` object
+
 ### GET `/api/v1/leaderboard/me`
 
 **Access:** STUDENT
 
 The current student's rank.
+
+Returns `200` JSON with:
+
+`divisionId` string (uuid) · `outOf` integer · `points` integer · `problemsSolved` integer · `rank` integer
 
 ### GET `/api/v1/leaderboard/schools`
 
@@ -1712,6 +2230,10 @@ Schools ranked by total student points.
 |---|---|---|:-:|---|
 | `divisionId` | query | string |  | Required for mentors/admins; students always see their own division. |
 | `schoolId` | query | string |  | Narrow the student board to one school. |
+
+Returns `200` JSON with:
+
+`data` object[] · `divisionId` string (uuid) · `meta` object
 
 ## Live sessions
 
@@ -1729,6 +2251,10 @@ Upcoming sessions by default; `?upcoming=false` for history.
 | `from` | query | string |  | Calendar range: sessions overlapping [from, to]. A plain date (YYYY-MM-DD) means that whole day in the programme time zone. When either is given, `upcoming` is ignored. |
 | `to` | query | string |  |  |
 | `upcoming` | query | boolean |  | Only sessions that have not ended yet (default true). |
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/live-sessions`
 
@@ -1752,6 +2278,10 @@ Body (JSON):
 | `startsAt` | string |  |  |
 | `endsAt` | string |  |  |
 
+Returns `201` JSON with:
+
+`cancelReason` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `date` string · `description` string or null · `division` object · `divisionId` string (uuid) · `endTime` string · `endsAt` string (date-time) · `host` object · `id` string (uuid) · `isLive` boolean · `meetingUrl` string · `provider` string · `startTime` string · `startsAt` string (date-time) · `status` string · `timeZone` string · `title` string · `updatedAt` string (date-time)
+
 ### GET `/api/v1/live-sessions/{id}`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -1759,6 +2289,10 @@ Body (JSON):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`cancelReason` string or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `date` string · `description` string or null · `division` object · `divisionId` string (uuid) · `endTime` string · `endsAt` string (date-time) · `host` object · `id` string (uuid) · `isLive` boolean · `meetingUrl` string or null · `provider` string · `startTime` string · `startsAt` string (date-time) · `status` string · `timeZone` string · `title` string · `updatedAt` string (date-time)
 
 ### PATCH `/api/v1/live-sessions/{id}`
 
@@ -1782,6 +2316,10 @@ Body (JSON):
 | `startsAt` | string |  |  |
 | `endsAt` | string |  |  |
 
+Returns `200` JSON with:
+
+`cancelReason` any or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `date` string · `description` string or null · `division` object · `divisionId` string (uuid) · `endTime` string · `endsAt` string (date-time) · `host` object · `id` string (uuid) · `isLive` boolean · `meetingUrl` string · `provider` string · `startTime` string · `startsAt` string (date-time) · `status` string · `timeZone` string · `title` string · `updatedAt` string (date-time)
+
 ### POST `/api/v1/live-sessions/{id}/cancel`
 
 **Access:** MENTOR, ADMIN
@@ -1796,6 +2334,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `reason` | string |  |  |
 
+Returns `200` JSON with:
+
+`cancelReason` string or null · `course` object · `courseId` string (uuid) · `createdAt` string (date-time) · `date` string · `description` string or null · `division` object · `divisionId` string (uuid) · `endTime` string · `endsAt` string (date-time) · `host` object · `id` string (uuid) · `isLive` boolean · `meetingUrl` string · `provider` string · `startTime` string · `startsAt` string (date-time) · `status` string · `timeZone` string · `title` string · `updatedAt` string (date-time)
+
 ## Me
 
 ### GET `/api/v1/me`
@@ -1803,6 +2345,10 @@ Body (JSON):
 **Access:** STUDENT, MENTOR, ADMIN
 
 The current user's profile, division and school.
+
+Returns `200` JSON with:
+
+`avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` string or null · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `points` integer · `problemsSolved` integer · `role` string · `school` object or null · `username` string
 
 ### PATCH `/api/v1/me`
 
@@ -1815,6 +2361,10 @@ Body (JSON):
 | `firstName` | string |  |  |
 | `lastName` | string |  |  |
 | `homeLocation` | string |  |  |
+
+Returns `200` JSON with:
+
+`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `points` integer · `problemsSolved` integer · `role` string · `school` object · `username` string
 
 ### GET `/api/v1/me/assignments`
 
@@ -1833,11 +2383,19 @@ Every assignment for the student's division with New / Opened / Submitted / In R
 | `deadlineFrom` | query | string |  | Deadline on or after this instant. |
 | `deadlineTo` | query | string |  | Deadline on or before this instant. |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### GET `/api/v1/me/courses`
 
 **Access:** STUDENT
 
 Progress (Unrolled / Rolled / Completed) for every published course.
+
+Returns `200` JSON, an array of objects with:
+
+`completedAt` string (date-time) or null · `course` object · `displayStatus` string · `firstOpenedAt` string (date-time) or null · `lastOpenedAt` string (date-time) or null · `status` string
 
 ### GET `/api/v1/me/enrollments`
 
@@ -1845,11 +2403,19 @@ Progress (Unrolled / Rolled / Completed) for every published course.
 
 The current student's enrolment history (one row per academic year).
 
+Returns `200` JSON, an array of objects with:
+
+`academicYear` object · `division` object · `endedAt` string (date-time) or null · `enrolledAt` string (date-time) · `gradeLevel` string · `id` string (uuid) · `school` object · `status` string
+
 ### GET `/api/v1/me/permissions`
 
 **Access:** STUDENT, MENTOR, ADMIN
 
 What the current user's role may do (for showing/hiding UI).
+
+Returns `200` JSON with:
+
+`permissions` string[] · `role` string
 
 ### GET `/api/v1/me/results`
 
@@ -1862,6 +2428,10 @@ Previously reviewed assignments (published results only), newest first.
 | `courseId` | query | string |  |  |
 | `academicYearId` | query | string |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### GET `/api/v1/me/results/{submissionId}`
 
 **Access:** STUDENT
@@ -1871,6 +2441,10 @@ Assignment, submission, score, mentor feedback, feedback files, review and publi
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `submissionId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`assignment` object · `feedback` object · `maximumMarks` integer · `percentage` integer · `pointsAwarded` integer · `previousVersions` object[] · `publishedAt` string (date-time) · `repliesAllowed` boolean · `reviewedAt` string (date-time) · `score` integer · `submission` object · `submissionId` string (uuid)
 
 ### GET `/api/v1/me/results/{submissionId}/feedback-files/{attachmentId}`
 
@@ -1882,6 +2456,8 @@ Download a feedback attachment of a published result.
 |---|---|---|:-:|---|
 | `submissionId` | path | string | ✓ |  |
 | `attachmentId` | path | string | ✓ |  |
+
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
 
 ### GET `/api/v1/me/submissions`
 
@@ -1898,11 +2474,19 @@ Own submissions; scores and feedback appear once results are published.
 | `studentId` | query | string |  |  |
 | `status` | query | PUBLISHED \| REJECTED \| ASSIGNED \| MARKED \| APPROVED \| RESUBMISSION_REQUESTED \| SUBMITTED \| IN_REVIEW \| SUBMITTED_TO_ADMIN |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### GET `/api/v1/me/teaching`
 
 **Access:** MENTOR
 
 Course × division pairs the current mentor is assigned to.
+
+Returns `200` JSON, an array of objects with:
+
+`course` object · `createdAt` string (date-time) · `division` object · `id` string (uuid)
 
 ## Mentor
 
@@ -1921,6 +2505,10 @@ Submissions assigned to me (open reviews by default; filter with ?status=).
 | `studentId` | query | string |  |  |
 | `status` | query | PUBLISHED \| REJECTED \| ASSIGNED \| MARKED \| APPROVED \| RESUBMISSION_REQUESTED \| SUBMITTED \| IN_REVIEW \| SUBMITTED_TO_ADMIN |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ## Mentor requests
 
 ### GET `/api/v1/mentor-requests`
@@ -1930,6 +2518,10 @@ Submissions assigned to me (open reviews by default; filter with ?status=).
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `status` | query | REJECTED \| APPROVED \| PENDING |  |  |
+
+Returns `200` JSON with:
+
+`data` any[] · `meta` object
 
 ### POST `/api/v1/mentor-requests`
 
@@ -1945,6 +2537,10 @@ Body (JSON):
 | `email` | string (email) | ✓ |  |
 | `password` | string | ✓ |  |
 
+Returns `201` JSON with:
+
+`createdAt` string (date-time) · `email` string · `firstName` string · `id` string (uuid) · `lastName` string · `status` string · `updatedAt` string (date-time) · `username` string
+
 ### PATCH `/api/v1/mentor-requests/{id}/approve`
 
 **Access:** ADMIN
@@ -1952,6 +2548,10 @@ Body (JSON):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`emailVerificationRequired` boolean · `mentor` object · `next` string · `request` object
 
 ### PATCH `/api/v1/mentor-requests/{id}/reject`
 
@@ -1961,6 +2561,10 @@ Body (JSON):
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`id` string (uuid) · `status` string
+
 ## Notifications
 
 ### GET `/api/v1/me/notification-preferences`
@@ -1969,13 +2573,25 @@ Body (JSON):
 
 E-mail preferences per category. ACCOUNT e-mails cannot be disabled.
 
+Returns `200` JSON, an array of objects with:
+
+`category` string · `emailEnabled` boolean · `locked` boolean
+
 ### PUT `/api/v1/me/notification-preferences`
 
 **Access:** STUDENT, MENTOR, ADMIN
 
+Returns `200` JSON, an array of objects with:
+
+`category` string · `emailEnabled` boolean · `locked` boolean
+
 ### GET `/api/v1/me/notification-settings`
 
 **Access:** ADMIN, MENTOR
+
+Returns `200` JSON with:
+
+`settings` object[]
 
 ### PATCH `/api/v1/me/notification-settings`
 
@@ -1983,15 +2599,27 @@ E-mail preferences per category. ACCOUNT e-mails cannot be disabled.
 
 Turn notifications on or off; only the switches you send change.
 
+Returns `200` JSON with:
+
+`settings` object[]
+
 ### POST `/api/v1/me/notification-settings/reset`
 
 **Access:** ADMIN, MENTOR
 
 Back to the defaults: every notification on.
 
+Returns `200` JSON with:
+
+`settings` object[]
+
 ### GET `/api/v1/notifications`
 
 **Access:** STUDENT, MENTOR, ADMIN
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### GET `/api/v1/notifications/{id}`
 
@@ -2001,6 +2629,10 @@ Back to the defaults: every notification on.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`body` string · `category` string · `createdAt` string (date-time) · `data` object · `id` string (uuid) · `isRead` boolean · `link` string · `readAt` string (date-time) · `title` string · `type` string
+
 ### PATCH `/api/v1/notifications/{id}/read`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -2008,6 +2640,10 @@ Back to the defaults: every notification on.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`updated` integer
 
 ### PATCH `/api/v1/notifications/{id}/unread`
 
@@ -2017,19 +2653,35 @@ Back to the defaults: every notification on.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`updated` integer
+
 ### POST `/api/v1/notifications/read`
 
 **Access:** STUDENT, MENTOR, ADMIN
 
 Mark up to 100 notifications read. Declared before :id routes.
 
+Returns `200` JSON with:
+
+`updated` integer
+
 ### POST `/api/v1/notifications/read-all`
 
 **Access:** STUDENT, MENTOR, ADMIN
 
+Returns `201` JSON with:
+
+`updated` integer
+
 ### GET `/api/v1/notifications/unread-count`
 
 **Access:** STUDENT, MENTOR, ADMIN
+
+Returns `200` JSON with:
+
+`byCategory` object · `unread` integer
 
 ## Schools
 
@@ -2038,6 +2690,10 @@ Mark up to 100 notifications read. Declared before :id routes.
 **Access:** ADMIN
 
 ADMIN: schools with student counts.
+
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### GET `/api/v1/schools/{id}`
 
@@ -2049,11 +2705,19 @@ ADMIN: a school and its students (paginated).
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`createdAt` string (date-time) · `id` string (uuid) · `location` string · `name` string · `students` object
+
 ### GET `/api/v1/schools/search`
 
 **Access:** Public
 
 Public autocomplete for the sign-up form (max 10 matches).
+
+Returns `200` JSON, an array of objects with:
+
+`id` string (uuid) · `location` string · `name` string
 
 ## Submissions
 
@@ -2074,6 +2738,10 @@ Body (JSON):
 | `strategy` | BALANCED \| ROUND_ROBIN |  | Defaults to the `submissions.defaultDistributionStrategy` setting. |
 | `mentorIds` | string[] |  | Restrict distribution to these mentors. Omit to use every mentor assigned to the assignment's course × division. |
 
+Returns `200` JSON with:
+
+`batchId` string (uuid) · `byMentor` object · `distributed` integer · `strategy` string
+
 ### GET `/api/v1/assignments/{assignmentId}/distribution-batches`
 
 **Access:** ADMIN
@@ -2083,6 +2751,10 @@ Distribution runs for this assignment (who got what, when).
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `assignmentId` | path | string | ✓ |  |
+
+Returns `200` JSON, an array of objects with:
+
+`assignedCount` integer · `assignmentId` string (uuid) · `createdAt` string (date-time) · `createdBy` object · `createdById` string (uuid) · `id` string (uuid) · `reviews` object[] · `strategy` string
 
 ### GET `/api/v1/assignments/{assignmentId}/result-releases`
 
@@ -2094,6 +2766,10 @@ Result releases for this assignment.
 |---|---|---|:-:|---|
 | `assignmentId` | path | string | ✓ |  |
 
+Returns `200` JSON, an array of objects with:
+
+`assignmentId` string (uuid) · `id` string (uuid) · `note` string · `publishedAt` string (date-time) · `publishedBy` object · `publishedById` string (uuid) · `resultCount` integer · `submissions` object[]
+
 ### POST `/api/v1/assignments/{assignmentId}/results/publish`
 
 **Access:** ADMIN
@@ -2103,6 +2779,10 @@ Publish every approved result of the assignment as one release.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `assignmentId` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`notYetPublished` object · `published` integer · `releaseId` string (uuid)
 
 ### GET `/api/v1/submissions`
 
@@ -2117,6 +2797,10 @@ Publish every approved result of the assignment as one release.
 | `studentId` | query | string |  |  |
 | `status` | query | PUBLISHED \| REJECTED \| ASSIGNED \| MARKED \| APPROVED \| RESUBMISSION_REQUESTED \| SUBMITTED \| IN_REVIEW \| SUBMITTED_TO_ADMIN |  |  |
 
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
+
 ### POST `/api/v1/submissions`
 
 **Access:** STUDENT
@@ -2129,6 +2813,10 @@ Body (multipart/form-data):
 | `answerText` | string |  | The student's typed answer for this attempt. |
 | `note` | string |  | Optional note from the student about this submission/revision. |
 
+Returns `201` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `displayStatus` string · `files` object[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` any or null · `revisionCount` integer · `revisions` object[] · `status` string · `submittedAt` string (date-time)
+
 ### GET `/api/v1/submissions/{id}`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -2136,6 +2824,10 @@ Body (multipart/form-data):
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `displayStatus` string · `files` object[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` object or null · `result` object · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
 
 ### PATCH `/api/v1/submissions/{id}/approve`
 
@@ -2151,6 +2843,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `coordinationNote` | string |  |  |
 
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `pointsAwarded` integer · `publishedAt` any or null · `publishedReview` any or null · `resubmissionRequest` any or null · `resultRelease` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ### PATCH `/api/v1/submissions/{id}/assign`
 
 **Access:** ADMIN
@@ -2165,6 +2861,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `mentorId` | string (uuid) | ✓ | Must be a mentor assigned to the assignment's course × division. |
 
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `pointsAwarded` integer · `publishedAt` any or null · `publishedReview` any or null · `resubmissionRequest` any or null · `resultRelease` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ### GET `/api/v1/submissions/{id}/attachments/{attachmentId}/file`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -2176,6 +2876,8 @@ A specific submitted file (any revision).
 | `id` | path | string | ✓ |  |
 | `attachmentId` | path | string | ✓ |  |
 
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
+
 ### GET `/api/v1/submissions/{id}/feedback-file`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -2185,6 +2887,8 @@ First mentor feedback file (students: only after publication).
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
 
 ### GET `/api/v1/submissions/{id}/feedback-files/{attachmentId}`
 
@@ -2197,6 +2901,8 @@ A specific mentor feedback file.
 | `id` | path | string | ✓ |  |
 | `attachmentId` | path | string | ✓ |  |
 
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
+
 ### GET `/api/v1/submissions/{id}/file`
 
 **Access:** STUDENT, MENTOR, ADMIN
@@ -2206,6 +2912,8 @@ First file of the latest submitted version.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
 
 ### GET `/api/v1/submissions/{id}/history`
 
@@ -2217,6 +2925,10 @@ resubmission request. Students: own only. Mentors: assigned to them. Admins: any
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`attempts` object[] · `displayStatus` string · `openRequest` any or null · `resubmissionRequests` object[] · `status` string · `submissionId` string (uuid)
 
 ### PATCH `/api/v1/submissions/{id}/mark`
 
@@ -2235,6 +2947,10 @@ Body (multipart/form-data):
 | `score` | number | ✓ |  |
 | `mentorFeedback` | string | ✓ | Formal academic feedback shown to the student once results are published. |
 
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ### PATCH `/api/v1/submissions/{id}/publish`
 
 **Access:** ADMIN
@@ -2244,6 +2960,10 @@ Publish one approved result to the student.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `pointsAwarded` integer · `publishedAt` string (date-time) · `publishedReview` object · `resubmissionRequest` any or null · `resultRelease` object · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
 
 ### PATCH `/api/v1/submissions/{id}/reassign`
 
@@ -2258,6 +2978,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `mentorId` | string (uuid) | ✓ | Must be a mentor assigned to the assignment's course × division. |
+
+Returns `200` JSON with:
+
+`answerText` any or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `pointsAwarded` integer · `publishedAt` any or null · `publishedReview` any or null · `resubmissionRequest` any or null · `resultRelease` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
 
 ### PATCH `/api/v1/submissions/{id}/reject`
 
@@ -2275,6 +2999,10 @@ Body (JSON):
 |---|---|:-:|---|
 | `rejectionReason` | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`answerText` any or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `pointsAwarded` integer · `publishedAt` any or null · `publishedReview` any or null · `resubmissionRequest` any or null · `resultRelease` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ### PATCH `/api/v1/submissions/{id}/reopen`
 
 **Access:** ADMIN
@@ -2290,6 +3018,10 @@ Body (JSON):
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
 | `reopenNote` | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `pointsAwarded` integer · `previousScore` integer · `publishedAt` any or null · `publishedReview` any or null · `resubmissionRequest` any or null · `resultRelease` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
 
 ### PATCH `/api/v1/submissions/{id}/request-resubmission`
 
@@ -2310,6 +3042,10 @@ Body (JSON):
 | `note` | string | ✓ | What the student should change. Shown to the student. |
 | `dueAt` | string |  | When the new attempt is due (ISO-8601, within 60 days). Defaults to the assignment deadline or 7 days from now, whichever is later. |
 
+Returns `200` JSON with:
+
+`answerText` string · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` object · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ### GET `/api/v1/submissions/{id}/result-history`
 
 **Access:** ADMIN
@@ -2319,6 +3055,10 @@ Every publication of this result: score, reviewer, who published it and when, wi
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`currentRelease` object · `publications` object[] · `status` string · `submissionId` string (uuid)
 
 ### DELETE `/api/v1/submissions/{id}/review/attachments/{attachmentId}`
 
@@ -2331,6 +3071,10 @@ Remove a feedback file from your current review (before returning it).
 | `id` | path | string | ✓ |  |
 | `attachmentId` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`answerText` string · `assignment` object · `createdAt` string (date-time) · `files` any[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ### GET `/api/v1/submissions/{id}/reviews`
 
 **Access:** ADMIN, MENTOR
@@ -2340,6 +3084,10 @@ Review history (all cycles with events). Admins: all; mentors: their own cycles.
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON, an array of objects with:
+
+`assignedAt` string (date-time) · `assignedBy` object · `attachments` object[] · `coordinationNote` string or null · `cycle` integer · `decidedAt` string (date-time) or null · `decidedBy` object or null · `decisionNote` string or null · `distributionBatch` object or null · `events` object[] · `feedback` string or null · `id` string (uuid) · `markedAt` string (date-time) or null · `mentor` object · `percentage` integer or null · `publishedAt` string (date-time) or null · `returnedAt` string (date-time) or null · `score` integer or null · `startedAt` string (date-time) or null · `status` string
 
 ### GET `/api/v1/submissions/{id}/revisions/{revisionNumber}/file`
 
@@ -2352,6 +3100,8 @@ First file of a specific revision (1 = first submission).
 | `id` | path | string | ✓ |  |
 | `revisionNumber` | path | number | ✓ |  |
 
+Returns `200`: The file, streamed with its stored content type and a Content-Disposition header.
+
 ### PATCH `/api/v1/submissions/{id}/start-review`
 
 **Access:** MENTOR
@@ -2359,6 +3109,10 @@ First file of a specific revision (1 = first submission).
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
 
 ### PATCH `/api/v1/submissions/{id}/submit-to-admin`
 
@@ -2370,6 +3124,10 @@ Return the completed review to the administrators.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`answerText` string or null · `assignment` object · `createdAt` string (date-time) · `files` object[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ### PATCH `/api/v1/submissions/{id}/withdraw-resubmission-request`
 
 **Access:** MENTOR
@@ -2380,8 +3138,16 @@ Withdraw an open request; the review resumes on the current work.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
+Returns `200` JSON with:
+
+`answerText` string · `assignment` object · `createdAt` string (date-time) · `files` any[] · `id` string (uuid) · `isLate` boolean · `resubmissionRequest` any or null · `review` object · `revisionCount` integer · `revisions` object[] · `status` string · `student` object · `submittedAt` string (date-time)
+
 ## Support
 
 ### GET `/api/v1/support`
 
 **Access:** Public
+
+Returns `200` JSON with:
+
+`email` string · `helpUrl` string · `hours` string · `message` string or null · `phone` string · `platformName` string
