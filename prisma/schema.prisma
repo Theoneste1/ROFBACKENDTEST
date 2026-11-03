@@ -432,6 +432,8 @@ model User {
   @@index([role])
   @@index([schoolId])
   @@index([divisionId])
+  /// Reports and dashboard: users by role and account state.
+  @@index([role, isActive])
 }
 
 model RefreshToken {
@@ -970,6 +972,9 @@ model Submission {
   @@index([studentId])
   @@index([assignmentId, status])
   @@index([resultReleaseId])
+  /// Reports: submissions and published results in a date range.
+  @@index([submittedAt])
+  @@index([publishedAt])
 }
 
 /// Immutable history of every submission attempt (revision 1 = first submission).
@@ -1072,6 +1077,8 @@ model MentorReview {
   @@unique([submissionId, cycle])
   @@index([mentorId, status])
   @@index([distributionBatchId])
+  /// Reports: completed reviews in a date range.
+  @@index([returnedAt])
 }
 
 /// Feedback files attached by the mentor to a review.
@@ -1117,6 +1124,7 @@ model ResultRelease {
   submissions Submission[]
 
   @@index([assignmentId])
+  @@index([publishedAt])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

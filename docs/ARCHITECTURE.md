@@ -244,6 +244,40 @@ with a single conditional UPDATE so several instances never double-send.
 | Report reviewed | The reporters (in-app) |
 | Mentor application decided, password reset | The person |
 
+## 7a. Dashboard and reports (administrators)
+
+All figures are computed live from the database; nothing is cached or
+hard-coded. Every endpoint is `ADMIN`-only.
+
+| Endpoint | Content |
+|---|---|
+| `GET /admin/dashboard` | Students (total, active, inactive, awaiting setup, by division, by course), mentors (states, who completed reviews, most reviews), assignments, submissions, pending/completed reviews, results, reported content, accounts awaiting setup |
+| `GET /admin/reports/students`, `mentors` | Paginated lists with account status, placement, scopes and per-person figures |
+| `GET /admin/reports/enrollment` | Enrolments per year × division × school × grade by status |
+| `GET /admin/reports/course-participation` | Per course × division: students, opened/completed, submissions, average score, discussion, live sessions |
+| `GET /admin/reports/assignments` | Per assignment: expected, submitted, late, missing, stage, average score |
+| `GET /admin/reports/reviews` | Pending (status, age, per mentor) and completed (outcomes, send-backs, average/median turnaround) |
+| `GET /admin/reports/results-publication` | Published, awaiting, releases, publishers, per assignment |
+| `GET /admin/reports/mentor-activity` | Per mentor: reviews assigned/completed/open, send-backs, turnaround, assignments, live sessions, comments |
+
+Each report also has a `….csv` download with the same filters (every row, up
+to 50 000); downloads are audited with their filters.
+
+**Filters** (validated; unknown ids → 404): `academicYearId` (default the
+current year, `all` for every year), `divisionId`, `courseId`, `from`/`to`
+(ISO 8601; a plain date is the whole day in `APP_TIMEZONE`), and `status`
+(`ACTIVE`, `INACTIVE`, `AWAITING_SETUP`) on user reports. A filter a report
+cannot apply is rejected (`FILTER_NOT_SUPPORTED`) rather than ignored.
+Snapshot figures (pending reviews, open reports, account states) describe the
+present; the date range limits activity figures (registered, published,
+submitted, reviewed, reported).
+
+**Queries.** Counts and group-bys run in the database; per-row figures are
+fetched for the current page with one grouped query per figure; averages and
+medians are computed in SQL. Indexes support the date-range filters
+(`MentorReview.returnedAt`, `Submission.submittedAt`/`publishedAt`,
+`ResultRelease.publishedAt`) and users by role and state.
+
 ## 8. Errors and logging
 
 `AllExceptionsFilter` returns one JSON shape for every error with a stable

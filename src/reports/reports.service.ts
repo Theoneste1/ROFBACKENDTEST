@@ -7,7 +7,11 @@ import { toCsv } from './csv.js';
 
 const MAX_ROWS = 50_000;
 
-/** Admin reporting: a dashboard overview and CSV exports. */
+/**
+ * The admin "action required" overview and the original CSV exports (results,
+ * student progress, mentor workload). The filtered dashboard and reports live
+ * in DashboardService, UserReportsService and AcademicReportsService.
+ */
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -154,28 +158,6 @@ export class ReportsService {
           hours.length ? Math.round((hours.reduce((a, b) => a + b, 0) / hours.length) * 10) / 10 : null,
         ];
       }),
-    );
-  }
-
-  /** Active students per school and grade. */
-  async enrollmentCsv() {
-    const rows = await this.prisma.user.groupBy({
-      by:     ['schoolId', 'gradeLevel'],
-      where:  { role: 'STUDENT', isActive: true },
-      _count: { _all: true },
-    });
-    const schools = new Map(
-      (await this.prisma.school.findMany({ select: { id: true, name: true, location: true } })).map((s) => [s.id, s]),
-    );
-
-    return toCsv(
-      ['School', 'Location', 'Grade', 'Students'],
-      rows
-        .map((r) => {
-          const school = r.schoolId ? schools.get(r.schoolId) : undefined;
-          return [school?.name ?? '(no school)', school?.location, r.gradeLevel, r._count._all];
-        })
-        .sort((a, b) => String(a[0]).localeCompare(String(b[0])) || String(a[2]).localeCompare(String(b[2]))),
     );
   }
 }

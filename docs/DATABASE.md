@@ -341,6 +341,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261111000000_discussion_removal_report_snapshots` | additive + backfill | `ThreadStatus.DELETED`, `DiscussionThread.deletedAt`, `Comment.deletedAt` (backfilled from `updatedAt` for already-deleted comments), `ModerationActionType.DELETE_THREAD`, `ContentReport.contentSnapshot`, `NotificationCategory.DISCUSSIONS`. |
 | `20261112000000_deadline_reminders_notification_links` | additive | `Assignment.deadlineRemindedFor` (which deadline the "due soon" reminder covered), `Notification.link`, index `Notification` (`userId`, `createdAt`). |
 | `20261113000000_notification_settings` | additive | New `NotificationSetting` table: per-type in-app / e-mail switches chosen by admins and mentors. Empty at creation (no row = on). |
+| `20261114000000_reporting_indexes` | additive (indexes only) | Indexes for the dashboard and reports: `MentorReview.returnedAt`, `Submission.submittedAt`, `Submission.publishedAt`, `ResultRelease.publishedAt`, `User` (`role`, `isActive`). |
 
 **Making a schema change.**
 
