@@ -30,6 +30,7 @@ const COURSE_SELECT = {
   description: true,
   status:      true,
   sortOrder:   true,
+  discussionsEnabled: true,
   publishedAt: true,
   archivedAt:  true,
   discipline:  { select: { id: true, code: true, name: true } },
@@ -178,13 +179,19 @@ export class CoursesService {
 
     const updated = await this.prisma.course.update({
       where:  { id: courseId },
-      data:   { title: data.title, description: data.description, sortOrder: data.sortOrder },
+      data:   {
+        title: data.title, description: data.description, sortOrder: data.sortOrder,
+        discussionsEnabled: data.discussionsEnabled,
+      },
       select: COURSE_SELECT,
     });
 
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
-      action: 'UPDATE_COURSE', entity: 'Course', entityId: courseId, metadata: { fields: Object.keys(data) },
+      action: 'UPDATE_COURSE', entity: 'Course', entityId: courseId, metadata: {
+        fields: Object.keys(data),
+        ...(data.discussionsEnabled !== undefined && { discussionsEnabled: data.discussionsEnabled }),
+      },
     });
     return updated;
   }

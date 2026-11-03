@@ -39,6 +39,10 @@ const RESOURCE_SELECT = {
   type:        true,
   title:       true,
   description: true,
+  author:      true,
+  source:      true,
+  year:        true,
+  tags:        true,
   sortOrder:   true,
   isPublished: true,
   publishedAt: true,
@@ -79,6 +83,10 @@ export class CourseResourcesService {
         type:         data.type,
         title:        data.title,
         description:  data.description ?? null,
+        author:       data.author ?? null,
+        source:       data.source ?? null,
+        year:         data.year ?? null,
+        tags:         data.tags ?? [],
         sortOrder:    data.sortOrder ?? 0,
         uploadedById: user.id,
         attachments:  { create: stored.map((s, i) => ({ fileId: s.id, sortOrder: i })) },
@@ -102,7 +110,17 @@ export class CourseResourcesService {
   async findAll(courseId: string, user: AuthUser, q: ListResourcesDto) {
     await this.requireCourse(courseId);
 
-    const where: Prisma.CourseResourceWhereInput = { courseId, ...(q.type && { type: q.type }) };
+    const where: Prisma.CourseResourceWhereInput = {
+      courseId,
+      ...(q.type && { type: q.type }),
+      ...(q.tag && { tags: { has: q.tag } }),
+      ...(q.year && { year: q.year }),
+      ...(q.q && {
+        OR: (['title', 'description', 'author', 'source'] as const).map((field) => ({
+          [field]: { contains: q.q, mode: 'insensitive' as const },
+        })),
+      }),
+    };
 
     if (user.role === 'STUDENT') {
       const divisionId = this.access.studentDivision(user);
@@ -187,7 +205,10 @@ export class CourseResourcesService {
     await this.addAttachmentsInternal(resource.id, files, user);
     const updated = await this.prisma.courseResource.update({
       where:  { id: resourceId },
-      data:   { type: data.type, title: data.title, description: data.description, sortOrder: data.sortOrder },
+      data:   {
+        type: data.type, title: data.title, description: data.description, sortOrder: data.sortOrder,
+        author: data.author, source: data.source, year: data.year, tags: data.tags,
+      },
       select: RESOURCE_SELECT,
     });
 

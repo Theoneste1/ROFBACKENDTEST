@@ -8,8 +8,9 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ResourceType } from '../../generated/prisma/client.js';
+import { ResourceMetadataDto } from './resource-metadata.dto.js';
 
-export class UpdateResourceDto {
+export class UpdateResourceDto extends ResourceMetadataDto {
   @IsOptional()
   @IsEnum(ResourceType)
   type?: ResourceType;

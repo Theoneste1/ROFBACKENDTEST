@@ -65,7 +65,7 @@ erDiagram
   User ||--o{ AccountActivationToken : "invitation / verification"
 
   Discipline { string code UK "MATHEMATICS" }
-  Course { string code "ALGEBRA…" string disciplineId FK "unique(disciplineId, code)" enum status "DRAFT|PUBLISHED|ARCHIVED" }
+  Course { string code "ALGEBRA…" string disciplineId FK "unique(disciplineId, code)" enum status "DRAFT|PUBLISHED|ARCHIVED" bool discussionsEnabled }
   Division { enum code UK "JUNIOR|SENIOR" }
   AcademicYear { string name UK "2026-2027" date startsOn date endsOn enum status "PLANNED|ACTIVE|CLOSED" bool isCurrent UK "TRUE or NULL" }
   StudentEnrollment { string studentId FK string academicYearId FK enum gradeLevel "S1…S6" enum status "ACTIVE|PROMOTED|GRADUATED|WITHDRAWN" }
@@ -93,7 +93,7 @@ erDiagram
   FileObject ||--o{ ReviewAttachment : ""
 
   FileObject { string storageKey UK enum purpose string mimeType "detected" int size string sha256 }
-  CourseResource { enum type bool isPublished datetime archivedAt }
+  CourseResource { enum type string author string source int year string_array tags bool isPublished datetime archivedAt }
   ResourceAttachment { string resourceId FK string fileId FK int sortOrder }
   LiveSession { datetime startsAt datetime endsAt string meetingUrl "https" enum status }
 ```
@@ -197,7 +197,7 @@ erDiagram
 | | `StudentEnrollment` | Student × year: grade, division, school, status | unique (`studentId`, `academicYearId`) |
 | | `MentorAssignment` | Mentor × course × division (their scope) | unique (`mentorId`, `courseId`, `divisionId`) |
 | | `CourseEnrollment` | Student progress per course (Unrolled → Completed) | unique (`courseId`, `studentId`) |
-| Content | `CourseResource` | Learning material for a course × division | idx (`courseId`, `divisionId`, `isPublished`) |
+| Content | `CourseResource` | Learning material for a course × division, with author/source/year/tags metadata | idx (`courseId`, `divisionId`, `isPublished`), GIN (`tags`); CHECK year 1800–2200, ≤ 20 tags |
 | | `ResourceAttachment` | Files of a resource (ordered) | unique (`resourceId`, `fileId`) |
 | | `ResourceView` | Who opened which resource (analytics) | unique (`resourceId`, `studentId`) |
 | | `LiveSession` | External meeting for a course × division in a year | idx (`courseId`, `divisionId`, `startsAt`) |
@@ -331,6 +331,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261104000000_academic_structure_reviews_moderation` | expand (additive) | Disciplines, academic years and enrolments, attachment tables, review cycles/events, distribution batches, result releases, threads, reports, moderation actions, activity log; **backfills** all existing data into them. |
 | `20261106000000_account_activation` | expand (additive) | `User.activatedAt` and `AccountActivationToken`; existing accounts with a password are backfilled as activated. |
 | `20261107000000_drop_superseded_columns` | contract (destructive, approved 2026-11-03) | Drops the 27 columns superseded by the expand migration, after verifying every value exists in the new tables (it aborts otherwise). Applied after a full backup. |
+| `20261108000000_course_discussions_resource_metadata` | additive | `Course.discussionsEnabled` (admins turn a course's discussions off; default on) and resource metadata `author`, `source`, `year`, `tags`. |
 
 **Making a schema change.**
 

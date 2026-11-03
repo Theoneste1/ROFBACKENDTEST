@@ -580,19 +580,22 @@ model StudentEnrollment {
 /// Content (resources, assignments, live sessions, discussions) is scoped per
 /// (course × division). Courses are archived, never deleted.
 model Course {
-  id           String       @id @default(uuid())
-  disciplineId String
-  discipline   Discipline   @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  id                 String       @id @default(uuid())
+  disciplineId       String
+  discipline         Discipline   @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
   /// Stable identifier within the discipline, e.g. "ALGEBRA".
-  code         String
-  title        String
-  description  String
-  status       CourseStatus @default(PUBLISHED)
-  publishedAt  DateTime?
-  archivedAt   DateTime?
-  sortOrder    Int          @default(0)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  code               String
+  title              String
+  description        String
+  status             CourseStatus @default(PUBLISHED)
+  publishedAt        DateTime?
+  archivedAt         DateTime?
+  sortOrder          Int          @default(0)
+  /// When false, existing threads stay readable but nobody can start a thread
+  /// or post in this course (course and assignment discussions).
+  discussionsEnabled Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   assignments       Assignment[]
   enrollments       CourseEnrollment[]
@@ -684,6 +687,14 @@ model CourseResource {
   type         ResourceType
   title        String
   description  String?
+  /// Author(s) of a book, or who prepared the material.
+  author       String?
+  /// Publisher, or the competition/exam a past paper comes from.
+  source       String?
+  /// Publication year, or the year of the exam.
+  year         Int?
+  /// Free-form labels (lower-case), e.g. "inequalities", "imo".
+  tags         String[]     @default([])
   /// Display order within the course (lower = first).
   sortOrder    Int          @default(0)
   isPublished  Boolean      @default(false)
@@ -700,6 +711,7 @@ model CourseResource {
 
   @@index([courseId, divisionId, isPublished])
   @@index([sortOrder])
+  @@index([tags], type: Gin)
 }
 
 /// Files attached to a learning resource (ordered).

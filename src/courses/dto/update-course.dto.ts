@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export class UpdateCourseDto {
@@ -21,4 +21,9 @@ export class UpdateCourseDto {
   @Min(0)
   @Max(1000)
   sortOrder?: number;
+
+  /** Turn the course's discussions on or off (existing threads stay readable). */
+  @IsOptional()
+  @IsBoolean()
+  discussionsEnabled?: boolean;
 }

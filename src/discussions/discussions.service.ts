@@ -9,6 +9,8 @@
  *   content, mentors in their assigned scopes, admins everywhere.
  * - Hidden threads/comments are visible to admins only. Locked threads can be
  *   read but not replied to. Archived threads are read-only history.
+ * - When an admin turns a course's discussions off, its course and assignment
+ *   threads stay readable but nobody can start a thread or post.
  * - Every moderation decision is recorded in ModerationAction.
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
@@ -81,11 +83,13 @@ export class DiscussionsService {
 
   async createCourseThread(courseId: string, dto: CreateThreadDto, user: AuthUser) {
     const target = await this.courseTarget(courseId, user, dto.divisionId, true);
+    await this.assertDiscussionsEnabled({ courseId, assignmentId: null });
     return this.createThread(target as { courseId: string; divisionId: string }, dto, user);
   }
 
   async createAssignmentThread(assignmentId: string, dto: CreateThreadDto, user: AuthUser) {
     const target = await this.assignmentTarget(assignmentId, user);
+    await this.assertDiscussionsEnabled({ courseId: null, assignmentId });
     return this.createThread(target, dto, user);
   }
 
@@ -137,6 +141,7 @@ export class DiscussionsService {
     if (thread.status !== 'OPEN') {
       throw invalidState(thread.status === 'LOCKED' ? 'This thread is locked.' : 'This thread is closed.');
     }
+    await this.assertDiscussionsEnabled(thread);
 
     if (dto.parentId) {
       const parent = await this.prisma.comment.findUnique({ where: { id: dto.parentId } });
@@ -428,6 +433,19 @@ export class DiscussionsService {
       courseId: 'courseId' in target ? target.courseId : undefined, entityType: 'DiscussionThread', entityId: thread.id,
     });
     return thread;
+  }
+
+  /** Refuse new threads/comments when the thread's course has discussions turned off. */
+  private async assertDiscussionsEnabled(target: { courseId: string | null; assignmentId: string | null }) {
+    const course = await this.prisma.course.findFirst({
+      where: target.courseId
+        ? { id: target.courseId }
+        : { assignments: { some: { id: target.assignmentId ?? undefined } } },
+      select: { discussionsEnabled: true },
+    });
+    if (course && !course.discussionsEnabled) {
+      throw new AppError(HttpStatus.CONFLICT, 'DISCUSSIONS_DISABLED', 'Discussions are turned off for this course.');
+    }
   }
 
   /** Load a thread and check the caller may see it. */

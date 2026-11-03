@@ -10,8 +10,9 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ResourceType } from '../../generated/prisma/client.js';
+import { ResourceMetadataDto } from './resource-metadata.dto.js';
 
-export class CreateResourceDto {
+export class CreateResourceDto extends ResourceMetadataDto {
   /** Which division (Junior/Senior) this material is for. */
   @IsUUID()
   divisionId: string;
@@ -52,6 +53,27 @@ export class ListResourcesDto {
   @IsOptional()
   @IsEnum(ResourceType)
   type?: ResourceType;
+
+  /** Resources carrying this tag. */
+  @IsOptional()
+  @IsString()
+  @Length(1, 40)
+  @Transform(({ value }: { value: string }) => value?.trim().toLowerCase())
+  tag?: string;
+
+  /** Exam / publication year. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1800)
+  year?: number;
+
+  /** Search title, description, author and source. */
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  @Transform(({ value }: { value: string }) => value?.trim())
+  q?: string;
 
   /** Mentors/admins: include archived resources. */
   @IsOptional()
