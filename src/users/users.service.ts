@@ -8,9 +8,9 @@ import { TokenService } from '../auth/token.service.js';
 import { BCRYPT_COST, PROFILE_SELECT } from '../auth/auth.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
-import { divisionCodeForGrade, nextGrade } from '../common/grade-levels.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
+import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -35,6 +35,7 @@ export class UsersService {
     private readonly audit:     AuditService,
     private readonly divisions: DivisionsService,
     private readonly tokens:    TokenService,
+    private readonly academicYears: AcademicYearsService,
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
@@ -72,19 +73,26 @@ export class UsersService {
 
     const role = data.role ?? 'STUDENT';
     const studentFields = role === 'STUDENT' ? await this.studentFields(data.gradeLevel!, data.schoolId) : {};
+    const passwordHash  = await bcrypt.hash(data.password, BCRYPT_COST);
 
-    const user = await this.prisma.user.create({
-      data: {
-        firstName:    data.firstName,
-        lastName:     data.lastName,
-        username:     data.username,
-        email:        data.email,
-        passwordHash: await bcrypt.hash(data.password, BCRYPT_COST),
-        role,
-        homeLocation: role === 'STUDENT' ? data.homeLocation : null,
-        ...studentFields,
-      },
-      select: SAFE_SELECT,
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          firstName:    data.firstName,
+          lastName:     data.lastName,
+          username:     data.username,
+          email:        data.email,
+          passwordHash,
+          role,
+          homeLocation: role === 'STUDENT' ? data.homeLocation : null,
+          ...studentFields,
+        },
+        select: { id: true },
+      });
+      if (role === 'STUDENT') {
+        await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel!, data.schoolId ?? null);
+      }
+      return tx.user.findUniqueOrThrow({ where: { id: created.id }, select: SAFE_SELECT });
     });
 
     await this.audit.log({
@@ -134,8 +142,8 @@ export class UsersService {
       ...(data.password && { passwordHash: await bcrypt.hash(data.password, BCRYPT_COST) }),
     };
 
+    const grade = role === 'STUDENT' ? (data.gradeLevel ?? existing.gradeLevel) : null;
     if (role === 'STUDENT') {
-      const grade = data.gradeLevel ?? existing.gradeLevel;
       if (!grade) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'GRADE_REQUIRED', 'Students must have a grade level.');
       }
@@ -147,7 +155,22 @@ export class UsersService {
       Object.assign(updateData, { gradeLevel: null, divisionId: null, schoolId: null, homeLocation: null });
     }
 
-    const user = await this.prisma.user.update({ where: { id }, data: updateData, select: SAFE_SELECT });
+    const placementChanged =
+      role !== existing.role || (grade && grade !== existing.gradeLevel) || data.schoolId !== undefined;
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({ where: { id }, data: updateData, select: { schoolId: true } });
+      if (placementChanged && role === 'STUDENT') {
+        // Keep the current-year enrolment in step with the new placement.
+        await this.academicYears.enrollInCurrentYear(tx, id, grade!, updated.schoolId);
+      } else if (existing.role === 'STUDENT' && role !== 'STUDENT') {
+        await tx.studentEnrollment.updateMany({
+          where: { studentId: id, status: 'ACTIVE' },
+          data:  { status: 'WITHDRAWN', endedAt: new Date() },
+        });
+      }
+      return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
+    });
 
     if (data.password || data.role) await this.tokens.revokeAllForUser(id);
 
@@ -213,55 +236,27 @@ export class UsersService {
     return { message: `User ${id} deleted successfully.` };
   }
 
-  // ─── Annual promotion ───────────────────────────────────────────────────────
-  /**
-   * Moves every active student up one grade (S1→S2 … S5→S6), updating the
-   * division where the grade crosses S3→S4. Optionally graduates S6 students
-   * by deactivating them. Runs in one transaction.
-   */
-  async promoteStudents(graduateS6: boolean, caller: CallerCtx) {
-    const grades: GradeLevel[] = ['S6', 'S5', 'S4', 'S3', 'S2', 'S1']; // top-down: no double moves
-    const counts: Record<string, number> = {};
-    // Resolve outside the transaction: only `tx` may be used inside it.
-    const divisionFor = {
-      JUNIOR: await this.divisions.idForCode('JUNIOR'),
-      SENIOR: await this.divisions.idForCode('SENIOR'),
-    };
-
-    await this.prisma.$transaction(async (tx) => {
-      for (const grade of grades) {
-        const next = nextGrade(grade);
-        if (!next) {
-          if (graduateS6) {
-            const r = await tx.user.updateMany({
-              where: { role: 'STUDENT', gradeLevel: 'S6', isActive: true },
-              data:  { isActive: false },
-            });
-            counts['graduated'] = r.count;
-          }
-          continue;
-        }
-        const r = await tx.user.updateMany({
-          where: { role: 'STUDENT', gradeLevel: grade, isActive: true },
-          data:  { gradeLevel: next, divisionId: divisionFor[divisionCodeForGrade(next)] },
-        });
-        counts[`${grade}->${next}`] = r.count;
-      }
-
-      await this.audit.log({
-        actorId: caller.id, actorRole: caller.role,
-        action: 'PROMOTE_STUDENTS', entity: 'User', metadata: { graduateS6, counts },
-      }, tx);
-    }, { timeout: 60_000 });
-
-    return { promoted: counts };
-  }
+  // (Annual promotion moved to AcademicYearsService.activate, which also keeps
+  //  per-year enrolment history.)
 
   // ─── Self-service profile ───────────────────────────────────────────────────
   async getMe(userId: string) {
     const me = await this.prisma.user.findUnique({ where: { id: userId }, select: PROFILE_SELECT });
     if (!me) throw new NotFoundException('User not found.');
     return me;
+  }
+
+  async getMyEnrollments(userId: string) {
+    return this.prisma.studentEnrollment.findMany({
+      where:   { studentId: userId },
+      orderBy: { enrolledAt: 'desc' },
+      select:  {
+        id: true, gradeLevel: true, status: true, enrolledAt: true, endedAt: true,
+        academicYear: { select: { id: true, name: true, isCurrent: true } },
+        division:     { select: { id: true, code: true, name: true } },
+        school:       { select: { id: true, name: true } },
+      },
+    });
   }
 
   async updateMe(userId: string, data: UpdateMeDto) {

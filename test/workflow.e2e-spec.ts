@@ -42,11 +42,13 @@ describe('Assignment workflow (e2e)', () => {
       .field('points', '40')
       .field('maximumMarks', '20')
       .field('allowResubmission', 'true')
-      .attach('file', PDF, 'brief.pdf')
+      .attach('files', PDF, 'brief.pdf')
+      .attach('files', PDF, 'formula-sheet.pdf')
       .expect(201);
 
     expect(res.body.status).toBe('DRAFT');
-    expect(res.body.file.mimeType).toBe('application/pdf');
+    expect(res.body.attachments.map((a: any) => a.file.originalName)).toEqual(['brief.pdf', 'formula-sheet.pdf']);
+    expect(res.body.academicYear.id).toBe(ctx.ids.year);
     assignmentId = res.body.id;
 
     // Students cannot see drafts.
@@ -107,6 +109,22 @@ describe('Assignment workflow (e2e)', () => {
     expect(res.body.revisions.map((r: any) => r.revisionNumber)).toEqual([1, 2]);
   });
 
+  it('3c. a submission can carry several files (e.g. photographed pages)', async () => {
+    const res = await ctx.http()
+      .post('/api/v1/submissions')
+      .set(bearer(studentJ))
+      .field('assignmentId', assignmentId)
+      .attach('files', PDF, 'page-1.pdf')
+      .attach('files', PDF, 'page-2.pdf')
+      .expect(201);
+    expect(res.body.revisions).toHaveLength(3);
+    expect(res.body.files.map((f: any) => f.file.originalName)).toEqual(['page-1.pdf', 'page-2.pdf']);
+
+    // Every earlier version's files are still downloadable by the student.
+    const first = res.body.revisions[0].attachments[0].id;
+    await ctx.http().get(`/api/v1/submissions/${submissionIds['j']}/attachments/${first}/file`).set(bearer(studentJ)).expect(200);
+  });
+
   it('4. admin distributes submissions across the division\'s mentors', async () => {
     const res = await ctx.http()
       .post(`/api/v1/assignments/${assignmentId}/distribute`)
@@ -118,8 +136,11 @@ describe('Assignment workflow (e2e)', () => {
     // Balanced: one each.
     expect(Object.values(res.body.byMentor)).toEqual([1, 1]);
 
-    // Once under distribution, the student can no longer resubmit if review starts;
-    // while ASSIGNED it is still allowed (verified elsewhere).
+    // The run is recorded as a distribution batch with one review per submission.
+    const batches = await ctx.http().get(`/api/v1/assignments/${assignmentId}/distribution-batches`).set(bearer(admin)).expect(200);
+    expect(batches.body).toHaveLength(1);
+    expect(batches.body[0]).toMatchObject({ id: res.body.batchId, strategy: 'BALANCED', assignedCount: 2 });
+    expect(batches.body[0].reviews).toHaveLength(2);
   });
 
   it('5. only the assigned mentor reviews and scores — admins cannot grade', async () => {
@@ -150,10 +171,13 @@ describe('Assignment workflow (e2e)', () => {
           .patch(`/api/v1/submissions/${s.id}/mark`).set(bearer(token))
           .field('score', s.student.username === 'student.j' ? '15' : '20')
           .field('mentorFeedback', 'Clear reasoning. Check problem 4 again.')
-          .attach('feedbackFile', PDF, 'feedback.pdf')
+          .attach('feedbackFiles', PDF, 'feedback.pdf')
+          .attach('feedbackFiles', PDF, 'worked-solution.pdf')
           .expect(200);
         expect(marked.body.status).toBe('MARKED');
-        expect(marked.body.percentage).toBeGreaterThan(0);
+        expect(marked.body.review).toMatchObject({ status: 'MARKED', cycle: 1 });
+        expect(marked.body.review.percentage).toBeGreaterThan(0);
+        expect(marked.body.review.attachments).toHaveLength(2);
       }
     }
   });
@@ -183,9 +207,13 @@ describe('Assignment workflow (e2e)', () => {
       .send({ rejectionReason: 'Please justify the full marks.' }).expect(200);
     expect(back.body.status).toBe('REJECTED');
 
-    // The responsible mentor revises and returns it.
-    const sub = await ctx.prisma.submission.findUniqueOrThrow({ where: { id: submissionIds['j2'] } });
-    const token = sub.mentorId === ctx.ids.mentorJunior ? mentorJ : mentorJ2;
+    // The responsible mentor sees why it came back, revises and returns it.
+    const sub = await ctx.prisma.submission.findUniqueOrThrow({
+      where: { id: submissionIds['j2'] }, include: { currentReview: true },
+    });
+    const token = sub.currentReview!.mentorId === ctx.ids.mentorJunior ? mentorJ : mentorJ2;
+    const mentorSees = await ctx.http().get(`/api/v1/submissions/${sub.id}`).set(bearer(token)).expect(200);
+    expect(mentorSees.body.review).toMatchObject({ status: 'SENT_BACK', decisionNote: 'Please justify the full marks.' });
     await ctx.http().patch(`/api/v1/submissions/${sub.id}/start-review`).set(bearer(token)).expect(200);
     await ctx.http().patch(`/api/v1/submissions/${sub.id}/mark`).set(bearer(token))
       .field('score', '18').field('mentorFeedback', 'Revised: excellent work.').expect(200);
@@ -196,9 +224,28 @@ describe('Assignment workflow (e2e)', () => {
         .send({ coordinationNote: 'Checked against the marking scheme.' }).expect(200);
     }
 
-    const res = await ctx.http().post(`/api/v1/assignments/${assignmentId}/results/publish`).set(bearer(admin)).expect(200);
+    const res = await ctx.http().post(`/api/v1/assignments/${assignmentId}/results/publish`).set(bearer(admin))
+      .send({ note: 'Term 1 results' }).expect(200);
     expect(res.body.published).toBe(2);
     expect(res.body.notYetPublished).toEqual({});
+
+    // Publication is recorded as one result release.
+    const releases = await ctx.http().get(`/api/v1/assignments/${assignmentId}/result-releases`).set(bearer(admin)).expect(200);
+    expect(releases.body).toHaveLength(1);
+    expect(releases.body[0]).toMatchObject({ id: res.body.releaseId, resultCount: 2, note: 'Term 1 results' });
+  });
+
+  it('7b. the full review history is kept (one cycle, every step as an event)', async () => {
+    const history = await ctx.http().get(`/api/v1/submissions/${submissionIds['j2']}/reviews`).set(bearer(admin)).expect(200);
+    expect(history.body).toHaveLength(1);
+    const events = history.body[0].events.map((e: any) => e.type);
+    expect(events).toEqual([
+      'ASSIGNED', 'STARTED', 'MARKED', 'RETURNED', 'SENT_BACK', 'STARTED', 'MARKED', 'RETURNED', 'APPROVED', 'PUBLISHED',
+    ]);
+    expect(history.body[0].events.filter((e: any) => e.type === 'MARKED').map((e: any) => e.score)).toEqual([20, 18]);
+
+    // Students cannot read review history.
+    await ctx.http().get(`/api/v1/submissions/${submissionIds['j']}/reviews`).set(bearer(studentJ)).expect(403);
   });
 
   it('8. students view their result, feedback and points', async () => {
@@ -233,6 +280,11 @@ describe('Assignment workflow (e2e)', () => {
 
     const studentView = await ctx.http().get(`/api/v1/submissions/${submissionIds['j']}`).set(bearer(studentJ)).expect(200);
     expect(studentView.body.result).toBeUndefined();
+
+    // A new review cycle starts for the same mentor, pre-filled; the old one is kept.
+    const history = await ctx.http().get(`/api/v1/submissions/${submissionIds['j']}/reviews`).set(bearer(admin)).expect(200);
+    expect(history.body.map((r: any) => [r.cycle, r.status, r.score])).toEqual([[1, 'SUPERSEDED', 15], [2, 'SENT_BACK', 15]]);
+    expect(history.body[0].mentor.id).toBe(history.body[1].mentor.id);
   });
 
   it('mentor analytics and admin reports reflect the workflow', async () => {

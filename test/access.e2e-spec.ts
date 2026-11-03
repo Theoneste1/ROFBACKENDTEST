@@ -19,7 +19,7 @@ describe('Access control (e2e)', () => {
     const a = await ctx.prisma.assignment.create({
       data: {
         title: 'Junior algebra set', instructions: 'Solve the problems.', deadline: new Date(inDays(5)),
-        points: 10, maximumMarks: 10, courseId: ctx.ids.algebra, divisionId: ctx.ids.junior,
+        points: 10, maximumMarks: 10, courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, academicYearId: ctx.ids.year,
         createdById: ctx.ids.mentorJunior, status: 'PUBLISHED', publishedAt: new Date(),
       },
     });
@@ -152,7 +152,7 @@ describe('Access control (e2e)', () => {
       const other = await ctx.prisma.assignment.create({
         data: {
           title: 'Another', instructions: 'Solve.', deadline: new Date(inDays(5)), points: 1, maximumMarks: 1,
-          courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, createdById: ctx.ids.mentorJunior, status: 'PUBLISHED',
+          courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, academicYearId: ctx.ids.year, createdById: ctx.ids.mentorJunior, status: 'PUBLISHED',
         },
       });
       const res = await ctx.http().post('/api/v1/submissions').set(bearer(studentJ2))

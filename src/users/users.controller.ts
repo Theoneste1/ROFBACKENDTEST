@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -16,7 +15,6 @@ import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
-  PromoteStudentsDto,
   UpdateMeDto,
   UpdateUserDto,
   UpdateUserStatusDto,
@@ -24,6 +22,7 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { permissionsFor } from '../auth/permissions.js';
 
 @ApiTags('Admin · Users')
 @Controller('admin/users')
@@ -41,13 +40,6 @@ export class UsersController {
   @Post()
   create(@Body() body: CreateUserDto, @CurrentUser() user: AuthUser) {
     return this.usersService.create(body, user);
-  }
-
-  /** Move every active student up one grade (run once per academic year). */
-  @Post('promote-students')
-  @HttpCode(200)
-  promote(@Body() body: PromoteStudentsDto, @CurrentUser() user: AuthUser) {
-    return this.usersService.promoteStudents(body.graduateS6, user);
   }
 
   @Get(':id')
@@ -95,5 +87,18 @@ export class MeController {
   @Patch()
   updateMe(@CurrentUser() user: AuthUser, @Body() body: UpdateMeDto) {
     return this.usersService.updateMe(user.id, body);
+  }
+
+  /** What the current user's role may do (for showing/hiding UI). */
+  @Get('permissions')
+  permissions(@CurrentUser() user: AuthUser) {
+    return { role: user.role, permissions: permissionsFor(user.role) };
+  }
+
+  /** The current student's enrolment history (one row per academic year). */
+  @Get('enrollments')
+  @Roles('STUDENT')
+  enrollments(@CurrentUser() user: AuthUser) {
+    return this.usersService.getMyEnrollments(user.id);
   }
 }

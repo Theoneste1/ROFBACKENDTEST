@@ -10,10 +10,10 @@ import {
   Post,
   Query,
   Res,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -25,6 +25,7 @@ import { UpdateResourceDto } from './dto/update-resource.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
+import { ATTACHMENT_FIELDS, filesFrom, type UploadedAttachmentFiles } from '../common/storage/attachments.js';
 import type { AuthUser } from '../common/auth-user.js';
 
 @ApiTags('Courses')
@@ -60,23 +61,23 @@ export class CoursesController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Upload a learning resource (multipart/form-data, file field `file`).
-   * Mentors: only for a division they teach in this course.
+   * Create a learning resource (multipart/form-data). Files go in "files"
+   * (up to 10) or "file". Mentors: only for a division they teach.
    */
   @Post(':courseId/resources')
   @Roles('MENTOR', 'ADMIN')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', uploadOptions('RESOURCE')))
+  @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('RESOURCE')))
   createResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Body() body: CreateResourceDto,
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFiles() upload: UploadedAttachmentFiles | undefined,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.create(courseId, body, user, file);
+    return this.courseResourcesService.create(courseId, body, user, filesFrom(upload));
   }
 
-  /** Students: published resources of their division. Mentors/admins: all, filterable by division. */
+  /** Students: published resources of their division. Mentors/admins: all, filterable. */
   @Get(':courseId/resources')
   listResources(
     @Param('courseId', ParseUUIDPipe) courseId: string,
@@ -95,7 +96,7 @@ export class CoursesController {
     return this.courseResourcesService.findOne(courseId, resourceId, user);
   }
 
-  /** View (PDF/images inline) or download the file. `?download=true` forces download. */
+  /** The first file of the resource. ?download=true forces download. */
   @Get(':courseId/resources/:resourceId/file')
   async serveResourceFile(
     @Param('courseId', ParseUUIDPipe) courseId: string,
@@ -104,24 +105,62 @@ export class CoursesController {
     @CurrentUser() user: AuthUser,
     @Res() res: Response,
   ) {
+    await this.courseResourcesService.serveFile(courseId, resourceId, user, res, download === 'true' || download === '1');
+  }
+
+  /** A specific attachment of the resource. */
+  @Get(':courseId/resources/:resourceId/attachments/:attachmentId/file')
+  async serveAttachment(
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Query('download') download: string | undefined,
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+  ) {
     await this.courseResourcesService.serveFile(
-      courseId, resourceId, user, res, download === 'true' || download === '1',
+      courseId, resourceId, user, res, download === 'true' || download === '1', attachmentId,
     );
   }
 
-  /** Update metadata and/or replace the file. */
+  /** Update metadata; uploaded files are added as attachments. */
   @Patch(':courseId/resources/:resourceId')
   @Roles('MENTOR', 'ADMIN')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', uploadOptions('RESOURCE')))
+  @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('RESOURCE')))
   updateResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
     @Body() body: UpdateResourceDto,
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFiles() upload: UploadedAttachmentFiles | undefined,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.courseResourcesService.update(courseId, resourceId, body, user, file);
+    return this.courseResourcesService.update(courseId, resourceId, body, user, filesFrom(upload));
+  }
+
+  /** Add files to a resource. */
+  @Post(':courseId/resources/:resourceId/attachments')
+  @Roles('MENTOR', 'ADMIN')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('RESOURCE')))
+  addResourceFiles(
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @UploadedFiles() upload: UploadedAttachmentFiles | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.courseResourcesService.addAttachments(courseId, resourceId, user, filesFrom(upload));
+  }
+
+  @Delete(':courseId/resources/:resourceId/attachments/:attachmentId')
+  @Roles('MENTOR', 'ADMIN')
+  removeResourceFile(
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.courseResourcesService.removeAttachment(courseId, resourceId, attachmentId, user);
   }
 
   @Patch(':courseId/resources/:resourceId/publish')
@@ -142,6 +181,27 @@ export class CoursesController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.courseResourcesService.setPublished(courseId, resourceId, false, user);
+  }
+
+  /** Hide from students but keep (reversible with /restore). */
+  @Patch(':courseId/resources/:resourceId/archive')
+  @Roles('MENTOR', 'ADMIN')
+  archiveResource(
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.courseResourcesService.setArchived(courseId, resourceId, true, user);
+  }
+
+  @Patch(':courseId/resources/:resourceId/restore')
+  @Roles('MENTOR', 'ADMIN')
+  restoreResource(
+    @Param('courseId', ParseUUIDPipe) courseId: string,
+    @Param('resourceId', ParseUUIDPipe) resourceId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.courseResourcesService.setArchived(courseId, resourceId, false, user);
   }
 
   @Delete(':courseId/resources/:resourceId')
@@ -180,6 +240,24 @@ export class AdminCoursesController {
   @Patch(':id/unpublish')
   unpublish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.coursesService.setPublished(id, false, user);
+  }
+
+  /** Retire a course: read-only, hidden from students, kept for history. */
+  @Patch(':id/archive')
+  archive(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.coursesService.archive(id, user);
+  }
+}
+
+@ApiTags('Courses')
+@Controller('disciplines')
+export class DisciplinesController {
+  constructor(private readonly coursesService: CoursesService) {}
+
+  /** Subject areas (Mathematics at launch). */
+  @Get()
+  list() {
+    return this.coursesService.listDisciplines();
   }
 }
 

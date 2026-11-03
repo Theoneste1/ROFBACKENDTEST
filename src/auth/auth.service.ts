@@ -7,6 +7,8 @@ import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { AcademicYearsService } from '../academic-years/academic-years.service.js';
+import { ActivityService } from '../activity/activity.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { TokenService, hashToken, type ClientInfo } from './token.service.js';
 import { RegisterStudentDto } from './dto/register-student.dto.js';
@@ -39,6 +41,8 @@ export class AuthService {
     private readonly settings:      SettingsService,
     private readonly divisions:     DivisionsService,
     private readonly notifications: NotificationsService,
+    private readonly academicYears: AcademicYearsService,
+    private readonly activity:      ActivityService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -78,6 +82,9 @@ export class AuthService {
         },
         select: PROFILE_SELECT,
       });
+
+      // Per-year enrolment record (fails the registration if no year is active).
+      await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel, school.id);
 
       await this.audit.log({
         actorId:   created.id,
@@ -160,6 +167,7 @@ export class AuthService {
       entityId:  user.id,
       metadata:  { ip: client.ip },
     });
+    this.activity.record(user.id, 'LOGIN');
 
     return { ...tokens, user: profile };
   }

@@ -4,8 +4,11 @@
  *   npx prisma db seed            (or: npx tsx prisma/seed.ts)
  *
  * Always ensures:
+ *   - the Mathematics discipline
  *   - the two divisions (JUNIOR: S1–S3, SENIOR: S4–S6)
  *   - the four fixed Mathematics courses
+ *   - a current academic year (Sept–July containing today) if none is current
+ *   - an enrolment in the current year for every active student without one
  *   - a first ADMIN account (only if no admin exists)
  *
  * The admin password comes from SEED_ADMIN_PASSWORD; if unset, a random one is
@@ -18,7 +21,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
-import { PrismaClient, type CourseCode, type DivisionCode, type GradeLevel } from '../src/generated/prisma/client.js';
+import { PrismaClient, type DivisionCode, type GradeLevel } from '../src/generated/prisma/client.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -31,7 +34,9 @@ const DIVISIONS: Array<{ code: DivisionCode; name: string; description: string }
   { code: 'SENIOR', name: 'Senior', description: 'Senior 4 to Senior 6 (S4–S6).' },
 ];
 
-const COURSES: Array<{ code: CourseCode; title: string; description: string }> = [
+const MATHEMATICS = { code: 'MATHEMATICS', name: 'Mathematics', description: 'Olympiad mathematics.' };
+
+const COURSES: Array<{ code: string; title: string; description: string }> = [
   {
     code:        'ALGEBRA',
     title:       'Algebra',
@@ -54,6 +59,12 @@ const COURSES: Array<{ code: CourseCode; title: string; description: string }> =
   },
 ];
 
+async function seedDiscipline() {
+  const d = await prisma.discipline.upsert({ where: { code: MATHEMATICS.code }, create: MATHEMATICS, update: {} });
+  console.log(`✅ Discipline: ${d.name}`);
+  return d.id;
+}
+
 async function seedDivisions() {
   for (const d of DIVISIONS) {
     await prisma.division.upsert({ where: { code: d.code }, create: d, update: {} });
@@ -61,15 +72,53 @@ async function seedDivisions() {
   console.log(`✅ Divisions: ${DIVISIONS.map((d) => d.code).join(', ')}`);
 }
 
-async function seedCourses() {
+async function seedCourses(disciplineId: string) {
   for (const [i, c] of COURSES.entries()) {
     await prisma.course.upsert({
-      where:  { code: c.code },
-      create: { ...c, sortOrder: i, status: 'PUBLISHED', publishedAt: new Date() },
+      where:  { disciplineId_code: { disciplineId, code: c.code } },
+      create: { ...c, disciplineId, sortOrder: i, status: 'PUBLISHED', publishedAt: new Date() },
       update: {}, // never overwrite admin edits
     });
   }
   console.log(`✅ Courses: ${COURSES.map((c) => c.title).join(', ')}`);
+}
+
+/** Rwandan school years run September → July. */
+async function seedAcademicYear() {
+  const current = await prisma.academicYear.findFirst({ where: { isCurrent: true } });
+  if (current) {
+    console.log(`✅ Current academic year: ${current.name}`);
+    return current.id;
+  }
+  const now = new Date();
+  const y = now.getUTCMonth() >= 8 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  const year = await prisma.academicYear.upsert({
+    where:  { name: `${y}-${y + 1}` },
+    create: {
+      name: `${y}-${y + 1}`, startsOn: new Date(Date.UTC(y, 8, 1)), endsOn: new Date(Date.UTC(y + 1, 6, 31)),
+      status: 'ACTIVE', isCurrent: true,
+    },
+    update: { status: 'ACTIVE', isCurrent: true },
+  });
+  console.log(`✅ Current academic year: ${year.name}`);
+  return year.id;
+}
+
+/** Every active student must have an enrolment in the current year. */
+async function seedEnrollments(academicYearId: string) {
+  const students = await prisma.user.findMany({
+    where: {
+      role: 'STUDENT', isActive: true, gradeLevel: { not: null }, divisionId: { not: null },
+      studentEnrollments: { none: { academicYearId } },
+    },
+    select: { id: true, gradeLevel: true, divisionId: true, schoolId: true },
+  });
+  for (const s of students) {
+    await prisma.studentEnrollment.create({
+      data: { studentId: s.id, academicYearId, gradeLevel: s.gradeLevel!, divisionId: s.divisionId!, schoolId: s.schoolId },
+    });
+  }
+  if (students.length) console.log(`✅ Enrolled ${students.length} student(s) in the current year`);
 }
 
 async function seedAdmin() {
@@ -154,10 +203,13 @@ async function seedDemo() {
 }
 
 async function main() {
+  const disciplineId = await seedDiscipline();
   await seedDivisions();
-  await seedCourses();
+  await seedCourses(disciplineId);
+  const yearId = await seedAcademicYear();
   await seedAdmin();
   if (process.env.SEED_DEMO === 'true') await seedDemo();
+  await seedEnrollments(yearId);
 }
 
 main()

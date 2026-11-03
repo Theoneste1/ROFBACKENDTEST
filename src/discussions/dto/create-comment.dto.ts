@@ -12,19 +12,10 @@ export class CreateCommentDto {
   content: string;
 
   /**
-   * If set, this comment is a reply to the specified parent comment.
-   * The parent must belong to the same discussion.
-   * Only one level of nesting is supported: a reply cannot itself have a parentId.
+   * If set, this comment is a reply to the specified parent comment in the
+   * same thread. Only one level of nesting is supported.
    */
   @IsOptional()
   @IsUUID()
   parentId?: string;
-
-  /**
-   * Course threads posted by mentors/admins: which division's thread.
-   * Ignored for students and for assignment threads.
-   */
-  @IsOptional()
-  @IsUUID()
-  divisionId?: string;
 }

@@ -11,8 +11,11 @@ function makeMocks() {
       update:     vi.fn().mockResolvedValue({ id: 'u2' }),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       delete:     vi.fn().mockResolvedValue({}),
+      create:     vi.fn().mockResolvedValue({ id: 'u-new' }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ id: 'u-new', username: 'newbie' }),
     },
     school: { findUnique: vi.fn() },
+    studentEnrollment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
@@ -23,9 +26,10 @@ function makeMocks() {
     idForCode:  vi.fn((code: string) => Promise.resolve(`div-${code.toLowerCase()}`)),
   };
   const tokens    = { revokeAllForUser: vi.fn() };
+  const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
 
-  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any);
-  return { service, prisma, audit, divisions, tokens };
+  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any);
+  return { service, prisma, audit, divisions, tokens, academicYears };
 }
 
 describe('UsersService', () => {
@@ -122,40 +126,71 @@ describe('UsersService', () => {
       });
       expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2');
     });
+
+    it('withdraws the active enrolment when a student becomes a mentor', async () => {
+      const { service, prisma, academicYears } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue(existing);
+      await service.update('u2', { role: 'MENTOR' } as any, ADMIN);
+      expect(prisma.studentEnrollment.updateMany.mock.calls[0][0]).toMatchObject({
+        where: { studentId: 'u2', status: 'ACTIVE' }, data: { status: 'WITHDRAWN' },
+      });
+      expect(academicYears.enrollInCurrentYear).not.toHaveBeenCalled();
+    });
+
+    it('re-enrols a student in the current year when their grade changes', async () => {
+      const { service, prisma, divisions, academicYears } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue(existing);
+      prisma.user.update.mockResolvedValue({ schoolId: 'sch1' });
+      await service.update('u2', { gradeLevel: 'S4' } as any, ADMIN);
+      expect(divisions.idForGrade).toHaveBeenCalledWith('S4');
+      expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({ gradeLevel: 'S4', divisionId: 'div-x' });
+      expect(academicYears.enrollInCurrentYear).toHaveBeenCalledWith(prisma, 'u2', 'S4', 'sch1');
+    });
+
+    it('does not touch enrolment when only the name changes', async () => {
+      const { service, prisma, academicYears } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue(existing);
+      await service.update('u2', { firstName: 'Bobby' } as any, ADMIN);
+      expect(academicYears.enrollInCurrentYear).not.toHaveBeenCalled();
+      expect(prisma.studentEnrollment.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('create', () => {
+    const dto = (overrides: Record<string, unknown> = {}) => ({
+      firstName: 'N', lastName: 'B', username: 'newbie', email: 'n@x.rw', password: 'Passw0rd!!',
+      gradeLevel: 'S1', ...overrides,
+    }) as any;
+
+    it('creates a student and enrols them in the current academic year within the transaction', async () => {
+      const { service, prisma, academicYears, audit } = makeMocks();
+      const user = await service.create(dto(), ADMIN);
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ role: 'STUDENT', gradeLevel: 'S1', divisionId: 'div-x' });
+      expect(academicYears.enrollInCurrentYear).toHaveBeenCalledWith(prisma, 'u-new', 'S1', null);
+      expect(user).toEqual({ id: 'u-new', username: 'newbie' });
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'CREATE_USER', entityId: 'u-new' }));
+    });
+
+    it('does not enrol mentors', async () => {
+      const { service, prisma, academicYears } = makeMocks();
+      await service.create(dto({ role: 'MENTOR', gradeLevel: undefined }), ADMIN);
+      expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ role: 'MENTOR', homeLocation: null });
+      expect(academicYears.enrollInCurrentYear).not.toHaveBeenCalled();
+    });
+
+    it('fails (and audits nothing) when enrolment fails', async () => {
+      const { service, academicYears, audit } = makeMocks();
+      academicYears.enrollInCurrentYear.mockRejectedValue(Object.assign(new Error('none'), { code: 'NO_CURRENT_ACADEMIC_YEAR' }));
+      await expect(service.create(dto(), ADMIN)).rejects.toMatchObject({ code: 'NO_CURRENT_ACADEMIC_YEAR' });
+      expect(audit.log).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateMe', () => {
     it('requires at least one field', async () => {
       const { service } = makeMocks();
       await expect(service.updateMe('u1', {})).rejects.toMatchObject({ code: 'NO_CHANGES' });
-    });
-  });
-
-  describe('promoteStudents', () => {
-    it('promotes top-down, moves S3→S4 into the senior division and graduates S6 when asked', async () => {
-      const { service, prisma } = makeMocks();
-      prisma.user.updateMany.mockResolvedValue({ count: 2 });
-
-      const result = await service.promoteStudents(true, ADMIN);
-
-      const calls = prisma.user.updateMany.mock.calls.map((c) => c[0]);
-      expect(calls[0]).toEqual({
-        where: { role: 'STUDENT', gradeLevel: 'S6', isActive: true },
-        data:  { isActive: false },
-      });
-      expect(calls.map((c) => c.where.gradeLevel)).toEqual(['S6', 'S5', 'S4', 'S3', 'S2', 'S1']);
-      const s3 = calls.find((c) => c.where.gradeLevel === 'S3')!;
-      expect(s3.data).toEqual({ gradeLevel: 'S4', divisionId: 'div-senior' });
-      const s1 = calls.find((c) => c.where.gradeLevel === 'S1')!;
-      expect(s1.data).toEqual({ gradeLevel: 'S2', divisionId: 'div-junior' });
-      expect(result.promoted).toMatchObject({ graduated: 2, 'S5->S6': 2, 'S1->S2': 2 });
-    });
-
-    it('leaves S6 students untouched when not graduating', async () => {
-      const { service, prisma } = makeMocks();
-      await service.promoteStudents(false, ADMIN);
-      const grades = prisma.user.updateMany.mock.calls.map((c) => c[0].where.gradeLevel);
-      expect(grades).not.toContain('S6');
     });
   });
 });

@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../common/access/access.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -50,6 +51,7 @@ export class LiveSessionsService {
     private readonly events:        EventEmitter2,
     private readonly notifications: NotificationsService,
     private readonly config:        ConfigService,
+    private readonly academicYears: AcademicYearsService,
   ) {}
 
   async create(dto: CreateLiveSessionDto, user: AuthUser) {
@@ -59,10 +61,12 @@ export class LiveSessionsService {
     await this.access.assertCanManage(user, scope);
 
     const { startsAt, endsAt } = this.validateTimes(dto.startsAt, dto.endsAt);
+    const year = await this.academicYears.current();
 
     const session = await this.prisma.liveSession.create({
       data: {
         ...scope,
+        academicYearId: year.id,
         hostId:      user.id,
         title:       dto.title,
         description: dto.description,

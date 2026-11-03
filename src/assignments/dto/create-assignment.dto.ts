@@ -82,4 +82,5 @@ export class ListAssignmentsDto extends PaginationQueryDto {
   @IsOptional() @IsUUID() divisionId?: string;
   /** Mentors/admins only. */
   @IsOptional() @IsEnum(AssignmentStatus) status?: AssignmentStatus;
+  @IsOptional() @IsUUID() academicYearId?: string;
 }

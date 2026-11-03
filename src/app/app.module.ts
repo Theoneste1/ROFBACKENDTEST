@@ -21,6 +21,8 @@ import { AuditModule } from '../audit/audit.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { DivisionsModule } from '../divisions/divisions.module.js';
+import { AcademicYearsModule } from '../academic-years/academic-years.module.js';
+import { ActivityModule } from '../activity/activity.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { SchoolsModule } from '../schools/schools.module.js';
@@ -67,6 +69,8 @@ import { ReportsModule } from '../reports/reports.module.js';
     AccessModule,
     NotificationsModule,
     DivisionsModule,
+    AcademicYearsModule,
+    ActivityModule,
 
     // ── Features ──────────────────────────────────────────────────────────
     AuthModule,

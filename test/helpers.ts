@@ -22,6 +22,7 @@ export interface TestContext {
 }
 
 export interface BaseIds {
+  year: string;            // the current academic year
   junior: string;
   senior: string;
   algebra: string;
@@ -62,13 +63,23 @@ export async function resetDatabase(prisma: PrismaService) {
 async function seedBase(prisma: PrismaService): Promise<BaseIds> {
   const hash = await bcrypt.hash(PASSWORD, 4);
 
+  const maths  = await prisma.discipline.create({ data: { code: 'MATHEMATICS', name: 'Mathematics' } });
+  const year   = await prisma.academicYear.create({
+    data: {
+      name: '2026-2027', startsOn: new Date('2026-09-01'), endsOn: new Date('2027-07-31'),
+      status: 'ACTIVE', isCurrent: true,
+    },
+  });
   const junior = await prisma.division.create({ data: { code: 'JUNIOR', name: 'Junior' } });
   const senior = await prisma.division.create({ data: { code: 'SENIOR', name: 'Senior' } });
 
   const courses = await Promise.all(
-    (['ALGEBRA', 'GEOMETRY', 'NUMBER_THEORY', 'COMBINATORICS'] as const).map((code, i) =>
+    ['ALGEBRA', 'GEOMETRY', 'NUMBER_THEORY', 'COMBINATORICS'].map((code, i) =>
       prisma.course.create({
-        data: { code, title: code.replace('_', ' '), description: `${code} course`, sortOrder: i, status: 'PUBLISHED', publishedAt: new Date() },
+        data: {
+          code, disciplineId: maths.id, title: code.replace('_', ' '), description: `${code} course`,
+          sortOrder: i, status: 'PUBLISHED', publishedAt: new Date(),
+        },
       }),
     ),
   );
@@ -98,6 +109,15 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
   const studentJunior2 = await user('student.j2', 'STUDENT', 'S3');
   const studentSenior  = await user('student.s', 'STUDENT', 'S5');
 
+  for (const s of [studentJunior, studentJunior2, studentSenior]) {
+    await prisma.studentEnrollment.create({
+      data: {
+        studentId: s.id, academicYearId: year.id, gradeLevel: s.gradeLevel!,
+        divisionId: s.divisionId!, schoolId: s.schoolId,
+      },
+    });
+  }
+
   await prisma.mentorAssignment.createMany({
     data: [
       { mentorId: mentorJunior.id,  courseId: algebra.id, divisionId: junior.id },
@@ -107,7 +127,7 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
   });
 
   return {
-    junior: junior.id, senior: senior.id, algebra: algebra.id, geometry: geometry.id,
+    year: year.id, junior: junior.id, senior: senior.id, algebra: algebra.id, geometry: geometry.id,
     admin: admin.id, mentorJunior: mentorJunior.id, mentorJunior2: mentorJunior2.id,
     mentorSenior: mentorSenior.id, studentJunior: studentJunior.id,
     studentJunior2: studentJunior2.id, studentSenior: studentSenior.id,

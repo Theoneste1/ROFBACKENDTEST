@@ -38,11 +38,14 @@ function makeMocks() {
   const settings      = { get: vi.fn() };
   const divisions     = { idForGrade: vi.fn().mockResolvedValue('div-junior') };
   const notifications = { queueEmail: vi.fn() };
+  const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
+  const activity      = { record: vi.fn() };
 
   const service = new AuthService(
     prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
+    academicYears as any, activity as any,
   );
-  return { service, prisma, tokens, audit, settings, divisions, notifications };
+  return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({
@@ -105,6 +108,17 @@ describe('AuthService', () => {
       expect(result).toEqual({ access_token: 'a', refresh_token: 'r', user: { id: 'u1', username: 'alice' } });
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'LOGIN', actorId: 'u1' }));
     });
+
+    it('records a LOGIN activity on success only', async () => {
+      const { service, prisma, activity } = makeMocks();
+      prisma.user.findFirst.mockResolvedValue(activeUser());
+      await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toThrow();
+      expect(activity.record).not.toHaveBeenCalled();
+
+      prisma.user.update.mockResolvedValue({ id: 'u1' });
+      await service.login({ username: 'alice', password: PASSWORD }, CLIENT);
+      expect(activity.record).toHaveBeenCalledWith('u1', 'LOGIN');
+    });
   });
 
   describe('registerStudent', () => {
@@ -127,6 +141,33 @@ describe('AuthService', () => {
       prisma.mentorRequest.findFirst.mockResolvedValue({ id: 'mr1' });
       await expect(service.registerStudent(dto)).rejects.toMatchObject({ code: 'IDENTITY_TAKEN', status: 409 });
       expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('creates the student and enrols them in the current academic year inside the transaction', async () => {
+      const { service, prisma, settings, academicYears, audit } = makeMocks();
+      settings.get.mockImplementation(async (key: string) => key === 'registration.studentSelfSignup');
+      prisma.school.upsert.mockResolvedValue({ id: 'sch1', name: 'GS Kigali' });
+      prisma.user.create.mockResolvedValue({ id: 'u-new', username: 'ab' });
+
+      const result = await service.registerStudent(dto);
+
+      expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({
+        role: 'STUDENT', gradeLevel: 'S2', divisionId: 'div-junior', schoolId: 'sch1', isApproved: true,
+      });
+      expect(academicYears.enrollInCurrentYear).toHaveBeenCalledWith(prisma, 'u-new', 'S2', 'sch1');
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'REGISTER', entityId: 'u-new' }), prisma);
+      expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false });
+    });
+
+    it('fails the registration when no academic year is current', async () => {
+      const { service, prisma, settings, academicYears, audit } = makeMocks();
+      settings.get.mockResolvedValue(true);
+      prisma.school.upsert.mockResolvedValue({ id: 'sch1', name: 'GS Kigali' });
+      prisma.user.create.mockResolvedValue({ id: 'u-new' });
+      academicYears.enrollInCurrentYear.mockRejectedValue(Object.assign(new Error('none'), { code: 'NO_CURRENT_ACADEMIC_YEAR' }));
+
+      await expect(service.registerStudent(dto)).rejects.toMatchObject({ code: 'NO_CURRENT_ACADEMIC_YEAR' });
+      expect(audit.log).not.toHaveBeenCalled();
     });
   });
 

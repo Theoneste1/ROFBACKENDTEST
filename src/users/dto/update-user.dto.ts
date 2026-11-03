@@ -117,11 +117,3 @@ export class ListUsersQueryDto extends PaginationQueryDto {
   search?: string;
 }
 
-export class PromoteStudentsDto {
-  /**
-   * When true, active S6 students are deactivated (graduated).
-   * When false, S6 students are left unchanged.
-   */
-  @IsBoolean()
-  graduateS6: boolean;
-}

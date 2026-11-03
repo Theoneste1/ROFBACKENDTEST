@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -10,10 +11,11 @@ import {
   Post,
   Query,
   Res,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { IsOptional, IsString, Length } from 'class-validator';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -27,6 +29,27 @@ import { ListSubmissionsDto } from './dto/list-submissions.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
+import {
+  ATTACHMENT_FIELDS,
+  filesFrom,
+  MAX_ATTACHMENTS,
+  type UploadedAttachmentFiles,
+} from '../common/storage/attachments.js';
+
+/** Mentor feedback upload fields: "feedbackFile" (single, legacy) and "feedbackFiles". */
+const FEEDBACK_FIELDS = [
+  { name: 'feedbackFile',  maxCount: 1 },
+  { name: 'feedbackFiles', maxCount: MAX_ATTACHMENTS },
+];
+type FeedbackUpload = { feedbackFile?: Express.Multer.File[]; feedbackFiles?: Express.Multer.File[] };
+const feedbackFiles = (u?: FeedbackUpload) => filesFrom({ file: u?.feedbackFile, files: u?.feedbackFiles });
+
+class PublishResultsDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 1000)
+  note?: string;
+}
 import type { AuthUser } from '../common/auth-user.js';
 
 /**
@@ -45,19 +68,20 @@ export class SubmissionsController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Submit or resubmit (multipart/form-data: `assignmentId`, optional `note`,
-   * file in field `file`). Deadline and resubmission rules apply.
+   * Submit or resubmit (multipart/form-data: "assignmentId", optional "note",
+   * work in "files" — up to 10, e.g. photographed pages — or "file").
+   * Deadline and resubmission rules apply.
    */
   @Post()
   @Roles('STUDENT')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', uploadOptions('SUBMISSION')))
+  @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('SUBMISSION')))
   submit(
     @Body() body: CreateSubmissionDto,
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFiles() upload: UploadedAttachmentFiles | undefined,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.submissionsService.submit(body, user, file);
+    return this.submissionsService.submit(body, user, filesFrom(upload));
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -80,13 +104,31 @@ export class SubmissionsController {
     return this.submissionsService.findOne(id, user);
   }
 
-  /** Latest submitted file. */
+  /** Review history (all cycles with events). Admins: all; mentors: their own cycles. */
+  @Get(':id/reviews')
+  @Roles('ADMIN', 'MENTOR')
+  reviews(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.reviewHistory(id, user);
+  }
+
+  /** First file of the latest submitted version. */
   @Get(':id/file')
   async file(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
     await this.submissionsService.serveSubmissionFile(id, user, res);
   }
 
-  /** File of a specific revision (1 = first submission). */
+  /** A specific submitted file (any revision). */
+  @Get(':id/attachments/:attachmentId/file')
+  async attachmentFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+  ) {
+    await this.submissionsService.serveSubmissionFile(id, user, res, { attachmentId });
+  }
+
+  /** First file of a specific revision (1 = first submission). */
   @Get(':id/revisions/:revisionNumber/file')
   async revisionFile(
     @Param('id', ParseUUIDPipe) id: string,
@@ -94,13 +136,24 @@ export class SubmissionsController {
     @CurrentUser() user: AuthUser,
     @Res() res: Response,
   ) {
-    await this.submissionsService.serveSubmissionFile(id, user, res, revisionNumber);
+    await this.submissionsService.serveSubmissionFile(id, user, res, { revisionNumber });
   }
 
-  /** Mentor feedback attachment (students: only after publication). */
+  /** First mentor feedback file (students: only after publication). */
   @Get(':id/feedback-file')
   async feedbackFile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
     await this.submissionsService.serveFeedbackFile(id, user, res);
+  }
+
+  /** A specific mentor feedback file. */
+  @Get(':id/feedback-files/:attachmentId')
+  async feedbackAttachment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+  ) {
+    await this.submissionsService.serveFeedbackFile(id, user, res, attachmentId);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -129,18 +182,29 @@ export class SubmissionsController {
     return this.submissionsService.startReview(id, user);
   }
 
-  /** Score + formal feedback; optional attachment in field `feedbackFile`. */
+  /** Score + formal feedback; files in "feedbackFiles" (up to 10) or "feedbackFile". */
   @Patch(':id/mark')
   @Roles('MENTOR')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('feedbackFile', uploadOptions('FEEDBACK')))
+  @UseInterceptors(FileFieldsInterceptor(FEEDBACK_FIELDS, uploadOptions('FEEDBACK')))
   mark(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: MarkSubmissionDto,
-    @UploadedFile() feedbackFile: Express.Multer.File | undefined,
+    @UploadedFiles() upload: FeedbackUpload | undefined,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.submissionsService.mark(id, body, user, feedbackFile);
+    return this.submissionsService.mark(id, body, user, feedbackFiles(upload));
+  }
+
+  /** Remove a feedback file from your current review (before returning it). */
+  @Delete(':id/review/attachments/:attachmentId')
+  @Roles('MENTOR')
+  removeFeedbackFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.submissionsService.removeReviewAttachment(id, attachmentId, user);
   }
 
   /** Return the completed review to the administrators. */
@@ -199,11 +263,27 @@ export class AssignmentResultsController {
     return this.submissionsService.distribute(assignmentId, body, user);
   }
 
-  /** Publish every approved result of the assignment. */
+  /** Distribution runs for this assignment (who got what, when). */
+  @Get('distribution-batches')
+  batches(@Param('assignmentId', ParseUUIDPipe) assignmentId: string) {
+    return this.submissionsService.listDistributionBatches(assignmentId);
+  }
+
+  /** Publish every approved result of the assignment as one release. */
   @Post('results/publish')
   @HttpCode(200)
-  publishResults(@Param('assignmentId', ParseUUIDPipe) assignmentId: string, @CurrentUser() user: AuthUser) {
-    return this.submissionsService.publishAssignmentResults(assignmentId, user);
+  publishResults(
+    @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
+    @Body() body: PublishResultsDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.submissionsService.publishAssignmentResults(assignmentId, user, body.note);
+  }
+
+  /** Result releases for this assignment. */
+  @Get('result-releases')
+  releases(@Param('assignmentId', ParseUUIDPipe) assignmentId: string) {
+    return this.submissionsService.listResultReleases(assignmentId);
   }
 }
 

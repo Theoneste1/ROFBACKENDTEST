@@ -9,6 +9,9 @@
  *     ▲                             │ (admin rejects with note)
  *     └──── REJECTED (mentor edits) ◄┘
  *
+ *   Any status ──(admin archives, or the academic year is closed)──► ARCHIVED
+ *   (read-only; existing results stay visible to students).
+ *
  * Mentors act only inside the course × division they are assigned to.
  * Admins never author or edit assignment content.
  *
@@ -28,10 +31,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../common/access/access.service.js';
 import { StorageService } from '../common/storage/storage.service.js';
+import { ATTACHMENT_SELECT, MAX_ATTACHMENTS } from '../common/storage/attachments.js';
+import { AcademicYearsService } from '../academic-years/academic-years.service.js';
+import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
-import type { AssignmentStatus, Prisma } from '../generated/prisma/client.js';
+import type { AssignmentStatus, FileObject, Prisma } from '../generated/prisma/client.js';
 import { Events } from '../notifications/events.js';
 import { deriveStudentDisplayStatus } from '../submissions/student-display-status.js';
 import { CreateAssignmentDto, ListAssignmentsDto } from './dto/create-assignment.dto.js';
@@ -53,10 +59,12 @@ export const ASSIGNMENT_SUMMARY = {
   status:              true,
   publishedAt:         true,
   resultsPublishedAt:  true,
+  archivedAt:          true,
   createdAt:           true,
   courseId:            true,
   divisionId:          true,
-  file:       { select: { id: true, originalName: true, mimeType: true, size: true } },
+  attachments:  { orderBy: { sortOrder: 'asc' as const }, select: ATTACHMENT_SELECT },
+  academicYear: { select: { id: true, name: true } },
   course:     { select: { id: true, code: true, title: true } },
   division:   { select: { id: true, code: true, name: true } },
   createdBy:  { select: { id: true, username: true, firstName: true, lastName: true } },
@@ -83,19 +91,24 @@ export class AssignmentsService {
     private readonly access:   AccessService,
     private readonly storage:  StorageService,
     private readonly events:   EventEmitter2,
+    private readonly academicYears: AcademicYearsService,
+    private readonly activity: ActivityService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
   // MENTOR: prepare
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async create(data: CreateAssignmentDto, user: AuthUser, file?: Express.Multer.File) {
+  async create(data: CreateAssignmentDto, user: AuthUser, files: Express.Multer.File[] = []) {
     const course = await this.prisma.course.findUnique({ where: { id: data.courseId }, select: { id: true, title: true } });
     if (!course) throw new NotFoundException('Course not found.');
     await this.access.assertMentorOf(user, { courseId: data.courseId, divisionId: data.divisionId });
     this.assertResubmissionRules(data.allowResubmission ?? false, data.maxResubmissions ?? 0);
 
-    const stored = file ? await this.storage.store(file, 'ASSIGNMENT_BRIEF', user.id) : null;
+    const year = await this.academicYears.current();
+
+    const stored: FileObject[] = [];
+    for (const f of files) stored.push(await this.storage.store(f, 'ASSIGNMENT_BRIEF', user.id));
 
     const assignment = await this.prisma.assignment.create({
       data: {
@@ -106,7 +119,8 @@ export class AssignmentsService {
         deadline:            new Date(data.deadline),
         points:              data.points,
         maximumMarks:        data.maximumMarks,
-        fileId:              stored?.id ?? null,
+        academicYearId:      year.id,
+        attachments:         { create: stored.map((s, i) => ({ fileId: s.id, sortOrder: i })) },
         allowResubmission:   data.allowResubmission   ?? false,
         maxResubmissions:    data.maxResubmissions    ?? 0,
         allowLateSubmission: data.allowLateSubmission ?? false,
@@ -126,7 +140,7 @@ export class AssignmentsService {
   }
 
   /** Edit a DRAFT or REJECTED assignment (any mentor assigned to its scope). */
-  async update(assignmentId: string, data: UpdateAssignmentDto, user: AuthUser, file?: Express.Multer.File) {
+  async update(assignmentId: string, data: UpdateAssignmentDto, user: AuthUser, files: Express.Multer.File[] = []) {
     const assignment = await this.findOrThrow(assignmentId);
     await this.access.assertMentorOf(user, assignment);
 
@@ -135,7 +149,7 @@ export class AssignmentsService {
         `Cannot edit an assignment in "${assignment.status}" status. Only DRAFT or REJECTED assignments can be edited.`,
       );
     }
-    if (Object.keys(data).length === 0 && !file) {
+    if (Object.keys(data).length === 0 && files.length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'No fields to update.');
     }
     this.assertResubmissionRules(
@@ -143,7 +157,7 @@ export class AssignmentsService {
       data.maxResubmissions ?? assignment.maxResubmissions,
     );
 
-    const stored = file ? await this.storage.store(file, 'ASSIGNMENT_BRIEF', user.id) : null;
+    await this.addAttachmentsInternal(assignmentId, files, user);
 
     const updated = await this.transition(assignmentId, EDITABLE_STATUSES, {
       title:               data.title,
@@ -154,13 +168,12 @@ export class AssignmentsService {
       allowResubmission:   data.allowResubmission,
       maxResubmissions:    data.maxResubmissions,
       allowLateSubmission: data.allowLateSubmission,
-      ...(stored && { fileId: stored.id }),
     });
 
     await this.audit.log({
       actorId: user.id, actorRole: user.role,
       action: 'UPDATE_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-      metadata: { fields: Object.keys(data), fileReplaced: !!stored },
+      metadata: { fields: Object.keys(data), filesAdded: files.length },
     });
     return updated;
   }
@@ -264,6 +277,56 @@ export class AssignmentsService {
     return updated;
   }
 
+  /**
+   * Archive an assignment (any status). It becomes read-only: no new
+   * submissions; reviews in progress can still be finished; published results
+   * stay visible to students. Closing an academic year archives all of its
+   * assignments automatically.
+   */
+  async archive(assignmentId: string, user: AuthUser) {
+    await this.findOrThrow(assignmentId);
+    const updated = await this.transition(
+      assignmentId,
+      ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'REJECTED'],
+      { status: 'ARCHIVED', archivedAt: new Date() },
+    );
+    await this.audit.log({
+      actorId: user.id, actorRole: user.role,
+      action: 'ARCHIVE_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
+    });
+    return updated;
+  }
+
+  // ─── MENTOR: brief attachments (editable statuses only) ───────────────────
+
+  async addAttachments(assignmentId: string, user: AuthUser, files: Express.Multer.File[]) {
+    if (files.length === 0) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach at least one file (field "files").');
+    }
+    const assignment = await this.findOrThrow(assignmentId);
+    await this.access.assertMentorOf(user, assignment);
+    if (!EDITABLE_STATUSES.includes(assignment.status)) {
+      throw invalidState('Files can only be changed while the assignment is DRAFT or REJECTED.');
+    }
+    await this.addAttachmentsInternal(assignmentId, files, user);
+    return this.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: STAFF_DETAIL });
+  }
+
+  async removeAttachment(assignmentId: string, attachmentId: string, user: AuthUser) {
+    const assignment = await this.findOrThrow(assignmentId);
+    await this.access.assertMentorOf(user, assignment);
+    if (!EDITABLE_STATUSES.includes(assignment.status)) {
+      throw invalidState('Files can only be changed while the assignment is DRAFT or REJECTED.');
+    }
+    const { count } = await this.prisma.assignmentAttachment.deleteMany({ where: { id: attachmentId, assignmentId } });
+    if (count === 0) throw new NotFoundException('Attachment not found.');
+    await this.audit.log({
+      actorId: user.id, actorRole: user.role,
+      action: 'REMOVE_ASSIGNMENT_FILE', entity: 'Assignment', entityId: assignmentId, metadata: { attachmentId },
+    });
+    return this.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: STAFF_DETAIL });
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Read
   // ═══════════════════════════════════════════════════════════════════════════
@@ -283,6 +346,7 @@ export class AssignmentsService {
         scope ?? {},
         user.role === 'STUDENT' ? { status: 'PUBLISHED' } : q.status ? { status: q.status } : {},
         q.courseId   ? { courseId: q.courseId } : {},
+        q.academicYearId ? { academicYearId: q.academicYearId } : {},
         q.divisionId && user.role !== 'STUDENT' ? { divisionId: q.divisionId } : {},
       ],
     };
@@ -314,6 +378,9 @@ export class AssignmentsService {
     if (assignment.status !== 'PUBLISHED') throw new NotFoundException('Assignment not found.');
 
     await this.recordView(assignmentId, user.id);
+    this.activity.record(user.id, 'ASSIGNMENT_VIEWED', {
+      courseId: assignment.courseId, entityType: 'Assignment', entityId: assignmentId,
+    });
 
     const submission = await this.prisma.submission.findUnique({
       where:  { assignmentId_studentId: { assignmentId, studentId: user.id } },
@@ -381,20 +448,29 @@ export class AssignmentsService {
     return paginated(data, total, page, limit);
   }
 
-  /** Download the assignment brief. Same visibility rules as findOne. */
-  async serveFile(assignmentId: string, user: AuthUser, res: Response, forceDownload = false) {
+  /**
+   * Download a brief attachment (the first one when attachmentId is omitted).
+   * Same visibility rules as findOne; students may still open the brief of an
+   * archived assignment they can see results for.
+   */
+  async serveFile(assignmentId: string, user: AuthUser, res: Response, forceDownload = false, attachmentId?: string) {
     const assignment = await this.prisma.assignment.findUnique({
       where:  { id: assignmentId },
-      select: { courseId: true, divisionId: true, status: true, file: true },
+      select: { courseId: true, divisionId: true, status: true },
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, assignment);
-    if (user.role === 'STUDENT' && assignment.status !== 'PUBLISHED') {
+    if (user.role === 'STUDENT' && !['PUBLISHED', 'ARCHIVED'].includes(assignment.status)) {
       throw new NotFoundException('Assignment not found.');
     }
-    if (!assignment.file) throw new NotFoundException('No file attached to this assignment.');
+    const attachment = await this.prisma.assignmentAttachment.findFirst({
+      where:   { assignmentId, ...(attachmentId && { id: attachmentId }) },
+      orderBy: { sortOrder: 'asc' },
+      include: { file: true },
+    });
+    if (!attachment) throw new NotFoundException('No such file on this assignment.');
 
-    await this.storage.send(res, assignment.file, { download: forceDownload });
+    await this.storage.send(res, attachment.file, { download: forceDownload });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -424,6 +500,21 @@ export class AssignmentsService {
       );
     }
     return this.prisma.assignment.findUniqueOrThrow({ where: { id }, select: STAFF_DETAIL });
+  }
+
+  private async addAttachmentsInternal(assignmentId: string, files: Express.Multer.File[], user: AuthUser) {
+    if (files.length === 0) return;
+    const existing = await this.prisma.assignmentAttachment.aggregate({
+      where: { assignmentId }, _count: { _all: true }, _max: { sortOrder: true },
+    });
+    if (existing._count._all + files.length > MAX_ATTACHMENTS) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_FILES', `An assignment can have at most ${MAX_ATTACHMENTS} files.`);
+    }
+    let order = (existing._max.sortOrder ?? -1) + 1;
+    for (const f of files) {
+      const stored = await this.storage.store(f, 'ASSIGNMENT_BRIEF', user.id);
+      await this.prisma.assignmentAttachment.create({ data: { assignmentId, fileId: stored.id, sortOrder: order++ } });
+    }
   }
 
   private assertResubmissionRules(allow: boolean, max: number) {

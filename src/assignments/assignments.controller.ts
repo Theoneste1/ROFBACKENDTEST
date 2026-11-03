@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -8,10 +9,10 @@ import {
   Post,
   Query,
   Res,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -22,6 +23,7 @@ import { RejectAssignmentDto } from './dto/reject-assignment.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
+import { ATTACHMENT_FIELDS, filesFrom, type UploadedAttachmentFiles } from '../common/storage/attachments.js';
 import type { AuthUser } from '../common/auth-user.js';
 
 @ApiTags('Assignments')
@@ -31,31 +33,57 @@ export class AssignmentsController {
 
   // ─── MENTOR: prepare ──────────────────────────────────────────────────────
 
-  /** Create a draft (multipart/form-data; optional brief in field `file`). */
+  /**
+   * Create a draft in the current academic year (multipart/form-data; brief
+   * files in "files" — up to 10 — or "file").
+   */
   @Post()
   @Roles('MENTOR')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', uploadOptions('ASSIGNMENT_BRIEF')))
+  @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('ASSIGNMENT_BRIEF')))
   create(
     @Body() body: CreateAssignmentDto,
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFiles() upload: UploadedAttachmentFiles | undefined,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.assignmentsService.create(body, user, file);
+    return this.assignmentsService.create(body, user, filesFrom(upload));
   }
 
-  /** Edit a DRAFT or REJECTED assignment. */
+  /** Edit a DRAFT or REJECTED assignment; uploaded files are added to the brief. */
   @Patch(':id')
   @Roles('MENTOR')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', uploadOptions('ASSIGNMENT_BRIEF')))
+  @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('ASSIGNMENT_BRIEF')))
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateAssignmentDto,
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFiles() upload: UploadedAttachmentFiles | undefined,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.assignmentsService.update(id, body, user, file);
+    return this.assignmentsService.update(id, body, user, filesFrom(upload));
+  }
+
+  /** Add brief files (DRAFT/REJECTED only). */
+  @Post(':id/attachments')
+  @Roles('MENTOR')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('ASSIGNMENT_BRIEF')))
+  addAttachments(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFiles() upload: UploadedAttachmentFiles | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.assignmentsService.addAttachments(id, user, filesFrom(upload));
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  @Roles('MENTOR')
+  removeAttachment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.assignmentsService.removeAttachment(id, attachmentId, user);
   }
 
   /** Send to the administrators for official publication. */
@@ -97,6 +125,13 @@ export class AssignmentsController {
     return this.assignmentsService.unpublish(id, user);
   }
 
+  /** Read-only from now on; results stay visible. */
+  @Patch(':id/archive')
+  @Roles('ADMIN')
+  archive(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.assignmentsService.archive(id, user);
+  }
+
   // ─── Read (scoped by role) ────────────────────────────────────────────────
 
   /**
@@ -114,7 +149,7 @@ export class AssignmentsController {
     return this.assignmentsService.findOne(id, user);
   }
 
-  /** Download the assignment brief. */
+  /** Download the (first) brief file. */
   @Get(':id/file')
   async download(
     @Param('id', ParseUUIDPipe) id: string,
@@ -123,6 +158,18 @@ export class AssignmentsController {
     @Res() res: Response,
   ) {
     await this.assignmentsService.serveFile(id, user, res, download === 'true' || download === '1');
+  }
+
+  /** Download a specific brief file. */
+  @Get(':id/attachments/:attachmentId/file')
+  async downloadAttachment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Query('download') download: string | undefined,
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+  ) {
+    await this.assignmentsService.serveFile(id, user, res, download === 'true' || download === '1', attachmentId);
   }
 }
 

@@ -147,8 +147,9 @@ export class NotificationListener {
   async onReviewSentBack(e: SubmissionEvent) {
     await this.safe('review sent back', async () => {
       const s = await this.submission(e.submissionId);
-      if (!s?.mentorId) return;
-      await this.notifications.notify([s.mentorId], {
+      const mentorId = s?.currentReview?.mentorId;
+      if (!s || !mentorId) return;
+      await this.notifications.notify([mentorId], {
         category: 'REVIEWS',
         type:     Events.ReviewRejected,
         title:    'Review returned to you',
@@ -260,8 +261,9 @@ export class NotificationListener {
     return this.prisma.submission.findUnique({
       where:  { id },
       select: {
-        id: true, studentId: true, mentorId: true, assignmentId: true, isLate: true,
-        assignment: { select: { title: true } },
+        id: true, studentId: true, assignmentId: true, isLate: true,
+        assignment:    { select: { title: true } },
+        currentReview: { select: { mentorId: true } },
       },
     });
   }

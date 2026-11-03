@@ -41,10 +41,19 @@ Cross-cutting: AllExceptionsFilter · request id · AuditService · SettingsServ
   separate content.
 - **Mentor assignments** — admins assign mentors to scopes
   (`MentorAssignment`). A mentor can only act inside their active scopes.
-- **Enrollment** — a student is enrolled in all four courses of their division.
-  `CourseEnrollment` tracks per-course progress (Unrolled → Rolled → Completed).
-- **Annual promotion** — `POST /admin/users/promote-students` moves every active
-  student up one grade (S3 → S4 changes division) and can graduate S6.
+- **Disciplines** — courses belong to a `Discipline` (Mathematics at launch);
+  more subjects are new rows, not schema changes.
+- **Academic years** — exactly one `AcademicYear` is current. Each student has
+  a `StudentEnrollment` per year (grade, division, school, status); the
+  current placement is mirrored on `User` for fast scoping. Assignments and
+  live sessions belong to a year.
+- **Enrollment in courses** — a student follows all four courses of their
+  division; `CourseEnrollment` tracks per-course progress (Unrolled → Rolled →
+  Completed).
+- **New school year** — `POST /admin/academic-years/:id/activate` closes the
+  current year (archiving its assignments) and rolls every active student
+  over, promoting them one grade when asked (S3 → S4 changes division; S6
+  graduates). Enrolment history is kept.
 
 ## 3. Authorization
 
@@ -97,8 +106,14 @@ SUBMITTED ─assign/distribute─► ASSIGNED ─start─► IN_REVIEW ─mark�
                                                               └──── reopen ◄── PUBLISHED ◄─publish── APPROVED
 ```
 
+- The academic review lives in `MentorReview`. Each assignment of a mentor,
+  reassignment or reopen starts a new review **cycle**; earlier cycles stay as
+  history (SUPERSEDED / CANCELLED) and every step is a `ReviewEvent`. Each
+  distribution run is a `DistributionBatch`; each results publication a
+  `ResultRelease`.
 - Students may resubmit while `SUBMITTED`/`ASSIGNED`, before the deadline, within
-  `maxResubmissions`. Revisions are numbered 1, 2, 3 … and kept with their files.
+  `maxResubmissions`. Revisions are numbered 1, 2, 3 … and each keeps its files
+  (several per attempt).
 - `allowLateSubmission` accepts a first submission after the deadline, flagged `isLate`.
 - Distribution strategies: `BALANCED` (fewest open reviews) or `ROUND_ROBIN`,
   limited to active mentors of the assignment's scope.
@@ -116,27 +131,18 @@ them. Leaderboards are per division and use SQL `RANK()`.
 
 ## 5. Data model
 
-See `prisma/schema.prisma` (commented). Groups:
+**See [DATABASE.md](DATABASE.md)** for the ERD, every table, integrity rules,
+deletion/archival/retention policies, migrations and seeding. Groups:
 
 | Area | Models |
 |---|---|
 | Identity | User, RefreshToken, PasswordResetToken, TokenBlacklist, MentorRequest, School |
-| Structure | Division, Course, MentorAssignment, CourseEnrollment |
-| Content | CourseResource, ResourceView, LiveSession, FileObject |
-| Assessment | Assignment, AssignmentView, Submission, SubmissionRevision |
-| Community | Comment, CommentReaction, StudyGroup, StudyGroupMember |
+| Structure | Discipline, Course, Division, AcademicYear, StudentEnrollment, MentorAssignment, CourseEnrollment |
+| Content | CourseResource, ResourceAttachment, ResourceView, LiveSession, FileObject |
+| Assessment | Assignment, AssignmentAttachment, AssignmentView, Submission, SubmissionRevision, SubmissionAttachment, DistributionBatch, MentorReview, ReviewAttachment, ReviewEvent, ResultRelease |
+| Community | DiscussionThread, Comment, CommentReaction, ContentReport, ModerationAction, StudyGroup, StudyGroupMember |
 | Messaging | Notification, NotificationPreference, EmailJob, EmailDelivery |
-| Admin | SystemSetting, AuditLog |
-
-Database-level guarantees beyond foreign keys: one submission per
-(assignment, student); unique revision numbers; CHECK constraints for comment
-targets, student grade/division, positive marks and session times.
-
-**Migrations.** The pre-2026-11 history could not build a database and was
-moved to `prisma/migrations_archive/`. `prisma/migrations/` starts from a single
-baseline. From now on, change `schema.prisma`, run `npm run db:migrate:dev`,
-and commit the generated migration. Prefer additive changes (add → backfill →
-enforce → drop later); never edit an applied migration.
+| Admin | SystemSetting, AuditLog, ActivityLog |
 
 ## 6. Files
 

@@ -2,7 +2,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AppError } from '../common/errors/app-error.js';
-import { OPEN_REVIEW } from '../submissions/submissions.constants.js';
+import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { toCsv } from './csv.js';
 
 const MAX_ROWS = 50_000;
@@ -62,11 +62,12 @@ export class ReportsService {
       orderBy: [{ assignment: { deadline: 'asc' } }, { student: { lastName: 'asc' } }],
       take:    MAX_ROWS,
       select: {
-        status: true, score: true, percentage: true, pointsAwarded: true, isLate: true,
+        status: true, pointsAwarded: true, isLate: true,
         revisionCount: true, submittedAt: true, publishedAt: true,
+        publishedReview: { select: { score: true, percentage: true } },
+        currentReview:   { select: { mentor: { select: { firstName: true, lastName: true } } } },
         assignment: { select: { title: true, maximumMarks: true, course: { select: { title: true } }, division: { select: { name: true } } } },
         student:    { select: { firstName: true, lastName: true, username: true, gradeLevel: true, school: { select: { name: true } } } },
-        mentor:     { select: { firstName: true, lastName: true } },
       },
     });
 
@@ -77,10 +78,10 @@ export class ReportsService {
         r.assignment.course.title, r.assignment.division.name, r.assignment.title,
         `${r.student.firstName} ${r.student.lastName}`, r.student.username, r.student.gradeLevel,
         r.student.school?.name, r.status,
-        r.status === 'PUBLISHED' ? r.score : null, r.assignment.maximumMarks,
-        r.status === 'PUBLISHED' ? r.percentage : null, r.pointsAwarded,
+        r.publishedReview?.score ?? null, r.assignment.maximumMarks,
+        r.publishedReview?.percentage ?? null, r.pointsAwarded,
         r.isLate ? 'yes' : 'no', r.revisionCount,
-        r.mentor ? `${r.mentor.firstName} ${r.mentor.lastName}` : null,
+        r.currentReview ? `${r.currentReview.mentor.firstName} ${r.currentReview.mentor.lastName}` : null,
         r.submittedAt, r.publishedAt,
       ]),
     );
@@ -101,7 +102,7 @@ export class ReportsService {
           isActive: true, points: true, problemsSolved: true, lastLoginAt: true,
           school: { select: { name: true } },
           courseEnrollments: { select: { courseId: true, status: true } },
-          submissions: { select: { status: true, percentage: true } },
+          submissions: { select: { status: true, publishedReview: { select: { percentage: true } } } },
         },
       }),
       this.prisma.course.findMany({ orderBy: { sortOrder: 'asc' }, select: { id: true, title: true } }),
@@ -113,7 +114,7 @@ export class ReportsService {
       students.map((s) => {
         const published = s.submissions.filter((x) => x.status === 'PUBLISHED');
         const avg = published.length
-          ? Math.round((published.reduce((a, x) => a + (x.percentage ?? 0), 0) / published.length) * 10) / 10
+          ? Math.round((published.reduce((a, x) => a + (x.publishedReview?.percentage ?? 0), 0) / published.length) * 10) / 10
           : null;
         return [
           `${s.firstName} ${s.lastName}`, s.username, s.email, s.gradeLevel, s.school?.name,
@@ -136,18 +137,16 @@ export class ReportsService {
           where:  { isActive: true },
           select: { course: { select: { title: true } }, division: { select: { name: true } } },
         },
-        assignedSubmissions: { select: { status: true, assignedAt: true, submittedToAdminAt: true } },
+        reviews: { select: { status: true, assignedAt: true, returnedAt: true } },
       },
     });
 
     return toCsv(
       ['Mentor', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours'],
       mentors.map((m) => {
-        const open     = m.assignedSubmissions.filter((s) => OPEN_REVIEW.includes(s.status)).length;
-        const returned = m.assignedSubmissions.filter((s) => s.submittedToAdminAt);
-        const hours = returned
-          .filter((s) => s.assignedAt)
-          .map((s) => (s.submittedToAdminAt!.getTime() - s.assignedAt!.getTime()) / 3_600_000);
+        const open     = m.reviews.filter((r) => OPEN_REVIEW_STATUSES.includes(r.status)).length;
+        const returned = m.reviews.filter((r) => r.returnedAt);
+        const hours = returned.map((r) => (r.returnedAt!.getTime() - r.assignedAt.getTime()) / 3_600_000);
         return [
           `${m.firstName} ${m.lastName}`, m.username, m.email, m.isActive ? 'yes' : 'no',
           m.mentorAssignments.map((a) => `${a.course.title} (${a.division.name})`).join('; '),

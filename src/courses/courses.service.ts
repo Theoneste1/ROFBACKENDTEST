@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../common/access/access.service.js';
+import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import type { CourseEnrollmentStatus } from '../generated/prisma/client.js';
@@ -30,12 +31,15 @@ const COURSE_SELECT = {
   status:      true,
   sortOrder:   true,
   publishedAt: true,
+  archivedAt:  true,
+  discipline:  { select: { id: true, code: true, name: true } },
 } as const;
 
 /**
- * The four fixed Mathematics courses (Algebra, Geometry, Number Theory,
- * Combinatorics). Courses are created by the seed; admins may edit their
- * text and visibility but cannot create or delete them.
+ * Courses belong to a discipline (launch: the four Mathematics courses —
+ * Algebra, Geometry, Number Theory, Combinatorics). Courses are created by
+ * the seed; admins may edit their text and visibility, and archive them, but
+ * never delete them.
  */
 @Injectable()
 export class CoursesService {
@@ -43,6 +47,7 @@ export class CoursesService {
     private readonly prisma:  PrismaService,
     private readonly audit:   AuditService,
     private readonly access:  AccessService,
+    private readonly activity: ActivityService,
   ) {}
 
   // ─── List courses visible to the caller ────────────────────────────────────
@@ -119,6 +124,7 @@ export class CoursesService {
       if (course.status !== 'PUBLISHED') throw new NotFoundException('Course not found.');
       const divisionId = this.access.studentDivision(user);
       const enrollment = await this.recordCourseView(courseId, user.id);
+      this.activity.record(user.id, 'COURSE_OPENED', { courseId, entityType: 'Course', entityId: courseId });
       const counts = await this.prisma.course.findUnique({
         where:  { id: courseId },
         select: {
@@ -183,6 +189,35 @@ export class CoursesService {
     return updated;
   }
 
+  // ─── ADMIN: Archive ────────────────────────────────────────────────────────
+  //
+  // Archiving keeps everything (content, results, history) but hides the course
+  // from students and stops new work. It can be re-published later.
+  async archive(courseId: string, caller: CallerCtx) {
+    const course = await this.findOrThrow(courseId);
+    if (course.status === 'ARCHIVED') throw invalidState('Course is already archived.');
+
+    const updated = await this.prisma.course.update({
+      where:  { id: courseId },
+      data:   { status: 'ARCHIVED', archivedAt: new Date() },
+      select: COURSE_SELECT,
+    });
+    await this.audit.log({
+      actorId: caller.id, actorRole: caller.role,
+      action: 'ARCHIVE_COURSE', entity: 'Course', entityId: courseId,
+    });
+    return updated;
+  }
+
+  /** Disciplines (subject areas). Mathematics only at launch. */
+  async listDisciplines() {
+    return this.prisma.discipline.findMany({
+      where:   { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select:  { id: true, code: true, name: true, description: true, _count: { select: { courses: true } } },
+    });
+  }
+
   // ─── ADMIN: Publish / unpublish ────────────────────────────────────────────
   //
   // An unpublished course hides ALL of its content from students (resources,
@@ -196,7 +231,7 @@ export class CoursesService {
 
     const updated = await this.prisma.course.update({
       where:  { id: courseId },
-      data:   { status: target, publishedAt: publish ? new Date() : null },
+      data:   { status: target, publishedAt: publish ? new Date() : null, archivedAt: null },
       select: COURSE_SELECT,
     });
 
@@ -244,6 +279,7 @@ export class CoursesService {
       actorId: user.id, actorRole: user.role,
       action: 'COMPLETE_COURSE', entity: 'CourseEnrollment', entityId: updated.id, metadata: { courseId },
     });
+    this.activity.record(user.id, 'COURSE_COMPLETED', { courseId, entityType: 'Course', entityId: courseId });
 
     return {
       courseId,

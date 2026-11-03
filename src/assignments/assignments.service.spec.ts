@@ -31,9 +31,13 @@ function makeMocks() {
   const access  = { assertMentorOf: vi.fn().mockResolvedValue(undefined) };
   const storage = { store: vi.fn().mockResolvedValue({ id: 'file-1' }) };
   const events  = { emit: vi.fn() };
+  const academicYears = { current: vi.fn().mockResolvedValue({ id: 'y1', name: '2026-2027' }) };
+  const activity = { record: vi.fn() };
 
-  const service = new AssignmentsService(prisma as any, audit as any, access as any, storage as any, events as any);
-  return { service, prisma, audit, access, storage, events };
+  const service = new AssignmentsService(
+    prisma as any, audit as any, access as any, storage as any, events as any, academicYears as any, activity as any,
+  );
+  return { service, prisma, audit, access, storage, events, academicYears, activity };
 }
 
 const createDto = (overrides: Record<string, unknown> = {}) => ({
@@ -43,12 +47,16 @@ const createDto = (overrides: Record<string, unknown> = {}) => ({
 
 describe('AssignmentsService', () => {
   describe('create', () => {
-    it('creates a DRAFT owned by the mentor', async () => {
-      const { service, prisma, access, audit } = makeMocks();
+    it('creates a DRAFT owned by the mentor in the current academic year', async () => {
+      const { service, prisma, access, audit, academicYears } = makeMocks();
       await service.create(createDto(), MENTOR);
       expect(access.assertMentorOf).toHaveBeenCalledWith(MENTOR, { courseId: 'c1', divisionId: 'd1' });
+      expect(academicYears.current).toHaveBeenCalled();
       const data = prisma.assignment.create.mock.calls[0][0].data;
-      expect(data).toMatchObject({ status: 'DRAFT', createdById: 'm1', fileId: null, allowResubmission: false, maxResubmissions: 0 });
+      expect(data).toMatchObject({
+        status: 'DRAFT', createdById: 'm1', academicYearId: 'y1', allowResubmission: false, maxResubmissions: 0,
+        attachments: { create: [] },
+      });
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'CREATE_ASSIGNMENT' }));
     });
 
@@ -73,12 +81,24 @@ describe('AssignmentsService', () => {
       expect(prisma.assignment.create).not.toHaveBeenCalled();
     });
 
-    it('stores an attached brief and links it', async () => {
+    it('fails without a current academic year and stores nothing', async () => {
+      const { service, prisma, storage, academicYears } = makeMocks();
+      academicYears.current.mockRejectedValue(Object.assign(new Error('none'), { code: 'NO_CURRENT_ACADEMIC_YEAR' }));
+      await expect(service.create(createDto(), MENTOR, [{ buffer: Buffer.from('x') } as Express.Multer.File]))
+        .rejects.toMatchObject({ code: 'NO_CURRENT_ACADEMIC_YEAR' });
+      expect(storage.store).not.toHaveBeenCalled();
+      expect(prisma.assignment.create).not.toHaveBeenCalled();
+    });
+
+    it('stores attached briefs and links them as ordered attachments', async () => {
       const { service, prisma, storage } = makeMocks();
       const file = { buffer: Buffer.from('x') } as Express.Multer.File;
-      await service.create(createDto(), MENTOR, file);
+      storage.store.mockResolvedValueOnce({ id: 'file-1' }).mockResolvedValueOnce({ id: 'file-2' });
+      await service.create(createDto(), MENTOR, [file, file]);
       expect(storage.store).toHaveBeenCalledWith(file, 'ASSIGNMENT_BRIEF', 'm1');
-      expect(prisma.assignment.create.mock.calls[0][0].data.fileId).toBe('file-1');
+      expect(prisma.assignment.create.mock.calls[0][0].data.attachments).toEqual({
+        create: [{ fileId: 'file-1', sortOrder: 0 }, { fileId: 'file-2', sortOrder: 1 }],
+      });
     });
   });
 

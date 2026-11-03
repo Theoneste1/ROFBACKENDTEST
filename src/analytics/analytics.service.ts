@@ -53,7 +53,10 @@ export class AnalyticsService {
       }),
       this.prisma.submission.findMany({
         where:  { assignment: scope, status: 'PUBLISHED' },
-        select: { assignmentId: true, percentage: true, isLate: true, assignedAt: true, submittedToAdminAt: true },
+        select: {
+          assignmentId: true, isLate: true,
+          publishedReview: { select: { percentage: true, assignedAt: true, returnedAt: true } },
+        },
       }),
       this.prisma.submission.groupBy({
         by: ['status'], where: { assignment: scope }, _count: { _all: true },
@@ -91,8 +94,8 @@ export class AnalyticsService {
         completionRate: rate(enrolled['COMPLETED'] ?? 0, students),
       },
       assignments: assignments.map((a) => {
-        const results = published.filter((p) => p.assignmentId === a.id);
-        const pct     = results.map((r) => r.percentage ?? 0).sort((x, y) => x - y);
+        const results = published.filter((p) => p.assignmentId === a.id).map((p) => p.publishedReview);
+        const pct     = results.map((r) => r?.percentage ?? 0).sort((x, y) => x - y);
         return {
           id:                 a.id,
           title:              a.title,
@@ -139,9 +142,9 @@ function median(sorted: number[]) {
 }
 
 /** Mean hours from distribution to the mentor returning the review. */
-function avgHours(rows: Array<{ assignedAt: Date | null; submittedToAdminAt: Date | null }>) {
+function avgHours(rows: Array<{ assignedAt: Date; returnedAt: Date | null } | null>) {
   const spans = rows
-    .filter((r) => r.assignedAt && r.submittedToAdminAt)
-    .map((r) => (r.submittedToAdminAt!.getTime() - r.assignedAt!.getTime()) / 3_600_000);
+    .filter((r): r is { assignedAt: Date; returnedAt: Date } => !!r?.returnedAt)
+    .map((r) => (r.returnedAt.getTime() - r.assignedAt.getTime()) / 3_600_000);
   return spans.length ? round(spans.reduce((s, v) => s + v, 0) / spans.length) : null;
 }

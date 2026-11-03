@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -51,4 +52,10 @@ export class ListResourcesDto {
   @IsOptional()
   @IsEnum(ResourceType)
   type?: ResourceType;
+
+  /** Mentors/admins: include archived resources. */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  includeArchived?: boolean;
 }

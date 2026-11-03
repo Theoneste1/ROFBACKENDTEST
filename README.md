@@ -10,8 +10,10 @@ courses (Algebra, Geometry, Number Theory, Combinatorics).
 - Local-disk or S3-compatible file storage
 - In-app notifications and e-mail via a background outbox
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for running it in production.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design,
+[docs/DATABASE.md](docs/DATABASE.md) for the data model (ERD, policies,
+migrations and seeding) and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for
+running it in production.
 
 ---
 
@@ -77,7 +79,8 @@ The seed prints the generated admin password once (or uses `SEED_ADMIN_PASSWORD`
 | Courses & resources | Read (own division) | Manage in assigned course × division | Manage all; edit/publish the 4 courses |
 | Assignments | View, submit, resubmit | **Prepare** (draft → submit for publication) | **Publish** / reject / unpublish |
 | Submissions | Own only | **Review, score, feedback** (assigned to them) | Distribute, approve/return, **publish results** — never grade |
-| Discussions | Own division | Assigned scopes | Moderate |
+| Discussions (threads) | Own division; report content | Assigned scopes | Moderate reports; lock/hide/archive |
+| Academic years | Own enrolment history | — | Plan, activate (promotes students), enrolments |
 | Live sessions | View (own division) | Schedule (assigned scopes) | All |
 | Analytics / reports | — | Course analytics (own scopes) | Everything + CSV exports |
 | Accounts & settings | Own profile | Own profile | Users, divisions, mentor assignments, settings |

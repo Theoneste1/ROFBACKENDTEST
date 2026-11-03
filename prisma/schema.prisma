@@ -41,18 +41,30 @@ enum GradeLevel {
   S6
 }
 
-/// The four fixed Mathematics courses.
-enum CourseCode {
-  ALGEBRA
-  GEOMETRY
-  NUMBER_THEORY
-  COMBINATORICS
-}
-
-/// Courses are fixed and admin-managed: they are either visible or not.
+/// Course visibility. ARCHIVED courses are read-only and hidden from students.
 enum CourseStatus {
   DRAFT
   PUBLISHED
+  ARCHIVED
+}
+
+/// Lifecycle of an academic year. Exactly one year is current at a time.
+enum AcademicYearStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+}
+
+/// A student's enrolment in one academic year.
+///   ACTIVE    – current placement
+///   PROMOTED  – moved on to the next grade in a later year
+///   GRADUATED – completed S6
+///   WITHDRAWN – left the programme
+enum StudentEnrollmentStatus {
+  ACTIVE
+  PROMOTED
+  GRADUATED
+  WITHDRAWN
 }
 
 /**
@@ -86,11 +98,56 @@ enum ResourceType {
 
 /// Assignment workflow: mentors prepare, admins officially publish.
 ///   DRAFT → PENDING_APPROVAL → PUBLISHED   (or REJECTED → edited → PENDING_APPROVAL)
+///   ARCHIVED: closed after its academic year (read-only; results stay visible).
 enum AssignmentStatus {
   DRAFT
   PENDING_APPROVAL
   PUBLISHED
   REJECTED
+  ARCHIVED
+}
+
+/// How submissions were spread across mentors.
+enum DistributionStrategy {
+  BALANCED
+  ROUND_ROBIN
+  MANUAL
+}
+
+/// State of one mentor review (one row per review cycle).
+///   ASSIGNED    – distributed to the mentor
+///   IN_PROGRESS – mentor started reviewing
+///   MARKED      – score + feedback saved (draft)
+///   RETURNED    – mentor returned the completed review to the admins
+///   APPROVED    – admin accepted it, ready to publish
+///   SENT_BACK   – admin returned it to the mentor for rework
+///   PUBLISHED   – result released to the student
+///   SUPERSEDED  – replaced by a later cycle (reassignment or reopen)
+///   CANCELLED   – the student replaced their work before review started
+enum ReviewStatus {
+  ASSIGNED
+  IN_PROGRESS
+  MARKED
+  RETURNED
+  APPROVED
+  SENT_BACK
+  PUBLISHED
+  SUPERSEDED
+  CANCELLED
+}
+
+/// Immutable review history entries.
+enum ReviewEventType {
+  ASSIGNED
+  STARTED
+  MARKED
+  RETURNED
+  APPROVED
+  SENT_BACK
+  PUBLISHED
+  REOPENED
+  REASSIGNED
+  CANCELLED
 }
 
 /// Submission / review workflow.
@@ -129,6 +186,62 @@ enum CommentStatus {
   ACTIVE
   HIDDEN
   DELETED
+}
+
+/// Discussion thread state.
+///   OPEN     – anyone in scope can reply
+///   LOCKED   – readable, no new replies
+///   HIDDEN   – removed by moderation (admins only)
+///   ARCHIVED – read-only, kept for history
+enum ThreadStatus {
+  OPEN
+  LOCKED
+  HIDDEN
+  ARCHIVED
+}
+
+enum ReportReason {
+  SPAM
+  ABUSE
+  INAPPROPRIATE
+  OFF_TOPIC
+  ACADEMIC_DISHONESTY
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum ModerationActionType {
+  HIDE_COMMENT
+  RESTORE_COMMENT
+  DELETE_COMMENT
+  HIDE_THREAD
+  RESTORE_THREAD
+  LOCK_THREAD
+  UNLOCK_THREAD
+  PIN_THREAD
+  UNPIN_THREAD
+  ARCHIVE_THREAD
+  DISMISS_REPORT
+}
+
+/// Learning activity recorded for analytics (not security auditing).
+enum ActivityType {
+  LOGIN
+  COURSE_OPENED
+  COURSE_COMPLETED
+  RESOURCE_VIEWED
+  ASSIGNMENT_VIEWED
+  SUBMISSION_CREATED
+  SUBMISSION_RESUBMITTED
+  RESULT_VIEWED
+  THREAD_CREATED
+  COMMENT_POSTED
+  LIVE_SESSION_OPENED
 }
 
 enum ReactionType {
@@ -220,6 +333,10 @@ model User {
   problemsSolved Int     @default(0)
 
   // ── Student-only fields (NULL for mentors and admins) ──────────────────────
+  // Current placement. The authoritative per-year history is StudentEnrollment;
+  // these columns mirror the ACTIVE enrolment of the current academic year so
+  // every request can scope a student without a join. Both are updated in the
+  // same transaction.
   gradeLevel   GradeLevel?
   divisionId   String?
   division     Division?   @relation(fields: [divisionId], references: [id])
@@ -256,6 +373,18 @@ model User {
   passwordResetTokens   PasswordResetToken[]
   filesUploaded         FileObject[]
   settingsUpdated       SystemSetting[]
+  studentEnrollments    StudentEnrollment[]
+  reviews               MentorReview[]           @relation("ReviewMentor")
+  reviewsAssigned       MentorReview[]           @relation("ReviewAssigner")
+  reviewsDecided        MentorReview[]           @relation("ReviewDecider")
+  reviewEvents          ReviewEvent[]
+  distributionBatches   DistributionBatch[]
+  resultReleases        ResultRelease[]
+  threadsCreated        DiscussionThread[]
+  reportsFiled          ContentReport[]          @relation("ReportReporter")
+  reportsResolved       ContentReport[]          @relation("ReportResolver")
+  moderationActions     ModerationAction[]
+  activityLogs          ActivityLog[]
 
   @@index([points])
   @@index([role])
@@ -330,7 +459,8 @@ model School {
   location  String
   createdAt DateTime @default(now())
 
-  students User[]
+  students    User[]
+  enrollments StudentEnrollment[]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -348,34 +478,104 @@ model Division {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  students          User[]
-  mentorAssignments MentorAssignment[]
-  resources         CourseResource[]
-  assignments       Assignment[]
-  liveSessions      LiveSession[]
-  comments          Comment[]
+  students           User[]
+  studentEnrollments StudentEnrollment[]
+  mentorAssignments  MentorAssignment[]
+  resources          CourseResource[]
+  assignments        Assignment[]
+  liveSessions       LiveSession[]
+  threads            DiscussionThread[]
+  comments           Comment[]
 }
 
-/// One of the four fixed Mathematics courses. Content (resources,
-/// assignments, live sessions, discussions) is scoped per (course × division).
+/// A subject area (e.g. Mathematics). The platform launches with Mathematics
+/// only; further disciplines are new rows — no schema change needed.
+model Discipline {
+  id          String   @id @default(uuid())
+  /// Stable identifier, e.g. "MATHEMATICS".
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courses Course[]
+}
+
+/// An academic year (e.g. "2026-2027"). Assignments and live sessions belong
+/// to a year; closing a year archives its assignments.
+model AcademicYear {
+  id        String             @id @default(uuid())
+  /// Display name, e.g. "2026-2027".
+  name      String             @unique
+  startsOn  DateTime           @db.Date
+  endsOn    DateTime           @db.Date
+  status    AcademicYearStatus @default(PLANNED)
+  /// TRUE for the single current year, NULL otherwise. The unique index allows
+  /// many NULLs but only one TRUE, so the database guarantees one current year.
+  isCurrent Boolean?           @unique
+  closedAt  DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  enrollments  StudentEnrollment[]
+  assignments  Assignment[]
+  liveSessions LiveSession[]
+
+  @@index([status])
+}
+
+/// A student's placement for one academic year (grade, division, school).
+/// History is kept: a new row per year, older rows become PROMOTED/GRADUATED.
+model StudentEnrollment {
+  id             String                  @id @default(uuid())
+  studentId      String
+  student        User                    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear            @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  divisionId     String
+  division       Division                @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  gradeLevel     GradeLevel
+  schoolId       String?
+  school         School?                 @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  status         StudentEnrollmentStatus @default(ACTIVE)
+  enrolledAt     DateTime                @default(now())
+  endedAt        DateTime?
+
+  @@unique([studentId, academicYearId])
+  @@index([academicYearId, divisionId, status])
+}
+
+/// A course within a discipline (launch: the four Mathematics courses).
+/// Content (resources, assignments, live sessions, discussions) is scoped per
+/// (course × division). Courses are archived, never deleted.
 model Course {
-  id          String       @id @default(uuid())
-  code        CourseCode   @unique
-  title       String
-  description String
-  status      CourseStatus @default(PUBLISHED)
-  publishedAt DateTime?
-  sortOrder   Int          @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id           String       @id @default(uuid())
+  disciplineId String
+  discipline   Discipline   @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  /// Stable identifier within the discipline, e.g. "ALGEBRA".
+  code         String
+  title        String
+  description  String
+  status       CourseStatus @default(PUBLISHED)
+  publishedAt  DateTime?
+  archivedAt   DateTime?
+  sortOrder    Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   assignments       Assignment[]
   enrollments       CourseEnrollment[]
   resources         CourseResource[]
+  threads           DiscussionThread[]
   comments          Comment[]
   mentorAssignments MentorAssignment[]
   liveSessions      LiveSession[]
+  activityLogs      ActivityLog[]
 
+  @@unique([disciplineId, code])
   @@index([status])
 }
 
@@ -435,6 +635,12 @@ model FileObject {
   uploadedBy   User?       @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
   createdAt    DateTime    @default(now())
 
+  resourceAttachments   ResourceAttachment[]
+  assignmentAttachments AssignmentAttachment[]
+  submissionAttachments SubmissionAttachment[]
+  reviewAttachments     ReviewAttachment[]
+
+  // Deprecated single-file references (see the contract migration).
   resources           CourseResource[]
   assignments         Assignment[]
   submissions         Submission[]         @relation("SubmissionFile")
@@ -458,21 +664,40 @@ model CourseResource {
   type         ResourceType
   title        String
   description  String?
-  fileId       String?
-  file         FileObject?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
   /// Display order within the course (lower = first).
   sortOrder    Int          @default(0)
   isPublished  Boolean      @default(false)
   publishedAt  DateTime?
+  /// Archived resources are hidden from students but kept.
+  archivedAt   DateTime?
   uploadedById String
   uploadedBy   User         @relation("ResourceUploader", fields: [uploadedById], references: [id])
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  views ResourceView[]
+  attachments ResourceAttachment[]
+  views       ResourceView[]
+
+  /// @deprecated Replaced by ResourceAttachment. Dropped by the pending contract migration.
+  fileId String?
+  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@index([courseId, divisionId, isPublished])
   @@index([sortOrder])
+}
+
+/// Files attached to a learning resource (ordered).
+model ResourceAttachment {
+  id         String         @id @default(uuid())
+  resourceId String
+  resource   CourseResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  fileId     String
+  file       FileObject     @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+
+  @@unique([resourceId, fileId])
+  @@index([fileId])
 }
 
 model ResourceView {
@@ -495,6 +720,8 @@ model LiveSession {
   course         Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
   divisionId     String
   division       Division            @relation(fields: [divisionId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear        @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
   hostId         String
   host           User                @relation("LiveSessionHost", fields: [hostId], references: [id])
   title          String
@@ -529,9 +756,6 @@ model Assignment {
   points       Int
   maximumMarks Int
 
-  fileId String?
-  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
-
   allowResubmission   Boolean @default(false)
   /// 0 = unlimited resubmissions while the deadline has not passed.
   maxResubmissions    Int     @default(0)
@@ -545,6 +769,8 @@ model Assignment {
   rejectionNote      String?
   /// Set when the admin publishes results for the whole assignment.
   resultsPublishedAt DateTime?
+  /// Set when archived (status ARCHIVED).
+  archivedAt         DateTime?
 
   approvedById String?
   approvedBy   User?   @relation("AssignmentApprover", fields: [approvedById], references: [id], onDelete: SetNull)
@@ -554,20 +780,46 @@ model Assignment {
   divisionId String
   division   Division @relation(fields: [divisionId], references: [id])
 
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
   createdById String
   createdBy   User   @relation("AssignmentCreator", fields: [createdById], references: [id])
 
-  submissions Submission[]
-  views       AssignmentView[]
-  comments    Comment[]
+  attachments         AssignmentAttachment[]
+  submissions         Submission[]
+  views               AssignmentView[]
+  distributionBatches DistributionBatch[]
+  resultReleases      ResultRelease[]
+  threads             DiscussionThread[]
+  comments            Comment[]
+
+  /// @deprecated Replaced by AssignmentAttachment. Dropped by the pending contract migration.
+  fileId String?
+  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([courseId, divisionId, status])
+  @@index([academicYearId, status])
   @@index([deadline])
   @@index([createdById])
   @@index([status])
+}
+
+/// Files attached to an assignment brief (ordered).
+model AssignmentAttachment {
+  id           String     @id @default(uuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  fileId       String
+  file         FileObject @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@unique([assignmentId, fileId])
+  @@index([fileId])
 }
 
 /// One row per (student, assignment): drives the "New" vs "Opened" status.
@@ -585,100 +837,266 @@ model AssignmentView {
   @@index([studentId])
 }
 
+/// A student's work for one assignment (one row per student × assignment).
+/// "status" is the overall workflow state used for filtering and the student
+/// display status; the academic review itself lives in MentorReview.
 model Submission {
   id     String           @id @default(uuid())
   status SubmissionStatus @default(SUBMITTED)
 
   assignmentId String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
   studentId    String
-  student      User       @relation("StudentSubmissions", fields: [studentId], references: [id])
-  mentorId     String?
-  mentor       User?      @relation("MentorSubmissions", fields: [mentorId], references: [id], onDelete: SetNull)
+  student      User       @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Restrict)
 
-  fileId        String?
-  file          FileObject? @relation("SubmissionFile", fields: [fileId], references: [id], onDelete: SetNull)
   /// Number of resubmissions made after the first submission.
-  revisionCount Int         @default(0)
+  revisionCount Int       @default(0)
   /// True when the latest (re)submission arrived after the deadline.
-  isLate        Boolean     @default(false)
+  isLate        Boolean   @default(false)
+  submittedAt   DateTime?
 
-  // ── Mentor's formal academic review (mentors only) ──────────────────────────
-  score          Int?
-  percentage     Float?
-  mentorFeedback String?
-  feedbackFileId String?
-  feedbackFile   FileObject? @relation("FeedbackFile", fields: [feedbackFileId], references: [id], onDelete: SetNull)
+  /// The latest review cycle (any status). NULL until distributed.
+  currentReviewId   String?        @unique
+  currentReview     MentorReview?  @relation("CurrentReview", fields: [currentReviewId], references: [id], onDelete: SetNull)
+  /// The review whose result the student sees. NULL until published.
+  publishedReviewId String?        @unique
+  publishedReview   MentorReview?  @relation("PublishedReview", fields: [publishedReviewId], references: [id], onDelete: SetNull)
+  resultReleaseId   String?
+  resultRelease     ResultRelease? @relation(fields: [resultReleaseId], references: [id], onDelete: SetNull)
 
-  // ── Admin coordination (never academic feedback; never shown to students) ──
-  coordinationNote String?
-  /// Why the admin sent the review back to the mentor.
-  rejectionReason  String?
+  /// Leaderboard points granted by the published result (0 until then).
+  pointsAwarded Int       @default(0)
+  publishedAt   DateTime?
 
-  /// Leaderboard points granted when published (0 until then).
-  pointsAwarded Int @default(0)
+  revisions SubmissionRevision[]
+  reviews   MentorReview[]       @relation("SubmissionReviews")
 
-  // ── Reopen after publish (admin returns result to mentor for re-review) ─────
-  previousScore Int?
-  reopenNote    String?
-  reopenedAt    DateTime?
-  reopenedById  String?
-  reopenedBy    User?     @relation("SubmissionReopener", fields: [reopenedById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  submittedAt        DateTime?
+  // ── @deprecated — superseded by MentorReview and attachment tables. Kept
+  // (unused) until the contract migration in prisma/pending-migrations is
+  // approved. Do not read or write these fields. ──────────────────────────────
+  mentorId           String?
+  mentor             User?       @relation("MentorSubmissions", fields: [mentorId], references: [id], onDelete: SetNull)
+  fileId             String?
+  file               FileObject? @relation("SubmissionFile", fields: [fileId], references: [id], onDelete: SetNull)
+  score              Int?
+  percentage         Float?
+  mentorFeedback     String?
+  feedbackFileId     String?
+  feedbackFile       FileObject? @relation("FeedbackFile", fields: [feedbackFileId], references: [id], onDelete: SetNull)
+  coordinationNote   String?
+  rejectionReason    String?
+  previousScore      Int?
+  reopenNote         String?
+  reopenedAt         DateTime?
+  reopenedById       String?
+  reopenedBy         User?       @relation("SubmissionReopener", fields: [reopenedById], references: [id], onDelete: SetNull)
   assignedAt         DateTime?
   reviewStartedAt    DateTime?
   markedAt           DateTime?
   submittedToAdminAt DateTime?
   approvedAt         DateTime?
-  publishedAt        DateTime?
-
-  revisions SubmissionRevision[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@unique([assignmentId, studentId])
   @@index([studentId])
   @@index([mentorId, status])
   @@index([assignmentId, status])
+  @@index([resultReleaseId])
 }
 
 /// Immutable history of every submission attempt (revision 1 = first submission).
 model SubmissionRevision {
-  id             String      @id @default(uuid())
+  id             String     @id @default(uuid())
   submissionId   String
-  submission     Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submission     Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   revisionNumber Int
-  fileId         String?
-  file           FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
   note           String?
-  isLate         Boolean     @default(false)
+  isLate         Boolean    @default(false)
   submittedById  String
-  submittedBy    User        @relation(fields: [submittedById], references: [id])
-  submittedAt    DateTime    @default(now())
+  submittedBy    User       @relation(fields: [submittedById], references: [id])
+  submittedAt    DateTime   @default(now())
+
+  attachments SubmissionAttachment[]
+
+  /// @deprecated Replaced by SubmissionAttachment. Dropped by the pending contract migration.
+  fileId String?
+  file   FileObject? @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@unique([submissionId, revisionNumber])
+}
+
+/// Files of one submission attempt (a student may upload several pages).
+model SubmissionAttachment {
+  id         String             @id @default(uuid())
+  revisionId String
+  revision   SubmissionRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  fileId     String
+  file       FileObject         @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  sortOrder  Int                @default(0)
+  createdAt  DateTime           @default(now())
+
+  @@unique([revisionId, fileId])
+  @@index([fileId])
+}
+
+/// One administrator distribution run for an assignment.
+model DistributionBatch {
+  id            String               @id @default(uuid())
+  assignmentId  String
+  assignment    Assignment           @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  strategy      DistributionStrategy
+  assignedCount Int                  @default(0)
+  createdById   String
+  createdBy     User                 @relation(fields: [createdById], references: [id])
+  createdAt     DateTime             @default(now())
+
+  reviews MentorReview[]
+
+  @@index([assignmentId])
+}
+
+/// A mentor's academic review of a submission. A new row (cycle) is created
+/// whenever the submission is (re)assigned or a published result is reopened,
+/// so earlier reviews remain as history. Only mentors write score and feedback.
+model MentorReview {
+  id           String       @id @default(uuid())
+  submissionId String
+  submission   Submission   @relation("SubmissionReviews", fields: [submissionId], references: [id], onDelete: Cascade)
+  /// 1, 2, 3 … per submission.
+  cycle        Int
+  mentorId     String
+  mentor       User         @relation("ReviewMentor", fields: [mentorId], references: [id], onDelete: Restrict)
+  status       ReviewStatus @default(ASSIGNED)
+
+  // ── Formal academic review (mentor) ────────────────────────────────────────
+  score      Int?
+  percentage Float?
+  feedback   String?
+
+  // ── Distribution ───────────────────────────────────────────────────────────
+  assignedAt          DateTime           @default(now())
+  assignedById        String?
+  assignedBy          User?              @relation("ReviewAssigner", fields: [assignedById], references: [id], onDelete: SetNull)
+  distributionBatchId String?
+  distributionBatch   DistributionBatch? @relation(fields: [distributionBatchId], references: [id], onDelete: SetNull)
+
+  // ── Progress ───────────────────────────────────────────────────────────────
+  startedAt  DateTime?
+  markedAt   DateTime?
+  returnedAt DateTime?
+
+  // ── Administrator coordination (never academic feedback) ──────────────────
+  decidedAt        DateTime?
+  decidedById      String?
+  decidedBy        User?     @relation("ReviewDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  /// Why the admin sent the review back (visible to the mentor).
+  decisionNote     String?
+  /// Internal note; never shown to students or mentors.
+  coordinationNote String?
+  publishedAt      DateTime?
+
+  attachments  ReviewAttachment[]
+  events       ReviewEvent[]
+  currentFor   Submission?        @relation("CurrentReview")
+  publishedFor Submission?        @relation("PublishedReview")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([submissionId, cycle])
+  @@index([mentorId, status])
+  @@index([distributionBatchId])
+}
+
+/// Feedback files attached by the mentor to a review.
+model ReviewAttachment {
+  id        String       @id @default(uuid())
+  reviewId  String
+  review    MentorReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  fileId    String
+  file      FileObject   @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  @@unique([reviewId, fileId])
+  @@index([fileId])
+}
+
+/// Append-only history of a review: who did what, when, with which score.
+model ReviewEvent {
+  id        String          @id @default(uuid())
+  reviewId  String
+  review    MentorReview    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  type      ReviewEventType
+  actorId   String?
+  actor     User?           @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  score     Int?
+  note      String?
+  createdAt DateTime        @default(now())
+
+  @@index([reviewId, createdAt])
+}
+
+/// One administrator release of results for an assignment.
+model ResultRelease {
+  id            String     @id @default(uuid())
+  assignmentId  String
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  publishedById String
+  publishedBy   User       @relation(fields: [publishedById], references: [id])
+  resultCount   Int
+  note          String?
+  publishedAt   DateTime   @default(now())
+
+  submissions Submission[]
+
+  @@index([assignmentId])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Discussions
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Shared discussion for courses and assignments. Exactly one of
-/// courseId / assignmentId is set (CHECK constraint in the migration).
-/// divisionId keeps Junior and Senior course threads separate.
-model Comment {
-  id      String        @id @default(uuid())
-  content String
-  status  CommentStatus @default(ACTIVE)
+/// A discussion topic. Course threads are per (course × division);
+/// assignment threads belong to one assignment (and inherit its division).
+/// Exactly one of courseId / assignmentId is set (CHECK constraint).
+model DiscussionThread {
+  id             String       @id @default(uuid())
+  courseId       String?
+  course         Course?      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignmentId   String?
+  assignment     Assignment?  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  divisionId     String
+  division       Division     @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  title          String
+  status         ThreadStatus @default(OPEN)
+  isPinned       Boolean      @default(false)
+  createdById    String
+  createdBy      User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  /// Updated whenever a comment is posted; drives "most recent" ordering.
+  lastActivityAt DateTime     @default(now())
+  archivedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  courseId     String?
-  course       Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  assignmentId String?
-  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  divisionId   String
-  division     Division    @relation(fields: [divisionId], references: [id])
+  comments          Comment[]
+  reports           ContentReport[]
+  moderationActions ModerationAction[]
+
+  @@index([courseId, divisionId, status, lastActivityAt])
+  @@index([assignmentId, status])
+  @@index([createdById])
+}
+
+/// A message in a thread. Replies set parentId (one level of nesting).
+model Comment {
+  id       String           @id @default(uuid())
+  threadId String
+  thread   DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  content  String
+  status   CommentStatus    @default(ACTIVE)
 
   /// Null for top-level comments; set for replies.
   parentId String?
@@ -686,22 +1104,82 @@ model Comment {
   replies  Comment[] @relation("CommentReplies")
 
   authorId String
-  author   User   @relation("CommentAuthor", fields: [authorId], references: [id])
+  author   User      @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  editedAt DateTime?
 
-  reactions CommentReaction[]
-
-  moderatedAt   DateTime?
-  moderatedById String?
-  moderatedBy   User?     @relation("CommentModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
+  reactions         CommentReaction[]
+  reports           ContentReport[]
+  moderationActions ModerationAction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // ── @deprecated — target moved to DiscussionThread; moderation history moved
+  // to ModerationAction. Dropped by the pending contract migration. ────────────
+  courseId      String?
+  course        Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignmentId  String?
+  assignment    Assignment? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  divisionId    String?
+  division      Division?   @relation(fields: [divisionId], references: [id])
+  moderatedAt   DateTime?
+  moderatedById String?
+  moderatedBy   User?       @relation("CommentModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
+
+  @@index([threadId, parentId, createdAt])
   @@index([courseId, divisionId])
   @@index([assignmentId])
   @@index([authorId])
   @@index([parentId])
   @@index([status])
+}
+
+/// A user's report of a thread or comment for moderation. Exactly one of
+/// threadId / commentId is set (CHECK constraint). One report per user per item.
+model ContentReport {
+  id             String            @id @default(uuid())
+  reporterId     String
+  reporter       User              @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  threadId       String?
+  thread         DiscussionThread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  commentId      String?
+  comment        Comment?          @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reason         ReportReason
+  details        String?
+  status         ReportStatus      @default(OPEN)
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedBy     User?             @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolutionNote String?
+  createdAt      DateTime          @default(now())
+
+  moderationActions ModerationAction[]
+
+  @@unique([reporterId, threadId])
+  @@unique([reporterId, commentId])
+  @@index([status, createdAt])
+  @@index([commentId])
+  @@index([threadId])
+}
+
+/// Append-only log of every moderation decision (who, what, why).
+model ModerationAction {
+  id          String               @id @default(uuid())
+  moderatorId String
+  moderator   User                 @relation(fields: [moderatorId], references: [id], onDelete: Restrict)
+  action      ModerationActionType
+  threadId    String?
+  thread      DiscussionThread?    @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  commentId   String?
+  comment     Comment?             @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  reportId    String?
+  report      ContentReport?       @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  reason      String?
+  createdAt   DateTime             @default(now())
+
+  @@index([commentId])
+  @@index([threadId])
+  @@index([moderatorId, createdAt])
 }
 
 model CommentReaction {
@@ -868,4 +1346,24 @@ model AuditLog {
   @@index([action])
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+/// Learning activity (what students and mentors do), used for analytics and
+/// engagement reports. Security-relevant changes go to AuditLog instead.
+/// Retention: rows older than 400 days are purged nightly.
+model ActivityLog {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       ActivityType
+  courseId   String?
+  course     Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([courseId, type, createdAt])
+  @@index([type, createdAt])
 }
