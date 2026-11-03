@@ -344,6 +344,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261114000000_reporting_indexes` | additive (indexes only) | Indexes for the dashboard and reports: `MentorReview.returnedAt`, `Submission.submittedAt`, `Submission.publishedAt`, `ResultRelease.publishedAt`, `User` (`role`, `isActive`). |
 | `20261115000000_audit_log_append_only` | additive + backfill + triggers | `AuditLog.actorUsername` (backfilled from `User`), trigger filling it on insert, and a trigger rejecting UPDATE/DELETE of audit rows (except the FK clearing `actorId`). |
 | `20261116000000_login_lockout_token_cutoff` | additive | `User.failedLoginCount`, `User.lockedUntil` (per-account login lockout) and `User.tokensValidAfter` (ends earlier access tokens). |
+| `20261117000000_foreign_key_indexes` | additive (indexes only) | Indexes on 22 foreign-key columns that had none (joins, filters, delete checks). |
 
 **Making a schema change.**
 

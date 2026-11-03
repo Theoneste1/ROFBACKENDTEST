@@ -497,6 +497,7 @@ model AccountActivationToken {
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([createdById])
 }
 
 /// Access-token revocation list (logout). Rows are purged after expiry.
@@ -618,6 +619,8 @@ model StudentEnrollment {
 
   @@unique([studentId, academicYearId])
   @@index([academicYearId, divisionId, status])
+  @@index([divisionId])
+  @@index([schoolId])
 }
 
 /// A course within a discipline (launch: the four Mathematics courses).
@@ -671,6 +674,8 @@ model MentorAssignment {
 
   @@unique([mentorId, courseId, divisionId])
   @@index([courseId, divisionId])
+  @@index([divisionId])
+  @@index([assignedById])
 }
 
 /// Per-student course progress. Created on first open.
@@ -716,6 +721,7 @@ model FileObject {
 
   @@index([purpose])
   @@index([createdAt])
+  @@index([uploadedById])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -756,6 +762,8 @@ model CourseResource {
   @@index([courseId, divisionId, isPublished])
   @@index([sortOrder])
   @@index([tags], type: Gin)
+  @@index([divisionId])
+  @@index([uploadedById])
 }
 
 /// Files attached to a learning resource (ordered).
@@ -813,6 +821,8 @@ model LiveSession {
   @@index([courseId, divisionId, startsAt])
   @@index([hostId])
   @@index([status, startsAt])
+  @@index([divisionId])
+  @@index([academicYearId])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -880,6 +890,8 @@ model Assignment {
   @@index([deadline])
   @@index([createdById])
   @@index([status])
+  @@index([approvedById])
+  @@index([divisionId])
 }
 
 /// Files attached to an assignment brief (ordered).
@@ -1001,6 +1013,7 @@ model SubmissionRevision {
   attachments SubmissionAttachment[]
 
   @@unique([submissionId, revisionNumber])
+  @@index([submittedById])
 }
 
 /// Files of one submission attempt (a student may upload several pages).
@@ -1031,6 +1044,7 @@ model DistributionBatch {
   reviews MentorReview[]
 
   @@index([assignmentId])
+  @@index([createdById])
 }
 
 /// A mentor's academic review of a submission. A new row (cycle) is created
@@ -1086,6 +1100,8 @@ model MentorReview {
   @@index([distributionBatchId])
   /// Reports: completed reviews in a date range.
   @@index([returnedAt])
+  @@index([assignedById])
+  @@index([decidedById])
 }
 
 /// Feedback files attached by the mentor to a review.
@@ -1115,6 +1131,7 @@ model ReviewEvent {
   createdAt DateTime        @default(now())
 
   @@index([reviewId, createdAt])
+  @@index([actorId])
 }
 
 /// One administrator release of results for an assignment.
@@ -1132,6 +1149,7 @@ model ResultRelease {
 
   @@index([assignmentId])
   @@index([publishedAt])
+  @@index([publishedById])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1168,6 +1186,7 @@ model DiscussionThread {
   @@index([courseId, divisionId, status, lastActivityAt])
   @@index([assignmentId, status])
   @@index([createdById])
+  @@index([divisionId])
 }
 
 /// A message in a thread. Replies set parentId (one level of nesting).
@@ -1230,6 +1249,7 @@ model ContentReport {
   @@index([status, createdAt])
   @@index([commentId])
   @@index([threadId])
+  @@index([resolvedById])
 }
 
 /// Append-only log of every moderation decision (who, what, why).
@@ -1250,6 +1270,7 @@ model ModerationAction {
   @@index([commentId])
   @@index([threadId])
   @@index([moderatorId, createdAt])
+  @@index([reportId])
 }
 
 model CommentReaction {
@@ -1421,6 +1442,8 @@ model SystemSetting {
   updatedById String?
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
   updatedAt   DateTime @updatedAt
+
+  @@index([updatedById])
 }
 
 /// Append-only: a database trigger rejects UPDATE and DELETE (the only

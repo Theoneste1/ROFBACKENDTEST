@@ -23,8 +23,9 @@ courses (Algebra, Geometry, Number Theory, Combinatorics).
 | [docs/AUTHORIZATION.md](docs/AUTHORIZATION.md) | Authorization matrix: every endpoint × role (generated from the guards' metadata) |
 | [docs/STORAGE.md](docs/STORAGE.md) | File storage: types and limits, upload pipeline, download rules, drivers, cleanup |
 | [docs/TESTING.md](docs/TESTING.md) | Running the tests, what each suite covers, the security suite, smoke testing, CI |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment, backups, scaling |
-| [.env.example](.env.example) | Every environment variable, with defaults and notes |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment: configuration, database, auth, storage, proxy, releases and migrations, backup and recovery, monitoring, go-live checklist |
+| [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) | Functionality summary, test results, known limitations, outstanding issues, frontend-integration checklist |
+| [.env.example](.env.example) · [.env.production.example](.env.production.example) | Every environment variable, with defaults and notes · production template |
 
 The generated documents come from the compiled code: run `npm run docs:api`
 after changing endpoints (CI fails when they are out of date).
