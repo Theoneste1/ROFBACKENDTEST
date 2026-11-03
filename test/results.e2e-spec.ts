@@ -4,9 +4,7 @@
  * details, feedback downloads, corrections with history, notifications, and
  * no replies on results.
  */
-import { createTestApp, login, bearer, PDF, inDays, type TestContext } from './helpers.js';
-
-const waitForEvents = () => new Promise((r) => setTimeout(r, 300));
+import { createTestApp, login, bearer, PDF, inDays, type TestContext, waitForEvents } from './helpers.js';
 
 describe('Results and feedback (e2e)', () => {
   let ctx: TestContext;

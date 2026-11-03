@@ -4,9 +4,7 @@
  * recorded, by whom, on which record; read-only, admin-only, append-only).
  */
 import { AssignmentDeadlineReminderService } from '../src/assignments/assignment-deadline-reminder.service.js';
-import { createTestApp, login, bearer, inDays, PDF, type TestContext } from './helpers.js';
-
-const waitForEvents = () => new Promise((r) => setTimeout(r, 300));
+import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
 
 describe('System settings and audit logging (e2e)', () => {
   let ctx: TestContext;

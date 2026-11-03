@@ -137,7 +137,7 @@ export class DiscussionsService {
 
   async getThread(threadId: string, user: AuthUser) {
     const thread = await this.requireVisibleThread(threadId, user);
-    return this.prisma.discussionThread.findUniqueOrThrow({ where: { id: thread.id }, select: THREAD_SELECT });
+    return this.presentThread(await this.prisma.discussionThread.findUniqueOrThrow({ where: { id: thread.id }, select: THREAD_SELECT }), user);
   }
 
   /** The author may rename their thread while it is open. */
@@ -147,7 +147,7 @@ export class DiscussionsService {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'Only the author can edit this thread.');
     }
     if (thread.status !== 'OPEN') throw invalidState('Only open threads can be edited.');
-    return this.prisma.discussionThread.update({ where: { id: threadId }, data: { title: dto.title }, select: THREAD_SELECT });
+    return this.presentThread(await this.prisma.discussionThread.update({ where: { id: threadId }, data: { title: dto.title }, select: THREAD_SELECT }), user);
   }
 
   /**
@@ -549,7 +549,7 @@ export class DiscussionsService {
       }),
       this.prisma.discussionThread.count({ where }),
     ]);
-    return paginated(rows, total, page, limit);
+    return paginated(rows.map((t) => this.presentThread(t, user)), total, page, limit);
   }
 
   private async createThread(target: { courseId: string; divisionId: string } | { assignmentId: string; divisionId: string }, dto: CreateThreadDto, user: AuthUser) {
@@ -564,7 +564,7 @@ export class DiscussionsService {
       courseId: 'courseId' in target ? target.courseId : undefined, entityType: 'DiscussionThread', entityId: thread.id,
     });
     this.events.emit(Events.DiscussionThreadCreated, { threadId: thread.id });
-    return thread;
+    return this.presentThread(thread, user);
   }
 
   /** Refuse new threads/comments when the thread's course has discussions turned off. */
@@ -709,6 +709,10 @@ export class DiscussionsService {
     return user.role === 'ADMIN' ? { status: { in: ['ACTIVE', 'HIDDEN'] } } : { status: 'ACTIVE' };
   }
 
+  private presentThread<T extends { createdBy: Author }>(thread: T, user: AuthUser) {
+    return { ...thread, createdBy: publicAuthor(thread.createdBy, user) };
+  }
+
   private sanitizeComment(comment: Prisma.CommentGetPayload<{ select: typeof COMMENT_SELECT }>, user: AuthUser) {
     const counts: Record<string, number> = {};
     for (const r of comment.reactions) counts[r.type] = (counts[r.type] ?? 0) + 1;
@@ -721,12 +725,25 @@ export class DiscussionsService {
       editedAt:    comment.editedAt,
       createdAt:   comment.createdAt,
       updatedAt:   comment.updatedAt,
-      author:      comment.status === 'DELETED' ? null : comment.author,
+      author:      comment.status === 'DELETED' ? null : publicAuthor(comment.author, user),
       reactions:   counts,
       myReactions: comment.reactions.filter((r) => r.userId === user.id).map((r) => r.type),
       replyCount:  comment._count.replies,
     };
   }
+}
+
+type Author = Prisma.UserGetPayload<{ select: typeof AUTHOR_SELECT }>;
+type PublicAuthor = Omit<Author, 'username'> & { username: string | null };
+
+/**
+ * Most students are minors: to other students they appear as first name and
+ * last initial, without a username (as on the leaderboard). Staff appear in
+ * full; students see their own name in full; administrators see everyone.
+ */
+export function publicAuthor(author: Author, viewer: AuthUser): PublicAuthor {
+  if (viewer.role !== 'STUDENT' || author.role !== 'STUDENT' || author.id === viewer.id) return author;
+  return { ...author, lastName: author.lastName ? `${author.lastName.charAt(0)}.` : author.lastName, username: null };
 }
 
 /** Admin thread operations: PATCH /threads/:id/:op */

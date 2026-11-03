@@ -3,9 +3,7 @@
  * permissions, reports with snapshots, administrators hiding and removing
  * content, the moderation record, and discussion notifications.
  */
-import { createTestApp, login, bearer, inDays, type TestContext } from './helpers.js';
-
-const waitForEvents = () => new Promise((r) => setTimeout(r, 300));
+import { createTestApp, login, bearer, inDays, type TestContext, waitForEvents } from './helpers.js';
 
 describe('Discussions and moderation (e2e)', () => {
   let ctx: TestContext;
@@ -74,6 +72,25 @@ describe('Discussions and moderation (e2e)', () => {
       // Nobody is notified about their own posts.
       expect(await notes(ctx.ids.mentorJunior, 'discussion.comment_posted')).toHaveLength(0);
       expect(await notes(ctx.ids.studentJunior2, 'discussion.comment_posted')).toHaveLength(0);
+    });
+
+    it('to other students, students appear as first name and last initial, without a username', async () => {
+      // student.j2 reads student.j's thread and comments.
+      const thread = await ctx.http().get(`/api/v1/threads/${threadId}`).set(bearer(studentJ2)).expect(200);
+      expect(thread.body.createdBy).toMatchObject({ firstName: 'student.j', lastName: 'T.', username: null, role: 'STUDENT' });
+      const list = await ctx.http().get(`/api/v1/assignments/${assignmentId}/threads`).set(bearer(studentJ2)).expect(200);
+      expect(list.body.data[0].createdBy).toMatchObject({ lastName: 'T.', username: null });
+      const comments = await ctx.http().get(`/api/v1/threads/${threadId}/comments`).set(bearer(studentJ2)).expect(200);
+      expect(comments.body.data[0].author).toMatchObject({ lastName: 'T.', username: null });
+      expect(JSON.stringify(comments.body)).not.toContain('"username":"student.j"');
+
+      // Staff appear in full to students; students see themselves in full; staff see everyone in full.
+      const replies = await ctx.http().get(`/api/v1/comments/${questionId}/replies`).set(bearer(studentJ2)).expect(200);
+      expect(replies.body.data.find((c: any) => c.id === answerId).author).toMatchObject({ username: 'mentor.j', lastName: 'Test' });
+      const own = await ctx.http().get(`/api/v1/threads/${threadId}`).set(bearer(studentJ)).expect(200);
+      expect(own.body.createdBy).toMatchObject({ username: 'student.j', lastName: 'Test' });
+      const forMentor = await ctx.http().get(`/api/v1/threads/${threadId}`).set(bearer(mentorJ)).expect(200);
+      expect(forMentor.body.createdBy).toMatchObject({ username: 'student.j', lastName: 'Test' });
     });
 
     it('reactions toggle on and off', async () => {

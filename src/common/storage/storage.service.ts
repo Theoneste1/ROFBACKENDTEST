@@ -156,9 +156,13 @@ export class StorageService {
    * their revision history and are never removed here.
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'storage-orphan-cleanup' })
-  async cleanupOrphans(): Promise<number> {
+  async scheduledCleanup(): Promise<number> {
     if (this.config.get('WORKERS_ENABLED') === 'false') return 0;
+    return this.cleanupOrphans();
+  }
 
+  /** Delete up to 500 unreferenced files older than a day; returns how many. */
+  async cleanupOrphans(): Promise<number> {
     const orphans = await this.prisma.fileObject.findMany({
       where: {
         createdAt:             { lt: new Date(Date.now() - ORPHAN_GRACE_MS) },

@@ -5,9 +5,7 @@
  * review that was sent back, a published result, a reported comment, a live
  * session. Also filters, validation, CSV exports and authorization.
  */
-import { createTestApp, login, bearer, inDays, PDF, type TestContext } from './helpers.js';
-
-const waitForEvents = () => new Promise((r) => setTimeout(r, 300));
+import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
 
 describe('Admin dashboard and reports (e2e)', () => {
   let ctx: TestContext;
@@ -330,6 +328,56 @@ describe('Admin dashboard and reports (e2e)', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
+  describe('earlier CSV exports', () => {
+    const csv = async (path: string, query: Record<string, string> = {}) => {
+      const res = await get(path, query).expect(200);
+      expect(res.headers['content-type']).toContain('text/csv');
+      return res.text.replace(/^﻿/, '').trim().split('\r\n').map((l) => l.split(','));
+    };
+
+    it('results.csv: one row per submission, by assignment or by course and division', async () => {
+      const byAssignment = await csv('/admin/reports/results.csv', { assignmentId: a1 });
+      expect(byAssignment[0].slice(0, 8)).toEqual(['Course', 'Division', 'Assignment', 'Student', 'Username', 'Grade', 'School', 'Status']);
+      expect(byAssignment).toHaveLength(3); // header + student.j + student.j2
+      const j = byAssignment.find((r) => r[4] === 'student.j')!;
+      expect(j[7]).toBe('PUBLISHED');
+      expect(j[8]).toBe('16'); // score
+      expect(j[10]).toBe('80'); // percentage
+      expect(byAssignment.find((r) => r[4] === 'student.j2')![8]).toBe(''); // not published: no score
+
+      const byScope = await csv('/admin/reports/results.csv', { courseId: ctx.ids.algebra, divisionId: ctx.ids.senior });
+      expect(byScope.slice(1).map((r) => r[4])).toEqual(['student.s']);
+
+      const missing = await get('/admin/reports/results.csv', { courseId: ctx.ids.algebra }).expect(400);
+      expect(missing.body.code).toBe('FILTER_REQUIRED');
+    });
+
+    it('student-progress.csv: one row per student of a division with course status and results', async () => {
+      const rows = await csv('/admin/reports/student-progress.csv', { divisionId: ctx.ids.junior });
+      expect(rows[0].slice(0, 4)).toEqual(['Student', 'Username', 'Email', 'Grade']);
+      const j = rows.find((r) => r[1] === 'student.j')!;
+      const header = rows[0];
+      expect(j[header.indexOf('Results published')]).toBe('1');
+      expect(j[header.indexOf('Average %')]).toBe('80');
+      expect(j[header.findIndex((h) => /^geometry status$/i.test(h))]).toBe('COMPLETED');
+      expect(rows.find((r) => r[1] === 'student.x')![header.indexOf('Active')]).toBe('no');
+      expect(rows.some((r) => r[1] === 'student.s')).toBe(false); // other division
+
+      await get('/admin/reports/student-progress.csv').expect(400);
+      await get('/admin/reports/student-progress.csv', { divisionId: '00000000-0000-4000-8000-000000000000' }).expect(404);
+    });
+
+    it('mentor-workload.csv: one row per mentor with scopes, open and returned reviews', async () => {
+      const rows = await csv('/admin/reports/mentor-workload.csv');
+      expect(rows[0]).toEqual(['Mentor', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours']);
+      const byUser = Object.fromEntries(rows.slice(1).map((r) => [r[1], r]));
+      expect(byUser['mentor.j'][6]).toBe('1');  // returned (completed) reviews
+      expect(byUser['mentor.j2'][5]).toBe('1'); // open review
+      expect(Number(byUser['mentor.j'][7])).toBeGreaterThanOrEqual(0);
+      expect(byUser['mentor.inv'][6]).toBe('0');
+    });
+  });
+
   describe('CSV downloads', () => {
     it.each([
       ['students', 'Student,Username,Email,Status', 5],

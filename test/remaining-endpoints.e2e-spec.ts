@@ -246,6 +246,45 @@ describe('Remaining endpoints (e2e)', () => {
       expect(await ctx.prisma.user.count({ where: { username: 'jean.app' } })).toBe(0);
     });
 
+    it('mentor assignments: only active mentors, existing courses and divisions; unassigning reports open reviews; reassigning reactivates', async () => {
+      const assign = (body: Record<string, string>) => http().post('/api/v1/admin/mentor-assignments').set(bearer(admin)).send(body);
+      const scope = { courseId: ctx.ids.geometry, divisionId: ctx.ids.senior };
+
+      expect((await assign({ mentorId: ctx.ids.studentJunior, ...scope }).expect(400)).body.code).toBe('NOT_A_MENTOR');
+      await assign({ mentorId: '00000000-0000-4000-8000-000000000000', ...scope }).expect(404);
+      await assign({ mentorId: ctx.ids.mentorSenior, courseId: '00000000-0000-4000-8000-000000000000', divisionId: ctx.ids.senior }).expect(404);
+      await assign({ mentorId: ctx.ids.mentorSenior, courseId: ctx.ids.geometry, divisionId: '00000000-0000-4000-8000-000000000000' }).expect(404);
+      const suspended = await ctx.prisma.user.create({ data: {
+        username: 'mentor.off', email: 'mentor.off@test.local', firstName: 'Off', lastName: 'Mentor', role: 'MENTOR', isActive: false, activatedAt: new Date(),
+      } });
+      expect((await assign({ mentorId: suspended.id, ...scope }).expect(400)).body.code).toBe('ACCOUNT_SUSPENDED');
+
+      const created = await assign({ mentorId: ctx.ids.mentorSenior, ...scope }).expect(201);
+      expect(created.body).toMatchObject({ isActive: true });
+
+      // A mentor with work in progress in the scope is told how many reviews to reassign.
+      const a = await ctx.prisma.assignment.create({ data: {
+        title: 'Senior geometry', instructions: 'Solve every problem.', deadline: new Date(inDays(5)), points: 10, maximumMarks: 10,
+        courseId: ctx.ids.geometry, divisionId: ctx.ids.senior, academicYearId: ctx.ids.year,
+        createdById: ctx.ids.mentorSenior, status: 'PUBLISHED', publishedAt: new Date(),
+      } });
+      const sid = (await http().post('/api/v1/submissions').set(bearer(studentS)).field('assignmentId', a.id).field('answerText', 'Proof').expect(201)).body.id;
+      await http().patch(`/api/v1/submissions/${sid}/assign`).set(bearer(admin)).send({ mentorId: ctx.ids.mentorSenior }).expect(200);
+      const removed = await http().delete(`/api/v1/admin/mentor-assignments/${created.body.id}`).set(bearer(admin)).expect(200);
+      expect(removed.body).toMatchObject({ isActive: false, openReviewsToReassign: 1 });
+      await http().delete('/api/v1/admin/mentor-assignments/00000000-0000-4000-8000-000000000000').set(bearer(admin)).expect(404);
+
+      const inactive = await http().get('/api/v1/admin/mentor-assignments')
+        .query({ mentorId: ctx.ids.mentorSenior, courseId: ctx.ids.geometry, isActive: 'false' }).set(bearer(admin)).expect(200);
+      expect(inactive.body.data.map((x: any) => x.id)).toEqual([created.body.id]);
+
+      // Assigning the same scope again reactivates the same record.
+      const again = await assign({ mentorId: ctx.ids.mentorSenior, ...scope }).expect(201);
+      expect(again.body).toMatchObject({ id: created.body.id, isActive: true });
+      const teaching = await http().get('/api/v1/me/teaching').set(bearer(mentorS)).expect(200);
+      expect(teaching.body.some((t: any) => (t.course?.id ?? t.courseId) === ctx.ids.geometry)).toBe(true);
+    });
+
     it('administrators add users of any role directly, active at once', async () => {
       for (const role of ['MENTOR', 'ADMIN'] as const) {
         const username = `added.${role.toLowerCase()}`;
@@ -317,6 +356,48 @@ describe('Remaining endpoints (e2e)', () => {
       const hidden = await http().get('/api/v1/admin/comments/hidden').set(bearer(admin)).expect(200);
       expect(hidden.body.data.map((c: any) => c.id)).toContain(comment.id);
       await http().get('/api/v1/admin/comments/hidden').set(bearer(mentorJ)).expect(403);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('success paths not exercised elsewhere', () => {
+    it('a user reads e-mail preferences and edits their own profile', async () => {
+      const prefs = await http().get('/api/v1/me/notification-preferences').set(bearer(studentJ2)).expect(200);
+      expect(prefs.body.find((p: any) => p.category === 'ACCOUNT')).toMatchObject({ emailEnabled: true, locked: true });
+      const me = await http().patch('/api/v1/me').set(bearer(studentJ2)).send({ firstName: 'Jeanne', homeLocation: 'Musanze' }).expect(200);
+      expect(me.body).toMatchObject({ firstName: 'Jeanne', homeLocation: 'Musanze' });
+    });
+
+    it('an administrator lists the enrolments of an academic year', async () => {
+      const res = await http().get(`/api/v1/admin/academic-years/${ctx.ids.year}/enrollments`).set(bearer(admin)).expect(200);
+      expect(res.body.meta.total).toBeGreaterThanOrEqual(3);
+      expect(res.body.data[0]).toHaveProperty('gradeLevel');
+    });
+
+    it('an administrator creates another administrator, and deletes an account without history', async () => {
+      const created = await http().post('/api/v1/auth/register/admin').set(bearer(admin)).send({
+        firstName: 'Second', lastName: 'Admin', username: 'second.admin', email: 'second.admin@test.local', password: 'Str0ng!Passw0rd',
+      }).expect(201);
+      expect(created.body).toMatchObject({ role: 'ADMIN', username: 'second.admin' });
+      expect(created.body).not.toHaveProperty('passwordHash');
+      await http().post('/api/v1/auth/login').send({ username: 'second.admin', password: 'Str0ng!Passw0rd' }).expect(200);
+
+      const temp = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+        firstName: 'Temp', lastName: 'User', username: 'temp.user', email: 'temp.user@test.local', password: 'Str0ng!Passw0rd', role: 'MENTOR',
+      }).expect(201);
+      await http().delete(`/api/v1/admin/users/${temp.body.id}`).set(bearer(admin)).expect(200);
+      expect(await ctx.prisma.user.count({ where: { id: temp.body.id } })).toBe(0);
+    });
+
+    it('a student opens a published resource; a mentor deletes one', async () => {
+      const base = `/api/v1/courses/${ctx.ids.algebra}/resources`;
+      const r = await http().post(base).set(bearer(mentorJ)).field('divisionId', ctx.ids.junior).field('type', 'NOTE')
+        .field('title', 'Read me').attach('file', PDF, 'read-me.pdf').expect(201);
+      await http().patch(`${base}/${r.body.id}/publish`).set(bearer(mentorJ)).expect(200);
+      const one = await http().get(`${base}/${r.body.id}`).set(bearer(studentJ)).expect(200);
+      expect(one.body).toMatchObject({ id: r.body.id, title: 'Read me' });
+      await http().delete(`${base}/${r.body.id}`).set(bearer(mentorJ)).expect(200);
+      await http().get(`${base}/${r.body.id}`).set(bearer(studentJ)).expect(404);
     });
   });
 

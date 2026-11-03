@@ -2,9 +2,7 @@
  * Notification settings: administrators and mentors choose, in their profile
  * settings, which notifications they get in the app and by e-mail.
  */
-import { createTestApp, login, bearer, inDays, PDF, type TestContext } from './helpers.js';
-
-const waitForEvents = () => new Promise((r) => setTimeout(r, 300));
+import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
 
 describe('Notification settings (e2e)', () => {
   let ctx: TestContext;

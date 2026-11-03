@@ -123,3 +123,42 @@ describe('StorageService.store', () => {
     expect(driver.put).not.toHaveBeenCalled();
   });
 });
+
+describe('StorageService orphan clean-up', () => {
+  function makeCleanup(workers: string, orphans: Array<{ id: string; storageKey: string }>) {
+    const driver = { delete: vi.fn().mockResolvedValue(undefined) };
+    const prisma = {
+      fileObject: {
+        findMany: vi.fn().mockResolvedValue(orphans),
+        delete:   vi.fn().mockResolvedValue({}),
+      },
+    };
+    const config = { get: vi.fn().mockReturnValue(workers) };
+    return { service: new StorageService(driver as any, prisma as any, config as any), driver, prisma };
+  }
+
+  it('deletes the stored object and its record for each orphan older than a day', async () => {
+    const { service, driver, prisma } = makeCleanup('true', [{ id: 'f1', storageKey: 'a/1.pdf' }, { id: 'f2', storageKey: 'a/2.pdf' }]);
+    await expect(service.cleanupOrphans()).resolves.toBe(2);
+    expect(driver.delete.mock.calls.map((c) => c[0])).toEqual(['a/1.pdf', 'a/2.pdf']);
+    const where = prisma.fileObject.findMany.mock.calls[0][0].where;
+    expect(where.createdAt.lt.getTime()).toBeLessThanOrEqual(Date.now() - 24 * 3600_000 + 1000);
+    for (const rel of ['resourceAttachments', 'assignmentAttachments', 'submissionAttachments', 'reviewAttachments']) {
+      expect(where[rel]).toEqual({ none: {} });
+    }
+  });
+
+  it('keeps going when one object cannot be deleted, and keeps that record', async () => {
+    const { service, driver, prisma } = makeCleanup('true', [{ id: 'f1', storageKey: 'bad' }, { id: 'f2', storageKey: 'ok' }]);
+    driver.delete.mockImplementationOnce(() => Promise.reject(new Error('denied')));
+    vi.spyOn((service as any).logger, 'warn').mockImplementation(() => undefined);
+    await service.cleanupOrphans();
+    expect(prisma.fileObject.delete.mock.calls.map((c) => c[0].where.id)).toEqual(['f2']);
+  });
+
+  it('the nightly run is skipped on instances without workers', async () => {
+    const { service, prisma } = makeCleanup('false', []);
+    await expect(service.scheduledCleanup()).resolves.toBe(0);
+    expect(prisma.fileObject.findMany).not.toHaveBeenCalled();
+  });
+});

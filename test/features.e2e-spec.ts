@@ -3,9 +3,7 @@
  */
 import { EmailWorker } from '../src/email/email.worker.js';
 import { LiveSessionsService } from '../src/live-sessions/live-sessions.service.js';
-import { createTestApp, login, bearer, inDays, type TestContext } from './helpers.js';
-
-const waitForEvents = () => new Promise((r) => setTimeout(r, 300));
+import { createTestApp, login, bearer, inDays, type TestContext, waitForEvents } from './helpers.js';
 
 describe('Features (e2e)', () => {
   let ctx: TestContext;

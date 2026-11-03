@@ -6,10 +6,9 @@
  */
 import { LiveSessionsService } from '../src/live-sessions/live-sessions.service.js';
 import { fromZoned, toZoned } from '../src/common/time/zoned-time.js';
-import { createTestApp, login, bearer, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, type TestContext, waitForEvents } from './helpers.js';
 
 const TZ = 'Africa/Kigali';
-const waitForEvents = () => new Promise((r) => setTimeout(r, 300));
 const localDay = (days: number) => toZoned(new Date(Date.now() + days * 86_400_000), TZ).date;
 
 describe('Live sessions (e2e)', () => {

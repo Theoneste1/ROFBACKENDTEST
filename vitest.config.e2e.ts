@@ -14,6 +14,8 @@ export default defineConfig({
     root:        './',
     include:     ['test/**/*.e2e-spec.ts'],
     setupFiles:  ['test/setup-env.ts'],
+    // `npm run docs:responses` records every JSON response's schema (see test/helpers.ts).
+    globalSetup: process.env.RECORD_API_RESPONSES ? ['test/support/record-responses.ts'] : [],
     // Test files share one database, so they run one after another.
     fileParallelism: false,
     testTimeout: 30_000,

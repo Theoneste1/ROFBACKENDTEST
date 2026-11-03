@@ -21,6 +21,8 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "test:routes": "node scripts/check-route-coverage.mjs",
     "docs:api": "nest build && node scripts/generate-api-docs.mjs",
+    "docs:responses": "node scripts/record-responses.mjs",
+    "test:coverage:all": "node scripts/merge-coverage.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
@@ -65,28 +67,37 @@
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
+    "@types/mailparser": "^3.9.0",
     "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
     "@types/nodemailer": "8.0.2",
     "@types/passport-jwt": "^4.0.1",
+    "@types/smtp-server": "^3.5.13",
     "@types/supertest": "^7.0.0",
-    "@vitest/coverage-v8": "^4.1.2",
+    "@vitest/coverage-v8": "^4.1.12",
     "dotenv": "^18.0.1",
+    "mailparser": "^3.14.1",
     "oxlint": "^1.58.0",
     "prettier": "^3.4.2",
     "prisma": "^7.10.0",
+    "smtp-server": "^3.21.3",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.2",
     "unplugin-swc": "^2.0.0",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.12"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,
     "bcrypt@6.0.0": true,
     "@prisma/engines@7.10.1": true,
     "prisma@7.10.1": true
+  },
+  "overrides": {
+    "@nestjs/cli": {
+      "minimatch": "^11.0.4"
+    }
   }
 }
