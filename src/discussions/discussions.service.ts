@@ -9,11 +9,22 @@
  *   content, mentors in their assigned scopes, admins everywhere.
  * - Hidden threads/comments are visible to admins only. Locked threads can be
  *   read but not replied to. Archived threads are read-only history.
+ * - Authors edit and delete their own content. A thread can be deleted by its
+ *   author only while nobody else has posted in it. Administrators may hide,
+ *   restore or remove anything; deleted content is masked for everyone but
+ *   kept for the moderation record (except an author's own comment deletion).
  * - When an admin turns a course's discussions off, its course and assignment
  *   threads stay readable but nobody can start a thread or post.
- * - Every moderation decision is recorded in ModerationAction.
+ * - Every moderation decision is recorded in ModerationAction. Acting directly
+ *   on reported content also closes its open reports.
+ * - Activity, reports and moderation decisions emit events that
+ *   NotificationListener turns into notifications.
+ *
+ * There is no private or direct messaging: every message lives in a course or
+ * assignment thread.
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -22,6 +33,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { Events, type ContentModeratedEvent } from '../notifications/events.js';
 import { Prisma, type ModerationActionType, type ThreadStatus } from '../generated/prisma/client.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
 import { UpdateCommentDto } from './dto/update-comment.dto.js';
@@ -29,6 +41,7 @@ import { ReactCommentDto } from './dto/react-comment.dto.js';
 import { ListCommentsDto } from './dto/list-comments.dto.js';
 import {
   CreateThreadDto,
+  ListModerationActionsDto,
   ListReportsDto,
   ListThreadsDto,
   ReportContentDto,
@@ -43,20 +56,47 @@ const AUTHOR_SELECT = {
 
 const THREAD_SELECT = {
   id: true, title: true, status: true, isPinned: true, courseId: true, assignmentId: true,
-  divisionId: true, lastActivityAt: true, archivedAt: true, createdAt: true, updatedAt: true,
+  divisionId: true, lastActivityAt: true, archivedAt: true, deletedAt: true, createdAt: true, updatedAt: true,
   createdBy: { select: AUTHOR_SELECT },
   _count:    { select: { comments: { where: { status: 'ACTIVE' as const } } } },
 } as const;
 
 const COMMENT_SELECT = {
   id: true, threadId: true, content: true, status: true, parentId: true,
-  editedAt: true, createdAt: true, updatedAt: true,
+  editedAt: true, deletedAt: true, createdAt: true, updatedAt: true,
   author:    { select: AUTHOR_SELECT },
   reactions: { select: { type: true, userId: true } },
   _count:    { select: { replies: { where: { status: 'ACTIVE' as const } } } },
 } as const;
 
-type Thread = { id: string; courseId: string | null; assignmentId: string | null; divisionId: string; status: ThreadStatus };
+const REPORT_THREAD_SELECT = {
+  id: true, title: true, status: true, courseId: true, assignmentId: true, divisionId: true, deletedAt: true,
+  createdBy: { select: AUTHOR_SELECT },
+} as const;
+
+const REPORT_INCLUDE = {
+  reporter:   { select: AUTHOR_SELECT },
+  resolvedBy: { select: AUTHOR_SELECT },
+  thread:     { select: REPORT_THREAD_SELECT },
+  comment:    {
+    select: {
+      id: true, content: true, status: true, editedAt: true, deletedAt: true,
+      author: { select: AUTHOR_SELECT },
+      thread: { select: REPORT_THREAD_SELECT },
+    },
+  },
+} as const;
+
+type Thread = {
+  id: string; title: string; courseId: string | null; assignmentId: string | null; divisionId: string;
+  status: ThreadStatus; createdById: string;
+};
+
+/** Thread statuses listed by default (DELETED only on request, admins only). */
+const LISTED_STATUSES: Record<'ADMIN' | 'OTHER', ThreadStatus[]> = {
+  ADMIN: ['OPEN', 'LOCKED', 'HIDDEN'],
+  OTHER: ['OPEN', 'LOCKED'],
+};
 
 @Injectable()
 export class DiscussionsService {
@@ -65,6 +105,7 @@ export class DiscussionsService {
     private readonly audit:     AuditService,
     private readonly access:    AccessService,
     private readonly activity:  ActivityService,
+    private readonly events:    EventEmitter2,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -101,12 +142,46 @@ export class DiscussionsService {
   /** The author may rename their thread while it is open. */
   async updateThread(threadId: string, dto: UpdateThreadDto, user: AuthUser) {
     const thread = await this.requireVisibleThread(threadId, user);
-    const full = await this.prisma.discussionThread.findUniqueOrThrow({ where: { id: threadId } });
-    if (full.createdById !== user.id) {
+    if (thread.createdById !== user.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'Only the author can edit this thread.');
     }
     if (thread.status !== 'OPEN') throw invalidState('Only open threads can be edited.');
     return this.prisma.discussionThread.update({ where: { id: threadId }, data: { title: dto.title }, select: THREAD_SELECT });
+  }
+
+  /**
+   * Delete a thread.
+   *   Author: only while nobody else has posted in it (other people's messages
+   *           are not theirs to remove), and not once it is archived.
+   *   Admin:  any thread; recorded as a moderation action and closes its open reports.
+   * The thread disappears for everyone but administrators.
+   */
+  async deleteThread(threadId: string, user: AuthUser, reason?: string) {
+    const thread = await this.requireVisibleThread(threadId, user);
+    if (thread.status === 'DELETED') throw invalidState('Thread is already deleted.');
+    const isAuthor = thread.createdById === user.id;
+    const asModerator = user.role === 'ADMIN' && !isAuthor;
+
+    if (!asModerator) {
+      if (!isAuthor) throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'Only the author can delete this thread.');
+      if (thread.status === 'ARCHIVED') throw invalidState('Archived threads cannot be deleted.');
+      const others = await this.prisma.comment.count({
+        where: { threadId, authorId: { not: user.id }, status: { not: 'DELETED' } },
+      });
+      if (others > 0) {
+        throw new AppError(HttpStatus.CONFLICT, 'THREAD_HAS_REPLIES',
+          'Others have posted in this thread; ask an administrator to remove it.');
+      }
+    }
+
+    const closed = await this.prisma.$transaction(async (tx) => {
+      await tx.discussionThread.update({ where: { id: threadId }, data: { status: 'DELETED', deletedAt: new Date() } });
+      if (!asModerator) return [];
+      await this.recordAction(tx, user, 'DELETE_THREAD', { threadId, reason });
+      return this.closeOpenReports(tx, { threadId }, user, reason);
+    });
+    if (asModerator) this.emitModerated({ action: 'DELETE_THREAD', threadId, reason }, closed);
+    return { message: 'Thread deleted.' };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -165,6 +240,7 @@ export class DiscussionsService {
     this.activity.record(user.id, 'COMMENT_POSTED', {
       courseId: thread.courseId ?? undefined, entityType: 'Comment', entityId: comment.id,
     });
+    this.events.emit(Events.DiscussionCommentPosted, { commentId: comment.id });
     return this.sanitizeComment(comment, user);
   }
 
@@ -182,7 +258,11 @@ export class DiscussionsService {
     return this.sanitizeComment(updated, user);
   }
 
-  /** Soft delete: content is replaced so the thread structure is preserved. */
+  /**
+   * Soft delete: the comment stays in place (replies keep their parent) but is
+   * shown as "[deleted]". An author's own deletion erases the text; an
+   * administrator's removal keeps it for the moderation record.
+   */
   async removeComment(commentId: string, user: AuthUser, reason?: string) {
     const comment = await this.requireVisibleComment(commentId, user);
     const isAuthor = comment.authorId === user.id;
@@ -191,12 +271,16 @@ export class DiscussionsService {
     }
     if (comment.status === 'DELETED') throw invalidState('Comment is already deleted.');
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.comment.update({ where: { id: commentId }, data: { status: 'DELETED', content: '[deleted]' } });
-      if (!isAuthor) {
-        await this.recordAction(tx, user, 'DELETE_COMMENT', { commentId, threadId: comment.threadId, reason });
-      }
+    const closed = await this.prisma.$transaction(async (tx) => {
+      await tx.comment.update({
+        where: { id: commentId },
+        data:  { status: 'DELETED', deletedAt: new Date(), ...(isAuthor && { content: '[deleted]' }) },
+      });
+      if (isAuthor) return [];
+      await this.recordAction(tx, user, 'DELETE_COMMENT', { commentId, threadId: comment.threadId, reason });
+      return this.closeOpenReports(tx, { commentId }, user, reason);
     });
+    if (!isAuthor) this.emitModerated({ action: 'DELETE_COMMENT', commentId, threadId: comment.threadId, reason }, closed);
     return { message: 'Comment deleted.' };
   }
 
@@ -224,8 +308,12 @@ export class DiscussionsService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   async reportThread(threadId: string, dto: ReportContentDto, user: AuthUser) {
-    await this.requireVisibleThread(threadId, user);
-    return this.createReport({ threadId }, dto, user);
+    const thread = await this.requireVisibleThread(threadId, user);
+    if (thread.createdById === user.id) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_REPORT_OWN', 'You cannot report your own thread.');
+    }
+    if (thread.status === 'DELETED') throw invalidState('This thread has been deleted.');
+    return this.createReport({ threadId }, thread.title, dto, user);
   }
 
   async reportComment(commentId: string, dto: ReportContentDto, user: AuthUser) {
@@ -233,29 +321,53 @@ export class DiscussionsService {
     if (comment.authorId === user.id) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_REPORT_OWN', 'You cannot report your own comment.');
     }
-    return this.createReport({ commentId }, dto, user);
+    if (comment.status === 'DELETED') throw invalidState('This comment has been deleted.');
+    return this.createReport({ commentId }, comment.content, dto, user);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Moderation (ADMIN)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /** Report queue: open reports by default, oldest first. */
   async listReports(q: ListReportsDto) {
     const { page, limit, skip, take } = pageArgs(q);
-    const where = { status: q.status ?? 'OPEN' as const };
+    const where: Prisma.ContentReportWhereInput = {
+      status: q.status ?? 'OPEN',
+      ...(q.reason && { reason: q.reason }),
+      ...(q.targetType === 'THREAD'  && { threadId:  { not: null } }),
+      ...(q.targetType === 'COMMENT' && { commentId: { not: null } }),
+    };
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.contentReport.findMany({
-        where, skip, take, orderBy: { createdAt: 'asc' },
-        include: {
-          reporter:   { select: AUTHOR_SELECT },
-          resolvedBy: { select: AUTHOR_SELECT },
-          thread:     { select: { id: true, title: true, status: true } },
-          comment:    { select: { id: true, content: true, status: true, threadId: true, author: { select: AUTHOR_SELECT } } },
-        },
-      }),
+      this.prisma.contentReport.findMany({ where, skip, take, orderBy: { createdAt: 'asc' }, include: REPORT_INCLUDE }),
       this.prisma.contentReport.count({ where }),
     ]);
-    return paginated(rows, total, page, limit);
+    return paginated(rows.map((r) => this.reportView(r)), total, page, limit);
+  }
+
+  /**
+   * One report with everything needed to decide: the reported item as it is
+   * now and as it was reported, where it was posted, every other report about
+   * it, and the moderation already taken on it.
+   */
+  async getReport(reportId: string) {
+    const report = await this.prisma.contentReport.findUnique({ where: { id: reportId }, include: REPORT_INCLUDE });
+    if (!report) throw new NotFoundException('Report not found.');
+    const target = report.commentId ? { commentId: report.commentId } : { threadId: report.threadId! };
+
+    const [otherReports, actions] = await this.prisma.$transaction([
+      this.prisma.contentReport.findMany({
+        where:   { ...target, id: { not: report.id } },
+        orderBy: { createdAt: 'asc' },
+        select:  { id: true, reason: true, details: true, status: true, createdAt: true, reporter: { select: AUTHOR_SELECT } },
+      }),
+      this.prisma.moderationAction.findMany({
+        where:   target,
+        orderBy: { createdAt: 'asc' },
+        select:  { id: true, action: true, reason: true, reportId: true, createdAt: true, moderator: { select: AUTHOR_SELECT } },
+      }),
+    ]);
+    return { ...this.reportView(report), otherReports, moderationHistory: actions };
   }
 
   /**
@@ -264,40 +376,47 @@ export class DiscussionsService {
    * with the same outcome.
    */
   async resolveReport(reportId: string, dto: ResolveReportDto, user: AuthUser) {
-    const report = await this.prisma.contentReport.findUnique({ where: { id: reportId } });
+    const report = await this.prisma.contentReport.findUnique({
+      where:   { id: reportId },
+      include: { thread: { select: { status: true } }, comment: { select: { status: true, threadId: true } } },
+    });
     if (!report) throw new NotFoundException('Report not found.');
     if (report.status !== 'OPEN') throw invalidState('This report has already been handled.');
     if (dto.action === 'LOCK' && !report.threadId) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_ACTION', 'Only threads can be locked.');
     }
+    const current = report.comment?.status ?? report.thread?.status;
+    if (dto.action !== 'NONE' && current === 'DELETED') {
+      throw invalidState('The reported content has already been removed; dismiss the report instead.');
+    }
 
-    await this.prisma.$transaction(async (tx) => {
-      const target = report.commentId ? { commentId: report.commentId } : { threadId: report.threadId! };
-      let action: ModerationActionType = 'DISMISS_REPORT';
-
+    const target = report.commentId
+      ? { commentId: report.commentId, threadId: report.comment!.threadId }
+      : { threadId: report.threadId! };
+    let action: ModerationActionType = 'DISMISS_REPORT';
+    const closed = await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
       if (dto.action === 'HIDE') {
         action = report.commentId ? 'HIDE_COMMENT' : 'HIDE_THREAD';
         if (report.commentId) await tx.comment.update({ where: { id: report.commentId }, data: { status: 'HIDDEN' } });
         else await tx.discussionThread.update({ where: { id: report.threadId! }, data: { status: 'HIDDEN' } });
       } else if (dto.action === 'DELETE') {
-        if (!report.commentId) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_ACTION', 'Only comments can be deleted.');
-        action = 'DELETE_COMMENT';
-        await tx.comment.update({ where: { id: report.commentId }, data: { status: 'DELETED', content: '[deleted]' } });
+        // The text is kept (masked for everyone) so the decision can be audited.
+        action = report.commentId ? 'DELETE_COMMENT' : 'DELETE_THREAD';
+        if (report.commentId) await tx.comment.update({ where: { id: report.commentId }, data: { status: 'DELETED', deletedAt: now } });
+        else await tx.discussionThread.update({ where: { id: report.threadId! }, data: { status: 'DELETED', deletedAt: now } });
       } else if (dto.action === 'LOCK') {
         action = 'LOCK_THREAD';
         await tx.discussionThread.update({ where: { id: report.threadId! }, data: { status: 'LOCKED' } });
       }
 
       await this.recordAction(tx, user, action, { ...target, reportId, reason: dto.note });
-      await tx.contentReport.updateMany({
-        where: { ...target, status: 'OPEN' },
-        data:  {
-          status: dto.action === 'NONE' ? 'DISMISSED' : 'RESOLVED',
-          resolvedAt: new Date(), resolvedById: user.id, resolutionNote: dto.note ?? null,
-        },
-      });
+      return this.closeOpenReports(tx, report.commentId ? { commentId: report.commentId } : { threadId: report.threadId! },
+        user, dto.note, dto.action === 'NONE' ? 'DISMISSED' : 'RESOLVED');
     });
 
+    if (dto.action !== 'NONE') this.emitModerated({ action, ...target, reason: dto.note }, closed);
+    else this.events.emit(Events.ReportsResolved, { reportIds: closed, actionTaken: false });
     return this.prisma.contentReport.findUniqueOrThrow({ where: { id: reportId } });
   }
 
@@ -314,39 +433,50 @@ export class DiscussionsService {
     const thread = await this.prisma.discussionThread.findUnique({ where: { id: threadId } });
     if (!thread) throw new NotFoundException('Thread not found.');
 
-    const plan: Record<ThreadModerationOp, { from?: ThreadStatus[]; data: Prisma.DiscussionThreadUpdateInput; action: ModerationActionType }> = {
+    const live: ThreadStatus[] = ['OPEN', 'LOCKED', 'HIDDEN', 'ARCHIVED'];
+    const plan: Record<ThreadModerationOp, { from: ThreadStatus[]; data: Prisma.DiscussionThreadUpdateInput; action: ModerationActionType }> = {
       lock:    { from: ['OPEN'],             data: { status: 'LOCKED' },                       action: 'LOCK_THREAD' },
       unlock:  { from: ['LOCKED'],           data: { status: 'OPEN' },                         action: 'UNLOCK_THREAD' },
       hide:    { from: ['OPEN', 'LOCKED'],   data: { status: 'HIDDEN' },                       action: 'HIDE_THREAD' },
       restore: { from: ['HIDDEN'],           data: { status: 'OPEN' },                         action: 'RESTORE_THREAD' },
       archive: { from: ['OPEN', 'LOCKED'],   data: { status: 'ARCHIVED', archivedAt: new Date() }, action: 'ARCHIVE_THREAD' },
-      pin:     {                             data: { isPinned: true },                         action: 'PIN_THREAD' },
-      unpin:   {                             data: { isPinned: false },                        action: 'UNPIN_THREAD' },
+      pin:     { from: live,                 data: { isPinned: true },                         action: 'PIN_THREAD' },
+      unpin:   { from: live,                 data: { isPinned: false },                        action: 'UNPIN_THREAD' },
     };
     const step = plan[op];
-    if (step.from && !step.from.includes(thread.status)) {
+    if (!step.from.includes(thread.status)) {
       throw invalidState(`Cannot ${op} a thread that is ${thread.status}.`);
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.discussionThread.update({ where: { id: threadId }, data: step.data, select: THREAD_SELECT });
+    const { row, closed } = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.discussionThread.update({ where: { id: threadId }, data: step.data, select: THREAD_SELECT });
       await this.recordAction(tx, user, step.action, { threadId, reason });
-      return updated;
+      return { row, closed: op === 'hide' ? await this.closeOpenReports(tx, { threadId }, user, reason) : [] };
     });
+    if (op === 'hide' || op === 'restore') this.emitModerated({ action: step.action, threadId, reason }, closed);
+    return row;
   }
 
-  async listModerationActions(q: ListCommentsDto) {
+  /** Every moderation decision, newest first; filter by action, moderator, thread or comment. */
+  async listModerationActions(q: ListModerationActionsDto) {
     const { page, limit, skip, take } = pageArgs(q);
+    const where: Prisma.ModerationActionWhereInput = {
+      ...(q.action      && { action: q.action }),
+      ...(q.moderatorId && { moderatorId: q.moderatorId }),
+      ...(q.threadId    && { threadId: q.threadId }),
+      ...(q.commentId   && { commentId: q.commentId }),
+    };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.moderationAction.findMany({
-        skip, take, orderBy: { createdAt: 'desc' },
+        where, skip, take, orderBy: { createdAt: 'desc' },
         include: {
           moderator: { select: AUTHOR_SELECT },
-          thread:    { select: { id: true, title: true } },
-          comment:   { select: { id: true, content: true } },
+          thread:    { select: { id: true, title: true, status: true } },
+          comment:   { select: { id: true, content: true, status: true, author: { select: AUTHOR_SELECT } } },
+          report:    { select: { id: true, reason: true, contentSnapshot: true } },
         },
       }),
-      this.prisma.moderationAction.count(),
+      this.prisma.moderationAction.count({ where }),
     ]);
     return paginated(rows, total, page, limit);
   }
@@ -407,9 +537,9 @@ export class DiscussionsService {
       ...target,
       ...(q.status
         ? { status: q.status }
-        : { status: { in: user.role === 'ADMIN' ? ['OPEN', 'LOCKED', 'HIDDEN'] : ['OPEN', 'LOCKED'] } }),
+        : { status: { in: LISTED_STATUSES[user.role === 'ADMIN' ? 'ADMIN' : 'OTHER'] } }),
     };
-    if (user.role !== 'ADMIN' && q.status === 'HIDDEN') throw new NotFoundException('Not found.');
+    if (user.role !== 'ADMIN' && (q.status === 'HIDDEN' || q.status === 'DELETED')) throw new NotFoundException('Not found.');
 
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.discussionThread.findMany({
@@ -432,6 +562,7 @@ export class DiscussionsService {
     this.activity.record(user.id, 'THREAD_CREATED', {
       courseId: 'courseId' in target ? target.courseId : undefined, entityType: 'DiscussionThread', entityId: thread.id,
     });
+    this.events.emit(Events.DiscussionThreadCreated, { threadId: thread.id });
     return thread;
   }
 
@@ -452,7 +583,7 @@ export class DiscussionsService {
   private async requireVisibleThread(threadId: string, user: AuthUser): Promise<Thread> {
     const thread = await this.prisma.discussionThread.findUnique({
       where:  { id: threadId },
-      select: { id: true, courseId: true, assignmentId: true, divisionId: true, status: true },
+      select: { id: true, title: true, courseId: true, assignmentId: true, divisionId: true, status: true, createdById: true },
     });
     if (!thread) throw new NotFoundException('Thread not found.');
 
@@ -461,7 +592,9 @@ export class DiscussionsService {
     } else if (thread.assignmentId) {
       await this.assignmentTarget(thread.assignmentId, user);
     }
-    if (user.role !== 'ADMIN' && thread.status === 'HIDDEN') throw new NotFoundException('Thread not found.');
+    if (user.role !== 'ADMIN' && (thread.status === 'HIDDEN' || thread.status === 'DELETED')) {
+      throw new NotFoundException('Thread not found.');
+    }
     return thread;
   }
 
@@ -476,12 +609,16 @@ export class DiscussionsService {
     return comment;
   }
 
-  private async createReport(target: { threadId: string } | { commentId: string }, dto: ReportContentDto, user: AuthUser) {
+  private async createReport(
+    target: { threadId: string } | { commentId: string }, snapshot: string, dto: ReportContentDto, user: AuthUser,
+  ) {
     try {
-      return await this.prisma.contentReport.create({
-        data:   { ...target, reporterId: user.id, reason: dto.reason, details: dto.details ?? null },
+      const report = await this.prisma.contentReport.create({
+        data:   { ...target, reporterId: user.id, reason: dto.reason, details: dto.details ?? null, contentSnapshot: snapshot },
         select: { id: true, reason: true, status: true, createdAt: true },
       });
+      this.events.emit(Events.ContentReported, { reportId: report.id });
+      return report;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         throw new AppError(HttpStatus.CONFLICT, 'ALREADY_REPORTED', 'You have already reported this.');
@@ -499,11 +636,54 @@ export class DiscussionsService {
     if (!from.includes(comment.status as 'ACTIVE' | 'HIDDEN')) {
       throw invalidState(to === 'HIDDEN' ? 'Only active comments can be hidden.' : 'Only hidden comments can be restored.');
     }
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.comment.update({ where: { id: commentId }, data: { status: to }, select: COMMENT_SELECT });
+    const { row, closed } = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.comment.update({ where: { id: commentId }, data: { status: to }, select: COMMENT_SELECT });
       await this.recordAction(tx, user, action, { commentId, threadId: comment.threadId, reason });
-      return this.sanitizeComment(updated, user);
+      return { row, closed: to === 'HIDDEN' ? await this.closeOpenReports(tx, { commentId }, user, reason) : [] };
     });
+    this.emitModerated({ action, commentId, threadId: comment.threadId, reason }, closed);
+    return this.sanitizeComment(row, user);
+  }
+
+  /**
+   * Close the open reports about an item once a moderator has acted on it.
+   * Returns the ids of the reports closed (their reporters are told).
+   */
+  private async closeOpenReports(
+    tx: Prisma.TransactionClient, target: { threadId: string } | { commentId: string }, user: AuthUser,
+    note?: string, status: 'RESOLVED' | 'DISMISSED' = 'RESOLVED',
+  ) {
+    const open = await tx.contentReport.findMany({ where: { ...target, status: 'OPEN' }, select: { id: true } });
+    if (open.length === 0) return [];
+    const ids = open.map((r) => r.id);
+    await tx.contentReport.updateMany({
+      where: { id: { in: ids }, status: 'OPEN' },
+      data:  { status, resolvedAt: new Date(), resolvedById: user.id, resolutionNote: note ?? null },
+    });
+    return ids;
+  }
+
+  /** Tell the author what was done to their content, and the reporters that action was taken. */
+  private emitModerated(e: ContentModeratedEvent, closedReports: string[]) {
+    this.events.emit(Events.ContentModerated, e);
+    if (closedReports.length > 0) this.events.emit(Events.ReportsResolved, { reportIds: closedReports, actionTaken: true });
+  }
+
+  /** Reports as administrators review them: who, why, what was reported and where. */
+  private reportView(r: Prisma.ContentReportGetPayload<{ include: typeof REPORT_INCLUDE }>) {
+    const thread = r.thread ?? r.comment?.thread ?? null;
+    return {
+      id: r.id, reason: r.reason, details: r.details, status: r.status, createdAt: r.createdAt,
+      targetType:      r.commentId ? 'COMMENT' as const : 'THREAD' as const,
+      contentSnapshot: r.contentSnapshot,
+      reporter:        r.reporter,
+      resolvedAt:      r.resolvedAt, resolvedBy: r.resolvedBy, resolutionNote: r.resolutionNote,
+      thread,
+      comment: r.comment && {
+        id: r.comment.id, content: r.comment.content, status: r.comment.status,
+        editedAt: r.comment.editedAt, deletedAt: r.comment.deletedAt, author: r.comment.author,
+      },
+    };
   }
 
   private async recordAction(

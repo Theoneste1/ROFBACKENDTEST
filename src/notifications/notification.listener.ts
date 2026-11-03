@@ -12,7 +12,12 @@ import { NotificationsService } from './notifications.service.js';
 import {
   Events,
   type AssignmentEvent,
+  type ContentModeratedEvent,
+  type ContentReportedEvent,
+  type DiscussionCommentEvent,
+  type DiscussionThreadEvent,
   type LiveSessionEvent,
+  type ReportsResolvedEvent,
   type MentorRequestDecidedEvent,
   type ResourceEvent,
   type ResultsPublishedEvent,
@@ -261,6 +266,154 @@ export class NotificationListener {
         data:     { sessionId: s.id, courseId: s.courseId },
         link:     `/live-sessions/${s.id}`,
       });
+    });
+  }
+
+  // ─── Discussions ──────────────────────────────────────────────────────────
+  // In-app only: discussion activity is too frequent for e-mail. The exception
+  // is moderation of a user's own content, which respects their DISCUSSIONS
+  // e-mail preference.
+
+  /** New thread → the mentors who teach that course to that division. */
+  @OnEvent(Events.DiscussionThreadCreated, ASYNC)
+  async onThreadCreated(e: DiscussionThreadEvent) {
+    await this.safe('thread created', async () => {
+      const t = await this.prisma.discussionThread.findUnique({
+        where:  { id: e.threadId },
+        select: {
+          id: true, title: true, courseId: true, assignmentId: true, divisionId: true, createdById: true,
+          course:     { select: { title: true } },
+          assignment: { select: { title: true, courseId: true } },
+        },
+      });
+      if (!t) return;
+      const courseId = t.courseId ?? t.assignment!.courseId;
+      const mentors = await this.prisma.mentorAssignment.findMany({
+        where:  { courseId, divisionId: t.divisionId, isActive: true, mentor: { isActive: true } },
+        select: { mentorId: true },
+      });
+      const where = t.assignment ? `the assignment "${t.assignment.title}"` : t.course!.title;
+      await this.notifications.notify(mentors.map((m) => m.mentorId).filter((id) => id !== t.createdById), {
+        category: 'DISCUSSIONS',
+        type:     Events.DiscussionThreadCreated,
+        title:    'New discussion',
+        body:     `"${t.title}" was started in ${where}.`,
+        data:     { threadId: t.id, ...(t.courseId && { courseId: t.courseId }), ...(t.assignmentId && { assignmentId: t.assignmentId }) },
+        link:     `/discussions/${t.id}`,
+      }, { email: false });
+    });
+  }
+
+  /** New comment → the thread's author; a reply → also the comment's author. Never the poster. */
+  @OnEvent(Events.DiscussionCommentPosted, ASYNC)
+  async onCommentPosted(e: DiscussionCommentEvent) {
+    await this.safe('comment posted', async () => {
+      const c = await this.prisma.comment.findUnique({
+        where:  { id: e.commentId },
+        select: {
+          id: true, threadId: true, authorId: true,
+          author: { select: { firstName: true, lastName: true } },
+          parent: { select: { authorId: true } },
+          thread: { select: { title: true, createdById: true } },
+        },
+      });
+      if (!c) return;
+      const who = `${c.author.firstName ?? ''} ${c.author.lastName ?? ''}`.trim() || 'Someone';
+      const notice = (title: string, body: string) => ({
+        category: 'DISCUSSIONS' as const,
+        type:     Events.DiscussionCommentPosted,
+        title, body,
+        data:     { threadId: c.threadId, commentId: c.id },
+        link:     `/discussions/${c.threadId}`,
+      });
+
+      const parentAuthor = c.parent?.authorId;
+      if (parentAuthor && parentAuthor !== c.authorId) {
+        await this.notifications.notify([parentAuthor],
+          notice('New reply to your comment', `${who} replied to your comment in "${c.thread.title}".`), { email: false });
+      }
+      const threadAuthor = c.thread.createdById;
+      if (threadAuthor !== c.authorId && threadAuthor !== parentAuthor) {
+        await this.notifications.notify([threadAuthor],
+          notice('New activity in your discussion', `${who} posted in "${c.thread.title}".`), { email: false });
+      }
+    });
+  }
+
+  /** New report → administrators. */
+  @OnEvent(Events.ContentReported, ASYNC)
+  async onContentReported(e: ContentReportedEvent) {
+    await this.safe('content reported', async () => {
+      const r = await this.prisma.contentReport.findUnique({
+        where:  { id: e.reportId },
+        select: { id: true, reason: true, commentId: true },
+      });
+      if (!r) return;
+      await this.notifications.notify(await this.notifications.adminIds(), {
+        category: 'DISCUSSIONS',
+        type:     Events.ContentReported,
+        title:    'Content reported',
+        body:     `A ${r.commentId ? 'comment' : 'discussion thread'} was reported (${r.reason.toLowerCase().replace(/_/g, ' ')}).`,
+        data:     { reportId: r.id },
+        link:     `/admin/moderation/reports/${r.id}`,
+      }, { email: false });
+    });
+  }
+
+  /** Content hidden, removed, restored or locked by an administrator → its author, with the reason. */
+  @OnEvent(Events.ContentModerated, ASYNC)
+  async onContentModerated(e: ContentModeratedEvent) {
+    await this.safe('content moderated', async () => {
+      const verbs: Partial<Record<ContentModeratedEvent['action'], string>> = {
+        HIDE_COMMENT:    'hidden',   HIDE_THREAD:    'hidden',
+        DELETE_COMMENT:  'removed',  DELETE_THREAD:  'removed',
+        RESTORE_COMMENT: 'restored', RESTORE_THREAD: 'restored',
+        LOCK_THREAD:     'locked',
+      };
+      const verb = verbs[e.action];
+      if (!verb) return;
+
+      let target: { authorId: string; kind: string; title: string } | null = null;
+      if (e.commentId) {
+        const c = await this.prisma.comment.findUnique({
+          where: { id: e.commentId }, select: { authorId: true, thread: { select: { title: true } } },
+        });
+        if (c) target = { authorId: c.authorId, kind: 'comment', title: c.thread.title };
+      } else if (e.threadId) {
+        const t = await this.prisma.discussionThread.findUnique({
+          where: { id: e.threadId }, select: { createdById: true, title: true },
+        });
+        if (t) target = { authorId: t.createdById, kind: 'discussion', title: t.title };
+      }
+      if (!target) return;
+
+      await this.notifications.notify([target.authorId], {
+        category: 'DISCUSSIONS',
+        type:     Events.ContentModerated,
+        title:    `Your ${target.kind} was ${verb}`,
+        body:     `A moderator ${verb} your ${target.kind} in "${target.title}".${e.reason ? ` Reason: ${e.reason}` : ''}`,
+        data:     { action: e.action, ...(e.threadId && { threadId: e.threadId }), ...(e.commentId && { commentId: e.commentId }) },
+      });
+    });
+  }
+
+  /** Report handled → each reporter learns the outcome (not the details). */
+  @OnEvent(Events.ReportsResolved, ASYNC)
+  async onReportsResolved(e: ReportsResolvedEvent) {
+    await this.safe('reports resolved', async () => {
+      if (e.reportIds.length === 0) return;
+      const reports = await this.prisma.contentReport.findMany({
+        where:  { id: { in: e.reportIds } },
+        select: { reporterId: true },
+      });
+      await this.notifications.notify(reports.map((r) => r.reporterId), {
+        category: 'DISCUSSIONS',
+        type:     Events.ReportsResolved,
+        title:    'Your report was reviewed',
+        body:     e.actionTaken
+          ? 'Thank you. A moderator reviewed the content you reported and took action.'
+          : 'Thank you. A moderator reviewed the content you reported and found it within the guidelines.',
+      }, { email: false });
     });
   }
 

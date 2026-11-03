@@ -3,6 +3,8 @@
  * NotificationListener turns them into in-app notifications and e-mails, so
  * feature modules never depend on the notification module.
  */
+import type { ModerationActionType } from '../generated/prisma/client.js';
+
 export const Events = {
   AssignmentSubmittedForReview: 'assignment.submitted_for_review',
   AssignmentPublished:          'assignment.published',
@@ -20,6 +22,11 @@ export const Events = {
   LiveSessionUpdated:           'live_session.updated',
   LiveSessionCancelled:         'live_session.cancelled',
   MentorRequestDecided:         'mentor_request.decided',
+  DiscussionThreadCreated:      'discussion.thread_created',
+  DiscussionCommentPosted:      'discussion.comment_posted',
+  ContentReported:              'moderation.content_reported',
+  ContentModerated:             'moderation.content_moderated',
+  ReportsResolved:              'moderation.reports_resolved',
 } as const;
 
 export interface AssignmentEvent        { assignmentId: string; note?: string }
@@ -28,6 +35,16 @@ export interface SubmissionsAssignedEvent { assignmentId: string; byMentor: Reco
 export interface ResultsPublishedEvent  { submissionIds: string[] }
 export interface ResourceEvent          { resourceId: string }
 export interface LiveSessionEvent       { sessionId: string }
+export interface DiscussionThreadEvent  { threadId: string }
+export interface DiscussionCommentEvent { commentId: string }
+export interface ContentReportedEvent   { reportId: string }
+export interface ContentModeratedEvent {
+  action:     ModerationActionType;
+  threadId?:  string;
+  commentId?: string;
+  reason?:    string;
+}
+export interface ReportsResolvedEvent   { reportIds: string[]; actionTaken: boolean }
 export interface MentorRequestDecidedEvent {
   email:     string;
   firstName: string;

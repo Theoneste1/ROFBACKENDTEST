@@ -152,9 +152,9 @@ erDiagram
   Comment |o--o{ ModerationAction : ""
   User ||--o{ ModerationAction : "moderator (admin)"
 
-  DiscussionThread { string title enum status "OPEN|LOCKED|HIDDEN|ARCHIVED" bool isPinned datetime lastActivityAt }
-  Comment { enum status "ACTIVE|HIDDEN|DELETED" string parentId "one level" datetime editedAt }
-  ContentReport { enum reason enum status "OPEN|RESOLVED|DISMISSED" }
+  DiscussionThread { string title enum status "OPEN|LOCKED|HIDDEN|ARCHIVED|DELETED" bool isPinned datetime lastActivityAt datetime deletedAt }
+  Comment { enum status "ACTIVE|HIDDEN|DELETED" string parentId "one level" datetime editedAt datetime deletedAt }
+  ContentReport { enum reason enum status "OPEN|RESOLVED|DISMISSED" string contentSnapshot }
   ModerationAction { enum action string reason }
 ```
 
@@ -219,7 +219,7 @@ erDiagram
 | Community | `DiscussionThread` | Topic in a course (per division) or assignment | idx (`courseId`, `divisionId`, `status`, `lastActivityAt`) |
 | | `Comment` | Message in a thread; one level of replies | idx (`threadId`, `parentId`, `createdAt`) |
 | | `CommentReaction` | LIKE / HELPFUL / CONFUSED | unique (`commentId`, `userId`, `type`) |
-| | `ContentReport` | A user's report of a thread or comment | unique (`reporterId`, `commentId`), (`reporterId`, `threadId`) |
+| | `ContentReport` | A user's report of a thread or comment, with a snapshot of the reported text | unique (`reporterId`, `commentId`), (`reporterId`, `threadId`) |
 | | `ModerationAction` | Every moderation decision | idx `commentId`, `threadId`, (`moderatorId`, `createdAt`) |
 | | `StudyGroup`, `StudyGroupMember` | Admin-managed cohorts | unique (`groupId`, `userId`) |
 | Messaging | `Notification`, `NotificationPreference` | In-app notifications; e-mail opt-outs | idx (`userId`, `readAt`) |
@@ -280,7 +280,8 @@ their scope; status transitions (conditional `UPDATE … WHERE status IN …`).
 | Assignments | `CLOSED` automatically at the deadline (unless late work is accepted) or by an admin; reopening needs a future deadline. `ARCHIVED` by admin or automatically when their year closes (read-only; results stay visible). Unpublish only while no submissions exist. Every change is kept in `AssignmentEvent`. |
 | Resources | Archive (hidden, kept) or delete (attachments cascade; file bytes removed by the nightly orphan cleanup). |
 | Submissions, revisions, reviews, review events, result releases | Never deleted. Corrections create new review cycles. |
-| Threads | Lock, hide or archive; never deleted by the API. Comments are soft-deleted (`[deleted]` placeholder keeps the thread readable). |
+| Threads | Lock, hide or archive. "Deleting" sets `DELETED` + `deletedAt` (authors: only while nobody else has posted; admins: any); the row stays for the moderation record and is visible to admins only. |
+| Comments | Soft-deleted (`[deleted]` placeholder keeps the thread readable). An author's own deletion erases the text; an admin's removal keeps it for the moderation record. |
 | Reports, moderation actions, audit log | Never deleted. |
 | Files | Deleted only when nothing references them (nightly, after 24 h). |
 
@@ -337,6 +338,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261108000000_course_discussions_resource_metadata` | additive | `Course.discussionsEnabled` (admins turn a course's discussions off; default on) and resource metadata `author`, `source`, `year`, `tags`. |
 | `20261109000000_assignment_history_closed_status` | additive + backfill | `AssignmentStatus.CLOSED`, `Assignment.description`/`closedAt`, and the `AssignmentEvent` history table, backfilled from the audit log (plus a `CREATED` entry for assignments without one). |
 | `20261110000000_submission_answers_resubmission_requests` | additive | `RESUBMISSION_REQUESTED` in `SubmissionStatus`/`ReviewStatus` (+ request/withdraw `ReviewEventType`s), `Submission.resubmissionRequestedAt/DueAt/Note`, `SubmissionRevision.answerText`. |
+| `20261111000000_discussion_removal_report_snapshots` | additive + backfill | `ThreadStatus.DELETED`, `DiscussionThread.deletedAt`, `Comment.deletedAt` (backfilled from `updatedAt` for already-deleted comments), `ModerationActionType.DELETE_THREAD`, `ContentReport.contentSnapshot`, `NotificationCategory.DISCUSSIONS`. |
 
 **Making a schema change.**
 

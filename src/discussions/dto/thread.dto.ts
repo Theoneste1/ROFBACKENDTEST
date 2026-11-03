@@ -1,6 +1,6 @@
 import { IsEnum, IsIn, IsOptional, IsString, IsUUID, Length } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { ReportReason, ReportStatus, ThreadStatus } from '../../generated/prisma/client.js';
+import { ModerationActionType, ReportReason, ReportStatus, ThreadStatus } from '../../generated/prisma/client.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 import { trim } from '../../auth/dto/password.rules.js';
 
@@ -49,10 +49,19 @@ export class ReportContentDto {
 export class ListReportsDto extends PaginationQueryDto {
   /** Default OPEN. */
   @IsOptional() @IsEnum(ReportStatus) status?: ReportStatus;
+  @IsOptional() @IsEnum(ReportReason) reason?: ReportReason;
+  @IsOptional() @IsIn(['THREAD', 'COMMENT']) targetType?: 'THREAD' | 'COMMENT';
+}
+
+export class ListModerationActionsDto extends PaginationQueryDto {
+  @IsOptional() @IsEnum(ModerationActionType) action?: ModerationActionType;
+  @IsOptional() @IsUUID() moderatorId?: string;
+  @IsOptional() @IsUUID() threadId?: string;
+  @IsOptional() @IsUUID() commentId?: string;
 }
 
 export class ResolveReportDto {
-  /** HIDE the item, DELETE a comment, LOCK a thread, or NONE to dismiss the report. */
+  /** HIDE or DELETE the item, LOCK a thread, or NONE to dismiss the report. */
   @IsIn(['HIDE', 'DELETE', 'LOCK', 'NONE'])
   action: 'HIDE' | 'DELETE' | 'LOCK' | 'NONE';
 

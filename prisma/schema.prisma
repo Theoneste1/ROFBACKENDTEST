@@ -232,6 +232,8 @@ enum ThreadStatus {
   LOCKED
   HIDDEN
   ARCHIVED
+  /// Removed by its author or an administrator; kept for the moderation record.
+  DELETED
 }
 
 enum ReportReason {
@@ -261,6 +263,7 @@ enum ModerationActionType {
   UNPIN_THREAD
   ARCHIVE_THREAD
   DISMISS_REPORT
+  DELETE_THREAD
 }
 
 /// Learning activity recorded for analytics (not security auditing).
@@ -338,6 +341,7 @@ enum NotificationCategory {
   LIVE_SESSIONS
   RESOURCES
   ACCOUNT
+  DISCUSSIONS
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1134,6 +1138,7 @@ model DiscussionThread {
   /// Updated whenever a comment is posted; drives "most recent" ordering.
   lastActivityAt DateTime     @default(now())
   archivedAt     DateTime?
+  deletedAt      DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -1159,9 +1164,10 @@ model Comment {
   parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies  Comment[] @relation("CommentReplies")
 
-  authorId String
-  author   User      @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  editedAt DateTime?
+  authorId  String
+  author    User      @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  editedAt  DateTime?
+  deletedAt DateTime?
 
   reactions         CommentReaction[]
   reports           ContentReport[]
@@ -1179,21 +1185,24 @@ model Comment {
 /// A user's report of a thread or comment for moderation. Exactly one of
 /// threadId / commentId is set (CHECK constraint). One report per user per item.
 model ContentReport {
-  id             String            @id @default(uuid())
-  reporterId     String
-  reporter       User              @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  threadId       String?
-  thread         DiscussionThread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  commentId      String?
-  comment        Comment?          @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  reason         ReportReason
-  details        String?
-  status         ReportStatus      @default(OPEN)
-  resolvedAt     DateTime?
-  resolvedById   String?
-  resolvedBy     User?             @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
-  resolutionNote String?
-  createdAt      DateTime          @default(now())
+  id              String            @id @default(uuid())
+  reporterId      String
+  reporter        User              @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  threadId        String?
+  thread          DiscussionThread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  commentId       String?
+  comment         Comment?          @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reason          ReportReason
+  details         String?
+  /// The reported text as it was when reported (title for threads), so later
+  /// edits cannot hide what was reported.
+  contentSnapshot String?
+  status          ReportStatus      @default(OPEN)
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolvedBy      User?             @relation("ReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolutionNote  String?
+  createdAt       DateTime          @default(now())
 
   moderationActions ModerationAction[]
 

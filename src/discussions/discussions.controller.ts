@@ -20,6 +20,7 @@ import { ReactCommentDto } from './dto/react-comment.dto.js';
 import { ListCommentsDto } from './dto/list-comments.dto.js';
 import {
   CreateThreadDto,
+  ListModerationActionsDto,
   ListReportsDto,
   ListThreadsDto,
   ModerationReasonDto,
@@ -40,6 +41,9 @@ import type { AuthUser } from '../common/auth-user.js';
  *   Comments:            /comments/:id, /comments/:id/replies, /comments/:id/reactions
  *   Reports:             /threads/:id/report, /comments/:id/report
  *   Moderation (admin):  /admin/moderation/…, /threads/:id/{lock,…}, /comments/:id/{hide,restore}
+ *
+ * There are no private or direct messages: all discussion happens in course
+ * and assignment threads.
  */
 @ApiTags('Discussions')
 @Controller()
@@ -96,6 +100,15 @@ export class DiscussionsController {
     return this.discussions.updateThread(id, body, user);
   }
 
+  /**
+   * Authors delete their own thread while nobody else has posted in it; admins
+   * may remove any thread (recorded as moderation, optional reason).
+   */
+  @Delete('threads/:id')
+  deleteThread(@Param('id', ParseUUIDPipe) id: string, @Body() body: ModerationReasonDto, @CurrentUser() user: AuthUser) {
+    return this.discussions.deleteThread(id, user, body?.reason);
+  }
+
   // ─── Comments ─────────────────────────────────────────────────────────────
 
   @Get('threads/:id/comments')
@@ -119,10 +132,10 @@ export class DiscussionsController {
     return this.discussions.updateComment(id, body, user);
   }
 
-  /** Authors delete their own comments; admins may delete any (recorded as moderation). */
+  /** Authors delete their own comments; admins may delete any (recorded as moderation, optional reason). */
   @Delete('comments/:id')
-  removeComment(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.discussions.removeComment(id, user);
+  removeComment(@Param('id', ParseUUIDPipe) id: string, @Body() body: ModerationReasonDto, @CurrentUser() user: AuthUser) {
+    return this.discussions.removeComment(id, user, body?.reason);
   }
 
   /** Toggle a reaction (LIKE, HELPFUL, CONFUSED). */
@@ -151,7 +164,14 @@ export class DiscussionsController {
     return this.discussions.listReports(query);
   }
 
-  /** Act on a report: HIDE, DELETE (comment), LOCK (thread) or NONE (dismiss). */
+  /** The reported item, its other reports and the moderation already taken. */
+  @Get('admin/moderation/reports/:id')
+  @Roles('ADMIN')
+  getReport(@Param('id', ParseUUIDPipe) id: string) {
+    return this.discussions.getReport(id);
+  }
+
+  /** Act on a report: HIDE, DELETE, LOCK (thread) or NONE (dismiss). */
   @Post('admin/moderation/reports/:id/resolve')
   @Roles('ADMIN')
   @HttpCode(200)
@@ -162,7 +182,7 @@ export class DiscussionsController {
   /** Every moderation decision, newest first. */
   @Get('admin/moderation/actions')
   @Roles('ADMIN')
-  listActions(@Query() query: ListCommentsDto) {
+  listActions(@Query() query: ListModerationActionsDto) {
     return this.discussions.listModerationActions(query);
   }
 
