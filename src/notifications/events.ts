@@ -13,6 +13,8 @@ export const Events = {
   ReviewRejected:               'review.rejected',
   ResultsPublished:             'results.published',
   ResultReopened:               'result.reopened',
+  ResubmissionRequested:        'submission.resubmission_requested',
+  ResubmissionRequestWithdrawn: 'submission.resubmission_request_withdrawn',
   ResourcePublished:            'resource.published',
   LiveSessionScheduled:         'live_session.scheduled',
   LiveSessionUpdated:           'live_session.updated',

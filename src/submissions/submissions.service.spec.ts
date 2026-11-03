@@ -26,7 +26,11 @@ function reviewRow(overrides: Record<string, unknown> = {}, review: Record<strin
     currentReviewId: 'r1',
     currentReview:   { id: 'r1', mentorId: 'm1', status: 'IN_PROGRESS', ...review },
     publishedReview: null,
-    assignment: { courseId: 'c1', divisionId: 'd1', maximumMarks: 20 },
+    assignment: {
+      courseId: 'c1', divisionId: 'd1', maximumMarks: 20, status: 'PUBLISHED', deadline: FUTURE(),
+      allowResubmission: true, maxResubmissions: 0,
+    },
+    revisionCount: 0,
     ...overrides,
   };
 }
@@ -107,13 +111,22 @@ function makeMocks() {
 
 describe('SubmissionsService', () => {
   describe('submit', () => {
-    it('requires at least one file', async () => {
+    it('requires a typed answer or at least one file', async () => {
       const { service, prisma } = makeMocks();
       await expect(service.submit({ assignmentId: 'as1' } as any, STUDENT, []))
-        .rejects.toMatchObject({ code: 'FILE_REQUIRED', status: 400 });
+        .rejects.toMatchObject({ code: 'ANSWER_REQUIRED', status: 400 });
       await expect(service.submit({ assignmentId: 'as1' } as any, STUDENT))
-        .rejects.toMatchObject({ code: 'FILE_REQUIRED' });
+        .rejects.toMatchObject({ code: 'ANSWER_REQUIRED' });
       expect(prisma.assignment.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('accepts a typed answer without files', async () => {
+      const { service, prisma, storage } = makeMocks();
+      await service.submit({ assignmentId: 'as1', answerText: 'x = 3' } as any, STUDENT);
+      expect(storage.store).not.toHaveBeenCalled();
+      expect(prisma.submission.create.mock.calls[0][0].data.revisions.create).toMatchObject({
+        revisionNumber: 1, answerText: 'x = 3', attachments: { create: [] },
+      });
     });
 
     it('hides unpublished assignments (404)', async () => {
@@ -450,7 +463,7 @@ describe('SubmissionsService', () => {
       const view = await service.findOne('sub1', STUDENT);
       expect(view).not.toHaveProperty('result');
       expect(view).not.toHaveProperty('review');
-      expect(view).toMatchObject({ displayStatus: 'In Review' });
+      expect(view).toMatchObject({ displayStatus: 'Pending Review' });
     });
 
     it('a student cannot download feedback before publication', async () => {
@@ -458,6 +471,95 @@ describe('SubmissionsService', () => {
       prisma.submission.findUnique.mockResolvedValue(fullRow({ status: 'APPROVED' }));
       await expect(service.serveFeedbackFile('sub1', STUDENT, {} as any))
         .rejects.toMatchObject({ code: 'RESULT_NOT_PUBLISHED' });
+    });
+  });
+
+  describe('resubmission requests', () => {
+    const body = { note: 'Show the working for part (b).' } as any;
+
+    it('the assigned mentor requests a new attempt with a due date', async () => {
+      const { service, prisma, events } = makeMocks();
+      prisma.submission.findUnique.mockResolvedValue(reviewRow());
+      await service.requestResubmission('sub1', body, MENTOR);
+
+      const reviewMove = prisma.mentorReview.updateMany.mock.calls[0][0];
+      expect(reviewMove.data).toEqual({ status: 'RESUBMISSION_REQUESTED' });
+      expect(reviewMove.where).toMatchObject({ id: 'r1', mentorId: 'm1' });
+      const subMove = prisma.submission.updateMany.mock.calls[0][0];
+      expect(subMove.data).toMatchObject({ status: 'RESUBMISSION_REQUESTED', resubmissionNote: body.note });
+      // Default window: the later of the deadline and 7 days from now.
+      expect(subMove.data.resubmissionDueAt.getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 3600 * 1000);
+      expect(prisma.reviewEvent.create.mock.calls[0][0].data).toMatchObject({ type: 'RESUBMISSION_REQUESTED', note: body.note });
+      expect(events.emit).toHaveBeenCalledWith(Events.ResubmissionRequested, { submissionId: 'sub1', reason: body.note });
+    });
+
+    it('is refused when the assignment does not permit resubmissions', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.submission.findUnique.mockResolvedValue(reviewRow({
+        assignment: { courseId: 'c1', divisionId: 'd1', maximumMarks: 20, status: 'PUBLISHED', deadline: FUTURE(), allowResubmission: false, maxResubmissions: 0 },
+      }));
+      await expect(service.requestResubmission('sub1', body, MENTOR)).rejects.toMatchObject({ code: 'RESUBMISSION_NOT_ALLOWED' });
+      expect(prisma.mentorReview.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('is refused once the student has used every resubmission', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.submission.findUnique.mockResolvedValue(reviewRow({
+        revisionCount: 2,
+        assignment: { courseId: 'c1', divisionId: 'd1', maximumMarks: 20, status: 'PUBLISHED', deadline: FUTURE(), allowResubmission: true, maxResubmissions: 2 },
+      }));
+      await expect(service.requestResubmission('sub1', body, MENTOR)).rejects.toMatchObject({ code: 'RESUBMISSION_LIMIT_REACHED' });
+    });
+
+    it('only the mentor of the current review can request', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.submission.findUnique.mockResolvedValue(reviewRow());
+      await expect(service.requestResubmission('sub1', body, OTHER)).rejects.toMatchObject({ code: 'NOT_ASSIGNED_MENTOR' });
+    });
+
+    it('rejects a due date in the past or more than 60 days away', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.submission.findUnique.mockResolvedValue(reviewRow());
+      await expect(service.requestResubmission('sub1', { ...body, dueAt: PAST().toISOString() }, MENTOR))
+        .rejects.toMatchObject({ code: 'DEADLINE_IN_PAST' });
+      const far = new Date(Date.now() + 61 * 24 * 3600 * 1000).toISOString();
+      await expect(service.requestResubmission('sub1', { ...body, dueAt: far }, MENTOR))
+        .rejects.toMatchObject({ code: 'DUE_DATE_TOO_FAR' });
+    });
+
+    it('a requested resubmission is accepted after the deadline but not after its own due date', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.assignment.findUnique.mockResolvedValue(publishedAssignment({ status: 'CLOSED', deadline: PAST() }));
+      prisma.submission.findUnique.mockResolvedValue({
+        id: 'sub1', status: 'RESUBMISSION_REQUESTED', revisionCount: 0, currentReviewId: 'r1',
+        resubmissionDueAt: PAST(), currentReview: { mentorId: 'm1' },
+      });
+      await expect(service.submit({ assignmentId: 'as1', answerText: 'v2' } as any, STUDENT))
+        .rejects.toMatchObject({ code: 'RESUBMISSION_WINDOW_CLOSED' });
+
+      prisma.submission.findUnique.mockResolvedValue({
+        id: 'sub1', status: 'RESUBMISSION_REQUESTED', revisionCount: 0, currentReviewId: 'r1',
+        resubmissionDueAt: FUTURE(), currentReview: { mentorId: 'm1' },
+      });
+      prisma.user.findUnique.mockResolvedValue({ role: 'MENTOR', isActive: true, isApproved: true });
+      await service.submit({ assignmentId: 'as1', answerText: 'v2' } as any, STUDENT);
+
+      // The request is cleared and the new attempt goes back to the same mentor.
+      expect(prisma.submission.updateMany.mock.calls[0][0]).toMatchObject({
+        where: { id: 'sub1', status: { in: ['RESUBMISSION_REQUESTED'] } },
+        data:  { status: 'SUBMITTED', resubmissionDueAt: null, resubmissionNote: null },
+      });
+      expect(prisma.submissionRevision.create.mock.calls[0][0].data).toMatchObject({ revisionNumber: 2, answerText: 'v2' });
+      expect(prisma.mentorReview.create.mock.calls[0][0].data).toMatchObject({ mentorId: 'm1', status: 'ASSIGNED', cycle: 2 });
+    });
+
+    it('withdrawing resumes the review on the current work', async () => {
+      const { service, prisma, events } = makeMocks();
+      prisma.submission.findUnique.mockResolvedValue(reviewRow({ status: 'RESUBMISSION_REQUESTED' }, { status: 'RESUBMISSION_REQUESTED' }));
+      await service.withdrawResubmissionRequest('sub1', MENTOR);
+      expect(prisma.mentorReview.updateMany.mock.calls[0][0].data).toEqual({ status: 'IN_PROGRESS' });
+      expect(prisma.submission.updateMany.mock.calls[0][0].data).toMatchObject({ status: 'IN_REVIEW', resubmissionDueAt: null });
+      expect(events.emit).toHaveBeenCalledWith(Events.ResubmissionRequestWithdrawn, { submissionId: 'sub1' });
     });
   });
 });

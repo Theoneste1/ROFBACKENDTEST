@@ -160,6 +160,42 @@ export class NotificationListener {
     });
   }
 
+  @OnEvent(Events.ResubmissionRequested, ASYNC)
+  async onResubmissionRequested(e: SubmissionEvent) {
+    await this.safe('resubmission requested', async () => {
+      const s = await this.prisma.submission.findUnique({
+        where:  { id: e.submissionId },
+        select: { id: true, studentId: true, assignmentId: true, resubmissionDueAt: true, assignment: { select: { title: true } } },
+      });
+      if (!s) return;
+      const due = s.resubmissionDueAt ? ` by ${s.resubmissionDueAt.toISOString().slice(0, 16).replace('T', ' ')} UTC` : '';
+      await this.notifications.notify([s.studentId], {
+        category: 'SUBMISSIONS',
+        type:     Events.ResubmissionRequested,
+        title:    'Please resubmit your work',
+        body:     `Your mentor asked for a new attempt at "${s.assignment.title}"${due}. ${e.reason ?? ''}`.trim(),
+        data:     { submissionId: s.id, assignmentId: s.assignmentId },
+        link:     `/assignments/${s.assignmentId}`,
+      });
+    });
+  }
+
+  @OnEvent(Events.ResubmissionRequestWithdrawn, ASYNC)
+  async onResubmissionRequestWithdrawn(e: SubmissionEvent) {
+    await this.safe('resubmission request withdrawn', async () => {
+      const s = await this.submission(e.submissionId);
+      if (!s) return;
+      await this.notifications.notify([s.studentId], {
+        category: 'SUBMISSIONS',
+        type:     Events.ResubmissionRequestWithdrawn,
+        title:    'Resubmission no longer needed',
+        body:     `Your work on "${s.assignment.title}" is being reviewed as submitted.`,
+        data:     { submissionId: s.id, assignmentId: s.assignmentId },
+        link:     `/assignments/${s.assignmentId}`,
+      }, { email: false });
+    });
+  }
+
   @OnEvent(Events.ResultsPublished, ASYNC)
   async onResultsPublished(e: ResultsPublishedEvent) {
     await this.safe('results published', async () => {

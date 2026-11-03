@@ -21,6 +21,7 @@ import type { Response } from 'express';
 
 import { SubmissionsService } from './submissions.service.js';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
+import { RequestResubmissionDto } from './dto/request-resubmission.dto.js';
 import { AssignSubmissionDto, DistributeSubmissionsDto } from './dto/assign-submission.dto.js';
 import { MarkSubmissionDto } from './dto/mark-submission.dto.js';
 import { ApproveResultDto, RejectResultDto } from './dto/review-result.dto.js';
@@ -68,9 +69,10 @@ export class SubmissionsController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Submit or resubmit (multipart/form-data: "assignmentId", optional "note",
-   * work in "files" — up to 10, e.g. photographed pages — or "file").
-   * Deadline and resubmission rules apply.
+   * Submit or resubmit (multipart/form-data: "assignmentId", a typed answer in
+   * "answerText" and/or work in "files" — up to 10, e.g. photographed pages —
+   * or "file"; optional "note"). Deadline and resubmission rules apply; after
+   * a mentor's request the student may resubmit until the request's due date.
    */
   @Post()
   @Roles('STUDENT')
@@ -102,6 +104,15 @@ export class SubmissionsController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.findOne(id, user);
+  }
+
+  /**
+   * Attempt history: every attempt (answer, files, timestamps) and every
+   * resubmission request. Students: own only. Mentors: assigned to them. Admins: any.
+   */
+  @Get(':id/history')
+  history(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.attemptHistory(id, user);
   }
 
   /** Review history (all cycles with events). Admins: all; mentors: their own cycles. */
@@ -205,6 +216,28 @@ export class SubmissionsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.submissionsService.removeReviewAttachment(id, attachmentId, user);
+  }
+
+  /**
+   * Ask the student for a new attempt, with a note and an optional due date
+   * (default: the assignment deadline or 7 days from now, whichever is later).
+   * Only where the assignment permits resubmissions.
+   */
+  @Patch(':id/request-resubmission')
+  @Roles('MENTOR')
+  requestResubmission(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: RequestResubmissionDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.submissionsService.requestResubmission(id, body, user);
+  }
+
+  /** Withdraw an open request; the review resumes on the current work. */
+  @Patch(':id/withdraw-resubmission-request')
+  @Roles('MENTOR')
+  withdrawResubmissionRequest(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.submissionsService.withdrawResubmissionRequest(id, user);
   }
 
   /** Return the completed review to the administrators. */

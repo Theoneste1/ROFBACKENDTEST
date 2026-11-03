@@ -74,10 +74,10 @@ describe('Assignment workflow (e2e)', () => {
   it('3. students of the division see it and submit', async () => {
     const list = await ctx.http().get('/api/v1/me/assignments').set(bearer(studentJ)).expect(200);
     expect(list.body.data).toHaveLength(1);
-    expect(list.body.data[0].displayStatus).toBe('New');
+    expect(list.body.data[0]).toMatchObject({ displayStatus: 'Not Started', viewedAt: null });
 
     const detail = await ctx.http().get(`/api/v1/assignments/${assignmentId}`).set(bearer(studentJ)).expect(200);
-    expect(detail.body.displayStatus).toBe('Opened');
+    expect(detail.body.displayStatus).toBe('Not Started');
     expect(detail.body.canSubmit).toBe(true);
 
     await ctx.http().get(`/api/v1/assignments/${assignmentId}/file`).set(bearer(studentJ)).expect(200);
@@ -184,7 +184,7 @@ describe('Assignment workflow (e2e)', () => {
 
   it('5b. students still see no score before publication', async () => {
     const res = await ctx.http().get(`/api/v1/submissions/${submissionIds['j']}`).set(bearer(studentJ)).expect(200);
-    expect(res.body.displayStatus).toBe('In Review');
+    expect(res.body.displayStatus).toBe('Pending Review');
     expect(res.body.result).toBeUndefined();
     expect(JSON.stringify(res.body)).not.toContain('Check problem 4');
 
@@ -250,7 +250,7 @@ describe('Assignment workflow (e2e)', () => {
 
   it('8. students view their result, feedback and points', async () => {
     const res = await ctx.http().get(`/api/v1/submissions/${submissionIds['j']}`).set(bearer(studentJ)).expect(200);
-    expect(res.body.displayStatus).toBe('Marked');
+    expect(res.body.displayStatus).toBe('Reviewed');
     expect(res.body.result).toMatchObject({
       score: 15, maximumMarks: 20, percentage: 75, pointsAwarded: 30,
       mentorFeedback: 'Clear reasoning. Check problem 4 again.',

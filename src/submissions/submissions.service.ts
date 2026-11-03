@@ -40,11 +40,19 @@ import { MarkSubmissionDto } from './dto/mark-submission.dto.js';
 import { ApproveResultDto, RejectResultDto } from './dto/review-result.dto.js';
 import { ReopenResultDto } from './dto/correct-result.dto.js';
 import { ListSubmissionsDto } from './dto/list-submissions.dto.js';
+import { RequestResubmissionDto } from './dto/request-resubmission.dto.js';
+import { deriveStudentDisplayStatus } from './student-display-status.js';
 
 /** @deprecated Import from common/auth-user instead. Kept for compatibility. */
 export type { CallerCtx } from '../common/auth-user.js';
 
 type Tx = Prisma.TransactionClient;
+
+/** One submission attempt: stored file ids and/or a typed answer. */
+type Attempt = { fileIds: string[]; note?: string; answerText?: string };
+
+const MAX_RESUBMISSION_WINDOW_MS = 60 * 24 * 3600 * 1000;
+const DEFAULT_RESUBMISSION_WINDOW_MS = 7 * 24 * 3600 * 1000;
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 //
@@ -58,6 +66,9 @@ type Tx = Prisma.TransactionClient;
 //  APPROVED             APPROVED                  admin accepted
 //  REJECTED             SENT_BACK                 admin sent it back / reopened
 //  PUBLISHED            PUBLISHED                 admin released the result
+//  RESUBMISSION_        RESUBMISSION_REQUESTED    mentor asked for a new attempt;
+//    REQUESTED                                    the student's resubmission starts
+//                                                 a new cycle with the same mentor
 //
 // Each (re)assignment and each reopen starts a new review CYCLE (new
 // MentorReview row); earlier cycles become SUPERSEDED or CANCELLED and remain
@@ -84,8 +95,12 @@ export class SubmissionsService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   async submit(data: CreateSubmissionDto, user: AuthUser, files: Express.Multer.File[] = []) {
-    if (files.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach your work (field "files", or "file").');
+    if (files.length === 0 && !data.answerText) {
+      throw new AppError(
+        HttpStatus.BAD_REQUEST,
+        'ANSWER_REQUIRED',
+        'Type your answer ("answerText") or attach your work (field "files", or "file").',
+      );
     }
 
     const assignment = await this.prisma.assignment.findUnique({
@@ -97,19 +112,41 @@ export class SubmissionsService {
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, assignment);
-    if (assignment.status === 'CLOSED') {
-      throw new AppError(HttpStatus.CONFLICT, 'ASSIGNMENT_CLOSED', 'This assignment is closed and no longer accepts submissions.');
-    }
-    if (assignment.status !== 'PUBLISHED') throw new NotFoundException('Assignment not found.');
 
-    const isLate   = new Date() > assignment.deadline;
     const existing = await this.prisma.submission.findUnique({
       where: { assignmentId_studentId: { assignmentId: assignment.id, studentId: user.id } },
-      select: { id: true, status: true, revisionCount: true, currentReviewId: true },
+      select: {
+        id: true, status: true, revisionCount: true, currentReviewId: true, resubmissionDueAt: true,
+        currentReview: { select: { mentorId: true } },
+      },
     });
+    // A mentor's request opens its own window, even on a closed assignment.
+    const requested = existing?.status === 'RESUBMISSION_REQUESTED';
+
+    if (assignment.status === 'CLOSED' && !requested) {
+      throw new AppError(HttpStatus.CONFLICT, 'ASSIGNMENT_CLOSED', 'This assignment is closed and no longer accepts submissions.');
+    }
+    if (!['PUBLISHED', 'CLOSED'].includes(assignment.status)) throw new NotFoundException('Assignment not found.');
+
+    const isLate = new Date() > assignment.deadline;
 
     // ── Validate BEFORE storing any file ──────────────────────────────────
-    if (existing) {
+    if (existing && requested) {
+      if (!existing.resubmissionDueAt || new Date() > existing.resubmissionDueAt) {
+        throw new AppError(
+          HttpStatus.BAD_REQUEST,
+          'RESUBMISSION_WINDOW_CLOSED',
+          'The time allowed for the requested resubmission has passed. Contact your mentor.',
+        );
+      }
+      if (assignment.maxResubmissions > 0 && existing.revisionCount >= assignment.maxResubmissions) {
+        throw new AppError(
+          HttpStatus.BAD_REQUEST,
+          'RESUBMISSION_LIMIT_REACHED',
+          `You have reached the maximum number of resubmissions (${assignment.maxResubmissions}).`,
+        );
+      }
+    } else if (existing) {
       if (isLate) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'DEADLINE_PASSED', 'The deadline has passed. Resubmission is not permitted.');
       }
@@ -132,11 +169,21 @@ export class SubmissionsService {
 
     const stored: FileObject[] = [];
     for (const f of files) stored.push(await this.storage.store(f, 'SUBMISSION', user.id));
-    const fileIds = stored.map((s) => s.id);
+    const attempt: Attempt = { fileIds: stored.map((s) => s.id), note: data.note, answerText: data.answerText };
+
+    // After a request, the new attempt goes straight back to the requesting
+    // mentor — if they still teach this course × division.
+    const returnTo = requested && existing?.currentReview && await this.isEligibleMentor(existing.currentReview.mentorId, assignment)
+      ? existing.currentReview.mentorId
+      : null;
 
     const submission = existing
-      ? await this.resubmit(existing, fileIds, data.note, user)
-      : await this.firstSubmit(assignment.id, fileIds, data.note, isLate, user);
+      ? await this.resubmit(existing, attempt, user, returnTo)
+      : await this.firstSubmit(assignment.id, attempt, isLate, user);
+
+    if (returnTo) {
+      this.events.emit(Events.SubmissionsAssigned, { assignmentId: assignment.id, byMentor: { [returnTo]: 1 } });
+    }
 
     this.activity.record(user.id, existing ? 'SUBMISSION_RESUBMITTED' : 'SUBMISSION_CREATED', {
       courseId: assignment.courseId, entityType: 'Submission', entityId: submission.id,
@@ -145,7 +192,7 @@ export class SubmissionsService {
     return studentView(submission);
   }
 
-  private async firstSubmit(assignmentId: string, fileIds: string[], note: string | undefined, isLate: boolean, user: AuthUser) {
+  private async firstSubmit(assignmentId: string, attempt: Attempt, isLate: boolean, user: AuthUser) {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const now = new Date();
@@ -158,8 +205,9 @@ export class SubmissionsService {
             submittedAt: now,
             revisions: {
               create: {
-                revisionNumber: 1, note: note ?? null, isLate, submittedById: user.id, submittedAt: now,
-                attachments: { create: fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
+                revisionNumber: 1, note: attempt.note ?? null, answerText: attempt.answerText ?? null,
+                isLate, submittedById: user.id, submittedAt: now,
+                attachments: { create: attempt.fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
               },
             },
           },
@@ -167,7 +215,7 @@ export class SubmissionsService {
         await this.audit.log({
           actorId: user.id, actorRole: user.role,
           action: 'SUBMIT_ASSIGNMENT', entity: 'Submission', entityId: created.id,
-          metadata: { assignmentId, isLate, files: fileIds.length },
+          metadata: { assignmentId, isLate, files: attempt.fileIds.length, typedAnswer: !!attempt.answerText },
         }, tx);
         return this.load(tx, created.id);
       });
@@ -180,29 +228,39 @@ export class SubmissionsService {
   }
 
   /**
-   * Replace the student's work. If a mentor had been assigned but had not
-   * started, that review cycle is CANCELLED and the submission returns to the
-   * distribution queue, so the review always covers the latest version.
+   * Record a new attempt. Every attempt is kept as a SubmissionRevision.
+   *
+   * - Voluntary resubmission (SUBMITTED/ASSIGNED): a mentor assigned but not
+   *   yet started is CANCELLED and the work returns to the distribution queue,
+   *   so the review always covers the latest version.
+   * - Requested resubmission (RESUBMISSION_REQUESTED): the request is cleared
+   *   and a new review cycle starts with `returnTo` (the requesting mentor), or
+   *   the work returns to the queue when that mentor is no longer eligible.
    */
   private async resubmit(
-    existing: { id: string; revisionCount: number; currentReviewId: string | null },
-    fileIds: string[],
-    note: string | undefined,
+    existing: { id: string; status: SubmissionStatus; revisionCount: number; currentReviewId: string | null },
+    attempt: Attempt,
     user: AuthUser,
+    returnTo: string | null,
   ) {
+    const requested = existing.status === 'RESUBMISSION_REQUESTED';
     return this.prisma.$transaction(async (tx) => {
       const now = new Date();
       const { count } = await tx.submission.updateMany({
-        // Optimistic lock: still resubmittable AND nobody resubmitted meanwhile.
-        where: { id: existing.id, status: { in: RESUBMITTABLE }, revisionCount: existing.revisionCount },
+        // Optimistic lock: same status group AND nobody resubmitted meanwhile.
+        where: {
+          id: existing.id, revisionCount: existing.revisionCount,
+          status: { in: requested ? ['RESUBMISSION_REQUESTED'] : RESUBMITTABLE },
+        },
         data:  {
           revisionCount: existing.revisionCount + 1, submittedAt: now, status: 'SUBMITTED',
           isLate: false, currentReviewId: null,
+          resubmissionRequestedAt: null, resubmissionDueAt: null, resubmissionNote: null,
         },
       });
       if (count === 0) throw invalidState('Your submission changed while uploading. Refresh and try again.');
 
-      if (existing.currentReviewId) {
+      if (existing.currentReviewId && !requested) {
         await this.moveReview(tx, existing.currentReviewId, ['ASSIGNED'], { status: 'CANCELLED' },
           'CANCELLED', user.id, 'Student replaced their work before review started.');
       }
@@ -210,15 +268,24 @@ export class SubmissionsService {
       const revisionNumber = existing.revisionCount + 2;
       await tx.submissionRevision.create({
         data: {
-          submissionId: existing.id, revisionNumber, note: note ?? null, submittedById: user.id, submittedAt: now,
-          attachments: { create: fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
+          submissionId: existing.id, revisionNumber, note: attempt.note ?? null, answerText: attempt.answerText ?? null,
+          submittedById: user.id, submittedAt: now,
+          attachments: { create: attempt.fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
         },
       });
+
+      if (returnTo) {
+        await this.moveSubmission(tx, existing.id, ['SUBMITTED'], 'ASSIGNED');
+        await this.startCycle(tx, existing.id, returnTo, returnTo, 'ASSIGNED');
+      }
 
       await this.audit.log({
         actorId: user.id, actorRole: user.role,
         action: 'RESUBMIT_ASSIGNMENT', entity: 'Submission', entityId: existing.id,
-        metadata: { revisionNumber, cancelledReviewId: existing.currentReviewId },
+        metadata: {
+          revisionNumber, requested, returnedToMentorId: returnTo,
+          ...(!requested && { cancelledReviewId: existing.currentReviewId }),
+        },
       }, tx);
 
       return this.load(tx, existing.id);
@@ -298,13 +365,46 @@ export class SubmissionsService {
     return user.role === 'MENTOR' ? reviews.map(({ coordinationNote: _internal, ...r }) => r) : reviews;
   }
 
-  /** MENTOR: submissions whose current review is mine. */
+  /**
+   * Submission history: every attempt (answer, files, timestamps, lateness)
+   * and every resubmission request, oldest first. Same access as findOne:
+   * the student who owns it, the mentor of the current review, admins.
+   * Students never see who requested (mentors stay anonymous until results).
+   */
+  async attemptHistory(submissionId: string, user: AuthUser) {
+    const s = await this.loadForCaller(submissionId, user);
+    const events = await this.prisma.reviewEvent.findMany({
+      where:   { review: { submissionId }, type: { in: ['RESUBMISSION_REQUESTED', 'RESUBMISSION_REQUEST_WITHDRAWN'] } },
+      orderBy: { createdAt: 'asc' },
+      select:  {
+        type: true, note: true, createdAt: true,
+        actor: { select: { id: true, username: true, firstName: true, lastName: true } },
+      },
+    });
+    return {
+      submissionId:  s.id,
+      status:        s.status,
+      displayStatus: deriveStudentDisplayStatus({ submissionStatus: s.status }),
+      attempts:      s.revisions,
+      resubmissionRequests: events.map((e) => ({
+        type: e.type, note: e.note, at: e.createdAt,
+        ...(user.role !== 'STUDENT' && { by: e.actor }),
+      })),
+      openRequest: s.status === 'RESUBMISSION_REQUESTED'
+        ? { note: s.resubmissionNote, dueAt: s.resubmissionDueAt, requestedAt: s.resubmissionRequestedAt }
+        : null,
+    };
+  }
+
+  /** MENTOR: submissions whose current review is mine (including ones awaiting a requested resubmission). */
   async getReviewQueue(user: AuthUser, q: ListSubmissionsDto) {
     const { page, limit, skip, take } = pageArgs(q);
     const where: Prisma.SubmissionWhereInput = {
       currentReview: { mentorId: user.id },
       ...(q.assignmentId && { assignmentId: q.assignmentId }),
-      status: q.status ?? { in: ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED', 'SUBMITTED_TO_ADMIN'] },
+      status: q.status ?? {
+        in: ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED', 'SUBMITTED_TO_ADMIN', 'RESUBMISSION_REQUESTED'],
+      },
     };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.submission.findMany({ where, include: SUBMISSION_INCLUDE, orderBy: { submittedAt: 'asc' }, skip, take }),
@@ -548,6 +648,83 @@ export class SubmissionsService {
       actorId: user.id, actorRole: user.role, action: 'RETURN_REVIEW_TO_ADMIN', entity: 'Submission', entityId: submissionId,
     });
     this.events.emit(Events.ReviewReturned, { submissionId });
+    return mentorView(updated);
+  }
+
+  /**
+   * Ask the student for a new attempt (assigned mentor, review not yet
+   * returned). Only where the assignment allows resubmissions and the
+   * student is under its limit. The current cycle ends as
+   * RESUBMISSION_REQUESTED (any draft score stays in its history).
+   */
+  async requestResubmission(submissionId: string, body: RequestResubmissionDto, user: AuthUser) {
+    const sub = await this.requireSubmission(submissionId);
+    const reviewId = this.requireAssignedMentor(sub, user);
+    const a = sub.assignment;
+
+    if (!a.allowResubmission) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'RESUBMISSION_NOT_ALLOWED', 'This assignment does not permit resubmissions.');
+    }
+    if (a.maxResubmissions > 0 && sub.revisionCount >= a.maxResubmissions) {
+      throw new AppError(
+        HttpStatus.BAD_REQUEST,
+        'RESUBMISSION_LIMIT_REACHED',
+        `The student has already used all ${a.maxResubmissions} resubmission(s).`,
+      );
+    }
+    if (!['PUBLISHED', 'CLOSED'].includes(a.status)) throw invalidState('This assignment is archived.');
+
+    const now   = new Date();
+    const dueAt = body.dueAt
+      ? new Date(body.dueAt)
+      : new Date(Math.max(a.deadline.getTime(), now.getTime() + DEFAULT_RESUBMISSION_WINDOW_MS));
+    if (dueAt <= now) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DEADLINE_IN_PAST', 'The resubmission due date must be in the future.');
+    }
+    if (dueAt.getTime() - now.getTime() > MAX_RESUBMISSION_WINDOW_MS) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DUE_DATE_TOO_FAR', 'The resubmission due date must be within 60 days.');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.moveReview(tx, reviewId, OPEN_REVIEW_STATUSES, { status: 'RESUBMISSION_REQUESTED' },
+        'RESUBMISSION_REQUESTED', user.id, body.note, { mentorId: user.id });
+      await this.moveSubmission(tx, submissionId, ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED'], 'RESUBMISSION_REQUESTED', {
+        resubmissionRequestedAt: now, resubmissionDueAt: dueAt, resubmissionNote: body.note,
+      });
+      await this.audit.log({
+        actorId: user.id, actorRole: user.role,
+        action: 'REQUEST_RESUBMISSION', entity: 'Submission', entityId: submissionId,
+        metadata: { reviewId, dueAt: dueAt.toISOString(), note: body.note },
+      }, tx);
+      return this.load(tx, submissionId);
+    });
+
+    this.events.emit(Events.ResubmissionRequested, { submissionId, reason: body.note });
+    return mentorView(updated);
+  }
+
+  /**
+   * Withdraw an open request (e.g. the due date passed without a new attempt):
+   * the review resumes on the work already submitted.
+   */
+  async withdrawResubmissionRequest(submissionId: string, user: AuthUser) {
+    const sub = await this.requireSubmission(submissionId);
+    const reviewId = this.requireAssignedMentor(sub, user);
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.moveReview(tx, reviewId, ['RESUBMISSION_REQUESTED'], { status: 'IN_PROGRESS' },
+        'RESUBMISSION_REQUEST_WITHDRAWN', user.id, null, { mentorId: user.id });
+      await this.moveSubmission(tx, submissionId, ['RESUBMISSION_REQUESTED'], 'IN_REVIEW', {
+        resubmissionRequestedAt: null, resubmissionDueAt: null, resubmissionNote: null,
+      });
+      await this.audit.log({
+        actorId: user.id, actorRole: user.role,
+        action: 'WITHDRAW_RESUBMISSION_REQUEST', entity: 'Submission', entityId: submissionId, metadata: { reviewId },
+      }, tx);
+      return this.load(tx, submissionId);
+    });
+
+    this.events.emit(Events.ResubmissionRequestWithdrawn, { submissionId });
     return mentorView(updated);
   }
 
@@ -851,8 +1028,11 @@ export class SubmissionsService {
   }
 
   /** Conditional submission transition. */
-  private async moveSubmission(tx: Tx, id: string, from: SubmissionStatus[], to: SubmissionStatus) {
-    const { count } = await tx.submission.updateMany({ where: { id, status: { in: from } }, data: { status: to } });
+  private async moveSubmission(
+    tx: Tx, id: string, from: SubmissionStatus[], to: SubmissionStatus,
+    extra: Prisma.SubmissionUncheckedUpdateManyInput = {},
+  ) {
+    const { count } = await tx.submission.updateMany({ where: { id, status: { in: from } }, data: { ...extra, status: to } });
     if (count === 0) {
       const current = await tx.submission.findUnique({ where: { id }, select: { status: true } });
       throw invalidState(
@@ -884,7 +1064,12 @@ export class SubmissionsService {
     const sub = await this.prisma.submission.findUnique({
       where:   { id },
       include: {
-        assignment:      { select: { courseId: true, divisionId: true, maximumMarks: true } },
+        assignment:      {
+          select: {
+            courseId: true, divisionId: true, maximumMarks: true, status: true, deadline: true,
+            allowResubmission: true, maxResubmissions: true,
+          },
+        },
         currentReview:   { select: { id: true, mentorId: true, status: true } },
         publishedReview: { select: { id: true, mentorId: true, score: true, percentage: true, feedback: true } },
       },
@@ -904,6 +1089,15 @@ export class SubmissionsService {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_MENTOR', 'This submission is not assigned to you.');
     }
     return sub.currentReview.id;
+  }
+
+  private async isEligibleMentor(mentorId: string, scope: { courseId: string; divisionId: string }) {
+    try {
+      await this.requireEligibleMentor(mentorId, scope);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** The mentor must be active and assigned to the assignment's course × division. */

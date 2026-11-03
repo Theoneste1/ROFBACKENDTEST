@@ -35,7 +35,7 @@ export const SUBMISSION_INCLUDE = {
   revisions: {
     orderBy: { revisionNumber: 'asc' as const },
     select:  {
-      id: true, revisionNumber: true, note: true, isLate: true, submittedAt: true,
+      id: true, revisionNumber: true, note: true, answerText: true, isLate: true, submittedAt: true,
       attachments: { orderBy: { sortOrder: 'asc' as const }, select: ATTACHMENT_SELECT },
     },
   },
@@ -75,36 +75,48 @@ export type SubmissionWithRelations = {
   revisionCount: number;
   isLate: boolean;
   submittedAt: Date | null;
+  resubmissionRequestedAt: Date | null;
+  resubmissionDueAt: Date | null;
+  resubmissionNote: string | null;
   pointsAwarded: number;
   publishedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   assignment: { id: string; title: string; maximumMarks: number; points: number; deadline: Date; [k: string]: unknown };
   student: { id: string; firstName: string; lastName: string; [k: string]: unknown };
-  revisions: Array<{ id: string; revisionNumber: number; note: string | null; isLate: boolean; submittedAt: Date; attachments: Attachment[] }>;
+  revisions: Array<{
+    id: string; revisionNumber: number; note: string | null; answerText: string | null;
+    isLate: boolean; submittedAt: Date; attachments: Attachment[];
+  }>;
   currentReview: Review | null;
   publishedReview: Review | null;
   resultRelease: { id: string; publishedAt: Date } | null;
 };
 
-const latestFiles = (s: SubmissionWithRelations) => s.revisions[s.revisions.length - 1]?.attachments ?? [];
+const latest = (s: SubmissionWithRelations) => s.revisions[s.revisions.length - 1];
 
 const base = (s: SubmissionWithRelations) => ({
   id:            s.id,
   status:        s.status,
   assignment:    s.assignment,
-  files:         latestFiles(s),
+  answerText:    latest(s)?.answerText ?? null,
+  files:         latest(s)?.attachments ?? [],
   revisionCount: s.revisionCount,
   isLate:        s.isLate,
   submittedAt:   s.submittedAt,
+  /** Every attempt, oldest first, each with its own answer and files. */
   revisions:     s.revisions,
+  /** The open request for a new attempt, if any. */
+  resubmissionRequest: s.status === 'RESUBMISSION_REQUESTED'
+    ? { note: s.resubmissionNote, dueAt: s.resubmissionDueAt, requestedAt: s.resubmissionRequestedAt }
+    : null,
   createdAt:     s.createdAt,
 });
 
-export function studentView(s: SubmissionWithRelations, hasViewed = true) {
+export function studentView(s: SubmissionWithRelations) {
   const view = {
     ...base(s),
-    displayStatus: deriveStudentDisplayStatus({ hasViewed, submissionStatus: s.status }),
+    displayStatus: deriveStudentDisplayStatus({ submissionStatus: s.status }),
   };
   const r = s.publishedReview;
   if (s.status !== 'PUBLISHED' || !r) return view;

@@ -1,36 +1,29 @@
 import { deriveStudentDisplayStatus } from './student-display-status.js';
 
 describe('deriveStudentDisplayStatus', () => {
-  describe('without a submission', () => {
-    it('is New when the student has not opened the assignment', () => {
-      expect(deriveStudentDisplayStatus({ hasViewed: false, submissionStatus: null })).toBe('New');
-    });
-
-    it('is Opened once the student has viewed it', () => {
-      expect(deriveStudentDisplayStatus({ hasViewed: true, submissionStatus: null })).toBe('Opened');
-    });
+  it('is Not Started without a submission', () => {
+    expect(deriveStudentDisplayStatus({ submissionStatus: null })).toBe('Not Started');
   });
 
   it.each([
-    ['SUBMITTED',          'Submitted'],
-    ['ASSIGNED',           'Submitted'],
-    ['IN_REVIEW',          'In Review'],
-    ['MARKED',             'In Review'],
-    ['SUBMITTED_TO_ADMIN', 'In Review'],
-    ['APPROVED',           'In Review'],
-    ['REJECTED',           'In Review'],
-    ['PUBLISHED',          'Marked'],
+    ['SUBMITTED',              'Submitted'],
+    ['ASSIGNED',               'Submitted'],
+    ['IN_REVIEW',              'Pending Review'],
+    ['MARKED',                 'Pending Review'],
+    ['SUBMITTED_TO_ADMIN',     'Pending Review'],
+    ['APPROVED',               'Pending Review'],
+    ['REJECTED',               'Pending Review'],
+    ['RESUBMISSION_REQUESTED', 'Resubmission Requested'],
+    ['PUBLISHED',              'Reviewed'],
   ])('%s → %s', (status, expected) => {
-    expect(deriveStudentDisplayStatus({ hasViewed: true, submissionStatus: status })).toBe(expected);
-    // The view flag is irrelevant once work has been submitted.
-    expect(deriveStudentDisplayStatus({ hasViewed: false, submissionStatus: status })).toBe(expected);
+    expect(deriveStudentDisplayStatus({ submissionStatus: status })).toBe(expected);
   });
 
   it('REJECTED (review returned to the mentor) never asks the student to redo', () => {
-    expect(deriveStudentDisplayStatus({ hasViewed: true, submissionStatus: 'REJECTED' })).toBe('In Review');
+    expect(deriveStudentDisplayStatus({ submissionStatus: 'REJECTED' })).toBe('Pending Review');
   });
 
-  it('treats an unknown status as In Review', () => {
-    expect(deriveStudentDisplayStatus({ hasViewed: true, submissionStatus: 'SOMETHING_NEW' })).toBe('In Review');
+  it('treats an unknown status as Pending Review', () => {
+    expect(deriveStudentDisplayStatus({ submissionStatus: 'SOMETHING_NEW' })).toBe('Pending Review');
   });
 });

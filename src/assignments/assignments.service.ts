@@ -491,17 +491,17 @@ export class AssignmentsService {
 
     const submission = await this.prisma.submission.findUnique({
       where:  { assignmentId_studentId: { assignmentId, studentId: user.id } },
-      select: { id: true, status: true, revisionCount: true, submittedAt: true, isLate: true },
+      select: { id: true, status: true, revisionCount: true, submittedAt: true, isLate: true, resubmissionDueAt: true },
     });
 
     return {
       ...assignment,
-      displayStatus: deriveStudentDisplayStatus({
-        hasViewed:        true,
-        submissionStatus: submission?.status ?? null,
-      }),
+      displayStatus: deriveStudentDisplayStatus({ submissionStatus: submission?.status ?? null }),
       submission: submission
-        ? { id: submission.id, revisionCount: submission.revisionCount, submittedAt: submission.submittedAt, isLate: submission.isLate }
+        ? {
+          id: submission.id, revisionCount: submission.revisionCount, submittedAt: submission.submittedAt,
+          isLate: submission.isLate, resubmissionDueAt: submission.resubmissionDueAt,
+        }
         : null,
       canSubmit: this.canStudentSubmit(assignment, submission),
     };
@@ -529,7 +529,7 @@ export class AssignmentsService {
           views:       { where: { studentId: user.id }, select: { firstViewedAt: true }, take: 1 },
           submissions: {
             where:  { studentId: user.id },
-            select: { id: true, status: true, revisionCount: true, submittedAt: true, isLate: true },
+            select: { id: true, status: true, revisionCount: true, submittedAt: true, isLate: true, resubmissionDueAt: true },
             take:   1,
           },
         },
@@ -541,12 +541,12 @@ export class AssignmentsService {
       const submission = submissions[0] ?? null;
       return {
         ...a,
-        displayStatus: deriveStudentDisplayStatus({
-          hasViewed:        views.length > 0,
-          submissionStatus: submission?.status ?? null,
-        }),
+        displayStatus: deriveStudentDisplayStatus({ submissionStatus: submission?.status ?? null }),
         submission: submission
-          ? { id: submission.id, revisionCount: submission.revisionCount, submittedAt: submission.submittedAt, isLate: submission.isLate }
+          ? {
+          id: submission.id, revisionCount: submission.revisionCount, submittedAt: submission.submittedAt,
+          isLate: submission.isLate, resubmissionDueAt: submission.resubmissionDueAt,
+        }
           : null,
         viewedAt:  views[0]?.firstViewedAt ?? null,
         canSubmit: this.canStudentSubmit(a, submission),
@@ -701,8 +701,12 @@ export class AssignmentsService {
 
   private canStudentSubmit(
     a: { status: AssignmentStatus; deadline: Date; allowResubmission: boolean; maxResubmissions: number; allowLateSubmission: boolean },
-    submission: { status: string; revisionCount: number } | null,
+    submission: { status: string; revisionCount: number; resubmissionDueAt: Date | null } | null,
   ): boolean {
+    // A mentor's request opens its own window, even on a closed assignment.
+    if (submission?.status === 'RESUBMISSION_REQUESTED') {
+      return a.status !== 'ARCHIVED' && submission.resubmissionDueAt !== null && new Date() <= submission.resubmissionDueAt;
+    }
     if (a.status !== 'PUBLISHED') return false;
     const beforeDeadline = new Date() <= a.deadline;
     if (!submission) return beforeDeadline || a.allowLateSubmission;

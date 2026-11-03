@@ -126,8 +126,8 @@ erDiagram
 
   Assignment { enum status "DRAFT|PENDING_APPROVAL|PUBLISHED|REJECTED|CLOSED|ARCHIVED" string description datetime deadline datetime closedAt int points int maximumMarks string approvedById FK }
   AssignmentEvent { enum type "CREATED|UPDATED|ATTACHMENT_ADDED|ATTACHMENT_REMOVED|SUBMITTED_FOR_REVIEW|RECALLED|PUBLISHED|REJECTED|UNPUBLISHED|CLOSED|REOPENED|ARCHIVED" enum fromStatus enum toStatus string actorId FK json changes string note }
-  Submission { enum status "overall workflow" int revisionCount bool isLate int pointsAwarded "unique(assignmentId, studentId)" }
-  SubmissionRevision { int revisionNumber "unique per submission" }
+  Submission { enum status "overall workflow" int revisionCount bool isLate int pointsAwarded datetime resubmissionDueAt string resubmissionNote "unique(assignmentId, studentId)" }
+  SubmissionRevision { int revisionNumber "unique per submission" string answerText datetime submittedAt bool isLate }
   MentorReview { int cycle "unique per submission" enum status int score float percentage string feedback string decisionNote string coordinationNote "admin-only" }
   ReviewEvent { enum type "ASSIGNED|STARTED|MARKED|RETURNED|APPROVED|SENT_BACK|PUBLISHED|REOPENED|REASSIGNED|CANCELLED" int score string note }
   DistributionBatch { enum strategy "BALANCED|ROUND_ROBIN|MANUAL" int assignedCount }
@@ -208,8 +208,8 @@ erDiagram
 | | `AssignmentAttachment` | Brief files | unique (`assignmentId`, `fileId`) |
 | | `AssignmentView` | Drives “New” vs “Opened” | unique (`assignmentId`, `studentId`) |
 | | `AssignmentEvent` | Append-only assignment history (edits with before/after values, every status change, file changes) | idx (`assignmentId`, `createdAt`), (`actorId`) |
-| | `Submission` | One per student per assignment; overall status | unique (`assignmentId`, `studentId`); unique `currentReviewId`, `publishedReviewId` |
-| | `SubmissionRevision` | Every attempt (1, 2, 3 …) | unique (`submissionId`, `revisionNumber`) |
+| | `Submission` | One per student per assignment; overall status; the open resubmission request (note, due date) | unique (`assignmentId`, `studentId`); unique `currentReviewId`, `publishedReviewId`; CHECK request fields all set or all null |
+| | `SubmissionRevision` | Every attempt (1, 2, 3 …): typed answer, files, time, lateness | unique (`submissionId`, `revisionNumber`) |
 | | `SubmissionAttachment` | Files of an attempt | unique (`revisionId`, `fileId`) |
 | | `DistributionBatch` | One admin distribution run | idx `assignmentId` |
 | | `MentorReview` | One review cycle (score, feedback, decisions) | unique (`submissionId`, `cycle`); idx (`mentorId`, `status`) |
@@ -336,6 +336,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261107000000_drop_superseded_columns` | contract (destructive, approved 2026-11-03) | Drops the 27 columns superseded by the expand migration, after verifying every value exists in the new tables (it aborts otherwise). Applied after a full backup. |
 | `20261108000000_course_discussions_resource_metadata` | additive | `Course.discussionsEnabled` (admins turn a course's discussions off; default on) and resource metadata `author`, `source`, `year`, `tags`. |
 | `20261109000000_assignment_history_closed_status` | additive + backfill | `AssignmentStatus.CLOSED`, `Assignment.description`/`closedAt`, and the `AssignmentEvent` history table, backfilled from the audit log (plus a `CREATED` entry for assignments without one). |
+| `20261110000000_submission_answers_resubmission_requests` | additive | `RESUBMISSION_REQUESTED` in `SubmissionStatus`/`ReviewStatus` (+ request/withdraw `ReviewEventType`s), `Submission.resubmissionRequestedAt/DueAt/Note`, `SubmissionRevision.answerText`. |
 
 **Making a schema change.**
 

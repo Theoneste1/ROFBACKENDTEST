@@ -159,6 +159,9 @@ enum ReviewStatus {
   PUBLISHED
   SUPERSEDED
   CANCELLED
+  /// The mentor asked the student to redo the work; the cycle ends here and
+  /// the resubmission starts a new one.
+  RESUBMISSION_REQUESTED
 }
 
 /// Immutable review history entries.
@@ -173,6 +176,8 @@ enum ReviewEventType {
   REOPENED
   REASSIGNED
   CANCELLED
+  RESUBMISSION_REQUESTED
+  RESUBMISSION_REQUEST_WITHDRAWN
 }
 
 /// Submission / review workflow.
@@ -184,6 +189,7 @@ enum ReviewEventType {
 ///   APPROVED           – admin accepted the review, ready to publish
 ///   PUBLISHED          – result visible to the student
 ///   REJECTED           – admin sent the review back to the mentor for rework
+///   RESUBMISSION_REQUESTED – mentor asked the student for a new attempt
 enum SubmissionStatus {
   SUBMITTED
   ASSIGNED
@@ -193,6 +199,9 @@ enum SubmissionStatus {
   APPROVED
   PUBLISHED
   REJECTED
+  /// The mentor asked for a new attempt; the student may resubmit until
+  /// Submission.resubmissionDueAt (even after the assignment deadline).
+  RESUBMISSION_REQUESTED
 }
 
 enum MentorRequestStatus {
@@ -924,6 +933,12 @@ model Submission {
   isLate        Boolean   @default(false)
   submittedAt   DateTime?
 
+  /// Open resubmission request (status RESUBMISSION_REQUESTED); cleared when
+  /// the student resubmits. Past requests are kept as ReviewEvents.
+  resubmissionRequestedAt DateTime?
+  resubmissionDueAt       DateTime?
+  resubmissionNote        String?
+
   /// The latest review cycle (any status). NULL until distributed.
   currentReviewId   String?        @unique
   currentReview     MentorReview?  @relation("CurrentReview", fields: [currentReviewId], references: [id], onDelete: SetNull)
@@ -956,6 +971,8 @@ model SubmissionRevision {
   submission     Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   revisionNumber Int
   note           String?
+  /// Typed answer for this attempt (files are in attachments).
+  answerText     String?
   isLate         Boolean    @default(false)
   submittedById  String
   submittedBy    User       @relation(fields: [submittedById], references: [id])

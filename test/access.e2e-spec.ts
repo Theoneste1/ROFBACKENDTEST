@@ -155,7 +155,7 @@ describe('Access control (e2e)', () => {
       expect(await ctx.prisma.fileObject.count({ where: { purpose: 'RESOURCE' } })).toBe(0);
     });
 
-    it('requires a file when submitting', async () => {
+    it('requires an answer or a file when submitting', async () => {
       const other = await ctx.prisma.assignment.create({
         data: {
           title: 'Another', instructions: 'Solve.', deadline: new Date(inDays(5)), points: 1, maximumMarks: 1,
@@ -164,7 +164,7 @@ describe('Access control (e2e)', () => {
       });
       const res = await ctx.http().post('/api/v1/submissions').set(bearer(studentJ2))
         .field('assignmentId', other.id).expect(400);
-      expect(res.body.code).toBe('FILE_REQUIRED');
+      expect(res.body.code).toBe('ANSWER_REQUIRED');
     });
 
     it('stores resources with the detected type and serves PDFs inline', async () => {
