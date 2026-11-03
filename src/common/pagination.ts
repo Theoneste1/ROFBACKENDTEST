@@ -2,6 +2,8 @@ import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export const MAX_PAGE_SIZE = 100;
+/** Deep pages make the database skip many rows; filter instead. */
+export const MAX_PAGE = 10_000;
 
 /** Standard `?page=&limit=` query parameters. Extend it for filterable lists. */
 export class PaginationQueryDto {
@@ -10,6 +12,7 @@ export class PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(MAX_PAGE)
   page?: number = 1;
 
   /** Items per page. Default 20, maximum 100. */

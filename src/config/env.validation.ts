@@ -108,6 +108,19 @@ export class EnvironmentVariables {
   @IsOptional() @IsString() EMAIL_FROM?: string;
   @IsOptional() @Type(() => Number) @IsInt() EMAIL_BATCH_SIZE?: number;
 
+  /** Proxy hops in front of the API (default 1); "false" when clients connect directly. */
+  @IsOptional()
+  @IsString()
+  TRUST_PROXY?: string;
+
+  /** Largest accepted request body in MB (uploads); default 100. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1024)
+  MAX_UPLOAD_REQUEST_MB?: number;
+
   /** Set to "false" to stop the in-process background workers on this instance. */
   @IsOptional()
   @IsString()

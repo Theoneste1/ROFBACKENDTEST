@@ -25,8 +25,9 @@ function makeMocks() {
     school: { upsert: vi.fn() },
     $transaction: vi.fn(),
   };
-  // Interactive transactions run the callback against the same mock.
-  prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
+  // Interactive transactions run the callback against the same mock; batches resolve each operation.
+  prisma.$transaction.mockImplementation((arg: unknown) =>
+    typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as unknown[]));
 
   const tokens = {
     issue:                vi.fn().mockResolvedValue({ access_token: 'a', refresh_token: 'r' }),
@@ -248,6 +249,8 @@ describe('AuthService', () => {
       const token = decodeURIComponent((opts.link as string).split('token=')[1]);
       const stored = prisma.passwordResetToken.create.mock.calls[0][0].data;
       expect(stored.tokenHash).toBe(hashToken(token));
+      // Earlier unused links stop working.
+      expect(prisma.passwordResetToken.updateMany.mock.calls[0][0]).toMatchObject({ where: { userId: 'u1', usedAt: null } });
       expect(stored.tokenHash).not.toBe(token);
     });
   });

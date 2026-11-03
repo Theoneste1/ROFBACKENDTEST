@@ -103,11 +103,16 @@ export class TokenService {
   }
 
   /** Revoke every session of a user (password change, suspension, logout-all). */
+  /**
+   * End every session of a user: refresh tokens are revoked and access tokens
+   * issued until now stop working (JwtStrategy compares their `iat`).
+   */
   async revokeAllForUser(userId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data:  { revokedAt: new Date() },
-    });
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } }),
+      this.prisma.user.update({ where: { id: userId }, data: { tokensValidAfter: now } }),
+    ]);
   }
 
   /** Blacklist an access token until it expires. */

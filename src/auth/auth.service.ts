@@ -33,6 +33,11 @@ export const PROFILE_SELECT = {
   school:   { select: { id: true, name: true, location: true } },
 } as const;
 
+
+/** Consecutive wrong passwords before an account is locked, and for how long. */
+export const MAX_FAILED_LOGINS = 5;
+export const LOCKOUT_MS = 15 * 60 * 1000;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -151,11 +156,18 @@ export class AuthService {
     const identifier = data.username;
     const user = await this.prisma.user.findFirst({
       where: identifier.includes('@') ? { email: identifier } : { username: identifier },
-      select: { id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true },
+      select: {
+        id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true,
+        failedLoginCount: true, lockedUntil: true,
+      },
     });
 
     const passwordMatches = await bcrypt.compare(data.password, user?.passwordHash ?? (await getDummyHash()));
-    if (!user || !user.passwordHash || !passwordMatches) {
+    // A locked account answers exactly like a wrong password, so the lock
+    // reveals nothing; the password is still checked to keep timing equal.
+    const locked = !!user?.lockedUntil && user.lockedUntil > new Date();
+    if (!user || !user.passwordHash || !passwordMatches || locked) {
+      if (user && !locked && user.passwordHash && !passwordMatches) await this.recordFailedLogin(user.id, user.failedLoginCount);
       throw new UnauthorizedException('Invalid username or password.');
     }
 
@@ -177,7 +189,7 @@ export class AuthService {
     const tokens = await this.tokens.issue(user.id, client);
     const profile = await this.prisma.user.update({
       where:  { id: user.id },
-      data:   { lastLoginAt: new Date() },
+      data:   { lastLoginAt: new Date(), failedLoginCount: 0, lockedUntil: null },
       select: PROFILE_SELECT,
     });
 
@@ -226,6 +238,23 @@ export class AuthService {
    * Always succeeds from the caller's point of view, so the endpoint cannot be
    * used to discover which e-mail addresses have accounts.
    */
+  /**
+   * Count a wrong password. After MAX_FAILED_LOGINS in a row the account is
+   * locked for LOCKOUT_MS, whichever addresses the attempts came from (the IP
+   * throttle alone can be spread across many addresses).
+   */
+  private async recordFailedLogin(userId: string, previous: number) {
+    const count = previous + 1;
+    const lock = count >= MAX_FAILED_LOGINS;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data:  lock ? { failedLoginCount: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } : { failedLoginCount: count },
+    });
+    if (lock) {
+      await this.audit.log({ actorId: null, action: 'LOCK_ACCOUNT', entity: 'User', entityId: userId, metadata: { attempts: count } });
+    }
+  }
+
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({
       where:  { email },
@@ -255,9 +284,13 @@ export class AuthService {
     });
 
     const token = randomBytes(32).toString('base64url');
-    await this.prisma.passwordResetToken.create({
-      data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
-    });
+    await this.prisma.$transaction([
+      // Only the newest link works: earlier unused ones are retired.
+      this.prisma.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } }),
+      this.prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
+      }),
+    ]);
     await this.notifications.queueEmail(
       user.email,
       'Reset your password',

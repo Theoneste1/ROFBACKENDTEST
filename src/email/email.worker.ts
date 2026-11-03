@@ -110,7 +110,9 @@ export class EmailWorker {
     if (result.accepted) {
       await this.prisma.emailDelivery.update({
         where: { id: d.id },
-        data:  { status: 'SENT', messageId: result.messageId, errorMessage: null, lockedAt: null, attemptedAt: new Date() },
+        // Individual e-mails may carry one-time links (password reset,
+        // activation): their text is not kept once delivered.
+        data:  { status: 'SENT', messageId: result.messageId, errorMessage: null, lockedAt: null, attemptedAt: new Date(), ...(!d.jobId && { body: null }) },
       });
       return;
     }
@@ -121,6 +123,7 @@ export class EmailWorker {
       where: { id: d.id },
       data: {
         status:        giveUp ? 'FAILED' : 'PENDING',
+        ...(giveUp && !d.jobId && { body: null }),
         errorMessage:  result.error?.slice(0, 1000),
         lockedAt:      null,
         attemptedAt:   new Date(),

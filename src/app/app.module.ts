@@ -53,8 +53,8 @@ import { ReportsModule } from '../reports/reports.module.js';
           ttl:   Number(config.get('THROTTLE_TTL_SECONDS') ?? 60) * 1000,
           limit: Number(config.get('THROTTLE_LIMIT') ?? 120),
         }],
-        // Only for automated tests; never set this in a deployed environment.
-        skipIf: () => config.get('THROTTLE_DISABLED') === 'true',
+        // Only for automated tests: ignored unless NODE_ENV=test.
+        skipIf: () => config.get('NODE_ENV') === 'test' && config.get('THROTTLE_DISABLED') === 'true',
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: false, ignoreErrors: true }),

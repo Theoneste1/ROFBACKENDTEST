@@ -10,6 +10,8 @@ interface AccessTokenPayload {
   sub: string;
   jti?: string;
   exp?: number;
+  /** Issued at (seconds), set by the JWT library. */
+  iat?: number;
 }
 
 @Injectable()
@@ -47,11 +49,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where:  { id: payload.sub },
       select: {
         id: true, username: true, role: true, isActive: true, isApproved: true, activatedAt: true,
-        divisionId: true, gradeLevel: true,
+        divisionId: true, gradeLevel: true, tokensValidAfter: true,
       },
     });
 
     if (!user || !user.isActive || !user.isApproved || !user.activatedAt) {
+      throw new UnauthorizedException('Your session is no longer valid. Please log in again.');
+    }
+    // Sessions ended (password changed, signed out everywhere, suspended, role
+    // changed): tokens issued before then are refused. `iat` has whole-second
+    // precision, so tokens issued in that same second still pass.
+    if (user.tokensValidAfter && payload.iat !== undefined && payload.iat < Math.floor(user.tokensValidAfter.getTime() / 1000)) {
       throw new UnauthorizedException('Your session is no longer valid. Please log in again.');
     }
 

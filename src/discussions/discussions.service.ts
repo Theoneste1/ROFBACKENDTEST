@@ -29,6 +29,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../common/access/access.service.js';
+import { studentCanOpenAssignment } from '../assignments/assignments.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -521,11 +522,11 @@ export class DiscussionsService {
   private async assignmentTarget(assignmentId: string, user: AuthUser) {
     const a = await this.prisma.assignment.findUnique({
       where:  { id: assignmentId },
-      select: { id: true, courseId: true, divisionId: true, status: true },
+      select: { id: true, courseId: true, divisionId: true, status: true, publishedAt: true },
     });
     if (!a) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, a);
-    if (user.role === 'STUDENT' && !['PUBLISHED', 'CLOSED', 'ARCHIVED'].includes(a.status)) {
+    if (user.role === 'STUDENT' && !studentCanOpenAssignment(a)) {
       throw new NotFoundException('Assignment not found.');
     }
     return { assignmentId, divisionId: a.divisionId };

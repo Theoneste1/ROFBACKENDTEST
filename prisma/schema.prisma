@@ -360,13 +360,20 @@ model User {
   role         Role         @default(STUDENT)
 
   /// Mentor accounts and (optionally) self-registered students require approval.
-  isApproved  Boolean   @default(true)
+  isApproved       Boolean   @default(true)
   /// Suspended accounts cannot log in and lose access immediately.
-  isActive    Boolean   @default(true)
+  isActive         Boolean   @default(true)
   /// Set when the person activates the account (accepts an invitation or
   /// verifies their e-mail). NULL = invited / unverified: cannot log in.
-  activatedAt DateTime?
-  lastLoginAt DateTime?
+  activatedAt      DateTime?
+  lastLoginAt      DateTime?
+  /// Consecutive failed logins; reset on success. Five in a row lock the
+  /// account for 15 minutes (lockedUntil), whatever IP they come from.
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  /// Access tokens issued before this moment are rejected (set on password
+  /// change/reset, sign-out everywhere, suspension and role change).
+  tokensValidAfter DateTime?
 
   avatarUrl      String?
   /// Cached leaderboard total — always recomputable from published submissions.

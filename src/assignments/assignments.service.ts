@@ -54,6 +54,15 @@ const EDITABLE_STATUSES: AssignmentStatus[] = ['DRAFT', 'REJECTED'];
 /** Statuses a student can see (CLOSED: no new work, but their results remain). */
 export const STUDENT_VISIBLE_STATUSES: AssignmentStatus[] = ['PUBLISHED', 'CLOSED'];
 
+/**
+ * Whether a student may open an assignment (its brief, files and threads):
+ * published or closed, or archived after having been published. Drafts that
+ * were archived without ever reaching students stay hidden.
+ */
+export function studentCanOpenAssignment(a: { status: AssignmentStatus; publishedAt: Date | null }): boolean {
+  return STUDENT_VISIBLE_STATUSES.includes(a.status) || (a.status === 'ARCHIVED' && a.publishedAt !== null);
+}
+
 /** Content fields whose before/after values are kept in the history. */
 const TRACKED_FIELDS = [
   'title', 'description', 'instructions', 'deadline', 'points', 'maximumMarks',
@@ -565,11 +574,11 @@ export class AssignmentsService {
   async serveFile(assignmentId: string, user: AuthUser, res: Response, forceDownload = false, attachmentId?: string) {
     const assignment = await this.prisma.assignment.findUnique({
       where:  { id: assignmentId },
-      select: { courseId: true, divisionId: true, status: true },
+      select: { courseId: true, divisionId: true, status: true, publishedAt: true },
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, assignment);
-    if (user.role === 'STUDENT' && ![...STUDENT_VISIBLE_STATUSES, 'ARCHIVED'].includes(assignment.status)) {
+    if (user.role === 'STUDENT' && !studentCanOpenAssignment(assignment)) {
       throw new NotFoundException('Assignment not found.');
     }
     const attachment = await this.prisma.assignmentAttachment.findFirst({
