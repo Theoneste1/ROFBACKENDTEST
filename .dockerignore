@@ -12,3 +12,5 @@ uploads
 *.log
 *.tsbuildinfo
 src/generated
+**/.env
+backups

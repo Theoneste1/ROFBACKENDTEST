@@ -1,0 +1,67 @@
+# Free-tier production stack for one server (e.g. an Oracle Cloud "Always Free"
+# ARM VM): PostgreSQL + the API + Caddy (HTTPS). Files go to a Cloudflare R2
+# bucket and e-mail to an SMTP provider, both configured in .env.
+#
+#   cp .env.example .env    # fill it in (see README.md)
+#   docker compose up -d --build
+#
+# `up` runs the migrate step (migrations + idempotent seed) before the API
+# starts, every time — that is also how upgrades apply new migrations.
+# Only Caddy is reachable from outside; PostgreSQL and the API are not.
+
+name: rof
+
+x-db-url: &db-url
+  DATABASE_URL: postgresql://rof:${POSTGRES_PASSWORD}@postgres:5432/rof?schema=public
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rof
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: rof
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rof -d rof"]
+      interval: 5s
+      retries: 20
+
+  migrate:
+    build: { context: ../.., target: migrate }
+    image: rof-migrate:latest
+    env_file: .env
+    environment: *db-url
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    build: { context: ../.., target: runtime }
+    image: rof-api:latest
+    restart: unless-stopped
+    env_file: .env
+    environment: *db-url
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  caddy_logs:

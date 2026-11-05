@@ -1,0 +1,18 @@
+# HTTPS in front of the API. Caddy obtains and renews the certificate itself.
+# Keep max_size equal to MAX_UPLOAD_REQUEST_MB, and TRUST_PROXY=1 (one hop).
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+	request_body {
+		max_size 100MB
+	}
+	reverse_proxy api:3000
+	log {
+		output file /var/log/caddy/rof-api.log {
+			roll_size 50MiB
+			roll_keep 10
+		}
+	}
+}
