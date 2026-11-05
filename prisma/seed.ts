@@ -130,11 +130,12 @@ async function seedAdmin() {
 
   const fromEnv  = process.env.SEED_ADMIN_PASSWORD;
   const password = fromEnv ?? randomBytes(12).toString('base64url');
+  const username = process.env.SEED_ADMIN_USERNAME ?? 'admin';
   await prisma.user.create({
     data: {
       firstName:    'System',
       lastName:     'Admin',
-      username:     process.env.SEED_ADMIN_USERNAME ?? 'admin',
+      username,
       email:        process.env.SEED_ADMIN_EMAIL ?? 'admin@rof.local',
       passwordHash: await bcrypt.hash(password, BCRYPT_COST),
       role:         'ADMIN',
@@ -142,7 +143,7 @@ async function seedAdmin() {
     },
   });
 
-  console.log('✅ Admin created: username "admin"');
+  console.log(`✅ Admin created: username "${username}"`);
   if (!fromEnv) {
     console.log(`   Generated password (shown once): ${password}`);
     console.log('   ⚠️  Change it after first login (PATCH /api/v1/auth/password).');
