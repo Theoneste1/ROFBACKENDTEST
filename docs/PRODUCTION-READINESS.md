@@ -4,6 +4,13 @@ Status on 2026-11-03, at the commit that adds this file. Every result below
 comes from a test or check that was actually run; anything that could not be
 run here is marked **Not tested**.
 
+> **Update 2026-11-05.** Live sessions and the automatic deadline and
+> live-session reminders were removed at the owner's request (code, tests,
+> docs, and the `LiveSession` table via migration
+> `20261118000000_remove_live_sessions_and_reminders`). The API now has
+> **198 endpoints**, all called by the e2e tests; 449 unit and 271 e2e tests
+> pass. Figures below dated 2026-11-03 are otherwise unchanged.
+
 **Verdict.** The backend is **ready for frontend integration** and
 **ready for production**, once the staging checks in §8 pass in the real
 hosting environment. Those are the Docker image, the docker-compose stack
@@ -28,17 +35,16 @@ real PostgreSQL database.
 | Distribution and review | Manual assignment or batch distribution (balanced / round-robin) to eligible mentors; review cycles; scoring, written feedback, feedback files; admin approve / send back; reassignment; admins cannot grade |
 | Results | Publication per submission or per assignment, release history (who and when), points and division leaderboard, student result pages with feedback and files, corrections with previous versions |
 | Discussions and moderation | Course and assignment threads, one level of replies, reactions, author edit/delete rules, reports with snapshots, admin hide/restore/remove/lock/archive/pin/dismiss, moderation log; no private messaging, no study groups |
-| Live sessions | External meetings (Zoom, Meet, Teams …) per course × division; date/time in the programme time zone; overlap, length and academic-year validation; update/cancel; reminders |
-| Notifications | In-app inbox (read/unread, counts per category, filters), e-mail through a background outbox with retries, per-category e-mail opt-outs, per-type switches for admins and mentors, deadline and live-session reminders |
+| Notifications | In-app inbox (read/unread, counts per category, filters), e-mail through a background outbox with retries, per-category e-mail opt-outs, per-type switches for admins and mentors; no automatic reminders (administrators send other e-mail themselves) |
 | Dashboard and reports | Admin dashboard; student, mentor, enrolment, course-participation, assignment, review, results-publication and mentor-activity reports; filters (year, division, course, dates, status); CSV export |
-| System settings | Registration, assignment defaults, notification rules, live-session limits, platform name, public help and support details |
+| System settings | Registration, assignment defaults, notification rules, platform name, public help and support details |
 | Audit trail | Who / what / which record / when for every important action, with before/after values; append-only (enforced by a database trigger); admin-only search, detail and CSV export |
 | Files | Content-type detection, per-purpose limits, private storage (local disk or S3-compatible), authorized downloads with safe headers, orphan clean-up |
 | Operations | Health check (database + storage), JSON logs with request ids, strict environment validation, Swagger UI, generated OpenAPI/Postman/API reference/authorization matrix, CI pipeline |
 
 ## 2. API endpoints
 
-**203 endpoints** under `/api/v1` (plus `/health`). The full list, with
+**198 endpoints** under `/api/v1` (plus `/health`). The full list, with
 access, parameters and body fields, is in [API.md](API.md). Who may call each
 one is in [AUTHORIZATION.md](AUTHORIZATION.md).
 
@@ -49,7 +55,7 @@ one is in [AUTHORIZATION.md](AUTHORIZATION.md).
 | Admin · Users | 10 | Admin · Reports | 20 |
 | Admin · Academic years | 6 | Notifications | 12 |
 | Academic years | 2 | Admin · Email | 6 |
-| Admin · Mentor assignments | 3 | Live sessions | 5 |
+| Admin · Mentor assignments | 3 | | |
 | Mentor requests | 4 | Admin · Audit | 4 |
 | Courses (incl. resources) | 17 | Admin · Courses | 4 |
 | Assignments | 17 | Leaderboard / Admin · Leaderboard | 3 / 1 |
@@ -196,7 +202,7 @@ All eight issues from the previous report have been dealt with:
 
 | Item | Status |
 |---|---|
-| Every endpoint implemented and called by an e2e test | ✅ 203 / 203 |
+| Every endpoint implemented and called by an e2e test | ✅ 198 / 198 |
 | Base URL, versioning (`/api/v1`) and auth header documented | ✅ |
 | Login, refresh (httpOnly cookie for browsers, or body), logout, sign-out everywhere | ✅ tested |
 | Account activation, invitations, e-mail verification, password reset flows (links point to `APP_URL` + `/activate?token=…`, `/reset-password?token=…`) | ✅ tested; the frontend must provide those two pages |
@@ -205,9 +211,9 @@ All eight issues from the previous report have been dealt with:
 | Roles and permissions for UI decisions (`GET /me`, `GET /me/permissions`) | ✅ |
 | Who may call what | ✅ [AUTHORIZATION.md](AUTHORIZATION.md), generated from the guards |
 | Request bodies, parameters and validation rules | ✅ OpenAPI / API.md / Postman |
-| Response body schemas in OpenAPI | ✅ 203 / 203 (181 JSON schemas recorded from real responses; 22 CSV or file downloads) |
+| Response body schemas in OpenAPI | ✅ 198 / 198 (176 JSON schemas recorded from real responses; 22 CSV or file downloads) |
 | File uploads (multipart: `files` / `file`) and downloads (`Content-Disposition`, inline only for PDF/images) | ✅ tested |
-| Dates: ISO 8601 UTC; live sessions also give `date`, `startTime`, `endTime`, `timeZone` | ✅ |
+| Dates: ISO 8601 UTC | ✅ |
 | Notifications: polling endpoints, unread counts per category, mark read/unread | ✅ (no push) |
 | CORS for the frontend origin | ✅ configurable; dev `.env` set to `http://localhost:5173` and verified |
 | Swagger UI for exploring the API | ✅ `/api/docs` in development |

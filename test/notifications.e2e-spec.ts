@@ -1,10 +1,9 @@
 /**
- * Notifications: who is told about what (assignments, deadlines, reviews,
- * resubmission requests, results, discussions, live sessions), and the inbox
+ * Notifications: who is told about what (assignments, reviews, resubmission
+ * requests, results, discussions), and the inbox
  * API — read/unread, timestamps, filters, and that users only ever reach
  * their own notifications.
  */
-import { AssignmentDeadlineReminderService } from '../src/assignments/assignment-deadline-reminder.service.js';
 import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
 
 describe('Notifications (e2e)', () => {
@@ -44,25 +43,14 @@ describe('Notifications (e2e)', () => {
       expect(await types(ctx.ids.admin)).toContain('assignment.submitted_for_review');
     });
 
-    it('deadline reminders → students who have not submitted, once per deadline', async () => {
+    it('no automatic "due soon" reminders are sent', async () => {
       const sub = await ctx.http().post('/api/v1/submissions').set(bearer(studentJ))
         .field('assignmentId', assignmentId).field('answerText', 'a_n = 2n + 1').attach('files', PDF, 'work.pdf').expect(201);
       submissionId = sub.body.id;
 
-      const reminders = ctx.app.get(AssignmentDeadlineReminderService);
-      expect(await reminders.sendDue()).toBe(1);
-      expect(await reminders.sendDue()).toBe(0);
-
+      // The deadline is 12 hours away; nobody is reminded.
       await waitForEvents();
-      expect(await types(ctx.ids.studentJunior2)).toContain('assignment.deadline_approaching');
-      expect(await types(ctx.ids.studentJunior)).not.toContain('assignment.deadline_approaching');
-      expect(await types(ctx.ids.studentSenior)).not.toContain('assignment.deadline_approaching');
-
-      // A moved deadline is reminded again; one far away is not reminded yet.
-      await ctx.prisma.assignment.update({ where: { id: assignmentId }, data: { deadline: new Date(inDays(0.75)) } });
-      expect(await reminders.sendDue()).toBe(1);
-      await ctx.prisma.assignment.update({ where: { id: assignmentId }, data: { deadline: new Date(inDays(3)) } });
-      expect(await reminders.sendDue()).toBe(0);
+      expect(await types(ctx.ids.studentJunior2)).not.toContain('assignment.deadline_approaching');
     });
 
     it('submissions awaiting review → the mentor they are assigned to', async () => {
@@ -100,18 +88,14 @@ describe('Notifications (e2e)', () => {
       expect(await types(ctx.ids.studentJunior2)).not.toContain('results.published');
     });
 
-    it('discussion activity and live sessions → the people concerned', async () => {
+    it('discussion activity → the people concerned', async () => {
       const t = await ctx.http().post(`/api/v1/assignments/${assignmentId}/threads`).set(bearer(studentJ2))
         .send({ title: 'Is n from 0 or 1?', content: 'Where does the sequence start?' }).expect(201);
       await ctx.http().post(`/api/v1/threads/${t.body.id}/comments`).set(bearer(mentorJ)).send({ content: 'From 1.' }).expect(201);
-      await ctx.http().post('/api/v1/live-sessions').set(bearer(mentorJ)).send({
-        courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, title: 'Sequences Q&A',
-        startsAt: inDays(2), endsAt: inDays(2.04), meetingUrl: 'https://meet.google.com/abc-defg-hij',
-      }).expect(201);
 
       await waitForEvents();
       expect(await types(ctx.ids.mentorJunior)).toContain('discussion.thread_created');
-      expect(await types(ctx.ids.studentJunior2)).toEqual(expect.arrayContaining(['discussion.comment_posted', 'live_session.scheduled']));
+      expect(await types(ctx.ids.studentJunior2)).toContain('discussion.comment_posted');
       expect(await types(ctx.ids.studentSenior)).toEqual([]);
     });
   });
@@ -131,27 +115,27 @@ describe('Notifications (e2e)', () => {
     it('filters by category, type and unread', async () => {
       const assignments = await ctx.http().get('/api/v1/notifications').query({ category: 'ASSIGNMENTS' }).set(bearer(studentJ2)).expect(200);
       expect(new Set(assignments.body.data.map((n: any) => n.category))).toEqual(new Set(['ASSIGNMENTS']));
-      const reminders = await ctx.http().get('/api/v1/notifications').query({ type: 'assignment.deadline_approaching' }).set(bearer(studentJ2)).expect(200);
-      expect(reminders.body.meta.total).toBe(2);
+      const published = await ctx.http().get('/api/v1/notifications').query({ type: 'assignment.published' }).set(bearer(studentJ2)).expect(200);
+      expect(published.body.meta.total).toBe(1);
       await ctx.http().get('/api/v1/notifications').query({ category: 'GOSSIP' }).set(bearer(studentJ2)).expect(400);
     });
 
     it('marks read and unread, one, several or all; counts unread per category', async () => {
       const before = await ctx.http().get('/api/v1/notifications/unread-count').set(bearer(studentJ2)).expect(200);
-      expect(before.body.byCategory).toMatchObject({ ASSIGNMENTS: 3, LIVE_SESSIONS: 1, DISCUSSIONS: 1, RESULTS: 0 });
-      expect(before.body.unread).toBe(5);
+      expect(before.body.byCategory).toEqual({ ASSIGNMENTS: 1, SUBMISSIONS: 0, REVIEWS: 0, RESULTS: 0, RESOURCES: 0, ACCOUNT: 0, DISCUSSIONS: 1 });
+      expect(before.body.unread).toBe(2);
 
       const list = await ctx.http().get('/api/v1/notifications').set(bearer(studentJ2)).expect(200);
-      const [first, second, third] = list.body.data.map((n: any) => n.id);
+      const [first, second] = list.body.data.map((n: any) => n.id);
 
       expect((await ctx.http().patch(`/api/v1/notifications/${first}/read`).set(bearer(studentJ2)).expect(200)).body.updated).toBe(1);
       const one = await ctx.http().get(`/api/v1/notifications/${first}`).set(bearer(studentJ2)).expect(200);
       expect(one.body).toMatchObject({ isRead: true, readAt: expect.any(String) });
 
       await ctx.http().patch(`/api/v1/notifications/${first}/unread`).set(bearer(studentJ2)).expect(200);
-      const batch = await ctx.http().post('/api/v1/notifications/read').set(bearer(studentJ2)).send({ ids: [first, second, third] }).expect(200);
-      expect(batch.body.updated).toBe(3);
-      expect((await ctx.http().get('/api/v1/notifications/unread-count').set(bearer(studentJ2))).body.unread).toBe(2);
+      const batch = await ctx.http().post('/api/v1/notifications/read').set(bearer(studentJ2)).send({ ids: [first, second] }).expect(200);
+      expect(batch.body.updated).toBe(2);
+      expect((await ctx.http().get('/api/v1/notifications/unread-count').set(bearer(studentJ2))).body.unread).toBe(0);
 
       await ctx.http().post('/api/v1/notifications/read').set(bearer(studentJ2)).send({ ids: [] }).expect(400);
       await ctx.http().post('/api/v1/notifications/read').set(bearer(studentJ2)).send({ ids: ['not-a-uuid'] }).expect(400);

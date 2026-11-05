@@ -10,7 +10,7 @@
  */
 export type SettingType = 'boolean' | 'string' | 'enum' | 'integer' | 'email' | 'url';
 
-export type SettingCategory = 'REGISTRATION' | 'ASSIGNMENTS' | 'NOTIFICATIONS' | 'LIVE_SESSIONS' | 'PLATFORM' | 'SUPPORT';
+export type SettingCategory = 'REGISTRATION' | 'ASSIGNMENTS' | 'NOTIFICATIONS' | 'PLATFORM' | 'SUPPORT';
 
 export interface SettingDefinition {
   category:    SettingCategory;
@@ -93,47 +93,6 @@ export const SETTINGS = {
     type:        'boolean',
     default:     true,
     description: 'Send e-mail copies of notifications (account e-mails are always sent).',
-  },
-  'notifications.deadlineRemindersEnabled': {
-    category:    'NOTIFICATIONS',
-    type:        'boolean',
-    default:     true,
-    description: 'Remind students who have not submitted that an assignment is due soon.',
-  },
-  'notifications.deadlineReminderHours': {
-    category:    'NOTIFICATIONS',
-    type:        'integer',
-    default:     24,
-    min:         1,
-    max:         168,
-    unit:        'hours',
-    description: 'How long before the deadline the "due soon" reminder is sent.',
-  },
-  'notifications.liveSessionRemindersEnabled': {
-    category:    'NOTIFICATIONS',
-    type:        'boolean',
-    default:     true,
-    description: 'Remind students shortly before a live session starts.',
-  },
-  'notifications.liveSessionReminderMinutes': {
-    category:    'NOTIFICATIONS',
-    type:        'integer',
-    default:     60,
-    min:         10,
-    max:         1440,
-    unit:        'minutes',
-    description: 'How long before a live session the "starting soon" reminder is sent.',
-  },
-
-  // ── Live sessions ──────────────────────────────────────────────────────────
-  'liveSessions.maxDurationHours': {
-    category:    'LIVE_SESSIONS',
-    type:        'integer',
-    default:     8,
-    min:         1,
-    max:         12,
-    unit:        'hours',
-    description: 'Longest a live session may be scheduled for.',
   },
 
   // ── Platform ───────────────────────────────────────────────────────────────

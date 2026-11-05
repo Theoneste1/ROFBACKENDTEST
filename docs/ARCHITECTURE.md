@@ -25,7 +25,7 @@ Cross-cutting: AllExceptionsFilter · request id · AuditService · SettingsServ
   number of instances can run behind a load balancer (with `STORAGE_DRIVER=s3`).
 - **Background work runs in-process** (`@nestjs/schedule`) and is safe across
   instances: the e-mail worker claims rows with `FOR UPDATE SKIP LOCKED`;
-  reminders and state changes use conditional updates. `WORKERS_ENABLED=false`
+  state changes use conditional updates. `WORKERS_ENABLED=false`
   turns workers off on a given instance.
 
 ## 2. Academic model
@@ -36,7 +36,7 @@ Cross-cutting: AllExceptionsFilter · request id · AuditService · SettingsServ
   COMBINATORICS), created by the seed. Admins edit text and publish/unpublish;
   they cannot create or delete courses.
 - **Scope** — content is owned by a **(course × division)** pair. Resources,
-  assignments, live sessions and course discussions all carry `courseId` and
+  assignments and course discussions all carry `courseId` and
   `divisionId`. Junior and Senior Algebra share a course record but have
   separate content.
 - **Mentor assignments** — admins assign mentors to scopes
@@ -45,8 +45,8 @@ Cross-cutting: AllExceptionsFilter · request id · AuditService · SettingsServ
   more subjects are new rows, not schema changes.
 - **Academic years** — exactly one `AcademicYear` is current. Each student has
   a `StudentEnrollment` per year (grade, division, school, status); the
-  current placement is mirrored on `User` for fast scoping. Assignments and
-  live sessions belong to a year.
+  current placement is mirrored on `User` for fast scoping. Assignments
+  belong to a year.
 - **Enrollment in courses** — a student follows all four courses of their
   division; `CourseEnrollment` tracks per-course progress (Unrolled → Rolled →
   Completed).
@@ -128,7 +128,7 @@ traces or database details.
 ## 4. Workflows (state machines)
 
 Step-by-step business workflows (accounts, academic year, assignment → result,
-resubmissions, corrections, moderation, live sessions) are in
+resubmissions, corrections, moderation) are in
 [WORKFLOWS.md](WORKFLOWS.md). In short:
 
 All transitions use `UPDATE … WHERE status IN (allowed)`; a request that loses a
@@ -175,9 +175,6 @@ SUBMITTED ─assign/distribute─► ASSIGNED ─start─► IN_REVIEW ─mark�
 transaction, so they cannot drift; `POST /admin/leaderboard/recompute` rebuilds
 them. Leaderboards are per division and use SQL `RANK()`.
 
-**Live session** — `SCHEDULED → CANCELLED` (host/admin) or `→ COMPLETED`
-(worker, after `endsAt`). Reminders are sent once, ~1 hour before start.
-
 ## 5. Data model
 
 **See [DATABASE.md](DATABASE.md)** for the ERD, every table, integrity rules,
@@ -187,7 +184,7 @@ deletion/archival/retention policies, migrations and seeding. Groups:
 |---|---|
 | Identity | User, RefreshToken, PasswordResetToken, TokenBlacklist, MentorRequest, School |
 | Structure | Discipline, Course, Division, AcademicYear, StudentEnrollment, MentorAssignment, CourseEnrollment |
-| Content | CourseResource, ResourceAttachment, ResourceView, LiveSession, FileObject |
+| Content | CourseResource, ResourceAttachment, ResourceView, FileObject |
 | Assessment | Assignment, AssignmentAttachment, AssignmentView, Submission, SubmissionRevision, SubmissionAttachment, DistributionBatch, MentorReview, ReviewAttachment, ReviewEvent, ResultRelease |
 | Community | DiscussionThread, Comment, CommentReaction, ContentReport, ModerationAction, StudyGroup, StudyGroupMember |
 | Messaging | Notification, NotificationPreference, EmailJob, EmailDelivery |
@@ -248,16 +245,15 @@ channel to `NotificationsService`; no schema change is needed.
 
 Scale: recipients are written with chunked `createMany` (1 000 rows per
 statement), e-mails go through the outbox rather than inline, the inbox is
-served by the (`userId`, `createdAt`) and (`userId`, `readAt`) indexes, read
-notifications are pruned after 180 days, and reminder jobs claim their work
-with a single conditional UPDATE so several instances never double-send.
+served by the (`userId`, `createdAt`) and (`userId`, `readAt`) indexes,
+and read notifications are pruned after 180 days. There are no automatic
+reminders: every notification is triggered by an action.
 
 | Event | Recipients |
 |---|---|
 | Assignment submitted for review | Admins |
 | Assignment published | Students of the division; the author |
 | Assignment rejected | The author |
-| Assignment due within 24 h (once per deadline; a moved deadline is reminded again) | Students of the division who have not submitted |
 | Submission received | The student (in-app) |
 | Submissions assigned (awaiting review) | Each mentor |
 | Resubmission requested / request withdrawn | The student |
@@ -265,7 +261,6 @@ with a single conditional UPDATE so several instances never double-send.
 | Review sent back / result reopened | The mentor |
 | Results published | Each student |
 | Resource published | Students of the division (in-app) |
-| Live session scheduled / changed (time or link) / cancelled / starting within the hour | Students of the division |
 | New discussion thread | Mentors of that course × division (in-app) |
 | New comment / reply | The thread's author / the comment's author (in-app) |
 | Content reported | Admins (in-app) |
@@ -283,11 +278,11 @@ hard-coded. Every endpoint is `ADMIN`-only.
 | `GET /admin/dashboard` | Students (total, active, inactive, awaiting setup, by division, by course), mentors (states, who completed reviews, most reviews), assignments, submissions, pending/completed reviews, results, reported content, accounts awaiting setup |
 | `GET /admin/reports/students`, `mentors` | Paginated lists with account status, placement, scopes and per-person figures |
 | `GET /admin/reports/enrollment` | Enrolments per year × division × school × grade by status |
-| `GET /admin/reports/course-participation` | Per course × division: students, opened/completed, submissions, average score, discussion, live sessions |
+| `GET /admin/reports/course-participation` | Per course × division: students, opened/completed, submissions, average score, discussion |
 | `GET /admin/reports/assignments` | Per assignment: expected, submitted, late, missing, stage, average score |
 | `GET /admin/reports/reviews` | Pending (status, age, per mentor) and completed (outcomes, send-backs, average/median turnaround) |
 | `GET /admin/reports/results-publication` | Published, awaiting, releases, publishers, per assignment |
-| `GET /admin/reports/mentor-activity` | Per mentor: reviews assigned/completed/open, send-backs, turnaround, assignments, live sessions, comments |
+| `GET /admin/reports/mentor-activity` | Per mentor: reviews assigned/completed/open, send-backs, turnaround, assignments, comments |
 
 Each report also has a `….csv` download with the same filters (every row, up
 to 50 000); downloads are audited with their filters.
@@ -317,8 +312,7 @@ limits — and grouped by category:
 |---|---|
 | Registration | self sign-up, approval, e-mail verification |
 | Assignments | default resubmission rules (allow, limit), default late submissions, default resubmission-request window, distribution strategy |
-| Notifications | e-mail on/off, deadline reminders (on/off, hours before), live-session reminders (on/off, minutes before) |
-| Live sessions | maximum length |
+| Notifications | e-mail copies of notifications on/off |
 | Platform | name, leaderboard visibility |
 | Support | e-mail, phone, hours, help link (https), message — public at `GET /support` |
 
@@ -360,7 +354,7 @@ successful request.
 | Layer | Where | What |
 |---|---|---|
 | Unit | `src/**/*.spec.ts` | Pure rules, guards, filter, storage, authorization metadata |
-| End-to-end | `test/*.e2e-spec.ts` | Real app + real PostgreSQL: the full 8-step workflow, auth flows, role and scope boundaries, uploads, discussions, live sessions, notifications, e-mail outbox, admin tools |
+| End-to-end | `test/*.e2e-spec.ts` | Real app + real PostgreSQL: the full 8-step workflow, auth flows, role and scope boundaries, uploads, discussions, notifications, e-mail outbox, admin tools |
 | Security | `test/security.e2e-spec.ts` | Every route against every role, token forgery/expiry/revocation, lockout, isolation, uploads, injection, data exposure, headers |
 | Route coverage | `npm run test:routes` | Fails if any API route has no e2e test |
 | CI | `.github/workflows/ci.yml` | lint → typecheck → unit → migrate empty DB → drift check → e2e → build → API docs up to date → route coverage → Docker image |

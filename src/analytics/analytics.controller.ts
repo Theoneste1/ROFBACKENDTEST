@@ -21,7 +21,7 @@ export class AnalyticsController {
   /**
    * Course analytics for one division: enrollment funnel, per-assignment
    * submission rates and score distribution, review turnaround, resource
-   * engagement and live sessions. Mentors: only scopes they teach.
+   * engagement. Mentors: only scopes they teach.
    */
   @Get('courses/:courseId')
   course(

@@ -1,18 +1,17 @@
 /**
- * Discussions, live sessions, notifications, e-mail outbox, admin tools.
+ * Discussions, notifications, e-mail outbox, admin tools.
  */
 import { EmailWorker } from '../src/email/email.worker.js';
-import { LiveSessionsService } from '../src/live-sessions/live-sessions.service.js';
-import { createTestApp, login, bearer, inDays, type TestContext, waitForEvents } from './helpers.js';
+import { createTestApp, login, bearer, inDays, type TestContext } from './helpers.js';
 
 describe('Features (e2e)', () => {
   let ctx: TestContext;
-  let admin: string, mentorJ: string, mentorS: string, studentJ: string, studentJ2: string, studentS: string;
+  let admin: string, mentorJ: string, studentJ: string, studentJ2: string, studentS: string;
 
   beforeAll(async () => {
     ctx = await createTestApp();
-    [admin, mentorJ, mentorS, studentJ, studentJ2, studentS] = await Promise.all(
-      ['admin', 'mentor.j', 'mentor.s', 'student.j', 'student.j2', 'student.s'].map((u) => login(ctx, u)),
+    [admin, mentorJ, studentJ, studentJ2, studentS] = await Promise.all(
+      ['admin', 'mentor.j', 'student.j', 'student.j2', 'student.s'].map((u) => login(ctx, u)),
     );
   });
 
@@ -107,51 +106,16 @@ describe('Features (e2e)', () => {
     });
   });
 
-  describe('live sessions and notifications', () => {
-    let sessionId: string;
-
-    it('mentors schedule sessions for their scope; students of that division are notified', async () => {
-      await ctx.http().post('/api/v1/live-sessions').set(bearer(mentorS))
-        .send({
-          courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, title: 'Wrong scope',
-          startsAt: inDays(1), endsAt: inDays(1.05), meetingUrl: 'https://meet.google.com/abc-defg-hij',
-        }).expect(403);
-
-      const insecure = await ctx.http().post('/api/v1/live-sessions').set(bearer(mentorJ))
-        .send({
-          courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, title: 'Revision',
-          startsAt: inDays(1), endsAt: inDays(1.05), meetingUrl: 'http://example.com/meet',
-        }).expect(400);
-      expect(insecure.body.code).toBe('VALIDATION_FAILED');
-
-      const res = await ctx.http().post('/api/v1/live-sessions').set(bearer(mentorJ))
-        .send({
-          courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, title: 'Revision: quadratics',
-          startsAt: new Date(Date.now() + 30 * 60_000).toISOString(),
-          endsAt:   new Date(Date.now() + 90 * 60_000).toISOString(),
-          meetingUrl: 'https://meet.google.com/abc-defg-hij',
-        }).expect(201);
-      expect(res.body.provider).toBe('GOOGLE_MEET');
-      sessionId = res.body.id;
-
-      await waitForEvents();
-      const notes = await ctx.http().get('/api/v1/notifications').set(bearer(studentJ)).expect(200);
-      expect(notes.body.data.some((n: any) => n.data?.sessionId === sessionId)).toBe(true);
-
-      const seniorNotes = await ctx.http().get('/api/v1/notifications').set(bearer(studentS)).expect(200);
-      expect(seniorNotes.body.data.some((n: any) => n.data?.sessionId === sessionId)).toBe(false);
-
-      const seniorList = await ctx.http().get('/api/v1/live-sessions').set(bearer(studentS)).expect(200);
-      expect(seniorList.body.data).toHaveLength(0);
-    });
-
-    it('sends one reminder per session', async () => {
-      const service = ctx.app.get(LiveSessionsService);
-      expect(await service.sendReminders()).toBe(1);
-      expect(await service.sendReminders()).toBe(0);
+  describe('notifications', () => {
+    it('live sessions are not part of the platform', async () => {
+      await ctx.http().get('/api/v1/live-sessions').set(bearer(studentJ)).expect(404);
+      await ctx.http().post('/api/v1/live-sessions').set(bearer(mentorJ)).send({}).expect(404);
     });
 
     it('notification read state and e-mail preferences', async () => {
+      await ctx.prisma.notification.create({ data: {
+        userId: ctx.ids.studentJunior, category: 'ASSIGNMENTS', type: 'assignment.published', title: 'New assignment', body: 'Test',
+      } });
       const count = await ctx.http().get('/api/v1/notifications/unread-count').set(bearer(studentJ)).expect(200);
       expect(count.body.unread).toBeGreaterThan(0);
       await ctx.http().post('/api/v1/notifications/read-all').set(bearer(studentJ)).expect(201);
@@ -159,16 +123,15 @@ describe('Features (e2e)', () => {
       expect(after.body.unread).toBe(0);
 
       const prefs = await ctx.http().put('/api/v1/me/notification-preferences').set(bearer(studentJ))
-        .send({ preferences: [{ category: 'LIVE_SESSIONS', emailEnabled: false }, { category: 'ACCOUNT', emailEnabled: false }] })
+        .send({ preferences: [{ category: 'RESULTS', emailEnabled: false }, { category: 'ACCOUNT', emailEnabled: false }] })
         .expect(200);
-      expect(prefs.body.find((p: any) => p.category === 'LIVE_SESSIONS').emailEnabled).toBe(false);
+      expect(prefs.body.find((p: any) => p.category === 'RESULTS').emailEnabled).toBe(false);
       expect(prefs.body.find((p: any) => p.category === 'ACCOUNT').emailEnabled).toBe(true); // locked
-    });
+      expect(prefs.body.map((p: any) => p.category)).not.toContain('LIVE_SESSIONS');
 
-    it('cancelling withholds the meeting link from students', async () => {
-      await ctx.http().post(`/api/v1/live-sessions/${sessionId}/cancel`).set(bearer(mentorJ)).send({ reason: 'Holiday' }).expect(200);
-      const s = await ctx.http().get(`/api/v1/live-sessions/${sessionId}`).set(bearer(studentJ)).expect(200);
-      expect(s.body).toMatchObject({ status: 'CANCELLED', meetingUrl: null });
+      await ctx.http().put('/api/v1/me/notification-preferences').set(bearer(studentJ))
+        .send({ preferences: [{ category: 'LIVE_SESSIONS', emailEnabled: false }] })
+        .expect(400);
     });
   });
 

@@ -9,7 +9,6 @@ export const Events = {
   AssignmentSubmittedForReview: 'assignment.submitted_for_review',
   AssignmentPublished:          'assignment.published',
   AssignmentRejected:           'assignment.rejected',
-  AssignmentDeadlineApproaching: 'assignment.deadline_approaching',
   SubmissionReceived:           'submission.received',
   SubmissionsAssigned:          'submissions.assigned',
   ReviewReturned:               'review.returned',
@@ -19,9 +18,6 @@ export const Events = {
   ResubmissionRequested:        'submission.resubmission_requested',
   ResubmissionRequestWithdrawn: 'submission.resubmission_request_withdrawn',
   ResourcePublished:            'resource.published',
-  LiveSessionScheduled:         'live_session.scheduled',
-  LiveSessionUpdated:           'live_session.updated',
-  LiveSessionCancelled:         'live_session.cancelled',
   MentorRequestDecided:         'mentor_request.decided',
   DiscussionThreadCreated:      'discussion.thread_created',
   DiscussionCommentPosted:      'discussion.comment_posted',
@@ -35,7 +31,6 @@ export interface SubmissionEvent        { submissionId: string; reason?: string 
 export interface SubmissionsAssignedEvent { assignmentId: string; byMentor: Record<string, number> }
 export interface ResultsPublishedEvent  { submissionIds: string[] }
 export interface ResourceEvent          { resourceId: string }
-export interface LiveSessionEvent       { sessionId: string }
 export interface DiscussionThreadEvent  { threadId: string }
 export interface DiscussionCommentEvent { commentId: string }
 export interface ContentReportedEvent   { reportId: string }

@@ -34,7 +34,6 @@ import { SubmissionsModule } from '../submissions/submissions.module.js';
 import { MentorRequestsModule } from '../mentor-requests/mentor-requests.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { DiscussionsModule } from '../discussions/discussions.module.js';
-import { LiveSessionsModule } from '../live-sessions/live-sessions.module.js';
 import { AnalyticsModule } from '../analytics/analytics.module.js';
 import { ReportsModule } from '../reports/reports.module.js';
 
@@ -86,7 +85,6 @@ import { ReportsModule } from '../reports/reports.module.js';
     // Its code and tables are kept; re-add it here to switch it back on.
     EmailModule,
     DiscussionsModule,
-    LiveSessionsModule,
     AnalyticsModule,
     ReportsModule,
   ],

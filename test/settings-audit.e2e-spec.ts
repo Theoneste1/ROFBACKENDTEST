@@ -3,7 +3,6 @@
  * settings take effect, public support details) and the audit trail (what is
  * recorded, by whom, on which record; read-only, admin-only, append-only).
  */
-import { AssignmentDeadlineReminderService } from '../src/assignments/assignment-deadline-reminder.service.js';
 import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
 
 describe('System settings and audit logging (e2e)', () => {
@@ -30,10 +29,14 @@ describe('System settings and audit logging (e2e)', () => {
       const { body } = await ctx.http().get('/api/v1/admin/settings').set(bearer(admin)).expect(200);
       const byKey = Object.fromEntries(body.map((s: any) => [s.key, s]));
       expect(new Set(body.map((s: any) => s.category))).toEqual(
-        new Set(['REGISTRATION', 'ASSIGNMENTS', 'NOTIFICATIONS', 'LIVE_SESSIONS', 'PLATFORM', 'SUPPORT']),
+        new Set(['REGISTRATION', 'ASSIGNMENTS', 'NOTIFICATIONS', 'PLATFORM', 'SUPPORT']),
       );
       expect(byKey['assignments.defaultAllowResubmission']).toMatchObject({ value: false, default: false, type: 'boolean' });
-      expect(byKey['notifications.deadlineReminderHours']).toMatchObject({ value: 24, type: 'integer', min: 1, max: 168, unit: 'hours' });
+      expect(byKey['submissions.resubmissionRequestDays']).toMatchObject({ value: 7, type: 'integer', min: 1, max: 60, unit: 'days' });
+      // Live sessions and automatic reminders were removed.
+      for (const gone of ['liveSessions.maxDurationHours', 'notifications.deadlineRemindersEnabled', 'notifications.liveSessionRemindersEnabled']) {
+        expect(byKey[gone]).toBeUndefined();
+      }
       expect(byKey['support.helpUrl']).toMatchObject({ value: null, type: 'url', nullable: true });
       expect(byKey['platform.name'].updatedBy).toBeNull();
     });
@@ -47,9 +50,10 @@ describe('System settings and audit logging (e2e)', () => {
     it('rejects unknown keys, wrong types, out-of-range numbers and inconsistent combinations', async () => {
       const cases: Array<[Record<string, unknown>, string]> = [
         [{ 'unknown.setting': true }, 'Unknown setting "unknown.setting".'],
-        [{ 'notifications.deadlineReminderHours': 0 }, 'notifications.deadlineReminderHours must be at least 1.'],
-        [{ 'notifications.deadlineReminderHours': 2.5 }, 'notifications.deadlineReminderHours must be a whole number.'],
-        [{ 'liveSessions.maxDurationHours': 13 }, 'liveSessions.maxDurationHours must be at most 12.'],
+        [{ 'submissions.resubmissionRequestDays': 0 }, 'submissions.resubmissionRequestDays must be at least 1.'],
+        [{ 'submissions.resubmissionRequestDays': 2.5 }, 'submissions.resubmissionRequestDays must be a whole number.'],
+        [{ 'submissions.resubmissionRequestDays': 61 }, 'submissions.resubmissionRequestDays must be at most 60.'],
+        [{ 'liveSessions.maxDurationHours': 2 }, 'Unknown setting "liveSessions.maxDurationHours".'],
         [{ 'platform.supportEmail': 'nobody' }, 'platform.supportEmail must be an e-mail address.'],
         [{ 'support.helpUrl': 'http://insecure.example' }, 'support.helpUrl must be an https:// link.'],
         [{ 'assignments.defaultMaxResubmissions': 3 }, 'assignments.defaultMaxResubmissions only applies when assignments.defaultAllowResubmission is true.'],
@@ -107,33 +111,6 @@ describe('System settings and audit logging (e2e)', () => {
       expect((await create({ allowResubmission: 'false', allowLateSubmission: 'false' })).body)
         .toMatchObject({ allowResubmission: false, maxResubmissions: 0, allowLateSubmission: false });
       await settings({ 'assignments.defaultAllowResubmission': false, 'assignments.defaultMaxResubmissions': 0, 'assignments.defaultAllowLateSubmission': false }).expect(200);
-    });
-
-    it('notification rules control the deadline reminders', async () => {
-      await ctx.prisma.assignment.create({ data: {
-        title: 'Due in 36 h', instructions: 'Solve.', deadline: new Date(inDays(1.5)), points: 10, maximumMarks: 10,
-        courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, academicYearId: ctx.ids.year,
-        createdById: ctx.ids.mentorJunior, status: 'PUBLISHED', publishedAt: new Date(),
-      } });
-      const reminders = ctx.app.get(AssignmentDeadlineReminderService);
-      expect(await reminders.sendDue()).toBe(0); // 24-hour window by default
-
-      await settings({ 'notifications.deadlineRemindersEnabled': false, 'notifications.deadlineReminderHours': 48 }).expect(200);
-      expect(await reminders.sendDue()).toBe(0); // switched off
-      await settings({ 'notifications.deadlineRemindersEnabled': true }).expect(200);
-      expect(await reminders.sendDue()).toBe(1); // within 48 hours
-    });
-
-    it('the live-session length limit is configurable', async () => {
-      const schedule = (endHours: number) => ctx.http().post('/api/v1/live-sessions').set(bearer(mentorJ)).send({
-        courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, title: 'Long workshop',
-        startsAt: inDays(3), endsAt: new Date(Date.now() + 3 * 86_400_000 + endHours * 3_600_000).toISOString(),
-        meetingUrl: 'https://zoom.us/j/1',
-      });
-      await settings({ 'liveSessions.maxDurationHours': 2 }).expect(200);
-      const res = await schedule(3).expect(400);
-      expect(res.body.message).toBe('A session cannot last longer than 2 hours.');
-      await schedule(2).expect(201);
     });
 
     it('academic years are configured and the current one is visible', async () => {

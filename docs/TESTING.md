@@ -25,7 +25,7 @@ npm run test:e2e
 In the e2e environment (`test/setup-env.ts`), e-mail runs in dry-run mode
 (except in `email-delivery`), uploads go to a temporary folder, rate limiting
 is off, and background jobs are off. Tests call the workers directly when
-they need them (e-mail outbox, reminders).
+they need them (e-mail outbox).
 
 **Waiting for background work.** Notifications and e-mails are produced by
 event handlers that run after the response is sent. `waitForEvents()` (in
@@ -52,7 +52,7 @@ Every one of the API routes is called by at least one e2e test, checked by
 | `assignments` | Lifecycle, CLOSED/reopen, history, filters |
 | `submissions`, `review`, `results` | Answers and files, resubmissions (student and mentor-requested), distribution, review cycles, admin approval, publication, result history, corrections |
 | `discussions` | Course and assignment threads, permissions, reports, moderation, notifications |
-| `live-sessions`, `notifications`, `notification-settings` | Scheduling rules, time zones, reminders, inbox API, per-type switches |
+| `notifications`, `notification-settings` | Who is notified, inbox API, per-type switches; no automatic reminders |
 | `dashboard-reports` | Exact statistics against a known dataset, filters, CSV exports, authorization |
 | `settings-audit` | Settings validation and effect, public support info, audit coverage, append-only audit trail |
 | `remaining-endpoints` | Attachments, recall/unpublish, resource restore, feedback files, divisions, schools, leaderboard, e-mail jobs |
@@ -134,9 +134,8 @@ built app with workers on, against a disposable database:
 1. Seed it with demo users: `SEED_DEMO=true npm run db:seed`.
 2. Start the app: `WORKERS_ENABLED=true node dist/main`.
 3. Drive a workflow over HTTP.
-4. Check that the scheduled jobs fire: deadline reminders every 10 minutes,
-   live-session reminders every 5 minutes, and the e-mail outbox every 10
-   seconds.
+4. Check that the scheduled jobs fire: the e-mail outbox every 10 seconds
+   and assignment auto-close every 5 minutes.
 
 ## Continuous integration
 

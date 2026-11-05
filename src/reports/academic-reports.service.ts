@@ -384,8 +384,8 @@ export class AcademicReportsService {
 
   /**
    * Per mentor (in the division/course scope): reviews assigned, completed and
-   * open, admin send-backs, turnaround, assignments prepared, live sessions
-   * hosted, discussion comments and last login. Date range = activity between.
+   * open, admin send-backs, turnaround, assignments prepared, discussion
+   * comments and last login. Date range = activity between.
    */
   async mentorActivity(q: UserReportDto) {
     const s = await this.scope.resolve(q);
@@ -412,12 +412,12 @@ export class AcademicReportsService {
     const views = await this.mentorRows(s, rows);
     return toCsv(
       ['Mentor', 'Username', 'Email', 'Status', 'Teaching', 'Reviews assigned', 'Reviews completed', 'Open reviews',
-       'Sent back by admin', 'Average review hours', 'Assignments prepared', 'Live sessions hosted', 'Discussion comments', 'Last login'],
+       'Sent back by admin', 'Average review hours', 'Assignments prepared', 'Discussion comments', 'Last login'],
       views.map((v) => [
         fullName(v), v.username, v.email, v.status,
         v.teaching.map((t) => `${t.course.title} (${t.division.name})`).join('; '),
         v.reviewsAssigned, v.reviewsCompleted, v.openReviews, v.sentBackByAdmin, v.averageReviewHours,
-        v.assignmentsPrepared, v.liveSessionsHosted, v.discussionComments, v.lastLoginAt,
+        v.assignmentsPrepared, v.discussionComments, v.lastLoginAt,
       ]),
     );
   }
@@ -465,7 +465,7 @@ export class AcademicReportsService {
     const assignment = this.scope.assignmentWhere(s);
     const scoped: Prisma.MentorReviewWhereInput = { mentorId: { in: ids }, submission: { assignment } };
 
-    const [assigned, completed, open, sentBack, hours, prepared, sessions, comments] = await Promise.all([
+    const [assigned, completed, open, sentBack, hours, prepared, comments] = await Promise.all([
       this.prisma.mentorReview.groupBy({ by: ['mentorId'], where: { ...scoped, ...(range && { assignedAt: range }) }, _count: { _all: true } }),
       this.prisma.mentorReview.groupBy({ by: ['mentorId'], where: { ...scoped, returnedAt: range ?? { not: null } }, _count: { _all: true } }),
       this.prisma.mentorReview.groupBy({ by: ['mentorId'], where: { ...scoped, status: { in: OPEN_REVIEW_STATUSES } }, _count: { _all: true } }),
@@ -489,17 +489,6 @@ export class AcademicReportsService {
       this.prisma.assignment.groupBy({
         by: ['createdById'], where: { ...assignment, createdById: { in: ids }, ...(range && { createdAt: range }) }, _count: { _all: true },
       }),
-      this.prisma.liveSession.groupBy({
-        by:    ['hostId'],
-        where: {
-          hostId: { in: ids }, status: { not: 'CANCELLED' },
-          ...(s.year && { academicYearId: s.year.id }),
-          ...(s.divisionId && { divisionId: s.divisionId }),
-          ...(s.courseId && { courseId: s.courseId }),
-          ...(range && { startsAt: range }),
-        },
-        _count: { _all: true },
-      }),
       this.prisma.comment.groupBy({
         by:    ['authorId'],
         where: { authorId: { in: ids }, status: { not: 'DELETED' }, thread: this.scope.threadWhere(s), ...(range && { createdAt: range }) },
@@ -520,7 +509,6 @@ export class AcademicReportsService {
       sentBackByAdmin:     sentBack.find((r) => r.mentorId === m.id)?.n ?? 0,
       averageReviewHours:  round1(hours.find((r) => r.mentorId === m.id)?.average),
       assignmentsPrepared: count(prepared, 'createdById', m.id),
-      liveSessionsHosted:  count(sessions, 'hostId', m.id),
       discussionComments:  count(comments, 'authorId', m.id),
       lastLoginAt:         m.lastLoginAt,
     }));

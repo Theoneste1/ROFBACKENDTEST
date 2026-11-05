@@ -38,7 +38,7 @@ export class AnalyticsService {
     const studentWhere = { role: 'STUDENT' as const, divisionId, isActive: true, isApproved: true };
     const scope        = { courseId, divisionId };
 
-    const [students, enrollment, assignments, published, pipeline, resources, sessions] = await Promise.all([
+    const [students, enrollment, assignments, published, pipeline, resources] = await Promise.all([
       this.prisma.user.count({ where: studentWhere }),
       this.prisma.courseEnrollment.groupBy({
         by: ['status'], where: { courseId, student: studentWhere }, _count: { _all: true },
@@ -68,9 +68,6 @@ export class AnalyticsService {
           _count: { select: { views: true } },
           views:  { select: { viewCount: true } },
         },
-      }),
-      this.prisma.liveSession.groupBy({
-        by: ['status'], where: scope, _count: { _all: true },
       }),
     ]);
 
@@ -123,7 +120,6 @@ export class AnalyticsService {
           .slice(0, 5)
           .map((r) => ({ id: r.id, title: r.title, type: r.type, uniqueViewers: r._count.views })),
       },
-      liveSessions: Object.fromEntries(sessions.map((s) => [s.status, s._count._all])),
     };
   }
 }

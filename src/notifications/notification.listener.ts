@@ -5,12 +5,10 @@
  * logged and never affects the action that emitted the event.
  */
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from './notifications.service.js';
-import { DEFAULT_TIME_ZONE, describeZoned, describeZonedRange } from '../common/time/zoned-time.js';
 import {
   Events,
   type AssignmentEvent,
@@ -18,7 +16,6 @@ import {
   type ContentReportedEvent,
   type DiscussionCommentEvent,
   type DiscussionThreadEvent,
-  type LiveSessionEvent,
   type ReportsResolvedEvent,
   type MentorRequestDecidedEvent,
   type ResourceEvent,
@@ -36,12 +33,7 @@ export class NotificationListener {
   constructor(
     private readonly prisma:        PrismaService,
     private readonly notifications: NotificationsService,
-    private readonly config:        ConfigService,
   ) {}
-
-  private get timeZone(): string {
-    return this.config.get<string>('APP_TIMEZONE') || DEFAULT_TIME_ZONE;
-  }
 
   // ─── Assignments ──────────────────────────────────────────────────────────
 
@@ -82,28 +74,6 @@ export class NotificationListener {
         body:     `"${a.title}" is now visible to ${a.division.name} students.`,
         data:     { assignmentId: a.id },
         link:     `/mentor/assignments/${a.id}`,
-      });
-    });
-  }
-
-  /** Deadline within 24 hours → students of the division who have not submitted yet. */
-  @OnEvent(Events.AssignmentDeadlineApproaching, ASYNC)
-  async onDeadlineApproaching(e: AssignmentEvent) {
-    await this.safe('deadline approaching', async () => {
-      const a = await this.assignment(e.assignmentId);
-      if (!a) return;
-      const [students, submitted] = await Promise.all([
-        this.notifications.studentIdsInDivision(a.divisionId),
-        this.prisma.submission.findMany({ where: { assignmentId: a.id }, select: { studentId: true } }),
-      ]);
-      const done = new Set(submitted.map((s) => s.studentId));
-      await this.notifications.notify(students.filter((id) => !done.has(id)), {
-        category: 'ASSIGNMENTS',
-        type:     Events.AssignmentDeadlineApproaching,
-        title:    `Due soon: ${a.title}`,
-        body:     `"${a.title}" (${a.course.title}) is due ${describeZoned(a.deadline, this.timeZone)} and you have not submitted yet.`,
-        data:     { assignmentId: a.id },
-        link:     `/assignments/${a.id}`,
       });
     });
   }
@@ -268,59 +238,6 @@ export class NotificationListener {
         data:     { resourceId: r.id, courseId: r.courseId },
         link:     `/courses/${r.courseId}/resources/${r.id}`,
       }, { email: false });
-    });
-  }
-
-  // ─── Live sessions ────────────────────────────────────────────────────────
-
-  @OnEvent(Events.LiveSessionScheduled, ASYNC)
-  async onLiveSessionScheduled(e: LiveSessionEvent) {
-    await this.onLiveSession(e, 'scheduled');
-  }
-
-  @OnEvent(Events.LiveSessionUpdated, ASYNC)
-  async onLiveSessionUpdated(e: LiveSessionEvent) {
-    await this.onLiveSession(e, 'updated');
-  }
-
-  @OnEvent(Events.LiveSessionCancelled, ASYNC)
-  async onLiveSessionCancelled(e: LiveSessionEvent) {
-    await this.onLiveSession(e, 'cancelled');
-  }
-
-  /** Students of the session's division, in published courses only. */
-  private async onLiveSession(e: LiveSessionEvent, kind: 'scheduled' | 'updated' | 'cancelled') {
-    await this.safe(`live session ${kind}`, async () => {
-      const s = await this.prisma.liveSession.findUnique({
-        where:  { id: e.sessionId },
-        select: { id: true, title: true, startsAt: true, endsAt: true, status: true, divisionId: true, courseId: true, cancelReason: true, course: { select: { title: true, status: true } } },
-      });
-      if (!s || s.course.status !== 'PUBLISHED') return;
-
-      const when = describeZonedRange(s.startsAt, s.endsAt, this.timeZone);
-      const message = {
-        scheduled: {
-          type:  Events.LiveSessionScheduled,
-          title: `Live session: ${s.title}`,
-          body:  `${s.course.title} live session "${s.title}": ${when}.`,
-        },
-        updated: {
-          type:  Events.LiveSessionUpdated,
-          title: `Updated: ${s.title}`,
-          body:  `The ${s.course.title} live session "${s.title}" changed. It is now ${when}; check the meeting link before joining.`,
-        },
-        cancelled: {
-          type:  Events.LiveSessionCancelled,
-          title: `Cancelled: ${s.title}`,
-          body:  `The ${s.course.title} live session "${s.title}" was cancelled.${s.cancelReason ? ` Reason: ${s.cancelReason}` : ''}`,
-        },
-      }[kind];
-      await this.notifications.notify(await this.notifications.studentIdsInDivision(s.divisionId), {
-        category: 'LIVE_SESSIONS',
-        ...message,
-        data:     { sessionId: s.id, courseId: s.courseId },
-        link:     `/live-sessions/${s.id}`,
-      });
     });
   }
 

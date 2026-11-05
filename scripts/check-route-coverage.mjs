@@ -28,7 +28,7 @@ for (const file of readdirSync(join(root, 'test')).filter((f) => f.endsWith('.e2
     calls.push({ method: m[1].toUpperCase(), path, file });
   }
   // Paths passed to local helpers, e.g. get('/admin/reports/students') or a list of paths in a loop.
-  for (const m of text.matchAll(/['`](\/(?:api\/v1\/)?(?:admin|me|notifications|live-sessions|submissions|assignments|courses|threads|comments|support)[^'`]*)['`]/g)) {
+  for (const m of text.matchAll(/['`](\/(?:api\/v1\/)?(?:admin|me|notifications|submissions|assignments|courses|threads|comments|support)[^'`]*)['`]/g)) {
     const path = m[1].replace(/\$\{[^}]+\}/g, 'X').split('?')[0];
     calls.push({ method: '*', path: path.startsWith('/api/v1') ? path : `/api/v1${path}`, file });
   }

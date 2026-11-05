@@ -11,7 +11,7 @@ Contents: [Accounts](#1-accounts) · [Academic year](#2-academic-year) ·
 [Assignment → result](#4-from-assignment-to-published-result) ·
 [Resubmissions](#5-resubmissions) · [Corrections](#6-corrections-after-publication) ·
 [Discussions and moderation](#7-discussions-and-moderation) ·
-[Live sessions](#8-live-sessions) · [Notifications](#9-notifications)
+[Notifications](#8-notifications)
 
 ---
 
@@ -118,8 +118,6 @@ any state ─admin archive / year closes─► ARCHIVED
 - A CLOSED assignment accepts no new work, except resubmissions a mentor
   asked for. Assignments that accept late work stay open after the deadline
   until an admin closes them.
-- A reminder goes to students who have not submitted, once per deadline,
-  before it passes (default 24 h; set in the settings).
 - Defaults for resubmissions and late work come from the system settings;
   the mentor can choose differently for each assignment.
 
@@ -189,30 +187,7 @@ lists every publication with who published it and when.
   and why, and reporters are told the outcome.
 - There is no private or direct messaging, and there are no study groups.
 
-## 8. Live sessions
-
-```
-SCHEDULED ─host/admin cancels─► CANCELLED
-    └──────── end time passes ─► COMPLETED (worker)
-```
-
-- **Scheduling:** mentors schedule sessions for their course × division
-  scopes. Times are given as a date plus start and end time in the programme
-  time zone, or as ISO instants.
-- **Checks:**
-  - the session must start in the future and end after it starts;
-  - it can last at most the configured length;
-  - it must start within the academic year;
-  - the host can't be double-booked, and a division can't have two sessions
-    at once;
-  - the platform, if given, must match the meeting link.
-- **During a session:** its time can't be changed, but the link can.
-- **Visibility:** students see their division's sessions in published courses.
-  A cancelled session hides its link from them.
-- **Notifications:** students are told when a session is scheduled, its time
-  or link changes, it is cancelled, and shortly before it starts.
-
-## 9. Notifications
+## 8. Notifications
 
 Each event notifies the people it concerns, in the app and (for some types)
 by e-mail through the background outbox. See the event → recipient table in
@@ -223,3 +198,5 @@ by e-mail through the background outbox. See the event → recipient table in
   it in the app and/or by e-mail (`/me/notification-settings`).
 - Everyone can turn off e-mail per category (`/me/notification-preferences`).
 - Account e-mails (activation, password reset) are always sent.
+- There are no automatic reminders. Administrators send any other e-mail
+  themselves, when they choose, as a bulk e-mail (`POST /admin/email/send`).

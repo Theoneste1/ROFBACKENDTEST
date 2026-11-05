@@ -131,9 +131,8 @@ export class CoursesService {
         select: {
           _count: {
             select: {
-              resources:    { where: { divisionId, isPublished: true } },
-              assignments:  { where: { divisionId, status: { in: ['PUBLISHED', 'CLOSED'] } } },
-              liveSessions: { where: { divisionId, status: 'SCHEDULED', startsAt: { gte: new Date() } } },
+              resources:   { where: { divisionId, isPublished: true } },
+              assignments: { where: { divisionId, status: { in: ['PUBLISHED', 'CLOSED'] } } },
             },
           },
         },
@@ -143,7 +142,7 @@ export class CoursesService {
         enrollmentStatus: enrollment.status,
         displayStatus:    DISPLAY_LABELS[enrollment.status],
         completedAt:      enrollment.completedAt,
-        counts:           { ...counts!._count, upcomingLiveSessions: counts!._count.liveSessions },
+        counts:           counts!._count,
       };
     }
 

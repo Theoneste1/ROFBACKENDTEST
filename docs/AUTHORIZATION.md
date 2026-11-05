@@ -9,13 +9,13 @@ service then applies record-level rules:
 | Rule | Applies to |
 |---|---|
 | Students act only on their own records (submissions, results, notifications, profile) | submissions, results, notifications, me/* |
-| Students see only their own division, in published courses | courses, resources, assignments, threads, live sessions |
-| Mentors see and change only their assigned course × division scopes | assignments, resources, threads, live sessions, analytics |
+| Students see only their own division, in published courses | courses, resources, assignments, threads |
+| Mentors see and change only their assigned course × division scopes | assignments, resources, threads, analytics |
 | Mentors see only submissions currently assigned to them; only the assigned mentor grades | submissions, reviews |
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 203 endpoints — 14 public, 93 administrator-only.
+Totals: 198 endpoints — 14 public, 93 administrator-only.
 
 ## Academic years
 
@@ -255,16 +255,6 @@ Totals: 203 endpoints — 14 public, 93 administrator-only.
 | GET | `/api/v1/leaderboard` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/leaderboard/me` |  | ✓ |  |  |
 | GET | `/api/v1/leaderboard/schools` |  | ✓ | ✓ | ✓ |
-
-## Live sessions
-
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/live-sessions` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/live-sessions` |  |  | ✓ | ✓ |
-| GET | `/api/v1/live-sessions/{id}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/live-sessions/{id}` |  |  | ✓ | ✓ |
-| POST | `/api/v1/live-sessions/{id}/cancel` |  |  | ✓ | ✓ |
 
 ## Me
 

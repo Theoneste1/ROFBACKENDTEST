@@ -1190,53 +1190,6 @@
   },
   {
     "method": "GET",
-    "path": "/api/v1/live-sessions",
-    "roles": [
-      "STUDENT",
-      "MENTOR",
-      "ADMIN"
-    ],
-    "tag": "Live sessions"
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/live-sessions",
-    "roles": [
-      "MENTOR",
-      "ADMIN"
-    ],
-    "tag": "Live sessions"
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/live-sessions/{id}",
-    "roles": [
-      "STUDENT",
-      "MENTOR",
-      "ADMIN"
-    ],
-    "tag": "Live sessions"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/v1/live-sessions/{id}",
-    "roles": [
-      "MENTOR",
-      "ADMIN"
-    ],
-    "tag": "Live sessions"
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/live-sessions/{id}/cancel",
-    "roles": [
-      "MENTOR",
-      "ADMIN"
-    ],
-    "tag": "Live sessions"
-  },
-  {
-    "method": "GET",
     "path": "/api/v1/me",
     "roles": [
       "STUDENT",

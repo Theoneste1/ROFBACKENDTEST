@@ -65,18 +65,18 @@ describe('validateSettingValue', () => {
   });
 
   describe('integer settings', () => {
-    const key = 'notifications.deadlineReminderHours';
+    const key = 'submissions.resubmissionRequestDays';
 
-    it.each([1, 24, 168])('accepts %d', (value) => {
+    it.each([1, 7, 60])('accepts %d', (value) => {
       expect(validateSettingValue(key, value)).toBeNull();
     });
 
     it('rejects values outside the limits', () => {
       expect(validateSettingValue(key, 0)).toBe(`${key} must be at least 1.`);
-      expect(validateSettingValue(key, 169)).toBe(`${key} must be at most 168.`);
+      expect(validateSettingValue(key, 61)).toBe(`${key} must be at most 60.`);
     });
 
-    it.each([1.5, '24', true, null])('rejects %j', (value) => {
+    it.each([1.5, '7', true, null])('rejects %j', (value) => {
       expect(validateSettingValue(key, value)).not.toBeNull();
     });
   });

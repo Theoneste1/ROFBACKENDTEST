@@ -19,8 +19,6 @@ export const PERMISSIONS = [
   'courses.complete',
   'resources.view',
   'resources.manage',            // scoped to assigned course × division for mentors
-  'liveSessions.view',
-  'liveSessions.manage',         // scoped for mentors
   // Assessment
   'assignments.view',
   'assignments.prepare',         // mentors only (scoped)
@@ -57,17 +55,17 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   STUDENT: [
-    'courses.view', 'courses.complete', 'resources.view', 'liveSessions.view',
+    'courses.view', 'courses.complete', 'resources.view',
     'assignments.view', 'submissions.submit', 'submissions.viewOwn',
     'discussions.participate', 'discussions.report', 'leaderboard.view',
   ],
   MENTOR: [
-    'courses.view', 'resources.view', 'resources.manage', 'liveSessions.view', 'liveSessions.manage',
+    'courses.view', 'resources.view', 'resources.manage',
     'assignments.view', 'assignments.prepare', 'reviews.grade',
     'discussions.participate', 'discussions.report', 'analytics.course', 'leaderboard.view',
   ],
   ADMIN: [
-    'courses.view', 'resources.view', 'resources.manage', 'liveSessions.view', 'liveSessions.manage',
+    'courses.view', 'resources.view', 'resources.manage',
     'assignments.view', 'assignments.publish', 'submissions.distribute',
     'results.approve', 'results.publish',
     'discussions.participate', 'discussions.report', 'discussions.moderate',

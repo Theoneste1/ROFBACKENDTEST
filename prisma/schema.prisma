@@ -278,7 +278,6 @@ enum ActivityType {
   RESULT_VIEWED
   THREAD_CREATED
   COMMENT_POSTED
-  LIVE_SESSION_OPENED
 }
 
 enum ReactionType {
@@ -310,19 +309,6 @@ enum EmailDeliveryStatus {
   FAILED
 }
 
-enum LiveSessionProvider {
-  ZOOM
-  GOOGLE_MEET
-  MICROSOFT_TEAMS
-  OTHER
-}
-
-enum LiveSessionStatus {
-  SCHEDULED
-  CANCELLED
-  COMPLETED
-}
-
 /// What a stored file is used for. Drives size/type limits and access rules.
 enum FilePurpose {
   ASSIGNMENT_BRIEF
@@ -338,7 +324,6 @@ enum NotificationCategory {
   SUBMISSIONS
   REVIEWS
   RESULTS
-  LIVE_SESSIONS
   RESOURCES
   ACCOUNT
   DISCUSSIONS
@@ -412,7 +397,6 @@ model User {
   auditLogs             AuditLog[]               @relation("AuditActor")
   mentorAssignments     MentorAssignment[]       @relation("MentorAssignmentMentor")
   mentorAssignmentsMade MentorAssignment[]       @relation("MentorAssignmentAssigner")
-  liveSessions          LiveSession[]            @relation("LiveSessionHost")
   notifications         Notification[]
   notificationPrefs     NotificationPreference[]
   notificationSettings  NotificationSetting[]
@@ -557,7 +541,6 @@ model Division {
   mentorAssignments  MentorAssignment[]
   resources          CourseResource[]
   assignments        Assignment[]
-  liveSessions       LiveSession[]
   threads            DiscussionThread[]
 }
 
@@ -577,8 +560,8 @@ model Discipline {
   courses Course[]
 }
 
-/// An academic year (e.g. "2026-2027"). Assignments and live sessions belong
-/// to a year; closing a year archives its assignments.
+/// An academic year (e.g. "2026-2027"). Assignments belong to a year;
+/// closing a year archives its assignments.
 model AcademicYear {
   id        String             @id @default(uuid())
   /// Display name, e.g. "2026-2027".
@@ -595,7 +578,6 @@ model AcademicYear {
 
   enrollments  StudentEnrollment[]
   assignments  Assignment[]
-  liveSessions LiveSession[]
 
   @@index([status])
 }
@@ -624,7 +606,7 @@ model StudentEnrollment {
 }
 
 /// A course within a discipline (launch: the four Mathematics courses).
-/// Content (resources, assignments, live sessions, discussions) is scoped per
+/// Content (resources, assignments, discussions) is scoped per
 /// (course × division). Courses are archived, never deleted.
 model Course {
   id                 String       @id @default(uuid())
@@ -649,7 +631,6 @@ model Course {
   resources         CourseResource[]
   threads           DiscussionThread[]
   mentorAssignments MentorAssignment[]
-  liveSessions      LiveSession[]
   activityLogs      ActivityLog[]
 
   @@unique([disciplineId, code])
@@ -657,7 +638,7 @@ model Course {
 }
 
 /// Admin assigns a mentor to a (course × division). This is the mentor's scope
-/// for resources, assignments, live sessions, discussions and analytics.
+/// for resources, assignments, discussions and analytics.
 model MentorAssignment {
   id           String   @id @default(uuid())
   mentorId     String
@@ -794,37 +775,6 @@ model ResourceView {
   @@index([studentId])
 }
 
-model LiveSession {
-  id             String              @id @default(uuid())
-  courseId       String
-  course         Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  divisionId     String
-  division       Division            @relation(fields: [divisionId], references: [id])
-  academicYearId String
-  academicYear   AcademicYear        @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
-  hostId         String
-  host           User                @relation("LiveSessionHost", fields: [hostId], references: [id])
-  title          String
-  description    String?
-  startsAt       DateTime
-  endsAt         DateTime
-  provider       LiveSessionProvider @default(OTHER)
-  /// External meeting link (https only). Never exposed to ineligible users.
-  meetingUrl     String
-  status         LiveSessionStatus   @default(SCHEDULED)
-  cancelReason   String?
-  /// Set once the "starting soon" reminder has been sent.
-  reminderSentAt DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-
-  @@index([courseId, divisionId, startsAt])
-  @@index([hostId])
-  @@index([status, startsAt])
-  @@index([divisionId])
-  @@index([academicYearId])
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Assessment
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -845,9 +795,6 @@ model Assignment {
   maxResubmissions    Int       @default(0)
   /// When true, first submissions after the deadline are accepted and flagged late.
   allowLateSubmission Boolean   @default(false)
-  /// The deadline the "due soon" reminder was last sent for; a changed
-  /// deadline (≠ this value) gets a fresh reminder.
-  deadlineRemindedFor DateTime?
 
   status             AssignmentStatus @default(DRAFT)
   submittedAt        DateTime?

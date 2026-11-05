@@ -2,7 +2,7 @@
  * AccessService — the single place that answers "may this user touch content
  * in course C for division D?".
  *
- * Content (resources, assignments, live sessions, discussions) is scoped to a
+ * Content (resources, assignments, discussions) is scoped to a
  * (course × division) pair:
  *
  *   ADMIN   — every scope.

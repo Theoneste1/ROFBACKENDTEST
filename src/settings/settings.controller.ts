@@ -15,7 +15,7 @@ export class SettingsController {
 
   /**
    * All settings by category (registration, assignments, notification rules,
-   * live sessions, platform, support) with current value, default, type,
+   * platform, support) with current value, default, type,
    * limits and who changed it last. Academic years are managed under
    * /admin/academic-years.
    */
@@ -24,7 +24,7 @@ export class SettingsController {
     return this.settings.getAll();
   }
 
-  /** Change one or more settings: `{ "notifications.deadlineReminderHours": 48 }`. Every change is audited. */
+  /** Change one or more settings: `{ "submissions.resubmissionRequestDays": 14 }`. Every change is audited. */
   @Patch()
   @ApiBody({ schema: { type: 'object', additionalProperties: true } })
   update(@Body() body: Record<string, unknown>, @CurrentUser() user: AuthUser) {

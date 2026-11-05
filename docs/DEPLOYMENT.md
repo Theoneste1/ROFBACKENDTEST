@@ -27,7 +27,7 @@ Contents: [Architecture](#1-production-architecture) ·
 | Logs | A log platform that ingests JSON from stdout (Loki, CloudWatch, Datadog, ELK …) |
 
 The API keeps no state on its own disk when `STORAGE_DRIVER=s3`, so instances
-can be replaced or added freely. Background jobs (e-mail outbox, reminders,
+can be replaced or added freely. Background jobs (e-mail outbox,
 deadline closing, clean-up) run inside the API process and coordinate through
 the database.
 
@@ -292,7 +292,7 @@ Two notes on the audit log:
 - Server errors (5xx) are logged with `[requestId] METHOD path → status`.
   Clients receive the same id in the `X-Request-Id` header and in every error
   body, so a user's error report can be traced to its log line.
-- Background jobs log what they did and any failures: e-mail outbox, reminders,
+- Background jobs log what they did and any failures: e-mail outbox,
   deadline closing, retention, token and file clean-up.
 - Per-request access logs come from the reverse proxy (§6).
 - Passwords, tokens and request bodies are never logged.

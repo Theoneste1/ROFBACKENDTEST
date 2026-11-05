@@ -75,7 +75,7 @@ export class EnvironmentVariables {
   @IsUrl({ require_tld: false, require_protocol: true })
   APP_URL?: string;
 
-  /** IANA time zone for wall-clock dates and times (live sessions). Default Africa/Kigali. */
+  /** IANA time zone for wall-clock dates (report and audit-log date filters). Default Africa/Kigali. */
   @IsOptional()
   @IsTimeZone()
   APP_TIMEZONE?: string;

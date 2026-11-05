@@ -267,15 +267,15 @@ export class UserReportsService {
 
   /**
    * Per course × division: students in scope, how many opened and completed
-   * the course, assignments, submissions, average published score, discussion
-   * and live-session activity. Date range = activity between.
+   * the course, assignments, submissions, average published score and
+   * discussion activity. Date range = activity between.
    */
   async courseParticipation(q: ReportListDto) {
     const s = await this.scope.resolve(q);
     const range = this.scope.range(s);
     const A = this.scope.assignmentSql(s);
 
-    const [courses, divisions, students, opened, assignments, submissions, discussion, sessions] = await Promise.all([
+    const [courses, divisions, students, opened, assignments, submissions, discussion] = await Promise.all([
       this.prisma.course.findMany({ where: s.courseId ? { id: s.courseId } : {}, orderBy: { sortOrder: 'asc' }, select: { id: true, code: true, title: true } }),
       this.prisma.division.findMany({ where: s.divisionId ? { id: s.divisionId } : {}, orderBy: { code: 'asc' }, select: { id: true, code: true, name: true } }),
       this.studentsPerDivision(s),
@@ -307,17 +307,6 @@ export class UserReportsService {
            ${s.divisionId ? Prisma.sql`AND t."divisionId" = ${s.divisionId}` : Prisma.empty}
            ${s.courseId ? Prisma.sql`AND COALESCE(t."courseId", a."courseId") = ${s.courseId}` : Prisma.empty}
          GROUP BY 1, 2`,
-      this.prisma.liveSession.groupBy({
-        by:    ['courseId', 'divisionId'],
-        where: {
-          status: { not: 'CANCELLED' },
-          ...(s.year && { academicYearId: s.year.id }),
-          ...(s.divisionId && { divisionId: s.divisionId }),
-          ...(s.courseId && { courseId: s.courseId }),
-          ...(range && { startsAt: range }),
-        },
-        _count: { _all: true },
-      }),
     ]);
 
     const find = <T extends { courseId: string; divisionId: string }>(rows: T[], c: string, d: string) =>
@@ -341,7 +330,6 @@ export class UserReportsService {
         averageScore:          round1(sub?.average),
         discussionThreads:     dis?.threads ?? 0,
         discussionComments:    dis?.comments ?? 0,
-        liveSessions:          find(sessions, course.id, division.id)?._count._all ?? 0,
       };
     }));
     return { filters: this.scope.describe(s), rows };
@@ -351,10 +339,10 @@ export class UserReportsService {
     const { rows } = await this.courseParticipation(q);
     return toCsv(
       ['Course', 'Division', 'Students', 'Opened course', 'Completed course', 'Participation %', 'Assignments published',
-       'Submissions', 'Students who submitted', 'Submission %', 'Average score %', 'Discussion threads', 'Comments', 'Live sessions'],
+       'Submissions', 'Students who submitted', 'Submission %', 'Average score %', 'Discussion threads', 'Comments'],
       rows.map((r) => [
         r.course.title, r.division.name, r.students, r.opened, r.completed, r.participationRate, r.assignmentsPublished,
-        r.submissions, r.studentsSubmitted, r.submissionRate, r.averageScore, r.discussionThreads, r.discussionComments, r.liveSessions,
+        r.submissions, r.studentsSubmitted, r.submissionRate, r.averageScore, r.discussionThreads, r.discussionComments,
       ]),
     );
   }

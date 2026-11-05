@@ -882,7 +882,7 @@
             }
           }
         },
-        "summary": "All settings by category (registration, assignments, notification rules,\nlive sessions, platform, support) with current value, default, type,\nlimits and who changed it last. Academic years are managed under\n/admin/academic-years.",
+        "summary": "All settings by category (registration, assignments, notification rules,\nplatform, support) with current value, default, type,\nlimits and who changed it last. Academic years are managed under\n/admin/academic-years.",
         "tags": [
           "Admin · Settings"
         ],
@@ -917,17 +917,6 @@
                         "type": "string"
                       },
                       "default": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "integer"
-                          },
-                          {
-                            "type": "string"
-                          }
-                        ],
                         "nullable": true
                       },
                       "description": {
@@ -991,17 +980,6 @@
                         "type": "object"
                       },
                       "value": {
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "type": "integer"
-                          },
-                          {
-                            "type": "string"
-                          }
-                        ],
                         "nullable": true
                       }
                     },
@@ -1033,7 +1011,7 @@
             }
           }
         },
-        "summary": "Change one or more settings: `{ \"notifications.deadlineReminderHours\": 48 }`. Every change is audited.",
+        "summary": "Change one or more settings: `{ \"submissions.resubmissionRequestDays\": 14 }`. Every change is audited.",
         "tags": [
           "Admin · Settings"
         ],
@@ -1134,9 +1112,6 @@
                           },
                           "data": {
                             "properties": {
-                              "action": {
-                                "type": "string"
-                              },
                               "assignmentId": {
                                 "format": "uuid",
                                 "type": "string"
@@ -1146,10 +1121,6 @@
                                 "type": "string"
                               },
                               "courseId": {
-                                "format": "uuid",
-                                "type": "string"
-                              },
-                              "sessionId": {
                                 "format": "uuid",
                                 "type": "string"
                               },
@@ -1172,7 +1143,6 @@
                             "type": "boolean"
                           },
                           "link": {
-                            "nullable": true,
                             "type": "string"
                           },
                           "readAt": {
@@ -1278,9 +1248,6 @@
                         "DISCUSSIONS": {
                           "type": "integer"
                         },
-                        "LIVE_SESSIONS": {
-                          "type": "integer"
-                        },
                         "RESOURCES": {
                           "type": "integer"
                         },
@@ -1298,7 +1265,6 @@
                         "ACCOUNT",
                         "ASSIGNMENTS",
                         "DISCUSSIONS",
-                        "LIVE_SESSIONS",
                         "RESOURCES",
                         "RESULTS",
                         "REVIEWS",
@@ -1429,18 +1395,18 @@
                     },
                     "data": {
                       "properties": {
-                        "courseId": {
+                        "commentId": {
                           "format": "uuid",
                           "type": "string"
                         },
-                        "sessionId": {
+                        "threadId": {
                           "format": "uuid",
                           "type": "string"
                         }
                       },
                       "required": [
-                        "courseId",
-                        "sessionId"
+                        "commentId",
+                        "threadId"
                       ],
                       "type": "object"
                     },
@@ -2747,15 +2713,11 @@
                             },
                             "enrollments": {
                               "type": "integer"
-                            },
-                            "liveSessions": {
-                              "type": "integer"
                             }
                           },
                           "required": [
                             "assignments",
-                            "enrollments",
-                            "liveSessions"
+                            "enrollments"
                           ],
                           "type": "object"
                         },
@@ -3237,8 +3199,7 @@
                 "SUBMISSION_RESUBMITTED",
                 "RESULT_VIEWED",
                 "THREAD_CREATED",
-                "COMMENT_POSTED",
-                "LIVE_SESSION_OPENED"
+                "COMMENT_POSTED"
               ]
             }
           },
@@ -6813,21 +6774,13 @@
                         "assignments": {
                           "type": "integer"
                         },
-                        "liveSessions": {
-                          "type": "integer"
-                        },
                         "resources": {
-                          "type": "integer"
-                        },
-                        "upcomingLiveSessions": {
                           "type": "integer"
                         }
                       },
                       "required": [
                         "assignments",
-                        "liveSessions",
-                        "resources",
-                        "upcomingLiveSessions"
+                        "resources"
                       ],
                       "type": "object"
                     },
@@ -23577,16 +23530,16 @@
                     },
                     "byMentor": {
                       "properties": {
-                        "ce3bd152-ca1b-45cc-be6e-e4b604e7324e": {
+                        "dfa8f9cc-73de-4c65-bb75-4e72c5d3e0f9": {
                           "type": "integer"
                         },
-                        "e7c18911-67ce-4329-b938-0b1dc6881022": {
+                        "f5078df0-44c0-435c-ba3b-a6ef20d824fc": {
                           "type": "integer"
                         }
                       },
                       "required": [
-                        "ce3bd152-ca1b-45cc-be6e-e4b604e7324e",
-                        "e7c18911-67ce-4329-b938-0b1dc6881022"
+                        "dfa8f9cc-73de-4c65-bb75-4e72c5d3e0f9",
+                        "f5078df0-44c0-435c-ba3b-a6ef20d824fc"
                       ],
                       "type": "object"
                     },
@@ -30658,1078 +30611,6 @@
         "description": "**Access:** ADMIN"
       }
     },
-    "/api/v1/live-sessions": {
-      "post": {
-        "operationId": "LiveSessionsController_create",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateLiveSessionDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "cancelReason": {
-                      "nullable": true
-                    },
-                    "course": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "title": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "title"
-                      ],
-                      "type": "object"
-                    },
-                    "courseId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "date": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "division": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "name"
-                      ],
-                      "type": "object"
-                    },
-                    "divisionId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "endTime": {
-                      "type": "string"
-                    },
-                    "endsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "host": {
-                      "properties": {
-                        "firstName": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "lastName": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "firstName",
-                        "id",
-                        "lastName"
-                      ],
-                      "type": "object"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "isLive": {
-                      "type": "boolean"
-                    },
-                    "meetingUrl": {
-                      "type": "string"
-                    },
-                    "provider": {
-                      "type": "string"
-                    },
-                    "startTime": {
-                      "type": "string"
-                    },
-                    "startsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    },
-                    "timeZone": {
-                      "type": "string"
-                    },
-                    "title": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "cancelReason",
-                    "course",
-                    "courseId",
-                    "createdAt",
-                    "date",
-                    "description",
-                    "division",
-                    "divisionId",
-                    "endTime",
-                    "endsAt",
-                    "host",
-                    "id",
-                    "isLive",
-                    "meetingUrl",
-                    "provider",
-                    "startTime",
-                    "startsAt",
-                    "status",
-                    "timeZone",
-                    "title",
-                    "updatedAt"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Schedule an external live session for a course × division you teach.",
-        "tags": [
-          "Live sessions"
-        ],
-        "x-roles": [
-          "MENTOR",
-          "ADMIN"
-        ],
-        "description": "**Access:** MENTOR, ADMIN"
-      },
-      "get": {
-        "operationId": "LiveSessionsController_findAll",
-        "parameters": [
-          {
-            "name": "courseId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "name": "divisionId",
-            "required": false,
-            "in": "query",
-            "description": "Mentors/admins only.",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "name": "status",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "COMPLETED",
-                "CANCELLED",
-                "SCHEDULED"
-              ]
-            }
-          },
-          {
-            "name": "from",
-            "required": false,
-            "in": "query",
-            "description": "Calendar range: sessions overlapping [from, to]. A plain date (YYYY-MM-DD)\nmeans that whole day in the programme time zone. When either is given,\n`upcoming` is ignored.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "to",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "upcoming",
-            "required": false,
-            "in": "query",
-            "description": "Only sessions that have not ended yet (default true).",
-            "schema": {
-              "default": true,
-              "type": "boolean"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "items": {
-                        "properties": {
-                          "cancelReason": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "course": {
-                            "properties": {
-                              "code": {
-                                "type": "string"
-                              },
-                              "id": {
-                                "format": "uuid",
-                                "type": "string"
-                              },
-                              "title": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "code",
-                              "id",
-                              "title"
-                            ],
-                            "type": "object"
-                          },
-                          "courseId": {
-                            "format": "uuid",
-                            "type": "string"
-                          },
-                          "createdAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          },
-                          "date": {
-                            "type": "string"
-                          },
-                          "description": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "division": {
-                            "properties": {
-                              "code": {
-                                "type": "string"
-                              },
-                              "id": {
-                                "format": "uuid",
-                                "type": "string"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "code",
-                              "id",
-                              "name"
-                            ],
-                            "type": "object"
-                          },
-                          "divisionId": {
-                            "format": "uuid",
-                            "type": "string"
-                          },
-                          "endTime": {
-                            "type": "string"
-                          },
-                          "endsAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          },
-                          "host": {
-                            "properties": {
-                              "firstName": {
-                                "type": "string"
-                              },
-                              "id": {
-                                "format": "uuid",
-                                "type": "string"
-                              },
-                              "lastName": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "firstName",
-                              "id",
-                              "lastName"
-                            ],
-                            "type": "object"
-                          },
-                          "id": {
-                            "format": "uuid",
-                            "type": "string"
-                          },
-                          "isLive": {
-                            "type": "boolean"
-                          },
-                          "meetingUrl": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "provider": {
-                            "type": "string"
-                          },
-                          "startTime": {
-                            "type": "string"
-                          },
-                          "startsAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "timeZone": {
-                            "type": "string"
-                          },
-                          "title": {
-                            "type": "string"
-                          },
-                          "updatedAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "cancelReason",
-                          "course",
-                          "courseId",
-                          "createdAt",
-                          "date",
-                          "description",
-                          "division",
-                          "divisionId",
-                          "endTime",
-                          "endsAt",
-                          "host",
-                          "id",
-                          "isLive",
-                          "meetingUrl",
-                          "provider",
-                          "startTime",
-                          "startsAt",
-                          "status",
-                          "timeZone",
-                          "title",
-                          "updatedAt"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "meta": {
-                      "properties": {
-                        "limit": {
-                          "type": "integer"
-                        },
-                        "page": {
-                          "type": "integer"
-                        },
-                        "total": {
-                          "type": "integer"
-                        },
-                        "totalPages": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "limit",
-                        "page",
-                        "total",
-                        "totalPages"
-                      ],
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Upcoming sessions by default; `?upcoming=false` for history.",
-        "tags": [
-          "Live sessions"
-        ],
-        "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
-        ],
-        "description": "**Access:** Any signed-in user"
-      }
-    },
-    "/api/v1/live-sessions/{id}": {
-      "get": {
-        "operationId": "LiveSessionsController_findOne",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "cancelReason": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "course": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "title": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "title"
-                      ],
-                      "type": "object"
-                    },
-                    "courseId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "date": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "division": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "name"
-                      ],
-                      "type": "object"
-                    },
-                    "divisionId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "endTime": {
-                      "type": "string"
-                    },
-                    "endsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "host": {
-                      "properties": {
-                        "firstName": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "lastName": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "firstName",
-                        "id",
-                        "lastName"
-                      ],
-                      "type": "object"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "isLive": {
-                      "type": "boolean"
-                    },
-                    "meetingUrl": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "provider": {
-                      "type": "string"
-                    },
-                    "startTime": {
-                      "type": "string"
-                    },
-                    "startsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    },
-                    "timeZone": {
-                      "type": "string"
-                    },
-                    "title": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "cancelReason",
-                    "course",
-                    "courseId",
-                    "createdAt",
-                    "date",
-                    "description",
-                    "division",
-                    "divisionId",
-                    "endTime",
-                    "endsAt",
-                    "host",
-                    "id",
-                    "isLive",
-                    "meetingUrl",
-                    "provider",
-                    "startTime",
-                    "startsAt",
-                    "status",
-                    "timeZone",
-                    "title",
-                    "updatedAt"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Live sessions"
-        ],
-        "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
-        ],
-        "description": "**Access:** Any signed-in user"
-      },
-      "patch": {
-        "operationId": "LiveSessionsController_update",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateLiveSessionDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "cancelReason": {
-                      "nullable": true
-                    },
-                    "course": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "title": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "title"
-                      ],
-                      "type": "object"
-                    },
-                    "courseId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "date": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "division": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "name"
-                      ],
-                      "type": "object"
-                    },
-                    "divisionId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "endTime": {
-                      "type": "string"
-                    },
-                    "endsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "host": {
-                      "properties": {
-                        "firstName": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "lastName": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "firstName",
-                        "id",
-                        "lastName"
-                      ],
-                      "type": "object"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "isLive": {
-                      "type": "boolean"
-                    },
-                    "meetingUrl": {
-                      "type": "string"
-                    },
-                    "provider": {
-                      "type": "string"
-                    },
-                    "startTime": {
-                      "type": "string"
-                    },
-                    "startsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    },
-                    "timeZone": {
-                      "type": "string"
-                    },
-                    "title": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "cancelReason",
-                    "course",
-                    "courseId",
-                    "createdAt",
-                    "date",
-                    "description",
-                    "division",
-                    "divisionId",
-                    "endTime",
-                    "endsAt",
-                    "host",
-                    "id",
-                    "isLive",
-                    "meetingUrl",
-                    "provider",
-                    "startTime",
-                    "startsAt",
-                    "status",
-                    "timeZone",
-                    "title",
-                    "updatedAt"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Live sessions"
-        ],
-        "x-roles": [
-          "MENTOR",
-          "ADMIN"
-        ],
-        "description": "**Access:** MENTOR, ADMIN"
-      }
-    },
-    "/api/v1/live-sessions/{id}/cancel": {
-      "post": {
-        "operationId": "LiveSessionsController_cancel",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CancelLiveSessionDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "cancelReason": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "course": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "title": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "title"
-                      ],
-                      "type": "object"
-                    },
-                    "courseId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "date": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "division": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "name"
-                      ],
-                      "type": "object"
-                    },
-                    "divisionId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "endTime": {
-                      "type": "string"
-                    },
-                    "endsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "host": {
-                      "properties": {
-                        "firstName": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "lastName": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "firstName",
-                        "id",
-                        "lastName"
-                      ],
-                      "type": "object"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "isLive": {
-                      "type": "boolean"
-                    },
-                    "meetingUrl": {
-                      "type": "string"
-                    },
-                    "provider": {
-                      "type": "string"
-                    },
-                    "startTime": {
-                      "type": "string"
-                    },
-                    "startsAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string"
-                    },
-                    "timeZone": {
-                      "type": "string"
-                    },
-                    "title": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "cancelReason",
-                    "course",
-                    "courseId",
-                    "createdAt",
-                    "date",
-                    "description",
-                    "division",
-                    "divisionId",
-                    "endTime",
-                    "endsAt",
-                    "host",
-                    "id",
-                    "isLive",
-                    "meetingUrl",
-                    "provider",
-                    "startTime",
-                    "startsAt",
-                    "status",
-                    "timeZone",
-                    "title",
-                    "updatedAt"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Live sessions"
-        ],
-        "x-roles": [
-          "MENTOR",
-          "ADMIN"
-        ],
-        "description": "**Access:** MENTOR, ADMIN"
-      }
-    },
     "/api/v1/analytics/courses/{courseId}": {
       "get": {
         "operationId": "AnalyticsController_course",
@@ -31877,10 +30758,6 @@
                       "format": "date-time",
                       "type": "string"
                     },
-                    "liveSessions": {
-                      "properties": {},
-                      "type": "object"
-                    },
                     "resources": {
                       "properties": {
                         "mostViewed": {
@@ -31948,7 +30825,6 @@
                     "course",
                     "division",
                     "generatedAt",
-                    "liveSessions",
                     "resources",
                     "reviewPipeline",
                     "students"
@@ -31969,7 +30845,7 @@
             }
           }
         },
-        "summary": "Course analytics for one division: enrollment funnel, per-assignment\nsubmission rates and score distribution, review turnaround, resource\nengagement and live sessions. Mentors: only scopes they teach.",
+        "summary": "Course analytics for one division: enrollment funnel, per-assignment\nsubmission rates and score distribution, review turnaround, resource\nengagement. Mentors: only scopes they teach.",
         "tags": [
           "Analytics"
         ],
@@ -33930,9 +32806,6 @@
                             ],
                             "type": "object"
                           },
-                          "liveSessions": {
-                            "type": "integer"
-                          },
                           "opened": {
                             "type": "integer"
                           },
@@ -33960,7 +32833,6 @@
                           "discussionComments",
                           "discussionThreads",
                           "division",
-                          "liveSessions",
                           "opened",
                           "participationRate",
                           "students",
@@ -35484,9 +34356,6 @@
                           "lastName": {
                             "type": "string"
                           },
-                          "liveSessionsHosted": {
-                            "type": "integer"
-                          },
                           "openReviews": {
                             "type": "integer"
                           },
@@ -35567,7 +34436,6 @@
                           "id",
                           "lastLoginAt",
                           "lastName",
-                          "liveSessionsHosted",
                           "openReviews",
                           "reviewsAssigned",
                           "reviewsCompleted",
@@ -37197,128 +36065,6 @@
         "required": [
           "action"
         ]
-      },
-      "CreateLiveSessionDto": {
-        "type": "object",
-        "properties": {
-          "courseId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "divisionId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "title": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 200
-          },
-          "description": {
-            "type": "string",
-            "minLength": 0,
-            "maxLength": 5000
-          },
-          "provider": {
-            "type": "string",
-            "description": "Detected from the link when omitted; must match the link when given.",
-            "enum": [
-              "OTHER",
-              "ZOOM",
-              "GOOGLE_MEET",
-              "MICROSOFT_TEAMS"
-            ]
-          },
-          "meetingUrl": {
-            "type": "string",
-            "description": "External meeting link (Zoom, Google Meet, Teams …). https only.",
-            "format": "uri",
-            "minLength": 10,
-            "maxLength": 2048
-          },
-          "date": {
-            "type": "string",
-            "description": "Day of the session, YYYY-MM-DD (programme time zone)."
-          },
-          "startTime": {
-            "type": "string",
-            "description": "Start time, HH:mm (24-hour, programme time zone)."
-          },
-          "endTime": {
-            "type": "string",
-            "description": "End time, HH:mm (24-hour) on the same day."
-          },
-          "startsAt": {
-            "type": "string"
-          },
-          "endsAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "courseId",
-          "divisionId",
-          "title",
-          "meetingUrl"
-        ]
-      },
-      "UpdateLiveSessionDto": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 200
-          },
-          "description": {
-            "type": "string",
-            "minLength": 0,
-            "maxLength": 5000
-          },
-          "provider": {
-            "type": "string",
-            "enum": [
-              "OTHER",
-              "ZOOM",
-              "GOOGLE_MEET",
-              "MICROSOFT_TEAMS"
-            ]
-          },
-          "meetingUrl": {
-            "type": "string",
-            "format": "uri",
-            "minLength": 10,
-            "maxLength": 2048
-          },
-          "date": {
-            "type": "string",
-            "description": "Day of the session, YYYY-MM-DD (programme time zone)."
-          },
-          "startTime": {
-            "type": "string",
-            "description": "Start time, HH:mm (24-hour, programme time zone)."
-          },
-          "endTime": {
-            "type": "string",
-            "description": "End time, HH:mm (24-hour) on the same day."
-          },
-          "startsAt": {
-            "type": "string"
-          },
-          "endsAt": {
-            "type": "string"
-          }
-        }
-      },
-      "CancelLiveSessionDto": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string",
-            "minLength": 0,
-            "maxLength": 1000
-          }
-        }
       },
       "Error": {
         "type": "object",

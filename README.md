@@ -100,7 +100,6 @@ The seed prints the generated admin password once (or uses `SEED_ADMIN_PASSWORD`
 | Submissions | Own only | **Review, score, feedback** (assigned to them) | Distribute, approve/return, **publish results** — never grade |
 | Discussions (threads) | Own division; report content | Assigned scopes | Moderate reports; lock/hide/archive |
 | Academic years | Own enrolment history | — | Plan, activate (promotes students), enrolments |
-| Live sessions | View (own division) | Schedule (assigned scopes) | All |
 | Analytics / reports | — | Course analytics (own scopes) | Dashboard, user and academic reports (filters, CSV exports) |
 | Accounts & settings | Own profile | Own profile | Create / invite / CSV-import users, activate, suspend, reset passwords; divisions, mentor assignments, settings |
 
@@ -187,7 +186,7 @@ src/
   users/ divisions/ mentor-assignments/ schools/ mentor-requests/
   courses/             the 4 courses + resources + progress
   assignments/ submissions/
-  discussions/ live-sessions/ notifications/ email/
+  discussions/ notifications/ email/
   leaderboard/ analytics/ reports/ settings/ audit/ study-groups/ (switched off)
 prisma/
   schema.prisma        data model

@@ -104,7 +104,7 @@ export async function waitForEvents(): Promise<void> {
   do {
     // Handlers start on setImmediate; queued ones run before this callback.
     await new Promise((resolve) => setImmediate(resolve));
-    await Promise.allSettled([...pendingEvents]);
+    await Promise.allSettled(pendingEvents);
   } while (pendingEvents.size > 0);
 }
 

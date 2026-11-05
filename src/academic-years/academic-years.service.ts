@@ -62,7 +62,7 @@ export class AcademicYearsService {
   async findOne(id: string) {
     const year = await this.prisma.academicYear.findUnique({
       where:   { id },
-      include: { _count: { select: { enrollments: true, assignments: true, liveSessions: true } } },
+      include: { _count: { select: { enrollments: true, assignments: true } } },
     });
     if (!year) throw new NotFoundException('Academic year not found.');
     return year;

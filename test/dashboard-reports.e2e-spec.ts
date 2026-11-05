@@ -2,8 +2,7 @@
  * Administrator dashboard and reports, checked against a dataset whose every
  * number is known: students in several account states and two academic
  * years, published/draft assignments, submissions at different stages, a
- * review that was sent back, a published result, a reported comment, a live
- * session. Also filters, validation, CSV exports and authorization.
+ * review that was sent back, a published result and a reported comment. Also filters, validation, CSV exports and authorization.
  */
 import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
 
@@ -93,11 +92,6 @@ describe('Admin dashboard and reports (e2e)', () => {
     const reply = await http().post(`/api/v1/threads/${thread.body.id}/comments`).set(bearer(mentorJ)).send({ content: 'Like this.' }).expect(201);
     await http().post(`/api/v1/comments/${reply.body.id}/report`).set(bearer(studentJ2)).send({ reason: 'OFF_TOPIC' }).expect(201);
 
-    // A live session hosted by mentor.j.
-    await p.liveSession.create({ data: {
-      courseId: algebra, divisionId: junior, academicYearId: year, hostId: ctx.ids.mentorJunior, title: 'Clinic',
-      startsAt: new Date(inDays(2)), endsAt: new Date(inDays(2.04)), provider: 'ZOOM', meetingUrl: 'https://zoom.us/j/1',
-    } });
     await waitForEvents();
   });
 
@@ -258,7 +252,7 @@ describe('Admin dashboard and reports (e2e)', () => {
         students: 2, opened: 2, completed: 0, participationRate: 100, assignmentsPublished: 1,
         submissions: 2, studentsSubmitted: 2, submissionRate: 100, averageScore: 80,
         // The opening message and the mentor's reply.
-        discussionThreads: 1, discussionComments: 2, liveSessions: 1,
+        discussionThreads: 1, discussionComments: 2,
       });
       expect(row('GEOMETRY', 'JUNIOR')).toMatchObject({ students: 2, opened: 1, completed: 1, participationRate: 50, submissions: 0 });
       expect(row('ALGEBRA', 'SENIOR')).toMatchObject({ students: 1, opened: 1, submissions: 1, averageScore: null });
@@ -319,7 +313,7 @@ describe('Admin dashboard and reports (e2e)', () => {
       const row = (u: string) => body.data.find((m: any) => m.username === u);
       expect(row('mentor.j')).toMatchObject({
         status: 'ACTIVE', reviewsAssigned: 1, reviewsCompleted: 1, openReviews: 0, sentBackByAdmin: 1,
-        assignmentsPrepared: 2, liveSessionsHosted: 1, discussionComments: 1,
+        assignmentsPrepared: 2, discussionComments: 1,
       });
       expect(row('mentor.j').averageReviewHours).toBeGreaterThanOrEqual(0);
       expect(row('mentor.j2')).toMatchObject({ reviewsAssigned: 1, reviewsCompleted: 0, openReviews: 1, averageReviewHours: null });

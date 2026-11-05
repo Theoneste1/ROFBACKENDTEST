@@ -20,7 +20,7 @@ migrations and seeds.
 ## 1. Design principles
 
 1. **Scope = course × division.** Learning content (resources, assignments,
-   live sessions, course discussions) belongs to one course *and* one division.
+   course discussions) belongs to one course *and* one division.
    Junior and Senior Algebra share a `Course` row but never share content.
 2. **History is kept, not overwritten.** A student has one `StudentEnrollment`
    per academic year; every submission attempt is a `SubmissionRevision`;
@@ -83,10 +83,6 @@ erDiagram
   Division ||--o{ CourseResource : ""
   CourseResource ||--o{ ResourceAttachment : files
   CourseResource ||--o{ ResourceView : "viewed by"
-  Course ||--o{ LiveSession : ""
-  Division ||--o{ LiveSession : ""
-  AcademicYear ||--o{ LiveSession : ""
-  User ||--o{ LiveSession : hosts
   FileObject ||--o{ ResourceAttachment : ""
   FileObject ||--o{ AssignmentAttachment : ""
   FileObject ||--o{ SubmissionAttachment : ""
@@ -95,7 +91,6 @@ erDiagram
   FileObject { string storageKey UK enum purpose string mimeType "detected" int size string sha256 }
   CourseResource { enum type string author string source int year string_array tags bool isPublished datetime archivedAt }
   ResourceAttachment { string resourceId FK string fileId FK int sortOrder }
-  LiveSession { datetime startsAt datetime endsAt string meetingUrl "https" enum provider enum status }
 ```
 
 ### 2.3 Assessment workflow
@@ -202,7 +197,6 @@ erDiagram
 | Content | `CourseResource` | Learning material for a course × division, with author/source/year/tags metadata | idx (`courseId`, `divisionId`, `isPublished`), GIN (`tags`); CHECK year 1800–2200, ≤ 20 tags |
 | | `ResourceAttachment` | Files of a resource (ordered) | unique (`resourceId`, `fileId`) |
 | | `ResourceView` | Who opened which resource (analytics) | unique (`resourceId`, `studentId`) |
-| | `LiveSession` | External meeting for a course × division in a year | idx (`courseId`, `divisionId`, `startsAt`) |
 | | `FileObject` | Metadata of every stored file | unique `storageKey` |
 | Assessment | `Assignment` | Prepared by a mentor, published by an admin | idx (`courseId`, `divisionId`, `status`), (`academicYearId`, `status`) |
 | | `AssignmentAttachment` | Brief files | unique (`assignmentId`, `fileId`) |
@@ -249,7 +243,6 @@ Enforced by PostgreSQL (in addition to every foreign key):
 | A student has a grade and a division | CHECK on `User` |
 | A thread / report targets exactly one thing | CHECK on `DiscussionThread`, `ContentReport` |
 | Marks are positive; scores non-negative | CHECK on `Assignment`, `Submission`, `MentorReview` |
-| Live sessions end after they start | CHECK on `LiveSession` |
 | A user reports an item once | unique (`reporterId`, `commentId` / `threadId`) |
 
 Enforced by the application (needs data from other rows): grade ↔ division
@@ -345,6 +338,7 @@ npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prism
 | `20261115000000_audit_log_append_only` | additive + backfill + triggers | `AuditLog.actorUsername` (backfilled from `User`), trigger filling it on insert, and a trigger rejecting UPDATE/DELETE of audit rows (except the FK clearing `actorId`). |
 | `20261116000000_login_lockout_token_cutoff` | additive | `User.failedLoginCount`, `User.lockedUntil` (per-account login lockout) and `User.tokensValidAfter` (ends earlier access tokens). |
 | `20261117000000_foreign_key_indexes` | additive (indexes only) | Indexes on 22 foreign-key columns that had none (joins, filters, delete checks). |
+| `20261118000000_remove_live_sessions_and_reminders` | contract (destructive, approved 2026-11-05) | Live sessions and automatic reminders removed from the platform: drops `LiveSession` and its two enums, `Assignment.deadlineRemindedFor`, the `LIVE_SESSIONS` notification category and the `LIVE_SESSION_OPENED` activity type (with any rows using them) and the stored values of the removed settings. Audit-log entries are kept. Every affected row count was 0 on the development database. |
 
 **Making a schema change.**
 

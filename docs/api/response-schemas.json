@@ -4121,9 +4121,6 @@
               ],
               "type": "object"
             },
-            "liveSessions": {
-              "type": "integer"
-            },
             "opened": {
               "type": "integer"
             },
@@ -4151,7 +4148,6 @@
             "discussionComments",
             "discussionThreads",
             "division",
-            "liveSessions",
             "opened",
             "participationRate",
             "students",
@@ -4420,9 +4416,6 @@
             "lastName": {
               "type": "string"
             },
-            "liveSessionsHosted": {
-              "type": "integer"
-            },
             "openReviews": {
               "type": "integer"
             },
@@ -4503,7 +4496,6 @@
             "id",
             "lastLoginAt",
             "lastName",
-            "liveSessionsHosted",
             "openReviews",
             "reviewsAssigned",
             "reviewsCompleted",
@@ -6138,10 +6130,6 @@
         "format": "date-time",
         "type": "string"
       },
-      "liveSessions": {
-        "properties": {},
-        "type": "object"
-      },
       "resources": {
         "properties": {
           "mostViewed": {
@@ -6209,7 +6197,6 @@
       "course",
       "division",
       "generatedAt",
-      "liveSessions",
       "resources",
       "reviewPipeline",
       "students"
@@ -7970,21 +7957,13 @@
           "assignments": {
             "type": "integer"
           },
-          "liveSessions": {
-            "type": "integer"
-          },
           "resources": {
-            "type": "integer"
-          },
-          "upcomingLiveSessions": {
             "type": "integer"
           }
         },
         "required": [
           "assignments",
-          "liveSessions",
-          "resources",
-          "upcomingLiveSessions"
+          "resources"
         ],
         "type": "object"
       },
@@ -8328,345 +8307,6 @@
       "data",
       "divisionId",
       "meta"
-    ],
-    "type": "object"
-  },
-  "GET /api/v1/live-sessions 200": {
-    "properties": {
-      "data": {
-        "items": {
-          "properties": {
-            "cancelReason": {
-              "nullable": true,
-              "type": "string"
-            },
-            "course": {
-              "properties": {
-                "code": {
-                  "type": "string"
-                },
-                "id": {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                "title": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "code",
-                "id",
-                "title"
-              ],
-              "type": "object"
-            },
-            "courseId": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "createdAt": {
-              "format": "date-time",
-              "type": "string"
-            },
-            "date": {
-              "type": "string"
-            },
-            "description": {
-              "nullable": true,
-              "type": "string"
-            },
-            "division": {
-              "properties": {
-                "code": {
-                  "type": "string"
-                },
-                "id": {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "code",
-                "id",
-                "name"
-              ],
-              "type": "object"
-            },
-            "divisionId": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "endTime": {
-              "type": "string"
-            },
-            "endsAt": {
-              "format": "date-time",
-              "type": "string"
-            },
-            "host": {
-              "properties": {
-                "firstName": {
-                  "type": "string"
-                },
-                "id": {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                "lastName": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "firstName",
-                "id",
-                "lastName"
-              ],
-              "type": "object"
-            },
-            "id": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "isLive": {
-              "type": "boolean"
-            },
-            "meetingUrl": {
-              "nullable": true,
-              "type": "string"
-            },
-            "provider": {
-              "type": "string"
-            },
-            "startTime": {
-              "type": "string"
-            },
-            "startsAt": {
-              "format": "date-time",
-              "type": "string"
-            },
-            "status": {
-              "type": "string"
-            },
-            "timeZone": {
-              "type": "string"
-            },
-            "title": {
-              "type": "string"
-            },
-            "updatedAt": {
-              "format": "date-time",
-              "type": "string"
-            }
-          },
-          "required": [
-            "cancelReason",
-            "course",
-            "courseId",
-            "createdAt",
-            "date",
-            "description",
-            "division",
-            "divisionId",
-            "endTime",
-            "endsAt",
-            "host",
-            "id",
-            "isLive",
-            "meetingUrl",
-            "provider",
-            "startTime",
-            "startsAt",
-            "status",
-            "timeZone",
-            "title",
-            "updatedAt"
-          ],
-          "type": "object"
-        },
-        "type": "array"
-      },
-      "meta": {
-        "properties": {
-          "limit": {
-            "type": "integer"
-          },
-          "page": {
-            "type": "integer"
-          },
-          "total": {
-            "type": "integer"
-          },
-          "totalPages": {
-            "type": "integer"
-          }
-        },
-        "required": [
-          "limit",
-          "page",
-          "total",
-          "totalPages"
-        ],
-        "type": "object"
-      }
-    },
-    "required": [
-      "data",
-      "meta"
-    ],
-    "type": "object"
-  },
-  "GET /api/v1/live-sessions/:id 200": {
-    "properties": {
-      "cancelReason": {
-        "nullable": true,
-        "type": "string"
-      },
-      "course": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "title"
-        ],
-        "type": "object"
-      },
-      "courseId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "createdAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "date": {
-        "type": "string"
-      },
-      "description": {
-        "nullable": true,
-        "type": "string"
-      },
-      "division": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "divisionId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "endTime": {
-        "type": "string"
-      },
-      "endsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "host": {
-        "properties": {
-          "firstName": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "firstName",
-          "id",
-          "lastName"
-        ],
-        "type": "object"
-      },
-      "id": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "isLive": {
-        "type": "boolean"
-      },
-      "meetingUrl": {
-        "nullable": true,
-        "type": "string"
-      },
-      "provider": {
-        "type": "string"
-      },
-      "startTime": {
-        "type": "string"
-      },
-      "startsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "status": {
-        "type": "string"
-      },
-      "timeZone": {
-        "type": "string"
-      },
-      "title": {
-        "type": "string"
-      },
-      "updatedAt": {
-        "format": "date-time",
-        "type": "string"
-      }
-    },
-    "required": [
-      "cancelReason",
-      "course",
-      "courseId",
-      "createdAt",
-      "date",
-      "description",
-      "division",
-      "divisionId",
-      "endTime",
-      "endsAt",
-      "host",
-      "id",
-      "isLive",
-      "meetingUrl",
-      "provider",
-      "startTime",
-      "startsAt",
-      "status",
-      "timeZone",
-      "title",
-      "updatedAt"
     ],
     "type": "object"
   },
@@ -10569,9 +10209,6 @@
             },
             "data": {
               "properties": {
-                "action": {
-                  "type": "string"
-                },
                 "assignmentId": {
                   "format": "uuid",
                   "type": "string"
@@ -10581,10 +10218,6 @@
                   "type": "string"
                 },
                 "courseId": {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                "sessionId": {
                   "format": "uuid",
                   "type": "string"
                 },
@@ -10607,7 +10240,6 @@
               "type": "boolean"
             },
             "link": {
-              "nullable": true,
               "type": "string"
             },
             "readAt": {
@@ -10680,18 +10312,18 @@
       },
       "data": {
         "properties": {
-          "courseId": {
+          "commentId": {
             "format": "uuid",
             "type": "string"
           },
-          "sessionId": {
+          "threadId": {
             "format": "uuid",
             "type": "string"
           }
         },
         "required": [
-          "courseId",
-          "sessionId"
+          "commentId",
+          "threadId"
         ],
         "type": "object"
       },
@@ -10743,9 +10375,6 @@
           "DISCUSSIONS": {
             "type": "integer"
           },
-          "LIVE_SESSIONS": {
-            "type": "integer"
-          },
           "RESOURCES": {
             "type": "integer"
           },
@@ -10763,7 +10392,6 @@
           "ACCOUNT",
           "ASSIGNMENTS",
           "DISCUSSIONS",
-          "LIVE_SESSIONS",
           "RESOURCES",
           "RESULTS",
           "REVIEWS",
@@ -13303,17 +12931,6 @@
           "type": "string"
         },
         "default": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "integer"
-            },
-            {
-              "type": "string"
-            }
-          ],
           "nullable": true
         },
         "description": {
@@ -13377,17 +12994,6 @@
           "type": "object"
         },
         "value": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "integer"
-            },
-            {
-              "type": "string"
-            }
-          ],
           "nullable": true
         }
       },
@@ -17000,156 +16606,6 @@
       "updatedAt",
       "uploadedBy",
       "year"
-    ],
-    "type": "object"
-  },
-  "PATCH /api/v1/live-sessions/:id 200": {
-    "properties": {
-      "cancelReason": {
-        "nullable": true
-      },
-      "course": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "title"
-        ],
-        "type": "object"
-      },
-      "courseId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "createdAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "date": {
-        "type": "string"
-      },
-      "description": {
-        "nullable": true,
-        "type": "string"
-      },
-      "division": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "divisionId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "endTime": {
-        "type": "string"
-      },
-      "endsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "host": {
-        "properties": {
-          "firstName": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "firstName",
-          "id",
-          "lastName"
-        ],
-        "type": "object"
-      },
-      "id": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "isLive": {
-        "type": "boolean"
-      },
-      "meetingUrl": {
-        "type": "string"
-      },
-      "provider": {
-        "type": "string"
-      },
-      "startTime": {
-        "type": "string"
-      },
-      "startsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "status": {
-        "type": "string"
-      },
-      "timeZone": {
-        "type": "string"
-      },
-      "title": {
-        "type": "string"
-      },
-      "updatedAt": {
-        "format": "date-time",
-        "type": "string"
-      }
-    },
-    "required": [
-      "cancelReason",
-      "course",
-      "courseId",
-      "createdAt",
-      "date",
-      "description",
-      "division",
-      "divisionId",
-      "endTime",
-      "endsAt",
-      "host",
-      "id",
-      "isLive",
-      "meetingUrl",
-      "provider",
-      "startTime",
-      "startsAt",
-      "status",
-      "timeZone",
-      "title",
-      "updatedAt"
     ],
     "type": "object"
   },
@@ -22249,15 +21705,11 @@
               },
               "enrollments": {
                 "type": "integer"
-              },
-              "liveSessions": {
-                "type": "integer"
               }
             },
             "required": [
               "assignments",
-              "enrollments",
-              "liveSessions"
+              "enrollments"
             ],
             "type": "object"
           },
@@ -23229,16 +22681,16 @@
       },
       "byMentor": {
         "properties": {
-          "ce3bd152-ca1b-45cc-be6e-e4b604e7324e": {
+          "dfa8f9cc-73de-4c65-bb75-4e72c5d3e0f9": {
             "type": "integer"
           },
-          "e7c18911-67ce-4329-b938-0b1dc6881022": {
+          "f5078df0-44c0-435c-ba3b-a6ef20d824fc": {
             "type": "integer"
           }
         },
         "required": [
-          "ce3bd152-ca1b-45cc-be6e-e4b604e7324e",
-          "e7c18911-67ce-4329-b938-0b1dc6881022"
+          "dfa8f9cc-73de-4c65-bb75-4e72c5d3e0f9",
+          "f5078df0-44c0-435c-ba3b-a6ef20d824fc"
         ],
         "type": "object"
       },
@@ -24554,307 +24006,6 @@
       "courseId",
       "displayStatus",
       "enrollmentStatus"
-    ],
-    "type": "object"
-  },
-  "POST /api/v1/live-sessions 201": {
-    "properties": {
-      "cancelReason": {
-        "nullable": true
-      },
-      "course": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "title"
-        ],
-        "type": "object"
-      },
-      "courseId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "createdAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "date": {
-        "type": "string"
-      },
-      "description": {
-        "nullable": true,
-        "type": "string"
-      },
-      "division": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "divisionId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "endTime": {
-        "type": "string"
-      },
-      "endsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "host": {
-        "properties": {
-          "firstName": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "firstName",
-          "id",
-          "lastName"
-        ],
-        "type": "object"
-      },
-      "id": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "isLive": {
-        "type": "boolean"
-      },
-      "meetingUrl": {
-        "type": "string"
-      },
-      "provider": {
-        "type": "string"
-      },
-      "startTime": {
-        "type": "string"
-      },
-      "startsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "status": {
-        "type": "string"
-      },
-      "timeZone": {
-        "type": "string"
-      },
-      "title": {
-        "type": "string"
-      },
-      "updatedAt": {
-        "format": "date-time",
-        "type": "string"
-      }
-    },
-    "required": [
-      "cancelReason",
-      "course",
-      "courseId",
-      "createdAt",
-      "date",
-      "description",
-      "division",
-      "divisionId",
-      "endTime",
-      "endsAt",
-      "host",
-      "id",
-      "isLive",
-      "meetingUrl",
-      "provider",
-      "startTime",
-      "startsAt",
-      "status",
-      "timeZone",
-      "title",
-      "updatedAt"
-    ],
-    "type": "object"
-  },
-  "POST /api/v1/live-sessions/:id/cancel 200": {
-    "properties": {
-      "cancelReason": {
-        "nullable": true,
-        "type": "string"
-      },
-      "course": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "title"
-        ],
-        "type": "object"
-      },
-      "courseId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "createdAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "date": {
-        "type": "string"
-      },
-      "description": {
-        "nullable": true,
-        "type": "string"
-      },
-      "division": {
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "id",
-          "name"
-        ],
-        "type": "object"
-      },
-      "divisionId": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "endTime": {
-        "type": "string"
-      },
-      "endsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "host": {
-        "properties": {
-          "firstName": {
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "type": "string"
-          },
-          "lastName": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "firstName",
-          "id",
-          "lastName"
-        ],
-        "type": "object"
-      },
-      "id": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "isLive": {
-        "type": "boolean"
-      },
-      "meetingUrl": {
-        "type": "string"
-      },
-      "provider": {
-        "type": "string"
-      },
-      "startTime": {
-        "type": "string"
-      },
-      "startsAt": {
-        "format": "date-time",
-        "type": "string"
-      },
-      "status": {
-        "type": "string"
-      },
-      "timeZone": {
-        "type": "string"
-      },
-      "title": {
-        "type": "string"
-      },
-      "updatedAt": {
-        "format": "date-time",
-        "type": "string"
-      }
-    },
-    "required": [
-      "cancelReason",
-      "course",
-      "courseId",
-      "createdAt",
-      "date",
-      "description",
-      "division",
-      "divisionId",
-      "endTime",
-      "endsAt",
-      "host",
-      "id",
-      "isLive",
-      "meetingUrl",
-      "provider",
-      "startTime",
-      "startsAt",
-      "status",
-      "timeZone",
-      "title",
-      "updatedAt"
     ],
     "type": "object"
   },
