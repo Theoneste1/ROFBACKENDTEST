@@ -1,28 +1,34 @@
-# Hosting ROF LMS for free on Render
+# Hosting ROF LMS for free (Render + Neon + Netlify)
 
 | Part | Service | Free plan |
 |---|---|---|
-| API | Render web service (Docker, Frankfurt), from [`render.yaml`](../../render.yaml) | sleeps after ~15 idle minutes, wakes on the next request (about a minute) |
-| Database | Neon PostgreSQL (Frankfurt) | 0.5 GB; sleeps when idle, wakes by itself |
+| Frontend | Netlify, from the ROFFRONTENDTEST repository | Its `/api/*` requests are proxied to the API, so browsers only ever talk to the Netlify site |
+| API | Render web service (Docker, Ohio), from [`render.yaml`](../../render.yaml) | sleeps after ~15 idle minutes, wakes on the next request (about a minute) |
+| Database | Neon PostgreSQL (AWS us-east-2, Ohio) | 0.5 GB; sleeps when idle, wakes by itself |
 | Uploaded files | Cloudflare R2 | 10 GB |
 | E-mail | Brevo, or Google Workspace | Brevo about 300 e-mails/day |
 
-There are no automatic reminders, so the API sleeping only means a slower
-first request. E-mails are sent from a queue within seconds of the action that triggers them.
+The API and the database must be in the **same region**: each request makes
+several database queries. The existing Neon project is in us-east-2, so the
+blueprint uses Render's `ohio` region. (If you recreate the database in Neon
+Frankfurt, set `region: frankfurt` in `render.yaml` before creating the service.)
 
 Never put connection strings, keys or passwords in git or in chat. They go
-in `.env.production.local` on your computer (git-ignored) and in Render's
-dashboard.
+in `.env.production.local` on your computer (git-ignored) and in the Render
+and Netlify dashboards.
 
 ## 1. Database (Neon)
 
-1. Sign up at neon.tech. Create a project `rof-lms`, region **AWS Europe
-   Central 1 (Frankfurt)**.
-2. **Connect** → turn **Connection pooling off** → copy the connection string.
-3. In the repository folder, create `.env.production.local`:
+1. Neon console → your project → **Connect**.
+2. You need **two** connection strings:
+   - **Pooled** (host contains `-pooler`): for the running API (`DATABASE_URL` in Render).
+   - **Direct** (turn **Connection pooling off**; same host without `-pooler`): for
+     migrations and the seed. Prisma's migration lock does not work through the pooler.
+3. In this repository folder, `.env.production.local` (git-ignored) must hold the
+   **direct** string for the commands below:
 
    ```
-   DATABASE_URL="postgresql://…neon.tech/neondb?sslmode=require"
+   DATABASE_URL="postgresql://…ep-xxxx.c-8.us-east-2.aws.neon.tech/neondb?sslmode=require"
    SEED_ADMIN_USERNAME=admin
    SEED_ADMIN_EMAIL=you@your-domain
    SEED_ADMIN_PASSWORD=<a strong password you choose>
@@ -32,14 +38,21 @@ dashboard.
 
    ```bash
    set -a; . ./.env.production.local; set +a
+   NODE_ENV=production npx prisma migrate status    # shows what is missing
    NODE_ENV=production npx prisma migrate deploy
    NODE_ENV=production npx prisma db seed
    ```
 
-   Then delete the `SEED_ADMIN_PASSWORD` line from the file.
+   `set -a …` matters: without it the commands use the **local** database from
+   `.env`. The output of `migrate status` names the database host; check it says
+   `neon.tech` before running `deploy`.
 
-**Every release that adds a migration:** run `npx prisma migrate deploy` the
-same way **before** Render deploys the new code.
+   The seed is idempotent and never creates demo accounts in production. Afterwards,
+   delete the `SEED_ADMIN_PASSWORD` line from the file.
+
+**Every release that adds a migration** (for example `20261119000000_contact_messages`,
+the contact-form table): run the same `migrate deploy` **before** the new code is
+deployed. The API starts without it, but the new feature fails until the table exists.
 
 ## 2. File storage (Cloudflare R2)
 
@@ -50,7 +63,9 @@ same way **before** Render deploys the new code.
    bucket `rof-files`. Keep the Access Key ID, the Secret Access Key and the
    S3 endpoint `https://<account-id>.r2.cloudflarestorage.com`.
 
-## 3. E-mail
+Render's free disk is wiped on every deploy, so local file storage is not an option there.
+
+## 3. E-mail (required: the API refuses to start in production without `SMTP_HOST`)
 
 - **Brevo:** sign up; **Senders & domains** → add and verify your domain
   (add the SPF/DKIM DNS records it shows); **SMTP & API** → create an SMTP
@@ -60,36 +75,57 @@ same way **before** Render deploys the new code.
 
 ## 4. API (Render)
 
-1. Sign up at render.com with GitHub and allow it to read this repository.
-2. **New → Blueprint** → choose the repository. Render reads `render.yaml`.
-3. Fill in the values it asks for:
+1. The API is deployed from the repository's **`main`** branch (`autoDeploy: true`):
+   make sure `main` contains the release you want.
+2. Sign up at render.com with GitHub and allow it to read this repository.
+3. **New → Blueprint** → choose the repository. Render reads `render.yaml`.
+4. Fill in the values it asks for:
 
    | Key | Value |
    |---|---|
-   | `DATABASE_URL` | the Neon string from step 1 |
-   | `CORS_ORIGINS`, `APP_URL` | the frontend's address; until it exists, `http://localhost:5173` |
+   | `DATABASE_URL` | the Neon **pooled** string (step 1) |
+   | `CORS_ORIGINS`, `APP_URL` | the Netlify address, e.g. `https://rof-lms.netlify.app` (no trailing slash). If the site doesn't exist yet, use a placeholder and update both after step 5 |
    | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | from step 2 |
    | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | from step 3 |
    | `EMAIL_FROM` | `ROF Learning <noreply@your-domain>` |
 
-4. **Apply.** The first build takes about 5–10 minutes.
-5. Check `https://rof-lms-api.onrender.com/health` (your exact address is
-   shown in Render): `"database":"up","storage":"up"`.
+   `JWT_SECRET` is generated by Render.
+5. **Apply.** The first build takes about 5–10 minutes.
+6. Open `https://<your-service>.onrender.com/health` (your exact address is
+   shown in Render): `"status":"ok","checks":{"database":"up","storage":"up"}`.
 
-## 5. After the first deploy
+## 5. Frontend (Netlify)
 
-1. Sign in as the administrator (Postman: `docs/api/ROF-LMS.postman_collection.json`,
-   `baseUrl` = `https://<your-service>.onrender.com/api/v1`) and change the
-   password (`PATCH /auth/password`).
-2. `PATCH /admin/settings` with `{ "notifications.emailEnabled": false }` if
-   you want no e-mail copies of notifications (account e-mails still go out).
-3. Set the platform name and support contacts in the same settings.
-4. Invite yourself as a mentor to check that e-mail arrives; upload a file
+1. Netlify → **Add new site → Import an existing project → GitHub →**
+   `ROFFRONTENDTEST`, branch `main`. Build settings come from its `netlify.toml`.
+2. **Site configuration → Environment variables → Add**
+   `API_PROXY_TARGET` = `https://<your-service>.onrender.com` (no `/api`, no trailing slash).
+   The build refuses to run without it.
+3. **Deploys → Trigger deploy.**
+4. Back in Render, set `CORS_ORIGINS` and `APP_URL` to the Netlify address
+   (Render redeploys by itself).
+
+Browsers call `https://<site>.netlify.app/api/...`, which Netlify forwards to Render.
+Frontend and API are therefore the same site for the browser, and the
+`SameSite=Strict` sign-in cookie works without a custom domain.
+
+## 6. After the first deploy
+
+1. Sign in at the Netlify address as the administrator and change the password
+   (profile → Change password).
+2. **Settings:** platform name and support contacts (the support e-mail receives
+   contact-form messages); optionally turn off e-mail copies of notifications.
+3. Invite yourself as a coach to check that e-mail arrives; upload a file
    to check storage.
+4. **Rate-limit check (`TRUST_PROXY`):** sign-in attempts and contact messages are
+   limited per visitor address. Because requests pass Netlify before Render, the API
+   may see Netlify's address instead of the visitor's. Test: enter a wrong password
+   10 times on one device (the 11th is refused), then sign in from a **different
+   network** (e.g. a phone on mobile data). If that is refused too, everyone shares one
+   limit: set `TRUST_PROXY` to `2` in Render and repeat the test.
 
-## Your own domain (when the frontend goes live)
+## Custom domain (optional)
 
-The sign-in cookie is `SameSite=Strict`: the frontend and the API must be on
-the same site. Add a custom domain in Render (e.g. `api.lms.<your-domain>`)
-and host the frontend at `lms.<your-domain>`, then set `CORS_ORIGINS` and
-`APP_URL` to `https://lms.<your-domain>`.
+Add the domain in Netlify (e.g. `lms.<your-domain>`) and set `CORS_ORIGINS` and
+`APP_URL` in Render to `https://lms.<your-domain>`. The API needs no domain of
+its own: it is only reached through the Netlify proxy.
