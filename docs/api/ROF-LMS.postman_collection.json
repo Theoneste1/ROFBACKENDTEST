@@ -509,6 +509,79 @@
       ]
     },
     {
+      "name": "Admin · Contact messages",
+      "item": [
+        {
+          "name": "GET /admin/contact-messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/contact-messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "contact-messages"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "NEW",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** ADMIN"
+          }
+        },
+        {
+          "name": "PATCH /admin/contact-messages/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/contact-messages/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "contact-messages",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** ADMIN",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"NEW\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Courses",
       "item": [
         {
@@ -6242,6 +6315,71 @@
               "query": []
             },
             "description": "**Access:** Any signed-in user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public site",
+      "item": [
+        {
+          "name": "POST /public/contact",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/public/contact",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "contact"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"fullName\",\n  \"email\": \"name@example.org\",\n  \"subject\": \"subject\",\n  \"message\": \"message message message\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /public/statistics",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/statistics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "statistics"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
           }
         }
       ]

@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 198 endpoints — 14 public, 93 administrator-only.
+Totals: 202 endpoints — 16 public, 95 administrator-only.
 
 ## Academic years
 
@@ -50,6 +50,13 @@ Totals: 198 endpoints — 14 public, 93 administrator-only.
 | GET | `/api/v1/admin/audit-logs/{id}` |  |  |  | ✓ |
 | GET | `/api/v1/admin/audit-logs/actions` |  |  |  | ✓ |
 | GET | `/api/v1/admin/audit-logs/export.csv` |  |  |  | ✓ |
+
+## Admin · Contact messages
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/contact-messages` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/contact-messages/{id}` |  |  |  | ✓ |
 
 ## Admin · Courses
 
@@ -303,6 +310,13 @@ Totals: 198 endpoints — 14 public, 93 administrator-only.
 | POST | `/api/v1/notifications/read` |  | ✓ | ✓ | ✓ |
 | POST | `/api/v1/notifications/read-all` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/notifications/unread-count` |  | ✓ | ✓ | ✓ |
+
+## Public site
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/public/contact` | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/public/statistics` | ✓ | ✓ | ✓ | ✓ |
 
 ## Schools
 
