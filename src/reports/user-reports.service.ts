@@ -148,7 +148,7 @@ export class UserReportsService {
     });
     const views = await this.mentorViews(s, rows);
     return toCsv(
-      ['Mentor', 'Username', 'Email', 'Status', 'Teaching', 'Open reviews', 'Registered', 'Activated', 'Last login'],
+      ['Coach', 'Username', 'Email', 'Status', 'Teaching', 'Open reviews', 'Registered', 'Activated', 'Last login'],
       views.map((v) => [
         v.name, v.username, v.email, v.status,
         v.teaching.map((t) => `${t.course.title} (${t.division.name})`).join('; '),

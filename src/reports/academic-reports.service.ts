@@ -247,7 +247,7 @@ export class AcademicReportsService {
     });
     const now = Date.now();
     return toCsv(
-      ['Assignment', 'Course', 'Division', 'Student', 'Mentor', 'Cycle', 'Status', 'Score', 'Percentage',
+      ['Assignment', 'Course', 'Division', 'Student', 'Coach', 'Cycle', 'Status', 'Score', 'Percentage',
        'Assigned', 'Started', 'Marked', 'Completed', 'Decided', 'Published', 'Hours to complete', 'Days open'],
       rows.map((r) => [
         r.submission.assignment.title, r.submission.assignment.course.title, r.submission.assignment.division.name,
@@ -411,7 +411,7 @@ export class AcademicReportsService {
     });
     const views = await this.mentorRows(s, rows);
     return toCsv(
-      ['Mentor', 'Username', 'Email', 'Status', 'Teaching', 'Reviews assigned', 'Reviews completed', 'Open reviews',
+      ['Coach', 'Username', 'Email', 'Status', 'Teaching', 'Reviews assigned', 'Reviews completed', 'Open reviews',
        'Sent back by admin', 'Average review hours', 'Assignments prepared', 'Discussion comments', 'Last login'],
       views.map((v) => [
         fullName(v), v.username, v.email, v.status,

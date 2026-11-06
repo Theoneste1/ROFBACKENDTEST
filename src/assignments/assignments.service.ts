@@ -273,7 +273,7 @@ export class AssignmentsService {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         'DEADLINE_IN_PAST',
-        'The deadline has already passed. Reject the assignment so the mentor can set a new deadline.',
+        'The deadline has already passed. Reject the assignment so the coach can set a new deadline.',
       );
     }
 

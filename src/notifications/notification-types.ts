@@ -27,12 +27,12 @@ export const CONFIGURABLE_NOTIFICATION_TYPES: readonly NotificationTypeInfo[] = 
   {
     type: Events.AssignmentSubmittedForReview, category: 'ASSIGNMENTS', roles: ['ADMIN'], email: true,
     label: 'Assignments awaiting publication',
-    description: 'A mentor submitted an assignment for you to publish or return.',
+    description: 'A coach submitted an assignment for you to publish or return.',
   },
   {
     type: Events.ReviewReturned, category: 'REVIEWS', roles: ['ADMIN'], email: false,
     label: 'Reviews awaiting approval',
-    description: 'A mentor finished reviewing a submission and it is ready for your approval.',
+    description: 'A coach finished reviewing a submission and it is ready for your approval.',
   },
   {
     type: Events.ContentReported, category: 'DISCUSSIONS', roles: ['ADMIN'], email: false,

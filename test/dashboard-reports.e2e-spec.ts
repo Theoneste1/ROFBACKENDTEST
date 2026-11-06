@@ -363,7 +363,7 @@ describe('Admin dashboard and reports (e2e)', () => {
 
     it('mentor-workload.csv: one row per mentor with scopes, open and returned reviews', async () => {
       const rows = await csv('/admin/reports/mentor-workload.csv');
-      expect(rows[0]).toEqual(['Mentor', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours']);
+      expect(rows[0]).toEqual(['Coach', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours']);
       const byUser = Object.fromEntries(rows.slice(1).map((r) => [r[1], r]));
       expect(byUser['mentor.j'][6]).toBe('1');  // returned (completed) reviews
       expect(byUser['mentor.j2'][5]).toBe('1'); // open review
@@ -375,13 +375,13 @@ describe('Admin dashboard and reports (e2e)', () => {
   describe('CSV downloads', () => {
     it.each([
       ['students', 'Student,Username,Email,Status', 5],
-      ['mentors', 'Mentor,Username,Email,Status', 4],
+      ['mentors', 'Coach,Username,Email,Status', 4],
       ['enrollment', 'Academic year,Division,School', 4], // Junior S1, S2, S3; Senior S5
       ['course-participation', 'Course,Division,Students', 8],
       ['assignments', 'Assignment,Course,Division', 2],
-      ['reviews', 'Assignment,Course,Division,Student,Mentor', 2],
+      ['reviews', 'Assignment,Course,Division,Student,Coach', 2],
       ['results-publication', 'Assignment,Course,Division', 2],
-      ['mentor-activity', 'Mentor,Username,Email,Status', 4],
+      ['mentor-activity', 'Coach,Username,Email,Status', 4],
     ])('%s.csv downloads with the filters applied, and is audited', async (name, header, rows) => {
       const res = await get(`/admin/reports/${name}.csv`).expect(200);
       expect(res.headers['content-type']).toContain('text/csv');

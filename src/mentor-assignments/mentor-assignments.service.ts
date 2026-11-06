@@ -49,12 +49,12 @@ export class MentorAssignmentsService {
       this.prisma.course.findUnique({ where: { id: dto.courseId }, select: { id: true } }),
       this.prisma.division.findUnique({ where: { id: dto.divisionId }, select: { id: true } }),
     ]);
-    if (!mentor) throw new NotFoundException('Mentor not found.');
+    if (!mentor) throw new NotFoundException('Coach not found.');
     if (mentor.role !== 'MENTOR') {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Only users with the MENTOR role can be assigned.');
     }
     if (!mentor.isActive) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'ACCOUNT_SUSPENDED', 'This mentor account is suspended.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'ACCOUNT_SUSPENDED', 'This coach account is suspended.');
     }
     if (!course)   throw new NotFoundException('Course not found.');
     if (!division) throw new NotFoundException('Division not found.');
@@ -83,7 +83,7 @@ export class MentorAssignmentsService {
    */
   async unassign(id: string, caller: CallerCtx) {
     const existing = await this.prisma.mentorAssignment.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Mentor assignment not found.');
+    if (!existing) throw new NotFoundException('Coach course access not found.');
 
     const updated = await this.prisma.mentorAssignment.update({
       where: { id }, data: { isActive: false }, select: SELECT,

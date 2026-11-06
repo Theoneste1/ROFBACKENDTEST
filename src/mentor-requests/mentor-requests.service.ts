@@ -104,7 +104,7 @@ export class MentorRequestsService {
         where: { id: requestId, status: 'PENDING' },
         data:  { status: 'APPROVED', passwordHash: null },
       });
-      if (count === 0) throw invalidState('This mentor request has already been processed.');
+      if (count === 0) throw invalidState('This coach application has already been processed.');
 
       const clash = await tx.user.findFirst({
         where:  { OR: [{ username: request.username }, { email: request.email }] },
@@ -163,7 +163,7 @@ export class MentorRequestsService {
       where: { id: requestId, status: 'PENDING' },
       data:  { status: 'REJECTED', passwordHash: null },
     });
-    if (count === 0) throw invalidState('This mentor request has already been processed.');
+    if (count === 0) throw invalidState('This coach application has already been processed.');
 
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
@@ -179,7 +179,7 @@ export class MentorRequestsService {
 
   private async requireRequest(id: string) {
     const request = await this.prisma.mentorRequest.findUnique({ where: { id } });
-    if (!request) throw new NotFoundException('Mentor request not found.');
+    if (!request) throw new NotFoundException('Coach application not found.');
     return request;
   }
 }
