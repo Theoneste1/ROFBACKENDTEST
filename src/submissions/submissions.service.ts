@@ -136,7 +136,7 @@ export class SubmissionsService {
         throw new AppError(
           HttpStatus.BAD_REQUEST,
           'RESUBMISSION_WINDOW_CLOSED',
-          'The time allowed for the requested resubmission has passed. Contact your mentor.',
+          'The time allowed for the requested resubmission has passed. Contact your coach.',
         );
       }
       if (assignment.maxResubmissions > 0 && existing.revisionCount >= assignment.maxResubmissions) {
@@ -442,7 +442,7 @@ export class SubmissionsService {
   async reassign(submissionId: string, body: AssignSubmissionDto, user: AuthUser) {
     const sub = await this.requireSubmission(submissionId);
     if (sub.currentReview?.mentorId === body.mentorId) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'SAME_MENTOR', 'The submission is already assigned to this mentor.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'SAME_MENTOR', 'The submission is already assigned to this coach.');
     }
     await this.requireEligibleMentor(body.mentorId, sub.assignment);
 
@@ -450,7 +450,7 @@ export class SubmissionsService {
       await this.moveSubmission(tx, submissionId, ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED'], 'ASSIGNED');
       if (sub.currentReviewId) {
         await this.moveReview(tx, sub.currentReviewId, OPEN_REVIEW_STATUSES, { status: 'SUPERSEDED' },
-          'REASSIGNED', user.id, `Reassigned to mentor ${body.mentorId}.`);
+          'REASSIGNED', user.id, `Reassigned to coach ${body.mentorId}.`);
       }
       await this.startCycle(tx, submissionId, body.mentorId, user.id, 'ASSIGNED');
       await this.audit.log({
@@ -495,11 +495,11 @@ export class SubmissionsService {
       const notEligible = body.mentorIds.filter((id) => !mentorIds.includes(id));
       if (notEligible.length) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'MENTOR_NOT_ELIGIBLE',
-          'Some mentors are not assigned to this course and division.', { mentorIds: notEligible });
+          'Some coaches are not assigned to this course and division.', { mentorIds: notEligible });
       }
     }
     if (mentorIds.length === 0) {
-      throw new AppError(HttpStatus.CONFLICT, 'NO_ELIGIBLE_MENTORS', 'No active mentor is assigned to this course and division.');
+      throw new AppError(HttpStatus.CONFLICT, 'NO_ELIGIBLE_MENTORS', 'No active coach is assigned to this course and division.');
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -1080,7 +1080,7 @@ export class SubmissionsService {
   }
 
   private requireCurrentReview(sub: { currentReviewId: string | null }) {
-    if (!sub.currentReviewId) throw invalidState('This submission has not been assigned to a mentor.');
+    if (!sub.currentReviewId) throw invalidState('This submission has not been assigned to a coach.');
     return sub.currentReviewId;
   }
 
@@ -1107,18 +1107,18 @@ export class SubmissionsService {
       where:  { id: mentorId },
       select: { role: true, isActive: true, isApproved: true },
     });
-    if (!user) throw new NotFoundException('Mentor not found.');
+    if (!user) throw new NotFoundException('Coach not found.');
     if (user.role !== 'MENTOR') {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Selected user is not a mentor.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Selected user is not a coach.');
     }
     if (!user.isActive || !user.isApproved) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'ACCOUNT_SUSPENDED', 'This mentor account is not active.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'ACCOUNT_SUSPENDED', 'This coach account is not active.');
     }
     if (!(await this.access.isAssignedMentor(mentorId, scope))) {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         'MENTOR_NOT_ELIGIBLE',
-        'This mentor is not assigned to the assignment\'s course and division.',
+        'This coach is not assigned to the assignment\'s course and division.',
       );
     }
   }

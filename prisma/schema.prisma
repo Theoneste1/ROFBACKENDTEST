@@ -1435,3 +1435,33 @@ model ActivityLog {
   @@index([courseId, type, createdAt])
   @@index([type, createdAt])
 }
+
+// ─── Public contact form ─────────────────────────────────────────────────────
+
+enum ContactMessageStatus {
+  NEW
+  HANDLED
+}
+
+/// A message sent from the public homepage's contact form (POST /public/contact).
+/// Only administrators can read it (GET /admin/contact-messages).
+model ContactMessage {
+  id           String               @id @default(uuid())
+  fullName     String
+  email        String
+  subject      String
+  message      String
+  status       ContactMessageStatus @default(NEW)
+  /// "QUEUED" when an e-mail notice was queued to platform.supportEmail, "NOT_CONFIGURED" when no support e-mail is set.
+  notification String
+  /// Keyed SHA-256 of the sender's IP address: only used for abuse limits, never shown.
+  ipHash       String?
+  handledAt    DateTime?
+  /// The administrator who marked it handled (no foreign key: kept if that account is deleted).
+  handledById  String?
+  createdAt    DateTime             @default(now())
+
+  @@index([status, createdAt])
+  @@index([email, createdAt])
+  @@index([ipHash, createdAt])
+}

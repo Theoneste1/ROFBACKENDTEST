@@ -46,7 +46,7 @@ export const SETTINGS = {
     type:              'boolean',
     default:           false,
     productionDefault: true,
-    description:       'People who sign up themselves (students, and mentor applicants once approved) must confirm their e-mail address before they can log in. On by default in production.',
+    description:       'People who sign up themselves (students, and coach applicants once approved) must confirm their e-mail address before they can log in. On by default in production.',
   },
 
   // ── Assignments and submissions ────────────────────────────────────────────
@@ -54,7 +54,7 @@ export const SETTINGS = {
     category:    'ASSIGNMENTS',
     type:        'boolean',
     default:     false,
-    description: 'New assignments let students resubmit, unless the mentor chooses otherwise.',
+    description: 'New assignments let students resubmit, unless the coach chooses otherwise.',
   },
   'assignments.defaultMaxResubmissions': {
     category:    'ASSIGNMENTS',
@@ -68,7 +68,7 @@ export const SETTINGS = {
     category:    'ASSIGNMENTS',
     type:        'boolean',
     default:     false,
-    description: 'New assignments accept late first submissions (flagged late), unless the mentor chooses otherwise.',
+    description: 'New assignments accept late first submissions (flagged late), unless the coach chooses otherwise.',
   },
   'submissions.resubmissionRequestDays': {
     category:    'ASSIGNMENTS',
@@ -77,14 +77,14 @@ export const SETTINGS = {
     min:         1,
     max:         60,
     unit:        'days',
-    description: 'When a mentor asks for a resubmission without a due date, the student gets this long (or until the deadline, if later).',
+    description: 'When a coach asks for a resubmission without a due date, the student gets this long (or until the deadline, if later).',
   },
   'submissions.defaultDistributionStrategy': {
     category:    'ASSIGNMENTS',
     type:        'enum',
     options:     ['BALANCED', 'ROUND_ROBIN'],
     default:     'BALANCED',
-    description: 'How submissions are spread across mentors when no strategy is given.',
+    description: 'How submissions are spread across coaches when no strategy is given.',
   },
 
   // ── Notification rules ─────────────────────────────────────────────────────

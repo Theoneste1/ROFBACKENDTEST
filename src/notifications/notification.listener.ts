@@ -177,7 +177,7 @@ export class NotificationListener {
         category: 'SUBMISSIONS',
         type:     Events.ResubmissionRequested,
         title:    'Please resubmit your work',
-        body:     `Your mentor asked for a new attempt at "${s.assignment.title}"${due}. ${e.reason ?? ''}`.trim(),
+        body:     `Your coach asked for a new attempt at "${s.assignment.title}"${due}. ${e.reason ?? ''}`.trim(),
         data:     { submissionId: s.id, assignmentId: s.assignmentId },
         link:     `/assignments/${s.assignmentId}`,
       });
@@ -212,7 +212,7 @@ export class NotificationListener {
           category: 'RESULTS',
           type:     Events.ResultsPublished,
           title:    'Your result is available',
-          body:     `Your result and mentor feedback for "${s.assignment.title}" have been published.`,
+          body:     `Your result and coach feedback for "${s.assignment.title}" have been published.`,
           data:     { submissionId: s.id, assignmentId: s.assignmentId },
           link:     `/results/${s.id}`,
         });
@@ -396,10 +396,10 @@ export class NotificationListener {
     await this.safe('mentor request decided', async () => {
       await this.notifications.queueEmail(
         e.email,
-        e.approved ? 'Your mentor application was approved' : 'Your mentor application',
+        e.approved ? 'Your coach application was approved' : 'Your coach application',
         e.approved
-          ? 'Your mentor application has been approved. You can now log in with the username and password you chose.'
-          : 'Thank you for applying to mentor. Your application was not approved at this time.',
+          ? 'Your coach application has been approved. You can now log in with the username and password you chose.'
+          : 'Thank you for applying to be a coach. Your application was not approved at this time.',
         { firstName: e.firstName, link: e.approved ? '/login' : undefined },
       );
     });

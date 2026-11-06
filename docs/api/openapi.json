@@ -26111,6 +26111,179 @@
         "description": "**Access:** ADMIN"
       }
     },
+    "/api/v1/public/statistics": {
+      "get": {
+        "operationId": "PublicSiteController_statistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Aggregate community counts (no personal data). Cached for 5 minutes.",
+        "tags": [
+          "Public site"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/public/contact": {
+      "post": {
+        "operationId": "PublicSiteController_contact",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Contact form. At most 5 per hour per IP (plus per-e-mail and duplicate limits).",
+        "tags": [
+          "Public site"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/admin/contact-messages": {
+      "get": {
+        "operationId": "ContactMessagesController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NEW",
+                "HANDLED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Contact messages"
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "description": "**Access:** ADMIN"
+      }
+    },
+    "/api/v1/admin/contact-messages/{id}": {
+      "patch": {
+        "operationId": "ContactMessagesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContactMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark a message handled, or back to new.",
+        "tags": [
+          "Admin · Contact messages"
+        ],
+        "x-roles": [
+          "ADMIN"
+        ],
+        "description": "**Access:** ADMIN"
+      }
+    },
     "/api/v1/admin/email/users": {
       "get": {
         "operationId": "EmailController_listUsers",
@@ -35859,6 +36032,57 @@
           "username",
           "email",
           "password"
+        ]
+      },
+      "CreateContactMessageDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 150
+          },
+          "message": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 5000
+          },
+          "website": {
+            "type": "string",
+            "description": "Honeypot: a field hidden from people. Bots fill it in; when it is not\nempty the message is accepted silently and discarded.",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "fullName",
+          "email",
+          "subject",
+          "message"
+        ]
+      },
+      "UpdateContactMessageDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "HANDLED"
+            ]
+          }
+        },
+        "required": [
+          "status"
         ]
       },
       "SendEmailDto": {

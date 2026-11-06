@@ -77,7 +77,7 @@ export class ReportsService {
 
     return toCsv(
       ['Course', 'Division', 'Assignment', 'Student', 'Username', 'Grade', 'School', 'Status',
-       'Score', 'Max marks', 'Percentage', 'Points', 'Late', 'Resubmissions', 'Mentor', 'Submitted at', 'Published at'],
+       'Score', 'Max marks', 'Percentage', 'Points', 'Late', 'Resubmissions', 'Coach', 'Submitted at', 'Published at'],
       rows.map((r) => [
         r.assignment.course.title, r.assignment.division.name, r.assignment.title,
         `${r.student.firstName} ${r.student.lastName}`, r.student.username, r.student.gradeLevel,
@@ -146,7 +146,7 @@ export class ReportsService {
     });
 
     return toCsv(
-      ['Mentor', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours'],
+      ['Coach', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours'],
       mentors.map((m) => {
         const open     = m.reviews.filter((r) => OPEN_REVIEW_STATUSES.includes(r.status)).length;
         const returned = m.reviews.filter((r) => r.returnedAt);

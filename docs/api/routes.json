@@ -116,6 +116,22 @@
     "tag": "Admin · Audit"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/contact-messages",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Contact messages"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/contact-messages/{id}",
+    "roles": [
+      "ADMIN"
+    ],
+    "tag": "Admin · Contact messages"
+  },
+  {
     "method": "PATCH",
     "path": "/api/v1/admin/courses/{id}",
     "roles": [
@@ -1438,6 +1454,22 @@
       "ADMIN"
     ],
     "tag": "Notifications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/contact",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/public/statistics",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
   },
   {
     "method": "GET",

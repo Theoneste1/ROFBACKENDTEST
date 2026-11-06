@@ -32,6 +32,7 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module.js';
 import { AssignmentsModule } from '../assignments/assignments.module.js';
 import { SubmissionsModule } from '../submissions/submissions.module.js';
 import { MentorRequestsModule } from '../mentor-requests/mentor-requests.module.js';
+import { PublicSiteModule } from '../public-site/public-site.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { DiscussionsModule } from '../discussions/discussions.module.js';
 import { AnalyticsModule } from '../analytics/analytics.module.js';
@@ -80,6 +81,7 @@ import { ReportsModule } from '../reports/reports.module.js';
     SubmissionsModule,
     LeaderboardModule,
     MentorRequestsModule,
+    PublicSiteModule,
     // StudyGroupsModule is intentionally not registered: the programme has no
     // separate study groups (all discussion is in course and assignment threads).
     // Its code and tables are kept; re-add it here to switch it back on.
