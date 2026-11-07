@@ -74,6 +74,34 @@ describe('validateEnv', () => {
   });
 
   describe('e-mail', () => {
+    it('removes quotes and spaces pasted around values (hosting dashboards keep them)', () => {
+      const env = validateEnv(minimal({
+        EMAIL_FROM:     ' "Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>" ',
+        EMAIL_REPLY_TO: "'info@rwandaolympiadfoundation.org'",
+        RESEND_API_KEY: '“re_abc”',
+      }));
+      expect(env.EMAIL_FROM).toBe('Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>');
+      expect(env.EMAIL_REPLY_TO).toBe('info@rwandaolympiadfoundation.org');
+      expect(env.RESEND_API_KEY).toBe('re_abc');
+    });
+
+    it.each([
+      'Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>',
+      'info@rwandaolympiadfoundation.org',
+    ])('accepts the sender %s', (from) => {
+      expect(validateEnv(minimal({ EMAIL_FROM: from })).EMAIL_FROM).toBe(from);
+    });
+
+    it.each([
+      'Rwanda Olympiad Foundation',
+      'Rwanda Olympiad Foundation info@rwandaolympiadfoundation.org',
+      'Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org',
+      '<info@rwandaolympiadfoundation.org>',
+      'info@',
+    ])('refuses the malformed sender %s at startup', (from) => {
+      expect(() => validateEnv(minimal({ EMAIL_FROM: from }))).toThrow(/EMAIL_FROM must look like/);
+    });
+
     it('treats empty values as not set', () => {
       expect(() => validateEnv(minimal({ RESEND_API_KEY: '', EMAIL_REPLY_TO: '', EMAIL_REDIRECT_TO: ' ' }))).not.toThrow();
       expect(() => validateEnv(minimal({ NODE_ENV: 'production', RESEND_API_KEY: '', EMAIL_FROM: 'x <a@b.rw>', APP_URL: 'https://a.rw', CORS_ORIGINS: 'https://a.rw' })))
