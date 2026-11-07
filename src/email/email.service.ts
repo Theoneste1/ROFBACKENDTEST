@@ -10,7 +10,7 @@ import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { Prisma, type EmailDeliveryStatus } from '../generated/prisma/client.js';
-import { SmtpService } from './smtp.service.js';
+import { MailerService } from './mailer.service.js';
 import { EmailWorker } from './email.worker.js';
 import { SendEmailDto, RecipientMode } from './dto/send-email.dto.js';
 import { ListUsersDto } from './dto/list-users.dto.js';
@@ -59,7 +59,7 @@ const CHUNK = 1000;
 export class EmailService {
   constructor(
     private readonly prisma:  PrismaService,
-    private readonly smtp:    SmtpService,
+    private readonly mailer:  MailerService,
     private readonly audit:   AuditService,
     private readonly worker:  EmailWorker,
   ) {}
@@ -148,7 +148,7 @@ export class EmailService {
           metadata: {
             recipientMode:   dto.recipientMode,
             totalRecipients: recipients.length,
-            dryRun:          this.smtp.isDryRun,
+            dryRun:          this.mailer.isDryRun,
             // subject and body deliberately omitted
           },
         }, tx);
@@ -164,7 +164,7 @@ export class EmailService {
       throw err;
     }
 
-    return { ...job, dryRun: this.smtp.isDryRun, alreadyExisted: false };
+    return { ...job, dryRun: this.mailer.isDryRun, alreadyExisted: false };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

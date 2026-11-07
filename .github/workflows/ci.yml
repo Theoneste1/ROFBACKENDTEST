@@ -68,7 +68,7 @@ jobs:
             minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:9000/minio/health/ready && break; sleep 1; done
 
-      - name: End-to-end tests (incl. real SMTP and S3)
+      - name: End-to-end tests (incl. e-mail through the Resend SDK, and S3)
         run: npm run test:e2e
 
       - name: Build
@@ -85,7 +85,7 @@ jobs:
       - name: Build Docker image
         run: docker build --target runtime -t rof-api:ci .
 
-  # The full docker-compose stack (Postgres, MinIO, Mailpit, migrate + seed,
+  # The full docker-compose stack (Postgres, MinIO, migrate + seed,
   # API) comes up and serves a real request flow.
   compose-smoke:
     runs-on: ubuntu-latest

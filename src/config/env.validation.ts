@@ -8,6 +8,7 @@
 import { plainToInstance, Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEmail,
   IsEnum,
   IsInt,
   IsOptional,
@@ -19,6 +20,10 @@ import {
   MinLength,
   validateSync,
 } from 'class-validator';
+
+/** An empty value (`KEY=` in .env) means "not set". */
+const emptyToUndefined = ({ value }: { value: unknown }) =>
+  typeof value === 'string' && value.trim() === '' ? undefined : value;
 
 export enum NodeEnv {
   Development = 'development',
@@ -100,13 +105,18 @@ export class EnvironmentVariables {
   S3_FORCE_PATH_STYLE?: boolean;
 
   // ── E-mail ─────────────────────────────────────────────────────────────────
-  @IsOptional() @IsString() SMTP_HOST?: string;
-  @IsOptional() @Type(() => Number) @IsInt() SMTP_PORT?: number;
-  @IsOptional() @IsString() SMTP_SECURE?: string;
-  @IsOptional() @IsString() SMTP_USER?: string;
-  @IsOptional() @IsString() SMTP_PASS?: string;
-  @IsOptional() @IsString() EMAIL_FROM?: string;
+  // Delivered through Resend (https://resend.com). See docs/EMAIL.md.
+  /** Resend API key ("re_…"). Without it e-mails are only logged (dry run, not allowed in production). */
+  @IsOptional() @Transform(emptyToUndefined) @IsString() RESEND_API_KEY?: string;
+  /** Sender, e.g. "Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>". Its domain must be verified in Resend. */
+  @IsOptional() @Transform(emptyToUndefined) @IsString() EMAIL_FROM?: string;
+  /** Address replies go to (defaults to the EMAIL_FROM address). */
+  @IsOptional() @Transform(emptyToUndefined) @IsEmail() EMAIL_REPLY_TO?: string;
+  /** Testing safeguard: deliver EVERY e-mail to this address instead of the real recipient. */
+  @IsOptional() @Transform(emptyToUndefined) @IsEmail() EMAIL_REDIRECT_TO?: string;
   @IsOptional() @Type(() => Number) @IsInt() EMAIL_BATCH_SIZE?: number;
+  /** Most e-mails sent per second (Resend's default account limit is 2). */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) EMAIL_MAX_PER_SECOND?: number;
 
   /** Proxy hops in front of the API (default 1); "false" when clients connect directly. */
   @IsOptional()
@@ -148,8 +158,14 @@ export function validateEnv(config: Record<string, unknown>) {
   const messages = errors.flatMap((e) => Object.values(e.constraints ?? {}));
 
   if (env.NODE_ENV === NodeEnv.Production) {
-    if (!env.SMTP_HOST) {
-      messages.push('SMTP_HOST is required in production (e-mail would otherwise be silently dropped).');
+    if (!env.RESEND_API_KEY) {
+      messages.push('RESEND_API_KEY is required in production (e-mail would otherwise be silently dropped).');
+    }
+    if (!env.EMAIL_FROM) {
+      messages.push('EMAIL_FROM is required in production (a sender on a domain verified in Resend).');
+    }
+    if (!env.APP_URL) {
+      messages.push('APP_URL is required in production (password-reset and activation links point to it).');
     }
     if (!env.CORS_ORIGINS) {
       messages.push('CORS_ORIGINS is required in production.');

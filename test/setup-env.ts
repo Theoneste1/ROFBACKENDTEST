@@ -27,4 +27,5 @@ process.env.UPLOAD_DIR      = join(tmpdir(), `rof-e2e-${process.pid}`);
 process.env.WORKERS_ENABLED = 'false';   // tests drive workers explicitly
 process.env.THROTTLE_DISABLED = 'true';
 process.env.APP_URL         = 'http://localhost:5173';
-delete process.env.SMTP_HOST;            // dry-run e-mail
+delete process.env.RESEND_API_KEY;       // dry-run e-mail
+delete process.env.EMAIL_REDIRECT_TO;

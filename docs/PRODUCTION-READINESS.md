@@ -14,8 +14,8 @@ run here is marked **Not tested**.
 **Verdict.** The backend is **ready for frontend integration** and
 **ready for production**, once the staging checks in §8 pass in the real
 hosting environment. Those are the Docker image, the docker-compose stack
-(both automated in CI), S3 against the real bucket, SMTP with the real
-provider, and load against managed PostgreSQL. No open code issues remain.
+(both automated in CI), S3 against the real bucket, e-mail through Resend
+with the verified domain, and load against managed PostgreSQL. No open code issues remain.
 
 ---
 
@@ -127,7 +127,7 @@ Run on 2026-11-03, after the last code change:
 | Combined code coverage (unit + e2e) | **92.7% lines, 80.4% branches**, 94.5% functions |
 | Routes called by e2e tests | **203 / 203**; every route's success path exercised |
 | Security suite | every non-public route refuses anonymous callers (401) and every role it doesn't allow (403). Token forgery, expiry and revocation, lockout, isolation, uploads, validation, SQL-injection probes, data exposure and headers all pass |
-| Real SMTP delivery | **passed**: e-mails received by an SMTP server, the reset link works, all bulk modes, retries, giving up after 5 attempts, administrator retry, nothing sent twice |
+| E-mail delivery (Resend SDK) | **passed** against a fake Resend API: authentication, sender/reply-to, HTML + text, idempotency keys, reset and activation links work once, expired/unknown links refused, welcome and password-changed notices, all bulk modes, temporary errors retried, invalid addresses failed at once, giving up after 5 attempts, administrator retry, nothing sent twice. Real delivery: see [EMAIL.md](EMAIL.md) §8 |
 | S3 driver over the S3 API | **passed** against an S3-compatible emulator (s3rver): upload, byte-for-byte download, access rules, health, clean-up deleting objects. CI runs the same test against **MinIO** |
 | `npm audit` (all dependencies, including development) | **0 vulnerabilities** |
 | Compiled code imports only declared production dependencies | yes |

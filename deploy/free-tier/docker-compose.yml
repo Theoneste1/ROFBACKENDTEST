@@ -1,6 +1,6 @@
 # Free-tier production stack for one server (e.g. an Oracle Cloud "Always Free"
 # ARM VM): PostgreSQL + the API + Caddy (HTTPS). Files go to a Cloudflare R2
-# bucket and e-mail to an SMTP provider, both configured in .env.
+# bucket and e-mail to Resend, both configured in .env.
 #
 #   cp .env.example .env    # fill it in (see README.md)
 #   docker compose up -d --build

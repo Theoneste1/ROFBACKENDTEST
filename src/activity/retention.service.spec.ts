@@ -34,7 +34,7 @@ describe('RetentionService', () => {
     });
     expect(prisma.emailDelivery.updateMany).toHaveBeenCalledWith({
       where: { status: 'SENT', createdAt: { lt: daysBefore(90) }, body: { not: null } },
-      data:  { body: null, subject: null },
+      data:  { body: null, html: null, subject: null },
     });
     expect(prisma.$transaction).toHaveBeenCalledOnce();
     expect(result).toEqual({ activityDeleted: 5, notificationsDeleted: 3, emailBodiesCleared: 2 });

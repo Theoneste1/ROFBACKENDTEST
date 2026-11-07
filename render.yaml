@@ -23,7 +23,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Neon, direct connection (pooling off), ending in ?sslmode=require
+      # Neon, POOLED connection (host contains -pooler), ending in ?sslmode=require.
+      # Migrations and the seed use the direct string instead (deploy/render/README.md §1).
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_POOL_MAX
@@ -67,16 +68,11 @@ services:
         sync: false
       - key: S3_FORCE_PATH_STYLE
         value: "true"
-      # E-mail (Brevo: smtp-relay.brevo.com; Google Workspace: smtp.gmail.com)
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_SECURE
-        value: "false"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
+      # E-mail through Resend (docs/EMAIL.md). The key is entered in the Render
+      # dashboard only; the sender's domain must be verified in Resend.
+      - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
-        sync: false
+        value: "Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>"
+      - key: EMAIL_REPLY_TO
+        value: info@rwandaolympiadfoundation.org

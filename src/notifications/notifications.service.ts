@@ -5,7 +5,7 @@
  * - queueEmail(): adds a transactional e-mail to the outbox (EmailDelivery).
  *
  * E-mails are never sent inline: the EmailWorker drains the outbox in the
- * background with retries, so a slow SMTP server never slows a request.
+ * background with retries, so a slow e-mail provider never slows a request.
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +16,8 @@ import { NotificationCategory, Prisma, type Role } from '../generated/prisma/cli
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
 import { AppError } from '../common/errors/app-error.js';
 import { configurableTypesFor, isConfigurableType } from './notification-types.js';
+import { renderEmail, type EmailBrand, type RenderedEmail } from '../email/templates.js';
+import { loadEmailBrand } from '../email/email-brand.js';
 
 export interface NotificationPayload {
   category: NotificationCategory;
@@ -44,6 +46,20 @@ export interface ListNotificationsQuery extends PaginationQueryDto {
 }
 
 const present = (n: NotificationRow) => ({ ...n, isRead: n.readAt !== null });
+
+/** Options for a transactional e-mail. */
+export interface QueueEmailOptions {
+  firstName?:   string;
+  /** Frontend path (appended to APP_URL) for the button, e.g. "/reset-password?token=…". */
+  link?:        string;
+  /** Button text (default "Open"). */
+  actionLabel?: string;
+  /** Small print under the button. */
+  note?:        string;
+  /** Title in the e-mail (default: the subject title). */
+  heading?:     string;
+  recipientId?: string;
+}
 
 @Injectable()
 export class NotificationsService {
@@ -88,6 +104,7 @@ export class NotificationsService {
 
     // In chunks, so a division-wide broadcast never builds one huge IN list.
     const subject = await this.subject(payload.title);
+    const brand   = await this.brand();
     for (let i = 0; i < recipients.length; i += CHUNK) {
       const chunk = recipients.slice(i, i + CHUNK);
 
@@ -111,25 +128,25 @@ export class NotificationsService {
 
       await this.prisma.emailDelivery.createMany({
         data: await Promise.all(
-          users.map(async (u) => ({
-            recipientEmail: u.email,
-            recipientId:    u.id,
-            subject,
-            body:           await this.composeBody(u.firstName, payload.body, payload.link),
-          })),
+          users.map((u) => {
+            const mail = this.compose(brand, { firstName: u.firstName, heading: payload.title, link: payload.link }, payload.body);
+            return { recipientEmail: u.email, recipientId: u.id, subject, body: mail.text, html: mail.html };
+          }),
         ),
       });
     }
   }
 
   /** Queue a transactional e-mail to an address that may not belong to a user. */
-  async queueEmail(to: string, title: string, body: string, opts: { firstName?: string; link?: string; recipientId?: string } = {}) {
+  async queueEmail(to: string, title: string, body: string, opts: QueueEmailOptions = {}) {
+    const mail = this.compose(await this.brand(), { heading: title, ...opts }, body);
     await this.prisma.emailDelivery.create({
       data: {
         recipientEmail: to,
         recipientId:    opts.recipientId ?? null,
         subject:        await this.subject(title),
-        body:           await this.composeBody(opts.firstName ?? null, body, opts.link),
+        body:           mail.text,
+        html:           mail.html,
       },
     });
   }
@@ -352,25 +369,25 @@ export class NotificationsService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // E-mail composition (plain text — no HTML injection surface)
+  // E-mail composition (plain text + branded HTML, see email/templates.ts)
   // ═══════════════════════════════════════════════════════════════════════════
 
   private async subject(title: string) {
     return `[${await this.settings.get('platform.name')}] ${title}`.slice(0, 200);
   }
 
-  private async composeBody(firstName: string | null, body: string, link?: string) {
-    const platform = await this.settings.get('platform.name');
-    const support  = await this.settings.get('platform.supportEmail');
-    const appUrl   = this.config.get<string>('APP_URL');
-    const lines = [
-      firstName ? `Hello ${firstName},` : 'Hello,',
-      '',
+  private brand(): Promise<EmailBrand> {
+    return loadEmailBrand(this.settings, this.config);
+  }
+
+  private compose(brand: EmailBrand, opts: QueueEmailOptions, body: string): RenderedEmail {
+    const appUrl = brand.appUrl?.replace(/\/$/, '');
+    return renderEmail({
+      firstName: opts.firstName ?? null,
+      heading:   opts.heading,
       body,
-    ];
-    if (link && appUrl) lines.push('', `Open: ${appUrl.replace(/\/$/, '')}${link}`);
-    lines.push('', '—', platform);
-    if (support) lines.push(`Questions? ${support}`);
-    return lines.join('\n');
+      note:      opts.note,
+      action:    opts.link && appUrl ? { label: opts.actionLabel ?? 'Open', url: `${appUrl}${opts.link}` } : undefined,
+    }, brand);
   }
 }

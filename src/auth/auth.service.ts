@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { AccountEmailsService } from '../notifications/account-emails.service.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { ActivationService } from './activation.service.js';
@@ -50,6 +51,7 @@ export class AuthService {
     private readonly academicYears: AcademicYearsService,
     private readonly activity:      ActivityService,
     private readonly activation:    ActivationService,
+    private readonly accountEmails: AccountEmailsService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -112,6 +114,7 @@ export class AuthService {
     });
 
     if (student.verification) await this.activation.send(student.verification);
+    else await this.accountEmails.welcome(student.created.id);
 
     return {
       ...student.created,
@@ -294,9 +297,13 @@ export class AuthService {
     await this.notifications.queueEmail(
       user.email,
       'Reset your password',
-      'We received a request to reset your password. The link below is valid for 30 minutes. ' +
-        'If you did not ask for this, you can ignore this e-mail.',
-      { firstName: user.firstName, recipientId: user.id, link: `/reset-password?token=${encodeURIComponent(token)}` },
+      'We received a request to reset the password of your account. Click the button below to choose a new password.',
+      {
+        firstName: user.firstName, recipientId: user.id,
+        link: `/reset-password?token=${encodeURIComponent(token)}`, actionLabel: 'Reset my password',
+        note: 'This link is valid for 30 minutes and can be used once. If you did not ask for a new password, ' +
+          'you can ignore this e-mail: your password will not change.',
+      },
     );
     await this.audit.log({
       actorId: requestedById ?? user.id, action: 'REQUEST_PASSWORD_RESET', entity: 'User', entityId: user.id,
@@ -333,6 +340,7 @@ export class AuthService {
     }
 
     await this.tokens.revokeAllForUser(record.userId);
+    await this.accountEmails.passwordChanged(record.userId);
     return { message: 'Password updated. Please log in with your new password.' };
   }
 
@@ -350,6 +358,7 @@ export class AuthService {
       data:  { passwordHash: await bcrypt.hash(newPassword, BCRYPT_COST) },
     });
     await this.tokens.revokeAllForUser(userId);
+    await this.accountEmails.passwordChanged(userId);
 
     await this.audit.log({
       actorId: userId, actorRole: user.role,

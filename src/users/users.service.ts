@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { TokenService } from '../auth/token.service.js';
+import { AccountEmailsService } from '../notifications/account-emails.service.js';
 import { BCRYPT_COST, PROFILE_SELECT } from '../auth/auth.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -37,6 +38,7 @@ export class UsersService {
     private readonly divisions: DivisionsService,
     private readonly tokens:    TokenService,
     private readonly academicYears: AcademicYearsService,
+    private readonly accountEmails: AccountEmailsService,
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
@@ -240,6 +242,7 @@ export class UsersService {
     });
 
     if (data.isActive === false) await this.tokens.revokeAllForUser(id);
+    if (!before.isApproved && user.isApproved && user.isActive) await this.accountEmails.approved(id);
     return user;
   }
 

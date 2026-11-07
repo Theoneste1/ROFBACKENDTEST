@@ -43,6 +43,7 @@ function makeMocks() {
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
   const activity      = { record: vi.fn() };
   const issued        = { token: 't', expiresAt: new Date(), purpose: 'EMAIL_VERIFICATION', userId: 'u-new', email: 'a@x.rw', firstName: 'A' };
+  const accountEmails = { welcome: vi.fn(), passwordChanged: vi.fn() };
   const activation    = {
     issue:        vi.fn().mockResolvedValue(issued),
     send:         vi.fn().mockResolvedValue({}),
@@ -51,9 +52,9 @@ function makeMocks() {
 
   const service = new AuthService(
     prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
-    academicYears as any, activity as any, activation as any,
+    academicYears as any, activity as any, activation as any, accountEmails as any,
   );
-  return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued };
+  return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({

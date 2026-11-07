@@ -18,8 +18,9 @@ function makeMocks() {
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
   const audit         = { log: vi.fn() };
   const notifications = { queueEmail: vi.fn() };
-  const service = new ActivationService(prisma as any, audit as any, notifications as any);
-  return { service, prisma, audit, notifications };
+  const accountEmails = { welcome: vi.fn() };
+  const service = new ActivationService(prisma as any, audit as any, notifications as any, accountEmails as any);
+  return { service, prisma, audit, notifications, accountEmails };
 }
 
 const user = { id: 'u1', firstName: 'Ada', email: 'ada@x.rw', username: 'ada', role: 'STUDENT', isActive: true, activatedAt: null };
