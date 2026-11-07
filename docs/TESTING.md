@@ -58,7 +58,7 @@ Every one of the API routes is called by at least one e2e test, checked by
 | `remaining-endpoints` | Attachments, recall/unpublish, resource restore, feedback files, divisions, schools, leaderboard, e-mail jobs |
 | `security` | See below |
 | `email-delivery` | The real Resend SDK against a fake Resend API in the test (`RESEND_BASE_URL`): API key, sender, reply-to, HTML and text bodies, idempotency keys. Password-reset and activation links work once; expired and unknown links refused; welcome and password-changed e-mails; every bulk recipient mode; temporary failures retried, given up after 5 attempts, administrator retry; invalid addresses failed without retrying; nothing sent twice |
-| `s3-storage` | Real S3 API: upload, byte-for-byte download, access rules, health check, orphan clean-up deleting objects. **Needs `S3_TEST_ENDPOINT`** (+ `S3_TEST_ACCESS_KEY`, `S3_TEST_SECRET_KEY`); skipped with that reason otherwise. CI runs it against MinIO |
+| `s3-storage` | Real S3 API: upload, byte-for-byte download, access rules, health check, orphan clean-up deleting objects. **Needs `S3_TEST_ENDPOINT`** (+ `S3_TEST_ACCESS_KEY`, `S3_TEST_SECRET_KEY`); skipped with that reason otherwise. CI runs it against S3Mock |
 | `features`, `app` | Notifications, e-mail outbox, admin tools, health, errors |
 
 ### Security suite (`test/security.e2e-spec.ts`)
@@ -144,7 +144,7 @@ built app with workers on, against a disposable database:
 1. lint and typecheck;
 2. unit tests;
 3. migrate an empty database, then check the schema for drift;
-4. start a MinIO container;
+4. start an S3Mock container (S3-compatible; MinIO's public images were withdrawn);
 5. e2e tests, including e-mail through the Resend SDK, and S3;
 6. build;
 7. check the generated API docs are up to date, and that every route is tested;
@@ -152,7 +152,7 @@ built app with workers on, against a disposable database:
 
 A second job, `compose-smoke`, then:
 
-1. brings up the whole `docker-compose` stack (Postgres, MinIO, the
+1. brings up the whole `docker-compose` stack (Postgres, S3Mock, the
    migrate step and the API);
 2. checks `/health`, logs in, opens the dashboard and fetches the OpenAPI
    document.

@@ -196,7 +196,7 @@ All eight issues from the previous report have been dealt with:
 |---|---|---|
 | Staging checks | They need the real environment | On staging: upload and download through the real bucket; receive an invitation through the real SMTP provider; repeat the load baseline against managed PostgreSQL (`DATABASE_POOL_MAX=10`); run the go-live checklist in [DEPLOYMENT.md](DEPLOYMENT.md#13-go-live-checklist) |
 | `uploads/submissions/` (10 files from the old upload system) | Nothing references them; they may contain student work, and deleting them can't be undone | Your decision: delete, or archive outside the project. They're excluded from git and never served |
-| CI jobs not yet run | The new MinIO step and `compose-smoke` job are written and the workflow validates, but they can only run on GitHub | Push and check the first run |
+| CI jobs not yet run | The S3Mock step (replacing MinIO, whose public images were withdrawn) and the `compose-smoke` job can only run on GitHub | Push and check the first run |
 
 ## 9. Frontend integration checklist
 

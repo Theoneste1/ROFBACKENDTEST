@@ -45,7 +45,7 @@ docker compose up -d --build
 |---|---|
 | http://localhost:3000/api/docs | Swagger UI |
 | http://localhost:3000/health | Health check |
-| http://localhost:9001 | MinIO console (`rof` / `rof-minio-secret`) |
+| http://localhost:9090/rof-files | S3Mock: the local S3 bucket for uploaded files (XML listing) |
 
 Log in as `admin` / `Admin12345`. Demo accounts (password `Demo1234`):
 `mentor.junior`, `mentor.senior`, `student.s2`, `student.s5`.
