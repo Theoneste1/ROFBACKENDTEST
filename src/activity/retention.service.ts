@@ -56,7 +56,7 @@ export class RetentionService {
           createdAt: { lt: new Date(now.getTime() - RETENTION.sentEmailBodyDays * DAY) },
           body:      { not: null },
         },
-        data: { body: null, subject: null },
+        data: { body: null, html: null, subject: null },
       }),
     ]);
     return {

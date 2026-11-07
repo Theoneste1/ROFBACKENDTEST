@@ -1363,7 +1363,10 @@ model EmailDelivery {
   recipientId    String?
   /// Transactional e-mails carry their own subject/body; bulk deliveries use the job's.
   subject        String?
+  /// Plain-text version. Cleared once a transactional e-mail is delivered (it may carry a one-time link).
   body           String?
+  /// Branded HTML version (transactional e-mails); cleared together with body.
+  html           String?
   status         EmailDeliveryStatus @default(PENDING)
   attempts       Int                 @default(0)
   nextAttemptAt  DateTime            @default(now())

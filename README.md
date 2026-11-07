@@ -24,6 +24,7 @@ courses (Algebra, Geometry, Number Theory, Combinatorics).
 | [docs/STORAGE.md](docs/STORAGE.md) | File storage: types and limits, upload pipeline, download rules, drivers, cleanup |
 | [docs/TESTING.md](docs/TESTING.md) | Running the tests, what each suite covers, the security suite, smoke testing, CI |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment: configuration, database, auth, storage, proxy, releases and migrations, backup and recovery, monitoring, go-live checklist |
+| [docs/EMAIL.md](docs/EMAIL.md) | E-mail through Resend: architecture, domain and DNS set-up, environment variables, safe local testing, troubleshooting |
 | [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) | Functionality summary, test results, known limitations, outstanding issues, frontend-integration checklist |
 | [.env.example](.env.example) · [.env.production.example](.env.production.example) | Every environment variable, with defaults and notes · production template |
 
@@ -44,8 +45,7 @@ docker compose up -d --build
 |---|---|
 | http://localhost:3000/api/docs | Swagger UI |
 | http://localhost:3000/health | Health check |
-| http://localhost:8025 | Mailpit — every e-mail the API sends |
-| http://localhost:9001 | MinIO console (`rof` / `rof-minio-secret`) |
+| http://localhost:9090/rof-files | S3Mock: the local S3 bucket for uploaded files (XML listing) |
 
 Log in as `admin` / `Admin12345`. Demo accounts (password `Demo1234`):
 `mentor.junior`, `mentor.senior`, `student.s2`, `student.s5`.

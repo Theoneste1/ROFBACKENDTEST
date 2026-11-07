@@ -16,7 +16,7 @@ HTTP ─► Helmet · CORS · Throttler ─► JwtAuthGuard (global) ─► Role
          (PostgreSQL)   (local | S3)                         │
                                                   Notification rows + EmailDelivery outbox
                                                              │
-                                          EmailWorker (every 10 s, SKIP LOCKED) ─► SMTP
+                                          EmailWorker (every 10 s, SKIP LOCKED) ─► Resend API
 
 Cross-cutting: AllExceptionsFilter · request id · AuditService · SettingsService
 ```

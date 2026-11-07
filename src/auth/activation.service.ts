@@ -18,6 +18,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { AccountEmailsService } from '../notifications/account-emails.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import type { ActivationPurpose, Prisma } from '../generated/prisma/client.js';
 import { hashToken } from './token.service.js';
@@ -46,6 +47,7 @@ export class ActivationService {
     private readonly prisma:        PrismaService,
     private readonly audit:         AuditService,
     private readonly notifications: NotificationsService,
+    private readonly accountEmails: AccountEmailsService,
   ) {}
 
   /**
@@ -77,14 +79,23 @@ export class ActivationService {
   /** Queue the activation e-mail (outbox). */
   async send(issued: IssuedActivation) {
     const invitation = issued.purpose === 'INVITATION';
+    const link = `/activate?token=${encodeURIComponent(issued.token)}`;
     await this.notifications.queueEmail(
       issued.email,
-      invitation ? 'You have been invited' : 'Confirm your e-mail address',
+      invitation ? 'Activate your account' : 'Confirm your e-mail address',
       invitation
-        ? 'An account has been created for you. Open the link below to choose your password and activate it. ' +
-          'The link is valid for 7 days.'
-        : 'Please confirm your e-mail address to activate your account. The link is valid for 48 hours.',
-      { firstName: issued.firstName, recipientId: issued.userId, link: `/activate?token=${encodeURIComponent(issued.token)}` },
+        ? 'An account has been created for you on the learning platform of the Rwanda Olympiad Foundation. ' +
+          'Click the button below to choose your password and activate your account.'
+        : 'Thank you for registering. Please confirm your e-mail address to activate your account.',
+      invitation
+        ? {
+            firstName: issued.firstName, recipientId: issued.userId, link, actionLabel: 'Activate my account',
+            note: 'This link is valid for 7 days and can be used once. If you were not expecting this invitation, you can ignore this e-mail.',
+          }
+        : {
+            firstName: issued.firstName, recipientId: issued.userId, link, actionLabel: 'Confirm my e-mail address',
+            note: 'This link is valid for 48 hours and can be used once. If you did not create an account, you can ignore this e-mail.',
+          },
     );
     return { expiresAt: issued.expiresAt, purpose: issued.purpose };
   }
@@ -137,6 +148,7 @@ export class ActivationService {
       }, tx);
     });
 
+    await this.accountEmails.welcome(record.userId);
     return {
       message:  'Your account is active. You can now log in.',
       username: record.user.username,

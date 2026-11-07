@@ -28,8 +28,9 @@ function makeMocks() {
   const tokens    = { revokeAllForUser: vi.fn() };
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
 
-  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any);
-  return { service, prisma, audit, divisions, tokens, academicYears };
+  const accountEmails = { approved: vi.fn() };
+  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any);
+  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails };
 }
 
 describe('UsersService', () => {

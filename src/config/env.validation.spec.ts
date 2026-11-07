@@ -46,26 +46,43 @@ describe('validateEnv', () => {
   });
 
   describe('production', () => {
-    it('requires SMTP_HOST and CORS_ORIGINS', () => {
+    const prod = (o: Record<string, unknown> = {}) => minimal({
+      NODE_ENV: 'production', RESEND_API_KEY: 're_test', EMAIL_FROM: 'ROF <info@rof.rw>',
+      APP_URL: 'https://app.rof.rw', CORS_ORIGINS: 'https://app.rof.rw', ...o,
+    });
+
+    it('requires the Resend key, a sender, APP_URL and CORS_ORIGINS', () => {
       let message = '';
       try {
         validateEnv(minimal({ NODE_ENV: 'production' }));
       } catch (err) {
         message = (err as Error).message;
       }
-      expect(message).toContain('SMTP_HOST is required in production');
+      expect(message).toContain('RESEND_API_KEY is required in production');
+      expect(message).toContain('EMAIL_FROM is required in production');
+      expect(message).toContain('APP_URL is required in production');
       expect(message).toContain('CORS_ORIGINS is required in production');
     });
 
-    it('requires CORS_ORIGINS even when SMTP_HOST is set', () => {
-      expect(() => validateEnv(minimal({ NODE_ENV: 'production', SMTP_HOST: 'smtp.x.rw' })))
-        .toThrow(/CORS_ORIGINS/);
+    it.each(['RESEND_API_KEY', 'EMAIL_FROM', 'APP_URL', 'CORS_ORIGINS'])('fails without %s', (key) => {
+      expect(() => validateEnv(prod({ [key]: undefined }))).toThrow(new RegExp(key));
     });
 
-    it('passes with SMTP_HOST and CORS_ORIGINS', () => {
-      expect(() => validateEnv(minimal({
-        NODE_ENV: 'production', SMTP_HOST: 'smtp.x.rw', CORS_ORIGINS: 'https://app.rof.rw',
-      }))).not.toThrow();
+    it('passes with a complete configuration', () => {
+      expect(() => validateEnv(prod())).not.toThrow();
+    });
+  });
+
+  describe('e-mail', () => {
+    it('treats empty values as not set', () => {
+      expect(() => validateEnv(minimal({ RESEND_API_KEY: '', EMAIL_REPLY_TO: '', EMAIL_REDIRECT_TO: ' ' }))).not.toThrow();
+      expect(() => validateEnv(minimal({ NODE_ENV: 'production', RESEND_API_KEY: '', EMAIL_FROM: 'x <a@b.rw>', APP_URL: 'https://a.rw', CORS_ORIGINS: 'https://a.rw' })))
+        .toThrow(/RESEND_API_KEY is required/);
+    });
+
+    it('rejects an invalid reply-to or redirect address', () => {
+      expect(() => validateEnv(minimal({ EMAIL_REPLY_TO: 'not-an-address' }))).toThrow(/EMAIL_REPLY_TO/);
+      expect(() => validateEnv(minimal({ EMAIL_REDIRECT_TO: 'nope' }))).toThrow(/EMAIL_REDIRECT_TO/);
     });
   });
 

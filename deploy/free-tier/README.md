@@ -1,14 +1,14 @@
 # Hosting ROF LMS for free
 
 One small server runs PostgreSQL, the API and HTTPS. Uploaded files live in
-Cloudflare R2, and e-mail goes through Brevo or Google Workspace. Every part
+Cloudflare R2, and e-mail goes through Resend. Every part
 has a free tier; check each provider's current terms when you sign up.
 
 | Part | Service | Free allowance (at time of writing) |
 |---|---|---|
 | Server (API + PostgreSQL + Caddy) | Oracle Cloud "Always Free" Ampere A1 VM | up to 4 ARM cores, 24 GB RAM, 200 GB disk; always on |
 | Uploaded files + backups | Cloudflare R2 | 10 GB, no download fees |
-| E-mail | Brevo, or Google Workspace (free for registered nonprofits) | Brevo about 300 e-mails/day |
+| E-mail | Resend | 3,000 e-mails/month, 100/day |
 | Uptime alerts | UptimeRobot or Better Stack | 1 check every 5 min |
 | Frontend (later) | Cloudflare Pages, Netlify or Vercel | static sites |
 
@@ -29,12 +29,8 @@ tells you if the server stops (step 8).
    for example Johannesburg or a European region.
 2. **Cloudflare:** sign up and enable **R2** (it asks for a payment method;
    usage under the free allowance is not charged).
-3. **E-mail:** either
-   - **Google Workspace**, if the foundation's mailboxes are already there:
-     create or pick a sending mailbox (e.g. `noreply@…`), turn on 2-step
-     verification and create an **app password**; or
-   - **Brevo:** sign up, add and verify your domain (it gives you SPF and DKIM
-     DNS records to add), then create an **SMTP key**.
+3. **E-mail:** sign up at resend.com, verify the domain and create an API key
+   — see [docs/EMAIL.md](../../docs/EMAIL.md) §2–§4.
 
 ## 2. Create the server
 
@@ -77,7 +73,7 @@ Where the domain's DNS is managed, add:
 |---|---|---|
 | A | `api.lms` | the server's public IP |
 
-Also add the SPF and DKIM records your e-mail provider gave you.
+Also add the DKIM, SPF and MX records Resend gave you (docs/EMAIL.md §3).
 
 If the DNS is on Cloudflare, set the record to **DNS only** (grey cloud).
 With the orange cloud on, set `TRUST_PROXY=2` in `.env`.
@@ -200,7 +196,7 @@ fails.
 - More than a few hundred active students, or a need for a guaranteed uptime
   and support → managed PostgreSQL and hosting. Nonprofit credits (Google,
   Microsoft, AWS via TechSoup) may cover it.
-- R2 over 10 GB, or Brevo over its daily limit → the paid tiers are small.
+- R2 over 10 GB, or Resend over 100 e-mails/day → the paid tiers are small.
 
 The application needs no change to move: point `DATABASE_URL` at a managed
 database (restore a backup into it) and run the same Docker image elsewhere.

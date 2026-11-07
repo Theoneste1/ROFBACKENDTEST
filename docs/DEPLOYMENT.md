@@ -22,7 +22,7 @@ Contents: [Architecture](#1-production-architecture) ·
 | API | The Docker image from `Dockerfile` (`runtime` target), 1+ instances. Node.js 24, runs as the unprivileged `node` user, built-in `HEALTHCHECK` |
 | Database | Managed PostgreSQL 14+ (16 recommended) with TLS, daily backups and point-in-time recovery |
 | Files | Private S3-compatible bucket (AWS S3, Cloudflare R2, MinIO …) with versioning |
-| E-mail | An SMTP provider (Amazon SES, Mailgun, SendGrid, Postmark …) with SPF/DKIM for the sender domain |
+| E-mail | [Resend](https://resend.com), with the sender domain verified (DKIM/SPF) — see [EMAIL.md](EMAIL.md) |
 | TLS / edge | Reverse proxy or load balancer (Caddy, Nginx, cloud LB) terminating HTTPS |
 | Logs | A log platform that ingests JSON from stdout (Loki, CloudWatch, Datadog, ELK …) |
 
@@ -39,7 +39,7 @@ variables, with defaults, are documented in [`.env.example`](../.env.example).
 
 The API **validates its configuration at startup** and exits with a clear
 message when something is wrong. In production it additionally requires
-`SMTP_HOST` and `CORS_ORIGINS`.
+`RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL` and `CORS_ORIGINS`.
 
 | Variable | Production value |
 |---|---|
@@ -53,7 +53,7 @@ message when something is wrong. In production it additionally requires
 | `TRUST_PROXY` | `1` behind one proxy/LB; `false` if clients reach the API directly |
 | `MAX_UPLOAD_REQUEST_MB` | `100` — and the same limit in the proxy |
 | `STORAGE_DRIVER` + `S3_*` | `s3` and the bucket's settings (§5) |
-| `SMTP_*`, `EMAIL_FROM` | Your provider's settings |
+| `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO` | Resend key; `Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>`; `info@rwandaolympiadfoundation.org`. Leave `EMAIL_REDIRECT_TO` unset ([EMAIL.md](EMAIL.md)) |
 | `WORKERS_ENABLED` | `true` (or see §11) |
 | `SWAGGER_ENABLED` | `false` unless you deliberately expose `/api/docs` |
 | `SEED_ADMIN_*` | First deployment only (§7) |
@@ -252,7 +252,7 @@ replicate the bucket to a second location (provider replication,
 
 **What a backup must include:** the database and the files from the same
 time. Restoring one without the other leaves attachments that can't be
-downloaded (they return 404). Secrets (`JWT_SECRET`, SMTP and S3 keys) live in
+downloaded (they return 404). Secrets (`JWT_SECRET`, the Resend and S3 keys) live in
 your secret store; back that up separately.
 
 **Restoring** (always into a new database first, never over production):
@@ -351,14 +351,14 @@ data protection law (Law N° 058/2021) before go-live. Retention jobs remove:
 ## 13. Go-live checklist
 
 - [ ] Secrets set in the secret store: `JWT_SECRET` (48+ chars), database,
-      S3, SMTP. `.env.production` is not in git.
+      S3, Resend. `.env.production` is not in git.
 - [ ] `NODE_ENV=production`, `CORS_ORIGINS` and `APP_URL` set to the real
       frontend, `TRUST_PROXY` matches the proxy chain.
 - [ ] Database: TLS, backups and PITR on, connection limit sized,
       `migrate deploy` succeeded, `prisma migrate status` up to date.
 - [ ] Bucket: private, versioned, replicated; key limited to the bucket;
       `/health` storage up; test upload and download done.
-- [ ] SMTP: SPF/DKIM configured; invitation e-mail received.
+- [ ] E-mail: domain verified in Resend, DMARC record in place, `npm run email:check -- <inbox>` delivered, invitation and password-reset e-mails received (docs/EMAIL.md §8).
 - [ ] Proxy: HTTPS only, body limit = `MAX_UPLOAD_REQUEST_MB`, access log on,
       API port not reachable from the internet.
 - [ ] Seeded admin password changed and `SEED_ADMIN_PASSWORD` removed.

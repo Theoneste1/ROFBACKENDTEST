@@ -73,7 +73,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async studentsCsv(@Query() q: UserReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'students', await this.users.studentsCsv(q), user, q);
+    await this.sendCsv(res, 'students', await this.users.studentsCsv(q), user, q);
   }
 
   @Get('mentors')
@@ -85,7 +85,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async mentorsCsv(@Query() q: UserReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'mentors', await this.users.mentorsCsv(q), user, q);
+    await this.sendCsv(res, 'mentors', await this.users.mentorsCsv(q), user, q);
   }
 
   @Get('enrollment')
@@ -97,7 +97,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async enrollmentCsv(@Query() q: ReportListDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'enrollment', await this.users.enrollmentCsv(q), user, q);
+    await this.sendCsv(res, 'enrollment', await this.users.enrollmentCsv(q), user, q);
   }
 
   @Get('course-participation')
@@ -109,7 +109,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async courseParticipationCsv(@Query() q: ReportListDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'course-participation', await this.users.courseParticipationCsv(q), user, q);
+    await this.sendCsv(res, 'course-participation', await this.users.courseParticipationCsv(q), user, q);
   }
 
   // ─── Academic reports ─────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async assignmentsCsv(@Query() q: AssignmentReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'assignments', await this.academic.assignmentsCsv(q), user, q);
+    await this.sendCsv(res, 'assignments', await this.academic.assignmentsCsv(q), user, q);
   }
 
   @Get('reviews')
@@ -135,7 +135,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async reviewsCsv(@Query() q: ReportFiltersDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'reviews', await this.academic.reviewsCsv(q), user, q);
+    await this.sendCsv(res, 'reviews', await this.academic.reviewsCsv(q), user, q);
   }
 
   @Get('results-publication')
@@ -147,7 +147,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async resultsPublicationCsv(@Query() q: ReportListDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'results-publication', await this.academic.resultsPublicationCsv(q), user, q);
+    await this.sendCsv(res, 'results-publication', await this.academic.resultsPublicationCsv(q), user, q);
   }
 
   @Get('mentor-activity')
@@ -159,7 +159,7 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async mentorActivityCsv(@Query() q: UserReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'mentor-activity', await this.academic.mentorActivityCsv(q), user, q);
+    await this.sendCsv(res, 'mentor-activity', await this.academic.mentorActivityCsv(q), user, q);
   }
 
   // ─── Earlier exports (unchanged) ──────────────────────────────────────────
@@ -169,26 +169,29 @@ export class ReportsController {
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async results(@Query() q: ResultsReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'results', await this.reports.resultsCsv(q), user, q);
+    await this.sendCsv(res, 'results', await this.reports.resultsCsv(q), user, q);
   }
 
   @Get('student-progress.csv')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async studentProgress(@Query() q: DivisionReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'student-progress', await this.reports.studentProgressCsv(q.divisionId), user, q);
+    await this.sendCsv(res, 'student-progress', await this.reports.studentProgressCsv(q.divisionId), user, q);
   }
 
   @Get('mentor-workload.csv')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async mentorWorkload(@CurrentUser() user: AuthUser, @Res() res: Response) {
-    this.sendCsv(res, 'mentor-workload', await this.reports.mentorWorkloadCsv(), user, {});
+    await this.sendCsv(res, 'mentor-workload', await this.reports.mentorWorkloadCsv(), user, {});
   }
 
-  /** Exports contain personal data, so every download is audited (with its filters). */
-  private sendCsv(res: Response, name: string, csv: string, user: AuthUser, filters: object) {
-    void this.audit.log({
+  /**
+   * Exports contain personal data, so every download is audited (with its
+   * filters) — and the entry is saved before the file is sent.
+   */
+  private async sendCsv(res: Response, name: string, csv: string, user: AuthUser, filters: object) {
+    await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'EXPORT_REPORT', entity: 'Report',
       metadata: { report: name, filters: { ...filters } },
     });

@@ -25,10 +25,11 @@ jobs:
       DATABASE_URL: postgresql://rof:rof@localhost:5432/rof_ci?schema=public
       TEST_DATABASE_URL: postgresql://rof:rof@localhost:5432/rof_ci?schema=public&application_name=e2e
       JWT_SECRET: ci-only-secret-that-is-long-enough-0123456789
-      # A real S3-compatible server for test/s3-storage.e2e-spec.ts (started below).
+      # An S3-compatible server for test/s3-storage.e2e-spec.ts (started below).
+      # S3Mock accepts any credentials; these are dummies.
       S3_TEST_ENDPOINT: http://127.0.0.1:9000
       S3_TEST_ACCESS_KEY: rof-ci
-      S3_TEST_SECRET_KEY: rof-ci-minio-secret
+      S3_TEST_SECRET_KEY: rof-ci-dummy-secret
       S3_TEST_BUCKET: rof-e2e
 
     steps:
@@ -61,14 +62,15 @@ jobs:
       - name: Check for schema drift
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
-      - name: Start MinIO (S3-compatible storage for the S3 driver test)
+      # MinIO's public Docker images were withdrawn (pulls are denied), so the
+      # S3 API is provided by Adobe S3Mock, a server made for testing S3 clients.
+      - name: Start S3Mock (S3-compatible storage for the S3 driver test)
         run: |
-          docker run -d --name minio -p 9000:9000 \
-            -e MINIO_ROOT_USER=rof-ci -e MINIO_ROOT_PASSWORD=rof-ci-minio-secret \
-            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:9000/minio/health/ready && break; sleep 1; done
+          docker run -d --name s3mock -p 9000:9090 adobe/s3mock:5.2.3
+          for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:9000/favicon.ico && exit 0; sleep 1; done
+          docker logs s3mock; echo "S3Mock did not start"; exit 1
 
-      - name: End-to-end tests (incl. real SMTP and S3)
+      - name: End-to-end tests (incl. e-mail through the Resend SDK, and S3)
         run: npm run test:e2e
 
       - name: Build
@@ -85,7 +87,7 @@ jobs:
       - name: Build Docker image
         run: docker build --target runtime -t rof-api:ci .
 
-  # The full docker-compose stack (Postgres, MinIO, Mailpit, migrate + seed,
+  # The full docker-compose stack (Postgres, S3Mock, migrate + seed,
   # API) comes up and serves a real request flow.
   compose-smoke:
     runs-on: ubuntu-latest
@@ -96,11 +98,19 @@ jobs:
         run: docker compose up -d --build --wait --wait-timeout 300 api
       - name: Smoke test
         run: |
+          echo "1/4 health: database and storage up"
           curl -fsS http://localhost:3000/health | grep '"database":"up"' | grep '"storage":"up"'
+          echo "2/4 admin login"
           TOKEN=$(curl -fsS -X POST http://localhost:3000/api/v1/auth/login -H 'content-type: application/json' \
             -d '{"username":"admin","password":"Admin12345"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
+          echo "3/4 admin dashboard"
           curl -fsS http://localhost:3000/api/v1/admin/dashboard -H "Authorization: Bearer $TOKEN" > /dev/null
-          curl -fsS http://localhost:3000/api/docs-json | node -e 'const d=JSON.parse(require("fs").readFileSync(0));if(Object.keys(d.paths).length<200)process.exit(1)'
+          echo "4/4 OpenAPI document lists every operation (200+; several share a path)"
+          curl -fsS http://localhost:3000/api/docs-json | node -e '
+            const d = JSON.parse(require("fs").readFileSync(0));
+            const ops = Object.values(d.paths).flatMap((p) => Object.keys(p).filter((m) => ["get", "post", "put", "patch", "delete"].includes(m)));
+            console.log(`${ops.length} operations`);
+            if (ops.length < 200) process.exit(1);'
       - name: Logs on failure
         if: failure()
         run: docker compose logs --no-color
