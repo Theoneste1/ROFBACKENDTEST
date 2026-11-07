@@ -35,7 +35,7 @@ services:
         value: "900"
       - key: REFRESH_TOKEN_TTL_DAYS
         value: "30"
-      # The Netlify site's address, e.g. https://rof-lms.netlify.app (no trailing slash)
+      # The Netlify site's address, e.g. https://roflms.netlify.app (no trailing slash)
       - key: CORS_ORIGINS
         sync: false
       - key: APP_URL

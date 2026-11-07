@@ -4,7 +4,7 @@ Two independent repositories, deployed separately:
 
 | | Repository | Hosting | Production address |
 |---|---|---|---|
-| Frontend (Next.js 16) | `ROFFRONTENDTEST` | Netlify | the Netlify site (e.g. `https://rof-lms.netlify.app`) |
+| Frontend (Next.js 16) | `ROFFRONTENDTEST` | Netlify | `https://roflms.netlify.app` |
 | Backend (NestJS, Prisma) | `ROFBACKENDTEST` | Render (+ Neon PostgreSQL, Cloudflare R2, Resend) | `https://rofbackendtest.onrender.com` |
 
 The same text is kept in both repositories (`INTEGRATION.md` in the frontend,
@@ -66,11 +66,19 @@ as `/assignments/:id`. The frontend serves each of these routes.
 | `CORS_ORIGINS` = the Netlify site address (exact, no trailing slash) | `NEXT_PUBLIC_API_UPLOAD_ORIGIN` = backend address |
 | service address `https://rofbackendtest.onrender.com` | `API_PROXY_TARGET` and the `/api/*` redirect target = backend address |
 
-## Verified (2026-11-07, both apps running locally, browser-equivalent requests)
+## Test results (2026-11-07)
 
-39/39 journeys through the frontend proxy: public pages, error shapes, student
-login → refresh cookie → silent refresh with rotation → logout, role
-enforcement (403), coach upload → publish → student download byte-for-byte,
-disguised executable refused, admin dashboard/reports/CSV. Direct cross-origin
-upload of 12 MB with CORS preflight; foreign origins refused. Not yet verified
-on the hosted sites (needs the Netlify deploy).
+**Local, both apps running, browser-equivalent requests through the frontend's `/api` proxy, uploads cross-origin as in production:**
+
+- 39/39 general journeys: public pages, error shape, student login → refresh cookie (httpOnly, Strict, `/api/v1/auth`) → silent refresh with rotation → logout, 403 for other roles, coach upload → publish → student download byte-for-byte, disguised executable refused (`FILE_TYPE_NOT_ALLOWED`), admin dashboard/reports/CSV.
+- 26/26 assessment workflow: coach drafts an assignment with a brief → admin publishes → student downloads the brief and uploads a solution (re-upload = revision 2) → admin assigns a coach → coach downloads the solution, marks 16/20 with written feedback and a feedback file (score above maximum refused) → admin approves and publishes → student sees score, percentage, feedback, downloads the feedback file; internal notes hidden; notifications and unread counter; students cannot mark, coaches cannot publish.
+- 12 MB direct upload with CORS preflight; foreign origins refused.
+
+**Production (read-only or approved):**
+
+- Backend `/health`: database up, storage up; health is ~300 ms slower than a database-only call, consistent with a live R2 bucket check.
+- CORS: `https://roflms.netlify.app` allowed, with credentials.
+- E-mail: an approved password-reset e-mail to the admin was **delivered** by Resend from `Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>`; its link points to `https://roflms.netlify.app/reset-password?token=…`.
+- **Frontend: `https://roflms.netlify.app` serves Netlify's "Page not found" on every path.** A clean build of frontend `main` stops with "API_PROXY_TARGET must be set…" (reproduced); the `feature/production-readiness` branch sets it in `netlify.toml` and builds cleanly from a fresh clone.
+
+Not yet possible: browser tests on the live site (needs the fixed frontend deployed), and a live upload to R2 (needs a production coach or admin login).

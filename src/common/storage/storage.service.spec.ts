@@ -162,3 +162,29 @@ describe('StorageService orphan clean-up', () => {
     expect(prisma.fileObject.findMany).not.toHaveBeenCalled();
   });
 });
+
+describe('StorageService start-up log', () => {
+  const make = (driverName: string, env: Record<string, unknown>) => {
+    const service = new StorageService({ name: driverName } as any, {} as any, { get: (k: string) => env[k] } as any);
+    const log  = vi.spyOn((service as any).logger, 'log').mockImplementation(() => undefined);
+    const warn = vi.spyOn((service as any).logger, 'warn').mockImplementation(() => undefined);
+    service.onModuleInit();
+    return { log, warn };
+  };
+
+  it('names the bucket and endpoint host for S3/R2, never the keys', () => {
+    const { log } = make('s3', {
+      S3_BUCKET: 'rof-files', S3_ENDPOINT: 'https://abc123.r2.cloudflarestorage.com', S3_REGION: 'auto',
+      S3_FORCE_PATH_STYLE: true, S3_ACCESS_KEY_ID: 'KEYID', S3_SECRET_ACCESS_KEY: 'SECRET',
+    });
+    const line = log.mock.calls[0][0] as string;
+    expect(line).toContain('"rof-files" at abc123.r2.cloudflarestorage.com');
+    expect(line).toContain('region auto, path-style on');
+    expect(line).not.toMatch(/KEYID|SECRET/);
+  });
+
+  it('warns that local disk storage may be temporary', () => {
+    const { warn } = make('local', {});
+    expect(warn.mock.calls[0][0]).toContain('LOCAL disk');
+  });
+});
