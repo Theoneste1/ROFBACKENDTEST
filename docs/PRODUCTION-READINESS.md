@@ -221,3 +221,19 @@ All eight issues from the previous report have been dealt with:
 
 **Result:** ready for frontend integration. Typed clients can be generated
 from `docs/api/openapi.json`.
+
+## 10. Final audit before production (2026-11-07)
+
+Production: `https://rofbackendtest.onrender.com` on Render, Neon (us-east-2), Cloudflare R2, Resend (domain `rwandaolympiadfoundation.org` verified).
+
+| Area | Result | Status |
+|---|---|---|
+| Unit / e2e / route coverage / lint / type-check | 480 unit, 289 e2e (3 skipped: S3, runs in CI), 202/202 routes, clean | Completed and tested |
+| CI on GitHub | `main` (`5eec460`): both jobs green, incl. S3 on S3Mock and the docker-compose smoke test. `cc27c8d` (quoted e-mail settings) passed locally; CI runs when it is opened as a pull request | Completed and tested / awaiting CI |
+| Production database | All 17 migrations applied, no schema drift; active academic year 2026-2027 | Completed and tested |
+| Health | `/health`: database up, storage up | Completed and tested |
+| E-mail (Resend) | Code reads `RESEND_API_KEY` exactly. Real delivery verified from this machine. **Production's first e-mail failed: `422 Invalid from field`** — `EMAIL_FROM` in Render must be `Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>` without quotes. `cc27c8d` strips such quotes and rejects a malformed sender at startup | Requires owner action |
+| Storage | `storage: up`, but R2 is only used when Render has `STORAGE_DRIVER=s3` and the `S3_*` values — otherwise uploads live on Render's disk and are lost on each deploy | Requires owner action (verify) |
+| CORS | Production does not allow `https://rof-lms.netlify.app`; `CORS_ORIGINS` must equal the real Netlify address (needed for direct uploads) | Requires owner action |
+| Frontend integration | See `docs/INTEGRATION.md`: 39/39 journeys locally through the frontend proxy; 12 MB direct upload with CORS | Completed and tested locally |
+| Quizzes / automatic marking | Not part of the system (assignments are marked by coaches) | Not completed — product decision |
