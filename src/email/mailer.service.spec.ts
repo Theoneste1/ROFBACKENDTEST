@@ -79,6 +79,13 @@ describe('MailerService', () => {
     expect(Date.now() - start).toBeGreaterThanOrEqual(190); // 3 sends, 100 ms apart
   });
 
+  it('never uses the real Resend API under NODE_ENV=test', async () => {
+    const service = mailer({ RESEND_API_KEY: 're_real', NODE_ENV: 'test' });
+    expect(service.isDryRun).toBe(true);
+    await service.sendOne(mail);
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it('parses the address out of a "Name <address>" sender', () => {
     expect(addressOf('Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>')).toBe('info@rwandaolympiadfoundation.org');
     expect(addressOf('info@rof.rw')).toBe('info@rof.rw');

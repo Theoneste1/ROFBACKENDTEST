@@ -69,6 +69,11 @@ export class MailerService implements OnModuleInit {
       );
       return;
     }
+    // Tests may only talk to a fake Resend API, never the real one.
+    if (this.config.get<string>('NODE_ENV') === 'test' && !process.env.RESEND_BASE_URL) {
+      this.logger.warn('NODE_ENV=test without RESEND_BASE_URL: e-mail stays in DRY RUN mode.');
+      return;
+    }
     this.client = new Resend(key);
     this.logger.log(`E-mail delivery via Resend, from ${this.from}`);
     if (this.redirectTo) {

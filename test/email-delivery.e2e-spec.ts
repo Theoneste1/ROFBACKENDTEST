@@ -20,7 +20,7 @@ const API_KEY = 're_test_e2e_key';
 // from dry-run to Resend before that. The fake API's URL is set once it runs.
 vi.hoisted(() => {
   Object.assign(process.env, {
-    RESEND_API_KEY: 're_test_e2e_key', EMAIL_MAX_PER_SECOND: '100',
+    RESEND_API_KEY: 're_test_e2e_key', EMAIL_MAX_PER_SECOND: '100', EMAIL_REDIRECT_TO: '',
     EMAIL_FROM: 'Rwanda Olympiad Foundation <info@rof.test>', EMAIL_REPLY_TO: 'info@rof.test',
   });
 });
@@ -81,7 +81,7 @@ describe('E-mail delivery through Resend (e2e)', () => {
   });
 
   afterAll(async () => {
-    for (const k of ['RESEND_API_KEY', 'RESEND_BASE_URL', 'EMAIL_REPLY_TO', 'EMAIL_MAX_PER_SECOND']) delete process.env[k];
+    for (const k of ['RESEND_API_KEY', 'RESEND_BASE_URL', 'EMAIL_REPLY_TO', 'EMAIL_MAX_PER_SECOND']) process.env[k] = '';
     await ctx?.app.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
