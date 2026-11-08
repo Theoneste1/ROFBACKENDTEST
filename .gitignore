@@ -41,6 +41,8 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+# Any other local env file (e.g. .env.drill.local for backup/restore drills) — never commit
+.env.*.local
 
 # temp directory
 .temp
