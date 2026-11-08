@@ -21,6 +21,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  type OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -42,7 +43,7 @@ export type ServableFile = Pick<FileObject, 'storageKey' | 'mimeType' | 'origina
 const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
 
   constructor(
@@ -50,6 +51,27 @@ export class StorageService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Say which storage is in use: /health reports "up" for both drivers, so
+   * the log is where an operator confirms that uploads really go to the
+   * bucket (and not to the server's own, possibly temporary, disk).
+   */
+  onModuleInit() {
+    if (this.driver.name === 's3') {
+      const endpoint = this.config.get<string>('S3_ENDPOINT');
+      let host = 'AWS S3';
+      try { if (endpoint) host = new URL(endpoint).host; } catch { host = 'invalid S3_ENDPOINT'; }
+      this.logger.log(
+        `File storage: S3-compatible bucket "${this.config.get<string>('S3_BUCKET')}" at ${host} ` +
+        `(region ${this.config.get<string>('S3_REGION') || 'auto'}, path-style ${this.config.get('S3_FORCE_PATH_STYLE') ? 'on' : 'off'})`,
+      );
+    } else {
+      this.logger.warn(
+        'File storage: LOCAL disk. On hosts with temporary disks (Render, …) uploads are lost on every deploy — set STORAGE_DRIVER=s3.',
+      );
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Store

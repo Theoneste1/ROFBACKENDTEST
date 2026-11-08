@@ -83,7 +83,7 @@ any file in git.
    | Key | Value |
    |---|---|
    | `DATABASE_URL` | the Neon **pooled** string (step 1) |
-   | `CORS_ORIGINS`, `APP_URL` | the Netlify address, e.g. `https://rof-lms.netlify.app` (no trailing slash). If the site doesn't exist yet, use a placeholder and update both after step 5 |
+   | `CORS_ORIGINS`, `APP_URL` | the Netlify address, e.g. `https://roflms.netlify.app` (no trailing slash). If the site doesn't exist yet, use a placeholder and update both after step 5 |
    | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | from step 2 |
    | `RESEND_API_KEY` | from step 3 (`EMAIL_FROM` and `EMAIL_REPLY_TO` are already set in `render.yaml`) |
 

@@ -25,6 +25,8 @@ courses (Algebra, Geometry, Number Theory, Combinatorics).
 | [docs/TESTING.md](docs/TESTING.md) | Running the tests, what each suite covers, the security suite, smoke testing, CI |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment: configuration, database, auth, storage, proxy, releases and migrations, backup and recovery, monitoring, go-live checklist |
 | [docs/EMAIL.md](docs/EMAIL.md) | E-mail through Resend: architecture, domain and DNS set-up, environment variables, safe local testing, troubleshooting |
+| [docs/FINALIZATION-REPORT.md](docs/FINALIZATION-REPORT.md) | Final production audit: what was verified, fixed and remains, and the deploy steps |
+| [docs/INTEGRATION.md](docs/INTEGRATION.md) | How the frontend (Netlify) and this API (Render) work together: proxy, direct uploads, auth cookie, errors, settings that must match |
 | [docs/PRODUCTION-READINESS.md](docs/PRODUCTION-READINESS.md) | Functionality summary, test results, known limitations, outstanding issues, frontend-integration checklist |
 | [.env.example](.env.example) · [.env.production.example](.env.production.example) | Every environment variable, with defaults and notes · production template |
 
