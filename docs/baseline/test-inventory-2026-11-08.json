@@ -1,0 +1,3412 @@
+{
+  "commit": "a8df186",
+  "date": "2026-11-08",
+  "unit": {
+    "summary": {
+      "files": 37,
+      "tests": 482,
+      "passed": 482,
+      "failed": 0,
+      "skipped": 0
+    },
+    "files": [
+      {
+        "file": "src/academic-years/academic-years.service.spec.ts",
+        "tests": [
+          {
+            "name": "AcademicYearsService > current > throws NO_CURRENT_ACADEMIC_YEAR when no year is current",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > current > returns the current year",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > create > rejects startsOn=2027-09-01 endsOn=2027-09-01 with INVALID_DATE_RANGE",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > create > rejects startsOn=2027-09-01 endsOn=2027-08-31 with INVALID_DATE_RANGE",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > create > creates a year with valid dates and audits it",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > activate > refuses a ACTIVE year with INVALID_STATE_TRANSITION",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > activate > refuses a CLOSED year with INVALID_STATE_TRANSITION",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > activate > closes the previous year, archives its assignments and promotes / graduates students",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > activate > keeps graduates active when deactivateGraduates=false",
+            "status": "passed"
+          },
+          {
+            "name": "AcademicYearsService > activate > carries students over at the same grade when promoteStudents=false",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/activity/retention.service.spec.ts",
+        "tests": [
+          {
+            "name": "RetentionService > uses the documented retention periods",
+            "status": "passed"
+          },
+          {
+            "name": "RetentionService > run() deletes old activity and read notifications and clears old sent e-mail bodies",
+            "status": "passed"
+          },
+          {
+            "name": "RetentionService > nightly() does nothing when WORKERS_ENABLED=false",
+            "status": "passed"
+          },
+          {
+            "name": "RetentionService > nightly() runs the job otherwise and never throws",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/app/app.controller.spec.ts",
+        "tests": [
+          {
+            "name": "AppController > getInfo returns the API description",
+            "status": "passed"
+          },
+          {
+            "name": "AppController > getInfo delegates to AppService",
+            "status": "passed"
+          },
+          {
+            "name": "AppController > getInfo is public",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/app/health.controller.spec.ts",
+        "tests": [
+          {
+            "name": "HealthController > reports ok when the database and storage respond",
+            "status": "passed"
+          },
+          {
+            "name": "HealthController > answers 503 with the failing check when the database is down",
+            "status": "passed"
+          },
+          {
+            "name": "HealthController > answers 503 with the failing check when storage is down",
+            "status": "passed"
+          },
+          {
+            "name": "HealthController > answers 503 with the failing check when both are down",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/assignments/assignments.controller.spec.ts",
+        "tests": [
+          {
+            "name": "AssignmentsController authorization metadata > has no class-level roles",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > create is MENTOR only (admins never author assignments)",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > update is MENTOR only (admins never author assignments)",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > submitForReview is MENTOR only (admins never author assignments)",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > recall is MENTOR only (admins never author assignments)",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > publish is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > reject is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > unpublish is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > findAll is open to any authenticated role",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > findOne is open to any authenticated role",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > download is open to any authenticated role",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsController authorization metadata > exposes no public routes",
+            "status": "passed"
+          },
+          {
+            "name": "MyAssignmentsController authorization metadata > is STUDENT only",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/assignments/assignments.service.spec.ts",
+        "tests": [
+          {
+            "name": "AssignmentsService > create > creates a DRAFT owned by the mentor in the current academic year",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > create > returns 404 when the course does not exist",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > create > propagates the access check failure (e.g. an admin or unassigned mentor)",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > create > rejects maxResubmissions without allowResubmission",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > create > fails without a current academic year and stores nothing",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > create > stores attached briefs and links them as ordered attachments",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > update > refuses to edit a PUBLISHED assignment",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > update > requires at least one change",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > update > validates resubmission rules against the stored values",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > update > only updates while still DRAFT or REJECTED",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > update > records the changed fields (before and after) in the history",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > update > does not write when nothing actually changes",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > submitForReview refuses a past deadline",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > submitForReview moves to PENDING_APPROVAL and emits an event",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > throws INVALID_STATE_TRANSITION when the locked row is in another status",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > publish requires PENDING_APPROVAL, records the approver and emits an event",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > publish refuses a past deadline",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > reject stores the note and emits an event",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > unpublish is refused once submissions exist",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > unpublish returns a PUBLISHED assignment to DRAFT",
+            "status": "passed"
+          },
+          {
+            "name": "AssignmentsService > state transitions > returns 404 for an unknown assignment",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/audit/audit-categories.spec.ts",
+        "tests": [
+          {
+            "name": "audit categories > every action the application records belongs to a category",
+            "status": "passed"
+          },
+          {
+            "name": "audit categories > every moderation action is a MODERATION entry",
+            "status": "passed"
+          },
+          {
+            "name": "audit categories > no action is listed in two categories",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/auth/activation.service.spec.ts",
+        "tests": [
+          {
+            "name": "ActivationService > issue / send > revokes earlier links, stores only the hash, and e-mails the raw token separately",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > issue / send > refuses to issue for an account that is already active",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > rejects a unknown token with INVALID_ACTIVATION_TOKEN",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > rejects a used token with INVALID_ACTIVATION_TOKEN",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > rejects a revoked token with INVALID_ACTIVATION_TOKEN",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > rejects a expired token with INVALID_ACTIVATION_TOKEN",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > requires a password for invitations",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > activates, sets the hashed password and audits — inside one transaction",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > e-mail verification keeps the existing password",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > loses a race safely: a concurrently used token is rejected",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > activate > treats links of suspended accounts as not found",
+            "status": "passed"
+          },
+          {
+            "name": "ActivationService > resendForEmail answers identically whether or not the account exists",
+            "status": "passed"
+          },
+          {
+            "name": "maskEmail > jean.uwase@example.com → j***e@example.com",
+            "status": "passed"
+          },
+          {
+            "name": "maskEmail > ab@x.rw → a@x.rw",
+            "status": "passed"
+          },
+          {
+            "name": "maskEmail > bad → ***",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/auth/auth.controller.spec.ts",
+        "tests": [
+          {
+            "name": "AuthController authorization metadata > has no class-level roles or public flag",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > login is public and has no role restriction",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > registerStudent is public and has no role restriction",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > refresh is public and has no role restriction",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > forgotPassword is public and has no role restriction",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > resetPassword is public and has no role restriction",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > registerAdmin is ADMIN only and not public",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > logout requires authentication but no specific role",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > logoutAll requires authentication but no specific role",
+            "status": "passed"
+          },
+          {
+            "name": "AuthController authorization metadata > changePassword requires authentication but no specific role",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/auth/auth.service.spec.ts",
+        "tests": [
+          {
+            "name": "AuthService > login > rejects an unknown user with 401",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > rejects a wrong password with 401",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > does not reveal suspension when the password is wrong",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > reports ACCOUNT_SUSPENDED for an inactive user with the correct password",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > reports ACCOUNT_PENDING_APPROVAL for an unapproved user",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > reports ACCOUNT_NOT_ACTIVATED for an unactivated account with the correct password",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > looks up by email when the identifier contains @",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > issues tokens and returns the profile on success",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > login > records a LOGIN activity on success only",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > registerStudent > fails with REGISTRATION_CLOSED when self-signup is disabled",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > registerStudent > fails with IDENTITY_TAKEN when a pending mentor request uses the username",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > registerStudent > creates the student and enrols them in the current academic year inside the transaction",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > registerStudent > with e-mail verification on: not activated, token issued in the transaction, e-mail sent after commit",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > registerStudent > fails the registration when no academic year is current",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > forgotPassword > returns the generic message and sends nothing for an unknown email",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > forgotPassword > sends nothing for a suspended account",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > forgotPassword > sends an activation link (not a reset) to an account that was never activated",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > forgotPassword > stores a hashed token and e-mails a link for an active local account",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > resetPassword > rejects an unknown token with INVALID_RESET_TOKEN",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > resetPassword > rejects an expired token",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > changePassword > rejects a wrong current password with WRONG_PASSWORD",
+            "status": "passed"
+          },
+          {
+            "name": "AuthService > logout > blacklists the access token and revokes the refresh token",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/auth/guards/roles.guard.spec.ts",
+        "tests": [
+          {
+            "name": "RolesGuard > allows any authenticated user when no roles are declared",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > treats an empty @Roles() as unrestricted",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > allows a listed role",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > does NOT auto-allow ADMIN on a MENTOR-only route",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > refuses an unlisted role",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > refuses when there is no user on a role-restricted route",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > lets public routes through without a user",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > applies class-level roles to handlers without their own",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > lets handler roles override class roles",
+            "status": "passed"
+          },
+          {
+            "name": "RolesGuard > public handlers bypass class-level roles",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/auth/permissions.spec.ts",
+        "tests": [
+          {
+            "name": "permissions > defines permissions for exactly STUDENT, MENTOR and ADMIN",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > every STUDENT permission is a known permission, listed once",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > every MENTOR permission is a known permission, listed once",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > every ADMIN permission is a known permission, listed once",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > PERMISSIONS has no duplicates",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > administrators never grade; mentors do",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > only students submit work",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > permissionsFor returns the role map (and nothing for an unknown role)",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > consistency with route @Roles metadata > SubmissionsController.startReview is limited to holders of reviews.grade",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > consistency with route @Roles metadata > SubmissionsController.mark is limited to holders of reviews.grade",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > consistency with route @Roles metadata > SubmissionsController.submitToAdmin is limited to holders of reviews.grade",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > consistency with route @Roles metadata > SubmissionsController.submit is limited to holders of submissions.submit",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > consistency with route @Roles metadata > AssignmentsController.publish is limited to holders of assignments.publish",
+            "status": "passed"
+          },
+          {
+            "name": "permissions > consistency with route @Roles metadata > AssignmentResultsController (distribute / publish results) is limited to holders of submissions.distribute and results.publish",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/common/csv-parse.spec.ts",
+        "tests": [
+          {
+            "name": "parseCsv > reads headers and records keyed by header, with file line numbers",
+            "status": "passed"
+          },
+          {
+            "name": "parseCsv > handles CRLF, a UTF-8 BOM, quoted commas, escaped quotes and accents",
+            "status": "passed"
+          },
+          {
+            "name": "parseCsv > keeps line breaks inside quotes and reports the starting line",
+            "status": "passed"
+          },
+          {
+            "name": "parseCsv > skips blank lines, trims cells and fills missing trailing cells",
+            "status": "passed"
+          },
+          {
+            "name": "parseCsv > returns nothing for an empty file and throws on an unterminated quote",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/common/filters/all-exceptions.filter.spec.ts",
+        "tests": [
+          {
+            "name": "AllExceptionsFilter > wraps a standard HttpException with request context",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > maps a 403 to FORBIDDEN",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > passes an AppError code, message and details through",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > omits details when an AppError has none",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > turns ValidationPipe message arrays into VALIDATION_FAILED",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > maps Prisma P2002 to 409 DUPLICATE with the fields",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > maps Prisma P2025 to 404 NOT_FOUND",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > maps Prisma P2003 to 409 REFERENCE_CONSTRAINT",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > maps unknown Prisma codes to a generic 500",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > maps MulterError LIMIT_FILE_SIZE to 413 FILE_TOO_LARGE",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > maps other MulterErrors to 400 UPLOAD_REJECTED",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > returns a generic 500 for unknown errors without leaking the message",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > logs server errors but not client errors",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > handles non-Error throwables",
+            "status": "passed"
+          },
+          {
+            "name": "AllExceptionsFilter > just ends the response when headers were already sent",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/common/grade-levels.spec.ts",
+        "tests": [
+          {
+            "name": "grade levels > splits S1–S3 into JUNIOR and S4–S6 into SENIOR",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > divisionCodeForGrade(S1) → JUNIOR",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > divisionCodeForGrade(S2) → JUNIOR",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > divisionCodeForGrade(S3) → JUNIOR",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > divisionCodeForGrade(S4) → SENIOR",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > divisionCodeForGrade(S5) → SENIOR",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > divisionCodeForGrade(S6) → SENIOR",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > nextGrade(S1) → S2",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > nextGrade(S2) → S3",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > nextGrade(S3) → S4",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > nextGrade(S4) → S5",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > nextGrade(S5) → S6",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > nextGrade(S6) is null (the student graduates)",
+            "status": "passed"
+          },
+          {
+            "name": "grade levels > nextGrade of an unknown grade is null",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/common/storage/local-storage.driver.spec.ts",
+        "tests": [
+          {
+            "name": "LocalStorageDriver > is named \"local\"",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > writes nested keys and reads them back",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > refuses to overwrite an existing key",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > returns 404 for a missing key",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > deletes a key, and deleting a missing key is a no-op",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > path traversal > rejects \"../../etc/passwd\" with 404",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > path traversal > rejects \"..\\\\..\\\\windows\\\\win.ini\" with 404",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > path traversal > rejects \"a/../../outside.txt\" with 404",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > path traversal > rejects \"..\" with 404",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > path traversal > rejects an absolute path outside the root",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > path traversal > rejects the root itself",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > path traversal > allows keys that normalise to a path inside the root",
+            "status": "passed"
+          },
+          {
+            "name": "LocalStorageDriver > ping creates the root when missing",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/common/storage/storage.service.spec.ts",
+        "tests": [
+          {
+            "name": "sanitizeOriginalName > keeps a normal name",
+            "status": "passed"
+          },
+          {
+            "name": "sanitizeOriginalName > strips directory components (both separators)",
+            "status": "passed"
+          },
+          {
+            "name": "sanitizeOriginalName > removes control characters and double quotes",
+            "status": "passed"
+          },
+          {
+            "name": "sanitizeOriginalName > truncates to 200 characters",
+            "status": "passed"
+          },
+          {
+            "name": "sanitizeOriginalName > falls back to \"file.<ext>\" for an empty name",
+            "status": "passed"
+          },
+          {
+            "name": "sanitizeOriginalName > falls back to file.<ext> when nothing usable remains",
+            "status": "passed"
+          },
+          {
+            "name": "contentDisposition > builds an attachment header with ASCII fallback and RFC 5987 name",
+            "status": "passed"
+          },
+          {
+            "name": "contentDisposition > builds an inline header",
+            "status": "passed"
+          },
+          {
+            "name": "contentDisposition > replaces non-ASCII, quotes and backslashes in the fallback",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService.store > accepts a PDF submission, stores it under a random key and records metadata",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService.store > detects the type from bytes, not the claimed name",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService.store > rejects an executable disguised as a PDF with FILE_TYPE_NOT_ALLOWED",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService.store > rejects an empty buffer with EMPTY_FILE",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService.store > rejects a file over the purpose limit with FILE_TOO_LARGE",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService orphan clean-up > deletes the stored object and its record for each orphan older than a day",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService orphan clean-up > keeps going when one object cannot be deleted, and keeps that record",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService orphan clean-up > the nightly run is skipped on instances without workers",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService start-up log > names the bucket and endpoint host for S3/R2, never the keys",
+            "status": "passed"
+          },
+          {
+            "name": "StorageService start-up log > warns that local disk storage may be temporary",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/common/time/zoned-time.spec.ts",
+        "tests": [
+          {
+            "name": "zoned time > converts Kigali wall-clock time (UTC+2) to UTC and back",
+            "status": "passed"
+          },
+          {
+            "name": "zoned time > crosses midnight correctly",
+            "status": "passed"
+          },
+          {
+            "name": "zoned time > handles zones with daylight saving time",
+            "status": "passed"
+          },
+          {
+            "name": "zoned time > describes a session time range for messages",
+            "status": "passed"
+          },
+          {
+            "name": "zoned time > rejects impossible dates and unknown zones",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/config/env.validation.spec.ts",
+        "tests": [
+          {
+            "name": "validateEnv > accepts a minimal development config and applies defaults",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > converts numeric strings and keeps undeclared variables",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > rejects a JWT_SECRET shorter than 32 characters",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > requires DATABASE_URL",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > rejects an invalid NODE_ENV",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > rejects an out-of-range PORT",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > production > requires the Resend key, a sender, APP_URL and CORS_ORIGINS",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > production > fails without RESEND_API_KEY",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > production > fails without EMAIL_FROM",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > production > fails without APP_URL",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > production > fails without CORS_ORIGINS",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > production > passes with a complete configuration",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > removes quotes and spaces pasted around values (hosting dashboards keep them)",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > accepts the sender Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > accepts the sender info@rwandaolympiadfoundation.org",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > refuses the malformed sender Rwanda Olympiad Foundation at startup",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > refuses the malformed sender Rwanda Olympiad Foundation info@rwandaolympiadfoundation.org at startup",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > refuses the malformed sender Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org at startup",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > refuses the malformed sender <info@rwandaolympiadfoundation.org> at startup",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > refuses the malformed sender info@ at startup",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > treats empty values as not set",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > e-mail > rejects an invalid reply-to or redirect address",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > storage > requires S3_BUCKET for the s3 driver",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > storage > accepts the s3 driver with a bucket and parses S3_FORCE_PATH_STYLE",
+            "status": "passed"
+          },
+          {
+            "name": "validateEnv > storage > rejects an unknown driver",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/discussions/discussions.service.spec.ts",
+        "tests": [
+          {
+            "name": "DiscussionsService > createComment on a LOCKED thread fails with INVALID_STATE_TRANSITION",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > reportComment on your own comment fails with CANNOT_REPORT_OWN",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > reportComment creates a report with a snapshot of the text and tells the admins",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > a deleted comment cannot be reported",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > a duplicate report (P2002) fails with ALREADY_REPORTED",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > other report errors are rethrown unchanged",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > resolveReport with action LOCK on a comment report fails with INVALID_ACTION",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > resolveReport with HIDE on a comment report hides it, records the action and resolves open reports",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > resolveReport refuses to act on content that is already removed",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > an administrator's removal keeps the text for the record; an author's erases it",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > an author cannot delete a thread others have posted in",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > an administrator removes any thread and the removal is recorded",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > a deleted thread is not visible to students",
+            "status": "passed"
+          },
+          {
+            "name": "DiscussionsService > updateComment by someone other than the author fails with NOT_AUTHOR",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/email/mailer.service.spec.ts",
+        "tests": [
+          {
+            "name": "MailerService > is a dry run without RESEND_API_KEY and never calls Resend",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > sends through Resend with sender, reply-to, both bodies and the idempotency key",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > uses the ROF sender by default and EMAIL_REPLY_TO when set",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > redirects every e-mail to EMAIL_REDIRECT_TO and names the real recipient in the subject",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > reports Resend error { statusCode: 422, name: 'validation_error', message: 'Invalid `to` field.' } (permanent: true)",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > reports Resend error { statusCode: 403, name: 'validation_error', message: 'The domain is not verified.' } (permanent: false)",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > reports Resend error { statusCode: 401, name: 'invalid_api_key', message: 'API key is invalid' } (permanent: false)",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > reports Resend error { statusCode: 429, name: 'rate_limit_exceeded', message: 'Too many requests' } (permanent: false)",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > reports Resend error { statusCode: 500, name: 'internal_server_error', message: 'Oops' } (permanent: false)",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > never throws on a network failure",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > paces requests to EMAIL_MAX_PER_SECOND",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > never uses the real Resend API under NODE_ENV=test",
+            "status": "passed"
+          },
+          {
+            "name": "MailerService > parses the address out of a \"Name <address>\" sender",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/email/templates.spec.ts",
+        "tests": [
+          {
+            "name": "renderEmail > renders a plain-text version with greeting, link, note and footer",
+            "status": "passed"
+          },
+          {
+            "name": "renderEmail > renders branded HTML with a button, fallback link, logo and contact",
+            "status": "passed"
+          },
+          {
+            "name": "renderEmail > escapes user-provided text in the HTML",
+            "status": "passed"
+          },
+          {
+            "name": "renderEmail > drops non-http(s) action links from the HTML",
+            "status": "passed"
+          },
+          {
+            "name": "renderEmail > omits the logo for a non-public (http/localhost) APP_URL and greets without a name",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/leaderboard/leaderboard.controller.spec.ts",
+        "tests": [
+          {
+            "name": "LeaderboardController authorization metadata > has no class-level roles",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardController authorization metadata > findMine is STUDENT only",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardController authorization metadata > findGeneral is open to any authenticated role (the service scopes the division)",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardController authorization metadata > findSchoolSummary is open to any authenticated role (the service scopes the division)",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardController authorization metadata > findGeneral is not public",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardController authorization metadata > findMine is not public",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardController authorization metadata > findSchoolSummary is not public",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/leaderboard/leaderboard.service.spec.ts",
+        "tests": [
+          {
+            "name": "LeaderboardService > division resolution > hides the leaderboard from students when the setting is off",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > division resolution > applies the setting to findMine too",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > division resolution > requires staff to specify a division",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > division resolution > returns 404 for an unknown division",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > division resolution > students always get their own division, ignoring a requested one",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > findGeneral > shows students first name + last initial and flags their own row",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > findGeneral > shows staff full names",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > findMine > returns the student position",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > findMine > returns a null rank when the student is not ranked",
+            "status": "passed"
+          },
+          {
+            "name": "LeaderboardService > findSchoolSummary > converts bigint aggregates to numbers",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/mentor-requests/mentor-requests.controller.spec.ts",
+        "tests": [
+          {
+            "name": "MentorRequestsController authorization metadata > has no class-level roles",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsController authorization metadata > create is public (anyone can apply to become a mentor)",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsController authorization metadata > findAll is ADMIN only and not public",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsController authorization metadata > approve is ADMIN only and not public",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsController authorization metadata > reject is ADMIN only and not public",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/mentor-requests/mentor-requests.service.spec.ts",
+        "tests": [
+          {
+            "name": "MentorRequestsService > create > rejects an identity used by an existing user",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > create > rejects an identity used by a pending request",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > create > creates a new PENDING request with a hashed password",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > create > reuses a previously REJECTED request instead of creating a new one",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > approve > returns 404 for an unknown request",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > approve > fails with INVALID_STATE_TRANSITION when the request was already processed",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > approve > fails with IDENTITY_TAKEN when a user grabbed the identity meanwhile",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > approve > creates a MENTOR account with the stored hash, clears it from the request and notifies",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > approve > with e-mail verification on, the account waits for the applicant to confirm the address",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > reject > fails with INVALID_STATE_TRANSITION when already processed",
+            "status": "passed"
+          },
+          {
+            "name": "MentorRequestsService > reject > rejects a pending request and notifies the applicant",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/notifications/notification-types.spec.ts",
+        "tests": [
+          {
+            "name": "configurable notification types > lists real event types, each once",
+            "status": "passed"
+          },
+          {
+            "name": "configurable notification types > are only for administrators and mentors",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/notifications/notifications.service.spec.ts",
+        "tests": [
+          {
+            "name": "NotificationsService.notify > writes and e-mails large audiences in chunks of at most 1000",
+            "status": "passed"
+          },
+          {
+            "name": "NotificationsService.notify > drops recipients who switched the type off, per channel",
+            "status": "passed"
+          },
+          {
+            "name": "NotificationsService.notify > respects category e-mail opt-outs and in-app-only sends",
+            "status": "passed"
+          },
+          {
+            "name": "NotificationsService.notify > does nothing for an empty audience",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/prisma/prisma.service.spec.ts",
+        "tests": [
+          {
+            "name": "PrismaService > constructs without connecting to the database",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/reports/csv.spec.ts",
+        "tests": [
+          {
+            "name": "toCsv > starts with a UTF-8 BOM and uses CRLF line endings",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > writes only the header row when there is no data",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > renders null/undefined as empty, booleans as text and dates as ISO",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > quotes cells containing commas, quotes or newlines and doubles inner quotes",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > keeps accented names intact",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > prefixes =SUM(A1:A2) with an apostrophe",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > prefixes +1+1 with an apostrophe",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > prefixes -2+3 with an apostrophe",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > prefixes @cmd with an apostrophe",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > prefixes leading tabs",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > prefixes and quotes when both apply",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > also protects header cells",
+            "status": "passed"
+          },
+          {
+            "name": "toCsv > formula-injection protection > does not touch the characters when they are not leading",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/settings/settings.registry.spec.ts",
+        "tests": [
+          {
+            "name": "isSettingKey > accepts declared keys",
+            "status": "passed"
+          },
+          {
+            "name": "isSettingKey > rejects \"unknown.key\"",
+            "status": "passed"
+          },
+          {
+            "name": "isSettingKey > rejects \"\"",
+            "status": "passed"
+          },
+          {
+            "name": "isSettingKey > rejects \"toString\"",
+            "status": "passed"
+          },
+          {
+            "name": "isSettingKey > rejects \"__proto__\"",
+            "status": "passed"
+          },
+          {
+            "name": "isSettingKey > rejects \"constructor\"",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > boolean settings > accepts true and false",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > boolean settings > rejects \"true\"",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > boolean settings > rejects 1",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > boolean settings > rejects 0",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > boolean settings > rejects {}",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > boolean settings > rejects undefined",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > boolean settings > rejects null",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > enum settings > accepts BALANCED",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > enum settings > accepts ROUND_ROBIN",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > enum settings > rejects \"balanced\"",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > enum settings > rejects \"RANDOM\"",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > enum settings > rejects 3",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > string settings > accepts text within the limit",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > string settings > rejects text over maxLength",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > string settings > rejects non-strings",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > string settings > rejects null for a non-nullable string",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > string settings > accepts null for a nullable string",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > accepts 1",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > accepts 7",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > accepts 60",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > rejects values outside the limits",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > rejects 1.5",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > rejects \"7\"",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > rejects true",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > integer settings > rejects null",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > e-mail and link settings > validates e-mail addresses",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > e-mail and link settings > requires https links",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > e-mail and link settings > rejects blank text (null clears a value)",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > e-mail verification is on by default in production only",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > every setting has a category",
+            "status": "passed"
+          },
+          {
+            "name": "validateSettingValue > every default value passes its own validation",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/submissions/score.utils.spec.ts",
+        "tests": [
+          {
+            "name": "validateScore > accepts 0 out of 20",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > accepts 10 out of 20",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > accepts 20 out of 20",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > rejects a score above maximumMarks with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > rejects a score negative with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > rejects a score fractional with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > rejects a score NaN with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > rejects a score with zero maximumMarks with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > rejects a score with negative maximumMarks with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > rejects a score with fractional maximumMarks with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > uses the context label in the message",
+            "status": "passed"
+          },
+          {
+            "name": "validateScore > returns HTTP 400",
+            "status": "passed"
+          },
+          {
+            "name": "computePercentage > computes a percentage",
+            "status": "passed"
+          },
+          {
+            "name": "computePercentage > rounds to two decimals",
+            "status": "passed"
+          },
+          {
+            "name": "computePercentage > returns 0 for a misconfigured maximum",
+            "status": "passed"
+          },
+          {
+            "name": "computePointsAwarded > scales assignment points by the score (15/20 of 40 → 30)",
+            "status": "passed"
+          },
+          {
+            "name": "computePointsAwarded > awards full and zero points at the extremes",
+            "status": "passed"
+          },
+          {
+            "name": "computePointsAwarded > rounds to the nearest whole point",
+            "status": "passed"
+          },
+          {
+            "name": "computePointsAwarded > returns 0 when maximumMarks or points are not positive",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/submissions/student-display-status.spec.ts",
+        "tests": [
+          {
+            "name": "deriveStudentDisplayStatus > is Not Started without a submission",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > SUBMITTED → Submitted",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > ASSIGNED → Submitted",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > IN_REVIEW → Pending Review",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > MARKED → Pending Review",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > SUBMITTED_TO_ADMIN → Pending Review",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > APPROVED → Pending Review",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > REJECTED → Pending Review",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > RESUBMISSION_REQUESTED → Resubmission Requested",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > PUBLISHED → Reviewed",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > REJECTED (review returned to the mentor) never asks the student to redo",
+            "status": "passed"
+          },
+          {
+            "name": "deriveStudentDisplayStatus > treats an unknown status as Pending Review",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/submissions/submissions.controller.spec.ts",
+        "tests": [
+          {
+            "name": "SubmissionsController authorization metadata > has no class-level roles",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > submit is STUDENT only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > startReview is MENTOR only (admins must not grade)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > mark is MENTOR only (admins must not grade)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > submitToAdmin is MENTOR only (admins must not grade)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > findAll is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > assign is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > reassign is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > approve is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > reject is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > publish is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > reopen is ADMIN only",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > findOne is open to any authenticated role (the service checks ownership)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > file is open to any authenticated role (the service checks ownership)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > revisionFile is open to any authenticated role (the service checks ownership)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > feedbackFile is open to any authenticated role (the service checks ownership)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsController authorization metadata > exposes no public routes",
+            "status": "passed"
+          },
+          {
+            "name": "'AssignmentResultsController' authorization metadata > is ADMIN at class level",
+            "status": "passed"
+          },
+          {
+            "name": "'AssignmentResultsController' authorization metadata > every handler resolves to the class roles and none is public",
+            "status": "passed"
+          },
+          {
+            "name": "'MySubmissionsController' authorization metadata > is STUDENT at class level",
+            "status": "passed"
+          },
+          {
+            "name": "'MySubmissionsController' authorization metadata > every handler resolves to the class roles and none is public",
+            "status": "passed"
+          },
+          {
+            "name": "'MentorReviewsController' authorization metadata > is MENTOR at class level",
+            "status": "passed"
+          },
+          {
+            "name": "'MentorReviewsController' authorization metadata > every handler resolves to the class roles and none is public",
+            "status": "passed"
+          },
+          {
+            "name": "'AdminPointsController' authorization metadata > is ADMIN at class level",
+            "status": "passed"
+          },
+          {
+            "name": "'AdminPointsController' authorization metadata > every handler resolves to the class roles and none is public",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/submissions/submissions.service.spec.ts",
+        "tests": [
+          {
+            "name": "SubmissionsService > submit > requires a typed answer or at least one file",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > accepts a typed answer without files",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > hides unpublished assignments (404)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > refuses a late first submission when late work is not allowed, before storing the file",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > refuses a resubmission when the assignment does not allow it",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > enforces the resubmission limit",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > refuses to replace work already under review",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > a first submission stores every file as an ordered attachment of revision 1",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > submit > a resubmission before review starts cancels the assigned review cycle",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > startReview by an ADMIN is refused with NOT_ASSIGNED_MENTOR",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > startReview by a different mentor is refused",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > startReview without a current review is refused",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > startReview moves the review to IN_PROGRESS only while still assigned to the mentor, and logs an event",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > a lost race on the review update fails with INVALID_STATE_TRANSITION",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > mark rejects a score above maximumMarks with INVALID_SCORE",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > mark requires the review to have started",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > mark by an ADMIN is refused",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > mark by a different mentor is refused",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > mark saves score, percentage and feedback on the review, attaches files and hides the coordination note",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > submitToAdmin by an ADMIN is refused",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > submitToAdmin by a different mentor is refused",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > mentor review > submitToAdmin moves MARKED → RETURNED / SUBMITTED_TO_ADMIN and emits an event",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > reassign to the same mentor is refused",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > reassign supersedes the current cycle and starts the next one for the new mentor",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > assign refuses a non-mentor user",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > distribute fails with NO_ELIGIBLE_MENTORS when nobody is assigned to the scope",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > distribute rejects explicitly chosen mentors outside the scope",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > distribute deals submissions round-robin and records the batch",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > distribute (balanced) prefers the mentor with the lightest open review workload",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > publish awards points scaled by score (15/20 of 40 → 30), records a release and recomputes the student total",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > publish of a non-APPROVED result fails with INVALID_STATE_TRANSITION",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > admin coordination > reopen only applies to PUBLISHED results",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > visibility > a mentor cannot load a submission whose current review belongs to someone else (404)",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > visibility > a student does not see score or feedback before publication",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > visibility > a student cannot download feedback before publication",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > resubmission requests > the assigned mentor requests a new attempt with a due date",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > resubmission requests > is refused when the assignment does not permit resubmissions",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > resubmission requests > is refused once the student has used every resubmission",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > resubmission requests > only the mentor of the current review can request",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > resubmission requests > rejects a due date in the past or more than 60 days away",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > resubmission requests > a requested resubmission is accepted after the deadline but not after its own due date",
+            "status": "passed"
+          },
+          {
+            "name": "SubmissionsService > resubmission requests > withdrawing resumes the review on the current work",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/users/users.controller.spec.ts",
+        "tests": [
+          {
+            "name": "UsersController authorization metadata > is ADMIN only at class level",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > findAll resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > create resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > invite resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > import resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > findOne resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > update resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > resendInvitation resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > sendPasswordReset resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > updateStatus resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "UsersController authorization metadata > delete resolves to ADMIN and is not public",
+            "status": "passed"
+          },
+          {
+            "name": "MeController authorization metadata > has no class-level roles",
+            "status": "passed"
+          },
+          {
+            "name": "MeController authorization metadata > getMe is open to any authenticated user",
+            "status": "passed"
+          },
+          {
+            "name": "MeController authorization metadata > updateMe is open to any authenticated user",
+            "status": "passed"
+          },
+          {
+            "name": "MeController authorization metadata > permissions is open to any authenticated user",
+            "status": "passed"
+          },
+          {
+            "name": "MeController authorization metadata > enrollments is STUDENT only and not public",
+            "status": "passed"
+          },
+          {
+            "name": "MeController authorization metadata > no longer exposes the removed promote route",
+            "status": "passed"
+          },
+          {
+            "name": "MeController authorization metadata > permissions returns the caller role and its permission list",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "src/users/users.service.spec.ts",
+        "tests": [
+          {
+            "name": "UsersService > updateStatus > refuses to suspend yourself",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > updateStatus > revokes sessions when suspending another user",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > updateStatus > does not revoke sessions when only approving",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > delete > refuses to delete yourself",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > delete > returns 404 for an unknown user",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > delete > maps a foreign-key violation (P2003) to USER_HAS_HISTORY",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > delete > rethrows unrelated errors",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > delete > deletes and audits a user without history",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > update > requires at least one field",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > update > refuses to change your own role",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > update > rejects a username already in use",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > update > clears student data and revokes sessions when a student becomes a mentor",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > update > withdraws the active enrolment when a student becomes a mentor",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > update > re-enrols a student in the current year when their grade changes",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > update > does not touch enrolment when only the name changes",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > create > creates a student and enrols them in the current academic year within the transaction",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > create > does not enrol mentors",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > create > fails (and audits nothing) when enrolment fails",
+            "status": "passed"
+          },
+          {
+            "name": "UsersService > updateMe > requires at least one field",
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  "e2e": {
+    "summary": {
+      "files": 21,
+      "tests": 292,
+      "passed": 289,
+      "failed": 0,
+      "skipped": 3
+    },
+    "files": [
+      {
+        "file": "test/access.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Access control (e2e) > roles > students are refused GET /api/v1/admin/users",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > roles > students are refused GET /api/v1/admin/audit-logs",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > roles > students are refused GET /api/v1/admin/settings",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > roles > students are refused GET /api/v1/admin/reports/overview",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > roles > students are refused GET /api/v1/submissions",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > roles > students are refused POST /api/v1/admin/mentor-assignments",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > roles > admins cannot prepare assignments (mentors only)",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > roles > admins cannot score or give feedback",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > division scoping > a senior student cannot see a junior assignment",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > division scoping > a senior student cannot submit to a junior assignment",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > division scoping > a mentor of another division cannot create content in this one",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > division scoping > a mentor not assigned to a course cannot add resources to it",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > division scoping > an unpublished course hides its content from students",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > submission ownership > another student cannot read or download someone else's submission",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > submission ownership > the owner can download their own submission",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > submission ownership > a mentor cannot open a submission before it is assigned to them",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > submission ownership > distribution only uses mentors of the matching course × division",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > submission ownership > resubmitting while assigned returns the work to the queue",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > submission ownership > work under review can no longer be replaced",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > uploads > rejects a file whose content is not an allowed type, whatever its name",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > uploads > requires an answer or a file when submitting",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > uploads > stores resources with the detected type and serves PDFs inline",
+            "status": "passed"
+          },
+          {
+            "name": "Access control (e2e) > unassigning a mentor > reports the open reviews that now need another mentor",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/app.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "App basics (e2e) > GET /health reports database and storage",
+            "status": "passed"
+          },
+          {
+            "name": "App basics (e2e) > GET /api/v1 returns API info",
+            "status": "passed"
+          },
+          {
+            "name": "App basics (e2e) > protected routes require a token, with the standard error shape",
+            "status": "passed"
+          },
+          {
+            "name": "App basics (e2e) > sets security headers",
+            "status": "passed"
+          },
+          {
+            "name": "App basics (e2e) > rejects unknown body fields",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/assignments.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Assignments (e2e) > creation and validation > a mentor creates a draft with a description, a brief file and resubmission rules",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > rejects a missing title",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > rejects an invalid deadline",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > rejects negative points",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > rejects zero maximum marks",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > rejects a resubmission limit without resubmissions",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > rejects an over-long description",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > only mentors assigned to the course × division can create",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > creation and validation > edits the draft and keeps the before/after values in the history",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > publication workflow > submitted drafts are locked for editing; admins reject with a note",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > publication workflow > unpublished work is invisible to students",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > publication workflow > after a fix and resubmission the admin publishes it to eligible students only",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > search and filters > filters by text, status, creator and deadline window",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > search and filters > students only ever get their division's visible assignments, whatever they ask for",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > closing > an admin closes it: students still see it but cannot submit",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > closing > reopening after the deadline requires a new future deadline",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > closing > closes automatically when the deadline passes, unless late work is accepted",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > history > records the whole lifecycle with actors, notes and statuses",
+            "status": "passed"
+          },
+          {
+            "name": "Assignments (e2e) > history > is not available to students or to mentors of other divisions",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/auth.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Authentication (e2e) > registers a student into the division matching their grade",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > refuses a taken username or email with one generic message",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > respects the self-signup setting",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > logs in by username or e-mail, case-insensitively",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > rotates refresh tokens and detects reuse",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > logout invalidates the access token immediately",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > suspending an account cuts off existing tokens",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > password reset: generic response, single-use token, old sessions revoked",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > change password requires the current password",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > only admins can create admins",
+            "status": "passed"
+          },
+          {
+            "name": "Authentication (e2e) > mentor application → approval creates a mentor who can log in",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/courses.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Courses and resources (e2e) > courses > lists the four Mathematics courses with their details",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > courses > nobody can create curriculum courses; mentors cannot edit them",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > courses > admins manage descriptions and visibility",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > course discussions switch > when turned off, threads stay readable but nobody can post",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > course discussions switch > turning them back on allows posting again",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > course discussions switch > only admins can switch discussions",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > resource metadata > filters by tag, year, type and free-text search",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > resource metadata > students only see published resources of their division",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > resource metadata > updates metadata and validates it",
+            "status": "passed"
+          },
+          {
+            "name": "Courses and resources (e2e) > resource metadata > only mentors of the scope (or admins) can change a resource",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/dashboard-reports.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Admin dashboard and reports (e2e) > dashboard > returns accurate statistics for the current academic year",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > dashboard > filters by division and course",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > dashboard > filters by academic year (\"all\" or a past year)",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > dashboard > a date range limits activity figures, not the current snapshot",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > dashboard > validates the filters",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > user reports > student list: status, division, course and search filters; per-student figures",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > user reports > mentor list with scopes, status and open reviews",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > user reports > enrolment report by year, division, school and grade",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > user reports > course participation per course and division",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > academic reports > assignment submission statistics",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > academic reports > pending and completed review statistics",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > academic reports > results publication statistics",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > academic reports > mentor activity",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > earlier CSV exports > results.csv: one row per submission, by assignment or by course and division",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > earlier CSV exports > student-progress.csv: one row per student of a division with course status and results",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > earlier CSV exports > mentor-workload.csv: one row per mentor with scopes, open and returned reviews",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > students.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > mentors.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > enrollment.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > course-participation.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > assignments.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > reviews.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > results-publication.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > mentor-activity.csv downloads with the filters applied, and is audited",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > CSV downloads > CSV filters match the JSON report",
+            "status": "passed"
+          },
+          {
+            "name": "Admin dashboard and reports (e2e) > only administrators can see the dashboard and reports",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/discussions.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Discussions and moderation (e2e) > assignment discussions > a student starts a thread on an assignment; its mentors are notified",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > assignment discussions > replies notify the people being answered, never the poster",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > assignment discussions > to other students, students appear as first name and last initial, without a username",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > assignment discussions > reactions toggle on and off",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > editing and deleting > only authors edit; non-admins cannot remove other people's content",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > editing and deleting > an author cannot delete a thread others have answered, but can delete their own comments",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > editing and deleting > an author deletes their own unanswered thread; it disappears for everyone but admins",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > reporting and moderation > users report content; the report keeps what was reported and administrators are told",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > reporting and moderation > administrators review a report with every other report and past action on the item",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > reporting and moderation > removing the content keeps it on record, closes every report, and tells the author and reporters",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > reporting and moderation > a reported thread can be hidden, restored, or removed through its report",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > reporting and moderation > dismissing a report leaves the content alone and is recorded",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > restrictions > there is no private or direct messaging",
+            "status": "passed"
+          },
+          {
+            "name": "Discussions and moderation (e2e) > restrictions > there are no separate study groups",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/email-delivery.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "E-mail delivery through Resend (e2e) > delivers a branded password-reset e-mail whose link works once, then a password-changed notice",
+            "status": "passed"
+          },
+          {
+            "name": "E-mail delivery through Resend (e2e) > refuses expired and unknown reset links",
+            "status": "passed"
+          },
+          {
+            "name": "E-mail delivery through Resend (e2e) > delivers an invitation whose activation link works, then a welcome e-mail",
+            "status": "passed"
+          },
+          {
+            "name": "E-mail delivery through Resend (e2e) > marks an e-mail the provider rejects as invalid FAILED at once, without retrying",
+            "status": "passed"
+          },
+          {
+            "name": "E-mail delivery through Resend (e2e) > sends bulk e-mail to every recipient mode",
+            "status": "passed"
+          },
+          {
+            "name": "E-mail delivery through Resend (e2e) > retries temporary failures, gives up after the maximum attempts, and an administrator can retry",
+            "status": "passed"
+          },
+          {
+            "name": "E-mail delivery through Resend (e2e) > the scheduled tick does nothing when workers are disabled on this instance",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/features.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Features (e2e) > discussions > course threads are separate per division",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > discussions > replies, reactions, author-only edits",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > discussions > content reports → moderation queue → action recorded",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > discussions > locked threads accept no replies; pin and archive are moderation actions",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > notifications > live sessions are not part of the platform",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > notifications > notification read state and e-mail preferences",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > e-mail outbox > bulk e-mail is idempotent and delivered by the worker",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > admin tools > starting a new academic year promotes students, keeps history and archives old assignments",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > admin tools > settings reject unknown keys and wrong types",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > admin tools > hiding the leaderboard from students",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > admin tools > users with academic history cannot be hard-deleted",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > admin tools > audit log records actions and caps page size",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > records, permissions and retention > activity log records learning activity; admins can query it",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > records, permissions and retention > permissions map per role",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > records, permissions and retention > archived courses and resources disappear for students but are kept",
+            "status": "passed"
+          },
+          {
+            "name": "Features (e2e) > records, permissions and retention > retention purges old activity and read notifications only",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/notification-settings.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Notification settings (e2e) > each role sees the notifications it receives, all on by default",
+            "status": "passed"
+          },
+          {
+            "name": "Notification settings (e2e) > students do not have these settings",
+            "status": "passed"
+          },
+          {
+            "name": "Notification settings (e2e) > a mentor switches a notification off, in the app and by e-mail",
+            "status": "passed"
+          },
+          {
+            "name": "Notification settings (e2e) > e-mail and in-app are separate switches",
+            "status": "passed"
+          },
+          {
+            "name": "Notification settings (e2e) > an administrator switches off reported-content alerts; other admins' notifications are unaffected",
+            "status": "passed"
+          },
+          {
+            "name": "Notification settings (e2e) > rejects types the role does not receive, unknown types, and e-mail switches on in-app-only types",
+            "status": "passed"
+          },
+          {
+            "name": "Notification settings (e2e) > reset turns everything back on",
+            "status": "passed"
+          },
+          {
+            "name": "Notification settings (e2e) > the category e-mail preference is shown alongside each switch",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/notifications.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Notifications (e2e) > who is notified > new published assignments → students of that division only",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > who is notified > no automatic \"due soon\" reminders are sent",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > who is notified > submissions awaiting review → the mentor they are assigned to",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > who is notified > resubmission requests → the student",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > who is notified > published results → the student, with a link to the result",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > who is notified > discussion activity → the people concerned",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > inbox > lists the caller's notifications newest first, with timestamps, read state and links",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > inbox > filters by category, type and unread",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > inbox > marks read and unread, one, several or all; counts unread per category",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > inbox > nobody can read or change another user's notifications",
+            "status": "passed"
+          },
+          {
+            "name": "Notifications (e2e) > there is no private messaging through notifications",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/public-site.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Public site (e2e) > GET /public/statistics > is public and returns only aggregate counts (no personal data)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > GET /public/statistics > counts only active, approved, activated accounts; schools only with an active student",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > GET /public/statistics > cannot be influenced by the caller (parameters ignored, other methods refused)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > GET /public/statistics > is cached briefly (a new account appears after the cache is refreshed)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > GET /public/statistics > is rate-limited (60 per minute)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > POST /public/contact > is public; without a support e-mail the message is stored and the response says NOT_CONFIGURED",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > POST /public/contact > with a support e-mail configured, an e-mail notice is queued to it (QUEUED)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > POST /public/contact > validates every field on the server and stores nothing when invalid",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > POST /public/contact > honeypot: a filled hidden field is accepted silently but nothing is stored or sent",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > POST /public/contact > refuses an identical message sent again (409 DUPLICATE_MESSAGE)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > POST /public/contact > limits each e-mail address to 3 messages per hour (429 CONTACT_LIMIT)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > POST /public/contact > is rate-limited per IP (5 per hour)",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > admin: contact messages > only administrators can read or change messages",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > admin: contact messages > lists messages newest first with the count of new ones; never exposes the IP hash",
+            "status": "passed"
+          },
+          {
+            "name": "Public site (e2e) > admin: contact messages > marks a message handled (audited) and back to new; unknown id 404, bad status 400",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/remaining-endpoints.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Remaining endpoints (e2e) > courses: the student's own view > a student completes a course they opened, and sees it in their course list",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > courses: the student's own view > a student lists only their own submissions",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > assignments: attachments, recall and unpublish > the author adds, downloads and removes brief attachments; others cannot",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > assignments: attachments, recall and unpublish > a mentor recalls an assignment awaiting approval; an admin unpublishes one without submissions",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > course resources: attachments, unpublish and restore > mentors of the scope add and remove files; students download published files of their division",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > course resources: attachments, unpublish and restore > unpublishing hides a resource from students; an archived one can be restored",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > mentor feedback files > the reviewing mentor removes a feedback file before returning; the student downloads the rest once published",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > reference data and the leaderboard > divisions: public list; administrators rename",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > reference data and the leaderboard > schools: a public search for sign-up exposes names only; administrators see details",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > reference data and the leaderboard > leaderboard: a student's own rank, school summary, and an administrator recompute",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > reference data and the leaderboard > academic years are listed for everyone signed in",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > administration > administrators reject a mentor application",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > administration > mentor assignments: only active mentors, existing courses and divisions; unassigning reports open reviews; reassigning reactivates",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > administration > administrators add users of any role directly, active at once",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > administration > with e-mail verification on, an approved mentor applicant must confirm the address before logging in",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > administration > bulk e-mail: recipients, jobs, deliveries and retry",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > administration > administrators list hidden comments for review",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > success paths not exercised elsewhere > a user reads e-mail preferences and edits their own profile",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > success paths not exercised elsewhere > an administrator lists the enrolments of an academic year",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > success paths not exercised elsewhere > an administrator creates another administrator, and deletes an account without history",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > success paths not exercised elsewhere > a student opens a published resource; a mentor deletes one",
+            "status": "passed"
+          },
+          {
+            "name": "Remaining endpoints (e2e) > signing out everywhere revokes every refresh token of that user only",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/results.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Results and feedback (e2e) > before publication > students see no score, feedback or files even though the review is approved",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > before publication > only administrators can publish",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > publication > records the release (who and when) and notifies each student",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > student view > lists previously reviewed assignments",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > student view > shows the full result details with no reply option",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > student view > students cannot see each other's results or feedback files",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > student view > results are separate from discussions: there is nowhere to reply",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > corrections > a reopened result is withdrawn until republished, then shows its previous version",
+            "status": "passed"
+          },
+          {
+            "name": "Results and feedback (e2e) > corrections > administrators see every publication with who published and withdrew it",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/review.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Distribution and mentor review (e2e) > administrators see submitted work waiting for distribution",
+            "status": "passed"
+          },
+          {
+            "name": "Distribution and mentor review (e2e) > distribution only accepts eligible mentors and cannot carry grading data",
+            "status": "passed"
+          },
+          {
+            "name": "Distribution and mentor review (e2e) > only the assigned mentor can open and review it",
+            "status": "passed"
+          },
+          {
+            "name": "Distribution and mentor review (e2e) > reassigning keeps the first review in the history and moves access to the new mentor",
+            "status": "passed"
+          },
+          {
+            "name": "Distribution and mentor review (e2e) > the new mentor scores, writes feedback, attaches documents and submits the review",
+            "status": "passed"
+          },
+          {
+            "name": "Distribution and mentor review (e2e) > a submitted review cannot be changed by the mentor, and administrators cannot grade it",
+            "status": "passed"
+          },
+          {
+            "name": "Distribution and mentor review (e2e) > the admin sends it back once; the mentor revises; the admin approves and publishes",
+            "status": "passed"
+          },
+          {
+            "name": "Distribution and mentor review (e2e) > records who reviewed, when, and every step; the student sees the mentor's feedback only",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/s3-storage.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "S3 storage driver (e2e, needs S3_TEST_ENDPOINT) > the app really uses the S3 driver, and the health check reaches the bucket",
+            "status": "skipped"
+          },
+          {
+            "name": "S3 storage driver (e2e, needs S3_TEST_ENDPOINT) > stores uploads in the bucket and streams them back only to people allowed to see them",
+            "status": "skipped"
+          },
+          {
+            "name": "S3 storage driver (e2e, needs S3_TEST_ENDPOINT) > removed files are deleted from the bucket by the clean-up, and a missing object answers 404",
+            "status": "skipped"
+          }
+        ]
+      },
+      {
+        "file": "test/security.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Security (e2e) > role-based access on every route > every non-public route refuses anonymous callers and roles it does not allow",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > role-based access on every route > administrators cannot grade or write academic feedback",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > authentication > rejects missing, malformed, forged, unsigned and expired tokens",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > authentication > logout invalidates the access token; signing out everywhere invalidates every token",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > authentication > a password change ends existing sessions",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > authentication > suspending an account ends its sessions at once",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > authentication > five wrong passwords lock the account for every address, without revealing it",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > authentication > password-reset requests do not reveal whether an account exists; only the newest link works",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > data isolation > a student cannot reach another student's submission, files, history or result",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > data isolation > only the assigned mentor can open a submission",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > data isolation > an assignment archived without ever being published stays hidden from students",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > data isolation > notifications and profiles are private",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > file uploads > checks the real file type, not the name",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > file uploads > neutralises path-like and control-character file names",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > file uploads > refuses oversized requests before reading them",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > input validation and injection > rejects unknown fields, bad ids, out-of-range paging and oversized text",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > input validation and injection > SQL injection attempts in searches and filters are treated as plain text",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > sensitive information > no response anywhere contains password or token hashes",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > sensitive information > students never see e-mail addresses of other users",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > sensitive information > errors carry a code and a request id, never stack traces or database details",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > HTTP hardening > sends security headers and hides the framework",
+            "status": "passed"
+          },
+          {
+            "name": "Security (e2e) > HTTP hardening > does not grant cross-origin access to unknown sites",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/settings-audit.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "System settings and audit logging (e2e) > system settings > lists every setting by category with value, default, type and limits",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > system settings > only administrators can read or change settings",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > system settings > rejects unknown keys, wrong types, out-of-range numbers and inconsistent combinations",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > system settings > records each changed setting in the audit log with its old and new value",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > system settings > help and support details are public",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > system settings > default resubmission rules apply to new assignments unless the mentor chooses",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > system settings > academic years are configured and the current one is visible",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > audit trail > records user creation, role changes, enrolment changes and deactivation",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > audit trail > records mentor assignments, assignment publication, distribution, grading, results and moderation",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > audit trail > administrators browse the trail by category, record, actor and date",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > audit trail > exports the filtered trail as CSV, and records the export",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > audit trail > only administrators can read the trail; nobody can change it through the API",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > audit trail > the database itself refuses to change or delete audit records",
+            "status": "passed"
+          },
+          {
+            "name": "System settings and audit logging (e2e) > audit trail > history keeps who acted even after the account is deleted",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/submissions.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Submissions (e2e) > submitting > starts as Not Started",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > submitting > validates the answer and the files before storing anything",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > submitting > accepts a typed answer with a file and records the time",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > submitting > a typed answer alone is enough",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > submitting > resubmits within the rules and keeps every attempt",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > privacy > other students cannot see the submission, its history or its files",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > privacy > mentors only see submissions assigned to them",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > privacy > students cannot request resubmissions or act as a mentor",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > mentor-requested resubmission > the reviewing mentor asks for a new attempt",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > mentor-requested resubmission > the student sees the request and may resubmit even after the assignment closes",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > mentor-requested resubmission > the new attempt goes straight back to the same mentor",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > mentor-requested resubmission > the history shows every attempt and the request (anonymous for the student)",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > mentor-requested resubmission > cannot exceed the assignment's resubmission limit",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > mentor-requested resubmission > then completes normally and is shown as Reviewed",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > request rules > the student cannot resubmit after the request's due date",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > request rules > the mentor withdraws the request and reviews the work as submitted",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > request rules > is refused where the assignment does not permit resubmissions",
+            "status": "passed"
+          },
+          {
+            "name": "Submissions (e2e) > request rules > rejects an invalid due date",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/user-management.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "User management (e2e) > invitations and activation > admin invites a student: account exists, enrolled, but cannot log in",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > invitations and activation > the link shows who it is for, requires a strong password, and works once",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > invitations and activation > re-sending an invitation invalidates the previous link",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > invitations and activation > expired links are refused",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > invitations and activation > validates invitations and keeps them admin-only",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > invitations and activation > lists pending invitations",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > e-mail verification for self-registration > when enabled, students confirm their e-mail before logging in",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > admin-triggered password reset > e-mails a reset link; the admin never sees the password",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > CSV import > dry run reports every problem and creates nothing",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > CSV import > import invites the valid rows (placed, enrolled, e-mailed) and reports the rest",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > CSV import > rejects a bad header, a non-UTF-8 file and an empty upload",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > enrolment protection > students cannot change their own grade or division",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > enrolment protection > only admins can change an enrolment, and it is audited",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > mentor management > one mentor can teach several courses in both divisions; unassigning removes access",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > deactivation and reactivation > a deactivated account loses access at once and its activation links stop working",
+            "status": "passed"
+          },
+          {
+            "name": "User management (e2e) > deactivation and reactivation > students cannot read other users' records",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "test/workflow.e2e-spec.ts",
+        "tests": [
+          {
+            "name": "Assignment workflow (e2e) > 1. mentor prepares a draft assignment with a brief",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 1b. mentor submits it for official publication",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 2. admin publishes (and only the admin may)",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 3. students of the division see it and submit",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 3b. a resubmission is revision 2 and a second first-submission is refused",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 3c. a submission can carry several files (e.g. photographed pages)",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 4. admin distributes submissions across the division's mentors",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 5. only the assigned mentor reviews and scores — admins cannot grade",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 5b. students still see no score before publication",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 6. mentors return their completed reviews",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 7. admin sends one review back, then approves and publishes all results",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 7b. the full review history is kept (one cycle, every step as an event)",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > 8. students view their result, feedback and points",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > reopening a published result removes its points and returns it to the mentor",
+            "status": "passed"
+          },
+          {
+            "name": "Assignment workflow (e2e) > mentor analytics and admin reports reflect the workflow",
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  }
+}
