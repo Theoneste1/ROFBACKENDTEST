@@ -5,8 +5,9 @@
  *
  *   node scripts/db-drill-verify.mjs [--trigger-test] [--json <file>]
  *
- * Connection: DRILL_DATABASE_URL from `.env.drill.local` (git-ignored). Use the
- * branch's DIRECT (non-pooled) connection string.
+ * Connection: DRILL_DATABASE_URL from `.env.drill.local` (git-ignored). A pooled
+ * Neon string ("-pooler" host) is switched to the same branch's direct
+ * endpoint in memory, so the read-only session setting holds.
  *
  * Safety:
  *   - Refuses to run when the drill host is the production host (compared with
@@ -33,18 +34,22 @@ const hostOf = (url) => {
   try { return new URL(url).hostname.replace('-pooler', '').toLowerCase(); } catch { return null; }
 };
 
-const drillUrl = envFrom('.env.drill.local', 'DRILL_DATABASE_URL');
-if (!drillUrl) { console.error('✗ DRILL_DATABASE_URL not found in .env.drill.local'); process.exit(2); }
-const drillHost = hostOf(drillUrl);
+const configuredUrl = envFrom('.env.drill.local', 'DRILL_DATABASE_URL');
+if (!configuredUrl) { console.error('✗ DRILL_DATABASE_URL not found in .env.drill.local'); process.exit(2); }
+const drillHost = hostOf(configuredUrl);
 if (!drillHost) { console.error('✗ DRILL_DATABASE_URL is not a valid URL'); process.exit(2); }
 const prodHosts = [envFrom('.env.production.local', 'DATABASE_URL'), process.env.DATABASE_URL].map(hostOf).filter(Boolean);
 if (prodHosts.includes(drillHost)) {
   console.error('✗ REFUSED: the drill host is the production host. Point DRILL_DATABASE_URL at the recovery branch.');
   process.exit(3);
 }
-const pooled = new URL(drillUrl).hostname.includes('-pooler');
+// A pooled (PgBouncer, transaction mode) connection does not keep session
+// settings such as READ ONLY between transactions. Use the same branch's
+// direct endpoint (Neon: the host without "-pooler"), in memory only.
+const pooled = new URL(configuredUrl).hostname.includes('-pooler');
+const drillUrl = (() => { const u = new URL(configuredUrl); u.hostname = u.hostname.replace('-pooler', ''); return u.toString(); })();
 
-const results = { startedAt: new Date().toISOString(), target: { pooledConnection: pooled }, checks: [] };
+const results = { startedAt: new Date().toISOString(), target: { configuredAsPooled: pooled, connectedVia: 'direct endpoint' }, checks: [] };
 const record = (name, ok, detail) => { results.checks.push({ name, ok, detail }); console.log(`${ok ? '✔' : '✗'} ${name}${detail !== undefined ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`); };
 const q = async (c, sql, params) => (await c.query(sql, params)).rows;
 
@@ -60,7 +65,7 @@ try {
   const [info] = await q(client, `select version() v, current_database() db, current_setting('transaction_read_only') ro, pg_size_pretty(pg_database_size(current_database())) size`);
   results.target.database = info.db;
   results.target.connectMs = connectMs;
-  record('connected (read-only session)', info.ro === 'on', `database ${info.db}, ${info.v.split(' on ')[0]}, size ${info.size}, connect ${connectMs} ms${pooled ? ', POOLED connection (use the direct one)' : ''}`);
+  record('connected (read-only session)', info.ro === 'on', `database ${info.db}, ${info.v.split(' on ')[0]}, size ${info.size}, connect ${connectMs} ms${pooled ? ' (configured string was pooled; connected to the direct endpoint)' : ''}`);
 
   // 2. Migrations
   const migDirs = readdirSync('prisma/migrations', { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
@@ -88,7 +93,7 @@ try {
   // 5. Foreign-key integrity (no orphans)
   const fks = await q(client, `
     select con.conname, cl.relname child, pcl.relname parent,
-           array_agg(ca.attname order by k.ord) child_cols, array_agg(pa.attname order by k.ord) parent_cols
+           array_agg(ca.attname::text order by k.ord) child_cols, array_agg(pa.attname::text order by k.ord) parent_cols
     from pg_constraint con
     join pg_class cl on cl.oid = con.conrelid join pg_namespace n on n.oid = cl.relnamespace and n.nspname = 'public'
     join pg_class pcl on pcl.oid = con.confrelid
