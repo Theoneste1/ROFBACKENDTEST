@@ -14,7 +14,24 @@ restores) was **not** used. No credentials, connection strings or personal data 
 | Production database | PostgreSQL 18.6, 12 MB, 47 tables, 17 migrations, 2 audit-log triggers, extension `plpgsql` only |
 | Provider protection (Free plan) | 6-hour history window (point-in-time), 10 branches/project, 1 manual snapshot; no daily backups beyond the window |
 | Independent backup | none yet (Part B) |
-| Recovery target | Neon branch `br-cold-band-bdlhpjxj`, parent `production`, **Past data** (≈1 hour before creation), auto-delete 2026-11-10 00:52 GMT+2 (≈1 day) |
+| Recovery target | Neon branch `br-cold-band-bdlhpjxj`, parent `production`, **Past data** (exact recovery point not recorded — see 1.1), auto-delete 2026-11-10 00:52 GMT+2 (≈1 day) |
+
+### 1.1 Recovery point (not exactly known)
+
+The exact timestamp accepted by the Neon console was **not recorded** and could not be retrieved: Neon does not expose
+it inside the restored database, and no Neon console or API access was used for verification. It is **not** stated
+here as a fact. What is known:
+
+| Bound | Value | Source |
+|---|---|---|
+| Earliest point offered by the console | 2026-11-08 18:49 Africa/Kigali (16:49 UTC) | owner, while creating the branch (start of the 6-hour window) |
+| Lower bound from data | ≥ 2026-11-08 11:21:52 UTC (13:21:52 Kigali) | newest timestamp in the recovery branch (`AuditLog.createdAt`; read-only `max()` per table, no record contents) |
+| Upper bound | ≤ branch creation, ≈ 2026-11-08 22:52 UTC | inferred from the 1-day auto-delete time; not an exact creation time |
+
+The production writes missing from the branch (3.3) happened after the recovery point; their times were not read,
+because database access was limited to the recovery branch. To record the exact point, read it from the branch's
+details in the Neon console (or the Neon API, `GET /projects/{id}/branches/{branch_id}`: `parent_timestamp`) before the
+branch is deleted.
 
 ## 2. Procedure used (repeatable)
 
@@ -92,12 +109,12 @@ without revealing content; used to compare a later restore (e.g. Part B) taken a
 | Full data verification (10 checks) | 60.5 s |
 | `prisma migrate status` / `migrate diff` | 11.4 s / 12.7 s |
 | API start to healthy on the recovery branch | 4.1 s |
-| **Recovery to a verified, usable database** | **≈ 2 minutes after branch creation** (excluding console work and review) |
+| **Verification to a confirmed, usable database** | **≈ 1.5 minutes of checks** (connection + data checks + API health; Prisma checks add ≈ 25 s). Time from branch creation to first connection was not measured. |
 
 ## 5. Limitations
 
 - **Only Neon-internal recovery was tested.** The Free plan keeps **6 hours** of history: data damaged and noticed later than that cannot be recovered from Neon, and there is still **no independent backup** (Part B).
-- The recovery point was chosen by time in the console; the exact timestamp and owner timings were not recorded.
+- The exact recovery point and the exact branch-creation time were not recorded and could not be retrieved from the database; only bounds are documented (1.1). Recovery time is therefore measured from the first connection, not from the recovery decision.
 - Production comparison used statistics estimates, not exact counts (scope limited to the recovery branch).
 - Uploaded files (Cloudflare R2) were not part of this drill; a real recovery needs the database **and** the files from the same moment (`docs/DEPLOYMENT.md` §9).
 - The API test used local storage and dry-run e-mail; logins and file downloads were not exercised (no credentials used, files not restored).
