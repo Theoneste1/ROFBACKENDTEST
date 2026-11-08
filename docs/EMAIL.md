@@ -243,6 +243,7 @@ e2e test `email-delivery` runs the real SDK against a fake Resend API.
 |---|---|
 | Log: `DRY RUN` | `RESEND_API_KEY` is not set in this environment |
 | API won't start: `RESEND_API_KEY is required in production` | Set the key (and `EMAIL_FROM`, `APP_URL`) in the hosting environment |
+| `Resend 422 validation_error: Invalid from field` (delivery FAILED after 1 attempt), or API won't start: `EMAIL_FROM must look like …` | `EMAIL_FROM` is not `Name <address>`. In Render type it **without quotes**: `Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>`. (Quotes and spaces wrapped around the whole value are removed automatically since 2026-11-07.) |
 | `Resend 401 invalid_api_key` / `missing_api_key` | The key is wrong, was deleted, or has a space or quotes around it. Create a new key |
 | `Resend 401 restricted_api_key` | A Sending access key was used for something else (e.g. listing domains). Normal for `email:check` |
 | `Resend 403 validation_error: … domain is not verified` | Finish §3; the `EMAIL_FROM` domain must match the verified domain exactly |

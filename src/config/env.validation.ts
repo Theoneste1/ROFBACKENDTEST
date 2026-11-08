@@ -15,6 +15,7 @@ import {
   IsString,
   IsTimeZone,
   IsUrl,
+  Matches,
   Max,
   Min,
   MinLength,
@@ -24,6 +25,21 @@ import {
 /** An empty value (`KEY=` in .env) means "not set". */
 const emptyToUndefined = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
+
+/**
+ * Trims a value and removes quotes wrapped around all of it. Hosting
+ * dashboards (Render, …) keep quotes literally, unlike .env files, so a value
+ * pasted from .env as `"Name <a@b.org>"` would otherwise be sent with them.
+ */
+const unquoted = ({ value }: { value: unknown }) => {
+  if (typeof value !== 'string') return value;
+  let v = value.trim();
+  while (/^(["'“‘]).*(["'”’])$/s.test(v) && v.length >= 2) v = v.slice(1, -1).trim();
+  return v === '' ? undefined : v;
+};
+
+/** "Name <address@domain>" or "address@domain" — what Resend accepts as a sender. */
+export const SENDER_FORMAT = /^(?:[^<>"\r\n]+\s<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>|[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)$/;
 
 export enum NodeEnv {
   Development = 'development',
@@ -107,13 +123,15 @@ export class EnvironmentVariables {
   // ── E-mail ─────────────────────────────────────────────────────────────────
   // Delivered through Resend (https://resend.com). See docs/EMAIL.md.
   /** Resend API key ("re_…"). Without it e-mails are only logged (dry run, not allowed in production). */
-  @IsOptional() @Transform(emptyToUndefined) @IsString() RESEND_API_KEY?: string;
+  @IsOptional() @Transform(unquoted) @IsString() RESEND_API_KEY?: string;
   /** Sender, e.g. "Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>". Its domain must be verified in Resend. */
-  @IsOptional() @Transform(emptyToUndefined) @IsString() EMAIL_FROM?: string;
+  @IsOptional() @Transform(unquoted) @IsString()
+  @Matches(SENDER_FORMAT, { message: 'EMAIL_FROM must look like "Name <address@domain>" or "address@domain" (e.g. Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>).' })
+  EMAIL_FROM?: string;
   /** Address replies go to (defaults to the EMAIL_FROM address). */
-  @IsOptional() @Transform(emptyToUndefined) @IsEmail() EMAIL_REPLY_TO?: string;
+  @IsOptional() @Transform(unquoted) @IsEmail() EMAIL_REPLY_TO?: string;
   /** Testing safeguard: deliver EVERY e-mail to this address instead of the real recipient. */
-  @IsOptional() @Transform(emptyToUndefined) @IsEmail() EMAIL_REDIRECT_TO?: string;
+  @IsOptional() @Transform(unquoted) @IsEmail() EMAIL_REDIRECT_TO?: string;
   @IsOptional() @Type(() => Number) @IsInt() EMAIL_BATCH_SIZE?: number;
   /** Most e-mails sent per second (Resend's default account limit is 2). */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) EMAIL_MAX_PER_SECOND?: number;

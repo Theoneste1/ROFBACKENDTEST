@@ -221,3 +221,19 @@ All eight issues from the previous report have been dealt with:
 
 **Result:** ready for frontend integration. Typed clients can be generated
 from `docs/api/openapi.json`.
+
+## 10. Final audit before production (2026-11-07)
+
+Production: `https://rofbackendtest.onrender.com` on Render, Neon (us-east-2), Cloudflare R2, Resend (domain `rwandaolympiadfoundation.org` verified).
+
+| Area | Result | Status |
+|---|---|---|
+| Unit / e2e / route coverage / lint / type-check | 480 unit, 289 e2e (3 skipped: S3, runs in CI), 202/202 routes, clean | Completed and tested |
+| CI on GitHub | `main` (`5eec460`): both jobs green, incl. S3 on S3Mock and the docker-compose smoke test. `cc27c8d` (quoted e-mail settings) passed locally; CI runs when it is opened as a pull request | Completed and tested / awaiting CI |
+| Production database | All 17 migrations applied, no schema drift; active academic year 2026-2027 | Completed and tested |
+| Health | `/health`: database up, storage up | Completed and tested |
+| E-mail (Resend) | Code reads `RESEND_API_KEY` exactly; no SMTP code or variable remains. A first production e-mail failed (`422 Invalid from field`, quoted `EMAIL_FROM`); after the Render fix, an approved reset e-mail was **delivered** from `Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>` with its link on `https://roflms.netlify.app/reset-password` | Failed and fixed (re-verified 2026-11-07) |
+| Storage (R2) | `/health` storage up; health is ~300 ms slower than a database-only call, consistent with a live R2 bucket check (not proof). A real upload needs a production coach/admin login. Start-up now logs `File storage: S3-compatible bucket … at <host>` (or a warning for local disk) | Completed but not fully tested |
+| CORS | Production allows `https://roflms.netlify.app` with credentials (preflight checked) | Completed and tested |
+| Frontend integration | See `docs/INTEGRATION.md`: 39/39 journeys locally through the frontend proxy; 12 MB direct upload with CORS | Completed and tested locally |
+| Quizzes / automatic marking | Not part of the system (assignments are marked by coaches) | Not completed — product decision |
