@@ -181,6 +181,21 @@ describe('verifyStorage', () => {
     expect(r.checks.find((c) => c.name.startsWith('stored size'))).toMatchObject({ ok: false, detail: expect.stringContaining('MD5') });
   });
 
+  it.each([
+    ['multipart-style', '"d41d8cd98f00b204e9800998ecf8427e-2"'],
+    ['opaque', '"0x8DCB7A1E2F3"'],
+  ])('fails on a %s ETag: a single-part upload must have the MD5 of its content as ETag', async (_kind, etag) => {
+    const { driver, store } = fakeBucket();
+    const realHead = store.head.getMockImplementation()!;
+    store.head.mockImplementation(async (key: string) => {
+      const h = await realHead(key);
+      return h ? { ...h, etag } : null;
+    });
+    const r = await verifyStorage({ driver, store, runId: RUN, cleanup: true, inventory: false });
+    expect(r.checks.find((c) => c.name.startsWith('stored size'))).toMatchObject({ ok: false, detail: expect.stringContaining('not an MD5') });
+    expect(r.ok).toBe(false);
+  });
+
   it('never overwrites: an existing object at the test key stops the run before any upload', async () => {
     const { driver, store, objects } = fakeBucket({ [KEY]: Buffer.from('already here') });
     const r = await verifyStorage({ driver, store, runId: RUN, cleanup: true, inventory: false });
@@ -215,6 +230,49 @@ describe('verifyStorage', () => {
       [{ key: 'a', size: 1, etag: 'x' }],
       [{ key: 'a', size: 1, etag: 'x' }, { key: 'b', size: 2 }],
     )).toEqual({ removed: 0, changed: 0, added: 1 });
+  });
+
+  describe('probes left by earlier runs are part of the integrity check', () => {
+    const EARLIER = 'p0-05-verification/20261101T000000Z-aaaaaaaa/probe.txt';
+    const seed = { ...USER_FILES, [EARLIER]: Buffer.from('probe from an earlier run') };
+
+    it('are counted in the inventory and left untouched by a passing run', async () => {
+      const { driver, store, objects } = fakeBucket(seed);
+      const r = await verifyStorage({ driver, store, runId: RUN, cleanup: true, inventory: true });
+      expect(r.ok).toBe(true);
+      expect(r.checks.find((c) => c.name.startsWith('inventory before'))?.detail).toMatch(/^3 existing object\(s\) \(1 under p0-05-verification\/\)/);
+      expect(r.checks.at(-1)?.detail).toMatch(/^3 checked, 0 removed, 0 changed$/);
+      expect(objects.get(EARLIER)!.data.toString()).toBe('probe from an earlier run');
+    });
+
+    it('their removal during the run is detected', async () => {
+      const { driver, store, objects } = fakeBucket(seed);
+      driver.put.mockImplementation(async (key: string, data: Buffer, contentType: string) => {
+        objects.set(key, { data, contentType });
+        objects.delete(EARLIER);
+      });
+      const r = await verifyStorage({ driver, store, runId: RUN, cleanup: true, inventory: true });
+      expect(r.ok).toBe(false);
+      expect(r.checks.at(-1)).toMatchObject({ ok: false, detail: '1 removed, 0 changed' });
+    });
+
+    it('their modification during the run is detected', async () => {
+      const { driver, store, objects } = fakeBucket(seed);
+      driver.put.mockImplementation(async (key: string, data: Buffer, contentType: string) => {
+        objects.set(key, { data, contentType });
+        objects.set(EARLIER, { data: Buffer.from('overwritten'), contentType: 'text/plain' });
+      });
+      const r = await verifyStorage({ driver, store, runId: RUN, cleanup: true, inventory: true });
+      expect(r.ok).toBe(false);
+      expect(r.checks.at(-1)).toMatchObject({ ok: false, detail: '0 removed, 1 changed' });
+    });
+
+    it("only this run's own probe is excluded: keeping it (no clean-up) is not reported as added", async () => {
+      const { driver, store } = fakeBucket(seed);
+      const r = await verifyStorage({ driver, store, runId: RUN, cleanup: false, inventory: true });
+      expect(r.ok).toBe(true);
+      expect(r.checks.at(-1)?.detail).toBe('3 checked, 0 removed, 0 changed');
+    });
   });
 
   it('a driver that does not map a missing object to "not found" fails that check', async () => {

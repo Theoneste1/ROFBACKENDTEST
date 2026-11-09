@@ -23,6 +23,11 @@ import {
 const endpoint = process.env.S3_TEST_ENDPOINT;
 const bucket = `rof-p0-05-${process.pid}`;
 
+// In CI these tests must run, not be skipped: a green CI run then proves they passed on S3Mock.
+if (process.env.CI && !endpoint) throw new Error('S3_TEST_ENDPOINT must be set in CI for the storage verification e2e tests.');
+
+const EARLIER_PROBE = 'p0-05-verification/20261101T000000Z-aaaaaaaa/probe.txt';
+
 describe.skipIf(!endpoint)('storage verification against an S3 API (e2e, needs S3_TEST_ENDPOINT)', () => {
   const opts = {
     bucket, region: 'us-east-1', endpoint, forcePathStyle: true,
@@ -32,10 +37,14 @@ describe.skipIf(!endpoint)('storage verification against an S3 API (e2e, needs S
   const userFiles: Record<string, string> = {
     'resources/2026/11/aaaaaaaa-0000-4000-8000-000000000001.pdf': '%PDF-1.4 existing user file one',
     'submissions/2026/11/aaaaaaaa-0000-4000-8000-000000000002.pdf': '%PDF-1.4 existing user file two',
+    // A probe left by an earlier run: part of the integrity check, never touched.
+    [EARLIER_PROBE]: 'probe from an earlier run',
   };
   const etags: Record<string, string | undefined> = {};
   const headEtag = (key: string) => s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key })).then((h) => h.ETag, () => undefined);
-  const probes = async () => ((await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: VERIFICATION_PREFIX }))).Contents ?? []).map((o) => o.Key);
+  /** Probes other than the seeded earlier one. */
+  const probes = async () => ((await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: VERIFICATION_PREFIX }))).Contents ?? [])
+    .map((o) => o.Key).filter((k) => k !== EARLIER_PROBE);
 
   beforeAll(async () => {
     s3 = new S3Client({ endpoint, region: 'us-east-1', forcePathStyle: true, credentials: { accessKeyId: opts.accessKeyId!, secretAccessKey: opts.secretAccessKey! } });
@@ -59,7 +68,9 @@ describe.skipIf(!endpoint)('storage verification against an S3 API (e2e, needs S
     expect(r.ok).toBe(true);
     expect(r.checks).toHaveLength(10);
     expect(r.objectLeftInBucket).toBe(false);
-    expect(r.checks.find((c) => c.name.startsWith('inventory before'))?.detail).toMatch(/^2 existing object\(s\)/);
+    expect(r.checks.find((c) => c.name.startsWith('inventory before'))?.detail).toMatch(/^3 existing object\(s\) \(1 under p0-05-verification\/\)/);
+    expect(r.checks.find((c) => c.name.startsWith('stored size'))?.detail).toContain('ETag = MD5 of content');
+    expect(r.checks.at(-1)?.detail).toBe('3 checked, 0 removed, 0 changed');
     expect(await probes()).toEqual([]);
     await expectUserFilesUntouched();
   });

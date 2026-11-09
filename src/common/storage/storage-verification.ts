@@ -11,8 +11,12 @@
  *     prefix `p0-05-verification/<run id>/`; every key is checked against that
  *     shape before any write or delete (assertVerificationKey).
  *   - It never overwrites: the key must not exist before the upload.
- *   - Other objects are only LISTED (read-only), to prove afterwards that none
- *     was removed or changed. Their keys are never printed, only counts and a hash.
+ *   - Every other object — including probes left by EARLIER runs under the same
+ *     prefix — is only LISTED (read-only), before and after, to prove that none
+ *     was removed or changed. Only this run's own probe key is excluded from
+ *     that comparison. Keys are never printed, only counts and a hash.
+ *   - The upload is a single PUT, for which S3 and Cloudflare R2 return the
+ *     MD5 of the content as ETag; anything else fails the metadata check.
  *   - Deleting the test object happens only when the caller asks for it.
  */
 import { NotFoundException } from '@nestjs/common';
@@ -213,9 +217,10 @@ export async function verifyStorage(opts: VerificationOptions): Promise<Verifica
     // 2. Inventory of everything else (read-only)
     if (opts.inventory) {
       if (!await step('inventory before (read-only listing)', async () => {
-        before = (await opts.store.list()).filter((o) => !o.key.startsWith(VERIFICATION_PREFIX));
+        before = await opts.store.list();
         inventoried = true;
-        return `${before.length} existing object(s), fingerprint ${inventoryFingerprint(before)}`;
+        const earlierProbes = before.filter((o) => o.key.startsWith(VERIFICATION_PREFIX)).length;
+        return `${before.length} existing object(s) (${earlierProbes} under ${VERIFICATION_PREFIX}), fingerprint ${inventoryFingerprint(before)}`;
       })) return;
     }
 
@@ -238,15 +243,15 @@ export async function verifyStorage(opts: VerificationOptions): Promise<Verifica
       if (!h) throw new Error('object not found after upload');
       if (h.size !== payload.length) throw new Error(`size ${h.size}, expected ${payload.length}`);
       if (h.contentType !== contentType) throw new Error(`content type "${h.contentType}", expected "${contentType}"`);
+      // The driver uploads with one PutObject (single PUT). For that, S3 and Cloudflare R2
+      // return the MD5 of the content as ETag ("MD5 is included by default for
+      // non-multipart uploaded objects"; multipart ETags carry a "-<parts>" suffix instead).
       const etag = (h.etag ?? '').replace(/"/g, '');
       if (!etag) throw new Error('no ETag');
-      // Single-part uploads: S3 and R2 use the MD5 of the content as ETag.
-      if (/^[0-9a-f]{32}$/i.test(etag)) {
-        const md5 = createHash('md5').update(payload).digest('hex');
-        if (etag.toLowerCase() !== md5) throw new Error('ETag does not match the MD5 of the uploaded bytes');
-        return `size ${h.size}, ${h.contentType}, ETag = MD5 of content`;
-      }
-      return `size ${h.size}, ${h.contentType}, ETag present (not an MD5)`;
+      if (!/^[0-9a-f]{32}$/i.test(etag)) throw new Error('ETag is not an MD5 (expected for a single-part upload)');
+      const md5 = createHash('md5').update(payload).digest('hex');
+      if (etag.toLowerCase() !== md5) throw new Error('ETag does not match the MD5 of the uploaded bytes');
+      return `size ${h.size}, ${h.contentType}, ETag = MD5 of content`;
     });
 
     // 6. Download through the application's driver: byte-identical
@@ -298,7 +303,8 @@ export async function verifyStorage(opts: VerificationOptions): Promise<Verifica
     // 10. Nothing else was removed or changed
     if (inventoried) {
       await step('existing objects unchanged (none removed or modified)', async () => {
-        const after = (await opts.store.list()).filter((o) => !o.key.startsWith(VERIFICATION_PREFIX));
+        // Exclude only this run's own probe (if it was uploaded and kept); everything else counts.
+        const after = (await opts.store.list()).filter((o) => !(uploaded && o.key === key));
         const d = compareInventories(before, after);
         if (d.removed || d.changed) throw new Error(`${d.removed} removed, ${d.changed} changed`);
         return `${before.length} checked, 0 removed, 0 changed${d.added ? `, ${d.added} added by others during the run` : ''}`;

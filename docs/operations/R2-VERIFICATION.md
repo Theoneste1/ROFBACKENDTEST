@@ -29,8 +29,9 @@ the API's start-up log naming the R2 bucket.
 | Credentials never committed or printed | env file must be git-ignored (e.g. `.env.r2.local`, matched by `.env.*.local`) or outside the repository; only that file is read; output shows the bucket and a masked endpoint (`0123….r2.cloudflarestorage.com`) |
 | One object, dedicated prefix | writes/deletes only `p0-05-verification/<UTC timestamp>-<random>/probe.txt`; every write and delete checks that exact shape |
 | No overwrite | the key is new per run and must not exist before the upload |
-| Existing files untouched | the rest of the bucket is **listed** before and after (read-only); every existing object must still be present with the same size and ETag. Only counts and a hash are printed, never other keys |
+| Existing files untouched | the **whole** bucket is listed before and after (read-only) — including probes left by earlier runs under `p0-05-verification/`; every object that existed before must still be present with the same size and ETag. Only this run's own probe is excluded from the comparison. Objects added by others during the run are allowed and counted. Only counts and a hash are printed, never other keys |
 | Clean-up only when approved | the probe is deleted only with `--cleanup` (or later with `--delete-key <key>`) |
+| ETag = MD5 (strict) | the probe is uploaded with one `PutObject` (single PUT). For that, S3 and Cloudflare R2 return the MD5 of the content as ETag (R2 release notes, 2022-09-19: "MD5 is included by default for non-multipart uploaded objects"; multipart ETags differ and end in `-<parts>`, R2 docs *Multipart upload*). A missing, non-MD5 or mismatching ETag fails check 5 |
 | Synthetic content | ~64 KiB of text: a header plus random base64; no user data |
 
 Checks (`--execute`): 1 `HeadBucket` (as `/health`) · 2 inventory before · 3 key is new · 4 upload through the driver
@@ -82,7 +83,7 @@ Target: bucket "rof-files" at <masked endpoint>, region auto, path-style on
 
  #  Check                                                      Result   Detail
  1  bucket reachable (HeadBucket)                              ✔/✗
- 2  inventory before (read-only)                               ✔/✗      <n> objects, fingerprint <hash>
+ 2  inventory before (read-only, whole bucket)                 ✔/✗      <n> objects (<k> earlier probes), fingerprint <hash>
  3  test key is new                                            ✔/✗
  4  upload through the application driver                      ✔/✗      <bytes>, text/plain
  5  stored size, content type, ETag (= MD5)                    ✔/✗
@@ -90,7 +91,7 @@ Target: bucket "rof-files" at <masked endpoint>, region auto, path-style on
  7  only the probe under its run prefix                        ✔/✗
  8  missing key → not found (404)                              ✔/✗
  9  probe deleted and gone                                     ✔/✗/skipped
-10  existing objects unchanged                                 ✔/✗      <n> checked, 0 removed, 0 changed
+10  existing objects unchanged (incl. earlier probes)          ✔/✗      <n> checked, 0 removed, 0 changed
 Duration: <ms>        Probe key: p0-05-verification/<run id>/probe.txt        Left in bucket: yes/no
 
 Stage B: Render start-up log line: <copy, account masked>        /health storage: up/down
