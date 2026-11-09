@@ -34,6 +34,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { isAdmin, isStaff, isStudent } from '../common/access/roles.js';
 import { Events, type ContentModeratedEvent } from '../notifications/events.js';
 import { Prisma, type ModerationActionType, type ThreadStatus } from '../generated/prisma/client.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
@@ -161,7 +162,7 @@ export class DiscussionsService {
     const thread = await this.requireVisibleThread(threadId, user);
     if (thread.status === 'DELETED') throw invalidState('Thread is already deleted.');
     const isAuthor = thread.createdById === user.id;
-    const asModerator = user.role === 'ADMIN' && !isAuthor;
+    const asModerator = isAdmin(user) && !isAuthor;
 
     if (!asModerator) {
       if (!isAuthor) throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'Only the author can delete this thread.');
@@ -267,7 +268,7 @@ export class DiscussionsService {
   async removeComment(commentId: string, user: AuthUser, reason?: string) {
     const comment = await this.requireVisibleComment(commentId, user);
     const isAuthor = comment.authorId === user.id;
-    if (!isAuthor && user.role !== 'ADMIN') {
+    if (!isAuthor && !isAdmin(user)) {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'You can only delete your own comments.');
     }
     if (comment.status === 'DELETED') throw invalidState('Comment is already deleted.');
@@ -507,12 +508,14 @@ export class DiscussionsService {
    *   every division's threads.
    */
   private async courseTarget(courseId: string, user: AuthUser, divisionId: string | undefined, forWrite: boolean) {
+    // Students and staff only; any other role gets 404 before the division is considered.
+    if (!isStudent(user) && !isStaff(user)) throw new NotFoundException('Course not found.');
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true } });
     if (!course) throw new NotFoundException('Course not found.');
 
-    const division = user.role === 'STUDENT' ? this.access.studentDivision(user) : divisionId;
+    const division = isStudent(user) ? this.access.studentDivision(user) : divisionId;
     if (!division) {
-      if (user.role === 'ADMIN' && !forWrite) return { courseId };
+      if (isAdmin(user) && !forWrite) return { courseId };
       throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId for course discussions.');
     }
     await this.access.assertCanView(user, { courseId, divisionId: division });
@@ -526,7 +529,7 @@ export class DiscussionsService {
     });
     if (!a) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, a);
-    if (user.role === 'STUDENT' && !studentCanOpenAssignment(a)) {
+    if (isStudent(user) && !studentCanOpenAssignment(a)) {
       throw new NotFoundException('Assignment not found.');
     }
     return { assignmentId, divisionId: a.divisionId };
@@ -538,9 +541,9 @@ export class DiscussionsService {
       ...target,
       ...(q.status
         ? { status: q.status }
-        : { status: { in: LISTED_STATUSES[user.role === 'ADMIN' ? 'ADMIN' : 'OTHER'] } }),
+        : { status: { in: LISTED_STATUSES[isAdmin(user) ? 'ADMIN' : 'OTHER'] } }),
     };
-    if (user.role !== 'ADMIN' && (q.status === 'HIDDEN' || q.status === 'DELETED')) throw new NotFoundException('Not found.');
+    if (!isAdmin(user) && (q.status === 'HIDDEN' || q.status === 'DELETED')) throw new NotFoundException('Not found.');
 
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.discussionThread.findMany({
@@ -593,7 +596,7 @@ export class DiscussionsService {
     } else if (thread.assignmentId) {
       await this.assignmentTarget(thread.assignmentId, user);
     }
-    if (user.role !== 'ADMIN' && (thread.status === 'HIDDEN' || thread.status === 'DELETED')) {
+    if (!isAdmin(user) && (thread.status === 'HIDDEN' || thread.status === 'DELETED')) {
       throw new NotFoundException('Thread not found.');
     }
     return thread;
@@ -606,7 +609,7 @@ export class DiscussionsService {
     });
     if (!comment) throw new NotFoundException('Comment not found.');
     await this.requireVisibleThread(comment.threadId, user);
-    if (user.role !== 'ADMIN' && comment.status === 'HIDDEN') throw new NotFoundException('Comment not found.');
+    if (!isAdmin(user) && comment.status === 'HIDDEN') throw new NotFoundException('Comment not found.');
     return comment;
   }
 
@@ -706,7 +709,7 @@ export class DiscussionsService {
 
   /** Admins see ACTIVE + HIDDEN (not DELETED placeholders' content); everyone else ACTIVE. */
   private visibleFilter(user: AuthUser): Prisma.CommentWhereInput {
-    return user.role === 'ADMIN' ? { status: { in: ['ACTIVE', 'HIDDEN'] } } : { status: 'ACTIVE' };
+    return isAdmin(user) ? { status: { in: ['ACTIVE', 'HIDDEN'] } } : { status: 'ACTIVE' };
   }
 
   private presentThread<T extends { createdBy: Author }>(thread: T, user: AuthUser) {
@@ -739,10 +742,11 @@ type PublicAuthor = Omit<Author, 'username'> & { username: string | null };
 /**
  * Most students are minors: to other students they appear as first name and
  * last initial, without a username (as on the leaderboard). Staff appear in
- * full; students see their own name in full; administrators see everyone.
+ * full; students see their own name in full; staff viewers (admins, coaches)
+ * see everyone in full. Any other viewer sees students anonymised.
  */
 export function publicAuthor(author: Author, viewer: AuthUser): PublicAuthor {
-  if (viewer.role !== 'STUDENT' || author.role !== 'STUDENT' || author.id === viewer.id) return author;
+  if (isStaff(viewer) || author.role !== 'STUDENT' || author.id === viewer.id) return author;
   return { ...author, lastName: author.lastName ? `${author.lastName.charAt(0)}.` : author.lastName, username: null };
 }
 
