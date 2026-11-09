@@ -37,9 +37,11 @@ branch is deleted.
 
 1. **Owner, Neon console:** Branches → New branch → parent `production` → *Past data* (pick a time inside the 6-hour window) → name → auto-delete → Create. Production is not modified (copy-on-write child branch).
 2. **Owner:** save the branch connection string as `DRILL_DATABASE_URL` in `.env.drill.local` (git-ignored by `.env.*.local`). Never paste it into chat, issues or commits.
-3. **Verify (read-only):** `node scripts/db-drill-verify.mjs --trigger-test --json <file outside the repo>`
-   - reads only `DRILL_DATABASE_URL`; refuses to run if the host is the production host; a pooled string is switched to the same branch's direct endpoint in memory;
-   - prints only counts, object names and hashes.
+3. **Verify (read-only):** first `node scripts/db-drill-verify.mjs --check-target` (guard only, no connection), then `node scripts/db-drill-verify.mjs --trigger-test --json <file outside the repo>`
+   - reads only `DRILL_DATABASE_URL`; a pooled string is switched to the same branch's direct endpoint in memory;
+   - **fails closed:** the production host must be established from `DATABASE_URL` in `.env.production.local` (the local copy of Render's `DATABASE_URL`, `deploy/render/README.md` §1); if it is missing or invalid the script stops (exit 4);
+   - refuses (exit 3) a drill host equal to the production host or to any database the app is configured to use (`DATABASE_URL` in `.env`, `.env.local` or the environment); pooled and direct forms count as the same host;
+   - prints only counts, object names and hashes. Guard and table-check tests: `node --test scripts/db-drill-verify.test.mjs`.
 4. **Prisma, recovery branch only:** `prisma migrate status` and `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` with `DATABASE_URL` set (in memory) to the recovery branch's direct endpoint.
 5. **API health:** start `dist/main.js` locally against the recovery branch with `WORKERS_ENABLED=false` (no e-mail outbox, deadline, retention or clean-up jobs — the copy contains the e-mail outbox), `RESEND_API_KEY=` (dry run), `STORAGE_DRIVER=local`; request `/health`; stop the process.
 6. **Owner:** review, then delete the branch (or let it auto-delete).
@@ -60,6 +62,22 @@ branch is deleted.
 | 8 | Audit log append-only | ✔ `UPDATE "AuditLog"` **rejected** ("AuditLog is append-only: UPDATE is not allowed") inside a transaction that was rolled back |
 | 9 | Id fingerprints | ✔ computed for 22 non-empty tables (3.4) |
 | 10 | Representative aggregates | ✔ readable: users ADMIN 1 / MENTOR 2 / STUDENT 6 (all active, activated, approved, with password hash); 4 published courses; divisions JUNIOR, SENIOR; current academic year 2026-2027 ACTIVE; 4 stored files (RESOURCE) |
+
+**Script corrections after review (2026-11-09), and their effect on these results.** The run above used the first
+version of the script (commit `ad36733`). Independent review found two weaknesses, since fixed:
+
+1. *Production guard:* it compared the drill host only with `.env.production.local` and the environment's
+   `DATABASE_URL`, and would have run if the production host could not be established. It now fails closed and also
+   refuses the databases in `.env` / `.env.local`. **Effect on this drill: none.** At the time of the run
+   `.env.production.local` held the production `DATABASE_URL` (a valid URL), the drill host differed from it, and the
+   local `.env` points to a local database. The corrected guard passes on the same files — `.env.production.local`
+   and `.env` unchanged since 2026-11-07, `.env.drill.local` since 22:58 UTC before the run (`--check-target`, no
+   connection, 2026-11-09).
+2. *Unexpected tables:* the tables check reported `extraTables` but did not fail on them. It now fails on missing **or**
+   unexpected tables. **Effect on this drill: none.** The recorded output is `{"models":46,"tablesInDb":47,"missingTables":[],"extraTables":[]}`,
+   which also passes the corrected check.
+
+The database checks were not re-run; the results above are the original run's output, unchanged.
 
 ### 3.2 Prisma and API
 
