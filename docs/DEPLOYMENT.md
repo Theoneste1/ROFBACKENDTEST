@@ -267,7 +267,8 @@ Then point a staging API at it (with a copy of the files) and check logins,
 results and file downloads before switching production over.
 
 **Restore drill:** restore the latest backup into staging once per term and
-record how long it took.
+record how long it took. Latest drill: [docs/operations/BACKUP-RESTORE-DRILL-2026-11-09.md](operations/BACKUP-RESTORE-DRILL-2026-11-09.md)
+(Neon point-in-time branch, verified with `scripts/db-drill-verify.mjs`).
 
 Two notes on the audit log:
 - It is append-only: a database trigger rejects UPDATE and DELETE on its rows.
