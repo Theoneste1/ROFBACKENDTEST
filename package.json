@@ -24,6 +24,7 @@
     "docs:responses": "node scripts/record-responses.mjs",
     "test:coverage:all": "node scripts/merge-coverage.mjs",
     "email:check": "tsx scripts/email-check.ts",
+    "storage:verify": "tsx scripts/storage-verify.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
