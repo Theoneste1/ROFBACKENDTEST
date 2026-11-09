@@ -296,7 +296,11 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
       const unknown = await outcome(() => cs.run(formerCoach, fakeResponse().res));
       const known = await outcome(() => cs.run(knownCoach, fakeResponse().res));
       if (cs.id === 'UR-45') {
-        expect(unknown).toEqual({ ok: true, value: { role: 'UNKNOWN_ROLE', permissions: [] } });
+        // P1-04: roleLabel and scopes added; an unsupported role still gets nothing.
+        expect(unknown).toEqual({
+          ok: true,
+          value: { role: 'UNKNOWN_ROLE', roleLabel: null, permissions: [], scopes: { courseDivisions: [] } },
+        });
         return;
       }
       expect(unknown.ok).toBe(known.ok);

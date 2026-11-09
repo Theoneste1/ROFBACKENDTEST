@@ -19,81 +19,24 @@
  * Re-capture the baseline only deliberately, when an access change has been
  * approved: CAPTURE_ROUTE_ACCESS_BASELINE=1 npx vitest run src/common/decorators/route-declarations.spec.ts
  */
-import { UnauthorizedException, type ExecutionContext } from '@nestjs/common';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
-import { join, relative, resolve } from 'path';
+import { readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
 
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard.js';
+import { PermissionGuard } from '../../auth/guards/permission.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
+import { REQUIRED_PERMISSION_KEY, RequirePermission } from '../../auth/decorators/require-permission.decorator.js';
+import { PermissionService } from '../../auth/permission.service.js';
+import { PERMISSIONS } from '../../auth/permissions.js';
+import { AppError } from '../errors/app-error.js';
 import { ROLES_KEY, Roles } from '../../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY, Public } from './public.decorator.js';
 import { Authenticated, IS_AUTHENTICATED_KEY } from './authenticated.decorator.js';
+import { SRC, discoverHandlers, keyOf, type RouteHandler } from './route-discovery.testing.js';
 
-// ── Discovery ────────────────────────────────────────────────────────────────
-
-const SRC = resolve(__dirname, '../..');
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'ALL', 'OPTIONS', 'HEAD'];
-const API_PREFIX = /export const API_PREFIX = '([^']+)'/.exec(readFileSync(join(SRC, 'main.ts'), 'utf8'))![1];
-const PREFIX_EXCLUDED = ['health'];   // main.ts: setGlobalPrefix(API_PREFIX, { exclude: ['health'] })
-
-interface RouteHandler {
-  /** e.g. "GET /api/v1/courses/:id" */
-  route:      string;
-  /** e.g. "CoursesController.findOne" */
-  name:       string;
-  file:       string;
-  cls:        Function;
-  handler:    Function;
-  methodName: string;
-}
-
-function controllerFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((entry) => {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) return entry === 'generated' ? [] : controllerFiles(path);
-    return path.endsWith('.controller.ts') ? [path] : [];
-  });
-}
-
-const joinPath = (...parts: Array<string | undefined>) =>
-  '/' + parts.flatMap((p) => (p ?? '').split('/')).filter(Boolean).join('/');
-
-async function discoverHandlers(): Promise<RouteHandler[]> {
-  const handlers: RouteHandler[] = [];
-  for (const file of controllerFiles(SRC).sort()) {
-    const mod = (await import(file)) as Record<string, unknown>;
-    for (const [exportName, value] of Object.entries(mod)) {
-      if (typeof value !== 'function') continue;
-      const cls = value as Function;
-      const base: unknown = Reflect.getMetadata(PATH_METADATA, cls);
-      if (base === undefined) continue;
-      const basePath = Array.isArray(base) ? base[0] : (base as string);
-      for (const methodName of Object.getOwnPropertyNames(cls.prototype)) {
-        if (methodName === 'constructor') continue;
-        const handler = (cls.prototype as Record<string, unknown>)[methodName];
-        if (typeof handler !== 'function') continue;
-        const verb: number | undefined = Reflect.getMetadata(METHOD_METADATA, handler);
-        if (verb === undefined) continue;
-        const sub: unknown = Reflect.getMetadata(PATH_METADATA, handler);
-        const subPath = Array.isArray(sub) ? sub[0] : (sub as string | undefined);
-        const prefixed = !PREFIX_EXCLUDED.includes(basePath.replace(/^\/+/, ''));
-        const path = prefixed ? joinPath(API_PREFIX, basePath, subPath) : joinPath(basePath, subPath);
-        handlers.push({
-          route: `${HTTP_METHODS[verb]} ${path}`,
-          name:  `${exportName}.${methodName}`,
-          file:  relative(resolve(SRC, '..'), file).replace(/\\/g, '/'),
-          cls, handler: handler as Function, methodName,
-        });
-      }
-    }
-  }
-  return handlers.sort((a, b) => a.route.localeCompare(b.route) || a.name.localeCompare(b.name));
-}
-
-/** Key used in the baseline: route plus handler, so two handlers can never collide. */
-const keyOf = (h: RouteHandler) => `${h.route}  ${h.name}`;
+// ── Discovery: route-discovery.testing.ts (shared with permission-equivalence.spec.ts)
 
 // ── Real guard decisions ─────────────────────────────────────────────────────
 
@@ -113,6 +56,8 @@ const passportCanActivate = vi
 const reflector = new Reflector();
 const jwtGuard = new JwtAuthGuard(reflector);
 const rolesGuard = new RolesGuard(reflector);
+/** P1-04: the fourth global guard, in the chain so the baseline proves it changes nothing. */
+const permissionGuard = new PermissionGuard(reflector, new PermissionService({ mentorScopes: async () => [] } as never));
 
 function contextFor(h: RouteHandler, caller: Caller): ExecutionContext {
   const user = caller === 'anonymous' ? undefined : { id: 'u1', username: 'u1', role: caller };
@@ -131,7 +76,14 @@ async function decide(h: RouteHandler, caller: Caller): Promise<Decision> {
     if (err instanceof UnauthorizedException) return '401';
     throw err;
   }
-  return rolesGuard.canActivate(ctx) ? 'allow' : '403';
+  if (!rolesGuard.canActivate(ctx)) return '403';
+  try {
+    return permissionGuard.canActivate(ctx) ? 'allow' : '403';
+  } catch (err) {
+    if (err instanceof AppError && err.getStatus() === 403) return '403';
+    if (err instanceof ForbiddenException) return '403';
+    throw err;
+  }
 }
 
 async function decisionTable(handlers: RouteHandler[]) {
@@ -146,11 +98,12 @@ async function decisionTable(handlers: RouteHandler[]) {
 
 // ── Declaration rules ────────────────────────────────────────────────────────
 
-/** The declaration kinds. From Step 4, @RequirePermission is added here. */
+/** The declaration kinds (@RequirePermission added in P1-04). */
 const DECLARATIONS = [
-  { name: '@Public',        key: IS_PUBLIC_KEY,        valid: (v: unknown) => v === true },
-  { name: '@Roles',         key: ROLES_KEY,            valid: (v: unknown) => Array.isArray(v) && v.length > 0 },
-  { name: '@Authenticated', key: IS_AUTHENTICATED_KEY, valid: (v: unknown) => v === true },
+  { name: '@Public',            key: IS_PUBLIC_KEY,           valid: (v: unknown) => v === true },
+  { name: '@Roles',             key: ROLES_KEY,               valid: (v: unknown) => Array.isArray(v) && v.length > 0 },
+  { name: '@Authenticated',     key: IS_AUTHENTICATED_KEY,    valid: (v: unknown) => v === true },
+  { name: '@RequirePermission', key: REQUIRED_PERMISSION_KEY, valid: (v: unknown) => typeof v === 'string' && (PERMISSIONS as readonly string[]).includes(v) },
 ] as const;
 type DeclarationName = (typeof DECLARATIONS)[number]['name'];
 
@@ -163,16 +116,17 @@ function declarationViolations(cls: Function, handler: Function): string[] {
   const onMethod = declaredOn(handler);
   const onClass = declaredOn(cls);
   const problems: string[] = [];
-  if (onMethod.length === 0 && onClass.length === 0) problems.push('undeclared: add @Public, @Roles or @Authenticated');
+  if (onMethod.length === 0 && onClass.length === 0) problems.push('undeclared: add @Public, @Roles, @Authenticated or @RequirePermission');
   if (onMethod.length > 1) problems.push(`contradictory on the method: ${onMethod.map((d) => d.name).join(' + ')}`);
   if (onClass.length > 1) problems.push(`contradictory on the class: ${onClass.map((d) => d.name).join(' + ')}`);
   if (onMethod.length > 0 && onClass.length > 0) {
     problems.push(`declared at both levels: class ${onClass.map((d) => d.name).join(' + ')}, method ${onMethod.map((d) => d.name).join(' + ')}`);
   }
   if (onClass.some((d) => d.name === '@Authenticated')) problems.push('@Authenticated on the class (method level only)');
+  if (onClass.some((d) => d.name === '@RequirePermission')) problems.push('@RequirePermission on the class (method level only)');
   for (const [level, target, present] of [['method', handler, onMethod], ['class', cls, onClass]] as const) {
     for (const d of present) {
-      if (!d.valid(Reflect.getMetadata(d.key, target))) problems.push(`${d.name} on the ${level} has an invalid value (e.g. @Roles() with no role)`);
+      if (!d.valid(Reflect.getMetadata(d.key, target))) problems.push(`${d.name} on the ${level} has an invalid value (e.g. @Roles() with no role, or an unknown permission)`);
     }
   }
   return problems;
@@ -207,7 +161,7 @@ describe('route declarations (P1-02 §5)', () => {
   let handlers: RouteHandler[];
   beforeAll(async () => { handlers = await discoverHandlers(); }, 60_000);
 
-  it('every route handler declares exactly one of @Public, @Roles or @Authenticated, at one level, without contradictions', () => {
+  it('every route handler declares exactly one of @Public, @Roles, @Authenticated or @RequirePermission, at one level, without contradictions', () => {
     const failures = handlers.flatMap((h) =>
       declarationViolations(h.cls, h.handler).map((problem) => `${h.route} (${h.name}, ${h.file}): ${problem}`));
     expect(failures).toEqual([]);
@@ -220,6 +174,13 @@ describe('route declarations (P1-02 §5)', () => {
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
     expect(counts).toEqual({ '@Public': 16, '@Roles': 141, '@Authenticated': 54 });
+  });
+
+  it('P1-04: no real route uses @RequirePermission yet (routes are converted in P1-06)', () => {
+    const using = handlers.filter((h) =>
+      Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.handler) !== undefined
+      || Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.cls) !== undefined).map(keyOf);
+    expect(using).toEqual([]);
   });
 
   it('matches the running application\'s routes (docs/api/routes.json); unregistered handlers are named individually', () => {
@@ -250,6 +211,17 @@ describe('route declarations (P1-02 §5)', () => {
       @Authenticated() @Roles('ADMIN') authAndRoles() {}
       @Public() @Roles('ADMIN') publicAndRoles() {}
       @Roles() emptyRoles() {}
+      @RequirePermission('users.manage') permission() {}
+      @RequirePermission('users.manage') @Roles('ADMIN') permissionAndRoles() {}
+      @RequirePermission('users.manage') @Public() permissionAndPublic() {}
+      @RequirePermission('users.manage') @Authenticated() permissionAndAuthenticated() {}
+      @RequirePermission('no.such' as never) unknownPermission() {}
+    }
+    @RequirePermission('users.manage') class ClassPermission {
+      covered() {}
+    }
+    @Roles('ADMIN') class ClassRolesWithPermission {
+      @RequirePermission('users.manage') permissionUnderClassRoles() {}
     }
     @Roles('ADMIN') class ClassRoles {
       inherited() {}
@@ -265,7 +237,7 @@ describe('route declarations (P1-02 §5)', () => {
     const check = (cls: Function, m: string) => declarationViolations(cls, (cls.prototype as Record<string, Function>)[m]);
 
     it.each([
-      [Plain, 'pub'], [Plain, 'admin'], [Plain, 'signedIn'], [ClassRoles, 'inherited'],
+      [Plain, 'pub'], [Plain, 'admin'], [Plain, 'signedIn'], [ClassRoles, 'inherited'], [Plain, 'permission'],
     ] as const)('accepts a valid declaration (%o.%s)', (cls, m) => {
       expect(check(cls, m)).toEqual([]);
     });
@@ -279,8 +251,28 @@ describe('route declarations (P1-02 §5)', () => {
       [ClassRoles, 'rolesOverride', /declared at both levels/],
       [ClassPublic, 'rolesUnderClassPublic', /declared at both levels/],
       [ClassAuthenticated, 'covered', /@Authenticated on the class/],
+      [Plain, 'permissionAndRoles', /contradictory on the method/],
+      [Plain, 'permissionAndPublic', /contradictory on the method/],
+      [Plain, 'permissionAndAuthenticated', /contradictory on the method/],
+      [Plain, 'unknownPermission', /invalid value/],
+      [ClassPermission, 'covered', /@RequirePermission on the class/],
+      [ClassRolesWithPermission, 'permissionUnderClassRoles', /declared at both levels/],
     ] as const)('rejects %o.%s', (cls, m, reason) => {
       expect(check(cls, m).join('; ')).toMatch(reason);
+    });
+
+    it('full guard chain: @RequirePermission decides by permission; @Public does not bypass it (fails closed)', async () => {
+      const synthetic = (m: string): RouteHandler => ({
+        route: `GET /synthetic/${m}`, name: `Plain.${m}`, file: 'synthetic', cls: Plain,
+        handler: (Plain.prototype as unknown as Record<string, Function>)[m], methodName: m,
+      });
+      const row = async (m: string) => Object.fromEntries(
+        await Promise.all(CALLERS.map(async (c) => [c, await decide(synthetic(m), c)] as const)));
+      expect(await row('permission')).toEqual({ anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: 'allow', UNKNOWN_ROLE: '403' });
+      // This harness attaches a user to every non-anonymous caller. In the running
+      // app a @Public route is never authenticated, so no request carries a user
+      // and every caller gets the anonymous result: 403, never 'allow'.
+      expect(await row('permissionAndPublic')).toEqual({ anonymous: '403', STUDENT: '403', MENTOR: '403', ADMIN: 'allow', UNKNOWN_ROLE: '403' });
     });
   });
 });

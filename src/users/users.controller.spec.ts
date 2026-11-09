@@ -2,6 +2,7 @@ import { Reflector } from '@nestjs/core';
 import { MeController, UsersController } from './users.controller.js';
 import { ROLES_KEY } from '../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
+import { PermissionService } from '../auth/permission.service.js';
 
 const reflector = new Reflector();
 
@@ -43,10 +44,13 @@ describe('MeController authorization metadata', () => {
     expect((UsersController.prototype as unknown as Record<string, unknown>).promote).toBeUndefined();
   });
 
-  it('permissions returns the caller role and its permission list', () => {
-    const controller = new MeController({} as any);
-    const result = controller.permissions({ id: 's1', role: 'STUDENT' } as any);
+  it('permissions returns the caller role and its permission list', async () => {
+    const permissions = new PermissionService({ mentorScopes: async () => [] } as any);
+    const controller = new MeController({} as any, permissions);
+    const result = await controller.permissions({ id: 's1', role: 'STUDENT' } as any);
     expect(result.role).toBe('STUDENT');
     expect(result.permissions).toContain('submissions.submit');
+    expect(result.roleLabel).toBe('Student');
+    expect(result.scopes).toEqual({ courseDivisions: [] });
   });
 });

@@ -84,6 +84,12 @@ jobs:
       - name: Every API route has an end-to-end test
         run: npm run test:routes
 
+      # The API contract must equal the latest approved snapshot, and each step in
+      # docs/baseline must contain exactly its approved changes (no breaking or
+      # review changes). Runs after the docs check, so openapi.json is current.
+      - name: API contract snapshot tests
+        run: node --test scripts/api-snapshot.test.mjs
+
       - name: Build Docker image
         run: docker build --target runtime -t rof-api:ci .
 

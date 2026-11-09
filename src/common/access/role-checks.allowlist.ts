@@ -19,14 +19,14 @@ export interface AllowlistEntry {
 }
 
 export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
-  // ── /me/permissions ────────────────────────────────────────────────────────
+  // ── Permission layer (/me/permissions) ─────────────────────────────────────
   {
-    file: 'src/users/users.controller.ts', rule: 'U6', code: 'role: user.role',
-    reason: "Returns the caller's own role to the caller; no access decision.",
+    file: 'src/auth/permission.service.ts', rule: 'U6', code: 'return user.role;',
+    reason: "roleOf(): the single place PermissionService reads the role. Every use maps an unknown role to least privilege: grantsForRole() → no grants, permissionsFor() → [], roleLabel → null, isAdministrative() → false; describe() returns the caller's own role to the caller.",
   },
   {
-    file: 'src/users/users.controller.ts', rule: 'U6', code: 'permissionsFor(user.role)',
-    reason: 'permissionsFor() maps any role it does not know to an empty permission list (least privilege).',
+    file: 'src/auth/permission.service.ts', rule: 'U4', code: 'isCoach(user)',
+    reason: 'courseDivisions(): only a coach has course × division teaching scopes; every other role (including an unsupported one) gets the empty list — the least-privileged result. Informational only; no access decision.',
   },
   // ── Course resources ───────────────────────────────────────────────────────
   {

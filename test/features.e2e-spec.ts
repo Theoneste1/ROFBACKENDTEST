@@ -2,6 +2,7 @@
  * Discussions, notifications, e-mail outbox, admin tools.
  */
 import { EmailWorker } from '../src/email/email.worker.js';
+import { ROLE_PERMISSIONS } from '../src/auth/permissions.js';
 import { createTestApp, login, bearer, inDays, type TestContext } from './helpers.js';
 
 describe('Features (e2e)', () => {
@@ -240,6 +241,22 @@ describe('records, permissions and retention', () => {
       expect(a.body.permissions).not.toContain('reviews.grade');
       const m = await ctx.http().get('/api/v1/me/permissions').set(bearer(mentorJ)).expect(200);
       expect(m.body.permissions).toContain('reviews.grade');
+
+      // P1-04: existing fields unchanged (A1); roleLabel and scopes.courseDivisions added (A2).
+      expect(Object.keys(s.body).sort()).toEqual(['permissions', 'role', 'roleLabel', 'scopes']);
+      expect(s.body).toMatchObject({ role: 'STUDENT', roleLabel: 'Student', scopes: { courseDivisions: [] } });
+      expect(s.body.permissions).toEqual(ROLE_PERMISSIONS.STUDENT);
+      expect(a.body).toMatchObject({ role: 'ADMIN', roleLabel: 'Administrator', scopes: { courseDivisions: [] } });
+      expect(a.body.permissions).toEqual(ROLE_PERMISSIONS.ADMIN);
+      expect(m.body).toMatchObject({ role: 'MENTOR', roleLabel: 'Coach' });
+      expect(m.body.permissions).toEqual(ROLE_PERMISSIONS.MENTOR);
+      // A coach's scopes are exactly its active course × division assignments.
+      const active = await ctx.prisma.mentorAssignment.findMany({
+        where: { mentor: { username: 'mentor.j' }, isActive: true }, select: { courseId: true, divisionId: true },
+      });
+      expect(active.length).toBeGreaterThan(0);
+      const key = (x: { courseId: string; divisionId: string }) => `${x.courseId}/${x.divisionId}`;
+      expect(m.body.scopes.courseDivisions.map(key).sort()).toEqual(active.map(key).sort());
     });
 
     it('archived courses and resources disappear for students but are kept', async () => {

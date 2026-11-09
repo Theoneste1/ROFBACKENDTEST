@@ -87,6 +87,11 @@ const createResp = (doc) => doc.paths['/api/v1/items'].post.responses[201].conte
 const has = (list, ...parts) => list.some((l) => parts.every((p) => l.includes(p)));
 const none = (res) => res.breaking.length === 0 && res.review.length === 0 && res.additive.length === 0;
 
+/** Saved contract snapshots (docs/baseline). CURRENT_SNAPSHOT is the latest approved contract. */
+const P0_03_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-08.json';
+const P1_04_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-04.json';
+const CURRENT_SNAPSHOT = P1_04_SNAPSHOT;
+
 describe('identity', () => {
   test('identical documents produce no changes', () => {
     const res = diff(() => {});
@@ -350,11 +355,42 @@ describe('real API (docs/api/openapi.json)', () => {
     assert.equal(res.identical, true);
     assert.ok(none(res));
   });
-  test('the saved baseline snapshot matches the current document exactly', { skip: !existsSync('docs/baseline/api-snapshot-2026-11-08.json') }, () => {
-    const saved = JSON.parse(readFileSync('docs/baseline/api-snapshot-2026-11-08.json', 'utf8'));
+  test('the current approved snapshot (P1-04) matches the current document exactly', () => {
+    assert.ok(existsSync(CURRENT_SNAPSHOT), `${CURRENT_SNAPSHOT} is missing`);
+    const saved = JSON.parse(readFileSync(CURRENT_SNAPSHOT, 'utf8'));
     const res = compare(saved, buildSnapshot(JSON.parse(readFileSync('docs/api/openapi.json', 'utf8'))));
-    assert.equal(res.versionMismatch, false, 'baseline snapshot must be regenerated with the current snapshot version');
+    assert.equal(res.versionMismatch, false, 'snapshot must be regenerated with the current snapshot version');
     assert.equal(res.identical, true);
     assert.ok(none(res));
+  });
+});
+
+/**
+ * Approved contract history. Each step from one saved snapshot to the next must
+ * contain exactly the approved changes, so no unapproved change can be folded
+ * into a new snapshot. The P0-03 snapshot is historical evidence and is never
+ * regenerated.
+ */
+
+describe('approved API contract history', () => {
+  test('P0-03 (2026-11-08) → P1-04: exactly the two approved additive /me/permissions fields; nothing breaking or for review', () => {
+    for (const f of [P0_03_SNAPSHOT, P1_04_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const p0 = JSON.parse(readFileSync(P0_03_SNAPSHOT, 'utf8'));
+    const p104 = JSON.parse(readFileSync(P1_04_SNAPSHOT, 'utf8'));
+    const res = compare(p0, p104);
+    assert.equal(res.versionMismatch, false);
+    assert.equal(res.identical, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/me/permissions › response 200 application/json.roleLabel: new field',
+      'GET /api/v1/me/permissions › response 200 application/json.scopes: new field',
+    ]);
+  });
+
+  test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {
+    const p0 = JSON.parse(readFileSync(P0_03_SNAPSHOT, 'utf8'));
+    assert.equal(p0.fingerprint, '34d76bdd8e98257b66a6bf880527d0d25174806af44fc679ba298a5e3a7e59d7');
+    assert.equal(p0.operations.length, 202);
   });
 });

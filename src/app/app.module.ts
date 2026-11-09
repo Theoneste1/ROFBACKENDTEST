@@ -24,6 +24,8 @@ import { DivisionsModule } from '../divisions/divisions.module.js';
 import { AcademicYearsModule } from '../academic-years/academic-years.module.js';
 import { ActivityModule } from '../activity/activity.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { PermissionsModule } from '../auth/permissions.module.js';
+import { PermissionGuard } from '../auth/guards/permission.guard.js';
 import { UsersModule } from '../users/users.module.js';
 import { SchoolsModule } from '../schools/schools.module.js';
 import { CoursesModule } from '../courses/courses.module.js';
@@ -73,6 +75,7 @@ import { ReportsModule } from '../reports/reports.module.js';
 
     // ── Features ──────────────────────────────────────────────────────────
     AuthModule,
+    PermissionsModule,
     UsersModule,
     SchoolsModule,
     CoursesModule,
@@ -97,6 +100,8 @@ import { ReportsModule } from '../reports/reports.module.js';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // No-op on routes without @RequirePermission (P1-04: none yet).
+    { provide: APP_GUARD, useClass: PermissionGuard },
   ],
 })
 export class AppModule implements NestModule {
