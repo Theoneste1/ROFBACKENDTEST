@@ -145,7 +145,7 @@ Four categories. Nothing in category B or C is treated as owner-approved; PR 1 r
 | ADMIN | `ADMIN` | unchanged until the boundary is switched on | — |
 | SUPER_ADMIN | `SUPER_ADMIN` | none until the approved bootstrap | M1 |
 
-**Safety rules:** (1) declaration test — every non-public route declares access; (2) positive role checks; (3) one role allow-list for create, invite, `PATCH /admin/users/:id` and role change, with `TEACHERS_ENABLED` / `HEAD_COACHES_ENABLED` off by default and `SUPER_ADMIN` never assignable through the normal user API; (4) new roles gain access only through permission-checked routes; (5) frontend tolerance first; (6) role change ends sessions and is audited.
+**Safety rules:** (1) declaration test — every non-public route declares access; (2) positive role checks; (3) one role allow-list for create, invite, `PATCH /admin/users/:id` and role change, with `TEACHERS_ENABLED` / `HEAD_COACHES_ENABLED` off by default and `SUPER_ADMIN` never assignable through the normal user API; (4) new roles gain access only through permission-checked routes; (5) frontend role tolerance (F1) deployed before any account can hold a new role (i.e. before any flag is switched on or the bootstrap runs); (6) role change ends sessions and is audited.
 
 **Who may assign which role:**
 
@@ -322,14 +322,26 @@ Rules: names from `20261121000000`, strictly increasing and numbered in rollout 
 
 | # | Migration | Depends on | Content | Rollback | Limitation |
 |---|---|---|---|---|---|
-| M1 | `20261121000000_roles_teacher_head_coach_super_admin` | PRs 2–5 deployed | `ALTER TYPE "Role" ADD VALUE` ×3 | none by SQL; inert while unused; full revert (recreate type) only while unused | **forward-only** |
+| M1 | `20261121000000_roles_teacher_head_coach_super_admin` | PRs 2–4 deployed; shipped **in PR 5** together with the role allow-list and flags | `ALTER TYPE "Role" ADD VALUE` ×3 | none by SQL; inert while unused; full revert (recreate type) only while unused | **forward-only** |
 | M2 | `20261121000100_programme_membership` | PR 4 | table, `MembershipSource`, unique pair, FKs | drop table + enum | none |
 | M3 | `20261121000200_backfill_programme_membership` | M2 | data (§7.3) | delete `BACKFILL` rows | aborts unless only Mathematics |
 | M4 | `20261121000300_last_super_admin_guard` | M1 | trigger on `User` | drop trigger + function | none |
 | M5 | `20261121000400_permission_overrides` | PR 4 | `UserPermissionOverride` (+ `expiresAt`, `revokedAt`, `revokedById`, reason), enums | drop table + enums | overrides lost (audit keeps history) |
 | M6 | `20261121000500_teacher_assignment` | M1, M2 | `TeacherAssignment` (unique teacher × course × division) | drop table | data lost if teachers assigned |
 
-Dependencies: `PR2–5 → M1 → M4, M6`; `PR4 → M2 → M3 → (M6)`; `PR4 → M5`. Not migrations (each separately approved): bootstrap, flag changes, appointments.
+Dependencies (each arrow = "must be deployed/applied before"):
+- `PR 2–4 → PR 5 (allow-list + flags + M1)`
+- `M1 → M4` (PR 11) · `M1 + M2 → M6` (PR 14)
+- `PR 4 → M2 → M3` (PR 10)
+- `PR 4 → M5` (PR 12)
+
+Order inside PR 5: migrations are applied manually with approval (`render.yaml`: `prisma migrate deploy` is not run by the service), so the allow-list code and M1 may land in either order without exposure:
+- **code first:** the new code knows the values, but the database rejects them until M1, and the allow-list refuses them anyway;
+- **M1 first:** the running old code's generated `Role` enum does not contain the new values, so `@IsEnum(Role)` still rejects them.
+
+Either way, no account can hold a new role until a flag is switched on (PR 13/14) or the approved bootstrap runs (PR 11).
+
+Not migrations (each separately approved): bootstrap, flag changes, appointments.
 
 ---
 

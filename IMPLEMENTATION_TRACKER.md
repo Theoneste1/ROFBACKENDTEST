@@ -43,8 +43,8 @@ Plan: [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) (v5.1) · decisions: [ARCHITE
 | P1-07 | Programme membership: M2 + M3 backfill, scope helpers, heads/members API | Critical | P1-04 | Not started | plan §11.5 (precondition, reconciliation, access regression, scope isolation, rollback) on test DB and Neon copy |
 | P1-08 | Super Admin: authority (no grading), role rules, step-up, M4 trigger, bootstrap command (not run), runbook, audit interceptor, boundary flag (off) | Critical | P1-05, P1-06 | Not started | plan §11.2, §11.4; bootstrap rehearsed on non-production only |
 | P1-09 | Individual overrides: M5, Super-Admin-only API, approved list, expiry at `expiresAt` | Critical | P1-04 | Not started | plan §11.3 |
-| P1-10 | Head Coach (programme-scoped) | High | P1-07, P1-09 | Not started | programme-boundary and escalation suites |
-| P1-11 | Teacher: M6 TeacherAssignment, scoped view, override path | High | P1-05, P1-07 | Not started | teacher suite; never in grading distribution |
+| P1-10 | Head Coach (programme-scoped) | High | P1-05, P1-06, P1-07, P1-09 | Not started | programme-boundary and escalation suites |
+| P1-11 | Teacher: M6 TeacherAssignment, scoped view, override path | High | P1-05, P1-06, P1-07, P1-09 | Not started | teacher suite; never in grading distribution |
 | P1-F2 | Frontend: permission-driven navigation; Head Coach, Super Admin, Teacher views | High | matching backend tasks | Not started | API refuses every hidden action |
 | P1-12 | Phase exit: full matrix, combined M1–M6 rehearsal, docs | Critical | all above | Not started | plan §11 complete; owner sign-off |
 
