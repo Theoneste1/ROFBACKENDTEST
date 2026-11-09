@@ -31,8 +31,9 @@ function makeMocks() {
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
 
   const accountEmails = { approved: vi.fn() };
-  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any);
-  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails };
+  const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn() };
+  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any);
+  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles };
 }
 
 describe('UsersService', () => {
@@ -228,6 +229,56 @@ describe('UsersService', () => {
     it('requires at least one field', async () => {
       const { service } = makeMocks();
       await expect(service.updateMe('u1', {})).rejects.toMatchObject({ code: 'NO_CHANGES' });
+    });
+  });
+
+  describe('role allow-list (P1-05)', () => {
+    const refusal = () => Object.assign(new Error('refused'), { code: 'ROLE_NOT_ASSIGNABLE' });
+
+    it('create checks the requested role (default STUDENT) before writing anything', async () => {
+      const { service, prisma, roles } = makeMocks();
+      roles.assertCanAssign.mockImplementation(() => { throw refusal(); });
+      await expect(service.create({ role: 'SUPER_ADMIN' } as any, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      expect(roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'SUPER_ADMIN');
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+
+      const ok = makeMocks();
+      await ok.service.create({ firstName: 'a' } as any, ADMIN).catch(() => undefined);
+      expect(ok.roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'STUDENT');
+    });
+
+    it('update checks the CURRENT role on every edit, and the NEW role only when it changes', async () => {
+      const { service, prisma, roles } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'MENTOR', gradeLevel: null, username: 'bob', email: 'b@x.rw' });
+      await service.update('u2', { firstName: 'New' } as any, ADMIN);
+      expect(roles.assertCanManage).toHaveBeenCalledWith(ADMIN, 'MENTOR');
+      expect(roles.assertCanAssign).not.toHaveBeenCalled();
+
+      await service.update('u2', { role: 'ADMIN' } as any, ADMIN);
+      expect(roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'ADMIN');
+    });
+
+    it('a refused role change writes nothing and ends no session', async () => {
+      const { service, prisma, roles, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'STUDENT', gradeLevel: 'S2', username: 'bob', email: 'b@x.rw' });
+      roles.assertCanAssign.mockImplementation(() => { throw refusal(); });
+      await expect(service.update('u2', { role: 'TEACHER' } as any, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+    });
+
+    it('an account whose current role the actor may not manage cannot be edited, suspended or deleted', async () => {
+      const { service, prisma, roles } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'SUPER_ADMIN', gradeLevel: null, username: 'sa', email: 's@x.rw' });
+      roles.assertCanManage.mockImplementation(() => { throw refusal(); });
+      await expect(service.update('u2', { firstName: 'X' } as any, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      await expect(service.updateStatus('u2', { isActive: false }, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      await expect(service.delete('u2', ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.user.delete).not.toHaveBeenCalled();
+      expect(roles.assertCanManage).toHaveBeenCalledTimes(3);
     });
   });
 });

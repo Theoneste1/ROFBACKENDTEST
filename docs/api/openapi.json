@@ -4419,7 +4419,10 @@
               "enum": [
                 "STUDENT",
                 "MENTOR",
-                "ADMIN"
+                "ADMIN",
+                "TEACHER",
+                "HEAD_COACH",
+                "SUPER_ADMIN"
               ]
             }
           },
@@ -35371,7 +35374,10 @@
             "enum": [
               "STUDENT",
               "MENTOR",
-              "ADMIN"
+              "ADMIN",
+              "TEACHER",
+              "HEAD_COACH",
+              "SUPER_ADMIN"
             ]
           },
           "gradeLevel": {
@@ -35434,7 +35440,10 @@
             "enum": [
               "STUDENT",
               "MENTOR",
-              "ADMIN"
+              "ADMIN",
+              "TEACHER",
+              "HEAD_COACH",
+              "SUPER_ADMIN"
             ]
           },
           "gradeLevel": {
@@ -35508,7 +35517,10 @@
             "enum": [
               "STUDENT",
               "MENTOR",
-              "ADMIN"
+              "ADMIN",
+              "TEACHER",
+              "HEAD_COACH",
+              "SUPER_ADMIN"
             ]
           },
           "gradeLevel": {

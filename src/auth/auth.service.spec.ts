@@ -53,6 +53,7 @@ function makeMocks() {
   const service = new AuthService(
     prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
     academicYears as any, activity as any, activation as any, accountEmails as any,
+    { assertCanAssign: vi.fn(), assertCanManage: vi.fn() } as any,
   );
   return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails };
 }

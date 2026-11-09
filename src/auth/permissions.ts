@@ -73,9 +73,13 @@ export const PERMISSIONS = [
 
 export type Permission = (typeof PERMISSIONS)[number];
 
-/** The six user types (COACH is stored as MENTOR). Becomes identical to the Prisma Role enum after M1. */
+/** The six user types (COACH is stored as MENTOR) — exactly the Prisma Role enum (M1). */
 export const APP_ROLES = ['STUDENT', 'TEACHER', 'MENTOR', 'HEAD_COACH', 'ADMIN', 'SUPER_ADMIN'] as const;
 export type AppRole = (typeof APP_ROLES)[number];
+
+// Compile-time check: APP_ROLES and the database Role enum are the same set.
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+export const APP_ROLES_MATCH_DATABASE: Same<AppRole, Role> = true;
 
 /** Where a grant applies. Enforced by the services (AccessService), not by the permission guard. */
 export type ScopeKind = 'own' | 'division' | 'courseDivision' | 'programme' | 'global';
@@ -178,7 +182,10 @@ export const NEVER_GRANTABLE: readonly Permission[] = [
 
 // ── Legacy lists, returned unchanged by GET /me/permissions (decision A1) ────
 
-export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
+/** The roles that existed before Phase 1 (their GET /me/permissions list is frozen, A1). */
+export type LegacyRole = 'STUDENT' | 'MENTOR' | 'ADMIN';
+
+export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
   STUDENT: [
     'courses.view', 'courses.complete', 'resources.view',
     'assignments.view', 'submissions.submit', 'submissions.viewOwn',
@@ -201,7 +208,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   ],
 };
 
-export function permissionsFor(role: Role): readonly Permission[] {
+export function permissionsFor(role: LegacyRole): readonly Permission[] {
   return ROLE_PERMISSIONS[role] ?? [];
 }
 

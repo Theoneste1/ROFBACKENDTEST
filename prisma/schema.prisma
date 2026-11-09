@@ -16,6 +16,12 @@ enum Role {
   STUDENT
   MENTOR
   ADMIN
+  // Phase 1 (M1). Not assignable until enabled: TEACHER / HEAD_COACH behind
+  // TEACHERS_ENABLED / HEAD_COACHES_ENABLED; SUPER_ADMIN only by the approved
+  // bootstrap, never through the user API.
+  TEACHER
+  HEAD_COACH
+  SUPER_ADMIN
 }
 
 enum AuthProvider {

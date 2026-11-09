@@ -1,11 +1,12 @@
 import { Global, Module } from '@nestjs/common';
 
 import { PermissionService } from './permission.service.js';
+import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 
-/** Provides PermissionService everywhere (permission guard, /me/permissions). */
+/** Provides PermissionService and the role allow-list everywhere. */
 @Global()
 @Module({
-  providers: [PermissionService],
-  exports:   [PermissionService],
+  providers: [PermissionService, RoleAssignmentPolicy],
+  exports:   [PermissionService, RoleAssignmentPolicy],
 })
 export class PermissionsModule {}
