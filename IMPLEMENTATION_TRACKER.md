@@ -18,13 +18,13 @@ production-copy rehearsal) — never because an endpoint or table exists.
 
 | ID | Task | Priority | Depends on | Status | Verification |
 |---|---|---|---|---|---|
-| P0-01 | Review pending backend commits (`cc27c8d`, `962e1f0`, `f624d25`) and prepare the PR `feature/backend-completion → main` | Critical | owner go-ahead to push | Not started | PR open, CI green, reviewed |
+| P0-01 | Review pending backend commits (`cc27c8d`, `962e1f0`, `f624d25`) and prepare the PR `feature/backend-completion → main` | Critical | owner go-ahead to push | **Done 2026-11-08** | PR [#3](https://github.com/Theoneste1/ROFBACKENDTEST/pull/3) (4 commits incl. docs `6f2e3a6`) CI green, merged by owner → `main` `a8df186` |
 | P0-02 | Fix and deploy the frontend Netlify 404 (frontend branch `feature/production-readiness`) | Critical | owner merge | Not started | `roflms.netlify.app` serves the app; reset link opens the reset page |
-| P0-03 | Regression baseline (tag, test counts, OpenAPI snapshot) | High | P0-01 | Not started | tag exists; 482 unit / 289 e2e recorded |
+| P0-03 | Regression baseline (tag, test counts, OpenAPI snapshot) | High | P0-01 | **Done 2026-11-08** | tag `rof-backend-baseline-2026-11-08` → `a8df186`; unit 482/482, e2e 289 passed + 3 skipped (S3, pass in CI), lint 0 errors / 1 warning (unused `emptyToUndefined`), type-check/build clean, 202/202 routes, CI run 42473170005 green; re-verified 2026-11-08 (BASELINE §9: one intermittent e2e timeout, not reproduced; CI green on `develop` 97131c2 and frontend `main` ea09fcc); [docs/baseline/BASELINE-2026-11-08.md](docs/baseline/BASELINE-2026-11-08.md), API snapshot + test inventory |
 | P0-04 | Verify database backup and restore (Neon restore drill) | Critical | — | Not started | restore documented with time and checks |
 | P0-05 | Controlled Cloudflare R2 upload and download test | Critical | P0-01 deployed | Not started | object in `rof-files`, download byte-identical, start-up log names R2 |
 | P0-06 | CI check: migration names strictly after the newest on `main` | Critical | — | Not started | check fails on a deliberately mis-named test migration |
-| P0-07 | Align `develop` with `main` after P0-01 is merged (Q22 decided: keep `develop`) | Medium | P0-01 merged | Not started | `develop` contains everything in `main` |
+| P0-07 | Align `develop` with `main` after P0-01 is merged (Q22 decided: keep `develop`) | Medium | P0-01 merged | **Done 2026-11-08** | merge commit `2528587` on `develop` (parents `46129e2`, `a8df186`); file tree identical to `main` (`d6945d6`); normal push |
 | P0-08 | Staging environment (ADR-016) | High | P0-04 | Not started | staging URL with rehearsed migrations |
 
 ## Requirements
