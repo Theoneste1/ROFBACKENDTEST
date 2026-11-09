@@ -839,7 +839,7 @@ List users with filters (role, division, grade, school, status, search).
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
-| `role` | query | STUDENT \| MENTOR \| ADMIN |  |  |
+| `role` | query | STUDENT \| MENTOR \| ADMIN \| TEACHER \| HEAD_COACH \| SUPER_ADMIN |  |  |
 | `divisionId` | query | string |  |  |
 | `gradeLevel` | query | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  |  |
 | `schoolId` | query | string |  |  |
@@ -867,7 +867,7 @@ Body (JSON):
 | `username` | string | ✓ |  |
 | `email` | string (email) | ✓ |  |
 | `password` | string | ✓ |  |
-| `role` | STUDENT \| MENTOR \| ADMIN |  | Defaults to STUDENT when omitted. |
+| `role` | STUDENT \| MENTOR \| ADMIN \| TEACHER \| HEAD_COACH \| SUPER_ADMIN |  | Defaults to STUDENT when omitted. |
 | `gradeLevel` | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  | Required for students; determines the division. |
 | `schoolId` | string (uuid) |  |  |
 | `homeLocation` | string |  |  |
@@ -905,7 +905,7 @@ Body (JSON):
 | `username` | string |  |  |
 | `email` | string (email) |  |  |
 | `password` | string |  |  |
-| `role` | STUDENT \| MENTOR \| ADMIN |  |  |
+| `role` | STUDENT \| MENTOR \| ADMIN \| TEACHER \| HEAD_COACH \| SUPER_ADMIN |  |  |
 | `gradeLevel` | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  | Changing the grade moves a student to the matching division. |
 | `schoolId` | string (uuid) |  |  |
 | `homeLocation` | string |  |  |
@@ -1008,7 +1008,7 @@ Body (JSON):
 | `lastName` | string | ✓ |  |
 | `email` | string (email) | ✓ |  |
 | `username` | string |  | Optional; generated from the e-mail address when omitted. |
-| `role` | STUDENT \| MENTOR \| ADMIN |  | Defaults to STUDENT. |
+| `role` | STUDENT \| MENTOR \| ADMIN \| TEACHER \| HEAD_COACH \| SUPER_ADMIN |  | Defaults to STUDENT. |
 | `gradeLevel` | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  | Required for students (S1–S6); determines the division. |
 | `schoolId` | string (uuid) |  | Existing school id … |
 | `schoolName` | string |  | … or a school name (created if new, normalised to Title Case). |

@@ -60,7 +60,7 @@ export class AuthController {
   @Roles('ADMIN')
   @Post('register/admin')
   registerAdmin(@Body() body: RegisterAdminDto, @CurrentUser() user: AuthUser) {
-    return this.authService.registerAdmin(body, user.id);
+    return this.authService.registerAdmin(body, user);
   }
 
   // ─── Login (all roles, public) ─────────────────────────────────────────────

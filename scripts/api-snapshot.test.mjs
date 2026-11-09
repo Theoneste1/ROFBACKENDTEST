@@ -90,7 +90,8 @@ const none = (res) => res.breaking.length === 0 && res.review.length === 0 && re
 /** Saved contract snapshots (docs/baseline). CURRENT_SNAPSHOT is the latest approved contract. */
 const P0_03_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-08.json';
 const P1_04_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-04.json';
-const CURRENT_SNAPSHOT = P1_04_SNAPSHOT;
+const P1_05_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-05.json';
+const CURRENT_SNAPSHOT = P1_05_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -385,6 +386,20 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, [
       'GET /api/v1/me/permissions › response 200 application/json.roleLabel: new field',
       'GET /api/v1/me/permissions › response 200 application/json.scopes: new field',
+    ]);
+  });
+
+  test('P1-04 → P1-05 (role allow-list + M1): exactly the three new role values in four request enums; nothing breaking or for review', () => {
+    for (const f of [P1_04_SNAPSHOT, P1_05_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_04_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_05_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/users › query parameter role: enum values added: HEAD_COACH, SUPER_ADMIN, TEACHER',
+      'PATCH /api/v1/admin/users/{id} › request application/json.role: enum values added: HEAD_COACH, SUPER_ADMIN, TEACHER',
+      'POST /api/v1/admin/users › request application/json.role: enum values added: HEAD_COACH, SUPER_ADMIN, TEACHER',
+      'POST /api/v1/admin/users/invite › request application/json.role: enum values added: HEAD_COACH, SUPER_ADMIN, TEACHER',
     ]);
   });
 

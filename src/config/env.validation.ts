@@ -154,6 +154,17 @@ export class EnvironmentVariables {
   @IsString()
   WORKERS_ENABLED?: string;
 
+  // ── Phase 1 role flags (off by default; each switch-on separately approved) ─
+  /** "true" lets administrators assign the TEACHER role. */
+  @IsOptional()
+  @Matches(/^(true|false)$/, { message: 'TEACHERS_ENABLED must be "true" or "false".' })
+  TEACHERS_ENABLED?: string;
+
+  /** "true" lets administrators assign the HEAD_COACH role. */
+  @IsOptional()
+  @Matches(/^(true|false)$/, { message: 'HEAD_COACHES_ENABLED must be "true" or "false".' })
+  HEAD_COACHES_ENABLED?: string;
+
   // ── Rate limiting ──────────────────────────────────────────────────────────
   @Type(() => Number)
   @IsInt()

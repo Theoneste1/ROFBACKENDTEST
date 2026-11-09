@@ -16,6 +16,8 @@ import { TokenService, hashToken, type ClientInfo } from './token.service.js';
 import { RegisterStudentDto } from './dto/register-student.dto.js';
 import { RegisterAdminDto } from './dto/register-admin.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RoleAssignmentPolicy } from './role-assignment.policy.js';
+import type { CallerCtx } from '../common/auth-user.js';
 
 export const BCRYPT_COST = 12;
 
@@ -52,6 +54,7 @@ export class AuthService {
     private readonly activity:      ActivityService,
     private readonly activation:    ActivationService,
     private readonly accountEmails: AccountEmailsService,
+    private readonly roles:         RoleAssignmentPolicy,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -125,7 +128,9 @@ export class AuthService {
 
   // ─── Admin Registration (ADMIN only — enforced by the controller) ──────────
 
-  async registerAdmin(data: RegisterAdminDto, requestingUserId: string) {
+  async registerAdmin(data: RegisterAdminDto, caller: CallerCtx) {
+    const requestingUserId = caller.id;
+    this.roles.assertCanAssign(caller, 'ADMIN');
     await this.assertIdentityFree(data.username, data.email);
 
     const admin = await this.prisma.user.create({

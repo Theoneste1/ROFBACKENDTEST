@@ -13,6 +13,7 @@ import type { CallerCtx } from '../common/auth-user.js';
 import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
+import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -40,6 +41,7 @@ export class UsersService {
     private readonly tokens:    TokenService,
     private readonly academicYears: AcademicYearsService,
     private readonly accountEmails: AccountEmailsService,
+    private readonly roles:     RoleAssignmentPolicy,
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
@@ -74,6 +76,7 @@ export class UsersService {
 
   // ─── Create a user (admin) ─────────────────────────────────────────────────
   async create(data: CreateUserDto, caller: CallerCtx) {
+    this.roles.assertCanAssign(caller, data.role ?? 'STUDENT');
     await this.assertIdentityFree(data.username, data.email);
 
     const role = data.role ?? 'STUDENT';
@@ -127,6 +130,7 @@ export class UsersService {
       },
     });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
+    this.roles.assertCanManage(caller, existing.role);
 
     if (Object.keys(data).length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
@@ -134,6 +138,7 @@ export class UsersService {
     if (id === caller.id && data.role && data.role !== existing.role) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_CHANGE_OWN_ROLE', 'You cannot change your own role.');
     }
+    if (data.role && data.role !== existing.role) this.roles.assertCanAssign(caller, data.role);
     if ((data.username && data.username !== existing.username) || (data.email && data.email !== existing.email)) {
       await this.assertIdentityFree(
         data.username !== existing.username ? data.username : undefined,
@@ -230,6 +235,7 @@ export class UsersService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_SUSPEND_SELF', 'You cannot suspend your own account.');
     }
     const before = await this.findOne(id);
+    this.roles.assertCanManage(caller, before.role);
 
     const user = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
@@ -266,6 +272,7 @@ export class UsersService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_DELETE_SELF', 'You cannot delete your own account.');
     }
     const user = await this.findOne(id);
+    this.roles.assertCanManage(caller, user.role);
 
     try {
       await this.prisma.user.delete({ where: { id } });

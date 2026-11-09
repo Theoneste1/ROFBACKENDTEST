@@ -20,6 +20,7 @@ import { AppError, invalidState } from '../common/errors/app-error.js';
 import { parseCsv } from '../common/csv-parse.js';
 import { divisionCodeForGrade } from '../common/grade-levels.js';
 import type { CallerCtx } from '../common/auth-user.js';
+import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { InviteUserDto } from './dto/invite-user.dto.js';
 
@@ -49,11 +50,13 @@ export class UserProvisioningService {
     private readonly academicYears: AcademicYearsService,
     private readonly activation:    ActivationService,
     private readonly auth:          AuthService,
+    private readonly roles:         RoleAssignmentPolicy,
   ) {}
 
   // ─── Invitations ──────────────────────────────────────────────────────────
 
   async invite(dto: InviteUserDto, caller: CallerCtx) {
+    this.roles.assertCanAssign(caller, dto.role ?? 'STUDENT');
     await this.assertFree(dto.email, dto.username);
     const username = dto.username ?? (await this.generateUsername(dto.email));
 
@@ -74,9 +77,10 @@ export class UserProvisioningService {
   async resendInvitation(userId: string, caller: CallerCtx) {
     const user = await this.prisma.user.findUnique({
       where:  { id: userId },
-      select: { id: true, activatedAt: true, isActive: true, passwordHash: true },
+      select: { id: true, role: true, activatedAt: true, isActive: true, passwordHash: true },
     });
     if (!user) throw new NotFoundException('User not found.');
+    this.roles.assertCanManage(caller, user.role);
     if (user.activatedAt) throw invalidState('This account is already activated.');
     if (!user.isActive)   throw invalidState('Reactivate the account before re-sending the invitation.');
 
@@ -94,9 +98,10 @@ export class UserProvisioningService {
   async sendPasswordReset(userId: string, caller: CallerCtx) {
     const user = await this.prisma.user.findUnique({
       where:  { id: userId },
-      select: { id: true, activatedAt: true, isActive: true, provider: true },
+      select: { id: true, role: true, activatedAt: true, isActive: true, provider: true },
     });
     if (!user) throw new NotFoundException('User not found.');
+    this.roles.assertCanManage(caller, user.role);
     if (!user.isActive)    throw invalidState('This account is suspended.');
     if (!user.activatedAt) throw invalidState('This account is not activated yet; re-send the invitation instead.');
     if (user.provider !== 'LOCAL') throw invalidState('This account signs in with an external provider.');
@@ -168,6 +173,10 @@ export class UserProvisioningService {
         const first = seenEmails.get(dto.email);
         if (first) problems.push(`email repeats row ${first}.`);
         else seenEmails.set(dto.email, rec.line);
+      }
+      {
+        const refusal = this.roleRefusal(caller, dto.role ?? 'STUDENT');
+        if (refusal) problems.push(refusal);
       }
       if (dto.username) {
         const first = seenUsernames.get(dto.username);
@@ -249,11 +258,22 @@ export class UserProvisioningService {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
+  /** The allow-list refusal for a CSV row, as a row error message (null when allowed). */
+  private roleRefusal(caller: CallerCtx, role: string): string | null {
+    try {
+      this.roles.assertCanAssign(caller, role);
+      return null;
+    } catch (err) {
+      return err instanceof AppError ? `role ${role}: ${err.code}` : 'role: not allowed.';
+    }
+  }
+
   /** Create an invited (password-less, not activated) account and its activation token. */
   private async createInvited(
     tx: Tx, dto: InviteUserDto & { username: string }, caller: CallerCtx,
   ): Promise<{ user: Prisma.UserGetPayload<{ select: typeof INVITED_SELECT }>; issued: IssuedActivation }> {
     const role = dto.role ?? 'STUDENT';
+    this.roles.assertCanAssign(caller, role);   // defence in depth: every invited account
     const isStudent = role === 'STUDENT';
 
     let schoolId: string | null = null;
