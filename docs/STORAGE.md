@@ -64,7 +64,9 @@ Every response carries:
 
 The S3 driver streams objects through the API, so access checks always apply;
 there are no public or pre-signed URLs. The bucket should be private. The
-health check (`GET /health`) also checks that storage is reachable.
+health check (`GET /health`) also checks that storage is reachable. To prove an
+upload and byte-identical download against the real bucket, see
+[operations/R2-VERIFICATION.md](operations/R2-VERIFICATION.md) (`npm run storage:verify`).
 
 ## Lifecycle and cleanup
 
