@@ -261,7 +261,7 @@ export class NotificationListener {
       if (!t) return;
       const courseId = t.courseId ?? t.assignment!.courseId;
       const mentors = await this.prisma.mentorAssignment.findMany({
-        where:  { courseId, divisionId: t.divisionId, isActive: true, mentor: { isActive: true } },
+        where:  { courseId, divisionId: t.divisionId, isActive: true, mentor: { isActive: true, role: 'MENTOR' } },
         select: { mentorId: true },
       });
       const where = t.assignment ? `the assignment "${t.assignment.title}"` : t.course!.title;

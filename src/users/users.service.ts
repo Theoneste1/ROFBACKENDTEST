@@ -12,6 +12,7 @@ import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
+import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -183,6 +184,12 @@ export class UsersService {
           data:  { status: 'WITHDRAWN', endedAt: new Date() },
         });
         enrollment = 'WITHDRAWN';
+      }
+
+      // A coach who changes role keeps no coach scope: their course × division
+      // assignments are deactivated (kept as history) in the same transaction.
+      if (existing.role === 'MENTOR' && role !== 'MENTOR') {
+        await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
       }
 
       // The audit entries commit with the change: what changed, from what, to what.

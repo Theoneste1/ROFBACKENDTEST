@@ -110,7 +110,7 @@ export class MentorAssignmentsService {
   /** The current mentor's teaching scopes. */
   async findMine(mentorId: string) {
     return this.prisma.mentorAssignment.findMany({
-      where:   { mentorId, isActive: true },
+      where:   { mentorId, isActive: true, mentor: { role: 'MENTOR' } },
       select:  { id: true, course: SELECT.course, division: SELECT.division, createdAt: true },
       orderBy: { course: { sortOrder: 'asc' } },
     });

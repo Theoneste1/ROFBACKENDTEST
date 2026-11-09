@@ -32,14 +32,14 @@ export class AccessService {
   /** Active (course, division) pairs a mentor is assigned to. */
   async mentorScopes(mentorId: string): Promise<Scope[]> {
     return this.prisma.mentorAssignment.findMany({
-      where:  { mentorId, isActive: true },
+      where:  { mentorId, isActive: true, mentor: { role: 'MENTOR' } },
       select: { courseId: true, divisionId: true },
     });
   }
 
   async isAssignedMentor(mentorId: string, scope: Scope): Promise<boolean> {
     const found = await this.prisma.mentorAssignment.findFirst({
-      where:  { mentorId, courseId: scope.courseId, divisionId: scope.divisionId, isActive: true },
+      where:  { mentorId, courseId: scope.courseId, divisionId: scope.divisionId, isActive: true, mentor: { role: 'MENTOR' } },
       select: { id: true },
     });
     return found !== null;
