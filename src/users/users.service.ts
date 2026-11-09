@@ -214,10 +214,13 @@ export class UsersService {
           },
         }, tx);
       }
+      // Sessions end in the same transaction as the role / password change (last
+      // statement before commit): the new role and the revocation become visible
+      // together, so an old token can never authenticate with the new role.
+      if (data.password || data.role) await this.tokens.revokeAllForUser(id, tx);
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
     });
 
-    if (data.password || data.role) await this.tokens.revokeAllForUser(id);
     return user;
   }
 

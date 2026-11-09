@@ -94,6 +94,36 @@ describe('Coach role change → coach assignments (P1-05)', () => {
     }
   });
 
+  it('security: DURING the role change the old coach token is never accepted as ADMIN (role and revocation commit together)', async () => {
+    for (let round = 0; round < 3; round++) {
+      const username = `during.coach.${round}`;
+      const created = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+        firstName: 'During', lastName: String(round), username, email: `${username}@test.local`, password: 'Str0ng!Passw0rd', role: 'MENTOR',
+      }).expect(201);
+      const coachToken = await login(ctx, username, 'Str0ng!Passw0rd');
+
+      // Start the promotion and, concurrently, hammer an ADMIN-only endpoint with the old token.
+      let done = false;
+      const change = http().patch(`/api/v1/admin/users/${created.body.id}`).set(bearer(admin)).send({ role: 'ADMIN' })
+        .then((r) => { done = true; return r; });
+      const seen: number[] = [];
+      while (!done) {
+        seen.push((await http().get('/api/v1/admin/users').set(bearer(coachToken))).status);
+      }
+      expect((await change).status).toBe(200);
+      seen.push((await http().get('/api/v1/admin/users').set(bearer(coachToken))).status);
+
+      // Before commit: still a coach → 403. After commit: revoked → 401. Never 200.
+      expect(seen.filter((s) => s !== 401 && s !== 403)).toEqual([]);
+      expect(seen[seen.length - 1]).toBe(401);
+      // The database never holds the new role without the revocation.
+      const u = await ctx.prisma.user.findUniqueOrThrow({ where: { id: created.body.id }, select: { role: true, tokensValidAfter: true } });
+      expect(u.role).toBe('ADMIN');
+      expect(u.tokensValidAfter).not.toBeNull();
+      expect(await ctx.prisma.refreshToken.count({ where: { userId: created.body.id, revokedAt: null } })).toBe(0);
+    }
+  });
+
   it('a former coach (now a student) has no coach access and is not shown as a course coach', async () => {
     const coachId = ctx.ids.mentorJunior2;
     await http().patch(`/api/v1/admin/users/${coachId}`).set(bearer(admin)).send({ role: 'STUDENT', gradeLevel: 'S1' }).expect(200);
