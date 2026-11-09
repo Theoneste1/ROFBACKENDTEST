@@ -10,13 +10,15 @@
  *   STUDENT — only their own division, and only for PUBLISHED courses.
  *
  * Students who are out of scope get 404 (existence is not revealed);
- * mentors get 403 with an explicit code.
+ * mentors get 403 with an explicit code. Any other role gets least privilege:
+ * 404 for a record, 403 ROLE_NOT_SUPPORTED for a list (see roles.ts).
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppError } from '../errors/app-error.js';
 import type { AuthUser } from '../auth-user.js';
+import { isAdmin, isCoach, isStudent, unsupportedRole } from './roles.js';
 
 export interface Scope {
   courseId:   string;
@@ -75,30 +77,35 @@ export class AccessService {
 
   /** May the user CREATE/EDIT content in this scope? (admin or assigned mentor) */
   async assertCanManage(user: AuthUser, scope: Scope): Promise<void> {
-    if (user.role === 'ADMIN') return;
-    if (user.role === 'MENTOR' && (await this.isAssignedMentor(user.id, scope))) return;
+    if (isAdmin(user)) return;
+    if (isCoach(user) && (await this.isAssignedMentor(user.id, scope))) return;
     throw notAssigned();
   }
 
   /** Mentor-only variant: admins are NOT allowed (e.g. preparing assignments). */
   async assertMentorOf(user: AuthUser, scope: Scope): Promise<void> {
-    if (user.role === 'MENTOR' && (await this.isAssignedMentor(user.id, scope))) return;
+    if (isCoach(user) && (await this.isAssignedMentor(user.id, scope))) return;
     throw notAssigned();
   }
 
   /**
    * Prisma `where` fragment restricting a list to the scopes a user can see.
-   * Returns `undefined` for admins (no restriction).
+   * Returns `undefined` for admins (no restriction). Any other role is
+   * refused — in particular it never inherits coach scope from
+   * MentorAssignment rows left over from an earlier role.
    */
   async scopeFilter(user: AuthUser): Promise<Record<string, unknown> | undefined> {
-    if (user.role === 'ADMIN') return undefined;
-    if (user.role === 'STUDENT') {
+    if (isAdmin(user)) return undefined;
+    if (isStudent(user)) {
       return { divisionId: this.studentDivision(user), course: { status: 'PUBLISHED' } };
     }
-    const scopes = await this.mentorScopes(user.id);
-    // No scopes → match nothing.
-    if (scopes.length === 0) return { id: { in: [] } };
-    return { OR: scopes.map((s) => ({ courseId: s.courseId, divisionId: s.divisionId })) };
+    if (isCoach(user)) {
+      const scopes = await this.mentorScopes(user.id);
+      // No scopes → match nothing.
+      if (scopes.length === 0) return { id: { in: [] } };
+      return { OR: scopes.map((s) => ({ courseId: s.courseId, divisionId: s.divisionId })) };
+    }
+    throw unsupportedRole();
   }
 }
 

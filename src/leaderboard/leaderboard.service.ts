@@ -6,6 +6,7 @@ import { AccessService } from '../common/access/access.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { isStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { LeaderboardQueryDto } from './dto/leaderboard-query.dto.js';
 
@@ -141,15 +142,16 @@ export class LeaderboardService {
 
   /**
    * Students always see their own division (and only if the setting allows).
-   * Staff must choose a division.
+   * Staff (admins, coaches) must choose a division. Any other role is refused.
    */
   private async resolveDivision(user: AuthUser, requested?: string): Promise<string> {
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       if (!(await this.settings.get('leaderboard.visibleToStudents'))) {
         throw new AppError(HttpStatus.FORBIDDEN, 'LEADERBOARD_HIDDEN', 'The leaderboard is currently not available.');
       }
       return this.access.studentDivision(user);
     }
+    if (!isStaff(user)) throw unsupportedRole();
     if (!requested) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId.');
     }
@@ -158,13 +160,12 @@ export class LeaderboardService {
     return requested;
   }
 
-  /** Students see first name + last initial; staff see full names. */
+  /** Staff (admins, coaches) see full names; everyone else sees first name + last initial. */
   private toEntry(r: RankedRow, user: AuthUser) {
-    const isStaff = user.role !== 'STUDENT';
     return {
       rank:           Number(r.rank),
       id:             r.id,
-      displayName:    isStaff ? `${r.firstName} ${r.lastName}` : `${r.firstName} ${r.lastName.charAt(0)}.`,
+      displayName:    isStaff(user) ? `${r.firstName} ${r.lastName}` : `${r.firstName} ${r.lastName.charAt(0)}.`,
       avatarUrl:      r.avatarUrl,
       points:         r.points,
       problemsSolved: r.problemsSolved,

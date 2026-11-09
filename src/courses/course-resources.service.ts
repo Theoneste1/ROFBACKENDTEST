@@ -27,6 +27,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { ATTACHMENT_SELECT, MAX_ATTACHMENTS } from '../common/storage/attachments.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { isAdmin, isCoach, isStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { FileObject, Prisma } from '../generated/prisma/client.js';
 import { Events } from '../notifications/events.js';
 import { CreateResourceDto, ListResourcesDto } from './dto/create-resource.dto.js';
@@ -108,6 +109,8 @@ export class CourseResourcesService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   async findAll(courseId: string, user: AuthUser, q: ListResourcesDto) {
+    // A role-dependent list: refuse an unsupported role before revealing anything about the course.
+    if (!isStudent(user) && !isStaff(user)) throw unsupportedRole();
     await this.requireCourse(courseId);
 
     const where: Prisma.CourseResourceWhereInput = {
@@ -122,23 +125,24 @@ export class CourseResourcesService {
       }),
     };
 
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       const divisionId = this.access.studentDivision(user);
       await this.access.assertCanView(user, { courseId, divisionId });
       Object.assign(where, { divisionId, isPublished: true, archivedAt: null });
-    } else {
-      if (user.role === 'MENTOR') {
-        const divisions = (await this.access.mentorScopes(user.id))
-          .filter((s) => s.courseId === courseId)
-          .map((s) => s.divisionId);
-        if (divisions.length === 0 || (q.divisionId && !divisions.includes(q.divisionId))) {
-          throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course and division.');
-        }
-        where.divisionId = q.divisionId ?? { in: divisions };
-      } else if (q.divisionId) {
-        where.divisionId = q.divisionId;
+    } else if (isCoach(user)) {
+      const divisions = (await this.access.mentorScopes(user.id))
+        .filter((s) => s.courseId === courseId)
+        .map((s) => s.divisionId);
+      if (divisions.length === 0 || (q.divisionId && !divisions.includes(q.divisionId))) {
+        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course and division.');
       }
+      where.divisionId = q.divisionId ?? { in: divisions };
       if (!q.includeArchived) where.archivedAt = null;
+    } else if (isAdmin(user)) {
+      if (q.divisionId) where.divisionId = q.divisionId;
+      if (!q.includeArchived) where.archivedAt = null;
+    } else {
+      throw unsupportedRole();
     }
 
     return this.prisma.courseResource.findMany({
@@ -177,7 +181,7 @@ export class CourseResourcesService {
     });
     if (!attachment) throw new NotFoundException('This resource has no such file.');
 
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       const now = new Date();
       await this.prisma.resourceView.upsert({
         where:  { resourceId_studentId: { resourceId, studentId: user.id } },
@@ -353,7 +357,7 @@ export class CourseResourcesService {
     user: AuthUser,
   ) {
     await this.access.assertCanView(user, { courseId: resource.courseId, divisionId: resource.divisionId });
-    if (user.role === 'STUDENT' && (!resource.isPublished || resource.archivedAt)) {
+    if (isStudent(user) && (!resource.isPublished || resource.archivedAt)) {
       throw new NotFoundException('Resource not found.');
     }
   }

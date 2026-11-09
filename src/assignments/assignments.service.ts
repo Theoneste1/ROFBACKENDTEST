@@ -42,6 +42,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { isStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { AssignmentEventType, AssignmentStatus, FileObject, Prisma } from '../generated/prisma/client.js';
 import { Events } from '../notifications/events.js';
 import { deriveStudentDisplayStatus } from '../submissions/student-display-status.js';
@@ -452,45 +453,61 @@ export class AssignmentsService {
    *   STUDENT: published or closed assignments of their division (published courses only).
    *   MENTOR:  every status, within their scopes.
    *   ADMIN:   everything.
+   *   Any other role: refused (403 ROLE_NOT_SUPPORTED, from scopeFilter).
    */
   async findAll(user: AuthUser, q: ListAssignmentsDto) {
     const { page, limit, skip, take } = pageArgs(q);
     const scope = await this.access.scopeFilter(user);
-    const isStudent = user.role === 'STUDENT';
 
-    const where: Prisma.AssignmentWhereInput = {
-      AND: [
-        scope ?? {},
-        isStudent ? this.studentStatusFilter(q) : q.status ? { status: q.status } : {},
-        q.divisionId && !isStudent ? { divisionId: q.divisionId } : {},
-        q.createdById && !isStudent ? { createdById: q.createdById } : {},
-        this.commonFilters(q),
-      ],
-    };
+    if (isStudent(user)) {
+      const where: Prisma.AssignmentWhereInput = {
+        AND: [scope ?? {}, this.studentStatusFilter(q), this.commonFilters(q)],
+      };
+      const [rows, total] = await this.prisma.$transaction([
+        this.prisma.assignment.findMany({ where, select: ASSIGNMENT_SUMMARY, skip, take, orderBy: { deadline: 'asc' } }),
+        this.prisma.assignment.count({ where }),
+      ]);
+      return paginated(rows, total, page, limit);
+    }
 
-    const select = user.role === 'STUDENT' ? ASSIGNMENT_SUMMARY : STAFF_DETAIL;
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.assignment.findMany({
-        where, select, skip, take,
-        orderBy: user.role === 'STUDENT' ? { deadline: 'asc' } : { updatedAt: 'desc' },
-      }),
-      this.prisma.assignment.count({ where }),
-    ]);
-    return paginated(rows, total, page, limit);
+    if (isStaff(user)) {
+      const where: Prisma.AssignmentWhereInput = {
+        AND: [
+          scope ?? {},
+          q.status ? { status: q.status } : {},
+          q.divisionId ? { divisionId: q.divisionId } : {},
+          q.createdById ? { createdById: q.createdById } : {},
+          this.commonFilters(q),
+        ],
+      };
+      const [rows, total] = await this.prisma.$transaction([
+        this.prisma.assignment.findMany({ where, select: STAFF_DETAIL, skip, take, orderBy: { updatedAt: 'desc' } }),
+        this.prisma.assignment.count({ where }),
+      ]);
+      return paginated(rows, total, page, limit);
+    }
+
+    throw unsupportedRole();
   }
 
   /** Single assignment. Opening it as a student records the view (New → Opened). */
   async findOne(assignmentId: string, user: AuthUser) {
-    const isStudent  = user.role === 'STUDENT';
+    if (isStaff(user)) {
+      const assignment = await this.prisma.assignment.findUnique({ where: { id: assignmentId }, select: STAFF_DETAIL });
+      if (!assignment) throw new NotFoundException('Assignment not found.');
+      await this.access.assertCanView(user, assignment);
+      return assignment;
+    }
+    // Any role other than staff and students: 404 before anything is loaded.
+    if (!isStudent(user)) throw new NotFoundException('Assignment not found.');
+
     const assignment = await this.prisma.assignment.findUnique({
       where:  { id: assignmentId },
-      select: isStudent ? ASSIGNMENT_SUMMARY : STAFF_DETAIL,
+      select: ASSIGNMENT_SUMMARY,
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
 
     await this.access.assertCanView(user, assignment);
-
-    if (!isStudent) return assignment;
 
     if (!STUDENT_VISIBLE_STATUSES.includes(assignment.status)) throw new NotFoundException('Assignment not found.');
 
@@ -578,7 +595,7 @@ export class AssignmentsService {
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, assignment);
-    if (user.role === 'STUDENT' && !studentCanOpenAssignment(assignment)) {
+    if (isStudent(user) && !studentCanOpenAssignment(assignment)) {
       throw new NotFoundException('Assignment not found.');
     }
     const attachment = await this.prisma.assignmentAttachment.findFirst({

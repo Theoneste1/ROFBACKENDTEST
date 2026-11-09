@@ -10,6 +10,7 @@ import { AccessService } from '../common/access/access.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
+import { isAdmin, isCoach, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { CourseEnrollmentStatus } from '../generated/prisma/client.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
 
@@ -58,7 +59,7 @@ export class CoursesService {
   // MENTOR:  courses they teach, with the divisions they are assigned to.
   // ADMIN:   every course with totals.
   async findAll(user: AuthUser) {
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       const divisionId = this.access.studentDivision(user);
       const courses = await this.prisma.course.findMany({
         where:   { status: 'PUBLISHED' },
@@ -85,7 +86,7 @@ export class CoursesService {
       });
     }
 
-    if (user.role === 'MENTOR') {
+    if (isCoach(user)) {
       const scopes = await this.prisma.mentorAssignment.findMany({
         where:  { mentorId: user.id, isActive: true },
         select: { courseId: true, division: { select: { id: true, code: true, name: true } } },
@@ -102,6 +103,8 @@ export class CoursesService {
       }));
     }
 
+    // Every course with totals — administrators only; any other role is refused.
+    if (!isAdmin(user)) throw unsupportedRole();
     return this.prisma.course.findMany({
       orderBy: { sortOrder: 'asc' },
       select: {
@@ -121,7 +124,7 @@ export class CoursesService {
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: COURSE_SELECT });
     if (!course) throw new NotFoundException('Course not found.');
 
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       if (course.status !== 'PUBLISHED') throw new NotFoundException('Course not found.');
       const divisionId = this.access.studentDivision(user);
       const enrollment = await this.recordCourseView(courseId, user.id);
@@ -146,7 +149,7 @@ export class CoursesService {
       };
     }
 
-    if (user.role === 'MENTOR') {
+    if (isCoach(user)) {
       const divisions = await this.prisma.mentorAssignment.findMany({
         where:  { mentorId: user.id, courseId, isActive: true },
         select: { division: { select: { id: true, code: true, name: true } } },
@@ -157,6 +160,8 @@ export class CoursesService {
       return { ...course, divisions: divisions.map((d) => d.division) };
     }
 
+    // Course with its coach assignments — administrators only; any other role gets 404.
+    if (!isAdmin(user)) throw new NotFoundException('Course not found.');
     const mentors = await this.prisma.mentorAssignment.findMany({
       where:  { courseId, isActive: true },
       select: {

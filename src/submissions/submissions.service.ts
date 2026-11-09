@@ -15,6 +15,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { isAdmin, isCoach, isStaff, isStudent } from '../common/access/roles.js';
 import {
   Prisma,
   type ReviewEventType,
@@ -336,14 +337,15 @@ export class SubmissionsService {
   /** Single submission, projected for the caller's role. Opening a published result is logged. */
   async findOne(submissionId: string, user: AuthUser) {
     const s = await this.loadForCaller(submissionId, user);
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       if (s.status === 'PUBLISHED') {
         this.activity.record(user.id, 'RESULT_VIEWED', { entityType: 'Submission', entityId: s.id });
       }
       return studentView(s);
     }
-    if (user.role === 'MENTOR') return mentorView(s);
-    return adminView(s);
+    if (isCoach(user)) return mentorView(s);
+    if (isAdmin(user)) return adminView(s);
+    throw new NotFoundException('Submission not found.');
   }
 
   /**
@@ -351,18 +353,28 @@ export class SubmissionsService {
    * Admins see all cycles; mentors see only the cycles they did themselves.
    */
   async reviewHistory(submissionId: string, user: AuthUser) {
-    if (user.role === 'STUDENT') throw new NotFoundException('Submission not found.');
+    if (!isStaff(user)) throw new NotFoundException('Submission not found.');
     const sub = await this.prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
     if (!sub) throw new NotFoundException('Submission not found.');
 
-    const reviews = await this.prisma.mentorReview.findMany({
-      where:   { submissionId, ...(user.role === 'MENTOR' && { mentorId: user.id }) },
-      orderBy: { cycle: 'asc' },
-      select:  REVIEW_HISTORY_SELECT,
-    });
-    if (user.role === 'MENTOR' && reviews.length === 0) throw new NotFoundException('Submission not found.');
-    // Mentors never see the administrators' internal coordination note.
-    return user.role === 'MENTOR' ? reviews.map(({ coordinationNote: _internal, ...r }) => r) : reviews;
+    if (isCoach(user)) {
+      const reviews = await this.prisma.mentorReview.findMany({
+        where:   { submissionId, mentorId: user.id },
+        orderBy: { cycle: 'asc' },
+        select:  REVIEW_HISTORY_SELECT,
+      });
+      if (reviews.length === 0) throw new NotFoundException('Submission not found.');
+      // Mentors never see the administrators' internal coordination note.
+      return reviews.map(({ coordinationNote: _internal, ...r }) => r);
+    }
+    if (isAdmin(user)) {
+      return this.prisma.mentorReview.findMany({
+        where:   { submissionId },
+        orderBy: { cycle: 'asc' },
+        select:  REVIEW_HISTORY_SELECT,
+      });
+    }
+    throw new NotFoundException('Submission not found.');
   }
 
   /**
@@ -388,7 +400,7 @@ export class SubmissionsService {
       attempts:      s.revisions,
       resubmissionRequests: events.map((e) => ({
         type: e.type, note: e.note, at: e.createdAt,
-        ...(user.role !== 'STUDENT' && { by: e.actor }),
+        ...(isStaff(user) && { by: e.actor }),
       })),
       openRequest: s.status === 'RESUBMISSION_REQUESTED'
         ? { note: s.resubmissionNote, dueAt: s.resubmissionDueAt, requestedAt: s.resubmissionRequestedAt }
@@ -886,10 +898,10 @@ export class SubmissionsService {
    */
   async serveFeedbackFile(submissionId: string, user: AuthUser, res: Response, attachmentId?: string) {
     const s = await this.loadForCaller(submissionId, user);
-    if (user.role === 'STUDENT' && s.status !== 'PUBLISHED') {
+    if (isStudent(user) && s.status !== 'PUBLISHED') {
       throw new AppError(HttpStatus.FORBIDDEN, 'RESULT_NOT_PUBLISHED', 'Feedback is available once results are published.');
     }
-    const review = user.role === 'STUDENT' ? s.publishedReview : (s.currentReview ?? s.publishedReview);
+    const review = isStaff(user) ? (s.currentReview ?? s.publishedReview) : s.publishedReview;
     const attachment = review?.attachments.find((a) => (attachmentId ? a.id === attachmentId : true));
     if (!attachment) throw new NotFoundException('No feedback file attached to this result.');
 
@@ -1054,9 +1066,9 @@ export class SubmissionsService {
     const s = (await this.prisma.submission.findUnique({ where: { id }, include: SUBMISSION_INCLUDE })) as unknown as SubmissionWithRelations | null;
     const allowed =
       s &&
-      (user.role === 'ADMIN' ||
-        (user.role === 'STUDENT' && s.studentId === user.id) ||
-        (user.role === 'MENTOR' && s.currentReview?.mentor.id === user.id));
+      (isAdmin(user) ||
+        (isStudent(user) && s.studentId === user.id) ||
+        (isCoach(user) && s.currentReview?.mentor.id === user.id));
     if (!allowed) throw new NotFoundException('Submission not found.');
     return s;
   }
@@ -1086,7 +1098,7 @@ export class SubmissionsService {
 
   /** The caller must be the mentor of the current review cycle. Returns its id. */
   private requireAssignedMentor(sub: { currentReview: { id: string; mentorId: string } | null }, user: AuthUser) {
-    if (user.role !== 'MENTOR' || sub.currentReview?.mentorId !== user.id) {
+    if (!isCoach(user) || sub.currentReview?.mentorId !== user.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_MENTOR', 'This submission is not assigned to you.');
     }
     return sub.currentReview.id;
