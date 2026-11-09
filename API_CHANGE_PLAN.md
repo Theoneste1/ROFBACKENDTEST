@@ -13,7 +13,7 @@ Sources: [BACKEND_REQUIREMENTS_AUDIT.md](BACKEND_REQUIREMENTS_AUDIT.md), [DATABA
 5. **Semantics changes are documented and versioned in the changelog** (only one planned: `DELETE /admin/users/:id` → archive, §4).
 6. Every new route: explicit permission (or public), DTO validation, pagination for lists, the standard error shape, OpenAPI docs, e2e test (route-coverage check stays 100 %).
 
-## 2. Permission catalogue (proposed)
+## 2. Permission catalogue (Phase 1 catalogue approved 2026-11-09; later-phase additions remain proposed)
 
 Permissions stay **defined in code** (a fixed catalogue); profiles and assignments are data. Existing names are kept.
 
@@ -35,7 +35,7 @@ Permissions stay **defined in code** (a fixed catalogue); profiles and assignmen
 
 Scope types: `GLOBAL`, `COUNTRY`, `SCHOOL`, `SUBJECT`, `COURSE`, `DIVISION`, `GROUP`, `SUPPORT_ASSIGNED`.
 
-**Updated 2026-11-09 (Phase 1):** the Phase 1 catalogue and the six-role matrix are in [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §5 (*proposed*, PERM).
+**Updated 2026-11-09 (Phase 1):** the Phase 1 catalogue and the six-role matrix are in [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §5 (PERM, approved 2026-11-09). Head Coaches do **not** receive `discussions.moderate` in Phase 1 (H7 deferred).
 - **Existing permission names are kept**, so the frontend keeps working.
 - New in Phase 1: `reports.view`, `students.viewScoped`, `users.view`, `users.manageStudents`, `users.manageCoaches`, `users.manageTeachers`, `users.manageHeadCoaches`, `users.manageAdmins`, `programmes.manageHeads`, `programmes.manageMembers`, `coaches.monitor`, `settings.manageSystem`, `permissions.view`, `permissions.manageOverrides`.
 - The finer `users.*` split (create/edit/suspend/archive/…) and the other areas above belong to their later phases.
@@ -174,7 +174,7 @@ Existing endpoints that Head Coaches use with a forced programme filter: `/admin
 - Effective permissions resolved per request from the database with a short-lived cache keyed by user and invalidated on assignment changes (no JWT change, refresh flow untouched).
 - **Updated 2026-11-09:**
   - First, every route declares its access (`@Roles`, `@RequirePermission` or `@Authenticated`); a test enforces this.
-  - *Proposed* (D9): each route then switches to the permission check **alone**, once a generated equivalence test proves identical decisions for STUDENT, COACH and ADMIN. This replaces the "either role or permission" transition.
+  - *Approved* (D9): each route then switches to the permission check **alone**, once a generated equivalence test proves identical decisions for STUDENT, COACH and ADMIN. This replaces the "either role or permission" transition.
   - Override expiry is evaluated against `expiresAt` on every request; a cached entry never outlives its expiry.
 
 **New error codes (2026-11-09, Phase 1):** `ROLE_NOT_ASSIGNABLE`, `OVERRIDE_NOT_ALLOWED`, `LAST_SUPER_ADMIN`, `STEP_UP_REQUIRED`, `TEACHERS_DISABLED`, `HEAD_COACHES_DISABLED` (plus `SCOPE_FORBIDDEN` below).

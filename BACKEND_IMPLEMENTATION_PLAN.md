@@ -52,7 +52,7 @@ Sizes: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 weeks (one developer, inc
 | 1.7 | Individual overrides (M5), approved list, expiry evaluated at `expiresAt` | M | `AuditService` |
 | 1.8 | Head Coach (programme-scoped); Teacher (`TeacherAssignment`, M6) | L | `MentorAssignment`, reports |
 
-Superseded steps (kept for history): 1.1 profile tables and system-profile backfill → replaced by role-based defaults in code (profiles deferred, D3); 1.2 "guard alongside `@Roles`" → permission-only per route after equivalence (D9, proposed); 1.3 profile/assignment admin APIs → override API (Super Admin only).
+Superseded steps (kept for history): 1.1 profile tables and system-profile backfill → replaced by role-based defaults in code (profiles deferred, D3); 1.2 "guard alongside `@Roles`" → permission-only per route after equivalence (D9, approved); 1.3 profile/assignment admin APIs → override API (Super Admin only).
 
 ### Phase 2 — Countries, education systems, grades and schools (ADR-005) — Critical
 
@@ -82,7 +82,7 @@ Superseded steps (kept for history): 1.1 profile tables and system-profile backf
 
 | # | Step | Size | Reuses |
 |---|---|---|---|
-| 5.1 | `TEACHER` user type end to end; seeded `teacher` profile with **default rights only** (ADR-003); optional grantable profile for assignment authoring — **2026-11-09:** the TEACHER type and its permissions are proposed for Phase 1 (D1); Phase 5 keeps teacher **registration and applications** | M | Phase 1 |
+| 5.1 | `TEACHER` user type end to end; seeded `teacher` profile with **default rights only** (ADR-003); optional grantable profile for assignment authoring — **2026-11-09:** the TEACHER type and its permissions move to Phase 1 (D1, approved 2026-11-09); Phase 5 keeps teacher **registration and applications** | M | Phase 1 |
 | 5.2 | Student fields (DOB, country, phones, guardian, interests, avatar) | M | registration DTOs, storage |
 | 5.3 | Generalised applications (coach + teacher), review queue, rejection reasons, request-info loop, per-type switches, form configuration; `/mentor-requests` kept | M | `MentorRequest`, activation e-mails |
 
