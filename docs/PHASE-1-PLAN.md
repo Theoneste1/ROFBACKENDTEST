@@ -1,7 +1,7 @@
 # ROF LMS — Phase 1 Permissions and Role Management Plan
 
-**Version:** v5.1 (v5 + safeguards from ChatGPT's review of v5).
-**Status:** architecture approved in principle by the owner (Theoneste) on 2026-11-09; PR 1 scope approved. Decision statuses are exactly those in §2 — recommendations in category C remain **proposed** until the owner confirms them.
+**Version:** v5.2 (v5.1 + final owner sign-off of 2026-11-09).
+**Status:** all Phase 1 decisions signed off by the owner (Theoneste) on 2026-11-09 — every item approved except H7 (changed: deferred), plus owner safeguards AS1 and AS2 (§2). Open items O1–O6 remain undecided (§2.6).
 **Prepared:** 2026-11-09 from backend `develop` @ `aa01d2a` and frontend `main` @ `ea09fcc` (read-only).
 **This document is planning only.** Nothing in it is implemented; every implementation PR, migration, bootstrap and flag change needs its own review and approval.
 Related: [ARCHITECTURE_DECISIONS.md](../ARCHITECTURE_DECISIONS.md) (ADR-002/003/004/015/017/018/019) · [IMPLEMENTATION_TRACKER.md](../IMPLEMENTATION_TRACKER.md)
@@ -30,9 +30,9 @@ Findings from the code that drive the order of work:
 
 ## 2. Decision register
 
-Four categories. Nothing in category B or C is treated as owner-approved; PR 1 records them with exactly these statuses.
+**Final owner sign-off: 2026-11-09.** The owner (Theoneste) has explicitly decided every item that was in categories B and C. All were approved except **H7**, which was changed (§2.3), and the owner added two safeguards (AS1, AS2, §2.4). The original categories are kept in the "Origin" column for traceability. The only items still without a decision are the open items in §2.6.
 
-### A — Explicitly confirmed by Theoneste
+### 2.1 Confirmed before the final sign-off (originally category A)
 
 | ID | Decision | Confirmed |
 |---|---|---|
@@ -46,60 +46,72 @@ Four categories. Nothing in category B or C is treated as owner-approved; PR 1 r
 | **RS3** | Backfill acceptance tests: access regression, scope isolation, reconciliation, rollback (§11.5) | 2026-11-09 (PR 1 approval) |
 | **PR1** | Phase 1 architecture approved in principle; PR 1 scope approved (documentation only) | 2026-11-09 |
 
-### B — Agreed in project discussions (review directions relayed on 2026-11-09; to be confirmed with the final sign-off)
+### 2.2 Approved at the final sign-off (2026-11-09)
 
-| ID | Direction |
-|---|---|
-| C1 (R1) | COACH stays stored as `MENTOR`; label "Coach" |
-| C2 (A1) | ADMIN cannot manage ADMIN or SUPER_ADMIN accounts (activation staged, §8.3) |
-| C3 (A2, A3) | ADMIN appoints Head Coaches and runs ordinary programme operations |
-| C4 | Head Coaches manage Students and Coaches within their programme, by explicit permissions |
-| C5 (H1) | Head-Coach-created Coach accounts need ADMIN approval initially |
-| C6 | Head Coaches: no automatic grading, no self-approval, no system-wide administration |
-| C7 (S1) | SUPER_ADMIN system-wide; no automatic grading |
-| C8 (T1) | Teacher assignments separate from Coach grading assignments |
-| C9 | Mathematics IDs and existing data unchanged |
-| C10 (D8) | Phase 0 paused; P0-06 not a prerequisite |
-| BR | Backend PRs target `develop` — **confirmed by the repository**: GitHub default branch `develop`; PRs #4–#9 targeted `develop`; `docs/AI_COLLABORATION_PROTOCOL.md` names `develop`; `main` is the release branch (Render). ADR-017 corrected in PR 1 |
+| ID | Decision | Origin | Outcome |
+|---|---|---|---|
+| C1 (R1) | COACH stays stored as `MENTOR`; label "Coach" | B | **Approved** |
+| C2 (A1) | ADMIN cannot manage ADMIN or SUPER_ADMIN accounts (activation staged, §8.3) | B | **Approved** |
+| C3 (A2, A3) | ADMIN appoints Head Coaches and runs ordinary programme operations | B | **Approved** |
+| C4 | Head Coaches manage Students and Coaches within their programme, by explicit permissions | B | **Approved** |
+| C5 (H1) | Head-Coach-created Coach accounts need ADMIN approval initially | B | **Approved** |
+| C6 | Head Coaches: no automatic grading, no self-approval, no system-wide administration | B | **Approved** |
+| C7 (S1) | SUPER_ADMIN system-wide; no automatic grading | B | **Approved** |
+| C8 (T1) | Teacher assignments separate from Coach grading assignments | B | **Approved** |
+| C9 | Mathematics IDs and existing data unchanged | B | **Approved** |
+| C10 (D8) | Phase 0 paused; P0-06 not a prerequisite (manual migration-order check per PR) | B | **Approved** |
+| BR | Backend PRs target `develop`; releases `develop → main`; Render deploys `main` (repository evidence: default branch, PRs #4–#10, AI protocol) | B | **Approved** |
+| D1 | Teacher permission work in Phase 1 (earlier than the original Phase 5); teacher registration stays Phase 5 | C | **Approved** |
+| D2 | Teachers: scoped view; assignment preparation only by override; resource submission in Phase 7 | C | **Approved** |
+| D5 | Organisational role deferred to Phase 4/5 | C | **Approved** |
+| D6 | Scopes: own, division, course × division, programme, global; school scope deferred | C | **Approved** |
+| D7 | Student-information limits (§5) — **with clarification:** "progress" means **participation and learning activity only** (e.g. courses opened/completed, resources viewed, whether work was submitted and when); **never grades, marks, feedback or contact details** | C | **Approved with clarification** |
+| D9 | Routes switch to permission-only checks after equivalence and matrix tests | C | **Approved** |
+| PERM | Permission catalogue additions and six-role matrix (§5) | C | **Approved** |
+| OV | Override approved list (§6.3) and override safeguards (§6.4) | C | **Approved** |
+| H2 | Head Coach student actions: view, participation/learning activity, programme membership only | C | **Approved** |
+| H3 | "Assign coaches to students" = course × division assignment within the programme; no coach–student table | C | **Approved** |
+| H4 | Head Coach teaches/grades only through an explicit ADMIN-created assignment + normal distribution | C | **Approved** |
+| H5 | Head Coach does not approve assignments or results | C | **Approved** |
+| H6 | Head Coach: no resource management | C | **Approved** |
+| H8 | Head Coach: no data export | C | **Approved** |
+| H9 | Head Coach: no bulk e-mail | C | **Approved** |
+| D4 | Super Admin safeguards (§8.2) | C | **Approved** (plus AS1, AS2) |
+| S3 | MFA deferred; step-up password confirmation in Phase 1 | C | **Approved** |
+| S4 | Database trigger protecting the last Super Admin (in addition to the service rule) | C | **Approved** |
+| S5 | `settings.manageSystem` (SUPER_ADMIN): registration settings and integrations; existing settings stay ADMIN | C | **Approved** |
+| BD | `SUPER_ADMIN_BOUNDARY_ENABLED` staged activation (§8.3) | C | **Approved** |
 
-### C — Recommendations awaiting Theoneste's explicit approval
+### 2.3 Changed at the final sign-off
 
-| ID | Recommendation |
-|---|---|
-| D1 | Teacher permission work in Phase 1 (order change vs. approved Phase 5); teacher registration stays Phase 5 |
-| D2 | Teachers: scoped view; assignment preparation only by override; resource submission in Phase 7 |
-| D4 | Super Admin safeguards as §8 (bootstrap rules, transfer, recovery, last-account protection, audit) |
-| D6 | Scopes: own, division, course × division, programme, global |
-| D7 | Student-information limits (§5: name, school, grade, division; + participation/progress for HEAD_COACH; never grades or contact details) |
-| D9 | Routes switch to permission-only checks after equivalence and matrix tests |
-| H2 | Head Coach student actions: view, participation/progress, programme membership only |
-| H3 | "Assign coaches to students" = course × division assignment within the programme; no coach–student table |
-| H4 | Head Coach teaches/grades only through an explicit ADMIN-created assignment + normal distribution |
-| H5 | Head Coach does not approve assignments or results |
-| H6 / H7 / H8 / H9 | Head Coach: no resource management / moderates programme discussions / no export / no bulk e-mail |
-| S3 | MFA deferred; step-up password confirmation in Phase 1 |
-| S4 | Database trigger protecting the last Super Admin (in addition to the service rule) |
-| S5 | `settings.manageSystem` (SUPER_ADMIN): registration settings and integrations; existing settings stay ADMIN |
-| OV | Override approved list (§6.3) and override safeguards (§6.4) |
-| BD | `SUPER_ADMIN_BOUNDARY_ENABLED` staged activation (§8.3) |
-| PERM | Permission catalogue additions and matrix (§5) |
+| ID | Recommendation | Owner decision |
+|---|---|---|
+| **H7** | Head Coach moderates their programme's discussions | **Changed — deferred.** Head Coaches get **no** discussion-moderation permission in Phase 1. Moderation rights for Head Coaches will be designed separately, together with the discussion/communication features they apply to (the existing course and assignment discussions are moderated by ADMIN as today; communication groups come in Phase 9). |
 
-### D — Deliberately deferred
+### 2.4 Additional safeguards required by the owner (2026-11-09)
+
+| ID | Safeguard | Where |
+|---|---|---|
+| **AS1** | Emergency (break-glass) recovery is **restricted, documented and audited** | §8.2 |
+| **AS2** | Super Admin transfer is **atomic** and can **never** leave the system without an active Super Admin | §8.2 |
+
+### 2.5 Deliberately deferred
 
 | Item | To |
 |---|---|
-| Custom permission profiles (PERM-02) | later phase (D3, confirmed) |
-| Programme creation/editing (Physics, Computing) | Phase 3 (P2, confirmed) |
-| Organisational role (D5, recommendation) | Phase 4/5 |
+| Custom permission profiles (PERM-02) | later phase (D3) |
+| Programme creation/editing (Physics, Computing) | Phase 3 (P2) |
+| Organisational role | Phase 4/5 (D5) |
+| Head Coach discussion moderation | separate design with the discussion/communication features (H7) |
 | School and country scope | Phase 2/5 (Q21) |
 | Teacher resource submission | Phase 7 |
 | Teacher self-registration | Phase 5 |
-| MFA (S3, recommendation) | later phase |
+| MFA | later phase (S3) |
 | Individual coach–student supervision link | only if later required (visibility-only) |
 | Direct coach creation by Head Coaches (O5) | later, separate decision |
 | Several roles per person (O6, Q9) | Phase 5 |
 
-### E — Open items (not decided; nothing selected or created)
+### 2.6 Open items (not decided; nothing selected or created)
 
 | ID | Item | Needed before |
 |---|---|---|
@@ -113,6 +125,8 @@ Four categories. Nothing in category B or C is treated as owner-approved; PR 1 r
 ---
 
 ## 3. Document updates made in PR 1 (documentation only)
+
+*Historical: statuses below are as recorded by PR 1 (#10). The final statuses are in §2 (owner sign-off 2026-11-09).*
 
 | Document | Update |
 |---|---|
@@ -178,12 +192,12 @@ Actor must be allowed to manage both the current and the new role; nobody change
 | `reviews.grade` | — | — | ◐ A | ◐ A if explicitly assigned and distributed | — | — |
 | `results.approve`, `results.publish` | — | — | — | — | ● | ● |
 | `discussions.participate`, `discussions.report` | ◐ D | ◐ A | ◐ A | ◐ P | ● | ● |
-| `discussions.moderate` | — | — | — | ◐ P | ● | ● |
+| `discussions.moderate` | — | — | — | — (deferred, H7) | ● | ● |
 | `analytics.course` | — | — | ◐ A | ◐ P | ● | ● |
 | `leaderboard.view` | ● | ● | ● | ● | ● | ● |
 | `reports.view` *(new)* | — | — | — | ◐ P | ● | ● |
 | `reports.export` | — | — | — | — | ● | ● |
-| `students.viewScoped` *(new)* | — | ◐ A | — | ◐ P | ● | ● |
+| `students.viewScoped` *(new)* — name, school, grade, division; HEAD_COACH also participation and learning activity (courses opened/completed, resources viewed, whether/when work was submitted); **never grades, marks, feedback or contact details** (D7) | — | ◐ A | — | ◐ P | ● | ● |
 | `users.manage` (kept for compatibility) | — | — | — | — | ● | ● |
 | `users.view` *(new)* | — | — | — | ◐ P | ● | ● |
 | `users.manageStudents` *(new)* | — | — | — | ◐ P membership only | ● | ● |
@@ -224,7 +238,7 @@ Proven by: unit tests (STUDENT/MENTOR sets equal today's; ADMIN ⊇ today's); ge
 | Individual override (GRANT/DENY) | `UserPermissionOverride` | SUPER_ADMIN only | yes |
 | Custom permission profile | — | — | deferred |
 
-### 6.3 Approved override list (proposed — OV)
+### 6.3 Approved override list (OV — approved 2026-11-09)
 | Target role | GRANT allowed | DENY allowed |
 |---|---|---|
 | TEACHER | `assignments.prepare`, only for a course × division where the teacher already has an active `TeacherAssignment` | any default permission |
@@ -293,18 +307,18 @@ All ADMIN permissions + `users.manageAdmins`, `permissions.manageOverrides`, `se
 
 **No inheritance of prohibited grading permissions (review safeguard):** the SUPER_ADMIN permission set is defined **explicitly** in the catalogue, not by "everything" or by inheriting another role's set. It must never contain `reviews.grade` or `assignments.prepare` (the grading/authoring rights reserved for assigned coaches), and no override may grant them (§6.3). Enforced by: a catalogue unit test (SUPER_ADMIN ∌ `reviews.grade`, `assignments.prepare`); the generated route test (SUPER_ADMIN refused on every grading and review route); a guard rule that refuses grading routes to ADMIN and SUPER_ADMIN regardless of the permission set (defence in depth, mirroring today's "admins never grade").
 
-### 8.2 Safeguards (D4 — proposed; S2 parts confirmed)
+### 8.2 Safeguards (D4 approved; S2 confirmed; AS1, AS2 owner-required — 2026-11-09)
 | Area | Safeguard |
 |---|---|
 | Bootstrap | one-off CLI written in PR 11, **not run**; refuses if any active SUPER_ADMIN exists; target must be an existing active, activated ADMIN (O1, not selected); requires `--confirm-username`, `--reason`; ends target's sessions; audit `superAdmin.bootstrap`; e-mail to target; no migration or environment back door |
 | Testing (S2) | local disposable database (automated tests) → Neon point-in-time branch of production (rehearsal, then deleted) → production only after **separate explicit approval** |
 | Deputy (S2) | unassigned; no automatic rights; any promotion separately approved |
 | Last account (S4) | service rule + DB trigger → 409 `LAST_SUPER_ADMIN` |
-| Promotion / transfer | SUPER_ADMIN only; step-up password; e-mail to all Super Admins; target sessions end; holder steps down only if another active SUPER_ADMIN exists; no self-promotion |
-| Recovery | lost password → normal reset; lost e-mail/compromise → break-glass runbook (owner-only CLI, approval, reason, audit, session revocation); no HTTP endpoint |
+| Promotion / transfer (**AS2**) | SUPER_ADMIN only; step-up password; e-mail to all Super Admins; target sessions end; no self-promotion. **A transfer is one atomic database transaction**: it locks the Super Admin rows, promotes the new holder, demotes the old holder only if at least one other active SUPER_ADMIN remains after the change, and writes the audit rows — if any step fails, nothing changes. The last-Super-Admin trigger (M4) re-checks inside the same transaction, so concurrent demotions, suspensions or deletions can never reach zero active Super Admins. Recommended sequence: promote B (transaction 1) → B signs in → A steps down (transaction 2), each step atomic. |
+| Recovery (**AS1**) | Lost password → normal reset. Lost e-mail access or compromise → **break-glass procedure, restricted, documented and audited**: (1) **restricted** — a CLI only (no HTTP endpoint), runnable only with production database access held by the owner, and only with a recorded approval reference; it refuses to run without `--reason` and `--approval-ref`, and can only (a) reset the credentials and end the sessions of an existing SUPER_ADMIN, or (b) promote one named, existing, active ADMIN when no active SUPER_ADMIN exists; (2) **documented** — a runbook in `docs/operations/` (who may run it, prerequisites, exact steps, verification, follow-up such as password rotation); (3) **audited** — the audit row (`superAdmin.breakGlass`, operator note, reason, approval reference, before/after) is written in the same transaction as the change, and every Super Admin is e-mailed. Tested on a disposable database and a Neon copy only. |
 | Audit | one append-only `AuditLog` row per state-changing ADMIN/SUPER_ADMIN request (method, route template, target IDs, outcome, request ID; no bodies) + domain audits with previous/new values |
 
-### 8.3 `SUPER_ADMIN_BOUNDARY_ENABLED` — closing the ADMIN-creation gap (BD — proposed)
+### 8.3 `SUPER_ADMIN_BOUNDARY_ENABLED` — closing the ADMIN-creation gap (BD — approved 2026-11-09)
 | State | Behaviour |
 |---|---|
 | **off** (default) | ADMIN manages ADMIN accounts as today — an ADMIN creation path always exists |
@@ -379,7 +393,7 @@ Mathematics (existing seed ID) + test-only Physics discipline (test database onl
 | STUDENT | everything today | other students' records (404), staff routes (403), other divisions/unpublished (404) |
 | TEACHER | assigned content; limited student list; discussions in scope; with override: draft + submit | out of scope (403/404); grades/reviews/contacts; publish/approve; grading; admin routes; drafting without override; distribution and coach notifications |
 | COACH | everything today | unchanged refusals |
-| HEAD_COACH | own-programme students (view, progress, membership), coaches (view, monitor, assign, invite → pending), reports/analytics/activity, moderation | other programme (404); ADMIN/SUPER_ADMIN/other head coaches (404); self-adding programmes; assigning HEAD_COACH/ADMIN (403); approvals; grading without explicit assignment + distribution; export, bulk e-mail, settings, audit |
+| HEAD_COACH | own-programme students (view, participation and learning activity, membership), coaches (view, monitor, assign, invite → pending), reports/analytics/activity | other programme (404); ADMIN/SUPER_ADMIN/other head coaches (404); self-adding programmes; assigning HEAD_COACH/ADMIN (403); approvals; grading without explicit assignment + distribution; **discussion moderation (403, H7 deferred)**; student grades, marks, feedback or contact details (not returned, D7); export, bulk e-mail, settings, audit |
 | ADMIN | all 25 current abilities; head coaches; membership; approvals; teachers | boundary on: ADMIN/SUPER_ADMIN management (403); always: overrides, system settings, grading |
 | SUPER_ADMIN | all intended administrative routes; ADMIN/SUPER_ADMIN management with step-up; overrides; system settings | grading; self-promotion/self-override; removing the last SUPER_ADMIN (409; direct SQL → trigger error) |
 
@@ -407,6 +421,15 @@ Mathematics (existing seed ID) + test-only Physics discipline (test database onl
 | SUPER_ADMIN no grading inheritance | catalogue test: SUPER_ADMIN ∌ `reviews.grade`, `assignments.prepare`; every review/mark/grading route → 403 for SUPER_ADMIN; override granting either to a SUPER_ADMIN → refused |
 | ADMIN restrictions | ADMIN never: overrides, `settings.manageSystem`, SUPER_ADMIN assignment (any boundary state) |
 | Rollback | switching the flag off restores ADMIN behaviour on the next request; no data changed |
+
+### 11.4a Super Admin transfer and recovery (AS1, AS2)
+| Test | Expected |
+|---|---|
+| Transfer with a failure injected after the promotion step | whole transaction rolled back: roles, sessions and audit unchanged |
+| Concurrent demotion/suspension of the last two Super Admins | at most one succeeds; at least one active SUPER_ADMIN remains (API and direct SQL) |
+| Old holder steps down while no other active SUPER_ADMIN exists | 409 `LAST_SUPER_ADMIN`; nothing changes |
+| Break-glass without `--reason` or `--approval-ref`, or against a non-ADMIN target, or (b) while an active SUPER_ADMIN exists | refused; nothing changes |
+| Break-glass success | exactly one `superAdmin.breakGlass` audit row in the same transaction; target sessions ended; all Super Admins e-mailed |
 
 ### 11.5 Programme backfill (M2 + M3) — acceptance tests
 Run on the disposable test database (automated) **and** on a Neon point-in-time copy of production (rehearsal report) before any production approval is requested.
@@ -464,7 +487,7 @@ Releases to production follow the existing practice: PR `develop → main`, Rend
 | Source | Result |
 |---|---|
 | ADR-001, 005–014 | consistent (coach invitations use the existing account approval, not `MentorRequest`) |
-| ADR-002, 003, 004 | amended in PR 1 (D3 confirmed; others proposed) |
+| ADR-002, 003, 004 | amended in PR 1; statuses finalised by the owner sign-off of 2026-11-09 (all approved; H7 changed) |
 | ADR-007 | memberships reference discipline IDs that ADR-007 keeps |
 | ADR-011 | coach direct publishing preserved |
 | ADR-015 | rules 1, 3, 4, 7, 8 followed; rule 5 met by P0-04 Part A for additive migrations; rule 6 n/a; rule 2 exception recorded (C10) |
@@ -481,6 +504,8 @@ Category D items · any production action without approval · selecting the boot
 ---
 
 ## 16. PR 1 — documentation-only scope
+
+*Historical: PR 1 was merged as #10 (merge commit `0be9fe9`). The statuses it recorded were finalised by the owner sign-off of 2026-11-09 (§2), recorded by a second documentation-only PR.*
 
 | Item | Detail |
 |---|---|
