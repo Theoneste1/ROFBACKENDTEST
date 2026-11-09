@@ -13,7 +13,7 @@ Sources: [BACKEND_REQUIREMENTS_AUDIT.md](BACKEND_REQUIREMENTS_AUDIT.md), [DATABA
 5. **Semantics changes are documented and versioned in the changelog** (only one planned: `DELETE /admin/users/:id` → archive, §4).
 6. Every new route: explicit permission (or public), DTO validation, pagination for lists, the standard error shape, OpenAPI docs, e2e test (route-coverage check stays 100 %).
 
-## 2. Permission catalogue (proposed)
+## 2. Permission catalogue (Phase 1 catalogue approved 2026-11-09; later-phase additions remain proposed)
 
 Permissions stay **defined in code** (a fixed catalogue); profiles and assignments are data. Existing names are kept.
 

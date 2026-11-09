@@ -29,7 +29,7 @@ production-copy rehearsal) — never because an endpoint or table exists.
 
 ## Phase 1 — Permissions and role management
 
-Plan: [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) (v5.1) · decisions: [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md) ADR-002/003/004/015/017/018/019 and the Phase 1 decision register. Every PR targets `develop`; every migration, the Super Admin bootstrap and every feature-flag change needs separate approval.
+Plan: [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) (v5.2) · decisions: [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md) ADR-002/003/004/015/017/018/019 and the Phase 1 decision register. Every PR targets `develop`; every migration, the Super Admin bootstrap and every feature-flag change needs separate approval.
 
 | ID | Task | Priority | Depends on | Status | Verification |
 |---|---|---|---|---|---|
