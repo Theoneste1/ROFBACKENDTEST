@@ -1,7 +1,8 @@
 /**
  * TokenService — access-token signing and refresh-token rotation.
  *
- * Access tokens: short-lived JWTs (default 15 min) carrying only `sub` + `jti`.
+ * Access tokens: short-lived JWTs (default 15 min) carrying only `sub`, `jti` and
+ * `iatMs` (issue time in milliseconds, checked against `User.tokensValidAfter`).
  *
  * Refresh tokens: opaque random strings, stored as SHA-256 hashes.
  *   - Every refresh exchanges the presented token for a new one (rotation).
@@ -16,6 +17,7 @@ import { createHash, randomBytes, randomUUID } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AppError } from '../common/errors/app-error.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
 export interface IssuedTokens {
   access_token:  string;
@@ -102,17 +104,30 @@ export class TokenService {
     if (token) await this.revokeFamily(token.familyId);
   }
 
-  /** Revoke every session of a user (password change, suspension, logout-all). */
   /**
-   * End every session of a user: refresh tokens are revoked and access tokens
-   * issued until now stop working (JwtStrategy compares their `iat`).
+   * End every session of a user (password change, suspension, role change,
+   * logout-all): refresh tokens are revoked and every access token issued at or
+   * before this moment stops working (JwtStrategy compares `iatMs`).
+   *
+   * With `tx`, the revocation is written inside the caller's transaction, so it
+   * commits together with the change that requires it (e.g. a role change): no
+   * request can see the new role while an old token is still valid.
+   *
+   * Returns only once the clock has moved past the revocation millisecond, so a
+   * token issued afterwards (e.g. the next login) is always strictly newer.
    */
-  async revokeAllForUser(userId: string): Promise<void> {
+  async revokeAllForUser(userId: string, tx?: Prisma.TransactionClient): Promise<void> {
     const now = new Date();
-    await this.prisma.$transaction([
-      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } }),
-      this.prisma.user.update({ where: { id: userId }, data: { tokensValidAfter: now } }),
-    ]);
+    if (tx) {
+      await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
+      await tx.user.update({ where: { id: userId }, data: { tokensValidAfter: now } });
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } }),
+        this.prisma.user.update({ where: { id: userId }, data: { tokensValidAfter: now } }),
+      ]);
+    }
+    while (Date.now() <= now.getTime()) await new Promise((r) => setTimeout(r, 1));
   }
 
   /** Blacklist an access token until it expires. */
@@ -134,7 +149,7 @@ export class TokenService {
 
   private async issueInFamily(userId: string, familyId: string, client: ClientInfo): Promise<IssuedTokens> {
     const accessToken = await this.jwt.signAsync(
-      { sub: userId, jti: randomUUID() },
+      { sub: userId, jti: randomUUID(), iatMs: Date.now() },
       { expiresIn: this.accessTtlSeconds },
     );
 

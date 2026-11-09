@@ -16,6 +16,8 @@ function makeMocks() {
     },
     school: { findUnique: vi.fn() },
     studentEnrollment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    mentorAssignment:  { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    mentorReview:      { count: vi.fn().mockResolvedValue(0) },
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
@@ -129,7 +131,37 @@ describe('UsersService', () => {
       expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({
         role: 'MENTOR', gradeLevel: null, divisionId: null, schoolId: null, homeLocation: null,
       });
-      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2');
+      // Revoked with the transaction client: commits together with the role change.
+      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2', prisma);
+    });
+
+    it.each([
+      ['a role change', { role: 'ADMIN' }],
+      ['a password change', { password: 'N3w!Passw0rd' }],
+    ])('ends sessions INSIDE the same transaction as %s, after the user row is written', async (_, data) => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ ...existing, role: 'MENTOR', gradeLevel: null });
+      const tx = { ...prisma, marker: 'tx' };
+      let inTransaction = false;
+      prisma.$transaction.mockImplementation(async (fn: (c: unknown) => unknown) => {
+        inTransaction = true;
+        try { return await fn(tx); } finally { inTransaction = false; }
+      });
+      const seen: Array<{ inTransaction: boolean; client: unknown }> = [];
+      tokens.revokeAllForUser.mockImplementation(async (_id: string, client: unknown) => { seen.push({ inTransaction, client }); });
+
+      await service.update('u2', data as any, ADMIN);
+
+      expect(seen).toEqual([{ inTransaction: true, client: tx }]);
+      // The role / password update ran before the revocation, in the same transaction.
+      expect(prisma.user.update.mock.invocationCallOrder[0]).toBeLessThan(tokens.revokeAllForUser.mock.invocationCallOrder[0]);
+    });
+
+    it('does not end sessions for a change without role or password', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue(existing);
+      await service.update('u2', { firstName: 'New' } as any, ADMIN);
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
     });
 
     it('withdraws the active enrolment when a student becomes a mentor', async () => {

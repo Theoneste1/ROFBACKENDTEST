@@ -12,6 +12,7 @@ import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
+import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -185,6 +186,12 @@ export class UsersService {
         enrollment = 'WITHDRAWN';
       }
 
+      // A coach who changes role keeps no coach scope: their course × division
+      // assignments are deactivated (kept as history) in the same transaction.
+      if (existing.role === 'MENTOR' && role !== 'MENTOR') {
+        await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+
       // The audit entries commit with the change: what changed, from what, to what.
       const changes = diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
       await this.audit.log({
@@ -207,10 +214,13 @@ export class UsersService {
           },
         }, tx);
       }
+      // Sessions end in the same transaction as the role / password change (last
+      // statement before commit): the new role and the revocation become visible
+      // together, so an old token can never authenticate with the new role.
+      if (data.password || data.role) await this.tokens.revokeAllForUser(id, tx);
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
     });
 
-    if (data.password || data.role) await this.tokens.revokeAllForUser(id);
     return user;
   }
 
