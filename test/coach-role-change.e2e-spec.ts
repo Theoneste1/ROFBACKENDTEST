@@ -64,8 +64,15 @@ describe('Coach role change → coach assignments (P1-05)', () => {
     }
     expect(await ctx.prisma.auditLog.count({ where: { action: 'CHANGE_USER_ROLE', entityId: coachId } })).toBe(1);
 
-    // The old (coach) session is over.
-    await http().get('/api/v1/me/teaching').set(bearer(coachToken)).expect(401);
+    // Sessions are ended: refresh tokens revoked and earlier access tokens invalidated.
+    const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id: coachId }, select: { tokensValidAfter: true } });
+    expect(user.tokensValidAfter).not.toBeNull();
+    expect(await ctx.prisma.refreshToken.count({ where: { userId: coachId, revokedAt: null } })).toBe(0);
+    // The old coach token never reaches a coach route again: 401 once the revocation
+    // second has passed; a token issued in that same second still authenticates
+    // (whole-second iat, jwt.strategy.ts) but now as ADMIN, so the MENTOR route refuses it.
+    const old = await http().get('/api/v1/me/teaching').set(bearer(coachToken));
+    expect([401, 403]).toContain(old.status);
   });
 
   it('a former coach (now a student) has no coach access and is not shown as a course coach', async () => {
