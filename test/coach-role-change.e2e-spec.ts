@@ -6,8 +6,32 @@
  * A MentorAssignment also never confers coach scope to a user who is not a
  * coach (defence in depth for rows left over from before this change).
  */
+import pg from 'pg';
+
 import { AccessService } from '../src/common/access/access.service.js';
+import { TokenService } from '../src/auth/token.service.js';
 import { createTestApp, login, bearer, waitForEvents, type TestContext } from './helpers.js';
+
+/**
+ * Whether the database answers a second connection while another connection
+ * holds an open transaction. Capability check only (one probe, no retry).
+ */
+async function servesConcurrentConnections(): Promise<boolean> {
+  const url = process.env.TEST_DATABASE_URL!;
+  const holder = new pg.Client({ connectionString: url });
+  const other  = new pg.Client({ connectionString: url, query_timeout: 2000 });
+  await holder.connect();
+  await other.connect();
+  try {
+    await holder.query('BEGIN');
+    await holder.query('SELECT 1');
+    return await other.query('SELECT 1').then(() => true, () => false);
+  } finally {
+    await holder.query('ROLLBACK').catch(() => undefined);
+    await holder.end().catch(() => undefined);
+    await other.end().catch(() => undefined);
+  }
+}
 
 describe('Coach role change → coach assignments (P1-05)', () => {
   let ctx: TestContext;
@@ -94,33 +118,73 @@ describe('Coach role change → coach assignments (P1-05)', () => {
     }
   });
 
-  it('security: DURING the role change the old coach token is never accepted as ADMIN (role and revocation commit together)', async () => {
+  it('security: DURING the role change the old coach token is never accepted as ADMIN (role and revocation commit together)', async (test) => {
+    // Needs a database that serves other connections while a transaction is open
+    // (PostgreSQL does; the single-connection `prisma dev` server does not). In CI
+    // this must run: a skip there would hide the check, so it fails instead.
+    if (!(await servesConcurrentConnections())) {
+      if (process.env.CI) throw new Error('CI database must serve concurrent connections for this test.');
+      test.skip('local single-connection database (prisma dev): runs in CI on PostgreSQL');
+    }
+
+    // Deterministic: the role-change transaction is paused at its last step
+    // (the transaction-scoped session revocation), i.e. after the new role has
+    // been written inside the still-open transaction and before commit.
+    const tokens = ctx.app.get(TokenService);
+    const original = tokens.revokeAllForUser.bind(tokens);
+
     for (let round = 0; round < 3; round++) {
       const username = `during.coach.${round}`;
       const created = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
         firstName: 'During', lastName: String(round), username, email: `${username}@test.local`, password: 'Str0ng!Passw0rd', role: 'MENTOR',
       }).expect(201);
+      const coachId: string = created.body.id;
       const coachToken = await login(ctx, username, 'Str0ng!Passw0rd');
 
-      // Start the promotion and, concurrently, hammer an ADMIN-only endpoint with the old token.
-      let done = false;
-      const change = http().patch(`/api/v1/admin/users/${created.body.id}`).set(bearer(admin)).send({ role: 'ADMIN' })
-        .then((r) => { done = true; return r; });
-      const seen: number[] = [];
-      while (!done) {
-        seen.push((await http().get('/api/v1/admin/users').set(bearer(coachToken))).status);
-      }
-      expect((await change).status).toBe(200);
-      seen.push((await http().get('/api/v1/admin/users').set(bearer(coachToken))).status);
+      let release!: () => void;
+      const barrier = new Promise<void>((resolve) => { release = resolve; });
+      let signalPaused!: () => void;
+      const paused = new Promise<void>((resolve) => { signalPaused = resolve; });
+      let pausedInTransaction = false;
 
-      // Before commit: still a coach → 403. After commit: revoked → 401. Never 200.
-      expect(seen.filter((s) => s !== 401 && s !== 403)).toEqual([]);
-      expect(seen[seen.length - 1]).toBe(401);
-      // The database never holds the new role without the revocation.
-      const u = await ctx.prisma.user.findUniqueOrThrow({ where: { id: created.body.id }, select: { role: true, tokensValidAfter: true } });
+      const spy = vi.spyOn(tokens, 'revokeAllForUser').mockImplementation(async (userId, tx) => {
+        if (userId === coachId && tx) {
+          pausedInTransaction = true;
+          signalPaused();
+          await barrier;
+        }
+        return original(userId, tx);
+      });
+
+      try {
+        const change = http().patch(`/api/v1/admin/users/${coachId}`).set(bearer(admin)).send({ role: 'ADMIN' })
+          .then((r) => r);   // start the request now
+        // Fails fast (no hang) if the change completes without reaching the pause point.
+        await Promise.race([
+          paused,
+          change.then(() => { throw new Error('role change finished without pausing inside its transaction'); }),
+        ]);
+        expect(pausedInTransaction).toBe(true);
+
+        // Paused inside the transaction: the new role is written but NOT committed,
+        // so another request still sees a coach → refused on the ADMIN endpoint (403).
+        const during = await http().get('/api/v1/admin/users').set(bearer(coachToken));
+        expect(during.status).toBe(403);
+        expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: coachId }, select: { role: true } })).role).toBe('MENTOR');
+
+        release();
+        expect((await change).status).toBe(200);
+      } finally {
+        release();          // never leave the transaction paused, even if an assertion failed
+        spy.mockRestore();
+      }
+
+      // Committed: role and revocation are visible together → the old token is refused (401).
+      await http().get('/api/v1/admin/users').set(bearer(coachToken)).expect(401);
+      const u = await ctx.prisma.user.findUniqueOrThrow({ where: { id: coachId }, select: { role: true, tokensValidAfter: true } });
       expect(u.role).toBe('ADMIN');
       expect(u.tokensValidAfter).not.toBeNull();
-      expect(await ctx.prisma.refreshToken.count({ where: { userId: created.body.id, revokedAt: null } })).toBe(0);
+      expect(await ctx.prisma.refreshToken.count({ where: { userId: coachId, revokedAt: null } })).toBe(0);
     }
   });
 
