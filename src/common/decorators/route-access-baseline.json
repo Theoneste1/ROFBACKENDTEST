@@ -1,0 +1,1479 @@
+{
+  "DELETE /api/v1/admin/mentor-assignments/:id  MentorAssignmentsController.unassign": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "DELETE /api/v1/admin/users/:id  UsersController.delete": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "DELETE /api/v1/assignments/:id/attachments/:attachmentId  AssignmentsController.removeAttachment": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "DELETE /api/v1/comments/:id  DiscussionsController.removeComment": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "DELETE /api/v1/courses/:courseId/resources/:resourceId  CoursesController.removeResource": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "DELETE /api/v1/courses/:courseId/resources/:resourceId/attachments/:attachmentId  CoursesController.removeResourceFile": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "DELETE /api/v1/study-groups/:id/members/:userId  StudyGroupsController.removeMember": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "DELETE /api/v1/submissions/:id/review/attachments/:attachmentId  SubmissionsController.removeFeedbackFile": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "DELETE /api/v1/threads/:id  DiscussionsController.deleteThread": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1  AppController.getInfo": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/academic-years  AcademicYearsController.list": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/academic-years/current  AcademicYearsController.current": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/admin/academic-years/:id  AdminAcademicYearsController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/academic-years/:id/enrollments  AdminAcademicYearsController.enrollments": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/activity  ActivityController.list": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/activity/summary  ActivityController.summary": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/audit-logs  AuditController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/audit-logs/:id  AuditController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/audit-logs/actions  AuditController.actions": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/audit-logs/export.csv  AuditController.export": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/comments/hidden  DiscussionsController.listHidden": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/contact-messages  ContactMessagesController.list": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/dashboard  DashboardController.get": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/divisions  DivisionsController.findAllAdmin": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/email/jobs  EmailController.listJobs": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/email/jobs/:id  EmailController.getJob": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/email/jobs/:id/deliveries  EmailController.listDeliveries": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/email/users  EmailController.listUsers": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/mentor-assignments  MentorAssignmentsController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/moderation/actions  DiscussionsController.listActions": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/moderation/reports  DiscussionsController.listReports": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/moderation/reports/:id  DiscussionsController.getReport": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/assignments  ReportsController.assignments": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/assignments.csv  ReportsController.assignmentsCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/course-participation  ReportsController.courseParticipation": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/course-participation.csv  ReportsController.courseParticipationCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/enrollment  ReportsController.enrollment": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/enrollment.csv  ReportsController.enrollmentCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/mentor-activity  ReportsController.mentorActivity": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/mentor-activity.csv  ReportsController.mentorActivityCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/mentor-workload.csv  ReportsController.mentorWorkload": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/mentors  ReportsController.mentors": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/mentors.csv  ReportsController.mentorsCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/overview  ReportsController.overview": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/results-publication  ReportsController.resultsPublication": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/results-publication.csv  ReportsController.resultsPublicationCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/results.csv  ReportsController.results": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/reviews  ReportsController.reviews": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/reviews.csv  ReportsController.reviewsCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/student-progress.csv  ReportsController.studentProgress": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/students  ReportsController.students": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/reports/students.csv  ReportsController.studentsCsv": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/settings  SettingsController.getAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/users  UsersController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/admin/users/:id  UsersController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/analytics/courses/:courseId  AnalyticsController.course": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/assignments  AssignmentsController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/assignments/:assignmentId/distribution-batches  AssignmentResultsController.batches": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/assignments/:assignmentId/result-releases  AssignmentResultsController.releases": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/assignments/:assignmentId/threads  DiscussionsController.listAssignmentThreads": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/assignments/:id  AssignmentsController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/assignments/:id/attachments/:attachmentId/file  AssignmentsController.downloadAttachment": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/assignments/:id/file  AssignmentsController.download": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/assignments/:id/history  AssignmentsController.history": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/comments/:id/replies  DiscussionsController.listReplies": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/courses  CoursesController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/courses/:courseId/resources  CoursesController.listResources": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/courses/:courseId/resources/:resourceId  CoursesController.getResource": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/courses/:courseId/resources/:resourceId/attachments/:attachmentId/file  CoursesController.serveAttachment": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/courses/:courseId/resources/:resourceId/file  CoursesController.serveResourceFile": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/courses/:courseId/threads  DiscussionsController.listCourseThreads": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/courses/:id  CoursesController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/disciplines  DisciplinesController.list": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/divisions  DivisionsController.findAll": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/leaderboard  LeaderboardController.findGeneral": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/leaderboard/me  LeaderboardController.findMine": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/leaderboard/schools  LeaderboardController.findSchoolSummary": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/me  MeController.getMe": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/me/assignments  MyAssignmentsController.findMine": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/courses  MyCoursesController.findMine": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/enrollments  MeController.enrollments": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/notification-preferences  NotificationsController.preferences": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/me/notification-settings  NotificationsController.settings": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/permissions  MeController.permissions": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/me/results  MyResultsController.list": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/results/:submissionId  MyResultsController.get": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/results/:submissionId/feedback-files/:attachmentId  MyResultsController.feedbackFile": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/submissions  MySubmissionsController.findMine": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/me/teaching  MyTeachingController.findMine": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/mentor-requests  MentorRequestsController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/mentor/reviews  MentorReviewsController.queue": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/notifications  NotificationsController.list": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/notifications/:id  NotificationsController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/notifications/unread-count  NotificationsController.unreadCount": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/public/statistics  PublicSiteController.statistics": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/schools  SchoolsController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/schools/:id  SchoolsController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/schools/search  SchoolsController.search": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/study-groups  StudyGroupsController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/study-groups/:id  StudyGroupsController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/study-groups/:id/members/history  StudyGroupsController.getMembershipHistory": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/study-groups/my/groups  StudyGroupsController.findMyGroups": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/submissions  SubmissionsController.findAll": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/submissions/:id  SubmissionsController.findOne": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/submissions/:id/attachments/:attachmentId/file  SubmissionsController.attachmentFile": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/submissions/:id/feedback-file  SubmissionsController.feedbackFile": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/submissions/:id/feedback-files/:attachmentId  SubmissionsController.feedbackAttachment": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/submissions/:id/file  SubmissionsController.file": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/submissions/:id/history  SubmissionsController.history": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/submissions/:id/result-history  ResultHistoryController.history": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/submissions/:id/reviews  SubmissionsController.reviews": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "GET /api/v1/submissions/:id/revisions/:revisionNumber/file  SubmissionsController.revisionFile": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/support  SupportController.get": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/threads/:id  DiscussionsController.getThread": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /api/v1/threads/:id/comments  DiscussionsController.listComments": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "GET /health  HealthController.check": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PATCH /api/v1/admin/academic-years/:id  AdminAcademicYearsController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/contact-messages/:id  ContactMessagesController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/courses/:id  AdminCoursesController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/courses/:id/archive  AdminCoursesController.archive": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/courses/:id/publish  AdminCoursesController.publish": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/courses/:id/unpublish  AdminCoursesController.unpublish": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/divisions/:id  DivisionsController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/enrollments/:id  AdminAcademicYearsController.updateEnrollment": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/settings  SettingsController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/users/:id  UsersController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/admin/users/:id/status  UsersController.updateStatus": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id  AssignmentsController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/archive  AssignmentsController.archive": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/close  AssignmentsController.close": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/publish  AssignmentsController.publish": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/recall  AssignmentsController.recall": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/reject  AssignmentsController.reject": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/reopen  AssignmentsController.reopen": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/submit  AssignmentsController.submitForReview": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/assignments/:id/unpublish  AssignmentsController.unpublish": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/auth/password  AuthController.changePassword": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PATCH /api/v1/comments/:id  DiscussionsController.updateComment": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PATCH /api/v1/comments/:id/hide  DiscussionsController.hide": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/comments/:id/restore  DiscussionsController.restore": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/courses/:courseId/resources/:resourceId  CoursesController.updateResource": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/courses/:courseId/resources/:resourceId/archive  CoursesController.archiveResource": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/courses/:courseId/resources/:resourceId/publish  CoursesController.publishResource": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/courses/:courseId/resources/:resourceId/restore  CoursesController.restoreResource": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/courses/:courseId/resources/:resourceId/unpublish  CoursesController.unpublishResource": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/me  MeController.updateMe": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PATCH /api/v1/me/notification-settings  NotificationsController.updateSettings": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/mentor-requests/:id/approve  MentorRequestsController.approve": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/mentor-requests/:id/reject  MentorRequestsController.reject": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/notifications/:id/read  NotificationsController.markRead": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PATCH /api/v1/notifications/:id/unread  NotificationsController.markUnread": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PATCH /api/v1/study-groups/:id  StudyGroupsController.update": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/study-groups/:id/members/:userId/role  StudyGroupsController.updateMemberRole": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/approve  SubmissionsController.approve": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/assign  SubmissionsController.assign": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/mark  SubmissionsController.mark": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/publish  SubmissionsController.publish": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/reassign  SubmissionsController.reassign": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/reject  SubmissionsController.reject": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/reopen  SubmissionsController.reopen": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/request-resubmission  SubmissionsController.requestResubmission": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/start-review  SubmissionsController.startReview": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/submit-to-admin  SubmissionsController.submitToAdmin": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/submissions/:id/withdraw-resubmission-request  SubmissionsController.withdrawResubmissionRequest": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "PATCH /api/v1/threads/:id  DiscussionsController.updateThread": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PATCH /api/v1/threads/:id/:op  DiscussionsController.moderateThread": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/academic-years  AdminAcademicYearsController.create": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/academic-years/:id/activate  AdminAcademicYearsController.activate": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/email/jobs/:id/retry  EmailController.retryJob": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/email/send  EmailController.send": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/leaderboard/recompute  AdminPointsController.recompute": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/mentor-assignments  MentorAssignmentsController.assign": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/moderation/reports/:id/resolve  DiscussionsController.resolveReport": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/users  UsersController.create": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/users/:id/resend-invitation  UsersController.resendInvitation": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/users/:id/send-password-reset  UsersController.sendPasswordReset": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/users/import  UsersController.import": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/admin/users/invite  UsersController.invite": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/assignments  AssignmentsController.create": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/assignments/:assignmentId/distribute  AssignmentResultsController.distribute": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/assignments/:assignmentId/results/publish  AssignmentResultsController.publishResults": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/assignments/:assignmentId/threads  DiscussionsController.createAssignmentThread": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/assignments/:id/attachments  AssignmentsController.addAttachments": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/auth/activate  AuthController.activate": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/activation/inspect  AuthController.inspectActivation": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/forgot-password  AuthController.forgotPassword": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/login  AuthController.login": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/logout  AuthController.logout": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/logout-all  AuthController.logoutAll": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/refresh  AuthController.refresh": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/register/admin  AuthController.registerAdmin": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/auth/register/student  AuthController.registerStudent": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/resend-activation  AuthController.resendActivation": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/auth/reset-password  AuthController.resetPassword": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/comments/:id/reactions  DiscussionsController.react": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/comments/:id/report  DiscussionsController.reportComment": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/courses/:courseId/resources  CoursesController.createResource": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/courses/:courseId/resources/:resourceId/attachments  CoursesController.addResourceFiles": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/courses/:courseId/threads  DiscussionsController.createCourseThread": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/courses/:id/complete  CoursesController.completeCourse": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/me/notification-settings/reset  NotificationsController.resetSettings": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/mentor-requests  MentorRequestsController.create": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/notifications/read  NotificationsController.markManyRead": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/notifications/read-all  NotificationsController.markAllRead": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/public/contact  PublicSiteController.contact": {
+    "anonymous": "allow",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/study-groups  StudyGroupsController.create": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/study-groups/:id/members  StudyGroupsController.addMember": {
+    "anonymous": "401",
+    "STUDENT": "403",
+    "MENTOR": "403",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/submissions  SubmissionsController.submit": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "403",
+    "ADMIN": "403",
+    "UNKNOWN_ROLE": "403"
+  },
+  "POST /api/v1/threads/:id/comments  DiscussionsController.createComment": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "POST /api/v1/threads/:id/report  DiscussionsController.reportThread": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  },
+  "PUT /api/v1/me/notification-preferences  NotificationsController.updatePreferences": {
+    "anonymous": "401",
+    "STUDENT": "allow",
+    "MENTOR": "allow",
+    "ADMIN": "allow",
+    "UNKNOWN_ROLE": "allow"
+  }
+}

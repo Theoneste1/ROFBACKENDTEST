@@ -27,6 +27,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
 import { ATTACHMENT_FIELDS, filesFrom, type UploadedAttachmentFiles } from '../common/storage/attachments.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Courses')
 @Controller('courses')
@@ -38,12 +39,14 @@ export class CoursesController {
 
   /** Courses visible to the caller (students: published, with progress; mentors: taught). */
   @Get()
+  @Authenticated()
   findAll(@CurrentUser() user: AuthUser) {
     return this.coursesService.findAll(user);
   }
 
   /** Course detail. Opening a course as a student moves it from Unrolled to Rolled. */
   @Get(':id')
+  @Authenticated()
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.coursesService.findOne(id, user);
   }
@@ -79,6 +82,7 @@ export class CoursesController {
 
   /** Students: published resources of their division. Mentors/admins: all, filterable. */
   @Get(':courseId/resources')
+  @Authenticated()
   listResources(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Query() query: ListResourcesDto,
@@ -88,6 +92,7 @@ export class CoursesController {
   }
 
   @Get(':courseId/resources/:resourceId')
+  @Authenticated()
   getResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -98,6 +103,7 @@ export class CoursesController {
 
   /** The first file of the resource. ?download=true forces download. */
   @Get(':courseId/resources/:resourceId/file')
+  @Authenticated()
   async serveResourceFile(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -110,6 +116,7 @@ export class CoursesController {
 
   /** A specific attachment of the resource. */
   @Get(':courseId/resources/:resourceId/attachments/:attachmentId/file')
+  @Authenticated()
   async serveAttachment(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -256,6 +263,7 @@ export class DisciplinesController {
 
   /** Subject areas (Mathematics at launch). */
   @Get()
+  @Authenticated()
   list() {
     return this.coursesService.listDisciplines();
   }
