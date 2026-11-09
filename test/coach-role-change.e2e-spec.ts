@@ -68,11 +68,30 @@ describe('Coach role change → coach assignments (P1-05)', () => {
     const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id: coachId }, select: { tokensValidAfter: true } });
     expect(user.tokensValidAfter).not.toBeNull();
     expect(await ctx.prisma.refreshToken.count({ where: { userId: coachId, revokedAt: null } })).toBe(0);
-    // The old coach token never reaches a coach route again: 401 once the revocation
-    // second has passed; a token issued in that same second still authenticates
-    // (whole-second iat, jwt.strategy.ts) but now as ADMIN, so the MENTOR route refuses it.
-    const old = await http().get('/api/v1/me/teaching').set(bearer(coachToken));
-    expect([401, 403]).toContain(old.status);
+    // The old coach token is refused outright (401) — on coach and on admin routes.
+    await http().get('/api/v1/me/teaching').set(bearer(coachToken)).expect(401);
+    await http().get('/api/v1/admin/users').set(bearer(coachToken)).expect(401);
+  });
+
+  it('security: a coach token issued just before promotion to ADMIN never works as an ADMIN token (same-second race)', async () => {
+    // Repeated so the login and the role change fall in the same second at least
+    // some of the time — the case whole-second iat comparison let through.
+    for (let i = 0; i < 5; i++) {
+      const username = `race.coach.${i}`;
+      const created = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+        firstName: 'Race', lastName: String(i), username, email: `${username}@test.local`, password: 'Str0ng!Passw0rd', role: 'MENTOR',
+      }).expect(201);
+      const coachToken = await login(ctx, username, 'Str0ng!Passw0rd');
+      await http().patch(`/api/v1/admin/users/${created.body.id}`).set(bearer(admin)).send({ role: 'ADMIN' }).expect(200);
+
+      // ADMIN-only endpoint: the old token must be rejected as a session, not merely forbidden.
+      const res = await http().get('/api/v1/admin/users').set(bearer(coachToken));
+      expect([i, res.status, res.body.code ?? null]).toEqual([i, 401, res.body.code ?? null]);
+
+      // A fresh login right after the change works, with the new role.
+      const fresh = await login(ctx, username, 'Str0ng!Passw0rd');
+      await http().get('/api/v1/admin/users').set(bearer(fresh)).expect(200);
+    }
   });
 
   it('a former coach (now a student) has no coach access and is not shown as a course coach', async () => {
