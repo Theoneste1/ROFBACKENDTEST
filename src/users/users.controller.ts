@@ -29,7 +29,7 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
-import { permissionsFor } from '../auth/permissions.js';
+import { PermissionService } from '../auth/permission.service.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Admin · Users')
@@ -127,7 +127,10 @@ export class UsersController {
 @ApiTags('Me')
 @Controller('me')
 export class MeController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly permissionService: PermissionService,
+  ) {}
 
   /** The current user's profile, division and school. */
   @Get()
@@ -146,7 +149,7 @@ export class MeController {
   @Get('permissions')
   @Authenticated()
   permissions(@CurrentUser() user: AuthUser) {
-    return { role: user.role, permissions: permissionsFor(user.role) };
+    return this.permissionService.describe(user);
   }
 
   /** The current student's enrolment history (one row per academic year). */

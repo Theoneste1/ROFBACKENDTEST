@@ -2343,7 +2343,7 @@ What the current user's role may do (for showing/hiding UI).
 
 Returns `200` JSON with:
 
-`permissions` string[] · `role` string
+`permissions` string[] · `role` string · `roleLabel` string or null · `scopes` object
 
 ### GET `/api/v1/me/results`
 

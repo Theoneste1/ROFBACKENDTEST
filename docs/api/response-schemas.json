@@ -8950,11 +8950,45 @@
       },
       "role": {
         "type": "string"
+      },
+      "roleLabel": {
+        "nullable": true,
+        "type": "string"
+      },
+      "scopes": {
+        "properties": {
+          "courseDivisions": {
+            "items": {
+              "properties": {
+                "courseId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "divisionId": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "courseId",
+                "divisionId"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "courseDivisions"
+        ],
+        "type": "object"
       }
     },
     "required": [
       "permissions",
-      "role"
+      "role",
+      "roleLabel",
+      "scopes"
     ],
     "type": "object"
   },
