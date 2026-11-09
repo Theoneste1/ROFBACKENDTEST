@@ -70,8 +70,8 @@ Findings from the code that drive the order of work:
 | PERM | Permission catalogue additions and six-role matrix (§5) | C | **Approved** |
 | OV | Override approved list (§6.3) and override safeguards (§6.4) | C | **Approved** |
 | H2 | Head Coach student actions: view, participation/learning activity, programme membership only | C | **Approved** |
-| H3 | "Assign coaches to students" = course × division assignment within the programme; no coach–student table | C | **Approved** |
-| H4 | Head Coach teaches/grades only through an explicit ADMIN-created assignment + normal distribution | C | **Approved** |
+| H3 | "Assign coaches to students" = the Head Coach assigns **Coaches** to course × division responsibilities within their assigned programme (through `MentorAssignment`, subject to the approved permissions); no coach–student table | C | **Approved** |
+| H4 | A Head Coach **personally** teaches or grades only through an explicit assignment **created by an Administrator** and the normal grading distribution; a Head Coach cannot assign themselves (or another Head Coach) | C | **Approved** |
 | H5 | Head Coach does not approve assignments or results | C | **Approved** |
 | H6 | Head Coach: no resource management | C | **Approved** |
 | H8 | Head Coach: no data export | C | **Approved** |
@@ -185,11 +185,11 @@ Actor must be allowed to manage both the current and the new role; nobody change
 | `courses.view`, `resources.view`, `assignments.view` | ◐ D | ◐ A | ◐ A | ◐ P | ● | ● |
 | `courses.complete` | ◐ O | — | — | — | — | — |
 | `resources.manage` (incl. today's direct publish) | — | — | ◐ A | — | ● | ● |
-| `assignments.prepare` | — | override only | ◐ A | ◐ A if explicitly assigned | — | — |
+| `assignments.prepare` | — | override only | ◐ A | ◐ A only via an **Administrator-created** assignment (H4) | — | — |
 | `assignments.publish` | — | — | — | — | ● | ● |
 | `submissions.submit`, `submissions.viewOwn` | ◐ O | — | — | — | — | — |
 | `submissions.distribute` | — | — | — | — | ● | ● |
-| `reviews.grade` | — | — | ◐ A | ◐ A if explicitly assigned and distributed | — | — |
+| `reviews.grade` | — | — | ◐ A | ◐ A only via an **Administrator-created** assignment **and** the normal distribution (H4) | — | — |
 | `results.approve`, `results.publish` | — | — | — | — | ● | ● |
 | `discussions.participate`, `discussions.report` | ◐ D | ◐ A | ◐ A | ◐ P | ● | ● |
 | `discussions.moderate` | — | — | — | — (deferred, H7) | ● | ● |
@@ -206,7 +206,7 @@ Actor must be allowed to manage both the current and the new role; nobody change
 | `users.manageAdmins` *(new)* | — | — | — | — | ● boundary off / — on | ● |
 | `programmes.manageHeads` *(new)* | — | — | — | — | ● | ● |
 | `programmes.manageMembers` *(new)* | — | — | — | ◐ P | ● | ● |
-| `mentorAssignments.manage` | — | — | — | ◐ P | ● | ● |
+| `mentorAssignments.manage` — HEAD_COACH: assign **Coaches** (`MENTOR`) who are programme members to course × division in their programme; never themselves or another Head Coach (H3, H4) | — | — | — | ◐ P (Coaches only) | ● | ● |
 | `mentorRequests.decide` / account approval | — | — | — | — | ● | ● |
 | `coaches.monitor` *(new)* | — | — | — | ◐ P | ● | ● |
 | `academicYears.manage`, `enrollments.manage`, `divisions.manage`, `courses.manage` | — | — | — | — | ● | ● |
@@ -272,7 +272,7 @@ Never grantable: `reviews.grade`, `results.*`, `submissions.distribute`, `users.
 |---|---|
 | View students/coaches | active membership in one of the head coach's programmes; ADMIN, SUPER_ADMIN and other HEAD_COACH accounts never visible |
 | Shared coach | only data for the shared programme's courses |
-| Assign coach to course × division | course's discipline ∈ programmes; coach is a member |
+| Assign coach to course × division | course's discipline ∈ programmes; assignee is a **Coach (`MENTOR`)** with an active membership in that programme; **never the Head Coach themselves or another Head Coach** (that is an Administrator action, H4) |
 | Student membership | add/end in own programmes; no change to division, grade, school, account status |
 | Reports, analytics, activity, coach monitoring | forced programme filter; foreign `courseId` → 404 |
 | Invite coach | `isApproved = false` + membership in own programme; ADMIN approves through the existing `PATCH /admin/users/:id/status` (pending list `GET /admin/users?isApproved=false`) |
@@ -293,8 +293,8 @@ Never grantable: `reviews.grade`, `results.*`, `submissions.distribute`, `users.
 ### 7.4 One mechanism per purpose
 | Purpose | Mechanism | Managed by |
 |---|---|---|
-| Coach teaching scope ("assign coaches to students", H3) | `MentorAssignment` | ADMIN; HEAD_COACH within programme |
-| Head Coach teaching (H4) | `MentorAssignment`, created explicitly by ADMIN | ADMIN |
+| Coach teaching scope ("assign coaches to students", H3) | `MentorAssignment` | ADMIN; HEAD_COACH for Coaches within their programme |
+| Head Coach personally teaching/grading (H4) | `MentorAssignment` for the Head Coach, created explicitly by an **Administrator only**; grading work still comes only through the normal distribution | ADMIN only |
 | Grading allocation | existing submission distribution | ADMIN |
 | Teacher scope | `TeacherAssignment` (never read by distribution or coach notifications) | ADMIN |
 
@@ -310,7 +310,7 @@ All ADMIN permissions + `users.manageAdmins`, `permissions.manageOverrides`, `se
 ### 8.2 Safeguards (D4 approved; S2 confirmed; AS1, AS2 owner-required — 2026-11-09)
 | Area | Safeguard |
 |---|---|
-| Bootstrap | one-off CLI written in PR 11, **not run**; refuses if any active SUPER_ADMIN exists; target must be an existing active, activated ADMIN (O1, not selected); requires `--confirm-username`, `--reason`; ends target's sessions; audit `superAdmin.bootstrap`; e-mail to target; no migration or environment back door |
+| Bootstrap | one-off CLI **planned for a future implementation PR** (rollout Step 11, task P1-08) — **not yet written and not run**; refuses if any active SUPER_ADMIN exists; target must be an existing active, activated ADMIN (O1, not selected); requires `--confirm-username`, `--reason`; ends target's sessions; audit `superAdmin.bootstrap`; e-mail to target; no migration or environment back door |
 | Testing (S2) | local disposable database (automated tests) → Neon point-in-time branch of production (rehearsal, then deleted) → production only after **separate explicit approval** |
 | Deputy (S2) | unassigned; no automatic rights; any promotion separately approved |
 | Last account (S4) | service rule + DB trigger → 409 `LAST_SUPER_ADMIN` |
@@ -336,24 +336,24 @@ Rules: names from `20261121000000`, strictly increasing and numbered in rollout 
 
 | # | Migration | Depends on | Content | Rollback | Limitation |
 |---|---|---|---|---|---|
-| M1 | `20261121000000_roles_teacher_head_coach_super_admin` | PRs 2–4 deployed; shipped **in PR 5** together with the role allow-list and flags | `ALTER TYPE "Role" ADD VALUE` ×3 | none by SQL; inert while unused; full revert (recreate type) only while unused | **forward-only** |
-| M2 | `20261121000100_programme_membership` | PR 4 | table, `MembershipSource`, unique pair, FKs | drop table + enum | none |
+| M1 | `20261121000000_roles_teacher_head_coach_super_admin` | Steps 2–4 deployed; shipped **in Step 5** together with the role allow-list and flags | `ALTER TYPE "Role" ADD VALUE` ×3 | none by SQL; inert while unused; full revert (recreate type) only while unused | **forward-only** |
+| M2 | `20261121000100_programme_membership` | Step 4 | table, `MembershipSource`, unique pair, FKs | drop table + enum | none |
 | M3 | `20261121000200_backfill_programme_membership` | M2 | data (§7.3) | delete `BACKFILL` rows | aborts unless only Mathematics |
 | M4 | `20261121000300_last_super_admin_guard` | M1 | trigger on `User` | drop trigger + function | none |
-| M5 | `20261121000400_permission_overrides` | PR 4 | `UserPermissionOverride` (+ `expiresAt`, `revokedAt`, `revokedById`, reason), enums | drop table + enums | overrides lost (audit keeps history) |
+| M5 | `20261121000400_permission_overrides` | Step 4 | `UserPermissionOverride` (+ `expiresAt`, `revokedAt`, `revokedById`, reason), enums | drop table + enums | overrides lost (audit keeps history) |
 | M6 | `20261121000500_teacher_assignment` | M1, M2 | `TeacherAssignment` (unique teacher × course × division) | drop table | data lost if teachers assigned |
 
 Dependencies (each arrow = "must be deployed/applied before"):
-- `PR 2–4 → PR 5 (allow-list + flags + M1)`
-- `M1 → M4` (PR 11) · `M1 + M2 → M6` (PR 14)
-- `PR 4 → M2 → M3` (PR 10)
-- `PR 4 → M5` (PR 12)
+- `Steps 2–4 → Step 5 (allow-list + flags + M1)`
+- `M1 → M4` (Step 11) · `M1 + M2 → M6` (Step 14)
+- `Step 4 → M2 → M3` (Step 10)
+- `Step 4 → M5` (Step 12)
 
-Order inside PR 5: migrations are applied manually with approval (`render.yaml`: `prisma migrate deploy` is not run by the service), so the allow-list code and M1 may land in either order without exposure:
+Order inside Step 5: migrations are applied manually with approval (`render.yaml`: `prisma migrate deploy` is not run by the service), so the allow-list code and M1 may land in either order without exposure:
 - **code first:** the new code knows the values, but the database rejects them until M1, and the allow-list refuses them anyway;
 - **M1 first:** the running old code's generated `Role` enum does not contain the new values, so `@IsEnum(Role)` still rejects them.
 
-Either way, no account can hold a new role until a flag is switched on (PR 13/14) or the approved bootstrap runs (PR 11).
+Either way, no account can hold a new role until a flag is switched on (Steps 13/14) or the approved bootstrap runs (after Step 11, with separate approval).
 
 Not migrations (each separately approved): bootstrap, flag changes, appointments.
 
@@ -393,7 +393,7 @@ Mathematics (existing seed ID) + test-only Physics discipline (test database onl
 | STUDENT | everything today | other students' records (404), staff routes (403), other divisions/unpublished (404) |
 | TEACHER | assigned content; limited student list; discussions in scope; with override: draft + submit | out of scope (403/404); grades/reviews/contacts; publish/approve; grading; admin routes; drafting without override; distribution and coach notifications |
 | COACH | everything today | unchanged refusals |
-| HEAD_COACH | own-programme students (view, participation and learning activity, membership), coaches (view, monitor, assign, invite → pending), reports/analytics/activity | other programme (404); ADMIN/SUPER_ADMIN/other head coaches (404); self-adding programmes; assigning HEAD_COACH/ADMIN (403); approvals; grading without explicit assignment + distribution; **discussion moderation (403, H7 deferred)**; student grades, marks, feedback or contact details (not returned, D7); export, bulk e-mail, settings, audit |
+| HEAD_COACH | own-programme students (view, participation and learning activity, membership), coaches (view, monitor, assign **Coaches** to course × division in the programme, invite → pending), reports/analytics/activity; with an Administrator-created assignment: prepare and grade through the normal distribution | other programme (404); ADMIN/SUPER_ADMIN/other head coaches (404); self-adding programmes; assigning HEAD_COACH/ADMIN (403); **creating a course × division assignment for themselves or another Head Coach (403)**; grading or preparing without an Administrator-created assignment (403); approvals; grading without explicit assignment + distribution; **discussion moderation (403, H7 deferred)**; student grades, marks, feedback or contact details (not returned, D7); export, bulk e-mail, settings, audit |
 | ADMIN | all 25 current abilities; head coaches; membership; approvals; teachers | boundary on: ADMIN/SUPER_ADMIN management (403); always: overrides, system settings, grading |
 | SUPER_ADMIN | all intended administrative routes; ADMIN/SUPER_ADMIN management with step-up; overrides; system settings | grading; self-promotion/self-override; removing the last SUPER_ADMIN (409; direct SQL → trigger error) |
 
@@ -460,9 +460,11 @@ Declaration test (0 undeclared routes); route equivalence STUDENT/COACH/ADMIN (o
 
 ---
 
-## 12. Rollout order and PR sequence (all PRs target `develop`)
+## 12. Rollout order and step sequence (every PR targets `develop`)
 
-| Stage | PR | Content | Production effect | Approval |
+**Step numbers are the plan's own sequence, not GitHub pull-request numbers.** Each step is delivered as one (or, for Step 6–9, several) GitHub pull request, numbered by GitHub when opened. Step 1 was delivered as GitHub PR #10; the owner sign-off was recorded by GitHub PR #11.
+
+| Stage | Step | Content | Production effect | Approval |
 |---|---|---|---|---|
 | 0 | 1 | **Documentation only** (§16) | none | merge |
 | 1 | 2 | `@Authenticated()` on 54 routes + declaration test | none | merge |

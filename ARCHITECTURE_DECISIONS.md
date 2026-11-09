@@ -189,8 +189,8 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
   - Head Coaches have no automatic grading, no self-approval and no system-wide administration.
 - **Confirmed (H2–H6, H8, H9):**
   - Student actions are limited to view, participation and learning activity, and programme membership.
-  - "Assign coaches to students" means a course × division assignment within the programme; no coach–student table.
-  - A Head Coach teaches only through an explicit ADMIN-created assignment.
+  - "Assign coaches to students" means the Head Coach assigns **Coaches** to course × division responsibilities within their assigned programme, subject to the approved permissions; no coach–student table.
+  - A Head Coach **personally** teaches or grades only through an explicit assignment **created by an Administrator** and the normal grading distribution; a Head Coach cannot assign themselves or another Head Coach.
   - Head Coaches do not approve assignments or results and do not manage resources.
   - **H7 changed (owner, 2026-11-09):** Head Coaches get **no discussion-moderation permission** in Phase 1; moderation rights for Head Coaches are deferred until they are designed separately with the discussion/communication features they apply to.
   - They may not export data or send bulk e-mail.

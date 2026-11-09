@@ -66,7 +66,7 @@ Custom profiles are deferred (D3), so §3.1's "example profiles" and §3.3's "sy
   - rollback and re-apply.
 
   Run on the test database and on a Neon copy of production.
-- **Owner sign-off additions (2026-11-09):** Head Coach discussion moderation refused (H7 deferred); Head Coach student views return participation and learning activity only, never grades, marks, feedback or contact details (D7 clarification); Super Admin transfer is atomic and never leaves zero Super Admins, including under concurrent changes (AS2); emergency recovery refuses without reason and approval reference and writes its audit row in the same transaction (AS1) — plan §11.4a.
+- **Owner sign-off additions (2026-11-09):** Head Coach assigns Coaches (programme members) to course × division in their programme, but creating an assignment for themselves or another Head Coach is refused (403), and a Head Coach prepares or grades only with an Administrator-created assignment and the normal distribution (H3, H4); Head Coach discussion moderation refused (H7 deferred); Head Coach student views return participation and learning activity only, never grades, marks, feedback or contact details (D7 clarification); Super Admin transfer is atomic and never leaves zero Super Admins, including under concurrent changes (AS2); emergency recovery refuses without reason and approval reference and writes its audit row in the same transaction (AS1) — plan §11.4a.
 - **Teacher (§3.4 as amended):** course × division scope only (school scope deferred); no resource submission until Phase 7; assignment preparation only with a Super-Admin override; never part of grading distribution.
 
 ### 3.5 Course access safety (ADR-006)
