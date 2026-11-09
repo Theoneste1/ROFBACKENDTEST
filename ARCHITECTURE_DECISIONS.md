@@ -11,9 +11,9 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
 | ADR | Decision | Audit ref. | Requirements |
 |---|---|---|---|
 | 001 | Backend-first, extend the existing application | — | §1.1, §21, §22 |
-| 002 | TEACHER is a separate user type | D2 | REG-01, REG-05 |
+| 002 | TEACHER is a separate user type (**amended 2026-11-09**: six user types) | D2 | REG-01, REG-05 |
 | 003 | Teacher default rights | Q2 | TCH-01, PERM-* |
-| 004 | Permissions: catalogue in code; profiles, assignments, scopes, overrides in the database | D3 | PERM-01…08 |
+| 004 | Permissions: catalogue in code; profiles, assignments, scopes, overrides in the database (**amended 2026-11-09**: role-based defaults + Super-Admin overrides in Phase 1; custom profiles deferred) | D3 | PERM-01…08 |
 | 005 | Countries, education systems and configurable grade levels | D5 | INT-*, REG-03 |
 | 006 | Per-course access setting | D4, Q4 | REG-04, ACA-05 |
 | 007 | Subject → Topic → Course, preserving Mathematics data | D1 | SUB-* |
@@ -26,7 +26,11 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
 | 014 | Targeted e-mail with preview and confirmation | — | GRP-05 |
 | 015 | Migration and production safety rules (mandatory) | D11 | SEC-06, ARC-03 |
 | 016 | Staging environment | D12 | ARC-04 |
-| 017 | Branching and integration | — | §22.12 |
+| 017 | Branching and integration (**corrected 2026-11-09**: `develop`) | — | §22.12 |
+| 018 | Programme scope (Phase 1) — **2026-11-09** | — | PERM-04, TCH-01 |
+| 019 | Super Admin (Phase 1) — **2026-11-09** | Q20 | PERM-06, PERM-07 |
+
+**Amendments of 2026-11-09 (Phase 1):** ADR-002, ADR-003, ADR-004, ADR-015 and ADR-017 carry dated amendments below; ADR-018 and ADR-019 are new. Original decision text is kept. Each amendment states its status using the **Phase 1 decision register** categories (end of this document; full detail in [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §2): **confirmed** by the owner · **agreed** in project discussions (to be confirmed at final sign-off) · **proposed** (awaiting the owner's explicit approval) · **deferred** · **open**.
 
 ---
 
@@ -39,6 +43,12 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
 
 - **Decision:** add `TEACHER` to the user type (`Role` enum: STUDENT, MENTOR (shown "Coach"), ADMIN, TEACHER). A user has one user type (multiple types per person remains open: Q9).
 - **Consequences:** every role switch in backend and frontend handles TEACHER; the permission matrix covers it; the enum value is added in its own migration.
+- **Amendment 2026-11-09 (Phase 1):**
+  - **Six user types** (owner requirement, 2026-11-09): STUDENT, TEACHER, COACH, HEAD_COACH, ADMIN, SUPER_ADMIN.
+  - **COACH stays stored as `MENTOR`** and is shown as "Coach" — no enum rename, because `MENTOR` is part of API responses, route/table names and audit history (*agreed*, C1).
+  - New stored values `TEACHER`, `HEAD_COACH`, `SUPER_ADMIN` are added together in one additive, forward-only migration, only after every route declares its access and role checks are hardened ([docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §4, §9).
+  - Moving the TEACHER permission work into Phase 1 while teacher registration stays in Phase 5 is *proposed* (D1).
+  - One role per user remains (*open*, O6/Q9).
 
 ## ADR-003 — Teacher default rights
 
@@ -51,6 +61,12 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
   - view student information **only within the authorized scope**.
 - **Not granted by default:** grading, user administration, publishing approval, any global administrative permission. Anything more comes from a permission profile or an explicit, authorized assignment (ADR-004).
 - **Consequences:** teachers need scope assignments (SCHOOL, SUBJECT, COURSE) before they see content; resource and assignment approval workflows (ADR-010/011) must exist before teachers can contribute content.
+- **Amendment 2026-11-09 (Phase 1, *proposed* — D2, D6, D7):**
+  - In Phase 1 a teacher's scope is course × division through a separate `TeacherAssignment` table, plus programme membership. Keeping it separate from coach grading assignments is *agreed* (C8).
+  - **School scope is deferred** to Phase 2/5 (Q21).
+  - Preparing assignments is possible only through a Super-Admin override, using the existing assignment approval workflow.
+  - Resource submission waits for Phase 7.
+  - Student information is limited to name, school, grade and division — never grades or contact details.
 
 ## ADR-004 — Permission model
 
@@ -62,6 +78,14 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
   - **Default deny.** An administrator can only grant permissions and scopes they hold themselves; system profiles are editable only by the Super Administrator profile; all permission changes are audited with previous and new values.
   - Coach course × division assignments (`MentorAssignment`) remain the teaching scope; they are not replaced.
 - **Consequences:** a new guard (`@RequirePermission`) coexists with `@Roles` during migration; an equivalence test proves both give the same answers for system profiles on every route.
+- **Amendment 2026-11-09 — approved scope change (D3, *confirmed* by the owner):**
+  - **Phase 1 implements fixed role-based default permissions** (one set per user type, defined in code) **and controlled individual overrides** (GRANT/DENY of one catalogue permission for one user, optionally scoped, with reason and optional expiry) stored in the database.
+  - **Overrides are managed only by the Super Admin.** They are restricted to an approved permission list kept in code, audited in the same transaction as the change, reversible (soft revocation), and stop applying at their expiry time on every request.
+  - Overrides cannot widen scope, cannot bypass record-level rules and cannot apply to a Super Admin ([docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §6.3–6.4).
+  - **Administrator-created custom permission profiles (the "profiles … are database records managed through the Admin Portal" part of this decision, and requirement PERM-02) are DEFERRED to a later phase.** The original text above is kept and is marked deferred, not withdrawn.
+  - The "Super Administrator profile" becomes the `SUPER_ADMIN` user type (ADR-019).
+  - Permissions are still resolved server-side per request and are not stored in the JWT; the authentication and refresh flow is unchanged.
+  - *Proposed* (D9): instead of a transitional guard that accepts *either* the legacy role *or* the permission, each route switches to the permission check alone, after a generated equivalence test proves identical decisions for STUDENT, COACH and ADMIN.
 
 ## ADR-005 — International academic structure
 
@@ -124,6 +148,10 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
 7. **No destructive production change without explicit approval.**
 8. Expand–contract: add first, backfill, switch code, remove old structures only in a later, separately approved migration.
 
+- **Exception 2026-11-09 (Phase 1, *agreed*, C10):** while Phase 0 is paused, rule 2 (the CI migration-name check, task P0-06) is **not a prerequisite** for Phase 1. Every migration pull request instead states a manual check that its name sorts after the newest migration on `develop` and `main`. All other rules apply unchanged:
+  - rule 4: rehearsal on a Neon point-in-time copy of production;
+  - rule 5: met for additive migrations by the P0-04 Part A restore drill.
+
 ## ADR-016 — Staging environment
 
 - **Decision:** introduce a staging environment on free tiers (Neon branch, second Render service, Netlify deploy preview) for rehearsing migrations and integrating frontend work before production.
@@ -132,6 +160,83 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
 ## ADR-017 — Branching and integration
 
 - **Decision:** `main` is the release branch (Render deploys it). One feature branch per phase step, created from `main`; one pull request per step; CI green and review required; database migrations in their own pull requests, applied to production only with approval. **`develop` is kept (Q22, decided 2026-11-08):** after the pending pull request is reviewed and merged into `main`, `develop` is aligned with `main`.
+- **Correction 2026-11-09 (*agreed*, confirmed by the repository):**
+  - Feature branches are created from **`develop`**, and pull requests target **`develop`**. Evidence:
+    - `develop` is the repository's default branch on GitHub;
+    - pull requests #4–#9 targeted `develop`;
+    - [docs/AI_COLLABORATION_PROTOCOL.md](docs/AI_COLLABORATION_PROTOCOL.md) names `develop`.
+  - `main` remains the release branch.
+  - A release is a pull request `develop → main`; Render deploys `main`.
+  - The rest of this decision is unchanged.
+
+## ADR-018 — Programme scope (Phase 1, 2026-11-09)
+
+- **Decision (*confirmed*: HC-A, P2, P3):**
+  - **Head Coach authority is limited to the assigned programme(s).**
+  - A programme is an **existing `Discipline` record** (Mathematics today; its ID is unchanged). There is no programme table and no programme-management interface in Phase 1; Physics and Computing come with Phase 3.
+  - A new link table, **`ProgrammeMembership`** (user × discipline, `source` BACKFILL/MANUAL, active flag, history), records who belongs to which programme. Head Coaches head the programmes they are members of; only ADMIN or SUPER_ADMIN sets that.
+  - Existing users are backfilled:
+    - the migration aborts unless Mathematics is the only discipline;
+    - students → Mathematics;
+    - coaches → the programmes of their assigned courses, otherwise Mathematics;
+    - rows are marked `BACKFILL`, so a single delete reverses it;
+    - it is verified on a Neon copy of production by reconciliation, access-regression, scope-isolation and rollback tests before production approval is requested.
+  - **Membership never changes existing access:** students stay division-based and coaches stay `MentorAssignment`-based.
+- **Agreed (C3–C6):**
+  - ADMIN appoints Head Coaches and runs ordinary programme operations.
+  - Head Coaches manage Students and Coaches within their programme through explicit permissions.
+  - Coach accounts created by a Head Coach need ADMIN approval.
+  - Head Coaches have no automatic grading, no self-approval and no system-wide administration.
+- **Proposed (H2–H9):**
+  - Student actions are limited to view, progress and programme membership.
+  - "Assign coaches to students" means a course × division assignment within the programme; no coach–student table.
+  - A Head Coach teaches only through an explicit ADMIN-created assignment.
+  - Head Coaches do not approve assignments or results and do not manage resources.
+  - They may moderate their programme's discussions.
+  - They may not export data or send bulk e-mail.
+- **Enforcement:** a single place (`AccessService`) handles it. Anything outside the programme answers 404 (existence not revealed). Details are in [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §7.
+
+## ADR-019 — Super Admin (Phase 1, 2026-11-09)
+
+- **Decision (*confirmed*: S2, RS1):**
+  - `SUPER_ADMIN` is the highest user type.
+  - **The owner (Theoneste) will be the initial Super Admin.** The deputy is **unassigned** and receives no automatic rights.
+  - The initial account is created **only** by a controlled one-off bootstrap command, which:
+    - is tested on a disposable database and on a Neon copy of production first;
+    - is run in production **only after separate explicit approval**.
+  - No account is created or promoted during the documentation phase.
+  - **The Super Admin permission set is defined explicitly and never includes grading or assignment-authoring permissions** (`reviews.grade`, `assignments.prepare`), neither by inheritance nor by override.
+- **Agreed (C2, C7):** ADMIN cannot manage ADMIN or SUPER_ADMIN accounts; SUPER_ADMIN has system-wide authority without automatic grading.
+- **Proposed (D4, S3–S5, BD):**
+  - the bootstrap refuses if a Super Admin exists, and its target must be an existing active ADMIN (O1, not selected);
+  - step-up password confirmation for role changes;
+  - transfer only while another Super Admin remains;
+  - a break-glass recovery runbook (command line only);
+  - last-Super-Admin protection by both a service rule and a database trigger;
+  - an append-only audit row for every state-changing ADMIN/SUPER_ADMIN request, without request bodies;
+  - MFA deferred;
+  - `settings.manageSystem` reserved for SUPER_ADMIN.
+- **Staged activation of C2 (*proposed*, BD):** the ADMIN restriction sits behind `SUPER_ADMIN_BOUNDARY_ENABLED`, default off.
+  - **Off:** ADMIN keeps today's behaviour.
+  - **On while no active Super Admin exists:** the restriction is not enforced (fail-safe).
+  - **When switched on:** only after a verified production bootstrap and a separate approval.
+  - **Rollback:** switch it off.
+
+  This guarantees that an ADMIN creation path always exists ([docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §8).
+
+---
+
+## Phase 1 decision register (2026-11-09)
+
+Full wording in [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §2. Recommendations are **not** owner-approved until the owner confirms them.
+
+| Category | Decisions |
+|---|---|
+| **A — Confirmed by the owner** | Six user types (requirement) · HC-A Head Coach limited to assigned programme · D3 role-based defaults + Super-Admin-only overrides, custom profiles deferred · S2 owner is initial Super Admin, deputy unassigned, approval-gated bootstrap · P2 programme creation deferred to Phase 3 · P3 Mathematics membership backfill with safeguards · RS1 Super Admin never inherits grading · RS2 overrides stop at expiry independently of jobs · RS3 backfill acceptance tests · PR 1 scope (documentation only) |
+| **B — Agreed in project discussions** | C1 COACH stored as `MENTOR` · C2 ADMIN cannot manage ADMIN/SUPER_ADMIN · C3 ADMIN appoints Head Coaches · C4 Head Coaches manage Students/Coaches in programme by explicit permissions · C5 Head-Coach-created coaches need ADMIN approval · C6 no automatic Head Coach grading or self-approval · C7 Super Admin no automatic grading · C8 Teacher assignments separate · C9 Mathematics IDs and data unchanged · C10 Phase 0 paused, P0-06 not a prerequisite · BR pull requests target `develop` |
+| **C — Proposed, awaiting the owner** | D1, D2, D4, D6, D7, D9 · H2–H9 · S3, S4, S5 · OV override list and safeguards · BD boundary flag · PERM permission catalogue and matrix |
+| **D — Deferred** | custom permission profiles (PERM-02) · programme creation (Phase 3) · organisational role (Q5/D5, proposed deferral) · school/country scope · teacher resource submission (Phase 7) · teacher registration (Phase 5) · MFA · coach–student supervision links · O5 · O6 |
+| **E — Open** | O1 bootstrap target account (not selected) · O2 deputy (unassigned) · O3 rotation of the seeded `admin` password (recommended before the bootstrap request) · O4 base branch — resolved by repository evidence (BR) · O5 direct coach creation by Head Coaches · O6 several roles per person (Q9) |
 
 ---
 
@@ -140,7 +245,7 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
 | # | Question | Needed by |
 |---|---|---|
 | Q3 | May a course belong to several topics? | Phase 3 |
-| Q5 | Organisational role: free text or a managed list with permission meaning? | Phase 1 (step P3) |
+| Q5 | Organisational role: free text or a managed list with permission meaning? — **2026-11-09: deferral out of Phase 1 proposed (D5)** | Phase 4/5 |
 | Q7 | CHANGES_REQUESTED vs REJECTED; which content types require approval | Phase 7 |
 | Q8 | Meeting requests: proposed times + confirmation only, or in-platform scheduling? | Phase 8 |
 | Q9 | Can one person hold several user types (e.g. teacher and coach)? | Phase 5 |
@@ -154,6 +259,12 @@ Related: [ROF_LMS_CONSOLIDATED_REQUIREMENTS.md](ROF_LMS_CONSOLIDATED_REQUIREMENT
 | Q17 | May students change school/grade themselves, or with approval? | Phase 4 |
 | Q18 | E-mail read receipts wanted? (not recommended for minors) | Phase 10 |
 | Q19 | Password policy for the international launch | Phase 5 |
-| Q20 | Who holds the Super Administrator profile initially, and how is it transferred? | Phase 1 |
+| ~~Q20~~ | **Decided 2026-11-09 (S2):** the owner (Theoneste) is the initial Super Admin through the approval-gated bootstrap; deputy unassigned; transfer rules proposed in ADR-019 | Phase 1 |
 | Q21 | How teachers are linked to schools: by registration (self-declared, then approved) or by admin assignment only? | Phase 5 |
 | ~~Q22~~ | **Decided 2026-11-08:** keep `develop`; align it with `main` after the pending pull request is merged | Phase 0 |
+| O1 | Which existing ADMIN account (the owner's) the Super Admin bootstrap promotes — **not selected**; a personal ADMIN account may need to be created first | before the bootstrap approval request |
+| O2 | Deputy for the Super Admin — **unassigned**; any promotion separately approved | — |
+| O3 | Rotate the seeded production `admin` password | before the bootstrap approval request (recommended) |
+| ~~O4~~ | Base branch — **resolved 2026-11-09 by repository evidence**: `develop` (ADR-017 correction) | — |
+| O5 | May Head Coaches later create coaches without ADMIN approval? | later phase |
+| O6 | Several user types per person (same as Q9) | Phase 5 |

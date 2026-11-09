@@ -35,7 +35,15 @@ Permissions stay **defined in code** (a fixed catalogue); profiles and assignmen
 
 Scope types: `GLOBAL`, `COUNTRY`, `SCHOOL`, `SUBJECT`, `COURSE`, `DIVISION`, `GROUP`, `SUPPORT_ASSIGNED`.
 
+**Updated 2026-11-09 (Phase 1):** the Phase 1 catalogue and the six-role matrix are in [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §5 (*proposed*, PERM).
+- **Existing permission names are kept**, so the frontend keeps working.
+- New in Phase 1: `reports.view`, `students.viewScoped`, `users.view`, `users.manageStudents`, `users.manageCoaches`, `users.manageTeachers`, `users.manageHeadCoaches`, `users.manageAdmins`, `programmes.manageHeads`, `programmes.manageMembers`, `coaches.monitor`, `settings.manageSystem`, `permissions.view`, `permissions.manageOverrides`.
+- The finer `users.*` split (create/edit/suspend/archive/…) and the other areas above belong to their later phases.
+- Phase 1 scopes: own, division, course × division, programme, global.
+
 ### 2.1 Seeded system profiles (approved, ADR-003/004)
+
+> **Deferred 2026-11-09 (D3):** custom/seeded profile *records* are deferred. In Phase 1 the same role defaults are fixed in code per user type (STUDENT, TEACHER, COACH (`MENTOR`), HEAD_COACH, ADMIN, SUPER_ADMIN). Teacher assignment authoring is an individual **override** of `assignments.prepare` granted by the Super Admin, not a grantable profile.
 
 | Profile | Permissions |
 |---|---|
@@ -58,6 +66,22 @@ Scope types: `GLOBAL`, `COUNTRY`, `SCHOOL`, `SUBJECT`, `COURSE`, `DIVISION`, `GR
 | DELETE | `/admin/users/:id/permission-assignments/:assignmentId` | `permissions.assign` |
 | POST/DELETE | `/admin/users/:id/permission-overrides[/:id]` | `permissions.assign` |
 | GET | `/me/permissions` | authenticated — **extended**: `{ role, permissions[], scopes[], profiles[] }` |
+
+**Updated 2026-11-09 (Phase 1).** The endpoints above for profiles and profile assignments are **deferred** with custom profiles (D3). The Phase 1 endpoints are below, all additive; the full table is in [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §10.
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/me/permissions` | authenticated — extended to `{ role, roleLabel, permissions[], scopes{ programmes[], courseDivisions[] }, overrides[] }`; existing fields unchanged |
+| PATCH | `/admin/users/:id/role` | per-actor role allow-list; step-up confirmation when the target is ADMIN/SUPER_ADMIN (the same allow-list applies to `POST /admin/users`, `/admin/users/invite` and `PATCH /admin/users/:id`) |
+| GET | `/programmes` | authenticated (existing disciplines, read-only) |
+| GET/PUT | `/admin/programmes/:id/heads` | `programmes.manageHeads` |
+| GET/POST/DELETE | `/admin/programmes/:id/members[/:userId]` | `programmes.manageMembers` (HEAD_COACH: own programme, students and coaches only) |
+| GET/POST/DELETE | `/admin/teacher-assignments[/:id]` | `users.manageTeachers` |
+| GET | `/admin/permissions/catalogue` | `permissions.view` |
+| GET | `/admin/users/:id/permissions` | `permissions.view` (effective permissions with their source) |
+| GET/POST/DELETE | `/admin/users/:id/permission-overrides[/:id]` | `permissions.manageOverrides` (**SUPER_ADMIN only**; approved list; never for themselves or for a SUPER_ADMIN) |
+
+Existing endpoints that Head Coaches use with a forced programme filter: `/admin/users*`, `/admin/mentor-assignments`, the user invitation, dashboard/reports/analytics/activity. Programme creation and editing are **not** in Phase 1 (P2: Phase 3).
 
 ### 3.2 Reference data and schools
 | Method | Path | Permission |
@@ -141,13 +165,19 @@ Scope types: `GLOBAL`, `COUNTRY`, `SCHOOL`, `SUBJECT`, `COURSE`, `DIVISION`, `GR
 | `/courses`, `/me/courses` | honours `accessPolicy`; + `topic`, `subject` objects | additive; DIVISION_OPEN courses unchanged |
 | Discussions | threads accept `groupId`; `type` field | additive |
 | Notifications | new categories/types | additive (frontend must ignore unknown types gracefully) |
-| Role enum in all responses | may contain `TEACHER` | **frontend must handle** |
+| Role enum in all responses | may contain `TEACHER` (**2026-11-09:** also `HEAD_COACH` and `SUPER_ADMIN`; COACH stays `MENTOR`) | **frontend must handle** — before any account holds a new role |
 
 ## 5. Guard migration
 
 - Add `@RequirePermission('x.y', { scope? })` alongside `@Roles()`. New routes use permissions only.
 - Existing routes migrate area by area; during migration the guard accepts **either** the legacy role **or** the permission, and a unit test asserts both give the same result for system profiles.
 - Effective permissions resolved per request from the database with a short-lived cache keyed by user and invalidated on assignment changes (no JWT change, refresh flow untouched).
+- **Updated 2026-11-09:**
+  - First, every route declares its access (`@Roles`, `@RequirePermission` or `@Authenticated`); a test enforces this.
+  - *Proposed* (D9): each route then switches to the permission check **alone**, once a generated equivalence test proves identical decisions for STUDENT, COACH and ADMIN. This replaces the "either role or permission" transition.
+  - Override expiry is evaluated against `expiresAt` on every request; a cached entry never outlives its expiry.
+
+**New error codes (2026-11-09, Phase 1):** `ROLE_NOT_ASSIGNABLE`, `OVERRIDE_NOT_ALLOWED`, `LAST_SUPER_ADMIN`, `STEP_UP_REQUIRED`, `TEACHERS_DISABLED`, `HEAD_COACHES_DISABLED` (plus `SCOPE_FORBIDDEN` below).
 
 ## 6. Error codes (new)
 
