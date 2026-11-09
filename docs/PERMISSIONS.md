@@ -100,6 +100,8 @@ independent layers enforce this:
   - the caller must hold the permission, or the request gets `403 PERMISSION_REQUIRED`
     (`details.permission` names it);
   - it **fails closed**: no user, an unsupported role, or a missing grant all mean 403.
+  - only genuinely absent metadata (`undefined`) is a no-op; metadata that is present but not a known
+    permission (empty string, `null`, an unknown name, a non-string) means 403 for every caller.
 - **It checks the permission only.** Record-level rules (own submission, own notification)
   and scope rules (division, course × division, programme) stay in the services.
 - **Declaration rules** (`route-declarations.spec.ts`):
