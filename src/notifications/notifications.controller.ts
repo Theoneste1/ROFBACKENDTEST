@@ -20,6 +20,7 @@ import { PaginationQueryDto } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { NotificationCategory } from '../generated/prisma/client.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 class ListNotificationsDto extends PaginationQueryDto {
   @IsOptional()
@@ -88,11 +89,13 @@ export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Get('notifications')
+  @Authenticated()
   list(@CurrentUser() user: AuthUser, @Query() query: ListNotificationsDto) {
     return this.notifications.list(user.id, query);
   }
 
   @Get('notifications/unread-count')
+  @Authenticated()
   unreadCount(@CurrentUser() user: AuthUser) {
     return this.notifications.unreadCount(user.id);
   }
@@ -100,37 +103,44 @@ export class NotificationsController {
   /** Mark up to 100 notifications read. Declared before :id routes. */
   @Post('notifications/read')
   @HttpCode(200)
+  @Authenticated()
   markManyRead(@CurrentUser() user: AuthUser, @Body() body: MarkReadDto) {
     return this.notifications.markManyRead(user.id, body.ids);
   }
 
   @Get('notifications/:id')
+  @Authenticated()
   findOne(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.notifications.findOne(user.id, id);
   }
 
   @Patch('notifications/:id/read')
+  @Authenticated()
   markRead(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.notifications.markRead(user.id, id);
   }
 
   @Patch('notifications/:id/unread')
+  @Authenticated()
   markUnread(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.notifications.markUnread(user.id, id);
   }
 
   @Post('notifications/read-all')
+  @Authenticated()
   markAllRead(@CurrentUser() user: AuthUser) {
     return this.notifications.markAllRead(user.id);
   }
 
   /** E-mail preferences per category. ACCOUNT e-mails cannot be disabled. */
   @Get('me/notification-preferences')
+  @Authenticated()
   preferences(@CurrentUser() user: AuthUser) {
     return this.notifications.getPreferences(user.id);
   }
 
   @Put('me/notification-preferences')
+  @Authenticated()
   updatePreferences(@CurrentUser() user: AuthUser, @Body() body: UpdatePreferencesDto) {
     return this.notifications.updatePreferences(user.id, body.preferences);
   }

@@ -12,6 +12,7 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Academic years')
 @Controller('academic-years')
@@ -20,11 +21,13 @@ export class AcademicYearsController {
 
   /** All academic years (newest first), e.g. for filters. */
   @Get()
+  @Authenticated()
   list() {
     return this.years.list();
   }
 
   @Get('current')
+  @Authenticated()
   current() {
     return this.years.current();
   }

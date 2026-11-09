@@ -30,6 +30,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { permissionsFor } from '../auth/permissions.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Admin · Users')
 @Controller('admin/users')
@@ -130,17 +131,20 @@ export class MeController {
 
   /** The current user's profile, division and school. */
   @Get()
+  @Authenticated()
   getMe(@CurrentUser() user: AuthUser) {
     return this.usersService.getMe(user.id);
   }
 
   @Patch()
+  @Authenticated()
   updateMe(@CurrentUser() user: AuthUser, @Body() body: UpdateMeDto) {
     return this.usersService.updateMe(user.id, body);
   }
 
   /** What the current user's role may do (for showing/hiding UI). */
   @Get('permissions')
+  @Authenticated()
   permissions(@CurrentUser() user: AuthUser) {
     return { role: user.role, permissions: permissionsFor(user.role) };
   }

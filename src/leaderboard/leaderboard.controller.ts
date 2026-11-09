@@ -6,6 +6,7 @@ import { LeaderboardQueryDto } from './dto/leaderboard-query.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 /**
  * Division leaderboards. Mentors and admins never appear in rankings.
@@ -18,6 +19,7 @@ export class LeaderboardController {
 
   /** Students ranked by points (optionally within one school). */
   @Get()
+  @Authenticated()
   findGeneral(@CurrentUser() user: AuthUser, @Query() query: LeaderboardQueryDto) {
     return this.leaderboardService.findGeneral(user, query);
   }
@@ -31,6 +33,7 @@ export class LeaderboardController {
 
   /** Schools ranked by total student points. */
   @Get('schools')
+  @Authenticated()
   findSchoolSummary(@CurrentUser() user: AuthUser, @Query() query: LeaderboardQueryDto) {
     return this.leaderboardService.findSchoolSummary(user, query);
   }

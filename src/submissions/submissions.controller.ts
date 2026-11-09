@@ -36,6 +36,7 @@ import {
   MAX_ATTACHMENTS,
   type UploadedAttachmentFiles,
 } from '../common/storage/attachments.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 /** Mentor feedback upload fields: "feedbackFile" (single, legacy) and "feedbackFiles". */
 const FEEDBACK_FIELDS = [
@@ -102,6 +103,7 @@ export class SubmissionsController {
 
   /** Students: own only. Mentors: assigned to them. Admins: any. */
   @Get(':id')
+  @Authenticated()
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.findOne(id, user);
   }
@@ -111,6 +113,7 @@ export class SubmissionsController {
    * resubmission request. Students: own only. Mentors: assigned to them. Admins: any.
    */
   @Get(':id/history')
+  @Authenticated()
   history(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.attemptHistory(id, user);
   }
@@ -124,12 +127,14 @@ export class SubmissionsController {
 
   /** First file of the latest submitted version. */
   @Get(':id/file')
+  @Authenticated()
   async file(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
     await this.submissionsService.serveSubmissionFile(id, user, res);
   }
 
   /** A specific submitted file (any revision). */
   @Get(':id/attachments/:attachmentId/file')
+  @Authenticated()
   async attachmentFile(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
@@ -141,6 +146,7 @@ export class SubmissionsController {
 
   /** First file of a specific revision (1 = first submission). */
   @Get(':id/revisions/:revisionNumber/file')
+  @Authenticated()
   async revisionFile(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('revisionNumber', ParseIntPipe) revisionNumber: number,
@@ -152,12 +158,14 @@ export class SubmissionsController {
 
   /** First mentor feedback file (students: only after publication). */
   @Get(':id/feedback-file')
+  @Authenticated()
   async feedbackFile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
     await this.submissionsService.serveFeedbackFile(id, user, res);
   }
 
   /** A specific mentor feedback file. */
   @Get(':id/feedback-files/:attachmentId')
+  @Authenticated()
   async feedbackAttachment(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,

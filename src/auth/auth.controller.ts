@@ -31,6 +31,7 @@ import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import type { ClientInfo, IssuedTokens } from './token.service.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 export const REFRESH_COOKIE = 'rof_refresh';
 
@@ -101,6 +102,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(200)
   @Post('logout')
+  @Authenticated()
   async logout(
     @CurrentUser() user: AuthUser,
     @Body() body: RefreshTokenDto,
@@ -116,6 +118,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(200)
   @Post('logout-all')
+  @Authenticated()
   async logoutAll(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
     await this.authService.logoutAll(user);
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
@@ -171,6 +174,7 @@ export class AuthController {
   @ApiBearerAuth()
   @Throttle(CREDENTIAL_LIMIT)
   @Patch('password')
+  @Authenticated()
   changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto) {
     return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
   }

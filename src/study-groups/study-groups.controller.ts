@@ -21,6 +21,7 @@ import { UpdateMemberRoleDto } from './dto/update-member-role.dto.js';
 
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { GroupMemberGuard } from './guards/group-member.guard.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Study groups')
 @Controller('study-groups')
@@ -122,6 +123,7 @@ export class StudyGroupsController {
    */
   @Get(':id')
   @UseGuards(GroupMemberGuard)
+  @Authenticated()
   findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req: any) {
     return this.studyGroupsService.findOne(id, { id: req.user.id, role: req.user.role });
   }
@@ -131,6 +133,7 @@ export class StudyGroupsController {
    * Returns only active groups the caller belongs to.
    */
   @Get('my/groups')
+  @Authenticated()
   findMyGroups(@Request() req: any) {
     return this.studyGroupsService.findMyGroups(req.user.id);
   }

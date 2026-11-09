@@ -31,6 +31,7 @@ import {
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 /**
  * Discussion endpoints.
@@ -53,6 +54,7 @@ export class DiscussionsController {
   // ─── Threads ──────────────────────────────────────────────────────────────
 
   @Get('courses/:courseId/threads')
+  @Authenticated()
   listCourseThreads(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Query() query: ListThreadsDto,
@@ -63,6 +65,7 @@ export class DiscussionsController {
 
   /** Start a course discussion (title + opening message). */
   @Post('courses/:courseId/threads')
+  @Authenticated()
   createCourseThread(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Body() body: CreateThreadDto,
@@ -72,6 +75,7 @@ export class DiscussionsController {
   }
 
   @Get('assignments/:assignmentId/threads')
+  @Authenticated()
   listAssignmentThreads(
     @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
     @Query() query: ListThreadsDto,
@@ -81,6 +85,7 @@ export class DiscussionsController {
   }
 
   @Post('assignments/:assignmentId/threads')
+  @Authenticated()
   createAssignmentThread(
     @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
     @Body() body: CreateThreadDto,
@@ -90,12 +95,14 @@ export class DiscussionsController {
   }
 
   @Get('threads/:id')
+  @Authenticated()
   getThread(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.discussions.getThread(id, user);
   }
 
   /** The author renames their open thread. */
   @Patch('threads/:id')
+  @Authenticated()
   updateThread(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateThreadDto, @CurrentUser() user: AuthUser) {
     return this.discussions.updateThread(id, body, user);
   }
@@ -105,6 +112,7 @@ export class DiscussionsController {
    * may remove any thread (recorded as moderation, optional reason).
    */
   @Delete('threads/:id')
+  @Authenticated()
   deleteThread(@Param('id', ParseUUIDPipe) id: string, @Body() body: ModerationReasonDto, @CurrentUser() user: AuthUser) {
     return this.discussions.deleteThread(id, user, body?.reason);
   }
@@ -112,34 +120,40 @@ export class DiscussionsController {
   // ─── Comments ─────────────────────────────────────────────────────────────
 
   @Get('threads/:id/comments')
+  @Authenticated()
   listComments(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListCommentsDto, @CurrentUser() user: AuthUser) {
     return this.discussions.listComments(id, user, query);
   }
 
   /** Post in a thread (set parentId to reply to a comment). */
   @Post('threads/:id/comments')
+  @Authenticated()
   createComment(@Param('id', ParseUUIDPipe) id: string, @Body() body: CreateCommentDto, @CurrentUser() user: AuthUser) {
     return this.discussions.createComment(id, body, user);
   }
 
   @Get('comments/:id/replies')
+  @Authenticated()
   listReplies(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListCommentsDto, @CurrentUser() user: AuthUser) {
     return this.discussions.listReplies(id, user, query);
   }
 
   @Patch('comments/:id')
+  @Authenticated()
   updateComment(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateCommentDto, @CurrentUser() user: AuthUser) {
     return this.discussions.updateComment(id, body, user);
   }
 
   /** Authors delete their own comments; admins may delete any (recorded as moderation, optional reason). */
   @Delete('comments/:id')
+  @Authenticated()
   removeComment(@Param('id', ParseUUIDPipe) id: string, @Body() body: ModerationReasonDto, @CurrentUser() user: AuthUser) {
     return this.discussions.removeComment(id, user, body?.reason);
   }
 
   /** Toggle a reaction (LIKE, HELPFUL, CONFUSED). */
   @Post('comments/:id/reactions')
+  @Authenticated()
   react(@Param('id', ParseUUIDPipe) id: string, @Body() body: ReactCommentDto, @CurrentUser() user: AuthUser) {
     return this.discussions.react(id, body, user);
   }
@@ -147,11 +161,13 @@ export class DiscussionsController {
   // ─── Reports ──────────────────────────────────────────────────────────────
 
   @Post('threads/:id/report')
+  @Authenticated()
   reportThread(@Param('id', ParseUUIDPipe) id: string, @Body() body: ReportContentDto, @CurrentUser() user: AuthUser) {
     return this.discussions.reportThread(id, body, user);
   }
 
   @Post('comments/:id/report')
+  @Authenticated()
   reportComment(@Param('id', ParseUUIDPipe) id: string, @Body() body: ReportContentDto, @CurrentUser() user: AuthUser) {
     return this.discussions.reportComment(id, body, user);
   }

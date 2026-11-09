@@ -25,6 +25,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
 import { ATTACHMENT_FIELDS, filesFrom, type UploadedAttachmentFiles } from '../common/storage/attachments.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Assignments')
 @Controller('assignments')
@@ -163,12 +164,14 @@ export class AssignmentsController {
    * deadlineFrom / deadlineTo.
    */
   @Get()
+  @Authenticated()
   findAll(@CurrentUser() user: AuthUser, @Query() query: ListAssignmentsDto) {
     return this.assignmentsService.findAll(user, query);
   }
 
   /** Detail. For students this records the view and includes their submission state. */
   @Get(':id')
+  @Authenticated()
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.findOne(id, user);
   }
@@ -182,6 +185,7 @@ export class AssignmentsController {
 
   /** Download the (first) brief file. */
   @Get(':id/file')
+  @Authenticated()
   async download(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('download') download: string | undefined,
@@ -193,6 +197,7 @@ export class AssignmentsController {
 
   /** Download a specific brief file. */
   @Get(':id/attachments/:attachmentId/file')
+  @Authenticated()
   async downloadAttachment(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
