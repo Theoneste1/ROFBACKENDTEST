@@ -1,6 +1,8 @@
 -- M3 (Phase 1, P1-07): backfill programme membership (plan §7.3; decisions K3, K4, K5).
 --
--- Data only, in one transaction (Prisma runs each migration in a transaction):
+-- Data only. The whole backfill is ONE PostgreSQL DO statement, which PostgreSQL
+-- executes atomically: an error at any point (including the precondition below)
+-- rolls back everything it wrote. It does not rely on Prisma adding a transaction.
 --   * no STUDENT or MENTOR account          → nothing to do (K3: fresh databases, CI);
 --   * otherwise exactly one discipline, code MATHEMATICS, is required — else the
 --     migration aborts with an explicit error and writes nothing;

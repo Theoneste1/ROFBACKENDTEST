@@ -2,6 +2,11 @@
 -- Programme = existing Discipline row (Mathematics keeps its id). Additive only:
 -- one new enum and one new table; no existing table, column or constraint changes.
 -- Rollback: docs/migrations/20261121000100_programme_membership.rollback.sql
+--
+-- Wrapped in an explicit transaction: either the enum, the table, its indexes and
+-- foreign keys all exist afterwards, or none of them do.
+
+BEGIN;
 
 -- CreateEnum
 CREATE TYPE "MembershipSource" AS ENUM ('BACKFILL', 'MANUAL');
@@ -34,3 +39,5 @@ ALTER TABLE "ProgrammeMembership" ADD CONSTRAINT "ProgrammeMembership_discipline
 ALTER TABLE "ProgrammeMembership" ADD CONSTRAINT "ProgrammeMembership_addedById_fkey" FOREIGN KEY ("addedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 -- AddForeignKey
 ALTER TABLE "ProgrammeMembership" ADD CONSTRAINT "ProgrammeMembership_endedById_fkey" FOREIGN KEY ("endedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+COMMIT;
