@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
 
 import { AnalyticsService } from './analytics.service.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 
@@ -14,7 +14,6 @@ class CourseAnalyticsQueryDto {
 
 @ApiTags('Analytics')
 @Controller('analytics')
-@Roles('MENTOR', 'ADMIN')
 export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
 
@@ -24,6 +23,7 @@ export class AnalyticsController {
    * engagement. Mentors: only scopes they teach.
    */
   @Get('courses/:courseId')
+  @RequirePermission('analytics.course')
   course(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Query() query: CourseAnalyticsQueryDto,

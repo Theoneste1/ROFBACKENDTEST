@@ -525,9 +525,11 @@
           "Admin · Audit"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "audit.view",
+        "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/audit-logs/actions": {
@@ -580,9 +582,11 @@
           "Admin · Audit"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "audit.view",
+        "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/audit-logs/export.csv": {
@@ -616,9 +620,11 @@
           "Admin · Audit"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "audit.view",
+        "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/audit-logs/{id}": {
@@ -769,9 +775,11 @@
           "Admin · Audit"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "audit.view",
+        "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/settings": {
@@ -887,9 +895,11 @@
           "Admin · Settings"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "settings.manage",
+        "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)"
       },
       "patch": {
         "operationId": "SettingsController_update",
@@ -1016,9 +1026,11 @@
           "Admin · Settings"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "settings.manage",
+        "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/support": {
@@ -2157,9 +2169,11 @@
           "Divisions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "divisions.manage",
+        "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/divisions/{id}": {
@@ -2253,9 +2267,11 @@
           "Divisions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "divisions.manage",
+        "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/academic-years": {
@@ -2528,9 +2544,11 @@
           "Admin · Academic years"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "academicYears.manage",
+        "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/academic-years/{id}": {
@@ -2572,9 +2590,11 @@
           "Admin · Academic years"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "academicYears.manage",
+        "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)"
       },
       "patch": {
         "operationId": "AdminAcademicYearsController_update",
@@ -2669,9 +2689,11 @@
           "Admin · Academic years"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "academicYears.manage",
+        "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/academic-years/{id}/activate": {
@@ -2813,9 +2835,11 @@
           "Admin · Academic years"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "academicYears.manage",
+        "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/academic-years/{id}/enrollments": {
@@ -3055,9 +3079,11 @@
           "Admin · Academic years"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "academicYears.manage",
+        "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/enrollments/{id}": {
@@ -3156,9 +3182,11 @@
           "Admin · Academic years"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "enrollments.manage",
+        "description": "**Access:** permission `enrollments.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/activity": {
@@ -3683,9 +3711,11 @@
           "Auth"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/auth/login": {
@@ -4686,9 +4716,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       },
       "post": {
         "operationId": "UsersController_create",
@@ -4837,9 +4869,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/users/invite": {
@@ -5023,9 +5057,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/users/import": {
@@ -5151,9 +5187,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/users/{id}": {
@@ -5318,9 +5356,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       },
       "patch": {
         "operationId": "UsersController_update",
@@ -5479,9 +5519,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       },
       "delete": {
         "operationId": "UsersController_delete",
@@ -5530,9 +5572,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/users/{id}/resend-invitation": {
@@ -5588,9 +5632,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/users/{id}/send-password-reset": {
@@ -5641,9 +5687,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/users/{id}/status": {
@@ -5824,9 +5872,11 @@
           "Admin · Users"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/me": {
@@ -6983,7 +7033,8 @@
         "x-roles": [
           "STUDENT"
         ],
-        "description": "**Access:** STUDENT"
+        "x-permission": "courses.complete",
+        "description": "**Access:** permission `courses.complete` (STUDENT)"
       }
     },
     "/api/v1/courses/{courseId}/resources": {
@@ -7207,9 +7258,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       },
       "get": {
         "operationId": "CoursesController_listResources",
@@ -7945,9 +7998,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       },
       "delete": {
         "operationId": "CoursesController_removeResource",
@@ -8004,9 +8059,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/resources/{resourceId}/file": {
@@ -8355,9 +8412,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}": {
@@ -8581,9 +8640,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/resources/{resourceId}/publish": {
@@ -8805,9 +8866,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/resources/{resourceId}/unpublish": {
@@ -9028,9 +9091,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/resources/{resourceId}/archive": {
@@ -9247,9 +9312,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/resources/{resourceId}/restore": {
@@ -9464,9 +9531,11 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "resources.manage",
+        "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/courses/{id}": {
@@ -9582,9 +9651,11 @@
           "Admin · Courses"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "courses.manage",
+        "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/courses/{id}/publish": {
@@ -9689,9 +9760,11 @@
           "Admin · Courses"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "courses.manage",
+        "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/courses/{id}/unpublish": {
@@ -9796,9 +9869,11 @@
           "Admin · Courses"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "courses.manage",
+        "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/courses/{id}/archive": {
@@ -9905,9 +9980,11 @@
           "Admin · Courses"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "courses.manage",
+        "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/me/courses": {
@@ -10986,9 +11063,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "assignments.prepare",
+        "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
       },
       "get": {
         "operationId": "AssignmentsController_findAll",
@@ -11697,9 +11776,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "assignments.prepare",
+        "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
       },
       "get": {
         "operationId": "AssignmentsController_findOne",
@@ -12306,9 +12387,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "assignments.prepare",
+        "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/assignments/{id}/attachments/{attachmentId}": {
@@ -12601,9 +12684,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "assignments.prepare",
+        "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/assignments/{id}/submit": {
@@ -12891,9 +12976,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "assignments.prepare",
+        "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/assignments/{id}/recall": {
@@ -13138,9 +13225,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "assignments.prepare",
+        "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/assignments/{id}/publish": {
@@ -13441,9 +13530,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "assignments.publish",
+        "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{id}/reject": {
@@ -13739,9 +13830,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "assignments.publish",
+        "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{id}/unpublish": {
@@ -13987,9 +14080,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "assignments.publish",
+        "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{id}/close": {
@@ -14304,9 +14399,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "assignments.publish",
+        "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{id}/reopen": {
@@ -14617,9 +14714,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "assignments.publish",
+        "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{id}/archive": {
@@ -14921,9 +15020,11 @@
           "Assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "assignments.publish",
+        "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{id}/history": {
@@ -15950,7 +16051,8 @@
         "x-roles": [
           "STUDENT"
         ],
-        "description": "**Access:** STUDENT"
+        "x-permission": "submissions.submit",
+        "description": "**Access:** permission `submissions.submit` (STUDENT)"
       },
       "get": {
         "operationId": "SubmissionsController_findAll",
@@ -16484,9 +16586,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "submissions.distribute",
+        "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/submissions/{id}": {
@@ -18291,9 +18395,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "submissions.distribute",
+        "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/submissions/{id}/reassign": {
@@ -18745,9 +18851,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "submissions.distribute",
+        "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/submissions/{id}/start-review": {
@@ -19189,9 +19297,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "reviews.grade",
+        "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/submissions/{id}/mark": {
@@ -19640,9 +19750,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "reviews.grade",
+        "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/submissions/{id}/review/attachments/{attachmentId}": {
@@ -20001,9 +20113,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "reviews.grade",
+        "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/submissions/{id}/request-resubmission": {
@@ -20422,9 +20536,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "reviews.grade",
+        "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/submissions/{id}/withdraw-resubmission-request": {
@@ -20733,9 +20849,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "reviews.grade",
+        "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/submissions/{id}/submit-to-admin": {
@@ -21173,9 +21291,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "reviews.grade",
+        "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/submissions/{id}/approve": {
@@ -21677,9 +21797,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "results.approve",
+        "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/submissions/{id}/reject": {
@@ -22178,9 +22300,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "results.approve",
+        "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/submissions/{id}/publish": {
@@ -22827,9 +22951,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "results.publish",
+        "description": "**Access:** permission `results.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/submissions/{id}/reopen": {
@@ -23290,9 +23416,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "results.approve",
+        "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/submissions/{id}/result-history": {
@@ -23526,9 +23654,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "results.approve",
+        "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{assignmentId}/distribute": {
@@ -23614,9 +23744,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "submissions.distribute",
+        "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{assignmentId}/distribution-batches": {
@@ -23753,9 +23885,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "submissions.distribute",
+        "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{assignmentId}/results/publish": {
@@ -23826,9 +23960,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "results.publish",
+        "description": "**Access:** permission `results.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/assignments/{assignmentId}/result-releases": {
@@ -23948,9 +24084,11 @@
           "Submissions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "results.publish",
+        "description": "**Access:** permission `results.publish` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/me/submissions": {
@@ -24268,7 +24406,8 @@
         "x-roles": [
           "STUDENT"
         ],
-        "description": "**Access:** STUDENT"
+        "x-permission": "submissions.viewOwn",
+        "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
       }
     },
     "/api/v1/me/results": {
@@ -24486,7 +24625,8 @@
         "x-roles": [
           "STUDENT"
         ],
-        "description": "**Access:** STUDENT"
+        "x-permission": "submissions.viewOwn",
+        "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
       }
     },
     "/api/v1/me/results/{submissionId}": {
@@ -24843,7 +24983,8 @@
         "x-roles": [
           "STUDENT"
         ],
-        "description": "**Access:** STUDENT"
+        "x-permission": "submissions.viewOwn",
+        "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
       }
     },
     "/api/v1/me/results/{submissionId}/feedback-files/{attachmentId}": {
@@ -24897,7 +25038,8 @@
         "x-roles": [
           "STUDENT"
         ],
-        "description": "**Access:** STUDENT"
+        "x-permission": "submissions.viewOwn",
+        "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
       }
     },
     "/api/v1/mentor/reviews": {
@@ -25429,9 +25571,11 @@
           "Mentor"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "x-permission": "reviews.grade",
+        "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
       }
     },
     "/api/v1/admin/leaderboard/recompute": {
@@ -25980,9 +26124,11 @@
           "Mentor requests"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "mentorRequests.decide",
+        "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/mentor-requests/{id}/approve": {
@@ -26086,9 +26232,11 @@
           "Mentor requests"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "mentorRequests.decide",
+        "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/mentor-requests/{id}/reject": {
@@ -26143,9 +26291,11 @@
           "Mentor requests"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "mentorRequests.decide",
+        "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/public/statistics": {
@@ -26549,9 +26699,11 @@
           "Admin · Email"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/email/send": {
@@ -26657,9 +26809,11 @@
           "Admin · Email"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/email/jobs": {
@@ -26784,9 +26938,11 @@
           "Admin · Email"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/email/jobs/{id}": {
@@ -26888,9 +27044,11 @@
           "Admin · Email"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/email/jobs/{id}/deliveries": {
@@ -27007,9 +27165,11 @@
           "Admin · Email"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/email/jobs/{id}/retry": {
@@ -27069,9 +27229,11 @@
           "Admin · Email"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/threads": {
@@ -29436,9 +29598,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/moderation/reports/{id}": {
@@ -29765,9 +29929,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/moderation/reports/{id}/resolve": {
@@ -29882,9 +30048,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/moderation/actions": {
@@ -30179,9 +30347,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/comments/hidden": {
@@ -30359,9 +30529,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/comments/{id}/hide": {
@@ -30500,9 +30672,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/comments/{id}/restore": {
@@ -30648,9 +30822,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/threads/{id}/{op}": {
@@ -30816,9 +30992,11 @@
           "Discussions"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "x-permission": "discussions.moderate",
+        "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/analytics/courses/{courseId}": {
@@ -31061,9 +31239,12 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "x-permission": "analytics.course",
+        "description": "**Access:** permission `analytics.course` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/dashboard": {

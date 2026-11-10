@@ -131,10 +131,10 @@ describe('permission equivalence — routes (A4)', () => {
   let handlers: RouteHandler[];
   beforeAll(async () => { handlers = await discoverHandlers(); }, 60_000);
 
-  it('real routes: every @RequirePermission handler decides as before, or is a listed exception (none mapped in P1-04)', () => {
+  it('real routes: every @RequirePermission handler decides as before for STUDENT, MENTOR and ADMIN (P1-06: 93 converted, no exception)', () => {
     const mapped = handlers.filter((h) => isMapped(h.cls, h.handler))
       .map((h) => ({ key: keyOf(h), cls: h.cls, handler: h.handler }));
-    expect(mapped.map((m) => m.key)).toEqual([]);   // P1-04: no route converted yet
+    expect(mapped).toHaveLength(93);
     expect(PERMISSION_EQUIVALENCE_EXCEPTIONS).toEqual([]);
     expect(equivalenceReport(mapped, BASELINE, PERMISSION_EQUIVALENCE_EXCEPTIONS)).toEqual({ differences: [], stale: [] });
   });

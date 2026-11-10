@@ -22,6 +22,7 @@ import type { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../common/access/access.service.js';
+import { PermissionService } from '../auth/permission.service.js';
 import { StorageService } from '../common/storage/storage.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
@@ -64,7 +65,19 @@ export class CourseResourcesService {
     private readonly storage:   StorageService,
     private readonly events:    EventEmitter2,
     private readonly activity:  ActivityService,
+    private readonly permissions: PermissionService,
   ) {}
+
+  /**
+   * Who may manage this course × division: a holder of `resources.manage` at GLOBAL
+   * scope (ADMIN, SUPER_ADMIN — plan §5), or the coach assigned to it. Any
+   * narrower grant (e.g. a Head Coach's programme scope, until P1-07/P1-10) is
+   * not enough on its own.
+   */
+  private async assertCanManageScope(user: AuthUser, scope: { courseId: string; divisionId: string }) {
+    if (this.permissions.scopeOf(user, 'resources.manage') === 'global') return;
+    await this.access.assertCanManage(user, scope);
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Create
@@ -72,7 +85,7 @@ export class CourseResourcesService {
 
   async create(courseId: string, data: CreateResourceDto, user: AuthUser, files: Express.Multer.File[] = []) {
     await this.requireCourse(courseId);
-    await this.access.assertCanManage(user, { courseId, divisionId: data.divisionId });
+    await this.assertCanManageScope(user, { courseId, divisionId: data.divisionId });
 
     const stored: FileObject[] = [];
     for (const f of files) stored.push(await this.storage.store(f, 'RESOURCE', user.id));
@@ -347,7 +360,7 @@ export class CourseResourcesService {
 
   private async requireManageable(courseId: string, resourceId: string, user: AuthUser) {
     const resource = await this.requireResource(courseId, resourceId);
-    await this.access.assertCanManage(user, { courseId, divisionId: resource.divisionId });
+    await this.assertCanManageScope(user, { courseId, divisionId: resource.divisionId });
     return resource;
   }
 

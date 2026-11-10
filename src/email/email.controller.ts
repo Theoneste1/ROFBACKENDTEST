@@ -14,7 +14,7 @@ import { IsEnum, IsOptional } from 'class-validator';
 import { EmailService } from './email.service.js';
 import { SendEmailDto } from './dto/send-email.dto.js';
 import { ListUsersDto } from './dto/list-users.dto.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -34,12 +34,12 @@ class ListDeliveriesDto extends PaginationQueryDto {
  */
 @ApiTags('Admin · Email')
 @Controller('admin/email')
-@Roles('ADMIN')
 export class EmailController {
   constructor(private readonly emailService: EmailService) {}
 
   /** Paginated, filterable user list with email addresses. */
   @Get('users')
+  @RequirePermission('email.bulkSend')
   listUsers(@Query() query: ListUsersDto) {
     return this.emailService.listUsers(query);
   }
@@ -51,29 +51,34 @@ export class EmailController {
    */
   @Post('send')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @RequirePermission('email.bulkSend')
   send(@Body() body: SendEmailDto, @CurrentUser() user: AuthUser) {
     return this.emailService.sendBulk(body, user);
   }
 
   /** Jobs with progress counters (no message bodies). */
   @Get('jobs')
+  @RequirePermission('email.bulkSend')
   listJobs(@Query() query: PaginationQueryDto) {
     return this.emailService.listJobs(query);
   }
 
   @Get('jobs/:id')
+  @RequirePermission('email.bulkSend')
   getJob(@Param('id', ParseUUIDPipe) id: string) {
     return this.emailService.getJob(id);
   }
 
   /** Per-recipient delivery status (filter with ?status=FAILED). */
   @Get('jobs/:id/deliveries')
+  @RequirePermission('email.bulkSend')
   listDeliveries(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListDeliveriesDto) {
     return this.emailService.listDeliveries(id, query);
   }
 
   /** Re-queue FAILED deliveries. SENT deliveries are never re-sent. */
   @Post('jobs/:id/retry')
+  @RequirePermission('email.bulkSend')
   retryJob(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.emailService.retryJob(id, user);
   }

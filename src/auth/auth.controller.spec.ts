@@ -1,13 +1,13 @@
 import { Reflector } from '@nestjs/core';
 import { AuthController } from './auth.controller.js';
 import { ROLES_KEY } from './decorators/roles.decorator.js';
+import { legacyRolesFor, requiredPermission } from './route-access.testing.js';
 import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
 
 const reflector = new Reflector();
 const proto = AuthController.prototype as unknown as Record<string, Function>;
 
-const roles = (method: string) =>
-  reflector.getAllAndOverride<string[] | undefined>(ROLES_KEY, [proto[method], AuthController]);
+const roles = (method: string) => legacyRolesFor(AuthController, method);
 const isPublic = (method: string) =>
   reflector.getAllAndOverride<boolean | undefined>(IS_PUBLIC_KEY, [proto[method], AuthController]);
 
@@ -27,6 +27,7 @@ describe('AuthController authorization metadata', () => {
 
   it('registerAdmin is ADMIN only and not public', () => {
     expect(roles('registerAdmin')).toEqual(['ADMIN']);
+    expect(requiredPermission(AuthController, 'registerAdmin')).toBe('users.manage');   // P1-06
     expect(isPublic('registerAdmin')).toBeUndefined();
   });
 

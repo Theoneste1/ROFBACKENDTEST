@@ -6,6 +6,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 import { ROLES_KEY } from './decorators/roles.decorator.js';
+import { REQUIRED_PERMISSION_KEY } from './decorators/require-permission.decorator.js';
 import { renderPermissionMatrix } from './permissions-doc.testing.js';
 import { AssignmentResultsController, SubmissionsController } from '../submissions/submissions.controller.js';
 import { AssignmentsController } from '../assignments/assignments.controller.js';
@@ -18,6 +19,9 @@ const holders = (permission: Permission) =>
 
 const methodRoles = (cls: Function, method: string): string[] | undefined =>
   Reflect.getMetadata(ROLES_KEY, (cls.prototype as Record<string, Function>)[method]);
+
+const methodPermission = (cls: Function, method: string): string | undefined =>
+  Reflect.getMetadata(REQUIRED_PERMISSION_KEY, (cls.prototype as Record<string, Function>)[method]);
 
 describe('permissions', () => {
   it('legacy lists (GET /me/permissions, decision A1) exist for exactly STUDENT, MENTOR and ADMIN', () => {
@@ -73,33 +77,33 @@ describe('permissions', () => {
     expect(permissionsFor('NOBODY' as any)).toEqual([]);
   });
 
-  describe('consistency with route @Roles metadata', () => {
+  describe('consistency with route metadata (P1-06: these routes now require the permission itself)', () => {
     it.each(['startReview', 'mark', 'submitToAdmin'])(
-      'SubmissionsController.%s is limited to holders of reviews.grade',
+      'SubmissionsController.%s requires reviews.grade (legacy holders: MENTOR only — administrators never grade)',
       (method) => {
-        expect(methodRoles(SubmissionsController, method)).toEqual(['MENTOR']);
-        expect(methodRoles(SubmissionsController, method)).toEqual(holders('reviews.grade'));
+        expect(methodRoles(SubmissionsController, method)).toBeUndefined();
+        expect(methodPermission(SubmissionsController, method)).toBe('reviews.grade');
+        expect(holders('reviews.grade')).toEqual(['MENTOR']);
       },
     );
 
-    it('SubmissionsController.submit is limited to holders of submissions.submit', () => {
-      expect(methodRoles(SubmissionsController, 'submit')).toEqual(holders('submissions.submit'));
+    it('SubmissionsController.submit requires submissions.submit (STUDENT only)', () => {
+      expect(methodPermission(SubmissionsController, 'submit')).toBe('submissions.submit');
+      expect(holders('submissions.submit')).toEqual(['STUDENT']);
     });
 
-    it('AssignmentsController.publish is limited to holders of assignments.publish', () => {
-      expect(methodRoles(AssignmentsController, 'publish')).toEqual(['ADMIN']);
-      expect(methodRoles(AssignmentsController, 'publish')).toEqual(holders('assignments.publish'));
+    it('AssignmentsController.publish requires assignments.publish (ADMIN only among legacy roles)', () => {
+      expect(methodPermission(AssignmentsController, 'publish')).toBe('assignments.publish');
+      expect(holders('assignments.publish')).toEqual(['ADMIN']);
     });
 
-    it('AssignmentResultsController (distribute / publish results) is limited to holders of submissions.distribute and results.publish', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, AssignmentResultsController);
-      expect(roles).toEqual(['ADMIN']);
-      expect(roles).toEqual(holders('submissions.distribute'));
-      expect(roles).toEqual(holders('results.publish'));
-      // No method-level override widens access.
-      for (const m of ['distribute', 'publishResults']) {
-        expect(methodRoles(AssignmentResultsController, m)).toBeUndefined();
-      }
+    it('AssignmentResultsController: distribute / publish results require submissions.distribute / results.publish, with no class-level grant', () => {
+      expect(Reflect.getMetadata(ROLES_KEY, AssignmentResultsController)).toBeUndefined();
+      expect(Reflect.getMetadata(REQUIRED_PERMISSION_KEY, AssignmentResultsController)).toBeUndefined();
+      expect(methodPermission(AssignmentResultsController, 'distribute')).toBe('submissions.distribute');
+      expect(methodPermission(AssignmentResultsController, 'publishResults')).toBe('results.publish');
+      expect(holders('submissions.distribute')).toEqual(['ADMIN']);
+      expect(holders('results.publish')).toEqual(['ADMIN']);
     });
   });
   // ── Six-role catalogue (P1-04; plan §5) ──────────────────────────────────

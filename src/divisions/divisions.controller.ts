@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { DivisionsService } from './divisions.service.js';
 import { UpdateDivisionDto } from './dto/update-division.dto.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -22,13 +22,13 @@ export class DivisionsController {
 
   /** Admin view with student and mentor-assignment counts. */
   @Get('admin/divisions')
-  @Roles('ADMIN')
+  @RequirePermission('divisions.manage')
   findAllAdmin() {
     return this.divisions.findAll(true);
   }
 
   @Patch('admin/divisions/:id')
-  @Roles('ADMIN')
+  @RequirePermission('divisions.manage')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateDivisionDto,
