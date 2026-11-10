@@ -25,6 +25,8 @@ function makeMocks() {
     school: { findUnique: vi.fn() },
     studentEnrollment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
     mentorAssignment:  { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    // P1-11: a role change revokes teacher delegations (none here).
+    userPermissionOverride: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     mentorReview:      { count: vi.fn().mockResolvedValue(0) },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },

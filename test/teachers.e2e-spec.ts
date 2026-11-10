@@ -184,6 +184,25 @@ describe('Teachers (P1-11)', () => {
     expect((await http().get(`/api/v1/teacher/students/${pending.id}`).set(bearer(t1))).status).toBe(404);
   });
 
+  it('unverified students (e-mail not activated) of the teacher\'s own school: not listed; profile, progress and submit all 404', async () => {
+    const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const unverified = (await p().user.create({ data: {
+      username: 'student.unverified', firstName: 'U', lastName: 'V', email: 'student.unverified@test.local', role: 'STUDENT', passwordHash: hash,
+      activatedAt: null, isApproved: true, gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolA,
+    } })).id;
+    const listed = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t1)).expect(200)).body.data.map((s: any) => s.id);
+    expect(listed).not.toContain(unverified);
+    expect(listed).toContain(ctx.ids.studentJunior);   // activated students of the same school still are
+    expect((await http().get(`/api/v1/teacher/students/${unverified}`).set(bearer(t1))).status).toBe(404);
+    expect((await http().get(`/api/v1/teacher/students/${unverified}/progress`).set(bearer(t1))).status).toBe(404);
+    expect((await submitFor(t1, unverified, workId)).status).toBe(404);
+    expect(await p().submission.count({ where: { studentId: unverified } })).toBe(0);
+    // Once activated, the same student is visible.
+    await p().user.update({ where: { id: unverified }, data: { activatedAt: new Date() } });
+    expect((await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t1)).expect(200)).body.data.map((s: any) => s.id)).toContain(unverified);
+    await p().user.update({ where: { id: unverified }, data: { activatedAt: null } });
+  });
+
   it('progress: assignment availability and submission history — never scores, marks or feedback (D7)', async () => {
     const res = (await http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}/progress`).set(bearer(t1)).expect(200)).body;
     const graded = res.assignments.find((a: any) => a.id === gradedId);
@@ -225,6 +244,21 @@ describe('Teachers (P1-11)', () => {
     expect((await submitFor(t1, studentO, workId)).status).toBe(404);
     expect((await submitFor(t1, ctx.ids.studentSenior, workId)).status).toBe(404);
     expect(await p().submission.count({ where: { assignmentId: workId } })).toBe(1);
+  });
+
+  it('submit on behalf honours the student\'s own permission: denied while submissions.submit is DENYed for the student, allowed once the DENY is revoked', async () => {
+    const deny = await http().post(`/api/v1/admin/users/${ctx.ids.studentJunior}/permission-overrides`).set(bearer(superAdmin))
+      .send({ permission: 'submissions.submit', effect: 'DENY', reason: 'Submission suspended for this student' }).expect(201);
+    expect(await status(submitFor(t1, ctx.ids.studentJunior, workId))).toEqual([403, 'STUDENT_SUBMISSION_DENIED']);
+    expect(await p().submission.count({ where: { studentId: ctx.ids.studentJunior, assignmentId: workId } })).toBe(0);
+    expect(await p().auditLog.count({ where: { action: 'SUBMIT_ASSIGNMENT', metadata: { path: ['onBehalfOf'], equals: ctx.ids.studentJunior } } })).toBe(0);
+    // The student is refused on their own route too — the same rule.
+    const studentJ = await login(ctx, 'student.j');
+    expect(await status(http().post('/api/v1/submissions').set(bearer(studentJ)).field('assignmentId', workId).attach('file', PDF, 'own.pdf'))).toEqual([403, 'PERMISSION_REQUIRED']);
+
+    await http().delete(`/api/v1/admin/users/${ctx.ids.studentJunior}/permission-overrides/${deny.body.id}`).set(bearer(superAdmin)).expect(200);
+    const ok = await submitFor(t1, ctx.ids.studentJunior, workId).expect(201);
+    expect(ok.body).toMatchObject({ studentId: ctx.ids.studentJunior, submittedBy: { id: t1Id } });
   });
 
   it('student account and password changes still need separate authorization — no delegation gives them', async () => {
@@ -308,5 +342,24 @@ describe('Teachers (P1-11)', () => {
     const asCoach = await login(ctx, 't.two');
     expect((await http().get('/api/v1/me/permissions').set(bearer(asCoach)).expect(200)).body.permissions).not.toContain('students.viewProfile');
     expect(await status(http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}`).set(bearer(asCoach)))).toEqual([403, 'PERMISSION_REQUIRED']);
+
+    // The delegation is revoked by the role change itself (audited), not merely inert.
+    const grants = await p().userPermissionOverride.findMany({ where: { userId: t2Id, permission: 'students.viewProfile' } });
+    expect(grants).toHaveLength(1);
+    expect(grants[0]).toMatchObject({ revokeReason: 'ROLE_CHANGE', revokedById: ctx.ids.admin });
+    expect(grants[0].revokedAt).not.toBeNull();
+    expect(await p().auditLog.findFirstOrThrow({ where: { action: 'PERMISSION_OVERRIDE_REVOKE', entityId: grants[0].id } }))
+      .toMatchObject({ actorId: ctx.ids.admin, metadata: { reason: 'ROLE_CHANGE', from: 'TEACHER', to: 'MENTOR' } });
+
+    // Round trip: back to TEACHER with a school again — the old delegation does NOT come back.
+    await http().patch(`/api/v1/admin/users/${t2Id}`).set(bearer(admin)).send({ role: 'TEACHER', currentPassword: PASSWORD }).expect(200);
+    await http().post(ASSIGN).set(bearer(admin)).send({ teacherId: t2Id, schoolId: schoolA }).expect(201);
+    const asTeacherAgain = await login(ctx, 't.two');
+    expect((await http().get('/api/v1/me/permissions').set(bearer(asTeacherAgain)).expect(200)).body.permissions).not.toContain('students.viewProfile');
+    expect(await status(http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}`).set(bearer(asTeacherAgain)))).toEqual([403, 'PERMISSION_REQUIRED']);
+    expect((await http().get('/api/v1/teacher/students').set(bearer(asTeacherAgain)).expect(200)).body.data.map((s: any) => s.id)).toContain(ctx.ids.studentJunior);
+    // An Administrator can grant it again explicitly.
+    await grant(admin, t2Id, 'students.viewProfile').expect(201);
+    await http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}`).set(bearer(asTeacherAgain)).expect(200);
   });
 });

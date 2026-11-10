@@ -8,6 +8,7 @@
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service.js';
+import { TEACHER_DELEGATIONS } from '../auth/override-policy.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -101,6 +102,32 @@ export class TeacherSchoolsService {
 }
 
 const alreadyAssigned = () => new AppError(HttpStatus.CONFLICT, 'ALREADY_ASSIGNED', 'This teacher is already assigned to this school.');
+
+/**
+ * Revokes every unrevoked teacher delegation (students.viewProfile, students.viewProgress,
+ * submissions.submitOnBehalf) of a user whose role changes — inside the role-change
+ * transaction, one PERMISSION_OVERRIDE_REVOKE audit row each (reason ROLE_CHANGE).
+ * Expired grants are revoked too, so none can apply again later.
+ */
+export async function revokeTeacherDelegations(
+  tx: Prisma.TransactionClient, audit: AuditService, userId: string,
+  actor: { actorId: string; actorRole: string }, context: { from: string; to: string },
+) {
+  const open = await tx.userPermissionOverride.findMany({
+    where: { userId, revokedAt: null, effect: 'GRANT', permission: { in: [...TEACHER_DELEGATIONS] } }, select: { id: true, permission: true },
+  });
+  if (open.length === 0) return;
+  await tx.userPermissionOverride.updateMany({
+    where: { id: { in: open.map((o) => o.id) }, revokedAt: null },
+    data:  { revokedAt: new Date(), revokedById: actor.actorId, revokeReason: 'ROLE_CHANGE' },
+  });
+  for (const o of open) {
+    await audit.log({
+      ...actor, action: 'PERMISSION_OVERRIDE_REVOKE', entity: 'UserPermissionOverride', entityId: o.id,
+      metadata: { targetUserId: userId, permission: o.permission, effect: 'GRANT', reason: 'ROLE_CHANGE', from: context.from, to: context.to, previous: { active: true }, next: { active: false } },
+    }, tx);
+  }
+}
 
 /**
  * Ends every active school assignment of a user who is no longer a Teacher —

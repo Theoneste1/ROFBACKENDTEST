@@ -19,6 +19,7 @@
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
+import { PermissionService } from '../auth/permission.service.js';
 import { AccessService } from '../common/access/access.service.js';
 import { isTeacher, unsupportedRole } from '../common/access/roles.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -43,6 +44,7 @@ export class TeacherStudentsService {
     private readonly prisma:       PrismaService,
     private readonly access:       AccessService,
     private readonly submissions:  SubmissionsService,
+    private readonly permissions:  PermissionService,
   ) {}
 
   /** The caller's schools; only Teachers have any (others: 403 ROLE_NOT_SUPPORTED). */
@@ -140,7 +142,17 @@ export class TeacherStudentsService {
     if (!s.isActive || !s.isApproved) {
       throw new AppError(HttpStatus.CONFLICT, 'STUDENT_NOT_ACTIVE', 'This student account is not active.');
     }
-    const owner: AuthUser = { id: s.id, username: s.username, role: 'STUDENT', divisionId: s.divisionId, gradeLevel: s.gradeLevel };
+    // The student's own permission decides, exactly as for their own submission: their
+    // active individual overrides are loaded (same rule as on every request), so a DENY of
+    // submissions.submit on the student also stops a teacher submitting for them.
+    const overrides = await this.prisma.userPermissionOverride.findMany({
+      where:  { userId: s.id, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      select: { id: true, permission: true, effect: true, courseId: true, divisionId: true, expiresAt: true },
+    });
+    const owner: AuthUser = { id: s.id, username: s.username, role: 'STUDENT', divisionId: s.divisionId, gradeLevel: s.gradeLevel, overrides };
+    if (!this.permissions.has(owner, 'submissions.submit')) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'STUDENT_SUBMISSION_DENIED', 'This student is not allowed to submit work, so it cannot be submitted on their behalf.');
+    }
     const result = await this.submissions.submit(dto, owner, files, user);
     // Only the submission's state — never a score or feedback (D7).
     const saved = await this.prisma.submission.findUniqueOrThrow({
