@@ -10,7 +10,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { Prisma } from '../generated/prisma/client.js';
-import { ReportScopeService, type ReportScope } from './report-scope.js';
+import type { AuthUser } from '../common/auth-user.js';
+import { ReportScopeService, teachingIn, type ReportScope } from './report-scope.js';
 import type { ReportListDto, UserReportDto, UserStatusFilter } from './dto/report-filters.dto.js';
 import { toCsv } from './csv.js';
 
@@ -41,8 +42,8 @@ export class UserReportsService {
    * Students in scope. Date range = registered between. Course = students who
    * opened that course. Status = account status.
    */
-  async students(q: UserReportDto) {
-    const s = await this.scope.resolve(q);
+  async students(q: UserReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const { page, limit, skip, take } = pageArgs(q);
     const where = this.studentListWhere(s, q);
     const [rows, total] = await this.prisma.$transaction([
@@ -52,8 +53,8 @@ export class UserReportsService {
     return { filters: { ...this.scope.describe(s), status: q.status ?? null }, ...paginated(await this.studentViews(s, rows), total, page, limit) };
   }
 
-  async studentsCsv(q: UserReportDto) {
-    const s = await this.scope.resolve(q);
+  async studentsCsv(q: UserReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const rows = await this.prisma.user.findMany({
       where: this.studentListWhere(s, q), take: MAX_ROWS,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: this.studentSelect(s),
@@ -103,11 +104,13 @@ export class UserReportsService {
           _count: { _all: true },
         })
       : [];
+    const restricted = this.scope.restricted(s);
     return rows.map((u) => {
       const mine = counts.filter((c) => c.studentId === u.id);
       const enrol = u.studentEnrollments[0];
       return {
-        id: u.id, name: fullName(u), username: u.username, email: u.email,
+        id: u.id, name: fullName(u), username: u.username,
+        ...(!restricted && { email: u.email }),   // Head Coach: no contact details (D7)
         status:           accountStatus(u),
         // The selected year's enrolment when there is one; otherwise current placement.
         division:         enrol?.division ?? u.division,
@@ -129,8 +132,8 @@ export class UserReportsService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /** Mentors in scope (assigned to the division/course). Date range = registered between. */
-  async mentors(q: UserReportDto) {
-    const s = await this.scope.resolve(q);
+  async mentors(q: UserReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const { page, limit, skip, take } = pageArgs(q);
     const where = this.mentorListWhere(s, q);
     const [rows, total] = await this.prisma.$transaction([
@@ -140,8 +143,8 @@ export class UserReportsService {
     return { filters: { ...this.scope.describe(s), status: q.status ?? null }, ...paginated(await this.mentorViews(s, rows), total, page, limit) };
   }
 
-  async mentorsCsv(q: UserReportDto) {
-    const s = await this.scope.resolve(q);
+  async mentorsCsv(q: UserReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const rows = await this.prisma.user.findMany({
       where: this.mentorListWhere(s, q), take: MAX_ROWS,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: MENTOR_SELECT,
@@ -175,10 +178,12 @@ export class UserReportsService {
           _count: { _all: true },
         })
       : [];
+    const restricted = this.scope.restricted(s);
     return rows.map((m) => ({
-      id: m.id, name: fullName(m), username: m.username, email: m.email,
+      id: m.id, name: fullName(m), username: m.username,
+      ...(!restricted && { email: m.email }),   // Head Coach: no contact details (D7)
       status:       accountStatus(m),
-      teaching:     m.mentorAssignments.map((a) => ({ course: a.course, division: a.division })),
+      teaching:     teachingIn(s, m.mentorAssignments),
       openReviews:  open.find((o) => o.mentorId === m.id)?._count._all ?? 0,
       registeredAt: m.createdAt,
       activatedAt:  m.activatedAt,
@@ -194,8 +199,8 @@ export class UserReportsService {
    * Student enrolments per academic year × division × school × grade, by
    * enrolment status. Date range = enrolled between. Not filterable by course.
    */
-  async enrollment(q: ReportListDto) {
-    const s = await this.scope.resolve(q, { unsupported: ['courseId'] });
+  async enrollment(q: ReportListDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user, { unsupported: ['courseId'] });
     const range = this.scope.range(s);
     const groups = await this.prisma.studentEnrollment.groupBy({
       by:    ['academicYearId', 'divisionId', 'schoolId', 'gradeLevel', 'status'],
@@ -250,8 +255,8 @@ export class UserReportsService {
     };
   }
 
-  async enrollmentCsv(q: ReportListDto) {
-    const report = await this.enrollment(q);
+  async enrollmentCsv(q: ReportListDto, user: AuthUser) {
+    const report = await this.enrollment(q, user);
     return toCsv(
       ['Academic year', 'Division', 'School', 'Location', 'Grade', 'Active', 'Promoted', 'Graduated', 'Withdrawn', 'Total'],
       report.rows.map((r) => [
@@ -270,13 +275,13 @@ export class UserReportsService {
    * the course, assignments, submissions, average published score and
    * discussion activity. Date range = activity between.
    */
-  async courseParticipation(q: ReportListDto) {
-    const s = await this.scope.resolve(q);
+  async courseParticipation(q: ReportListDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const range = this.scope.range(s);
     const A = this.scope.assignmentSql(s);
 
     const [courses, divisions, students, opened, assignments, submissions, discussion] = await Promise.all([
-      this.prisma.course.findMany({ where: s.courseId ? { id: s.courseId } : {}, orderBy: { sortOrder: 'asc' }, select: { id: true, code: true, title: true } }),
+      this.prisma.course.findMany({ where: this.scope.courseWhere(s), orderBy: { sortOrder: 'asc' }, select: { id: true, code: true, title: true } }),
       this.prisma.division.findMany({ where: s.divisionId ? { id: s.divisionId } : {}, orderBy: { code: 'asc' }, select: { id: true, code: true, name: true } }),
       this.studentsPerDivision(s),
       this.openedPerCourse(s),
@@ -293,7 +298,7 @@ export class UserReportsService {
           FROM "Submission" s
           JOIN "Assignment" a ON a."id" = s."assignmentId"
           LEFT JOIN "MentorReview" r ON r."id" = s."publishedReviewId"
-         WHERE ${A} AND ${this.scope.rangeSql(s, 's."submittedAt"')}
+         WHERE ${A} AND ${this.scope.rangeSql(s, 's."submittedAt"')} AND ${this.scope.memberSql(s, 's."studentId"')}
          GROUP BY 1, 2`,
       this.prisma.$queryRaw<Array<{ courseId: string; divisionId: string; threads: number; comments: number }>>`
         SELECT COALESCE(t."courseId", a."courseId") AS "courseId", t."divisionId",
@@ -306,12 +311,14 @@ export class UserReportsService {
            AND (t."assignmentId" IS NULL OR ${A})
            ${s.divisionId ? Prisma.sql`AND t."divisionId" = ${s.divisionId}` : Prisma.empty}
            ${s.courseId ? Prisma.sql`AND COALESCE(t."courseId", a."courseId") = ${s.courseId}` : Prisma.empty}
+           AND ${this.scope.courseSql(s, 'COALESCE(t."courseId", a."courseId")')}
          GROUP BY 1, 2`,
     ]);
 
     const find = <T extends { courseId: string; divisionId: string }>(rows: T[], c: string, d: string) =>
       rows.find((r) => r.courseId === c && r.divisionId === d);
 
+    const restricted = this.scope.restricted(s);
     const rows = courses.flatMap((course) => divisions.map((division) => {
       const enrolled = students.get(division.id) ?? 0;
       const o   = find(opened, course.id, division.id);
@@ -327,7 +334,7 @@ export class UserReportsService {
         submissions:           sub?.submissions ?? 0,
         studentsSubmitted:     sub?.students ?? 0,
         submissionRate:        rate(sub?.students ?? 0, enrolled),
-        averageScore:          round1(sub?.average),
+        averageScore:          restricted ? null : round1(sub?.average),   // Head Coach: no score aggregates (D7)
         discussionThreads:     dis?.threads ?? 0,
         discussionComments:    dis?.comments ?? 0,
       };
@@ -335,8 +342,8 @@ export class UserReportsService {
     return { filters: this.scope.describe(s), rows };
   }
 
-  async courseParticipationCsv(q: ReportListDto) {
-    const { rows } = await this.courseParticipation(q);
+  async courseParticipationCsv(q: ReportListDto, user: AuthUser) {
+    const { rows } = await this.courseParticipation(q, user);
     return toCsv(
       ['Course', 'Division', 'Students', 'Opened course', 'Completed course', 'Participation %', 'Assignments published',
        'Submissions', 'Students who submitted', 'Submission %', 'Average score %', 'Discussion threads', 'Comments'],
@@ -356,14 +363,14 @@ export class UserReportsService {
     if (s.year) {
       const rows = await this.prisma.studentEnrollment.groupBy({
         by:     ['divisionId'],
-        where:  { academicYearId: s.year.id, status: 'ACTIVE', student: active, ...(s.divisionId && { divisionId: s.divisionId }) },
+        where:  { academicYearId: s.year.id, status: 'ACTIVE', student: { ...active, ...this.scope.memberWhere(s) }, ...(s.divisionId && { divisionId: s.divisionId }) },
         _count: { _all: true },
       });
       return new Map(rows.map((r) => [r.divisionId, r._count._all]));
     }
     const rows = await this.prisma.user.groupBy({
       by:     ['divisionId'],
-      where:  { role: 'STUDENT', ...active, ...(s.divisionId && { divisionId: s.divisionId }) },
+      where:  { role: 'STUDENT', ...active, ...this.scope.memberWhere(s), ...(s.divisionId && { divisionId: s.divisionId }) },
       _count: { _all: true },
     });
     return new Map(rows.filter((r) => r.divisionId).map((r) => [r.divisionId!, r._count._all]));
@@ -383,6 +390,7 @@ export class UserReportsService {
        WHERE ce."status" IN ('ROLLED', 'COMPLETED') AND x."divisionId" IS NOT NULL
          ${s.divisionId ? Prisma.sql`AND x."divisionId" = ${s.divisionId}` : Prisma.empty}
          ${s.courseId ? Prisma.sql`AND ce."courseId" = ${s.courseId}` : Prisma.empty}
+         AND ${this.scope.courseSql(s, 'ce."courseId"')} AND ${this.scope.memberSql(s, 'ce."studentId"')}
        GROUP BY 1, 2`;
   }
 }

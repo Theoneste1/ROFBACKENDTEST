@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 16 @Public + 45 @Roles + 107 @RequirePermission + 54 @Authenticated = 222, none undeclared', () => {
+  it('declarations add up: 16 @Public + 27 @Roles + 126 @RequirePermission + 54 @Authenticated = 223, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 16, '@Roles': 45, '@RequirePermission': 107, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 16, '@Roles': 27, '@RequirePermission': 126, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -195,6 +195,9 @@ describe('route declarations (P1-02 §5)', () => {
       // P1-10: coach assignments converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions for every
       // baseline caller); programmes, heads and members are new routes (route-access-additions.testing.ts)
       'mentorAssignments.manage': 3, 'courses.view': 1, 'programmes.manageHeads': 2, 'programmes.manageMembers': 3,
+      // P1-10 part 3: dashboard, reports and activity converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions
+      // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
+      'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
     });
   });
 
@@ -307,7 +310,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 11 added since: 213 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 12 added since: 214 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -427,9 +430,11 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
     ]);
     // Course-work grants (services still require an Administrator-created coach
     // assignment, H4) and the programme-scoped ones whose services restrict a Head Coach
-    // to the programmes they head (P1-10) — none of the global administration permissions.
+    // to the programmes they head (P1-10) — none of the global administration permissions
+    // (no reports.export, users.manage*, audit, settings, e-mail, approvals).
     expect([...new Set(admitted)].sort()).toEqual([
-      'analytics.course', 'assignments.prepare', 'courses.view', 'mentorAssignments.manage', 'programmes.manageMembers', 'reviews.grade',
+      'activity.view', 'analytics.course', 'assignments.prepare', 'coaches.monitor', 'courses.view', 'mentorAssignments.manage',
+      'programmes.manageMembers', 'reports.view', 'reviews.grade', 'users.manageCoaches',
     ]);
   });
 });

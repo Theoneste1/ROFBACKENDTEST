@@ -1,7 +1,10 @@
 import { Transform } from 'class-transformer';
 import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
 
+import { PickType } from '@nestjs/swagger';
+
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { InviteUserDto } from '../../users/dto/invite-user.dto.js';
 
 /** PUT /admin/programmes/:id/heads — the complete list of Head Coaches heading the programme. */
 export class SetProgrammeHeadsDto {
@@ -19,6 +22,9 @@ export class AddProgrammeMemberDto {
   @IsUUID()
   userId: string;
 }
+
+/** POST /admin/programmes/:id/coach-invitations — a Coach (MENTOR) invited into the programme. */
+export class InviteCoachDto extends PickType(InviteUserDto, ['firstName', 'lastName', 'email', 'username'] as const) {}
 
 export const MEMBER_ROLES = ['STUDENT', 'MENTOR'] as const;
 

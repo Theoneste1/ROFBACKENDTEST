@@ -3386,10 +3386,12 @@
           "Admin · Activity"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "activity.view",
+        "description": "**Access:** permission `activity.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/activity/summary": {
@@ -3482,10 +3484,12 @@
           "Admin · Activity"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "activity.view",
+        "description": "**Access:** permission `activity.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/auth/register/student": {
@@ -6296,6 +6300,62 @@
         ],
         "x-permission": "programmes.manageMembers",
         "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/programmes/{id}/coach-invitations": {
+      "post": {
+        "operationId": "AdminProgrammesController_inviteCoach",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCoachDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Invite a Coach into the programme (users.manageCoaches). By a Head Coach (own\nprogrammes only): the account is pending until an Administrator approves it\n(PATCH /admin/users/:id/status); by an Administrator: approved at once.",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageCoaches",
+        "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/programmes/{id}/members/{userId}": {
@@ -33810,10 +33870,12 @@
           "Admin · Dashboard"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.view",
+        "description": "**Access:** permission `reports.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/overview": {
@@ -34256,10 +34318,12 @@
           "Admin · Reports"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.view",
+        "description": "**Access:** permission `reports.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/students.csv": {
@@ -34362,7 +34426,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/mentors": {
@@ -34644,10 +34709,12 @@
           "Admin · Reports"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "coaches.monitor",
+        "description": "**Access:** permission `coaches.monitor` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/mentors.csv": {
@@ -34750,7 +34817,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/enrollment": {
@@ -35122,7 +35190,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/course-participation": {
@@ -35345,10 +35414,12 @@
           "Admin · Reports"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.view",
+        "description": "**Access:** permission `reports.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/course-participation.csv": {
@@ -35427,7 +35498,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/assignments": {
@@ -35902,7 +35974,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/reviews": {
@@ -36279,7 +36352,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/results-publication": {
@@ -36728,7 +36802,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/mentor-activity": {
@@ -37053,10 +37128,12 @@
           "Admin · Reports"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "coaches.monitor",
+        "description": "**Access:** permission `coaches.monitor` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/mentor-activity.csv": {
@@ -37159,7 +37236,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/results.csv": {
@@ -37195,7 +37273,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/student-progress.csv": {
@@ -37231,7 +37310,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/reports/mentor-workload.csv": {
@@ -37267,7 +37347,8 @@
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "reports.export",
+        "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
     }
   },
@@ -37693,6 +37774,37 @@
         },
         "required": [
           "userId"
+        ]
+      },
+      "InviteCoachDto": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "username": {
+            "type": "string",
+            "description": "Optional; generated from the e-mail address when omitted.",
+            "minLength": 3,
+            "maxLength": 30,
+            "pattern": "^[a-z0-9._-]+$"
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "email"
         ]
       },
       "CreateUserDto": {

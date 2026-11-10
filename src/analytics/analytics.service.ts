@@ -29,26 +29,36 @@ export class AnalyticsService {
   ) {}
 
   /**
-   * Who may manage this course × division: a holder of `analytics.course` at GLOBAL
-   * scope (ADMIN, SUPER_ADMIN — plan §5), or the coach assigned to it. Any
-   * narrower grant (e.g. a Head Coach's programme scope, until P1-07/P1-10) is
-   * not enough on its own.
+   * Who may see this course × division: a holder of `analytics.course` at GLOBAL
+   * scope (ADMIN, SUPER_ADMIN — plan §5); at PROGRAMME scope (Head Coach, P1-10)
+   * only for a course of a programme they head — otherwise 404; or the coach
+   * assigned to it. Returns whether the caller is programme-scoped.
    */
-  private async assertCanManageScope(user: AuthUser, scope: { courseId: string; divisionId: string }) {
-    if (this.permissions.scopeOf(user, 'analytics.course') === 'global') return;
+  private async assertCanManageScope(user: AuthUser, scope: { courseId: string; divisionId: string }, disciplineId: string): Promise<boolean> {
+    const grant = this.permissions.scopeOf(user, 'analytics.course');
+    if (grant === 'global') return false;
+    if (grant === 'programme') {
+      if (!(await this.access.headedProgrammes(user)).includes(disciplineId)) throw new NotFoundException('Course not found.');
+      return true;
+    }
     await this.access.assertCanManage(user, scope);
+    return false;
   }
 
   async courseAnalytics(courseId: string, divisionId: string, user: AuthUser) {
     const [course, division] = await Promise.all([
-      this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, code: true, title: true } }),
+      this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, code: true, title: true, disciplineId: true } }),
       this.prisma.division.findUnique({ where: { id: divisionId }, select: { id: true, code: true, name: true } }),
     ]);
     if (!course)   throw new NotFoundException('Course not found.');
     if (!division) throw new NotFoundException('Division not found.');
-    await this.assertCanManageScope(user, { courseId, divisionId });
-
-    const studentWhere = { role: 'STUDENT' as const, divisionId, isActive: true, isApproved: true };
+    const programmeScoped = await this.assertCanManageScope(user, { courseId, divisionId }, course.disciplineId);
+    const { disciplineId, ...courseView } = course;
+    // Head Coach: the programme's member students only, and no score aggregates (D7).
+    const studentWhere = {
+      role: 'STUDENT' as const, divisionId, isActive: true, isApproved: true,
+      ...(programmeScoped && { programmeMemberships: { some: { disciplineId, isActive: true } } }),
+    };
     const scope        = { courseId, divisionId };
 
     const [students, enrollment, assignments, published, pipeline, resources] = await Promise.all([
@@ -93,7 +103,7 @@ export class AnalyticsService {
     const opened   = (enrolled['ROLLED'] ?? 0) + (enrolled['COMPLETED'] ?? 0);
 
     return {
-      course,
+      course: courseView,
       division,
       generatedAt: new Date(),
       students: {
@@ -115,11 +125,11 @@ export class AnalyticsService {
           submissionRate:     rate(a._count.submissions, students),
           lateSubmissions:    lateByAssignment.get(a.id) ?? 0,
           publishedResults:   results.length,
-          averagePercentage:  pct.length ? round(pct.reduce((s, v) => s + v, 0) / pct.length) : null,
-          medianPercentage:   pct.length ? round(median(pct)) : null,
-          highestPercentage:  pct.length ? pct[pct.length - 1] : null,
-          lowestPercentage:   pct.length ? pct[0] : null,
-          distribution:       BUCKETS.map((b) => ({ range: b.label, count: pct.filter((v) => v >= b.min && v < b.max).length })),
+          averagePercentage:  !programmeScoped && pct.length ? round(pct.reduce((s, v) => s + v, 0) / pct.length) : null,
+          medianPercentage:   !programmeScoped && pct.length ? round(median(pct)) : null,
+          highestPercentage:  !programmeScoped && pct.length ? pct[pct.length - 1] : null,
+          lowestPercentage:   !programmeScoped && pct.length ? pct[0] : null,
+          distribution:       programmeScoped ? [] : BUCKETS.map((b) => ({ range: b.label, count: pct.filter((v) => v >= b.min && v < b.max).length })),
           averageReviewHours: avgHours(results),
         };
       }),

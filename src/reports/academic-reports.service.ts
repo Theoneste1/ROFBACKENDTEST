@@ -13,7 +13,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { Prisma, type SubmissionStatus } from '../generated/prisma/client.js';
-import { ReportScopeService, type ReportScope } from './report-scope.js';
+import type { AuthUser } from '../common/auth-user.js';
+import { ReportScopeService, teachingIn, type ReportScope } from './report-scope.js';
 import { toCounts } from './dashboard.service.js';
 import { accountStatus, MAX_ROWS, searchWhere } from './user-reports.service.js';
 import type { AssignmentReportDto, ReportFiltersDto, ReportListDto, UserReportDto } from './dto/report-filters.dto.js';
@@ -56,8 +57,8 @@ export class AcademicReportsService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   /** Per assignment: expected students, submitted, late, missing and where the work is. Date range = deadline between. */
-  async assignments(q: AssignmentReportDto) {
-    const s = await this.scope.resolve(q);
+  async assignments(q: AssignmentReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const { page, limit, skip, take } = pageArgs(q);
     const where = this.assignmentListWhere(s, q);
     const [rows, total, byStatus, late] = await this.prisma.$transaction([
@@ -79,8 +80,8 @@ export class AcademicReportsService {
     };
   }
 
-  async assignmentsCsv(q: AssignmentReportDto) {
-    const s = await this.scope.resolve(q);
+  async assignmentsCsv(q: AssignmentReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const rows = await this.prisma.assignment.findMany({
       where: this.assignmentListWhere(s, q), take: MAX_ROWS, orderBy: [{ deadline: 'desc' }, { id: 'asc' }], select: ASSIGNMENT_SELECT,
     });
@@ -159,8 +160,8 @@ export class AcademicReportsService {
    * waiting for distribution or admin approval. Completed: reviews mentors
    * finished (in the date range, if given) — outcomes and turnaround.
    */
-  async reviews(q: ReportFiltersDto) {
-    const s = await this.scope.resolve(q);
+  async reviews(q: ReportFiltersDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const assignment = this.scope.assignmentWhere(s);
     const range = this.scope.range(s);
     const scoped: Prisma.MentorReviewWhereInput = { submission: { assignment } };
@@ -226,8 +227,8 @@ export class AcademicReportsService {
   }
 
   /** One row per review cycle (assigned in the date range, if given). */
-  async reviewsCsv(q: ReportFiltersDto) {
-    const s = await this.scope.resolve(q);
+  async reviewsCsv(q: ReportFiltersDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const range = this.scope.range(s);
     const rows = await this.prisma.mentorReview.findMany({
       where:   { submission: { assignment: this.scope.assignmentWhere(s) }, ...(range && { assignedAt: range }) },
@@ -267,8 +268,8 @@ export class AcademicReportsService {
    * Published results, releases and who published them; per assignment the
    * results reviewed, waiting and published. Date range = published between.
    */
-  async resultsPublication(q: ReportListDto) {
-    const s = await this.scope.resolve(q);
+  async resultsPublication(q: ReportListDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const { page, limit, skip, take } = pageArgs(q);
     const assignment = this.scope.assignmentWhere(s);
     const range = this.scope.range(s);
@@ -310,8 +311,8 @@ export class AcademicReportsService {
     };
   }
 
-  async resultsPublicationCsv(q: ReportListDto) {
-    const s = await this.scope.resolve(q);
+  async resultsPublicationCsv(q: ReportListDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const rows = await this.prisma.assignment.findMany({
       where: this.resultsListWhere(s), take: MAX_ROWS, orderBy: [{ deadline: 'desc' }, { id: 'asc' }], select: ASSIGNMENT_SELECT,
     });
@@ -387,8 +388,8 @@ export class AcademicReportsService {
    * open, admin send-backs, turnaround, assignments prepared, discussion
    * comments and last login. Date range = activity between.
    */
-  async mentorActivity(q: UserReportDto) {
-    const s = await this.scope.resolve(q);
+  async mentorActivity(q: UserReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const { page, limit, skip, take } = pageArgs(q);
     const where = this.mentorActivityWhere(s, q);
     const [rows, total, summary] = await Promise.all([
@@ -403,8 +404,8 @@ export class AcademicReportsService {
     };
   }
 
-  async mentorActivityCsv(q: UserReportDto) {
-    const s = await this.scope.resolve(q);
+  async mentorActivityCsv(q: UserReportDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
     const rows = await this.prisma.user.findMany({
       where: this.mentorActivityWhere(s, q), take: MAX_ROWS,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: MENTOR_SELECT,
@@ -499,10 +500,13 @@ export class AcademicReportsService {
     const count = <K extends string>(list: Array<Record<K, string> & { _count: { _all: number } }>, key: K, id: string) =>
       list.find((r) => r[key] === id)?._count._all ?? 0;
 
+    const restricted = this.scope.restricted(s);
     return rows.map((m) => ({
-      id: m.id, firstName: m.firstName, lastName: m.lastName, username: m.username, email: m.email,
+      id: m.id, firstName: m.firstName, lastName: m.lastName, username: m.username,
+      // Head Coach (D7): no contact details; a shared coach's teaching only in the Head Coach's programmes.
+      ...(!restricted && { email: m.email }),
       status:              accountStatus(m),
-      teaching:            m.mentorAssignments.map((a) => ({ course: a.course, division: a.division })),
+      teaching:            teachingIn(s, m.mentorAssignments),
       reviewsAssigned:     count(assigned, 'mentorId', m.id),
       reviewsCompleted:    count(completed, 'mentorId', m.id),
       openReviews:         count(open, 'mentorId', m.id),

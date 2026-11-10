@@ -4,7 +4,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
-import { AddProgrammeMemberDto, ListProgrammeMembersDto, SetProgrammeHeadsDto } from './dto/programme.dto.js';
+import { UserProvisioningService } from '../users/user-provisioning.service.js';
+import { AddProgrammeMemberDto, InviteCoachDto, ListProgrammeMembersDto, SetProgrammeHeadsDto } from './dto/programme.dto.js';
 import { ProgrammesService } from './programmes.service.js';
 
 /** Programme list (read-only): anyone who may view courses. */
@@ -29,7 +30,10 @@ export class ProgrammesController {
 @ApiBearerAuth()
 @Controller('admin/programmes')
 export class AdminProgrammesController {
-  constructor(private readonly service: ProgrammesService) {}
+  constructor(
+    private readonly service:      ProgrammesService,
+    private readonly provisioning: UserProvisioningService,
+  ) {}
 
   /** Head Coaches heading the programme. */
   @Get(':id/heads')
@@ -57,6 +61,17 @@ export class AdminProgrammesController {
   @RequirePermission('programmes.manageMembers')
   addMember(@Param('id', ParseUUIDPipe) id: string, @Body() body: AddProgrammeMemberDto, @CurrentUser() user: AuthUser) {
     return this.service.addMember(id, body, user);
+  }
+
+  /**
+   * Invite a Coach into the programme (users.manageCoaches). By a Head Coach (own
+   * programmes only): the account is pending until an Administrator approves it
+   * (PATCH /admin/users/:id/status); by an Administrator: approved at once.
+   */
+  @Post(':id/coach-invitations')
+  @RequirePermission('users.manageCoaches')
+  inviteCoach(@Param('id', ParseUUIDPipe) id: string, @Body() body: InviteCoachDto, @CurrentUser() user: AuthUser) {
+    return this.provisioning.inviteCoachToProgramme(id, body, user);
   }
 
   /** End a membership (kept as history). Head Coaches: students only. */
