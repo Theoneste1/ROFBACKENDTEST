@@ -57,7 +57,7 @@ export class UserProvisioningService {
   // ─── Invitations ──────────────────────────────────────────────────────────
 
   async invite(dto: InviteUserDto, caller: CallerCtx) {
-    this.roles.assertCanAssign(caller, dto.role ?? 'STUDENT');
+    await this.roles.assertCanAssign(caller, dto.role ?? 'STUDENT');
     await this.assertFree(dto.email, dto.username);
     const username = dto.username ?? (await this.generateUsername(dto.email));
 
@@ -81,7 +81,7 @@ export class UserProvisioningService {
       select: { id: true, role: true, activatedAt: true, isActive: true, passwordHash: true },
     });
     if (!user) throw new NotFoundException('User not found.');
-    this.roles.assertCanManage(caller, user.role);
+    await this.roles.assertCanManage(caller, user.role);
     if (user.activatedAt) throw invalidState('This account is already activated.');
     if (!user.isActive)   throw invalidState('Reactivate the account before re-sending the invitation.');
 
@@ -102,7 +102,7 @@ export class UserProvisioningService {
       select: { id: true, role: true, activatedAt: true, isActive: true, provider: true },
     });
     if (!user) throw new NotFoundException('User not found.');
-    this.roles.assertCanManage(caller, user.role);
+    await this.roles.assertCanManage(caller, user.role);
     if (!user.isActive)    throw invalidState('This account is suspended.');
     if (!user.activatedAt) throw invalidState('This account is not activated yet; re-send the invitation instead.');
     if (user.provider !== 'LOCAL') throw invalidState('This account signs in with an external provider.');
@@ -176,7 +176,7 @@ export class UserProvisioningService {
         else seenEmails.set(dto.email, rec.line);
       }
       {
-        const refusal = this.roleRefusal(caller, dto.role ?? 'STUDENT');
+        const refusal = await this.roleRefusal(caller, dto.role ?? 'STUDENT');
         if (refusal) problems.push(refusal);
       }
       if (dto.username) {
@@ -260,9 +260,9 @@ export class UserProvisioningService {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   /** The allow-list refusal for a CSV row, as a row error message (null when allowed). */
-  private roleRefusal(caller: CallerCtx, role: string): string | null {
+  private async roleRefusal(caller: CallerCtx, role: string): Promise<string | null> {
     try {
-      this.roles.assertCanAssign(caller, role);
+      await this.roles.assertCanAssign(caller, role);
       return null;
     } catch (err) {
       return err instanceof AppError ? `role ${role}: ${err.code}` : 'role: not allowed.';
@@ -274,7 +274,7 @@ export class UserProvisioningService {
     tx: Tx, dto: InviteUserDto & { username: string }, caller: CallerCtx,
   ): Promise<{ user: Prisma.UserGetPayload<{ select: typeof INVITED_SELECT }>; issued: IssuedActivation }> {
     const role = dto.role ?? 'STUDENT';
-    this.roles.assertCanAssign(caller, role);   // defence in depth: every invited account
+    await this.roles.assertCanAssign(caller, role);   // defence in depth: every invited account
     const isStudent = role === 'STUDENT';
 
     let schoolId: string | null = null;

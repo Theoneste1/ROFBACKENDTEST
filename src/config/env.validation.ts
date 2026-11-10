@@ -165,6 +165,15 @@ export class EnvironmentVariables {
   @Matches(/^(true|false)$/, { message: 'HEAD_COACHES_ENABLED must be "true" or "false".' })
   HEAD_COACHES_ENABLED?: string;
 
+  /**
+   * "true" closes the ADMIN-creation gap once a Super Admin exists (plan §8.3):
+   * ADMIN can no longer manage ADMIN / SUPER_ADMIN accounts. Off by default;
+   * with no active Super Admin it is not enforced (fail-safe, error logged).
+   */
+  @IsOptional()
+  @Matches(/^(true|false)$/, { message: 'SUPER_ADMIN_BOUNDARY_ENABLED must be "true" or "false".' })
+  SUPER_ADMIN_BOUNDARY_ENABLED?: string;
+
   // ── Rate limiting ──────────────────────────────────────────────────────────
   @Type(() => Number)
   @IsInt()
