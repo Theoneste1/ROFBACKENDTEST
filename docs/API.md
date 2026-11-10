@@ -176,7 +176,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/activity`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Learning activity log, filterable by user, course, type and period.
 
@@ -194,7 +194,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/activity/summary`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Activity counts per type and number of active users (default: last 30 days).
 
@@ -253,7 +253,7 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/contact-messages`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -263,7 +263,7 @@ Returns `200` with no body.
 
 ### PATCH `/api/v1/admin/contact-messages/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Mark a message handled, or back to new.
 
@@ -348,7 +348,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/dashboard`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -463,7 +463,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/leaderboard/recompute`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Rebuild every student's points from published results (maintenance).
 
@@ -475,7 +475,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/mentor-assignments`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -490,7 +490,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/mentor-assignments`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Assign a mentor to a course × division (re-activates a previous assignment).
 
@@ -508,7 +508,7 @@ Returns `201` JSON with:
 
 ### DELETE `/api/v1/admin/mentor-assignments/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Deactivate. The response reports open reviews that should be reassigned.
 
@@ -524,7 +524,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/assignments`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -541,7 +541,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/assignments.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -556,7 +556,7 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/course-participation`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -572,7 +572,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/course-participation.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -586,7 +586,7 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/enrollment`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -602,7 +602,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/enrollment.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -616,7 +616,7 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/mentor-activity`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -634,7 +634,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/mentor-activity.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -650,13 +650,13 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/mentor-workload.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/mentors`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -674,7 +674,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/mentors.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -690,7 +690,7 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/overview`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 What is waiting for an administrator right now.
 
@@ -700,7 +700,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/results-publication`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -716,7 +716,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/results-publication.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -730,13 +730,13 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/results.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/reviews`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -752,7 +752,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/reviews.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -766,13 +766,13 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/student-progress.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/reports/students`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -790,7 +790,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/reports/students.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -906,6 +906,7 @@ Body (JSON):
 | `email` | string (email) |  |  |
 | `password` | string |  |  |
 | `role` | STUDENT \| MENTOR \| ADMIN \| TEACHER \| HEAD_COACH \| SUPER_ADMIN |  |  |
+| `currentPassword` | string |  | Your own current password (step-up, P1-08). Required to change a role to or from ADMIN or SUPER_ADMIN; otherwise ignored. Never stored or logged. |
 | `gradeLevel` | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  | Changing the grade moves a student to the matching division. |
 | `schoolId` | string (uuid) |  |  |
 | `homeLocation` | string |  |  |
@@ -1214,7 +1215,7 @@ Returns `200`: The file, streamed with its stored content type and a Content-Dis
 
 ### GET `/api/v1/assignments/{id}/history`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 Everything that happened to the assignment, oldest first (mentors of the scope, admins).
 
@@ -2515,7 +2516,7 @@ Returns `200` JSON, an array of objects with:
 
 ### GET `/api/v1/me/notification-settings`
 
-**Access:** ADMIN, MENTOR
+**Access:** ADMIN, MENTOR, SUPER_ADMIN
 
 Returns `200` JSON with:
 
@@ -2523,7 +2524,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/me/notification-settings`
 
-**Access:** ADMIN, MENTOR
+**Access:** ADMIN, MENTOR, SUPER_ADMIN
 
 Turn notifications on or off; only the switches you send change.
 
@@ -2533,7 +2534,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/me/notification-settings/reset`
 
-**Access:** ADMIN, MENTOR
+**Access:** ADMIN, MENTOR, SUPER_ADMIN
 
 Back to the defaults: every notification on.
 
@@ -2643,7 +2644,7 @@ Returns `200` JSON.
 
 ### GET `/api/v1/schools`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 ADMIN: schools with student counts.
 
@@ -2653,7 +2654,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/schools/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 ADMIN: a school and its students (paginated).
 
@@ -3033,7 +3034,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/submissions/{id}/reviews`
 
-**Access:** ADMIN, MENTOR
+**Access:** ADMIN, MENTOR, SUPER_ADMIN
 
 Review history (all cycles with events). Admins: all; mentors: their own cycles.
 

@@ -388,6 +388,18 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
     }
   });
 
+  it('SUPER_ADMIN passes every handler ADMIN passes (P1-08, plan §11.4) and is refused on every grading / authoring handler', async () => {
+    const missing: string[] = [];
+    // Registered routes only (the unregistered StudyGroupsController cannot be called).
+    for (const h of handlers.filter((x) => !(keyOf(x) in UNREGISTERED_HANDLERS))) {
+      if ((await decide(h, 'ADMIN')) === 'allow' && (await decide(h, 'SUPER_ADMIN' as unknown as Caller)) !== 'allow') missing.push(keyOf(h));
+    }
+    expect(missing).toEqual([]);
+    for (const h of handlers.filter((x) => ADMIN_PROHIBITED.includes(permissionOf(x) as Permission))) {
+      expect([keyOf(h), await decide(h, 'SUPER_ADMIN' as unknown as Caller)]).toEqual([keyOf(h), '403']);
+    }
+  });
+
   it('HEAD_COACH passes the guard only on its catalogue grants — no global administrative route', async () => {
     const admitted = [];
     for (const h of handlers) {
