@@ -120,7 +120,8 @@ describe('Role allow-list — flags off (default)', () => {
     expect(await snapshot()).toEqual(before);
     expect(await ctx.prisma.user.count({ where: { id: { in: [sa.id, pending.id] } } })).toBe(2);
     expect(await ctx.prisma.passwordResetToken.count({ where: { userId: sa.id } })).toBe(0);
-    await ctx.prisma.user.deleteMany({ where: { id: { in: [sa.id, pending.id] } } });
+    // No cleanup by DELETE: the last active Super Admin cannot be removed (M4 trigger, P1-08).
+    // The next suite starts from a TRUNCATEd database, which the row-level trigger does not cover.
   });
 
   it('non-administrators still cannot reach the user API at all', async () => {
