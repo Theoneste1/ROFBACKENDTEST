@@ -17,7 +17,14 @@ import { AppError } from '../errors/app-error.js';
 
 type Caller = { role: string };
 
-export const isAdmin   = (u: Caller): boolean => u.role === 'ADMIN';
+/**
+ * Administrator authority: ADMIN, or SUPER_ADMIN (which holds every administrative
+ * permission, plan §8.1). Never a grading path — grading requires isCoach, the
+ * reviews.grade permission and the RS1 guard rule, none of which administrators pass.
+ */
+export const isAdmin   = (u: Caller): boolean => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN';
+/** Only the Super Administrator (P1-08): managing ADMIN / SUPER_ADMIN accounts, step-up promotion. */
+export const isSuperAdmin = (u: Caller): boolean => u.role === 'SUPER_ADMIN';
 export const isCoach   = (u: Caller): boolean => u.role === 'MENTOR';
 export const isStudent = (u: Caller): boolean => u.role === 'STUDENT';
 /** Staff = ADMIN or MENTOR, named explicitly — never "not a student". */

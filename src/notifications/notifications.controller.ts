@@ -149,21 +149,21 @@ export class NotificationsController {
 
   /** Every notification your role receives, with its in-app and e-mail switches. */
   @Get('me/notification-settings')
-  @Roles('ADMIN', 'MENTOR')
+  @Roles('ADMIN', 'MENTOR', 'SUPER_ADMIN')
   settings(@CurrentUser() user: AuthUser) {
     return this.notifications.getSettings(user);
   }
 
   /** Turn notifications on or off; only the switches you send change. */
   @Patch('me/notification-settings')
-  @Roles('ADMIN', 'MENTOR')
+  @Roles('ADMIN', 'MENTOR', 'SUPER_ADMIN')
   updateSettings(@CurrentUser() user: AuthUser, @Body() body: UpdateSettingsDto) {
     return this.notifications.updateSettings(user, body.settings);
   }
 
   /** Back to the defaults: every notification on. */
   @Post('me/notification-settings/reset')
-  @Roles('ADMIN', 'MENTOR')
+  @Roles('ADMIN', 'MENTOR', 'SUPER_ADMIN')
   @HttpCode(200)
   resetSettings(@CurrentUser() user: AuthUser) {
     return this.notifications.resetSettings(user);

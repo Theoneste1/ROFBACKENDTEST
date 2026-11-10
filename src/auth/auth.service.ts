@@ -133,7 +133,7 @@ export class AuthService {
 
   async registerAdmin(data: RegisterAdminDto, caller: CallerCtx) {
     const requestingUserId = caller.id;
-    this.roles.assertCanAssign(caller, 'ADMIN');
+    await this.roles.assertCanAssign(caller, 'ADMIN');
     await this.assertIdentityFree(data.username, data.email);
 
     const admin = await this.prisma.user.create({

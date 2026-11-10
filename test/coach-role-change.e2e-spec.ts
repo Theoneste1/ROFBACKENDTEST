@@ -10,7 +10,7 @@ import pg from 'pg';
 
 import { AccessService } from '../src/common/access/access.service.js';
 import { TokenService } from '../src/auth/token.service.js';
-import { createTestApp, login, bearer, waitForEvents, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, waitForEvents, PASSWORD, type TestContext } from './helpers.js';
 
 /**
  * Whether the database answers a second connection while another connection
@@ -66,7 +66,7 @@ describe('Coach role change → coach assignments (P1-05)', () => {
     const coachToken = await login(ctx, 'mentor.s');
     await http().get('/api/v1/me/teaching').set(bearer(coachToken)).expect(200);
 
-    const res = await http().patch(`/api/v1/admin/users/${coachId}`).set(bearer(admin)).send({ role: 'ADMIN' }).expect(200);
+    const res = await http().patch(`/api/v1/admin/users/${coachId}`).set(bearer(admin)).send({ role: 'ADMIN', currentPassword: PASSWORD }).expect(200);
     expect(res.body.role).toBe('ADMIN');
 
     // Rows kept, all inactive; nothing else touched.
@@ -106,7 +106,7 @@ describe('Coach role change → coach assignments (P1-05)', () => {
         firstName: 'Race', lastName: String(i), username, email: `${username}@test.local`, password: 'Str0ng!Passw0rd', role: 'MENTOR',
       }).expect(201);
       const coachToken = await login(ctx, username, 'Str0ng!Passw0rd');
-      await http().patch(`/api/v1/admin/users/${created.body.id}`).set(bearer(admin)).send({ role: 'ADMIN' }).expect(200);
+      await http().patch(`/api/v1/admin/users/${created.body.id}`).set(bearer(admin)).send({ role: 'ADMIN', currentPassword: PASSWORD }).expect(200);
 
       // ADMIN-only endpoint: the old token must be rejected as a session, not merely forbidden.
       const res = await http().get('/api/v1/admin/users').set(bearer(coachToken));
@@ -157,7 +157,7 @@ describe('Coach role change → coach assignments (P1-05)', () => {
       });
 
       try {
-        const change = http().patch(`/api/v1/admin/users/${coachId}`).set(bearer(admin)).send({ role: 'ADMIN' })
+        const change = http().patch(`/api/v1/admin/users/${coachId}`).set(bearer(admin)).send({ role: 'ADMIN', currentPassword: PASSWORD })
           .then((r) => r);   // start the request now
         // Fails fast (no hang) if the change completes without reaching the pause point.
         await Promise.race([

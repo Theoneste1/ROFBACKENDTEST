@@ -92,7 +92,8 @@ const P0_03_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-08.json';
 const P1_04_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-04.json';
 const P1_05_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-05.json';
 const P1_06_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-06.json';
-const CURRENT_SNAPSHOT = P1_06_SNAPSHOT;
+const P1_08_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-08.json';
+const CURRENT_SNAPSHOT = P1_08_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -418,6 +419,18 @@ describe('approved API contract history', () => {
       added[m[1]] = (added[m[1]] ?? 0) + 1;
     }
     assert.deepEqual(added, { SUPER_ADMIN: 73, HEAD_COACH: 13, 'HEAD_COACH, SUPER_ADMIN': 1 });
+  });
+
+  test('P1-06 → P1-08 (Super Admin): SUPER_ADMIN added to the 36 @Roles routes admitting ADMIN, plus the optional step-up field; nothing breaking or for review', () => {
+    for (const f of [P1_06_SNAPSHOT, P1_08_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_06_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_08_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    const roles = res.additive.filter((l) => /: roles added: SUPER_ADMIN$/.test(l));
+    const other = res.additive.filter((l) => !/: roles added: SUPER_ADMIN$/.test(l));
+    assert.equal(roles.length, 36);
+    assert.deepEqual(other, ['PATCH /api/v1/admin/users/{id} › request application/json.currentPassword: new optional field']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

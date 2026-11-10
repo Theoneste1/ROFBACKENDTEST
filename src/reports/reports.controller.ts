@@ -29,7 +29,7 @@ class DivisionReportDto {
  */
 @ApiTags('Admin · Dashboard')
 @Controller('admin/dashboard')
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
 
@@ -47,7 +47,7 @@ export class DashboardController {
  */
 @ApiTags('Admin · Reports')
 @Controller('admin/reports')
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class ReportsController {
   constructor(
     private readonly reports:  ReportsService,

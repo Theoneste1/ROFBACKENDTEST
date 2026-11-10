@@ -1834,9 +1834,10 @@
         ],
         "x-roles": [
           "ADMIN",
-          "MENTOR"
+          "MENTOR",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR"
+        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
       },
       "patch": {
         "operationId": "NotificationsController_updateSettings",
@@ -1926,9 +1927,10 @@
         ],
         "x-roles": [
           "ADMIN",
-          "MENTOR"
+          "MENTOR",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR"
+        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
       }
     },
     "/api/v1/me/notification-settings/reset": {
@@ -2010,9 +2012,10 @@
         ],
         "x-roles": [
           "ADMIN",
-          "MENTOR"
+          "MENTOR",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR"
+        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
       }
     },
     "/api/v1/divisions": {
@@ -3383,9 +3386,10 @@
           "Admin · Activity"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/activity/summary": {
@@ -3478,9 +3482,10 @@
           "Admin · Activity"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/auth/register/student": {
@@ -6539,9 +6544,10 @@
           "Schools"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/schools/{id}": {
@@ -6694,9 +6700,10 @@
           "Schools"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/courses": {
@@ -10363,9 +10370,10 @@
           "Admin · Mentor assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       },
       "post": {
         "operationId": "MentorAssignmentsController_assign",
@@ -10518,9 +10526,10 @@
           "Admin · Mentor assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/mentor-assignments/{id}": {
@@ -10679,9 +10688,10 @@
           "Admin · Mentor assignments"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/me/teaching": {
@@ -15204,9 +15214,10 @@
         ],
         "x-roles": [
           "MENTOR",
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN"
+        "description": "**Access:** MENTOR, ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/assignments/{id}/file": {
@@ -17675,9 +17686,10 @@
         ],
         "x-roles": [
           "ADMIN",
-          "MENTOR"
+          "MENTOR",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR"
+        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
       }
     },
     "/api/v1/submissions/{id}/file": {
@@ -25617,9 +25629,10 @@
           "Admin · Leaderboard"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/leaderboard": {
@@ -26418,9 +26431,10 @@
           "Admin · Contact messages"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/contact-messages/{id}": {
@@ -26466,9 +26480,10 @@
           "Admin · Contact messages"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/email/users": {
@@ -31733,9 +31748,10 @@
           "Admin · Dashboard"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/overview": {
@@ -31890,9 +31906,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/students": {
@@ -32177,9 +32194,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/students.csv": {
@@ -32279,9 +32297,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/mentors": {
@@ -32563,9 +32582,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/mentors.csv": {
@@ -32665,9 +32685,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/enrollment": {
@@ -32957,9 +32978,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/enrollment.csv": {
@@ -33035,9 +33057,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/course-participation": {
@@ -33260,9 +33283,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/course-participation.csv": {
@@ -33338,9 +33362,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/assignments": {
@@ -33717,9 +33742,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/assignments.csv": {
@@ -33811,9 +33837,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/reviews": {
@@ -34108,9 +34135,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/reviews.csv": {
@@ -34186,9 +34214,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/results-publication": {
@@ -34555,9 +34584,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/results-publication.csv": {
@@ -34633,9 +34663,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/mentor-activity": {
@@ -34960,9 +34991,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/mentor-activity.csv": {
@@ -35062,9 +35094,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/results.csv": {
@@ -35097,9 +35130,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/student-progress.csv": {
@@ -35132,9 +35166,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/admin/reports/mentor-workload.csv": {
@@ -35167,9 +35202,10 @@
           "Admin · Reports"
         ],
         "x-roles": [
-          "ADMIN"
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN"
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     }
   },
@@ -35703,6 +35739,12 @@
               "HEAD_COACH",
               "SUPER_ADMIN"
             ]
+          },
+          "currentPassword": {
+            "type": "string",
+            "description": "Your own current password (step-up, P1-08). Required to change a role to or\nfrom ADMIN or SUPER_ADMIN; otherwise ignored. Never stored or logged.",
+            "minLength": 1,
+            "maxLength": 200
           },
           "gradeLevel": {
             "type": "string",

@@ -9,7 +9,7 @@ import type { AuthUser } from '../common/auth-user.js';
 
 @ApiTags('Admin · Mentor assignments')
 @Controller('admin/mentor-assignments')
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class MentorAssignmentsController {
   constructor(private readonly service: MentorAssignmentsService) {}
 

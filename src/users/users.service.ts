@@ -77,7 +77,7 @@ export class UsersService {
 
   // ─── Create a user (admin) ─────────────────────────────────────────────────
   async create(data: CreateUserDto, caller: CallerCtx) {
-    this.roles.assertCanAssign(caller, data.role ?? 'STUDENT');
+    await this.roles.assertCanAssign(caller, data.role ?? 'STUDENT');
     await this.assertIdentityFree(data.username, data.email);
 
     const role = data.role ?? 'STUDENT';
@@ -129,18 +129,28 @@ export class UsersService {
       select: {
         id: true, role: true, gradeLevel: true, username: true, email: true,
         firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
+        isActive: true, activatedAt: true,
       },
     });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
-    this.roles.assertCanManage(caller, existing.role);
+    await this.roles.assertCanManage(caller, existing.role);
 
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).filter((k) => k !== 'currentPassword').length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
     }
     if (id === caller.id && data.role && data.role !== existing.role) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_CHANGE_OWN_ROLE', 'You cannot change your own role.');
     }
-    if (data.role && data.role !== existing.role) this.roles.assertCanAssign(caller, data.role);
+    const roleChange = !!data.role && data.role !== existing.role;
+    if (roleChange) await this.roles.assertCanAssign(caller, data.role!, 'roleChange');
+    if (roleChange && (PRIVILEGED.includes(existing.role) || PRIVILEGED.includes(data.role!))) {
+      await this.assertStepUp(caller, data.currentPassword);
+    }
+    if (roleChange && data.role === 'SUPER_ADMIN' && (existing.role !== 'ADMIN' || !existing.isActive || !existing.activatedAt)) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'ROLE_NOT_ASSIGNABLE',
+        'Only an active, activated Administrator can be promoted to Super Administrator.', { role: 'SUPER_ADMIN' });
+    }
+    if (roleChange && existing.role === 'SUPER_ADMIN') await this.assertNotLastSuperAdmin(id);
     if ((data.username && data.username !== existing.username) || (data.email && data.email !== existing.email)) {
       await this.assertIdentityFree(
         data.username !== existing.username ? data.username : undefined,
@@ -210,6 +220,12 @@ export class UsersService {
           ...actor, action: 'CHANGE_USER_ROLE', entity: 'User', entityId: id,
           metadata: { from: existing.role, to: updated.role },
         }, tx);
+        if (existing.role === 'SUPER_ADMIN' || updated.role === 'SUPER_ADMIN') {
+          await this.audit.log({
+            ...actor, action: updated.role === 'SUPER_ADMIN' ? 'SUPER_ADMIN_PROMOTE' : 'SUPER_ADMIN_DEMOTE',
+            entity: 'User', entityId: id, metadata: { from: existing.role, to: updated.role, stepUp: true },
+          }, tx);
+        }
       }
       if (enrollment && (changes.gradeLevel || changes.divisionId || changes.schoolId || changes.role)) {
         await this.audit.log({
@@ -226,8 +242,11 @@ export class UsersService {
       // together, so an old token can never authenticate with the new role.
       if (data.password || data.role) await this.tokens.revokeAllForUser(id, tx);
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
-    });
+    }).catch(lastSuperAdminConflict);
 
+    if (roleChange && (existing.role === 'SUPER_ADMIN' || data.role === 'SUPER_ADMIN')) {
+      await this.notifySuperAdminChange(data.role === 'SUPER_ADMIN' ? 'Promotion to Super Administrator' : 'Super Administrator role removed', existing.username, caller.id);
+    }
     return user;
   }
 
@@ -237,14 +256,15 @@ export class UsersService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_SUSPEND_SELF', 'You cannot suspend your own account.');
     }
     const before = await this.findOne(id);
-    this.roles.assertCanManage(caller, before.role);
+    await this.roles.assertCanManage(caller, before.role);
+    if (before.role === 'SUPER_ADMIN' && before.isActive && data.isActive === false) await this.assertNotLastSuperAdmin(id);
 
     const user = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where:  { id },
         data:   { isActive: data.isActive, isApproved: data.isApproved },
         select: SAFE_SELECT,
-      });
+      }).catch(lastSuperAdminConflict);
       // Deactivation / reactivation / approval, with the previous state.
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
@@ -274,11 +294,13 @@ export class UsersService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_DELETE_SELF', 'You cannot delete your own account.');
     }
     const user = await this.findOne(id);
-    this.roles.assertCanManage(caller, user.role);
+    await this.roles.assertCanManage(caller, user.role);
+    if (user.role === 'SUPER_ADMIN' && user.isActive) await this.assertNotLastSuperAdmin(id);
 
     try {
       await this.prisma.user.delete({ where: { id } });
     } catch (err: any) {
+      if (isLastSuperAdminError(err)) throw lastSuperAdmin();
       if (err?.code === 'P2003') {
         throw new AppError(
           HttpStatus.CONFLICT,
@@ -351,6 +373,29 @@ export class UsersService {
       throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
     }
   }
+
+  // ─── Super Admin safeguards (P1-08, plan §8.2) ───────────────────────────────
+
+  /** Step-up: the acting user re-enters their own password (403 STEP_UP_REQUIRED). */
+  private async assertStepUp(caller: CallerCtx, currentPassword: string | undefined) {
+    const me = await this.prisma.user.findUnique({ where: { id: caller.id }, select: { passwordHash: true } });
+    const ok = !!currentPassword && !!me?.passwordHash && (await bcrypt.compare(currentPassword, me.passwordHash));
+    if (!ok) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'STEP_UP_REQUIRED',
+        'Confirm with your current password to change an Administrator or Super Administrator role.');
+    }
+  }
+
+  /** 409 LAST_SUPER_ADMIN when no OTHER active Super Admin would remain (the M4 trigger re-checks atomically). */
+  private async assertNotLastSuperAdmin(targetId: string) {
+    const others = await this.prisma.user.count({ where: { role: 'SUPER_ADMIN', isActive: true, id: { not: targetId } } });
+    if (others === 0) throw lastSuperAdmin();
+  }
+
+  private async notifySuperAdminChange(action: string, targetUsername: string, actorId: string) {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId }, select: { username: true } });
+    await this.accountEmails.superAdminChanged({ action, targetUsername, actorUsername: actor?.username ?? null });
+  }
 }
 
 /** `{ field: { from, to } }` for the fields whose value changed. */
@@ -360,4 +405,20 @@ function diff<T extends Record<string, unknown>>(before: T, after: Partial<T>, f
     if (f in after && before[f] !== after[f]) out[f] = { from: before[f] ?? null, to: after[f] ?? null };
   }
   return out;
+
+}
+
+/** Accounts whose role changes need step-up (plan §10.1). */
+const PRIVILEGED: readonly string[] = ['ADMIN', 'SUPER_ADMIN'];
+
+function lastSuperAdmin() {
+  return new AppError(HttpStatus.CONFLICT, 'LAST_SUPER_ADMIN', 'At least one active Super Administrator must remain.');
+}
+
+const isLastSuperAdminError = (err: unknown) => String((err as Error)?.message ?? '').includes('LAST_SUPER_ADMIN');
+
+/** The database trigger (M4) refuses the change → the same 409 as the service rule. */
+function lastSuperAdminConflict(err: unknown): never {
+  if (isLastSuperAdminError(err)) throw lastSuperAdmin();
+  throw err;
 }

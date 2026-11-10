@@ -46,6 +46,15 @@ export class UpdateUserDto {
   @IsEnum(Role)
   role?: Role;
 
+  /**
+   * Your own current password (step-up, P1-08). Required to change a role to or
+   * from ADMIN or SUPER_ADMIN; otherwise ignored. Never stored or logged.
+   */
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  currentPassword?: string;
+
   /** Changing the grade moves a student to the matching division. */
   @IsOptional()
   @IsEnum(GradeLevel)

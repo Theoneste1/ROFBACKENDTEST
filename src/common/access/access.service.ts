@@ -58,6 +58,7 @@ export class AccessService {
   async assertCanView(user: AuthUser, scope: Scope): Promise<void> {
     switch (user.role) {
       case 'ADMIN':
+      case 'SUPER_ADMIN':
         return;
       case 'MENTOR':
         if (await this.isAssignedMentor(user.id, scope)) return;

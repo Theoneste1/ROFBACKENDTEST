@@ -64,7 +64,7 @@ describe.each([
   { name: 'AssignmentResultsController', cls: AssignmentResultsController, expected: ['ADMIN'] },
   { name: 'MySubmissionsController',     cls: MySubmissionsController,     expected: ['STUDENT'] },
   { name: 'MentorReviewsController',     cls: MentorReviewsController,     expected: ['MENTOR'] },
-  { name: 'AdminPointsController',       cls: AdminPointsController,       expected: ['ADMIN'] },
+  { name: 'AdminPointsController',       cls: AdminPointsController,       expected: ['ADMIN', 'SUPER_ADMIN'] },
 ])('$name authorization metadata', ({ cls, expected }) => {
   it(`is ${expected.join(',')} — by class-level @Roles, or (converted, P1-06) by a permission on every handler`, () => {
     const classRoles = Reflect.getMetadata(ROLES_KEY, cls);

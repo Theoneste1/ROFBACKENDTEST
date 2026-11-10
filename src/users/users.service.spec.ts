@@ -1,5 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service.js';
+
+/** The acting admin's password and hash, for step-up (P1-08). */
+const STEP_UP = 'Admin-Pass-1';
+const STEP_UP_HASH = bcrypt.hashSync(STEP_UP, 4);
+/** findUnique answers the caller's own row (step-up) and the target row. */
+const withCaller = (target: unknown) => (args: { where: { id: string } }) =>
+  Promise.resolve(args.where.id === 'admin-1' ? { passwordHash: STEP_UP_HASH } : target);
 
 const ADMIN = { id: 'admin-1', role: 'ADMIN' };
 
@@ -139,11 +147,11 @@ describe('UsersService', () => {
     });
 
     it.each([
-      ['a role change', { role: 'ADMIN' }],
+      ['a role change', { role: 'ADMIN', currentPassword: STEP_UP }],
       ['a password change', { password: 'N3w!Passw0rd' }],
     ])('ends sessions INSIDE the same transaction as %s, after the user row is written', async (_, data) => {
       const { service, prisma, tokens } = makeMocks();
-      prisma.user.findUnique.mockResolvedValue({ ...existing, role: 'MENTOR', gradeLevel: null });
+      prisma.user.findUnique.mockImplementation(withCaller({ ...existing, role: 'MENTOR', gradeLevel: null }));
       const tx = { ...prisma, marker: 'tx' };
       let inTransaction = false;
       prisma.$transaction.mockImplementation(async (fn: (c: unknown) => unknown) => {
@@ -252,13 +260,13 @@ describe('UsersService', () => {
 
     it('update checks the CURRENT role on every edit, and the NEW role only when it changes', async () => {
       const { service, prisma, roles } = makeMocks();
-      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'MENTOR', gradeLevel: null, username: 'bob', email: 'b@x.rw' });
+      prisma.user.findUnique.mockImplementation(withCaller({ id: 'u2', role: 'MENTOR', gradeLevel: null, username: 'bob', email: 'b@x.rw' }));
       await service.update('u2', { firstName: 'New' } as any, ADMIN);
       expect(roles.assertCanManage).toHaveBeenCalledWith(ADMIN, 'MENTOR');
       expect(roles.assertCanAssign).not.toHaveBeenCalled();
 
-      await service.update('u2', { role: 'ADMIN' } as any, ADMIN);
-      expect(roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'ADMIN');
+      await service.update('u2', { role: 'ADMIN', currentPassword: STEP_UP } as any, ADMIN);
+      expect(roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'ADMIN', 'roleChange');
     });
 
     it('a refused role change writes nothing and ends no session', async () => {

@@ -28,6 +28,11 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/auth/permission.service.ts', rule: 'U4', code: 'isCoach(user)',
     reason: 'courseDivisions(): only a coach has course × division teaching scopes; every other role (including an unsupported one) gets the empty list — the least-privileged result. Informational only; no access decision.',
   },
+  // ── Administrator request audit (P1-08) ────────────────────────────────────
+  {
+    file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !isAdmin(user)',
+    reason: 'Chooses whether to WRITE an audit row after the response (ADMIN / SUPER_ADMIN state-changing requests); every other request is unaffected. Not an access decision: guards decide.',
+  },
   // ── Course resources ───────────────────────────────────────────────────────
   {
     file: 'src/courses/course-resources.service.ts', rule: 'U3', code: 'isStudent(user)',
