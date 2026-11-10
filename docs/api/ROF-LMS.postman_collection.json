@@ -4203,7 +4203,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"schoolName\": \"schoolName\",\n  \"schoolLocation\": \"schoolLocation\",\n  \"homeLocation\": \"homeLocation\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"homeLocation\": \"homeLocation\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7055,6 +7055,29 @@
               "query": []
             },
             "description": "**Access:** ADMIN, SUPER_ADMIN"
+          }
+        },
+        {
+          "name": "GET /schools/locations",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/schools/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schools",
+                "locations"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
           }
         },
         {

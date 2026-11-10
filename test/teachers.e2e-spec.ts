@@ -17,7 +17,7 @@ import { createTestApp, login, bearer, inDays, PDF, PASSWORD, type TestContext }
 describe('Teachers (P1-11)', () => {
   let ctx: TestContext;
   let admin: string, superAdmin: string, t1: string, t2: string, t3: string, coachJ: string, studentJ2: string;
-  let t1Id: string, t2Id: string, t3Id: string, superId: string, schoolA: string, schoolB: string, studentO: string;
+  let t1Id: string, t2Id: string, t3Id: string, schoolA: string, schoolB: string, studentO: string;
   let workId: string, gradedId: string;
   const http = () => ctx.http();
   const p = () => ctx.prisma;
@@ -43,7 +43,7 @@ describe('Teachers (P1-11)', () => {
     t1Id = await mk('t.one', 'TEACHER');
     t2Id = await mk('t.two', 'TEACHER');
     t3Id = await mk('t.three', 'TEACHER');
-    superId = await mk('t.super', 'SUPER_ADMIN');
+    await mk('t.super', 'SUPER_ADMIN');
     studentO = await mk('student.o', 'STUDENT', { gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolB, homeLocation: 'Huye' });
     [t1, t2, t3, superAdmin] = await Promise.all(['t.one', 't.two', 't.three', 't.super'].map((u) => login(ctx, u)));
 
@@ -93,9 +93,16 @@ describe('Teachers (P1-11)', () => {
       activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: lookalike,
     } })).id;
 
+    // Not yet approved by an Administrator (the school check): never shown to a teacher (P1-11).
+    const pending = (await p().user.create({ data: {
+      username: 'student.pending', firstName: 'P', lastName: 'S', email: 'student.pending@test.local', role: 'STUDENT', passwordHash: hash,
+      activatedAt: new Date(), isApproved: false, gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolA,
+    } })).id;
+
     const mine = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t1)).expect(200)).body.data;
     expect(mine.map((s: any) => s.id).sort()).toEqual([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior].sort());
     expect(mine.map((s: any) => s.id)).not.toContain(branchStudent);
+    expect(mine.map((s: any) => s.id)).not.toContain(pending);
     // The default list exposes exactly: name, username, grade, division, school.
     for (const s of mine) expect(Object.keys(s).sort()).toEqual(['division', 'firstName', 'gradeLevel', 'id', 'lastName', 'school', 'username']);
 
@@ -172,6 +179,9 @@ describe('Teachers (P1-11)', () => {
     for (const key of ['email', 'phone', 'homeLocation', 'passwordHash']) expect([key, key in res]).toEqual([key, false]);
     expect((await http().get(`/api/v1/teacher/students/${studentO}`).set(bearer(t1))).status).toBe(404);
     expect((await http().get(`/api/v1/teacher/students/${ctx.ids.mentorJunior}`).set(bearer(t1))).status).toBe(404);
+    // An unapproved student of the teacher's own school: not revealed.
+    const pending = await p().user.findUniqueOrThrow({ where: { username: 'student.pending' } });
+    expect((await http().get(`/api/v1/teacher/students/${pending.id}`).set(bearer(t1))).status).toBe(404);
   });
 
   it('progress: assignment availability and submission history — never scores, marks or feedback (D7)', async () => {
@@ -250,6 +260,43 @@ describe('Teachers (P1-11)', () => {
     expect((await http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}`).set(bearer(t1))).status).toBe(404);
     expect(await status(http().delete(`${ASSIGN}/${a.id}`).set(bearer(admin)))).toEqual([409, 'ASSIGNMENT_ENDED']);
     expect(await p().auditLog.count({ where: { action: 'UNASSIGN_TEACHER_SCHOOL', entityId: a.id, actorId: ctx.ids.admin } })).toBe(1);
+  });
+
+  it('registration.studentRequiresApproval: off → a student registered with the school code is listed at once; on → only after an Administrator approves; no valid school → never listed', async () => {
+    const coded = (await p().school.create({ data: { name: 'APPROVAL TEST SCHOOL', location: 'Kigali, Gasabo', code: '120998', province: 'Kigali City', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'approval test school' } })).id;
+    await http().post(ASSIGN).set(bearer(admin)).send({ teacherId: t3Id, schoolId: coded }).expect(201);
+    const reg = (username: string, extra: object = {}) => http().post('/api/v1/auth/register/student').send({
+      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', gradeLevel: 'S2',
+      schoolCode: '120998', homeLocation: 'Kigali', ...extra,
+    });
+    const listed = async () => (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t3)).expect(200)).body.data.map((s: any) => s.username);
+
+    // Policy off (the default): approved at registration → listed immediately.
+    expect((await reg('appr.off').expect(201)).body.requiresApproval).toBe(false);
+    expect(await listed()).toContain('appr.off');
+
+    // Policy on: registered unapproved → cannot sign in, not listed; listed on the next request after approval.
+    await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.studentRequiresApproval': true }).expect(200);
+    try {
+      expect((await reg('appr.on').expect(201)).body.requiresApproval).toBe(true);
+      const pendingUser = await p().user.findUniqueOrThrow({ where: { username: 'appr.on' } });
+      expect(pendingUser).toMatchObject({ isApproved: false, schoolId: coded });
+      expect((await http().post('/api/v1/auth/login').send({ username: 'appr.on', password: 'Secret123' })).body.code).toBe('ACCOUNT_PENDING_APPROVAL');
+      expect(await listed()).not.toContain('appr.on');
+      expect((await http().get(`/api/v1/teacher/students/${pendingUser.id}`).set(bearer(t1))).status).not.toBe(200);
+      await http().patch(`/api/v1/admin/users/${pendingUser.id}/status`).set(bearer(admin)).send({ isApproved: true }).expect(200);
+      expect(await listed()).toContain('appr.on');
+    } finally {
+      await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.studentRequiresApproval': false }).expect(200);
+    }
+
+    // Approved but without a valid school (another country; an unknown Rwandan name): never in a teacher list.
+    await reg('appr.intl', { country: 'KE', schoolCode: undefined, schoolName: 'Nairobi School' }).expect(201);
+    await reg('appr.noname', { schoolCode: undefined, schoolName: 'No Such School' }).expect(201);
+    for (const u of ['appr.intl', 'appr.noname']) {
+      expect((await p().user.findUniqueOrThrow({ where: { username: u } })).schoolId).toBeNull();
+      expect(await listed()).not.toContain(u);
+    }
   });
 
   it('a Teacher who changes role keeps no school scope and no delegation applies', async () => {

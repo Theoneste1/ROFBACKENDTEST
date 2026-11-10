@@ -6,6 +6,12 @@ describe('Authentication (e2e)', () => {
 
   beforeAll(async () => {
     ctx = await createTestApp();
+    // Official schools (P1-11): one Lycée de Kigali; two official schools named GS Mwendo.
+    await ctx.prisma.school.createMany({ data: [
+      { name: 'LYCEE DE KIGALI', location: 'Nyarugenge, Nyarugenge', code: '110912', district: 'Nyarugenge', sector: 'Nyarugenge', ownership: 'PUBLIC', nameKey: 'lycee de kigali' },
+      { name: 'GS MWENDO — Nyarugenge', location: 'Kigali, Nyarugenge', code: '110305', district: 'Nyarugenge', sector: 'Kigali', ownership: 'GOVERNMENT_AIDED', nameKey: 'gs mwendo' },
+      { name: 'GS MWENDO — Huye', location: 'Mwendo, Huye', code: '310205', district: 'Huye', sector: 'Mwendo', ownership: 'GOVERNMENT_AIDED', nameKey: 'gs mwendo' },
+    ] });
   });
 
   afterAll(async () => {
@@ -21,11 +27,76 @@ describe('Authentication (e2e)', () => {
 
   it('registers a student into the division matching their grade', async () => {
     const res = await register({}).expect(201);
+    // Legacy name: matches exactly one official school (accents and case ignored) → that school.
     expect(res.body).toMatchObject({
       username: 'ada', email: 'ada@example.com', role: 'STUDENT', gradeLevel: 'S4',
-      division: { code: 'SENIOR' }, school: { name: 'Lycée De Kigali' },
+      division: { code: 'SENIOR' }, school: { name: 'LYCEE DE KIGALI' },
     });
     expect(res.body.passwordHash).toBeUndefined();
+  });
+
+  describe('school (P1-11): official code, or a legacy name that matches exactly one official school; never a new school', () => {
+    const schoolOf = async (username: string) =>
+      (await ctx.prisma.user.findUniqueOrThrow({ where: { username }, select: { school: { select: { code: true } } } })).school?.code ?? null;
+    const schools = () => ctx.prisma.school.count();
+
+    it('by official code → exactly that school, with its enrolment', async () => {
+      const res = await register({ username: 'by.code', email: 'by.code@example.com', schoolName: undefined, schoolLocation: undefined, schoolCode: '310205' }).expect(201);
+      expect(res.body.school).toMatchObject({ name: 'GS MWENDO — Huye' });
+      expect(await schoolOf('by.code')).toBe('310205');
+      const user = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'by.code' } });
+      expect((await ctx.prisma.studentEnrollment.findFirstOrThrow({ where: { studentId: user.id }, include: { school: true } })).school?.code).toBe('310205');
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entityId: user.id } });
+      expect(audit.metadata).toMatchObject({ schoolCode: '310205' });
+    });
+
+    it('an unknown or malformed code is refused; nothing is created', async () => {
+      const before = await schools();
+      expect((await register({ username: 'bad.code', email: 'bad.code@example.com', schoolName: undefined, schoolCode: '999999' }).expect(400)).body.code).toBe('UNKNOWN_SCHOOL_CODE');
+      expect((await register({ username: 'bad.code', email: 'bad.code@example.com', schoolName: undefined, schoolCode: 'ABC' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+      expect(await ctx.prisma.user.count({ where: { username: 'bad.code' } })).toBe(0);
+      expect(await schools()).toBe(before);
+    });
+
+    it('a legacy name shared by several official schools, or matching none, links no school and creates none', async () => {
+      const before = await schools();
+      await register({ username: 'amb', email: 'amb@example.com', schoolName: 'G.S. Mwendo' }).expect(201);
+      await register({ username: 'none', email: 'none@example.com', schoolName: 'Unknown Academy' }).expect(201);
+      expect(await schoolOf('amb')).toBeNull();
+      expect(await schoolOf('none')).toBeNull();
+      expect(await schools()).toBe(before);
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entity: 'User', metadata: { path: ['schoolNameEntered'], equals: 'Unknown Academy' } } });
+      expect(audit.metadata).toMatchObject({ schoolMatched: false, schoolCode: null });
+    });
+
+    it('another country: the school name is recorded unverified and NEVER matched to a Rwandan school, even with the same name', async () => {
+      const before = await schools();
+      const res = await register({ username: 'intl.ke', email: 'intl.ke@example.com', country: 'ke', schoolName: 'Lycée de Kigali' }).expect(201);
+      expect(res.body.school).toBeNull();
+      expect(await schoolOf('intl.ke')).toBeNull();
+      expect(await schools()).toBe(before);
+      const user = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'intl.ke' } });
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entityId: user.id } });
+      expect(audit.metadata).toMatchObject({ country: 'KE', schoolNameEntered: 'Lycée De Kigali', schoolMatched: false, schoolVerified: false, schoolCode: null });
+      // Rwandan school codes are for Rwanda only; an invalid country is refused.
+      expect((await register({ username: 'intl.code', email: 'intl.code@example.com', country: 'UG', schoolName: undefined, schoolCode: '110912' }).expect(400)).body.code).toBe('SCHOOL_CODE_RWANDA_ONLY');
+      expect((await register({ username: 'intl.bad', email: 'intl.bad@example.com', country: 'XX' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+      // Rwanda is the default and can be sent explicitly.
+      await register({ username: 'rw.explicit', email: 'rw.explicit@example.com', country: 'RW', schoolName: undefined, schoolCode: '110912' }).expect(201);
+      expect(await schoolOf('rw.explicit')).toBe('110912');
+    });
+
+    it('neither a code nor a name is refused', async () => {
+      expect((await register({ username: 'noschool', email: 'noschool@example.com', schoolName: undefined, schoolLocation: undefined }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+    });
+  });
+
+  it('a student cannot choose a school record directly: a supplied schoolId is rejected and nothing is created (P1-11)', async () => {
+    const other = await ctx.prisma.school.create({ data: { name: 'Another Official School', location: 'Huye' } });
+    const res = await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: other.id }).expect(400);
+    expect(res.body.code).toBe('VALIDATION_FAILED');
+    expect(await ctx.prisma.user.count({ where: { username: 'sid.probe' } })).toBe(0);
+    expect(await ctx.prisma.user.count({ where: { schoolId: other.id } })).toBe(0);
   });
 
   it('refuses a taken username or email with one generic message', async () => {

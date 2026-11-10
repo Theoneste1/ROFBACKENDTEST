@@ -18,6 +18,8 @@ import { RegisterAdminDto } from './dto/register-admin.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
+import { schoolKey } from '../schools/school-key.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import type { CallerCtx } from '../common/auth-user.js';
 
 export const BCRYPT_COST = 12;
@@ -60,6 +62,29 @@ export class AuthService {
 
   // ─── Student Registration ──────────────────────────────────────────────────
 
+  /**
+   * The official school a registration names. Rwanda (default): by code (unknown → 400),
+   * or a unique legacy name match. Another country: none — the name stays unverified and
+   * is never matched to a Rwandan school; a Rwandan school code is refused.
+   */
+  private async registrationSchool(tx: Prisma.TransactionClient, data: RegisterStudentDto) {
+    if ((data.country ?? 'RW') !== 'RW') {
+      if (data.schoolCode !== undefined) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda. Enter your school\'s name.');
+      }
+      return null;
+    }
+    if (data.schoolCode !== undefined) {
+      const byCode = await tx.school.findUnique({ where: { code: data.schoolCode }, select: { id: true, code: true, name: true } });
+      if (!byCode) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL_CODE', 'No school has this code. Choose your school from the list.');
+      return byCode;
+    }
+    const matches = await tx.school.findMany({
+      where: { code: { not: null }, nameKey: schoolKey(data.schoolName ?? '') }, select: { id: true, code: true, name: true }, take: 2,
+    });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
   async registerStudent(data: RegisterStudentDto) {
     if (!(await this.settings.get('registration.studentSelfSignup'))) {
       throw new AppError(HttpStatus.FORBIDDEN, 'REGISTRATION_CLOSED', 'Student self-registration is currently closed.');
@@ -73,12 +98,10 @@ export class AuthService {
     const divisionId       = await this.divisions.idForGrade(data.gradeLevel);
 
     const student = await this.prisma.$transaction(async (tx) => {
-      // School: find existing record by normalised name, or create it.
-      const school = await tx.school.upsert({
-        where:  { name: data.schoolName },
-        update: {},
-        create: { name: data.schoolName, location: data.schoolLocation },
-      });
+      // School (P1-11): the official school with this code; or, for a legacy name, the one
+      // official school with that normalised name — none when it matches no school or several.
+      // Registration never creates a school.
+      const school = await this.registrationSchool(tx, data);
 
       const created = await tx.user.create({
         data: {
@@ -92,14 +115,14 @@ export class AuthService {
           activatedAt:  requiresVerification ? null : new Date(),
           gradeLevel:   data.gradeLevel,
           divisionId,
-          schoolId:     school.id,
+          schoolId:     school?.id ?? null,
           homeLocation: data.homeLocation,
         },
         select: PROFILE_SELECT,
       });
 
       // Per-year enrolment record (fails the registration if no year is active).
-      await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel, school.id);
+      await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel, school?.id ?? null);
       // Mathematics programme membership (self-registration: no actor). P1-07, K6.
       await ensureDefaultMembership(tx, { id: created.id, role: 'STUDENT' }, null);
 
@@ -109,7 +132,12 @@ export class AuthService {
         action:    'REGISTER',
         entity:    'User',
         entityId:  created.id,
-        metadata:  { gradeLevel: data.gradeLevel, schoolName: school.name },
+        metadata:  {
+          gradeLevel: data.gradeLevel, country: data.country ?? 'RW', schoolCode: school?.code ?? null, schoolName: school?.name ?? null,
+          ...(data.schoolCode === undefined && { schoolNameEntered: data.schoolName, schoolMatched: !!school }),
+          // Not linked to a canonical School: the affiliation stays unverified until an Administrator confirms it.
+          schoolVerified: !!school,
+        },
       }, tx);
 
       const verification = requiresVerification

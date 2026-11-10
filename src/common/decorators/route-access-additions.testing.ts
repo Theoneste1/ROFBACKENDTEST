@@ -13,6 +13,8 @@ export interface AddedRouteDecisions { anonymous: Decision; STUDENT: Decision; M
 const SUPER_ADMIN_ONLY: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const ADMINISTRATORS:   AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** courses.view: every known role that views courses; an unknown role holds nothing. */
+/** @Public: everyone, signed in or not. */
+const PUBLIC: AddedRouteDecisions = { anonymous: 'allow', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
 /** Granted only by an individual delegation (P1-11): no baseline caller holds it. */
 const NOBODY_BY_DEFAULT: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
@@ -48,4 +50,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/teacher/students/:id  TeacherStudentsController.profile':                                      NOBODY_BY_DEFAULT,
   'GET /api/v1/teacher/students/:id/progress  TeacherStudentsController.progress':                            NOBODY_BY_DEFAULT,
   'POST /api/v1/teacher/students/:id/submissions  TeacherStudentsController.submit':                          NOBODY_BY_DEFAULT,
+  // P1-11 — the official directory's Province → District → Sector tree for the Rwanda sign-up form
+  'GET /api/v1/schools/locations  SchoolsController.locations':                                               PUBLIC,
 };

@@ -531,10 +531,23 @@ model School {
   name      String   @unique
   location  String
   createdAt DateTime @default(now())
+  /// Official school code (6 digits; P1-11 official list, M8). NULL for a school entered before the list.
+  code      String?  @unique
+  /// Rwanda province (official list; the first digit of the code).
+  province  String?
+  district  String?
+  sector    String?
+  /// PUBLIC, GOVERNMENT_AIDED or PRIVATE (official list).
+  ownership String?
+  /// Normalised official name (src/schools/school-key.ts): resolves a registration that sends a name.
+  nameKey   String?
 
   students    User[]
   enrollments StudentEnrollment[]
   teachers    TeacherSchoolAssignment[]
+
+  @@index([nameKey])
+  @@index([province, district, sector])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

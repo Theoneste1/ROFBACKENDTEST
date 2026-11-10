@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 16 @Public + 27 @Roles + 136 @RequirePermission + 54 @Authenticated = 233, none undeclared', () => {
+  it('declarations add up: 17 @Public + 27 @Roles + 136 @RequirePermission + 54 @Authenticated = 234, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 16, '@Roles': 27, '@RequirePermission': 136, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 17, '@Roles': 27, '@RequirePermission': 136, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -312,7 +312,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 22 added since: 224 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 23 added since: 225 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -343,7 +343,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(16);
+      expect(handlers.filter(isPublic)).toHaveLength(17);   // P1-11: + GET /schools/locations
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {
@@ -351,7 +351,9 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
         const expected = isPublic(h) || !restricted(h) ? 'allow' : '403';
         expect([keyOf(h), table[keyOf(h)].UNKNOWN_ROLE]).toEqual([keyOf(h), expected]);
       }
-      expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141 + Object.keys(ADDED_SINCE_BASELINE).length);
+      // Added routes that refuse anonymous callers (the added @Public ones are not restricted).
+      const addedRestricted = Object.values(ADDED_SINCE_BASELINE).filter((d) => d.anonymous !== 'allow').length;
+      expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141 + addedRestricted);
       expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(54);
     });
 

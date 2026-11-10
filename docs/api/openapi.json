@@ -3578,6 +3578,7 @@
                       "type": "string"
                     },
                     "school": {
+                      "nullable": true,
                       "properties": {
                         "id": {
                           "format": "uuid",
@@ -18912,6 +18913,13 @@
                 "schema": {
                   "items": {
                     "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "district": {
+                        "nullable": true,
+                        "type": "string"
+                      },
                       "id": {
                         "format": "uuid",
                         "type": "string"
@@ -18921,12 +18929,19 @@
                       },
                       "name": {
                         "type": "string"
+                      },
+                      "sector": {
+                        "nullable": true,
+                        "type": "string"
                       }
                     },
                     "required": [
+                      "code",
+                      "district",
                       "id",
                       "location",
-                      "name"
+                      "name",
+                      "sector"
                     ],
                     "type": "object"
                   },
@@ -18946,7 +18961,37 @@
             }
           }
         },
-        "summary": "Public autocomplete for the sign-up form (max 10 matches).",
+        "summary": "Public, for the sign-up form: official schools by name or code (max 10), or every\nofficial school of a district / sector (Rwanda: Province → District → Sector → School).",
+        "tags": [
+          "Schools"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/schools/locations": {
+      "get": {
+        "operationId": "SchoolsController_locations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Public: Rwanda's provinces → districts → sectors that have official schools.",
         "tags": [
           "Schools"
         ],
@@ -38034,15 +38079,24 @@
               "S6"
             ]
           },
+          "country": {
+            "type": "string",
+            "description": "Country of the school (ISO 3166-1 alpha-2). Default RW (Rwanda). Rwanda: the school\ncomes from the official directory (schoolCode). Any other country: the school name\nis recorded as entered, unverified — never matched to a Rwandan school."
+          },
+          "schoolCode": {
+            "type": "string",
+            "description": "Rwanda: official code of the school attended (6 digits, from GET /schools/search or\nthe Province → District → Sector listing). The student is linked to exactly that\nschool. Required unless schoolName is sent.",
+            "pattern": "^\\d{6}$"
+          },
           "schoolName": {
             "type": "string",
-            "description": "Name of the school attended. Normalised to Title Case and de-duplicated.",
+            "description": "Another country: the school's name as entered (unverified; no school is linked).\nRwanda, legacy (until the sign-up form sends schoolCode): it never creates a\nschool and links the student only when it matches exactly one school of the\nofficial list — otherwise no school until an Administrator sets it.\nIgnored when schoolCode is sent.",
             "minLength": 2,
             "maxLength": 200
           },
           "schoolLocation": {
             "type": "string",
-            "description": "City / region where the school is located.",
+            "description": "Legacy, with schoolName: city / region of the school (not stored).",
             "minLength": 2,
             "maxLength": 200
           },
@@ -38060,8 +38114,6 @@
           "email",
           "password",
           "gradeLevel",
-          "schoolName",
-          "schoolLocation",
           "homeLocation"
         ]
       },

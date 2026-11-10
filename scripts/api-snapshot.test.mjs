@@ -509,22 +509,32 @@ describe('approved API contract history', () => {
     ]);
   });
 
-  test('P1-10 part 3 → P1-11 (teachers): school assignments, delegations and the Teacher school-scoped routes, with their DTOs; nothing else', () => {
+  test('P1-10 part 3 → P1-11 (teachers, official school list): teacher routes and DTOs, school codes in search and registration; one approved breaking change', () => {
     for (const f of [P1_10_MONITORING_SNAPSHOT, P1_11_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(P1_10_MONITORING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_11_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
-    assert.deepEqual(res.breaking, []);
+    // Approved (owner decision 2026-11-10): a legacy school name that matches no official school, or
+    // several, registers the student with no school. The current frontend already types school as nullable.
+    assert.deepEqual(res.breaking, ['POST /api/v1/auth/register/student › response 201 application/json.school: may now be null']);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, [
       'DELETE /api/v1/admin/teacher-assignments/{id}: operation added',
       'DELETE /api/v1/admin/teachers/{id}/delegations/{overrideId}: operation added',
       'GET /api/v1/admin/teacher-assignments: operation added',
       'GET /api/v1/admin/teachers/{id}/delegations: operation added',
+      'GET /api/v1/schools/locations: operation added',
+      'GET /api/v1/schools/search › response 200 application/json[].code: new field',
+      'GET /api/v1/schools/search › response 200 application/json[].district: new field',
+      'GET /api/v1/schools/search › response 200 application/json[].sector: new field',
       'GET /api/v1/teacher/students/{id}/progress: operation added',
       'GET /api/v1/teacher/students/{id}: operation added',
       'GET /api/v1/teacher/students: operation added',
       'POST /api/v1/admin/teacher-assignments: operation added',
       'POST /api/v1/admin/teachers/{id}/delegations: operation added',
+      'POST /api/v1/auth/register/student › request application/json.country: new optional field',
+      'POST /api/v1/auth/register/student › request application/json.schoolCode: new optional field',
+      'POST /api/v1/auth/register/student › request application/json.schoolLocation: field is now optional',
+      'POST /api/v1/auth/register/student › request application/json.schoolName: field is now optional',
       'POST /api/v1/teacher/students/{id}/submissions: operation added',
       'schema CreateDelegationDto: added',
       'schema CreateTeacherSchoolDto: added',

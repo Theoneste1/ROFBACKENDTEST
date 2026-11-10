@@ -1773,6 +1773,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/schools/locations",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Schools"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/schools/search",
     "roles": [
       "PUBLIC"

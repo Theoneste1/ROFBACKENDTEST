@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 224,
-    "paths": 197,
+    "operations": 225,
+    "paths": 198,
     "schemas": 60
   },
-  "fingerprint": "55e4a5766d7303d1ff0a7e9c65e4abea53ef73c92bcd4fa971e5dc68034484fe",
+  "fingerprint": "ca8447c8b62fadf1521b09a32495f93416ff3a906976e3ed443e89492d5c0bb0",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -18300,6 +18300,7 @@
                 "type": "string"
               },
               "school": {
+                "nullable": true,
                 "type": "object",
                 "required": [
                   "id",
@@ -26458,6 +26459,27 @@
       }
     },
     {
+      "key": "GET /api/v1/schools/locations",
+      "operationId": "SchoolsController_locations",
+      "tags": [
+        "Schools"
+      ],
+      "roles": [
+        "PUBLIC"
+      ],
+      "public": true,
+      "parameters": [],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
       "key": "GET /api/v1/schools/search",
       "operationId": "SchoolsController_search",
       "tags": [
@@ -26476,11 +26498,21 @@
             "items": {
               "type": "object",
               "required": [
+                "code",
+                "district",
                 "id",
                 "location",
-                "name"
+                "name",
+                "sector"
               ],
               "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "district": {
+                  "nullable": true,
+                  "type": "string"
+                },
                 "id": {
                   "type": "string",
                   "format": "uuid"
@@ -26489,6 +26521,10 @@
                   "type": "string"
                 },
                 "name": {
+                  "type": "string"
+                },
+                "sector": {
+                  "nullable": true,
                   "type": "string"
                 }
               }
@@ -36383,11 +36419,12 @@
         "homeLocation",
         "lastName",
         "password",
-        "schoolLocation",
-        "schoolName",
         "username"
       ],
       "properties": {
+        "country": {
+          "type": "string"
+        },
         "email": {
           "type": "string",
           "format": "email"
@@ -36420,6 +36457,10 @@
         },
         "password": {
           "type": "string"
+        },
+        "schoolCode": {
+          "type": "string",
+          "pattern": "^\\d{6}$"
         },
         "schoolLocation": {
           "type": "string",

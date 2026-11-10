@@ -153,10 +153,14 @@ export class AccessService {
     return [];
   }
 
-  /** `User` filter: STUDENT accounts of these schools (none → matches nobody). */
+  /**
+   * `User` filter: APPROVED student accounts of these schools (none → matches nobody).
+   * Approval is the Administrator's check of the student's school (P1-11, owner decision
+   * 2026-11-10): an unapproved student is never shown to a teacher.
+   */
   schoolStudentsFilter(schoolIds: readonly string[]): Prisma.UserWhereInput {
     if (schoolIds.length === 0) return { id: { in: [] } };
-    return { role: 'STUDENT', schoolId: { in: [...schoolIds] } };
+    return { role: 'STUDENT', isApproved: true, schoolId: { in: [...schoolIds] } };
   }
 
   /** 404 unless the caller's programme scope includes this programme (HC-A: others are not revealed). */
