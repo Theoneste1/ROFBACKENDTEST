@@ -386,48 +386,51 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignmentsCreated         Assignment[]             @relation("AssignmentCreator")
-  assignmentsApproved        Assignment[]             @relation("AssignmentApprover")
+  assignmentsCreated         Assignment[]              @relation("AssignmentCreator")
+  assignmentsApproved        Assignment[]              @relation("AssignmentApprover")
   assignmentEvents           AssignmentEvent[]
-  courseEnrollments          CourseEnrollment[]       @relation("CourseEnrollments")
-  resourcesUploaded          CourseResource[]         @relation("ResourceUploader")
+  courseEnrollments          CourseEnrollment[]        @relation("CourseEnrollments")
+  resourcesUploaded          CourseResource[]          @relation("ResourceUploader")
   resourceViews              ResourceView[]
-  comments                   Comment[]                @relation("CommentAuthor")
-  commentReactions           CommentReaction[]        @relation("CommentReactions")
-  studyGroupsCreated         StudyGroup[]             @relation("StudyGroupCreator")
-  studyGroupMemberships      StudyGroupMember[]       @relation("StudyGroupMemberships")
-  emailJobsCreated           EmailJob[]               @relation("EmailJobCreator")
-  submissions                Submission[]             @relation("StudentSubmissions")
+  comments                   Comment[]                 @relation("CommentAuthor")
+  commentReactions           CommentReaction[]         @relation("CommentReactions")
+  studyGroupsCreated         StudyGroup[]              @relation("StudyGroupCreator")
+  studyGroupMemberships      StudyGroupMember[]        @relation("StudyGroupMemberships")
+  emailJobsCreated           EmailJob[]                @relation("EmailJobCreator")
+  submissions                Submission[]              @relation("StudentSubmissions")
   submissionRevisions        SubmissionRevision[]
-  assignmentViews            AssignmentView[]         @relation("AssignmentViewer")
-  auditLogs                  AuditLog[]               @relation("AuditActor")
-  mentorAssignments          MentorAssignment[]       @relation("MentorAssignmentMentor")
-  mentorAssignmentsMade      MentorAssignment[]       @relation("MentorAssignmentAssigner")
-  programmeMemberships       ProgrammeMembership[]    @relation("ProgrammeMember")
-  programmeMembershipsAdded  ProgrammeMembership[]    @relation("ProgrammeMemberAddedBy")
-  programmeMembershipsEnded  ProgrammeMembership[]    @relation("ProgrammeMemberEndedBy")
-  permissionOverrides        UserPermissionOverride[] @relation("OverrideTarget")
-  permissionOverridesCreated UserPermissionOverride[] @relation("OverrideCreatedBy")
-  permissionOverridesRevoked UserPermissionOverride[] @relation("OverrideRevokedBy")
+  assignmentViews            AssignmentView[]          @relation("AssignmentViewer")
+  auditLogs                  AuditLog[]                @relation("AuditActor")
+  mentorAssignments          MentorAssignment[]        @relation("MentorAssignmentMentor")
+  mentorAssignmentsMade      MentorAssignment[]        @relation("MentorAssignmentAssigner")
+  programmeMemberships       ProgrammeMembership[]     @relation("ProgrammeMember")
+  programmeMembershipsAdded  ProgrammeMembership[]     @relation("ProgrammeMemberAddedBy")
+  programmeMembershipsEnded  ProgrammeMembership[]     @relation("ProgrammeMemberEndedBy")
+  permissionOverrides        UserPermissionOverride[]  @relation("OverrideTarget")
+  permissionOverridesCreated UserPermissionOverride[]  @relation("OverrideCreatedBy")
+  permissionOverridesRevoked UserPermissionOverride[]  @relation("OverrideRevokedBy")
+  teacherSchools             TeacherSchoolAssignment[] @relation("TeacherSchool")
+  teacherSchoolsAssigned     TeacherSchoolAssignment[] @relation("TeacherSchoolAssignedBy")
+  teacherSchoolsEnded        TeacherSchoolAssignment[] @relation("TeacherSchoolEndedBy")
   notifications              Notification[]
   notificationPrefs          NotificationPreference[]
   notificationSettings       NotificationSetting[]
   refreshTokens              RefreshToken[]
   passwordResetTokens        PasswordResetToken[]
-  activationTokens           AccountActivationToken[] @relation("ActivationUser")
-  invitationsSent            AccountActivationToken[] @relation("ActivationInviter")
+  activationTokens           AccountActivationToken[]  @relation("ActivationUser")
+  invitationsSent            AccountActivationToken[]  @relation("ActivationInviter")
   filesUploaded              FileObject[]
   settingsUpdated            SystemSetting[]
   studentEnrollments         StudentEnrollment[]
-  reviews                    MentorReview[]           @relation("ReviewMentor")
-  reviewsAssigned            MentorReview[]           @relation("ReviewAssigner")
-  reviewsDecided             MentorReview[]           @relation("ReviewDecider")
+  reviews                    MentorReview[]            @relation("ReviewMentor")
+  reviewsAssigned            MentorReview[]            @relation("ReviewAssigner")
+  reviewsDecided             MentorReview[]            @relation("ReviewDecider")
   reviewEvents               ReviewEvent[]
   distributionBatches        DistributionBatch[]
   resultReleases             ResultRelease[]
   threadsCreated             DiscussionThread[]
-  reportsFiled               ContentReport[]          @relation("ReportReporter")
-  reportsResolved            ContentReport[]          @relation("ReportResolver")
+  reportsFiled               ContentReport[]           @relation("ReportReporter")
+  reportsResolved            ContentReport[]           @relation("ReportResolver")
   moderationActions          ModerationAction[]
   activityLogs               ActivityLog[]
 
@@ -531,6 +534,7 @@ model School {
 
   students    User[]
   enrollments StudentEnrollment[]
+  teachers    TeacherSchoolAssignment[]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1558,4 +1562,27 @@ model ContactMessage {
   @@index([status, createdAt])
   @@index([email, createdAt])
   @@index([ipHash, createdAt])
+}
+
+/// A Teacher's school (P1-11): the teacher sees only students whose school is one of
+/// their ACTIVE assignments. Set by Administrators (users.manageTeachers); one row per
+/// (teacher, school), ended / re-activated by update (same pattern as ProgrammeMembership).
+model TeacherSchoolAssignment {
+  id           String    @id @default(uuid())
+  teacherId    String
+  teacher      User      @relation("TeacherSchool", fields: [teacherId], references: [id], onDelete: Cascade)
+  schoolId     String
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  isActive     Boolean   @default(true)
+  assignedById String?
+  assignedBy   User?     @relation("TeacherSchoolAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  endedAt      DateTime?
+  endedById    String?
+  endedBy      User?     @relation("TeacherSchoolEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+
+  @@unique([teacherId, schoolId])
+  @@index([schoolId, isActive])
+  @@index([assignedById])
+  @@index([endedById])
 }

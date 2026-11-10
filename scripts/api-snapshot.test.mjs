@@ -97,7 +97,8 @@ const P1_09_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-09.json';
 const P1_10_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10.json';
 const P1_10_H4_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-h4.json';
 const P1_10_MONITORING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-monitoring.json';
-const CURRENT_SNAPSHOT = P1_10_MONITORING_SNAPSHOT;
+const P1_11_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-11.json';
+const CURRENT_SNAPSHOT = P1_11_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -505,6 +506,28 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/reports/students: roles added: HEAD_COACH',
       'POST /api/v1/admin/programmes/{id}/coach-invitations: operation added',
       'schema InviteCoachDto: added',
+    ]);
+  });
+
+  test('P1-10 part 3 → P1-11 (teachers): school assignments, delegations and the Teacher school-scoped routes, with their DTOs; nothing else', () => {
+    for (const f of [P1_10_MONITORING_SNAPSHOT, P1_11_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_10_MONITORING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_11_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'DELETE /api/v1/admin/teacher-assignments/{id}: operation added',
+      'DELETE /api/v1/admin/teachers/{id}/delegations/{overrideId}: operation added',
+      'GET /api/v1/admin/teacher-assignments: operation added',
+      'GET /api/v1/admin/teachers/{id}/delegations: operation added',
+      'GET /api/v1/teacher/students/{id}/progress: operation added',
+      'GET /api/v1/teacher/students/{id}: operation added',
+      'GET /api/v1/teacher/students: operation added',
+      'POST /api/v1/admin/teacher-assignments: operation added',
+      'POST /api/v1/admin/teachers/{id}/delegations: operation added',
+      'POST /api/v1/teacher/students/{id}/submissions: operation added',
+      'schema CreateDelegationDto: added',
+      'schema CreateTeacherSchoolDto: added',
     ]);
   });
 

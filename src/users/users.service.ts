@@ -13,6 +13,7 @@ import type { CallerCtx } from '../common/auth-user.js';
 import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
+import { endTeacherSchools } from '../teachers/teacher-schools.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -208,6 +209,11 @@ export class UsersService {
       // (a former coach's assignments never become a Head Coach's, H4).
       if ((existing.role === 'MENTOR' || existing.role === 'HEAD_COACH') && role !== existing.role) {
         await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+
+      // A Teacher who changes role keeps no school scope (P1-11): their school assignments end here.
+      if (existing.role === 'TEACHER' && role !== 'TEACHER') {
+        await endTeacherSchools(tx, this.audit, id, actor, { from: existing.role, to: role });
       }
 
       // Heading a programme = HEAD_COACH role + active membership (P1-10). A change

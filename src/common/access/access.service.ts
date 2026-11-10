@@ -21,7 +21,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppError } from '../errors/app-error.js';
 import type { AuthUser } from '../auth-user.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { COURSE_WORK_ROLES, isAdmin, isCoach, isCourseWorker, isHeadCoach, isStudent, unsupportedRole } from './roles.js';
+import { COURSE_WORK_ROLES, isAdmin, isCoach, isCourseWorker, isHeadCoach, isStudent, isTeacher, unsupportedRole } from './roles.js';
 
 export interface Scope {
   courseId:   string;
@@ -138,6 +138,25 @@ export class AccessService {
     if (isAdmin(user)) return 'all';
     if (isHeadCoach(user)) return this.headedProgrammes(user);
     throw unsupportedRole();
+  }
+
+  // ─── Teacher school scope (P1-11) ───────────────────────────────────────────
+
+  /** The schools a Teacher is ACTIVELY assigned to, read fresh on every call; nobody else has any. */
+  async teacherSchools(user: AuthUser): Promise<string[]> {
+    if (isTeacher(user)) {
+      const rows = await this.prisma.teacherSchoolAssignment.findMany({
+        where: { teacherId: user.id, isActive: true }, select: { schoolId: true }, orderBy: { schoolId: 'asc' },
+      });
+      return rows.map((r) => r.schoolId);
+    }
+    return [];
+  }
+
+  /** `User` filter: STUDENT accounts of these schools (none → matches nobody). */
+  schoolStudentsFilter(schoolIds: readonly string[]): Prisma.UserWhereInput {
+    if (schoolIds.length === 0) return { id: { in: [] } };
+    return { role: 'STUDENT', schoolId: { in: [...schoolIds] } };
   }
 
   /** 404 unless the caller's programme scope includes this programme (HC-A: others are not revealed). */

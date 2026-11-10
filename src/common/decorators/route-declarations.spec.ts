@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 16 @Public + 27 @Roles + 126 @RequirePermission + 54 @Authenticated = 223, none undeclared', () => {
+  it('declarations add up: 16 @Public + 27 @Roles + 136 @RequirePermission + 54 @Authenticated = 233, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 16, '@Roles': 27, '@RequirePermission': 126, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 16, '@Roles': 27, '@RequirePermission': 136, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -198,6 +198,8 @@ describe('route declarations (P1-02 §5)', () => {
       // P1-10 part 3: dashboard, reports and activity converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
+      // P1-11: teacher school assignments, delegations and the teacher's school-scoped views (new routes)
+      'users.manageTeachers': 6, 'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
     });
   });
 
@@ -310,7 +312,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 12 added since: 214 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 22 added since: 224 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -434,8 +436,9 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
     // (no reports.export, users.manage*, audit, settings, e-mail, approvals).
     expect([...new Set(admitted)].sort()).toEqual([
       'activity.view', 'analytics.course', 'assignments.prepare', 'coaches.monitor', 'courses.view', 'mentorAssignments.manage',
-      'programmes.manageMembers', 'reports.view', 'reviews.grade', 'users.manageCoaches',
+      'programmes.manageMembers', 'reports.view', 'reviews.grade', 'students.viewScoped', 'users.manageCoaches',
     ]);
+    // students.viewScoped (programme scope) reaches only GET /teacher/students, whose service serves Teachers only (403 for a Head Coach).
   });
 });
 

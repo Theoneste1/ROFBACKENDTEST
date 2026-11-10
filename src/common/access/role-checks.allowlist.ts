@@ -37,6 +37,19 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/users/user-provisioning.service.ts', rule: 'U6', code: 'pendingApproval = isHeadCoach(caller)',
     reason: "inviteCoachToProgramme(): only callers holding users.manageCoaches reach this line (permission guard, then assertCanInviteCoach) — Administrators (global, approved at once) or a Head Coach (programme scope, pending). The value only makes a Head Coach's invitation MORE restricted; no other role can get here.",
   },
+  // ── Teacher school scope (P1-11) ───────────────────────────────────────────
+  {
+    file: 'src/common/access/access.service.ts', rule: 'U4', code: 'isTeacher(user)',
+    reason: 'teacherSchools(): only a TEACHER has school assignments; every other role (including an unsupported one) gets the empty list — the least-privileged result, which schoolStudentsFilter() turns into "matches nobody".',
+  },
+  {
+    file: 'src/submissions/submissions.service.ts', rule: 'U6', code: 'submittedByRole: actor.role',
+    reason: 'submit(): records WHO submitted on a student\'s behalf (P1-11) in the activity metadata — attribution data, not an access decision.',
+  },
+  {
+    file: 'src/teachers/teacher-students.service.ts', rule: 'U6', code: 'role: user.role',
+    reason: "submit(): returns the submitting teacher's own role in submittedBy (P1-11) — attribution data echoed to the caller, not an access decision.",
+  },
   // ── Administrator request audit (P1-08) ────────────────────────────────────
   {
     file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !isAdmin(user)',

@@ -10,6 +10,7 @@ const SCOPE_TEXT: Record<ScopeKind, string> = {
   division:       'division',
   courseDivision: 'course × division',
   programme:      'programme',
+  school:         'school',
   global:         'all',
 };
 
