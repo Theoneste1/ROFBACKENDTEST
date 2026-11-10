@@ -14,6 +14,7 @@ import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
+import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -101,6 +102,7 @@ export class UsersService {
       if (role === 'STUDENT') {
         await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel!, data.schoolId ?? null);
       }
+      await ensureDefaultMembership(tx, { id: created.id, role }, caller.id);   // students and coaches (P1-07, K6)
       return tx.user.findUniqueOrThrow({ where: { id: created.id }, select: SAFE_SELECT });
     });
 

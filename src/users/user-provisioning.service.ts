@@ -21,6 +21,7 @@ import { parseCsv } from '../common/csv-parse.js';
 import { divisionCodeForGrade } from '../common/grade-levels.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
+import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { InviteUserDto } from './dto/invite-user.dto.js';
 
@@ -314,6 +315,7 @@ export class UserProvisioningService {
     });
 
     if (isStudent) await this.academicYears.enrollInCurrentYear(tx, created.id, dto.gradeLevel!, schoolId);
+    await ensureDefaultMembership(tx, { id: created.id, role }, caller.id);   // invite and CSV import (P1-07, K6)
     const issued = await this.activation.issue(created.id, 'INVITATION', caller.id, tx);
     const user = await tx.user.findUniqueOrThrow({ where: { id: created.id }, select: INVITED_SELECT });
     return { user, issued };

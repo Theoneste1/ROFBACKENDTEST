@@ -18,6 +18,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppError } from '../errors/app-error.js';
 import type { AuthUser } from '../auth-user.js';
+import type { Prisma } from '../../generated/prisma/client.js';
 import { isAdmin, isCoach, isStudent, unsupportedRole } from './roles.js';
 
 export interface Scope {
@@ -106,6 +107,42 @@ export class AccessService {
       return { OR: scopes.map((s) => ({ courseId: s.courseId, divisionId: s.divisionId })) };
     }
     throw unsupportedRole();
+  }
+
+  // ─── Programme scope helpers (P1-07, plan §7.2; decision K8) ──────────────
+  // Read-only building blocks for Head Coach and Teacher scope (P1-10/P1-11).
+  // Not called by any route yet, and never by student or coach access above:
+  // student access stays division-based, coach access MentorAssignment-based.
+
+  /** The programmes (discipline ids) a user is an ACTIVE member of. */
+  async programmesOf(userId: string): Promise<string[]> {
+    const rows = await this.prisma.programmeMembership.findMany({
+      where:   { userId, isActive: true },
+      select:  { disciplineId: true },
+      orderBy: { disciplineId: 'asc' },
+    });
+    return rows.map((r) => r.disciplineId);
+  }
+
+  /** Whether the user is an ACTIVE member of this programme. */
+  async isProgrammeMember(userId: string, disciplineId: string): Promise<boolean> {
+    const found = await this.prisma.programmeMembership.findFirst({
+      where:  { userId, disciplineId, isActive: true },
+      select: { id: true },
+    });
+    return found !== null;
+  }
+
+  /** `User` filter: active members of any of these programmes (none → matches nobody). */
+  programmeMembersFilter(disciplineIds: readonly string[]): Prisma.UserWhereInput {
+    if (disciplineIds.length === 0) return { id: { in: [] } };
+    return { programmeMemberships: { some: { disciplineId: { in: [...disciplineIds] }, isActive: true } } };
+  }
+
+  /** `Course` filter: courses belonging to any of these programmes (none → matches nothing). */
+  programmeCoursesFilter(disciplineIds: readonly string[]): Prisma.CourseWhereInput {
+    if (disciplineIds.length === 0) return { id: { in: [] } };
+    return { disciplineId: { in: [...disciplineIds] } };
   }
 }
 

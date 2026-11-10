@@ -17,6 +17,7 @@ import { RegisterStudentDto } from './dto/register-student.dto.js';
 import { RegisterAdminDto } from './dto/register-admin.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RoleAssignmentPolicy } from './role-assignment.policy.js';
+import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import type { CallerCtx } from '../common/auth-user.js';
 
 export const BCRYPT_COST = 12;
@@ -99,6 +100,8 @@ export class AuthService {
 
       // Per-year enrolment record (fails the registration if no year is active).
       await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel, school.id);
+      // Mathematics programme membership (self-registration: no actor). P1-07, K6.
+      await ensureDefaultMembership(tx, { id: created.id, role: 'STUDENT' }, null);
 
       await this.audit.log({
         actorId:   created.id,

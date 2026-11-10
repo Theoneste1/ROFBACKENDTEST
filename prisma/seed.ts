@@ -121,6 +121,16 @@ async function seedEnrollments(academicYearId: string) {
   if (students.length) console.log(`✅ Enrolled ${students.length} student(s) in the current year`);
 }
 
+/** Every student and coach in the Mathematics programme (P1-07; idempotent, MANUAL like any new account). */
+async function seedMemberships(disciplineId: string) {
+  const members = await prisma.user.findMany({ where: { role: { in: ['STUDENT', 'MENTOR'] } }, select: { id: true } });
+  const { count } = await prisma.programmeMembership.createMany({
+    data: members.map((u) => ({ userId: u.id, disciplineId, source: 'MANUAL' as const })),
+    skipDuplicates: true,
+  });
+  console.log(`✅ Programme memberships: ${count} added`);
+}
+
 async function seedAdmin() {
   const existing = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
   if (existing) {
@@ -212,6 +222,7 @@ async function main() {
   await seedAdmin();
   if (process.env.SEED_DEMO === 'true') await seedDemo();
   await seedEnrollments(yearId);
+  await seedMemberships(disciplineId);
 }
 
 main()
