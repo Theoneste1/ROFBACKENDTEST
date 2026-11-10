@@ -38,6 +38,9 @@ const SELECT = {
   revokedBy: { select: { id: true, username: true } },
 } as const;
 
+/** Namespace of the per-user advisory lock taken while creating overrides (any fixed int, unique to this purpose). */
+const OVERRIDE_LOCK_NAMESPACE = 4209;
+
 const notAllowed = (reason: string, details: Record<string, unknown> = {}) =>
   new AppError(HttpStatus.BAD_REQUEST, 'OVERRIDE_NOT_ALLOWED', `This override is not allowed: ${reason}.`, { reason, ...details });
 
@@ -85,16 +88,21 @@ export class PermissionOverridesService {
       throw notAllowed('a DENY applies to the whole permission; omit courseId and divisionId');
     }
 
-    const duplicate = await this.prisma.userPermissionOverride.findFirst({
-      where: {
-        userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, revokedAt: null,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      },
-      select: { id: true },
-    });
-    if (duplicate) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_EXISTS', 'An identical active override already exists.', { id: duplicate.id });
-
     return this.prisma.$transaction(async (tx) => {
+      // Concurrency (multi-instance safe): creations for the same user are serialised by a
+      // PostgreSQL transaction-scoped advisory lock, released at commit/rollback. The duplicate
+      // check runs INSIDE the lock (after any concurrent creation has committed), so two
+      // concurrent requests can never both pass it. (A unique index cannot express "active":
+      // that depends on expiresAt > now, and an expired or revoked row must not block a new one.)
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${userId}))::text`;
+      const duplicate = await tx.userPermissionOverride.findFirst({
+        where: {
+          userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, revokedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { id: true },
+      });
+      if (duplicate) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_EXISTS', 'An identical active override already exists.', { id: duplicate.id });
       const created = await tx.userPermissionOverride.create({
         data: { userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, reason: dto.reason, expiresAt, createdById: actor.id },
         select: SELECT,
@@ -112,16 +120,22 @@ export class PermissionOverridesService {
   }
 
   async revoke(userId: string, overrideId: string, actor: CallerCtx) {
-    const row = await this.prisma.userPermissionOverride.findFirst({ where: { id: overrideId, userId }, select: { id: true, revokedAt: true, permission: true, effect: true } });
-    if (!row) throw new NotFoundException('Override not found.');
-    if (row.revokedAt) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_ALREADY_REVOKED', 'This override has already been revoked.');
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.userPermissionOverride.update({
-        where: { id: overrideId }, data: { revokedAt: new Date(), revokedById: actor.id }, select: SELECT,
+      // Atomic: only an UNREVOKED row is updated. A concurrent revoke waits on the row lock,
+      // re-checks the condition after the first commits, updates nothing and gets 409 — so
+      // exactly one request revokes and writes the audit row.
+      const { count } = await tx.userPermissionOverride.updateMany({
+        where: { id: overrideId, userId, revokedAt: null }, data: { revokedAt: new Date(), revokedById: actor.id },
       });
+      if (count === 0) {
+        const exists = await tx.userPermissionOverride.findFirst({ where: { id: overrideId, userId }, select: { id: true } });
+        if (!exists) throw new NotFoundException('Override not found.');
+        throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_ALREADY_REVOKED', 'This override has already been revoked.');
+      }
+      const updated = await tx.userPermissionOverride.findUniqueOrThrow({ where: { id: overrideId }, select: SELECT });
       await this.audit.log({
         actorId: actor.id, actorRole: actor.role, action: 'PERMISSION_OVERRIDE_REVOKE', entity: 'UserPermissionOverride', entityId: overrideId,
-        metadata: { targetUserId: userId, permission: row.permission, effect: row.effect, previous: { active: true }, next: { active: false } },
+        metadata: { targetUserId: userId, permission: updated.permission, effect: updated.effect, previous: { active: true }, next: { active: false } },
       }, tx);
       return { ...updated, active: false };
     });

@@ -1,9 +1,36 @@
 /**
  * P1-09 — individual permission overrides (plan §6.3, §6.4, §11.3).
  */
+import pg from 'pg';
 import { AuditService } from '../src/audit/audit.service.js';
 import { PermissionOverridesService } from '../src/permission-overrides/permission-overrides.service.js';
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
+
+/** True when the database serves another connection while a transaction is open (PostgreSQL yes; the single-connection `prisma dev` server no). */
+async function servesConcurrentConnections(): Promise<boolean> {
+  const url = process.env.TEST_DATABASE_URL!;
+  const holder = new pg.Client({ connectionString: url });
+  const other  = new pg.Client({ connectionString: url, query_timeout: 2000 });
+  await holder.connect();
+  await other.connect();
+  try {
+    await holder.query('BEGIN');
+    await holder.query('SELECT 1');
+    return await other.query('SELECT 1').then(() => true, () => false);
+  } finally {
+    await holder.query('ROLLBACK').catch(() => undefined);
+    await holder.end().catch(() => undefined);
+    await other.end().catch(() => undefined);
+  }
+}
+
+/** Status/code of a settled service call (AppError / Nest HttpException), or 'ok'. */
+const outcome = (r: PromiseSettledResult<unknown>) =>
+  r.status === 'fulfilled' ? 'ok' : `${(r.reason as any)?.getStatus?.() ?? 'error'} ${(r.reason as any)?.getResponse?.()?.code ?? (r.reason as any)?.code ?? ''}`.trim();
+
+/** Resolves 'pending' if `p` has not settled within `ms`. */
+const stillPending = (p: Promise<unknown>, ms = 400) =>
+  Promise.race([p.then(() => 'settled', () => 'settled'), new Promise((r) => setTimeout(() => r('pending'), ms))]);
 
 describe('Permission overrides (P1-09)', () => {
   let ctx: TestContext;
@@ -154,5 +181,125 @@ describe('Permission overrides (P1-09)', () => {
       expect((await http().delete(`${base(ctx.ids.studentJunior2)}/${ok.body.id}`).set(bearer(superAdmin))).status).toBe(500);
     } finally { spy2.mockRestore(); }
     expect((await p().userPermissionOverride.findUniqueOrThrow({ where: { id: ok.body.id } })).revokedAt).toBeNull();
+  });
+
+  // ---- Concurrency (review of P1-09) -------------------------------------------------
+
+  let seq = 0;
+  const freshStudent = async () => {
+    const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const n = ++seq;
+    return (await p().user.create({ data: { username: `ov.cc.${n}`, firstName: 'C', lastName: String(n), email: `ov.cc.${n}@test.local`, role: 'STUDENT', divisionId: ctx.ids.junior, gradeLevel: 'S3', passwordHash: hash, activatedAt: new Date() } })).id;
+  };
+  const superActor = async () => {
+    const u = await p().user.findUniqueOrThrow({ where: { username: 'ov.super' }, select: { id: true, role: true } });
+    return { id: u.id, role: u.role } as any;
+  };
+  const activeCount = (userId: string, permission: string) => p().userPermissionOverride.count({
+    where: { userId, permission, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+  });
+  const requireConcurrentDb = async (test: any) => {
+    if (!(await servesConcurrentConnections())) {
+      if (process.env.CI) throw new Error('CI database must serve concurrent connections for this test.');
+      test.skip('local single-connection database (prisma dev): runs in CI on PostgreSQL');
+    }
+  };
+
+  it('an expired or revoked override does not block a new identical one; an active one does (409)', async () => {
+    const svc = ctx.app.get(PermissionOverridesService);
+    const actor = await superActor();
+    const target = await freshStudent();
+    // Expired but never revoked (written directly: the API refuses a past expiry).
+    await p().userPermissionOverride.create({ data: { userId: target, permission: 'leaderboard.view', effect: 'DENY', reason: 'old', expiresAt: new Date(Date.now() - 60_000), createdById: actor.id } });
+    const first = await svc.create(target, deny('leaderboard.view') as any, actor);
+    await svc.revoke(target, first.id, actor);
+    const second = await svc.create(target, deny('leaderboard.view') as any, actor);
+    expect(second.id).not.toBe(first.id);
+    expect(outcome((await Promise.allSettled([svc.create(target, deny('leaderboard.view') as any, actor)]))[0])).toBe('409 OVERRIDE_EXISTS');
+    expect(await activeCount(target, 'leaderboard.view')).toBe(1);
+  });
+
+  it('concurrency: a create racing an uncommitted identical create waits for it and gets 409 — exactly one active override (deterministic)', async (test) => {
+    await requireConcurrentDb(test);
+    const svc = ctx.app.get(PermissionOverridesService);
+    const audit = ctx.app.get(AuditService);
+    const original = audit.log.bind(audit);
+    const actor = await superActor();
+    const target = await freshStudent();
+
+    let release!: () => void; const barrier = new Promise<void>((r) => { release = r; });
+    let signal!: () => void; const paused = new Promise<void>((r) => { signal = r; });
+    let held = false;
+    // Pause the FIRST create inside its transaction: its row is inserted but not committed.
+    const spy = vi.spyOn(audit, 'log').mockImplementation(async (entry: any, tx?: any) => {
+      if (!held && entry.action === 'PERMISSION_OVERRIDE_CREATE' && entry.metadata?.targetUserId === target) {
+        held = true; signal(); await barrier;
+      }
+      return original(entry, tx);
+    });
+    try {
+      const a = svc.create(target, deny('leaderboard.view') as any, actor);
+      a.catch(() => undefined);
+      await Promise.race([paused, a.then(() => { throw new Error('first create finished without pausing'); })]);
+      const b = svc.create(target, deny('leaderboard.view') as any, actor);
+      b.catch(() => undefined);
+      // The second create is blocked on the per-user lock, not racing past the duplicate check.
+      expect(await stillPending(b)).toBe('pending');
+      release();
+      const [ra, rb] = await Promise.allSettled([a, b]);
+      expect([outcome(ra), outcome(rb)]).toEqual(['ok', '409 OVERRIDE_EXISTS']);
+    } finally { release(); spy.mockRestore(); }
+    expect(await activeCount(target, 'leaderboard.view')).toBe(1);
+    expect(await p().auditLog.count({ where: { action: 'PERMISSION_OVERRIDE_CREATE', metadata: { path: ['targetUserId'], equals: target } } })).toBe(1);
+  });
+
+  it('concurrency: a revoke racing an uncommitted revoke of the same override gets 409 — exactly one revocation audit row (deterministic)', async (test) => {
+    await requireConcurrentDb(test);
+    const svc = ctx.app.get(PermissionOverridesService);
+    const audit = ctx.app.get(AuditService);
+    const original = audit.log.bind(audit);
+    const actor = await superActor();
+    const target = await freshStudent();
+    const created = await svc.create(target, deny('leaderboard.view') as any, actor);
+
+    let release!: () => void; const barrier = new Promise<void>((r) => { release = r; });
+    let signal!: () => void; const paused = new Promise<void>((r) => { signal = r; });
+    let held = false;
+    const spy = vi.spyOn(audit, 'log').mockImplementation(async (entry: any, tx?: any) => {
+      if (!held && entry.action === 'PERMISSION_OVERRIDE_REVOKE' && entry.entityId === created.id) {
+        held = true; signal(); await barrier;
+      }
+      return original(entry, tx);
+    });
+    try {
+      const a = svc.revoke(target, created.id, actor);
+      a.catch(() => undefined);
+      await Promise.race([paused, a.then(() => { throw new Error('first revoke finished without pausing'); })]);
+      const b = svc.revoke(target, created.id, actor);
+      b.catch(() => undefined);
+      expect(await stillPending(b)).toBe('pending');   // waits on the row lock
+      release();
+      const [ra, rb] = await Promise.allSettled([a, b]);
+      expect([outcome(ra), outcome(rb)]).toEqual(['ok', '409 OVERRIDE_ALREADY_REVOKED']);
+    } finally { release(); spy.mockRestore(); }
+    expect(await p().auditLog.count({ where: { action: 'PERMISSION_OVERRIDE_REVOKE', entityId: created.id } })).toBe(1);
+    expect((await p().userPermissionOverride.findUniqueOrThrow({ where: { id: created.id } })).revokedAt).not.toBeNull();
+  });
+
+  it('concurrency: parallel identical creates and parallel revokes — one success each, the rest 409', async (test) => {
+    await requireConcurrentDb(test);
+    const svc = ctx.app.get(PermissionOverridesService);
+    const actor = await superActor();
+    const target = await freshStudent();
+    const N = 6;
+    const creates = await Promise.allSettled(Array.from({ length: N }, () => svc.create(target, deny('leaderboard.view') as any, actor)));
+    expect(creates.map(outcome).sort()).toEqual([...Array(N - 1).fill('409 OVERRIDE_EXISTS'), 'ok'].sort());
+    expect(await activeCount(target, 'leaderboard.view')).toBe(1);
+    const id = (creates.find((r) => r.status === 'fulfilled') as PromiseFulfilledResult<any>).value.id;
+    const revokes = await Promise.allSettled(Array.from({ length: N }, () => svc.revoke(target, id, actor)));
+    expect(revokes.map(outcome).filter((o) => o === 'ok')).toHaveLength(1);
+    expect(revokes.map(outcome).filter((o) => o === '409 OVERRIDE_ALREADY_REVOKED')).toHaveLength(N - 1);
+    expect(await p().auditLog.count({ where: { action: 'PERMISSION_OVERRIDE_REVOKE', entityId: id } })).toBe(1);
+    expect(await p().auditLog.count({ where: { action: 'PERMISSION_OVERRIDE_CREATE', metadata: { path: ['targetUserId'], equals: target } } })).toBe(1);
   });
 });
