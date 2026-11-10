@@ -200,6 +200,14 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
     ],
   });
 
+  // Programme membership as after the P1-07 backfill (M3): every student and coach in
+  // Mathematics, source BACKFILL. The whole suite therefore runs with memberships
+  // present, proving they change no existing access.
+  await prisma.programmeMembership.createMany({
+    data: [studentJunior, studentJunior2, studentSenior, mentorJunior, mentorJunior2, mentorSenior]
+      .map((u) => ({ userId: u.id, disciplineId: maths.id, source: 'BACKFILL' as const })),
+  });
+
   return {
     year: year.id, junior: junior.id, senior: senior.id, algebra: algebra.id, geometry: geometry.id,
     admin: admin.id, mentorJunior: mentorJunior.id, mentorJunior2: mentorJunior2.id,

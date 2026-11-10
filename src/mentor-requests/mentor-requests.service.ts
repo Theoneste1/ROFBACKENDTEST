@@ -16,6 +16,7 @@ import { ActivationService, type IssuedActivation } from '../auth/activation.ser
 import { SettingsService } from '../settings/settings.service.js';
 import { Events } from '../notifications/events.js';
 import { CreateMentorRequestDto, ListMentorRequestsDto } from './dto/create-mentor-request.dto.js';
+import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 
 const PUBLIC_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
@@ -127,6 +128,7 @@ export class MentorRequestsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
+      await ensureDefaultMembership(tx, mentor, caller.id);   // approved coach (P1-07, K6)
       if (verify) issued = await this.activation.issue(mentor.id, 'EMAIL_VERIFICATION', caller.id, tx);
 
       await this.audit.log({

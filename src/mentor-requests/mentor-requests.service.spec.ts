@@ -26,6 +26,8 @@ function makeMocks() {
       update:     vi.fn().mockResolvedValue({ id: 'mr1' }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
+    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));

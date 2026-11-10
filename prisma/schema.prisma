@@ -403,6 +403,9 @@ model User {
   auditLogs             AuditLog[]               @relation("AuditActor")
   mentorAssignments     MentorAssignment[]       @relation("MentorAssignmentMentor")
   mentorAssignmentsMade MentorAssignment[]       @relation("MentorAssignmentAssigner")
+  programmeMemberships      ProgrammeMembership[] @relation("ProgrammeMember")
+  programmeMembershipsAdded ProgrammeMembership[] @relation("ProgrammeMemberAddedBy")
+  programmeMembershipsEnded ProgrammeMembership[] @relation("ProgrammeMemberEndedBy")
   notifications         Notification[]
   notificationPrefs     NotificationPreference[]
   notificationSettings  NotificationSetting[]
@@ -563,7 +566,8 @@ model Discipline {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  courses Course[]
+  courses     Course[]
+  memberships ProgrammeMembership[]
 }
 
 /// An academic year (e.g. "2026-2027"). Assignments belong to a year;
@@ -1400,6 +1404,39 @@ model SystemSetting {
   updatedAt   DateTime @updatedAt
 
   @@index([updatedById])
+}
+
+/// How a programme membership was created.
+enum MembershipSource {
+  /// Phase 1 backfill of existing students and coaches (migration M3).
+  BACKFILL
+  /// Added afterwards (account creation while one programme exists, or by an administrator).
+  MANUAL
+}
+
+/// A user's membership of a programme (programme = Discipline; plan §7.1).
+/// Read only by Head Coach and Teacher scope (P1-10/P1-11): student access
+/// stays division-based and coach access MentorAssignment-based. One row per
+/// user × programme, ended and re-activated by update (like MentorAssignment).
+model ProgrammeMembership {
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation("ProgrammeMember", fields: [userId], references: [id], onDelete: Cascade)
+  disciplineId String
+  discipline   Discipline       @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  source       MembershipSource
+  isActive     Boolean          @default(true)
+  addedById    String?
+  addedBy      User?            @relation("ProgrammeMemberAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime         @default(now())
+  endedAt      DateTime?
+  endedById    String?
+  endedBy      User?            @relation("ProgrammeMemberEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, disciplineId])
+  @@index([disciplineId, isActive])
+  @@index([addedById])
+  @@index([endedById])
 }
 
 /// Append-only: a database trigger rejects UPDATE and DELETE (the only

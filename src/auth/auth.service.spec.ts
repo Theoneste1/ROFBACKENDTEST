@@ -23,6 +23,8 @@ function makeMocks() {
       updateMany: vi.fn(),
     },
     school: { upsert: vi.fn() },
+    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
   };
   // Interactive transactions run the callback against the same mock; batches resolve each operation.
