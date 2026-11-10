@@ -9016,10 +9016,18 @@
               "type": "object"
             },
             "type": "array"
+          },
+          "programmes": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
-          "courseDivisions"
+          "courseDivisions",
+          "programmes"
         ],
         "type": "object"
       }
@@ -25594,5 +25602,434 @@
       "revokedBy"
     ],
     "type": "object"
+  },
+  "DELETE /api/v1/admin/programmes/:id/members/:userId 200": {
+    "properties": {
+      "division": {
+        "nullable": true,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "firstName": {
+        "type": "string"
+      },
+      "gradeLevel": {
+        "nullable": true,
+        "type": "string"
+      },
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "isActive": {
+        "type": "boolean"
+      },
+      "lastName": {
+        "type": "string"
+      },
+      "membership": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "endedAt",
+          "isActive",
+          "source"
+        ],
+        "type": "object"
+      },
+      "role": {
+        "type": "string"
+      },
+      "school": {
+        "nullable": true
+      },
+      "username": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "division",
+      "firstName",
+      "gradeLevel",
+      "id",
+      "isActive",
+      "lastName",
+      "membership",
+      "role",
+      "school",
+      "username"
+    ],
+    "type": "object"
+  },
+  "GET /api/v1/admin/programmes/:id/heads 200": {
+    "items": {
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "since": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "email",
+        "firstName",
+        "id",
+        "isActive",
+        "lastName",
+        "since",
+        "username"
+      ],
+      "type": "object"
+    },
+    "type": "array"
+  },
+  "GET /api/v1/admin/programmes/:id/members 200": {
+    "properties": {
+      "data": {
+        "items": {
+          "properties": {
+            "division": {
+              "nullable": true,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "firstName": {
+              "type": "string"
+            },
+            "gradeLevel": {
+              "nullable": true,
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "isActive": {
+              "type": "boolean"
+            },
+            "lastName": {
+              "type": "string"
+            },
+            "membership": {
+              "properties": {
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "endedAt": {
+                  "nullable": true
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "source": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "createdAt",
+                "endedAt",
+                "isActive",
+                "source"
+              ],
+              "type": "object"
+            },
+            "role": {
+              "type": "string"
+            },
+            "school": {
+              "nullable": true,
+              "properties": {
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "username": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "division",
+            "firstName",
+            "gradeLevel",
+            "id",
+            "isActive",
+            "lastName",
+            "membership",
+            "role",
+            "school",
+            "username"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "meta": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "page",
+          "total",
+          "totalPages"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "data",
+      "meta"
+    ],
+    "type": "object"
+  },
+  "GET /api/v1/programmes 200": {
+    "items": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "description": {
+          "nullable": true
+        },
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "sortOrder": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "code",
+        "description",
+        "id",
+        "isActive",
+        "name",
+        "sortOrder"
+      ],
+      "type": "object"
+    },
+    "type": "array"
+  },
+  "POST /api/v1/admin/programmes/:id/members 201": {
+    "properties": {
+      "division": {
+        "nullable": true,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "firstName": {
+        "type": "string"
+      },
+      "gradeLevel": {
+        "nullable": true,
+        "type": "string"
+      },
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "isActive": {
+        "type": "boolean"
+      },
+      "lastName": {
+        "type": "string"
+      },
+      "membership": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endedAt": {
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "endedAt",
+          "isActive",
+          "source"
+        ],
+        "type": "object"
+      },
+      "role": {
+        "type": "string"
+      },
+      "school": {
+        "nullable": true
+      },
+      "username": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "division",
+      "firstName",
+      "gradeLevel",
+      "id",
+      "isActive",
+      "lastName",
+      "membership",
+      "role",
+      "school",
+      "username"
+    ],
+    "type": "object"
+  },
+  "PUT /api/v1/admin/programmes/:id/heads 200": {
+    "items": {
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "firstName": {
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "lastName": {
+          "type": "string"
+        },
+        "since": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "email",
+        "firstName",
+        "id",
+        "isActive",
+        "lastName",
+        "since",
+        "username"
+      ],
+      "type": "object"
+    },
+    "type": "array"
   }
 }

@@ -132,10 +132,10 @@ describe('permission equivalence — routes (A4)', () => {
   let handlers: RouteHandler[];
   beforeAll(async () => { handlers = await discoverHandlers(); }, 60_000);
 
-  it('real routes: every @RequirePermission handler decides as before for STUDENT, MENTOR and ADMIN (P1-06: 93 converted, no exception; routes added later are checked against their listed decisions)', () => {
+  it('real routes: every @RequirePermission handler decides as before for STUDENT, MENTOR and ADMIN (P1-06: 93 converted, P1-10: 3 more; no exception; routes added later are checked against their listed decisions)', () => {
     const mapped = handlers.filter((h) => isMapped(h.cls, h.handler) && !(keyOf(h) in ADDED_SINCE_BASELINE))
       .map((h) => ({ key: keyOf(h), cls: h.cls, handler: h.handler }));
-    expect(mapped).toHaveLength(93);
+    expect(mapped).toHaveLength(96);
     for (const h of handlers.filter((x) => keyOf(x) in ADDED_SINCE_BASELINE)) {
       for (const c of CALLERS) expect([keyOf(h), c, permissionDecision(h.cls, h.handler, c)]).toEqual([keyOf(h), c, ADDED_SINCE_BASELINE[keyOf(h)][c]]);
     }

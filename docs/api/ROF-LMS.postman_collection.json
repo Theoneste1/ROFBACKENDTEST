@@ -1049,7 +1049,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -1074,7 +1074,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN",
+            "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mentorId\": \"00000000-0000-4000-8000-000000000000\",\n  \"courseId\": \"00000000-0000-4000-8000-000000000000\",\n  \"divisionId\": \"00000000-0000-4000-8000-000000000000\"\n}",
@@ -1110,7 +1110,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -1269,6 +1269,198 @@
               "query": []
             },
             "description": "**Access:** permission `permissions.view` (ADMIN, SUPER_ADMIN)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin · Programmes",
+      "item": [
+        {
+          "name": "GET /admin/programmes/{id}/heads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/heads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "heads"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `programmes.manageHeads` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/programmes/{id}/heads",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/heads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "heads"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `programmes.manageHeads` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/programmes/{id}/members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/members",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "members"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "STUDENT",
+                  "disabled": true,
+                  "description": "STUDENT or MENTOR (Coach). Default: both."
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Membership state. Default: active memberships only."
+                }
+              ]
+            },
+            "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/programmes/{id}/members",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/members",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "members"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/programmes/{id}/members/{userId}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/members/:userId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "members",
+                ":userId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -6473,6 +6665,30 @@
               "query": []
             },
             "description": "**Access:** Any signed-in user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Programmes",
+      "item": [
+        {
+          "name": "GET /programmes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/programmes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "programmes"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `courses.view` (STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]

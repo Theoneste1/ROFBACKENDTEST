@@ -33,7 +33,8 @@ export interface PermissionSummary {
    * effective catalogue permissions, in catalogue order. Unknown role: [].
    */
   permissions: readonly Permission[];
-  scopes:      { courseDivisions: Array<{ courseId: string; divisionId: string }> };
+  /** courseDivisions: a coach's assignments. programmes: the programmes a Head Coach heads (P1-10); [] for everyone else. */
+  scopes:      { courseDivisions: Array<{ courseId: string; divisionId: string }>; programmes: string[] };
   /** The caller's active individual overrides (P1-09). */
   overrides:   Array<{ permission: string; effect: 'GRANT' | 'DENY'; courseId: string | null; divisionId: string | null; expiresAt: Date | null }>;
 }
@@ -100,7 +101,7 @@ export class PermissionService {
       role,
       roleLabel: label,
       permissions: this.listFor(user).filter((p) => !denied.has(p)),
-      scopes: { courseDivisions: await this.courseDivisions(user) },
+      scopes: { courseDivisions: await this.courseDivisions(user), programmes: await this.access.headedProgrammes(user) },
       overrides: activeOverrides(user, new Date()).map((o) => ({
         permission: o.permission, effect: o.effect, courseId: o.courseId, divisionId: o.divisionId, expiresAt: o.expiresAt,
       })),

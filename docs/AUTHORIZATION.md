@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 207 endpoints — 16 public, 97 administrator-only.
+Totals: 213 endpoints — 16 public, 102 administrator-only.
 
 ## Academic years
 
@@ -107,6 +107,16 @@ Totals: 207 endpoints — 16 public, 97 administrator-only.
 | POST | `/api/v1/admin/users/{id}/permission-overrides` |  |  |  |  |
 | DELETE | `/api/v1/admin/users/{id}/permission-overrides/{overrideId}` |  |  |  |  |
 | GET | `/api/v1/admin/users/{id}/permissions` |  |  |  | ✓ |
+
+## Admin · Programmes
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/programmes/{id}/heads` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/programmes/{id}/heads` |  |  |  | ✓ |
+| GET | `/api/v1/admin/programmes/{id}/members` |  |  |  | ✓ |
+| POST | `/api/v1/admin/programmes/{id}/members` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/programmes/{id}/members/{userId}` |  |  |  | ✓ |
 
 ## Admin · Reports
 
@@ -320,6 +330,12 @@ Totals: 207 endpoints — 16 public, 97 administrator-only.
 | POST | `/api/v1/notifications/read` |  | ✓ | ✓ | ✓ |
 | POST | `/api/v1/notifications/read-all` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/notifications/unread-count` |  | ✓ | ✓ | ✓ |
+
+## Programmes
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/programmes` |  | ✓ | ✓ | ✓ |
 
 ## Public site
 

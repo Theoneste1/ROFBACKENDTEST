@@ -257,6 +257,7 @@
     "method": "GET",
     "path": "/api/v1/admin/mentor-assignments",
     "roles": [
+      "HEAD_COACH",
       "ADMIN",
       "SUPER_ADMIN"
     ],
@@ -266,6 +267,7 @@
     "method": "POST",
     "path": "/api/v1/admin/mentor-assignments",
     "roles": [
+      "HEAD_COACH",
       "ADMIN",
       "SUPER_ADMIN"
     ],
@@ -275,6 +277,7 @@
     "method": "DELETE",
     "path": "/api/v1/admin/mentor-assignments/{id}",
     "roles": [
+      "HEAD_COACH",
       "ADMIN",
       "SUPER_ADMIN"
     ],
@@ -321,6 +324,54 @@
       "SUPER_ADMIN"
     ],
     "tag": "Admin · Permissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/programmes/{id}/heads",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/programmes/{id}/heads",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/programmes/{id}/members",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/programmes/{id}/members",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/programmes/{id}/members/{userId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
   },
   {
     "method": "GET",
@@ -1599,6 +1650,19 @@
       "ADMIN"
     ],
     "tag": "Notifications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/programmes",
+    "roles": [
+      "STUDENT",
+      "TEACHER",
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Programmes"
   },
   {
     "method": "POST",

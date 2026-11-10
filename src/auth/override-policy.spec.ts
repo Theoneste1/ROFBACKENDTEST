@@ -35,7 +35,7 @@ describe('approved override list (plan §6.3)', () => {
 });
 
 describe('override evaluation in PermissionService.effective (plan §6.4)', () => {
-  const service = new PermissionService({ mentorScopes: async () => [] } as never);
+  const service = new PermissionService({ mentorScopes: async () => [], headedProgrammes: async () => [] } as never);
   const NOW = new Date('2026-11-10T12:00:00Z');
   const o = (permission: string, effect: 'GRANT' | 'DENY', expiresAt: Date | null = null, extra: Partial<ActiveOverride> = {}): ActiveOverride =>
     ({ id: 'o', permission, effect, courseId: null, divisionId: null, expiresAt, ...extra });

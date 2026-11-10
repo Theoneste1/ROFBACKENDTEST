@@ -94,7 +94,8 @@ const P1_05_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-05.json';
 const P1_06_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-06.json';
 const P1_08_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-08.json';
 const P1_09_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-09.json';
-const CURRENT_SNAPSHOT = P1_09_SNAPSHOT;
+const P1_10_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10.json';
+const CURRENT_SNAPSHOT = P1_10_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -448,6 +449,28 @@ describe('approved API contract history', () => {
       'GET /api/v1/me/permissions › response 200 application/json.overrides: new field',
       'POST /api/v1/admin/users/{id}/permission-overrides: operation added',
       'schema CreateOverrideDto: added',
+    ]);
+  });
+
+  test('P1-09 → P1-10 (Head Coach programme scope): the programme, heads and members operations, their DTOs, /me/permissions.scopes.programmes and HEAD_COACH on coach assignments; nothing breaking or for review', () => {
+    for (const f of [P1_09_SNAPSHOT, P1_10_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_09_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_10_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'DELETE /api/v1/admin/mentor-assignments/{id}: roles added: HEAD_COACH',
+      'DELETE /api/v1/admin/programmes/{id}/members/{userId}: operation added',
+      'GET /api/v1/admin/mentor-assignments: roles added: HEAD_COACH',
+      'GET /api/v1/admin/programmes/{id}/heads: operation added',
+      'GET /api/v1/admin/programmes/{id}/members: operation added',
+      'GET /api/v1/me/permissions › response 200 application/json.scopes.programmes: new field',
+      'GET /api/v1/programmes: operation added',
+      'POST /api/v1/admin/mentor-assignments: roles added: HEAD_COACH',
+      'POST /api/v1/admin/programmes/{id}/members: operation added',
+      'PUT /api/v1/admin/programmes/{id}/heads: operation added',
+      'schema AddProgrammeMemberDto: added',
+      'schema SetProgrammeHeadsDto: added',
     ]);
   });
 

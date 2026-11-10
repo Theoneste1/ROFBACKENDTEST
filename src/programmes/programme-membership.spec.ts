@@ -53,10 +53,28 @@ describe('membership never feeds student or coach access (plan §7.3, §11.5 cod
   it.each([
     'courses/courses.service.ts', 'courses/course-resources.service.ts', 'assignments/assignments.service.ts',
     'submissions/submissions.service.ts', 'discussions/discussions.service.ts', 'leaderboard/leaderboard.service.ts',
-    'analytics/analytics.service.ts', 'mentor-assignments/mentor-assignments.service.ts', 'auth/strategies/jwt.strategy.ts',
+    'analytics/analytics.service.ts', 'auth/strategies/jwt.strategy.ts',
     'auth/guards/roles.guard.ts', 'auth/guards/permission.guard.ts', 'auth/permission.service.ts',
   ])('%s does not read programme membership', (file) => {
     expect(read(file)).not.toMatch(/programmeMembership|ProgrammeMembership|programmesOf|isProgrammeMember|programmeMembersFilter|programmeCoursesFilter/);
+  });
+
+  it('mentor-assignments reads membership only in its two Head Coach helpers (P1-10) — never for a coach\'s own scope or the admin path', () => {
+    const text = read('mentor-assignments/mentor-assignments.service.ts');
+    const MEMBERSHIP = /programmeMembership|ProgrammeMembership|programmesOf|isProgrammeMember|programmeMembersFilter|programmeCoursesFilter|headedProgrammes/;
+    const body = (name: string) => {
+      const start = text.indexOf(`private async ${name}(`);
+      expect([name, start > 0]).toEqual([name, true]);
+      const next = text.indexOf('\n  /**', start);
+      return text.slice(start, next > start ? next : undefined);
+    };
+    const helpers = [body('callerFilter'), body('assertHeadCoachMayAssign')];
+    for (const h of helpers) expect(h).toMatch(MEMBERSHIP);
+    let rest = text;
+    for (const h of helpers) rest = rest.replace(h, '');
+    expect(rest).not.toMatch(MEMBERSHIP);
+    // The coach's own teaching scopes stay MentorAssignment-only.
+    expect(text.slice(text.indexOf('async findMine('))).not.toMatch(MEMBERSHIP);
   });
 
   it('AccessService reads membership only in its programme scope helpers, after all student/coach access methods', () => {

@@ -112,10 +112,13 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
     ]) expect(await status(make().set(bearer(headCoach)))).toEqual([403, 'PERMISSION_REQUIRED']);
   });
 
-  it('HEAD_COACH (Option A): programme-scoped areas stay closed until programme membership exists (P1-07/P1-10)', async () => {
+  it('HEAD_COACH (Option A) heading no programme: coach assignments show nothing and change nothing (P1-10); other programme-scoped areas stay closed', async () => {
+    // P1-10: mentorAssignments.manage is programme-scoped — with no programme headed, nothing is visible or assignable.
+    expect((await http().get('/api/v1/admin/mentor-assignments').set(bearer(headCoach)).expect(200)).body.data).toEqual([]);
+    expect((await http().post('/api/v1/admin/mentor-assignments').set(bearer(headCoach))
+      .send({ mentorId: ctx.ids.mentorJunior2, courseId: ctx.ids.geometry, divisionId: ctx.ids.junior })).status).toBe(404);
+    expect(await ctx.prisma.mentorAssignment.count({ where: { courseId: ctx.ids.geometry } })).toBe(0);
     for (const make of [
-      () => http().get('/api/v1/admin/mentor-assignments'),
-      () => http().post('/api/v1/admin/mentor-assignments').send({ mentorId: ctx.ids.mentorJunior, courseId: ctx.ids.algebra, divisionId: ctx.ids.junior }),
       () => http().get('/api/v1/admin/dashboard'),
       () => http().get('/api/v1/admin/reports/students'),
       () => http().get('/api/v1/admin/activity'),

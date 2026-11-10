@@ -12,6 +12,8 @@ export interface AddedRouteDecisions { anonymous: Decision; STUDENT: Decision; M
 
 const SUPER_ADMIN_ONLY: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const ADMINISTRATORS:   AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
+/** courses.view: every known role that views courses; an unknown role holds nothing. */
+const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 
 export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>> = {
   // P1-09 — individual permission overrides (permissions.manageOverrides: Super Admin only)
@@ -21,4 +23,12 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // P1-09 — reading effective permissions and the catalogue (permissions.view: ADMIN and SUPER_ADMIN)
   'GET /api/v1/admin/users/:id/permissions  PermissionOverridesController.effective':                       ADMINISTRATORS,
   'GET /api/v1/admin/permissions/catalogue  PermissionOverridesController.catalogue':                       ADMINISTRATORS,
+  // P1-10 — programmes (read-only list: courses.view), heads (programmes.manageHeads) and members
+  // (programmes.manageMembers; Head Coaches too, in programmes they head — HEAD_COACH is not a baseline caller)
+  'GET /api/v1/programmes  ProgrammesController.list':                                                       COURSE_VIEWERS,
+  'GET /api/v1/admin/programmes/:id/heads  AdminProgrammesController.heads':                                  ADMINISTRATORS,
+  'PUT /api/v1/admin/programmes/:id/heads  AdminProgrammesController.setHeads':                               ADMINISTRATORS,
+  'GET /api/v1/admin/programmes/:id/members  AdminProgrammesController.members':                              ADMINISTRATORS,
+  'POST /api/v1/admin/programmes/:id/members  AdminProgrammesController.addMember':                           ADMINISTRATORS,
+  'DELETE /api/v1/admin/programmes/:id/members/:userId  AdminProgrammesController.endMember':                ADMINISTRATORS,
 };
