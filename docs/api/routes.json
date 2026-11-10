@@ -282,6 +282,48 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/permissions/catalogue",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/permission-overrides",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/permission-overrides",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/users/{id}/permission-overrides/{overrideId}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/permissions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/reports/assignments",
     "roles": [
       "ADMIN",

@@ -28,6 +28,7 @@ import {
   ADMINISTRATIVE_ROLES, ADMIN_PROHIBITED, APP_ROLES, ROLE_GRANTS, ROLE_PERMISSIONS, type Permission,
 } from './permissions.js';
 import { discoverHandlers, keyOf, type RouteHandler } from '../common/decorators/route-discovery.testing.js';
+import { ADDED_SINCE_BASELINE } from '../common/decorators/route-access-additions.testing.js';
 import { AppError } from '../common/errors/app-error.js';
 
 const CALLERS: readonly EquivalenceCaller[] = ['STUDENT', 'MENTOR', 'ADMIN'];
@@ -131,10 +132,13 @@ describe('permission equivalence — routes (A4)', () => {
   let handlers: RouteHandler[];
   beforeAll(async () => { handlers = await discoverHandlers(); }, 60_000);
 
-  it('real routes: every @RequirePermission handler decides as before for STUDENT, MENTOR and ADMIN (P1-06: 93 converted, no exception)', () => {
-    const mapped = handlers.filter((h) => isMapped(h.cls, h.handler))
+  it('real routes: every @RequirePermission handler decides as before for STUDENT, MENTOR and ADMIN (P1-06: 93 converted, no exception; routes added later are checked against their listed decisions)', () => {
+    const mapped = handlers.filter((h) => isMapped(h.cls, h.handler) && !(keyOf(h) in ADDED_SINCE_BASELINE))
       .map((h) => ({ key: keyOf(h), cls: h.cls, handler: h.handler }));
     expect(mapped).toHaveLength(93);
+    for (const h of handlers.filter((x) => keyOf(x) in ADDED_SINCE_BASELINE)) {
+      for (const c of CALLERS) expect([keyOf(h), c, permissionDecision(h.cls, h.handler, c)]).toEqual([keyOf(h), c, ADDED_SINCE_BASELINE[keyOf(h)][c]]);
+    }
     expect(PERMISSION_EQUIVALENCE_EXCEPTIONS).toEqual([]);
     expect(equivalenceReport(mapped, BASELINE, PERMISSION_EQUIVALENCE_EXCEPTIONS)).toEqual({ differences: [], stale: [] });
   });

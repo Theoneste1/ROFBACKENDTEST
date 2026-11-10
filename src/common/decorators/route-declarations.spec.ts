@@ -35,6 +35,7 @@ import { ROLES_KEY, Roles } from '../../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY, Public } from './public.decorator.js';
 import { Authenticated, IS_AUTHENTICATED_KEY } from './authenticated.decorator.js';
 import { SRC, discoverHandlers, keyOf, type RouteHandler } from './route-discovery.testing.js';
+import { ADDED_SINCE_BASELINE } from './route-access-additions.testing.js';
 
 // ── Discovery: route-discovery.testing.ts (shared with permission-equivalence.spec.ts)
 
@@ -167,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 16 @Public + 48 @Roles + 93 @RequirePermission + 54 @Authenticated = 211, none undeclared', () => {
+  it('declarations add up: 16 @Public + 48 @Roles + 98 @RequirePermission + 54 @Authenticated = 216, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 16, '@Roles': 48, '@RequirePermission': 93, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 16, '@Roles': 48, '@RequirePermission': 98, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -189,6 +190,8 @@ describe('route declarations (P1-02 §5)', () => {
       'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 6, 'mentorRequests.decide': 3,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
       'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
+      // P1-09: individual overrides (new routes, listed in route-access-additions.testing.ts)
+      'permissions.manageOverrides': 3, 'permissions.view': 2,
     });
   });
 
@@ -301,18 +304,21 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 on develop @ 16b095a: 202 registered + 9 in the unregistered StudyGroupsController)', () => {
-    expect(handlers).toHaveLength(211);
+  it('finds every route handler (211 in the baseline + 5 added since: 207 registered + 9 in the unregistered StudyGroupsController)', () => {
+    expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
 
   it('every handler × caller decision equals the baseline captured before any declaration was added', () => {
     const baseline = JSON.parse(readFileSync(BASELINE_FILE, 'utf8')) as typeof table;
-    expect(Object.keys(table).sort()).toEqual(Object.keys(baseline).sort());
+    // Every handler is either in the (untouched) baseline or listed as added since, never both.
+    expect(Object.keys(baseline).filter((k) => k in ADDED_SINCE_BASELINE)).toEqual([]);
+    expect(Object.keys(table).sort()).toEqual([...Object.keys(baseline), ...Object.keys(ADDED_SINCE_BASELINE)].sort());
     const differences: string[] = [];
     for (const [key, row] of Object.entries(table)) {
+      const expected = baseline[key] ?? ADDED_SINCE_BASELINE[key];
       for (const caller of CALLERS) {
-        if (row[caller] !== baseline[key][caller]) differences.push(`${key} — ${caller}: ${baseline[key][caller]} → ${row[caller]}`);
+        if (row[caller] !== expected[caller]) differences.push(`${key} — ${caller}: ${expected[caller]} → ${row[caller]}`);
       }
     }
     expect(differences).toEqual([]);
@@ -337,7 +343,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
         const expected = isPublic(h) || !restricted(h) ? 'allow' : '403';
         expect([keyOf(h), table[keyOf(h)].UNKNOWN_ROLE]).toEqual([keyOf(h), expected]);
       }
-      expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141);
+      expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141 + Object.keys(ADDED_SINCE_BASELINE).length);
       expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(54);
     });
 
