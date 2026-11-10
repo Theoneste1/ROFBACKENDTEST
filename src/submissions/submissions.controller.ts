@@ -28,6 +28,7 @@ import { ApproveResultDto, RejectResultDto } from './dto/review-result.dto.js';
 import { ReopenResultDto } from './dto/correct-result.dto.js';
 import { ListSubmissionsDto } from './dto/list-submissions.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
 import {
@@ -76,7 +77,7 @@ export class SubmissionsController {
    * a mentor's request the student may resubmit until the request's due date.
    */
   @Post()
-  @Roles('STUDENT')
+  @RequirePermission('submissions.submit')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('SUBMISSION')))
   submit(
@@ -92,7 +93,7 @@ export class SubmissionsController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   @Get()
-  @Roles('ADMIN')
+  @RequirePermission('submissions.distribute')
   findAll(@Query() query: ListSubmissionsDto) {
     return this.submissionsService.findAll(query);
   }
@@ -180,13 +181,13 @@ export class SubmissionsController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   @Patch(':id/assign')
-  @Roles('ADMIN')
+  @RequirePermission('submissions.distribute')
   assign(@Param('id', ParseUUIDPipe) id: string, @Body() body: AssignSubmissionDto, @CurrentUser() user: AuthUser) {
     return this.submissionsService.assign(id, body, user);
   }
 
   @Patch(':id/reassign')
-  @Roles('ADMIN')
+  @RequirePermission('submissions.distribute')
   reassign(@Param('id', ParseUUIDPipe) id: string, @Body() body: AssignSubmissionDto, @CurrentUser() user: AuthUser) {
     return this.submissionsService.reassign(id, body, user);
   }
@@ -196,14 +197,14 @@ export class SubmissionsController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   @Patch(':id/start-review')
-  @Roles('MENTOR')
+  @RequirePermission('reviews.grade')
   startReview(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.startReview(id, user);
   }
 
   /** Score + formal feedback; files in "feedbackFiles" (up to 10) or "feedbackFile". */
   @Patch(':id/mark')
-  @Roles('MENTOR')
+  @RequirePermission('reviews.grade')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(FEEDBACK_FIELDS, uploadOptions('FEEDBACK')))
   mark(
@@ -217,7 +218,7 @@ export class SubmissionsController {
 
   /** Remove a feedback file from your current review (before returning it). */
   @Delete(':id/review/attachments/:attachmentId')
-  @Roles('MENTOR')
+  @RequirePermission('reviews.grade')
   removeFeedbackFile(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
@@ -232,7 +233,7 @@ export class SubmissionsController {
    * Only where the assignment permits resubmissions.
    */
   @Patch(':id/request-resubmission')
-  @Roles('MENTOR')
+  @RequirePermission('reviews.grade')
   requestResubmission(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: RequestResubmissionDto,
@@ -243,14 +244,14 @@ export class SubmissionsController {
 
   /** Withdraw an open request; the review resumes on the current work. */
   @Patch(':id/withdraw-resubmission-request')
-  @Roles('MENTOR')
+  @RequirePermission('reviews.grade')
   withdrawResubmissionRequest(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.withdrawResubmissionRequest(id, user);
   }
 
   /** Return the completed review to the administrators. */
   @Patch(':id/submit-to-admin')
-  @Roles('MENTOR')
+  @RequirePermission('reviews.grade')
   submitToAdmin(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.submitToAdmin(id, user);
   }
@@ -260,28 +261,28 @@ export class SubmissionsController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   @Patch(':id/approve')
-  @Roles('ADMIN')
+  @RequirePermission('results.approve')
   approve(@Param('id', ParseUUIDPipe) id: string, @Body() body: ApproveResultDto, @CurrentUser() user: AuthUser) {
     return this.submissionsService.approve(id, body, user);
   }
 
   /** Send the review back to the mentor with a reason. */
   @Patch(':id/reject')
-  @Roles('ADMIN')
+  @RequirePermission('results.approve')
   reject(@Param('id', ParseUUIDPipe) id: string, @Body() body: RejectResultDto, @CurrentUser() user: AuthUser) {
     return this.submissionsService.reject(id, body, user);
   }
 
   /** Publish one approved result to the student. */
   @Patch(':id/publish')
-  @Roles('ADMIN')
+  @RequirePermission('results.publish')
   publish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.publish(id, user);
   }
 
   /** Correct a published result by returning it to the mentor (replaces the old score-correction endpoint). */
   @Patch(':id/reopen')
-  @Roles('ADMIN')
+  @RequirePermission('results.approve')
   reopen(@Param('id', ParseUUIDPipe) id: string, @Body() body: ReopenResultDto, @CurrentUser() user: AuthUser) {
     return this.submissionsService.reopen(id, body, user);
   }
@@ -289,13 +290,13 @@ export class SubmissionsController {
 
 @ApiTags('Submissions')
 @Controller('assignments/:assignmentId')
-@Roles('ADMIN')
 export class AssignmentResultsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
   /** Spread all unassigned submissions across the mentors of this course × division. */
   @Post('distribute')
   @HttpCode(200)
+  @RequirePermission('submissions.distribute')
   distribute(
     @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
     @Body() body: DistributeSubmissionsDto,
@@ -306,6 +307,7 @@ export class AssignmentResultsController {
 
   /** Distribution runs for this assignment (who got what, when). */
   @Get('distribution-batches')
+  @RequirePermission('submissions.distribute')
   batches(@Param('assignmentId', ParseUUIDPipe) assignmentId: string) {
     return this.submissionsService.listDistributionBatches(assignmentId);
   }
@@ -313,6 +315,7 @@ export class AssignmentResultsController {
   /** Publish every approved result of the assignment as one release. */
   @Post('results/publish')
   @HttpCode(200)
+  @RequirePermission('results.publish')
   publishResults(
     @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
     @Body() body: PublishResultsDto,
@@ -323,6 +326,7 @@ export class AssignmentResultsController {
 
   /** Result releases for this assignment. */
   @Get('result-releases')
+  @RequirePermission('results.publish')
   releases(@Param('assignmentId', ParseUUIDPipe) assignmentId: string) {
     return this.submissionsService.listResultReleases(assignmentId);
   }
@@ -330,12 +334,12 @@ export class AssignmentResultsController {
 
 @ApiTags('Me')
 @Controller('me/submissions')
-@Roles('STUDENT')
 export class MySubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
   /** Own submissions; scores and feedback appear once results are published. */
   @Get()
+  @RequirePermission('submissions.viewOwn')
   findMine(@CurrentUser() user: AuthUser, @Query() query: ListSubmissionsDto) {
     return this.submissionsService.getMySubmissions(user, query);
   }
@@ -343,12 +347,12 @@ export class MySubmissionsController {
 
 @ApiTags('Mentor')
 @Controller('mentor/reviews')
-@Roles('MENTOR')
 export class MentorReviewsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
   /** Submissions assigned to me (open reviews by default; filter with ?status=). */
   @Get()
+  @RequirePermission('reviews.grade')
   queue(@CurrentUser() user: AuthUser, @Query() query: ListSubmissionsDto) {
     return this.submissionsService.getReviewQueue(user, query);
   }

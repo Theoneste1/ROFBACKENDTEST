@@ -3,8 +3,11 @@
  * documentation generator (scripts/generate-api-docs.mjs).
  *
  * Each operation is annotated with who may call it (`x-roles`, and a line in
- * its description), read from the same @Roles / @Public metadata the guards
- * enforce, so the documentation cannot drift from the real authorization.
+ * its description), read from the same @Roles / @RequirePermission / @Public
+ * metadata the guards enforce, so the documentation cannot drift from the real
+ * authorization. For a permission route, `x-roles` lists the roles holding the
+ * permission in the catalogue (administrators never for grading, RS1) and
+ * `x-permission` names it.
  */
 import type { INestApplication } from '@nestjs/common';
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants.js';
@@ -12,6 +15,8 @@ import { ModulesContainer, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 
 import { ROLES_KEY } from './auth/decorators/roles.decorator.js';
+import { REQUIRED_PERMISSION_KEY } from './auth/decorators/require-permission.decorator.js';
+import { ADMINISTRATIVE_ROLES, ADMIN_PROHIBITED, APP_ROLES, ROLE_GRANTS, type Permission } from './auth/permissions.js';
 import { IS_PUBLIC_KEY } from './common/decorators/public.decorator.js';
 
 export interface RouteAccess {
@@ -20,6 +25,14 @@ export interface RouteAccess {
   public:      boolean;
   /** Roles allowed; empty = any signed-in user. */
   roles:       string[];
+  /** The permission required (@RequirePermission), if any. */
+  permission?: string;
+}
+
+/** Roles holding a permission (catalogue order); never ADMIN / SUPER_ADMIN for grading or authoring (RS1). */
+export function rolesHolding(permission: Permission): string[] {
+  return APP_ROLES.filter((r) => permission in ROLE_GRANTS[r]
+    && !(ADMINISTRATIVE_ROLES.includes(r) && ADMIN_PROHIBITED.includes(permission)));
 }
 
 export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
@@ -46,8 +59,11 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       if (!op || typeof op !== 'object' || !('operationId' in op)) continue;
       const a = access.get(op.operationId as string);
       if (!a) continue;
-      const who = a.public ? 'Public (no token)' : a.roles.length ? a.roles.join(', ') : 'Any signed-in user';
+      const who = a.public ? 'Public (no token)'
+        : a.permission ? `permission \`${a.permission}\` (${a.roles.join(', ')})`
+        : a.roles.length ? a.roles.join(', ') : 'Any signed-in user';
       op['x-roles'] = a.public ? ['PUBLIC'] : a.roles.length ? a.roles : ['STUDENT', 'MENTOR', 'ADMIN'];
+      if (a.permission) op['x-permission'] = a.permission;
       op.description = `**Access:** ${who}${op.description ? `\n\n${op.description as string}` : ''}`;
       if (a.public) op.security = [];
     }
@@ -69,10 +85,12 @@ export function routeAccess(app: INestApplication): RouteAccess[] {
         if (name === 'constructor' || typeof handler !== 'function') continue;
         if (Reflect.getMetadata(METHOD_METADATA, handler) === undefined) continue;
         const targets = [handler as () => unknown, ctrl];
+        const permission = reflector.getAllAndOverride<Permission | undefined>(REQUIRED_PERMISSION_KEY, targets);
         out.push({
           operationId: `${ctrl.name}_${name}`,
           public:      !!reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets),
-          roles:       reflector.getAllAndOverride<string[]>(ROLES_KEY, targets) ?? [],
+          roles:       permission ? rolesHolding(permission) : reflector.getAllAndOverride<string[]>(ROLES_KEY, targets) ?? [],
+          ...(permission && { permission }),
         });
       }
     }

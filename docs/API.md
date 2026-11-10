@@ -67,7 +67,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/academic-years`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Plan a new academic year (status PLANNED).
 
@@ -85,7 +85,7 @@ Returns `201` JSON with:
 
 ### GET `/api/v1/admin/academic-years/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -95,7 +95,7 @@ Returns `200` JSON.
 
 ### PATCH `/api/v1/admin/academic-years/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -115,7 +115,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/academic-years/{id}/activate`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Start the year: closes the current one (archiving its assignments) and
 rolls every active student over — promoted one grade when requested.
@@ -137,7 +137,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/academic-years/{id}/enrollments`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -153,7 +153,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/admin/enrollments/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Correct a grade or withdraw a student (current year only).
 
@@ -211,7 +211,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/audit-logs`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Newest first; filter by category, action, actor, record and date range.
 
@@ -221,7 +221,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/audit-logs/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -233,7 +233,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/audit-logs/actions`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Every action with its category and how many times it was recorded (for filters).
 
@@ -243,7 +243,7 @@ Returns `200` JSON, an array of objects with:
 
 ### GET `/api/v1/admin/audit-logs/export.csv`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 The filtered trail as CSV (up to 50 000 rows). The export itself is audited.
 
@@ -283,7 +283,7 @@ Returns `200` with no body.
 
 ### PATCH `/api/v1/admin/courses/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Edit title, description or display order. The four courses cannot be created or deleted.
 
@@ -306,7 +306,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/admin/courses/{id}/archive`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Retire a course: read-only, hidden from students, kept for history.
 
@@ -320,7 +320,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/admin/courses/{id}/publish`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -332,7 +332,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/admin/courses/{id}/unpublish`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Hides the course and all of its content from students.
 
@@ -366,7 +366,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/email/jobs`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Jobs with progress counters (no message bodies).
 
@@ -376,7 +376,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/email/jobs/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -388,7 +388,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/email/jobs/{id}/deliveries`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Per-recipient delivery status (filter with ?status=FAILED).
 
@@ -402,7 +402,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/email/jobs/{id}/retry`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Re-queue FAILED deliveries. SENT deliveries are never re-sent.
 
@@ -416,7 +416,7 @@ Returns `201` JSON with:
 
 ### POST `/api/v1/admin/email/send`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Queue a bulk e-mail. Returns the job immediately; sending happens in the
 background. Re-using an idempotencyKey returns the original job
@@ -441,7 +441,7 @@ Returns `201` JSON with:
 
 ### GET `/api/v1/admin/email/users`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Paginated, filterable user list with email addresses.
 
@@ -808,7 +808,7 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 ### GET `/api/v1/admin/settings`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 All settings by category (registration, assignments, notification rules,
 platform, support) with current value, default, type,
@@ -821,7 +821,7 @@ Returns `200` JSON, an array of objects with:
 
 ### PATCH `/api/v1/admin/settings`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Change one or more settings: `{ "submissions.resubmissionRequestDays": 14 }`. Every change is audited.
 
@@ -833,7 +833,7 @@ Returns `200` JSON, an array of objects with:
 
 ### GET `/api/v1/admin/users`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 List users with filters (role, division, grade, school, status, search).
 
@@ -854,7 +854,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/users`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Create a student, mentor or admin directly. Students require a gradeLevel.
 
@@ -878,7 +878,7 @@ Returns `201` JSON with:
 
 ### GET `/api/v1/admin/users/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -890,7 +890,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/admin/users/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -916,7 +916,7 @@ Returns `200` JSON with:
 
 ### DELETE `/api/v1/admin/users/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Only accounts without academic history can be deleted; suspend the others.
 
@@ -930,7 +930,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/users/{id}/resend-invitation`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Send a new activation link to an invited account that has not activated yet.
 
@@ -944,7 +944,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/users/{id}/send-password-reset`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 E-mail the user a password-reset link.
 
@@ -958,7 +958,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/admin/users/{id}/status`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Suspend/reactivate (`isActive`) or approve (`isApproved`) an account.
 
@@ -979,7 +979,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/users/import`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Bulk-invite from a CSV file (field "file", UTF-8, max 1 MB / 1000 rows).
 Header: firstName,lastName,email[,role,gradeLevel,schoolName,schoolLocation,homeLocation,username].
@@ -995,7 +995,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/users/invite`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Invite a person: the account is created without a password and an
 activation link (valid 7 days) is e-mailed. Students need a gradeLevel.
@@ -1023,7 +1023,7 @@ Returns `201` JSON with:
 
 ### GET `/api/v1/analytics/courses/{courseId}`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN
 
 Course analytics for one division: enrollment funnel, per-assignment
 submission rates and score distribution, review turnaround, resource
@@ -1060,7 +1060,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/assignments`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Body (multipart/form-data):
 
@@ -1098,7 +1098,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/assignments/{id}`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Edit a DRAFT or REJECTED assignment; uploaded files are added to the brief.
 
@@ -1126,7 +1126,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/assignments/{id}/archive`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Read-only from now on; results stay visible.
 
@@ -1140,7 +1140,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/assignments/{id}/attachments`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Add brief files (DRAFT/REJECTED only).
 
@@ -1154,7 +1154,7 @@ Returns `201` JSON with:
 
 ### DELETE `/api/v1/assignments/{id}/attachments/{attachmentId}`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1181,7 +1181,7 @@ Returns `200`: The file, streamed with its stored content type and a Content-Dis
 
 ### PATCH `/api/v1/assignments/{id}/close`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Stop accepting submissions now. Reviews and results carry on.
 
@@ -1228,7 +1228,7 @@ Returns `200` JSON, an array of objects with:
 
 ### PATCH `/api/v1/assignments/{id}/publish`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1240,7 +1240,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/assignments/{id}/recall`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Withdraw from review back to draft.
 
@@ -1254,7 +1254,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/assignments/{id}/reject`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1272,7 +1272,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/assignments/{id}/reopen`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Accept submissions again; a new deadline is required if the old one has passed.
 
@@ -1293,7 +1293,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/assignments/{id}/submit`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Send to the administrators for official publication.
 
@@ -1307,7 +1307,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/assignments/{id}/unpublish`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Only possible while the assignment has no submissions.
 
@@ -1434,7 +1434,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/auth/register/admin`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Body (JSON):
 
@@ -1537,7 +1537,7 @@ Returns `200` JSON, an array of objects with:
 
 ### POST `/api/v1/courses/{courseId}/resources`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1576,7 +1576,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 Update metadata; uploaded files are added as attachments.
 
@@ -1604,7 +1604,7 @@ Returns `200` JSON with:
 
 ### DELETE `/api/v1/courses/{courseId}/resources/{resourceId}`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1617,7 +1617,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/archive`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 Hide from students but keep (reversible with /restore).
 
@@ -1632,7 +1632,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/courses/{courseId}/resources/{resourceId}/attachments`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 Add files to a resource.
 
@@ -1647,7 +1647,7 @@ Returns `201` JSON with:
 
 ### DELETE `/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1690,7 +1690,7 @@ Returns `200`: The file, streamed with its stored content type and a Content-Dis
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/publish`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1703,7 +1703,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/restore`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1716,7 +1716,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/courses/{courseId}/resources/{resourceId}/unpublish`
 
-**Access:** MENTOR, ADMIN
+**Access:** MENTOR, ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1769,7 +1769,7 @@ Returns `200` JSON, an array of objects with:
 
 ### GET `/api/v1/admin/comments/hidden`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Returns `200` JSON with:
 
@@ -1777,7 +1777,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/moderation/actions`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Every moderation decision, newest first.
 
@@ -1794,7 +1794,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/moderation/reports`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1808,7 +1808,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/admin/moderation/reports/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 The reported item, its other reports and the moderation already taken.
 
@@ -1822,7 +1822,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/admin/moderation/reports/{id}/resolve`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Act on a report: HIDE, DELETE, LOCK (thread) or NONE (dismiss).
 
@@ -1915,7 +1915,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/comments/{id}/hide`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1984,7 +1984,7 @@ Returns `201` JSON with:
 
 ### PATCH `/api/v1/comments/{id}/restore`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2091,7 +2091,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/threads/{id}/{op}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 lock | unlock | hide | restore | archive | pin | unpin
 
@@ -2166,7 +2166,7 @@ Returns `201` JSON with:
 
 ### GET `/api/v1/admin/divisions`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Admin view with student and mentor-assignment counts.
 
@@ -2176,7 +2176,7 @@ Returns `200` JSON, an array of objects with:
 
 ### PATCH `/api/v1/admin/divisions/{id}`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2420,7 +2420,7 @@ Returns `200` JSON, an array of objects with:
 
 ### GET `/api/v1/mentor/reviews`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Submissions assigned to me (open reviews by default; filter with ?status=).
 
@@ -2441,7 +2441,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/mentor-requests`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2471,7 +2471,7 @@ Returns `201` JSON with:
 
 ### PATCH `/api/v1/mentor-requests/{id}/approve`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2483,7 +2483,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/mentor-requests/{id}/reject`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2679,7 +2679,7 @@ Returns `200` JSON, an array of objects with:
 
 ### POST `/api/v1/assignments/{assignmentId}/distribute`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Spread all unassigned submissions across the mentors of this course × division.
 
@@ -2700,7 +2700,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/assignments/{assignmentId}/distribution-batches`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Distribution runs for this assignment (who got what, when).
 
@@ -2714,7 +2714,7 @@ Returns `200` JSON, an array of objects with:
 
 ### GET `/api/v1/assignments/{assignmentId}/result-releases`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Result releases for this assignment.
 
@@ -2728,7 +2728,7 @@ Returns `200` JSON, an array of objects with:
 
 ### POST `/api/v1/assignments/{assignmentId}/results/publish`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Publish every approved result of the assignment as one release.
 
@@ -2742,7 +2742,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/submissions`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2787,7 +2787,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/approve`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2805,7 +2805,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/assign`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2888,7 +2888,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/mark`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Score + formal feedback; files in "feedbackFiles" (up to 10) or "feedbackFile".
 
@@ -2909,7 +2909,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/publish`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Publish one approved result to the student.
 
@@ -2923,7 +2923,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/reassign`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -2941,7 +2941,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/reject`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Send the review back to the mentor with a reason.
 
@@ -2961,7 +2961,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/reopen`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Correct a published result by returning it to the mentor (replaces the old score-correction endpoint).
 
@@ -2981,7 +2981,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/request-resubmission`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Ask the student for a new attempt, with a note and an optional due date
 (default: the assignment deadline or 7 days from now, whichever is later).
@@ -3004,7 +3004,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/submissions/{id}/result-history`
 
-**Access:** ADMIN
+**Access:** ADMIN, SUPER_ADMIN
 
 Every publication of this result: score, reviewer, who published it and when, withdrawals.
 
@@ -3018,7 +3018,7 @@ Returns `200` JSON with:
 
 ### DELETE `/api/v1/submissions/{id}/review/attachments/{attachmentId}`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Remove a feedback file from your current review (before returning it).
 
@@ -3060,7 +3060,7 @@ Returns `200`: The file, streamed with its stored content type and a Content-Dis
 
 ### PATCH `/api/v1/submissions/{id}/start-review`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -3072,7 +3072,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/submit-to-admin`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Return the completed review to the administrators.
 
@@ -3086,7 +3086,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/submissions/{id}/withdraw-resubmission-request`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
 Withdraw an open request; the review resumes on the current work.
 

@@ -106,7 +106,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"name name\",\n  \"startsOn\": \"startsOn\",\n  \"endsOn\": \"endsOn\"\n}",
@@ -142,7 +142,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -174,7 +174,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"name name\",\n  \"startsOn\": \"startsOn\",\n  \"endsOn\": \"endsOn\"\n}",
@@ -216,7 +216,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"promoteStudents\": true\n}",
@@ -278,7 +278,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -310,7 +310,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `enrollments.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"gradeLevel\": \"S1\",\n  \"status\": \"WITHDRAWN\"\n}",
@@ -434,7 +434,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -461,7 +461,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -482,7 +482,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -503,7 +503,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `audit.view` (ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -613,7 +613,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"title\",\n  \"description\": \"description description\",\n  \"sortOrder\": 0,\n  \"discussionsEnabled\": true\n}",
@@ -650,7 +650,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -678,7 +678,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -706,7 +706,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `courses.manage` (ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -788,7 +788,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -816,7 +816,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -845,7 +845,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -874,7 +874,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -900,7 +900,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"idempotencyKey\": \"idempotencyKey idempotencyKey\",\n  \"recipientMode\": \"EXPLICIT\",\n  \"subject\": \"subject\",\n  \"body\": \"body body\"\n}",
@@ -973,7 +973,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -2140,7 +2140,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2165,7 +2165,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2248,7 +2248,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2273,7 +2273,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\"\n}",
@@ -2309,7 +2309,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2341,7 +2341,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"role\": \"STUDENT\",\n  \"gradeLevel\": \"S1\",\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"homeLocation\": \"homeLocation\"\n}",
@@ -2377,7 +2377,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2405,7 +2405,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2433,7 +2433,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2466,7 +2466,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isActive\": true,\n  \"isApproved\": true\n}",
@@ -2503,7 +2503,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2529,7 +2529,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"email\": \"name@example.org\"\n}",
@@ -2570,7 +2570,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `analytics.course` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -2662,7 +2662,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** MENTOR",
+            "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -2774,7 +2774,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR",
+            "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -2851,7 +2851,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2878,7 +2878,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
           }
         },
         {
@@ -2911,7 +2911,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
           }
         },
         {
@@ -2984,7 +2984,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"note\": \"note\"\n}",
@@ -3081,7 +3081,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -3108,7 +3108,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
           }
         },
         {
@@ -3140,7 +3140,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"rejectionNote\": \"rejectionNote rejectionNote\"\n}",
@@ -3181,7 +3181,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"note\": \"note\",\n  \"deadline\": \"deadline\"\n}",
@@ -3217,7 +3217,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `assignments.prepare` (MENTOR, HEAD_COACH)"
           }
         },
         {
@@ -3244,7 +3244,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `assignments.publish` (ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -3561,7 +3561,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\"\n}",
@@ -3797,7 +3797,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN",
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -3913,7 +3913,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN",
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -3991,7 +3991,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4025,7 +4025,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4059,7 +4059,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4099,7 +4099,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4222,7 +4222,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4256,7 +4256,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4290,7 +4290,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN"
+            "description": "**Access:** permission `resources.manage` (MENTOR, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4343,7 +4343,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** STUDENT"
+            "description": "**Access:** permission `courses.complete` (STUDENT)"
           }
         },
         {
@@ -4388,7 +4388,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4434,7 +4434,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4474,7 +4474,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4502,7 +4502,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -4536,7 +4536,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"action\": \"HIDE\"\n}",
@@ -4738,7 +4738,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"reason\"\n}",
@@ -4888,7 +4888,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"reason\"\n}",
@@ -5121,7 +5121,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `discussions.moderate` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"reason\"\n}",
@@ -5264,7 +5264,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -5296,7 +5296,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"name\",\n  \"description\": \"description\",\n  \"isActive\": true\n}",
@@ -5686,7 +5686,7 @@
                 }
               ]
             },
-            "description": "**Access:** STUDENT"
+            "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
           }
         },
         {
@@ -5713,7 +5713,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** STUDENT"
+            "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
           }
         },
         {
@@ -5747,7 +5747,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** STUDENT"
+            "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
           }
         },
         {
@@ -5804,7 +5804,7 @@
                 }
               ]
             },
-            "description": "**Access:** STUDENT"
+            "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
           }
         },
         {
@@ -5886,7 +5886,7 @@
                 }
               ]
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
           }
         }
       ]
@@ -5917,7 +5917,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -5980,7 +5980,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -6007,7 +6007,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -6489,7 +6489,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"strategy\": \"BALANCED\",\n  \"mentorIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
@@ -6525,7 +6525,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -6552,7 +6552,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `results.publish` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -6585,7 +6585,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `results.publish` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -6650,7 +6650,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -6669,7 +6669,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** STUDENT",
+            "description": "**Access:** permission `submissions.submit` (STUDENT)",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -6747,7 +6747,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"coordinationNote\": \"coordinationNote\"\n}",
@@ -6788,7 +6788,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mentorId\": \"00000000-0000-4000-8000-000000000000\"\n}",
@@ -6972,7 +6972,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR",
+            "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)",
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -7014,7 +7014,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `results.publish` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -7046,7 +7046,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `submissions.distribute` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mentorId\": \"00000000-0000-4000-8000-000000000000\"\n}",
@@ -7087,7 +7087,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"rejectionReason\": \"rejectionReason rejectionReason\"\n}",
@@ -7128,7 +7128,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN",
+            "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reopenNote\": \"reopenNote reopenNote\"\n}",
@@ -7169,7 +7169,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR",
+            "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"note\": \"note note\"\n}",
@@ -7205,7 +7205,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN"
+            "description": "**Access:** permission `results.approve` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -7239,7 +7239,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
           }
         },
         {
@@ -7327,7 +7327,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
           }
         },
         {
@@ -7354,7 +7354,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
           }
         },
         {
@@ -7381,7 +7381,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** permission `reviews.grade` (MENTOR, HEAD_COACH)"
           }
         }
       ]

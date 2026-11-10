@@ -9,7 +9,7 @@ import {
   UpdateAcademicYearDto,
   UpdateEnrollmentDto,
 } from './dto/academic-year.dto.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
@@ -35,22 +35,24 @@ export class AcademicYearsController {
 
 @ApiTags('Admin · Academic years')
 @Controller('admin')
-@Roles('ADMIN')
 export class AdminAcademicYearsController {
   constructor(private readonly years: AcademicYearsService) {}
 
   /** Plan a new academic year (status PLANNED). */
   @Post('academic-years')
+  @RequirePermission('academicYears.manage')
   create(@Body() body: CreateAcademicYearDto, @CurrentUser() user: AuthUser) {
     return this.years.create(body, user);
   }
 
   @Get('academic-years/:id')
+  @RequirePermission('academicYears.manage')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.years.findOne(id);
   }
 
   @Patch('academic-years/:id')
+  @RequirePermission('academicYears.manage')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateAcademicYearDto, @CurrentUser() user: AuthUser) {
     return this.years.update(id, body, user);
   }
@@ -61,17 +63,20 @@ export class AdminAcademicYearsController {
    */
   @Post('academic-years/:id/activate')
   @HttpCode(200)
+  @RequirePermission('academicYears.manage')
   activate(@Param('id', ParseUUIDPipe) id: string, @Body() body: ActivateAcademicYearDto, @CurrentUser() user: AuthUser) {
     return this.years.activate(id, body, user);
   }
 
   @Get('academic-years/:id/enrollments')
+  @RequirePermission('academicYears.manage')
   enrollments(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListEnrollmentsDto) {
     return this.years.listEnrollments(id, query);
   }
 
   /** Correct a grade or withdraw a student (current year only). */
   @Patch('enrollments/:id')
+  @RequirePermission('enrollments.manage')
   updateEnrollment(@Param('id', ParseUUIDPipe) id: string, @Body() body: UpdateEnrollmentDto, @CurrentUser() user: AuthUser) {
     return this.years.updateEnrollment(id, body, user);
   }

@@ -28,7 +28,7 @@ import {
   ResolveReportDto,
   UpdateThreadDto,
 } from './dto/thread.dto.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
@@ -175,21 +175,21 @@ export class DiscussionsController {
   // ─── Moderation (ADMIN) ───────────────────────────────────────────────────
 
   @Get('admin/moderation/reports')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   listReports(@Query() query: ListReportsDto) {
     return this.discussions.listReports(query);
   }
 
   /** The reported item, its other reports and the moderation already taken. */
   @Get('admin/moderation/reports/:id')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   getReport(@Param('id', ParseUUIDPipe) id: string) {
     return this.discussions.getReport(id);
   }
 
   /** Act on a report: HIDE, DELETE, LOCK (thread) or NONE (dismiss). */
   @Post('admin/moderation/reports/:id/resolve')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   @HttpCode(200)
   resolveReport(@Param('id', ParseUUIDPipe) id: string, @Body() body: ResolveReportDto, @CurrentUser() user: AuthUser) {
     return this.discussions.resolveReport(id, body, user);
@@ -197,32 +197,32 @@ export class DiscussionsController {
 
   /** Every moderation decision, newest first. */
   @Get('admin/moderation/actions')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   listActions(@Query() query: ListModerationActionsDto) {
     return this.discussions.listModerationActions(query);
   }
 
   @Get('admin/comments/hidden')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   listHidden(@Query() query: ListCommentsDto) {
     return this.discussions.listHidden(query);
   }
 
   @Patch('comments/:id/hide')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   hide(@Param('id', ParseUUIDPipe) id: string, @Body() body: ModerationReasonDto, @CurrentUser() user: AuthUser) {
     return this.discussions.hideComment(id, user, body.reason);
   }
 
   @Patch('comments/:id/restore')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   restore(@Param('id', ParseUUIDPipe) id: string, @Body() body: ModerationReasonDto, @CurrentUser() user: AuthUser) {
     return this.discussions.restoreComment(id, user, body.reason);
   }
 
   /** lock | unlock | hide | restore | archive | pin | unpin */
   @Patch('threads/:id/:op')
-  @Roles('ADMIN')
+  @RequirePermission('discussions.moderate')
   moderateThread(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('op', new ParseEnumPipe(ThreadModerationOp)) op: ThreadModerationOp,

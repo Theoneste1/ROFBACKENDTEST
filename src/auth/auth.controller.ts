@@ -26,7 +26,7 @@ import {
   RefreshTokenDto,
   ResetPasswordDto,
 } from './dto/password.dto.js';
-import { Roles } from './decorators/roles.decorator.js';
+import { RequirePermission } from './decorators/require-permission.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -57,7 +57,7 @@ export class AuthController {
 
   // ─── Admin account creation (ADMIN only) ───────────────────────────────────
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @RequirePermission('users.manage')
   @Post('register/admin')
   registerAdmin(@Body() body: RegisterAdminDto, @CurrentUser() user: AuthUser) {
     return this.authService.registerAdmin(body, user);

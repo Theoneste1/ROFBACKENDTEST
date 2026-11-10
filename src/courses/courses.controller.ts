@@ -23,6 +23,7 @@ import { UpdateCourseDto } from './dto/update-course.dto.js';
 import { CreateResourceDto, ListResourcesDto } from './dto/create-resource.dto.js';
 import { UpdateResourceDto } from './dto/update-resource.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
 import { ATTACHMENT_FIELDS, filesFrom, type UploadedAttachmentFiles } from '../common/storage/attachments.js';
@@ -53,7 +54,7 @@ export class CoursesController {
 
   /** Student ticks the completion box. Idempotent. */
   @Post(':id/complete')
-  @Roles('STUDENT')
+  @RequirePermission('courses.complete')
   @HttpCode(200)
   completeCourse(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.coursesService.completeCourse(id, user);
@@ -68,7 +69,7 @@ export class CoursesController {
    * (up to 10) or "file". Mentors: only for a division they teach.
    */
   @Post(':courseId/resources')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('RESOURCE')))
   createResource(
@@ -132,7 +133,7 @@ export class CoursesController {
 
   /** Update metadata; uploaded files are added as attachments. */
   @Patch(':courseId/resources/:resourceId')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('RESOURCE')))
   updateResource(
@@ -147,7 +148,7 @@ export class CoursesController {
 
   /** Add files to a resource. */
   @Post(':courseId/resources/:resourceId/attachments')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('RESOURCE')))
   addResourceFiles(
@@ -160,7 +161,7 @@ export class CoursesController {
   }
 
   @Delete(':courseId/resources/:resourceId/attachments/:attachmentId')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   removeResourceFile(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -171,7 +172,7 @@ export class CoursesController {
   }
 
   @Patch(':courseId/resources/:resourceId/publish')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   publishResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -181,7 +182,7 @@ export class CoursesController {
   }
 
   @Patch(':courseId/resources/:resourceId/unpublish')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   unpublishResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -192,7 +193,7 @@ export class CoursesController {
 
   /** Hide from students but keep (reversible with /restore). */
   @Patch(':courseId/resources/:resourceId/archive')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   archiveResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -202,7 +203,7 @@ export class CoursesController {
   }
 
   @Patch(':courseId/resources/:resourceId/restore')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   restoreResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -212,7 +213,7 @@ export class CoursesController {
   }
 
   @Delete(':courseId/resources/:resourceId')
-  @Roles('MENTOR', 'ADMIN')
+  @RequirePermission('resources.manage')
   removeResource(
     @Param('courseId', ParseUUIDPipe) courseId: string,
     @Param('resourceId', ParseUUIDPipe) resourceId: string,
@@ -224,12 +225,12 @@ export class CoursesController {
 
 @ApiTags('Admin · Courses')
 @Controller('admin/courses')
-@Roles('ADMIN')
 export class AdminCoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   /** Edit title, description or display order. The four courses cannot be created or deleted. */
   @Patch(':id')
+  @RequirePermission('courses.manage')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateCourseDto,
@@ -239,18 +240,21 @@ export class AdminCoursesController {
   }
 
   @Patch(':id/publish')
+  @RequirePermission('courses.manage')
   publish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.coursesService.setPublished(id, true, user);
   }
 
   /** Hides the course and all of its content from students. */
   @Patch(':id/unpublish')
+  @RequirePermission('courses.manage')
   unpublish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.coursesService.setPublished(id, false, user);
   }
 
   /** Retire a course: read-only, hidden from students, kept for history. */
   @Patch(':id/archive')
+  @RequirePermission('courses.manage')
   archive(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.coursesService.archive(id, user);
   }

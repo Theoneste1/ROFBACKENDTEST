@@ -29,7 +29,7 @@ import { PermissionGuard } from '../../auth/guards/permission.guard.js';
 import { RolesGuard } from '../../auth/guards/roles.guard.js';
 import { REQUIRED_PERMISSION_KEY, RequirePermission } from '../../auth/decorators/require-permission.decorator.js';
 import { PermissionService } from '../../auth/permission.service.js';
-import { PERMISSIONS } from '../../auth/permissions.js';
+import { ADMIN_PROHIBITED, PERMISSIONS, ROLE_GRANTS, type AppRole, type Permission } from '../../auth/permissions.js';
 import { AppError } from '../errors/app-error.js';
 import { ROLES_KEY, Roles } from '../../auth/decorators/roles.decorator.js';
 import { IS_PUBLIC_KEY, Public } from './public.decorator.js';
@@ -167,20 +167,29 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 16 @Public + 141 @Roles + 54 @Authenticated = 211, none undeclared', () => {
+  it('declarations add up: 16 @Public + 48 @Roles + 93 @RequirePermission + 54 @Authenticated = 211, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 16, '@Roles': 141, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 16, '@Roles': 48, '@RequirePermission': 93, '@Authenticated': 54 });
   });
 
-  it('P1-04: no real route uses @RequirePermission yet (routes are converted in P1-06)', () => {
-    const using = handlers.filter((h) =>
-      Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.handler) !== undefined
-      || Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.cls) !== undefined).map(keyOf);
-    expect(using).toEqual([]);
+  it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
+    const byPermission: Record<string, number> = {};
+    for (const h of handlers) {
+      expect([keyOf(h), Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.cls)]).toEqual([keyOf(h), undefined]);   // never class level
+      const p: string | undefined = Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.handler);
+      if (p) byPermission[p] = (byPermission[p] ?? 0) + 1;
+    }
+    expect(byPermission).toEqual({
+      'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
+      'audit.view': 4, 'users.manage': 11, 'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
+      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 6, 'mentorRequests.decide': 3,
+      'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
+      'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
+    });
   });
 
   it('matches the running application\'s routes (docs/api/routes.json); unregistered handlers are named individually', () => {
@@ -291,7 +300,6 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
     }
   }, 60_000);
 
-  afterAll(() => passportCanActivate.mockRestore());
 
   it('finds every route handler (211 on develop @ 16b095a: 202 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211);
@@ -313,27 +321,84 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   describe('hand-written invariants (independent of the baseline and of any declaration)', () => {
     const isPublic = (h: RouteHandler) => reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [h.handler, h.cls]) === true;
     const rolesOf  = (h: RouteHandler) => reflector.getAllAndOverride<string[]>(ROLES_KEY, [h.handler, h.cls]) ?? [];
+    const permissionOf = (h: RouteHandler) => reflector.getAllAndOverride<Permission | undefined>(REQUIRED_PERMISSION_KEY, [h.handler, h.cls]);
+    const restricted = (h: RouteHandler) => rolesOf(h).length > 0 || permissionOf(h) !== undefined;
+    /** Written from the approved catalogue (plan §5), not from the guards: holders of the permission, never an administrator for grading. */
+    const holds = (role: AppRole, p: Permission) =>
+      p in ROLE_GRANTS[role] && !((role === 'ADMIN' || role === 'SUPER_ADMIN') && ADMIN_PROHIBITED.includes(p));
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
       expect(handlers.filter(isPublic)).toHaveLength(16);
     });
 
-    it('an unknown role is admitted only where no role is required (public or no @Roles), and refused (403) on every @Roles handler', () => {
+    it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {
       for (const h of handlers) {
-        const expected = isPublic(h) || rolesOf(h).length === 0 ? 'allow' : '403';
+        const expected = isPublic(h) || !restricted(h) ? 'allow' : '403';
         expect([keyOf(h), table[keyOf(h)].UNKNOWN_ROLE]).toEqual([keyOf(h), expected]);
       }
-      expect(handlers.filter((h) => !isPublic(h) && rolesOf(h).length > 0)).toHaveLength(141);
-      expect(handlers.filter((h) => !isPublic(h) && rolesOf(h).length === 0)).toHaveLength(54);
+      expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141);
+      expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(54);
     });
 
-    it.each(['STUDENT', 'MENTOR', 'ADMIN'] as const)('%s is admitted exactly where its role is listed or no role is required', (role) => {
+    it.each(['STUDENT', 'MENTOR', 'ADMIN'] as const)('%s is admitted exactly where its role is listed, it holds the required permission, or nothing is required', (role) => {
       for (const h of handlers) {
         const roles = rolesOf(h);
-        const expected = isPublic(h) || roles.length === 0 || roles.includes(role) ? 'allow' : '403';
+        const p = permissionOf(h);
+        const expected = isPublic(h) || !restricted(h) || roles.includes(role) || (p !== undefined && holds(role, p)) ? 'allow' : '403';
         expect([keyOf(h), table[keyOf(h)][role]]).toEqual([keyOf(h), expected]);
       }
     });
   });
 });
+
+describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on every handler', () => {
+  let handlers: RouteHandler[];
+  beforeAll(async () => { handlers = await discoverHandlers(); }, 60_000);
+
+  const NEW_ROLES = ['TEACHER', 'HEAD_COACH', 'SUPER_ADMIN'] as const;
+  const permissionOf = (h: RouteHandler) => reflector.getAllAndOverride<Permission | undefined>(REQUIRED_PERMISSION_KEY, [h.handler, h.cls]);
+  const rolesOf = (h: RouteHandler) => reflector.getAllAndOverride<string[]>(ROLES_KEY, [h.handler, h.cls]) ?? [];
+  const isPublic = (h: RouteHandler) => reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [h.handler, h.cls]) === true;
+  /** From the approved catalogue (plan §5): holds the grant; administrators never for grading/authoring (RS1). */
+  const holds = (role: AppRole, p: Permission) =>
+    p in ROLE_GRANTS[role] && !((role === 'ADMIN' || role === 'SUPER_ADMIN') && ADMIN_PROHIBITED.includes(p));
+
+  it.each(NEW_ROLES)('%s: admitted on a permission route iff the catalogue grants it; never on a @Roles route; always where only sign-in is required', async (role) => {
+    const wrong: string[] = [];
+    for (const h of handlers) {
+      const p = permissionOf(h);
+      const expected = isPublic(h) ? 'allow'
+        : p !== undefined ? (holds(role, p) ? 'allow' : '403')
+        : rolesOf(h).length > 0 ? (rolesOf(h).includes(role) ? 'allow' : '403')
+        : 'allow';
+      const actual = await decide(h, role as unknown as Caller);
+      if (actual !== expected) wrong.push(`${keyOf(h)}: expected ${expected}, got ${actual}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('SUPER_ADMIN and ADMIN are refused on every grading and assignment-authoring route (RS1)', async () => {
+    const grading = handlers.filter((h) => ADMIN_PROHIBITED.includes(permissionOf(h) as Permission));
+    expect(grading.length).toBe(13);   // 6 assignments.prepare + 7 reviews.grade
+    for (const h of grading) {
+      for (const role of ['ADMIN', 'SUPER_ADMIN'] as const) {
+        expect([keyOf(h), role, await decide(h, role as unknown as Caller)]).toEqual([keyOf(h), role, '403']);
+      }
+    }
+  });
+
+  it('HEAD_COACH passes the guard only on its catalogue grants — no global administrative route', async () => {
+    const admitted = [];
+    for (const h of handlers) {
+      if (isPublic(h) || (permissionOf(h) === undefined && rolesOf(h).length === 0)) continue;
+      if ((await decide(h, 'HEAD_COACH' as unknown as Caller)) === 'allow') admitted.push(permissionOf(h));
+    }
+    // Only course-work grants (services still require an Administrator-created coach
+    // assignment, H4) — none of the global administration permissions.
+    expect([...new Set(admitted)].sort()).toEqual(['analytics.course', 'assignments.prepare', 'reviews.grade']);
+  });
+});
+
+// The Passport stub serves every describe block above; restore it once, at the end of the file.
+afterAll(() => passportCanActivate.mockRestore());

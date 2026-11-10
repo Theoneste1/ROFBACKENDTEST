@@ -6,7 +6,7 @@ import type { Response } from 'express';
 import { AuditQueryService } from './audit-query.service.js';
 import { AuditService } from './audit.service.js';
 import { AUDIT_CATEGORY_NAMES, type AuditCategory } from './audit-categories.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -40,7 +40,6 @@ class AuditQueryDto extends PaginationQueryDto {
  */
 @ApiTags('Admin · Audit')
 @Controller('admin/audit-logs')
-@Roles('ADMIN')
 export class AuditController {
   constructor(
     private readonly query: AuditQueryService,
@@ -49,12 +48,14 @@ export class AuditController {
 
   /** Newest first; filter by category, action, actor, record and date range. */
   @Get()
+  @RequirePermission('audit.view')
   findAll(@Query() q: AuditQueryDto) {
     return this.query.list(q);
   }
 
   /** Every action with its category and how many times it was recorded (for filters). */
   @Get('actions')
+  @RequirePermission('audit.view')
   actions() {
     return this.query.actions();
   }
@@ -63,6 +64,7 @@ export class AuditController {
   @Get('export.csv')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
+  @RequirePermission('audit.view')
   async export(@Query() q: AuditQueryDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
     const csv = await this.query.csv(q);
     await this.audit.log({
@@ -75,6 +77,7 @@ export class AuditController {
   }
 
   @Get(':id')
+  @RequirePermission('audit.view')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.query.findOne(id);
   }

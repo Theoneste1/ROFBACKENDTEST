@@ -2,14 +2,13 @@ import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 
 import { SettingsService } from './settings.service.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 
 @ApiTags('Admin · Settings')
 @Controller('admin/settings')
-@Roles('ADMIN')
 export class SettingsController {
   constructor(private readonly settings: SettingsService) {}
 
@@ -20,6 +19,7 @@ export class SettingsController {
    * /admin/academic-years.
    */
   @Get()
+  @RequirePermission('settings.manage')
   getAll() {
     return this.settings.getAll();
   }
@@ -27,6 +27,7 @@ export class SettingsController {
   /** Change one or more settings: `{ "submissions.resubmissionRequestDays": 14 }`. Every change is audited. */
   @Patch()
   @ApiBody({ schema: { type: 'object', additionalProperties: true } })
+  @RequirePermission('settings.manage')
   update(@Body() body: Record<string, unknown>, @CurrentUser() user: AuthUser) {
     return this.settings.update(body, user);
   }
