@@ -79,22 +79,25 @@ export class MentorAssignmentsService {
     if (!course)   throw new NotFoundException('Course not found.');
     if (!division) throw new NotFoundException('Division not found.');
 
-    const assignment = await this.prisma.mentorAssignment.upsert({
-      where: {
-        mentorId_courseId_divisionId: {
-          mentorId: dto.mentorId, courseId: dto.courseId, divisionId: dto.divisionId,
+    // The change and its audit record commit together: if the audit write fails, nothing changes.
+    return this.prisma.$transaction(async (tx) => {
+      const assignment = await tx.mentorAssignment.upsert({
+        where: {
+          mentorId_courseId_divisionId: {
+            mentorId: dto.mentorId, courseId: dto.courseId, divisionId: dto.divisionId,
+          },
         },
-      },
-      create: { ...dto, assignedById: caller.id },
-      update: { isActive: true, assignedById: caller.id },
-      select: SELECT,
-    });
+        create: { ...dto, assignedById: caller.id },
+        update: { isActive: true, assignedById: caller.id },
+        select: SELECT,
+      });
 
-    await this.audit.log({
-      actorId: caller.id, actorRole: caller.role,
-      action: 'ASSIGN_MENTOR', entity: 'MentorAssignment', entityId: assignment.id, metadata: { ...dto },
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'ASSIGN_MENTOR', entity: 'MentorAssignment', entityId: assignment.id, metadata: { ...dto },
+      }, tx);
+      return assignment;
     });
-    return assignment;
   }
 
   /**
@@ -102,29 +105,34 @@ export class MentorAssignmentsService {
    * stay with them until an admin reassigns them.
    */
   async unassign(id: string, caller: AuthUser) {
-    const existing = await this.prisma.mentorAssignment.findFirst({ where: { AND: [{ id }, await this.callerFilter(caller)] } });
-    if (!existing) throw new NotFoundException('Coach course access not found.');
+    const scope = await this.callerFilter(caller);
+    // Read, change, open-review count and audit record in one transaction:
+    // if the audit write fails, the assignment stays active.
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.mentorAssignment.findFirst({ where: { AND: [{ id }, scope] } });
+      if (!existing) throw new NotFoundException('Coach course access not found.');
 
-    const updated = await this.prisma.mentorAssignment.update({
-      where: { id }, data: { isActive: false }, select: SELECT,
-    });
+      const updated = await tx.mentorAssignment.update({
+        where: { id }, data: { isActive: false }, select: SELECT,
+      });
 
-    // The mentor's still-open review cycles in this scope (current cycles only).
-    const openReviews = await this.prisma.mentorReview.count({
-      where: {
-        mentorId:   existing.mentorId,
-        status:     { in: OPEN_REVIEW_STATUSES },
-        currentFor: { isNot: null },
-        submission: { assignment: { courseId: existing.courseId, divisionId: existing.divisionId } },
-      },
-    });
+      // The mentor's still-open review cycles in this scope (current cycles only).
+      const openReviews = await tx.mentorReview.count({
+        where: {
+          mentorId:   existing.mentorId,
+          status:     { in: OPEN_REVIEW_STATUSES },
+          currentFor: { isNot: null },
+          submission: { assignment: { courseId: existing.courseId, divisionId: existing.divisionId } },
+        },
+      });
 
-    await this.audit.log({
-      actorId: caller.id, actorRole: caller.role,
-      action: 'UNASSIGN_MENTOR', entity: 'MentorAssignment', entityId: id,
-      metadata: { openReviewsToReassign: openReviews },
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'UNASSIGN_MENTOR', entity: 'MentorAssignment', entityId: id,
+        metadata: { openReviewsToReassign: openReviews },
+      }, tx);
+      return { ...updated, openReviewsToReassign: openReviews };
     });
-    return { ...updated, openReviewsToReassign: openReviews };
   }
 
   /**

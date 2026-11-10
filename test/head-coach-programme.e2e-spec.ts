@@ -5,6 +5,7 @@
  * (Maths) and HP (Physics); coach B shared by Maths and Physics; coach P in Physics
  * only; a Physics-only student; the seed's Maths students and coaches.
  */
+import { AuditService } from '../src/audit/audit.service.js';
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
 describe('Head Coach programme scope (P1-10)', () => {
@@ -184,6 +185,38 @@ describe('Head Coach programme scope (P1-10)', () => {
 
     // Coaches and students: still refused (permission), as before.
     for (const token of [coachJ, studentJ]) expect(await status(http().get(ASSIGN).set(bearer(token)))).toEqual([403, 'PERMISSION_REQUIRED']);
+  });
+
+  it('coach assignments: a failing audit write rolls back assign (new and re-activated) and unassign — Head Coach and Administrator paths', async () => {
+    const audit = ctx.app.get(AuditService);
+    const failNextAudit = () => vi.spyOn(audit, 'log').mockImplementationOnce(async () => { throw new Error('audit unavailable'); });
+    const body = { mentorId: coachB, courseId: ctx.ids.algebra, divisionId: ctx.ids.senior };
+    const row = () => p().mentorAssignment.findUnique({ where: { mentorId_courseId_divisionId: body } });
+    const audits = () => p().auditLog.count({ where: { action: { in: ['ASSIGN_MENTOR', 'UNASSIGN_MENTOR'] } } });
+    const before = await audits();
+
+    for (const [label, token] of [['Head Coach', hm], ['Administrator', admin]] as const) {
+      // New assignment: nothing is created.
+      let spy = failNextAudit();
+      try { expect([label, (await http().post(ASSIGN).set(bearer(token)).send(body)).status]).toEqual([label, 500]); } finally { spy.mockRestore(); }
+      expect([label, await row()]).toEqual([label, null]);
+
+      // Unassign: the assignment stays active.
+      const created = await http().post(ASSIGN).set(bearer(token)).send(body).expect(201);
+      spy = failNextAudit();
+      try { expect([label, (await http().delete(`${ASSIGN}/${created.body.id}`).set(bearer(token))).status]).toEqual([label, 500]); } finally { spy.mockRestore(); }
+      expect([label, (await row())?.isActive]).toEqual([label, true]);
+
+      // Re-activating an ended assignment: it stays ended.
+      await http().delete(`${ASSIGN}/${created.body.id}`).set(bearer(token)).expect(200);
+      spy = failNextAudit();
+      try { expect([label, (await http().post(ASSIGN).set(bearer(token)).send(body)).status]).toEqual([label, 500]); } finally { spy.mockRestore(); }
+      expect([label, (await row())?.isActive]).toEqual([label, false]);
+
+      await p().mentorAssignment.delete({ where: { id: created.body.id } });
+    }
+    // Only the successful changes were audited: per path one assign and one unassign.
+    expect(await audits()).toBe(before + 4);
   });
 
   it('a change of heads applies on the Head Coach\'s next request, without re-login', async () => {
