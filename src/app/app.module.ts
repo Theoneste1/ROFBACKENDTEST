@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -26,6 +26,7 @@ import { ActivityModule } from '../activity/activity.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { PermissionsModule } from '../auth/permissions.module.js';
 import { PermissionGuard } from '../auth/guards/permission.guard.js';
+import { AdminRequestAuditInterceptor } from '../audit/admin-request-audit.interceptor.js';
 import { UsersModule } from '../users/users.module.js';
 import { SchoolsModule } from '../schools/schools.module.js';
 import { CoursesModule } from '../courses/courses.module.js';
@@ -102,6 +103,8 @@ import { ReportsModule } from '../reports/reports.module.js';
     { provide: APP_GUARD, useClass: RolesGuard },
     // No-op on routes without @RequirePermission (P1-04: none yet).
     { provide: APP_GUARD, useClass: PermissionGuard },
+    // One audit row per state-changing ADMIN / SUPER_ADMIN request (P1-08).
+    { provide: APP_INTERCEPTOR, useClass: AdminRequestAuditInterceptor },
   ],
 })
 export class AppModule implements NestModule {
