@@ -260,6 +260,50 @@ describe('Student–school affiliation hardening (school administration PR A.1)'
     expect(await p().auditLog.count({ where: { action: 'SCHOOL_AFFILIATION_SUPERSEDED', entityId: verified.id } })).toBe(0);
   });
 
+  it('schoolId: null clears the school: the current claim is superseded first (audited with its status), User.schoolId and the enrolment become null, no claim remains', async () => {
+    const s = await student(schoolA);
+    await verify(s);
+    const verified = await claimOf(s);
+    const createdAudits = await p().auditLog.count({ where: { action: 'SCHOOL_AFFILIATION_CREATED', metadata: { path: ['studentId'], equals: s } } });
+
+    const res = await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ schoolId: null }).expect(200);
+    expect(res.body.schoolId ?? res.body.school ?? null).toBeNull();
+    expect((await p().user.findUniqueOrThrow({ where: { id: s } })).schoolId).toBeNull();
+    expect(await current(s)).toEqual([]);
+    expect(await p().studentSchoolAffiliation.findUniqueOrThrow({ where: { id: verified.id } })).toMatchObject({
+      status: 'VERIFIED', schoolId: schoolA, supersedeReason: 'SCHOOL_CHANGE', supersededById: ctx.ids.admin, supersededAt: expect.any(Date),
+    });
+    const audits = await p().auditLog.findMany({ where: { action: 'SCHOOL_AFFILIATION_SUPERSEDED', entityId: verified.id } });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({ actorId: ctx.ids.admin, actorRole: 'ADMIN' });
+    expect(audits[0].metadata).toEqual({ studentId: s, schoolId: schoolA, reason: 'SCHOOL_CHANGE', previous: { status: 'VERIFIED', current: true }, next: { current: false } });
+    // No new claim, and no new creation audit.
+    expect(await p().studentSchoolAffiliation.count({ where: { studentId: s } })).toBe(1);
+    expect(await p().auditLog.count({ where: { action: 'SCHOOL_AFFILIATION_CREATED', metadata: { path: ['studentId'], equals: s } } })).toBe(createdAudits);
+    // The current-year enrolment follows the placement.
+    expect((await p().studentEnrollment.findFirstOrThrow({ where: { studentId: s, academicYearId: ctx.ids.year } })).schoolId).toBeNull();
+    // Clearing again changes nothing; a later school starts a new PENDING claim.
+    await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ schoolId: null }).expect(200);
+    expect(await p().auditLog.count({ where: { action: 'SCHOOL_AFFILIATION_SUPERSEDED', metadata: { path: ['studentId'], equals: s } } })).toBe(1);
+    await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ schoolId: schoolB }).expect(200);
+    expect(await current(s)).toEqual([expect.objectContaining({ schoolId: schoolB, status: 'PENDING', source: 'ADMIN' })]);
+    await consistent(s);
+  });
+
+  it('an omitted schoolId keeps the school and the claim — a VERIFIED claim stays VERIFIED — whatever else is edited', async () => {
+    const s = await student(schoolA);
+    await verify(s);
+    const verified = await claimOf(s);
+    await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ firstName: 'Kept' }).expect(200);
+    await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ gradeLevel: 'S4' }).expect(200);   // a division change too
+    await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ homeLocation: 'Huye', lastName: 'Same' }).expect(200);
+    expect((await p().user.findUniqueOrThrow({ where: { id: s } }))).toMatchObject({ schoolId: schoolA, gradeLevel: 'S4', firstName: 'Kept' });
+    expect(await current(s)).toEqual([expect.objectContaining({ id: verified.id, status: 'VERIFIED', schoolId: schoolA })]);
+    expect(await p().studentSchoolAffiliation.count({ where: { studentId: s } })).toBe(1);
+    expect(await p().auditLog.count({ where: { action: 'SCHOOL_AFFILIATION_SUPERSEDED', metadata: { path: ['studentId'], equals: s } } })).toBe(0);
+    expect((await p().studentEnrollment.findFirstOrThrow({ where: { studentId: s, academicYearId: ctx.ids.year } })).schoolId).toBe(schoolA);
+  });
+
   it('a role change and back: the claim ends (ROLE_CHANGE, its previous status audited) and a returning student starts a new PENDING claim', async () => {
     const s = await student(schoolA);
     await verify(s);

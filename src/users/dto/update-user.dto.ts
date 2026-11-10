@@ -60,9 +60,13 @@ export class UpdateUserDto {
   @IsEnum(GradeLevel)
   gradeLevel?: GradeLevel;
 
+  /**
+   * Omitted: the school is kept. A school id: the student moves to that school. null: the
+   * student's school is cleared (their current school claim ends; no new claim is created).
+   */
   @IsOptional()
   @IsUUID()
-  schoolId?: string;
+  schoolId?: string | null;
 
   @IsOptional()
   @IsString()

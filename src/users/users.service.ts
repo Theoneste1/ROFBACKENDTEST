@@ -206,10 +206,12 @@ export class UsersService {
       //   the same school            → nothing changes (a VERIFIED claim stays VERIFIED).
       // The old claim ends BEFORE the User row changes and the new one is created after it, so
       // every statement leaves the student consistent (M10).
+      // The student's school after this edit: omitted → the locked (committed) school is kept;
+      // an id → that school; explicit null → cleared.
+      const nextSchoolId = role !== 'STUDENT' ? null : data.schoolId !== undefined ? data.schoolId : (locked?.schoolId ?? null);
       const nextClaim = roleChange || data.schoolId !== undefined
         ? await this.affiliations.beginUserChange(tx, {
-            id, isStudent: role === 'STUDENT', becameStudent: role === 'STUDENT' && existing.role !== 'STUDENT',
-            schoolId: role === 'STUDENT' ? (data.schoolId ?? locked?.schoolId ?? null) : null,
+            id, isStudent: role === 'STUDENT', becameStudent: role === 'STUDENT' && existing.role !== 'STUDENT', schoolId: nextSchoolId,
           }, actor)
         : null;
 
@@ -407,7 +409,8 @@ export class UsersService {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  private async studentFields(gradeLevel: GradeLevel, schoolId?: string) {
+  /** Student placement fields. `schoolId`: omitted → unchanged; an id → that (existing) school; null → cleared. */
+  private async studentFields(gradeLevel: GradeLevel, schoolId?: string | null) {
     if (schoolId) {
       const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { id: true } });
       if (!school) throw new NotFoundException('School not found.');
@@ -415,7 +418,7 @@ export class UsersService {
     return {
       gradeLevel,
       divisionId: await this.divisions.idForGrade(gradeLevel),
-      ...(schoolId && { schoolId }),
+      ...(schoolId !== undefined && { schoolId }),
     };
   }
 

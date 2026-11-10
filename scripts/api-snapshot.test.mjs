@@ -99,7 +99,8 @@ const P1_10_H4_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-h4.json';
 const P1_10_MONITORING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-monitoring.json';
 const P1_11_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-11.json';
 const SCHOOL_AFFILIATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-school-affiliation.json';
-const CURRENT_SNAPSHOT = SCHOOL_AFFILIATION_SNAPSHOT;
+const AFFILIATION_HARDENING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-affiliation-hardening.json';
+const CURRENT_SNAPSHOT = AFFILIATION_HARDENING_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -560,6 +561,15 @@ describe('approved API contract history', () => {
       'schema AffiliationReasonDto: added',
       'schema VerifyAffiliationDto: added',
     ]);
+  });
+
+  test('school administration PR A → PR A.1 (hardening): an Administrator may clear a student\'s school with schoolId: null; nothing else', () => {
+    for (const f of [SCHOOL_AFFILIATION_SNAPSHOT, AFFILIATION_HARDENING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_AFFILIATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(AFFILIATION_HARDENING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PATCH /api/v1/admin/users/{id} › request application/json.schoolId: null now accepted']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {
