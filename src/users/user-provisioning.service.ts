@@ -22,6 +22,7 @@ import { divisionCodeForGrade } from '../common/grade-levels.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { AccessService } from '../common/access/access.service.js';
 import { isHeadCoach } from '../common/access/roles.js';
+import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -55,6 +56,7 @@ export class UserProvisioningService {
     private readonly auth:          AuthService,
     private readonly roles:         RoleAssignmentPolicy,
     private readonly access:        AccessService,
+    private readonly affiliations:  SchoolAffiliationService,
   ) {}
 
   // ─── Invitations ──────────────────────────────────────────────────────────
@@ -356,6 +358,10 @@ export class UserProvisioningService {
     });
 
     if (isStudent) await this.academicYears.enrollInCurrentYear(tx, created.id, dto.gradeLevel!, schoolId);
+    // An invited student's school is a claim: PENDING until an Administrator verifies it.
+    if (isStudent && schoolId) {
+      await this.affiliations.claim(tx, { studentId: created.id, schoolId, source: 'ADMIN', reason: 'NEW_CLAIM', actor: { actorId: caller.id, actorRole: caller.role } });
+    }
     await ensureDefaultMembership(tx, { id: created.id, role }, caller.id);   // invite and CSV import (P1-07, K6)
     if (opts.coachInvite) {
       const disciplineId = opts.coachInvite.disciplineId;

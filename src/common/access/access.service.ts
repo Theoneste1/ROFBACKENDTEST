@@ -157,13 +157,16 @@ export class AccessService {
    * `User` filter: APPROVED and ACTIVATED (e-mail verified) student accounts of these
    * schools (none → matches nobody). Used by every Teacher student view — list, profile,
    * progress and submit on behalf (P1-11): an unapproved or unverified student is never
-   * shown to, or acted on by, a teacher. Neither is proof of school membership: an
-   * Administrator-controlled school verification follows with the school-administration
-   * work; until then TEACHERS_ENABLED and HEAD_COACHES_ENABLED stay off.
+   * shown to, or acted on by, a teacher. Neither is proof of school membership, so the
+   * student must also hold a CURRENT VERIFIED affiliation (verified by an Administrator)
+   * for one of these same schools. Both school conditions are required.
    */
   schoolStudentsFilter(schoolIds: readonly string[]): Prisma.UserWhereInput {
     if (schoolIds.length === 0) return { id: { in: [] } };
-    return { role: 'STUDENT', isApproved: true, activatedAt: { not: null }, schoolId: { in: [...schoolIds] } };
+    return {
+      role: 'STUDENT', isApproved: true, activatedAt: { not: null }, schoolId: { in: [...schoolIds] },
+      schoolAffiliations: { some: { supersededAt: null, status: 'VERIFIED', schoolId: { in: [...schoolIds] } } },
+    };
   }
 
   /** 404 unless the caller's programme scope includes this programme (HC-A: others are not revealed). */

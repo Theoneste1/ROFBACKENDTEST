@@ -13,6 +13,8 @@ export interface AddedRouteDecisions { anonymous: Decision; STUDENT: Decision; M
 const SUPER_ADMIN_ONLY: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const ADMINISTRATORS:   AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** courses.view: every known role that views courses; an unknown role holds nothing. */
+/** @Roles('STUDENT'): students only. */
+const STUDENTS_ONLY: AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 /** @Public: everyone, signed in or not. */
 const PUBLIC: AddedRouteDecisions = { anonymous: 'allow', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
 /** Granted only by an individual delegation (P1-11): no baseline caller holds it. */
@@ -52,4 +54,12 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/teacher/students/:id/submissions  TeacherStudentsController.submit':                          NOBODY_BY_DEFAULT,
   // P1-11 — the official directory's Province → District → Sector tree for the Rwanda sign-up form
   'GET /api/v1/schools/locations  SchoolsController.locations':                                               PUBLIC,
+  // School administration PR A — student–school verification (schools.manage: Administrators, Super Admins)
+  'GET /api/v1/admin/school-affiliations  AdminSchoolAffiliationsController.list':                            ADMINISTRATORS,
+  'GET /api/v1/admin/school-affiliations/:id  AdminSchoolAffiliationsController.get':                         ADMINISTRATORS,
+  'POST /api/v1/admin/school-affiliations/:id/verify  AdminSchoolAffiliationsController.verify':              ADMINISTRATORS,
+  'POST /api/v1/admin/school-affiliations/:id/reject  AdminSchoolAffiliationsController.reject':              ADMINISTRATORS,
+  'POST /api/v1/admin/school-affiliations/:id/revoke  AdminSchoolAffiliationsController.revoke':              ADMINISTRATORS,
+  'GET /api/v1/admin/users/:id/school-affiliations  AdminSchoolAffiliationsController.history':               ADMINISTRATORS,
+  'GET /api/v1/me/school-affiliation  MySchoolAffiliationController.mine':                                    STUDENTS_ONLY,
 };

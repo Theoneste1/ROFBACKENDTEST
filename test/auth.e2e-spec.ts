@@ -77,7 +77,7 @@ describe('Authentication (e2e)', () => {
       expect(await schools()).toBe(before);
       const user = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'intl.ke' } });
       const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entityId: user.id } });
-      expect(audit.metadata).toMatchObject({ country: 'KE', schoolNameEntered: 'Lycée De Kigali', schoolMatched: false, schoolVerified: false, schoolCode: null });
+      expect(audit.metadata).toMatchObject({ country: 'KE', schoolNameEntered: 'Lycée De Kigali', schoolMatched: false, schoolLinked: false, schoolCode: null });
       // Rwandan school codes are for Rwanda only; an invalid country is refused.
       expect((await register({ username: 'intl.code', email: 'intl.code@example.com', country: 'UG', schoolName: undefined, schoolCode: '110912' }).expect(400)).body.code).toBe('SCHOOL_CODE_RWANDA_ONLY');
       expect((await register({ username: 'intl.bad', email: 'intl.bad@example.com', country: 'XX' }).expect(400)).body.code).toBe('VALIDATION_FAILED');

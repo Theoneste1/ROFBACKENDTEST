@@ -24,7 +24,9 @@ import { join } from 'node:path';
 import pg from 'pg';
 
 const ROOT = join(import.meta.dirname, '..');
-const M8 = readFileSync(join(ROOT, 'prisma/migrations/20261121000700_official_school_list/migration.sql'), 'utf8');
+// Line endings normalised: a Windows checkout (core.autocrlf) has CRLF, and the VALUES block is
+// located by its ";\n" terminator.
+const M8 = readFileSync(join(ROOT, 'prisma/migrations/20261121000700_official_school_list/migration.sql'), 'utf8').replace(/\r\n/g, '\n');
 const start = M8.indexOf('INSERT INTO official_school');
 const values = M8.slice(M8.indexOf('VALUES', start) + 'VALUES'.length, M8.indexOf(';\n', start)).trim();
 const KEY = (col) => `trim(regexp_replace(translate(lower(${col}), 'àáâäãåçèéêëìíîïñòóôöõùúûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy'), '[^a-z0-9]+', ' ', 'g'))`;

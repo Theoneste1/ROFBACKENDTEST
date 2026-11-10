@@ -26,6 +26,10 @@ describe('Teachers (P1-11)', () => {
   const delegations = (id: string) => `/api/v1/admin/teachers/${id}/delegations`;
   const grant = (token: string, teacherId: string, permission: string) =>
     http().post(delegations(teacherId)).set(bearer(token)).send({ permission, reason: 'School coordinator duties' });
+  /** Fixture: the student's school membership verified by an Administrator (school administration PR A). */
+  const verifiedAt = (studentId: string, schoolId: string) => p().studentSchoolAffiliation.create({ data: {
+    studentId, schoolId, status: 'VERIFIED', source: 'ADMIN', createdById: ctx.ids.admin, decidedById: ctx.ids.admin, decidedAt: new Date(),
+  } });
   const submitFor = (token: string, studentId: string, assignmentId: string) =>
     http().post(`/api/v1/teacher/students/${studentId}/submissions`).set(bearer(token)).field('assignmentId', assignmentId).attach('file', PDF, 'work.pdf');
 
@@ -45,6 +49,9 @@ describe('Teachers (P1-11)', () => {
     t3Id = await mk('t.three', 'TEACHER');
     await mk('t.super', 'SUPER_ADMIN');
     studentO = await mk('student.o', 'STUDENT', { gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolB, homeLocation: 'Huye' });
+    // Every fixture student's membership is verified, so each test's own condition is the only reason a student is hidden.
+    for (const s of [ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior]) await verifiedAt(s, schoolA);
+    await verifiedAt(studentO, schoolB);
     [t1, t2, t3, superAdmin] = await Promise.all(['t.one', 't.two', 't.three', 't.super'].map((u) => login(ctx, u)));
 
     workId = (await p().assignment.create({ data: {
@@ -92,12 +99,14 @@ describe('Teachers (P1-11)', () => {
       username: 'student.branch', firstName: 'B', lastName: 'S', email: 'student.branch@test.local', role: 'STUDENT', passwordHash: hash,
       activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: lookalike,
     } })).id;
+    await verifiedAt(branchStudent, lookalike);
 
     // Not yet approved by an Administrator (the school check): never shown to a teacher (P1-11).
     const pending = (await p().user.create({ data: {
       username: 'student.pending', firstName: 'P', lastName: 'S', email: 'student.pending@test.local', role: 'STUDENT', passwordHash: hash,
       activatedAt: new Date(), isApproved: false, gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolA,
     } })).id;
+    await verifiedAt(pending, schoolA);   // verified membership: approval is the only missing condition
 
     const mine = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t1)).expect(200)).body.data;
     expect(mine.map((s: any) => s.id).sort()).toEqual([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior].sort());
@@ -190,6 +199,7 @@ describe('Teachers (P1-11)', () => {
       username: 'student.unverified', firstName: 'U', lastName: 'V', email: 'student.unverified@test.local', role: 'STUDENT', passwordHash: hash,
       activatedAt: null, isApproved: true, gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolA,
     } })).id;
+    await verifiedAt(unverified, schoolA);   // verified membership: e-mail activation is the only missing condition
     const listed = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t1)).expect(200)).body.data.map((s: any) => s.id);
     expect(listed).not.toContain(unverified);
     expect(listed).toContain(ctx.ids.studentJunior);   // activated students of the same school still are
@@ -296,7 +306,7 @@ describe('Teachers (P1-11)', () => {
     expect(await p().auditLog.count({ where: { action: 'UNASSIGN_TEACHER_SCHOOL', entityId: a.id, actorId: ctx.ids.admin } })).toBe(1);
   });
 
-  it('registration.studentRequiresApproval: off → a student registered with the school code is listed at once; on → only after an Administrator approves; no valid school → never listed', async () => {
+  it('registration.studentRequiresApproval: listed only once the school membership is verified, and (policy on) the account approved — the two are independent; no valid school → never listed', async () => {
     const coded = (await p().school.create({ data: { name: 'APPROVAL TEST SCHOOL', location: 'Kigali, Gasabo', code: '120998', province: 'Kigali City', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'approval test school' } })).id;
     await http().post(ASSIGN).set(bearer(admin)).send({ teacherId: t3Id, schoolId: coded }).expect(201);
     const reg = (username: string, extra: object = {}) => http().post('/api/v1/auth/register/student').send({
@@ -305,8 +315,18 @@ describe('Teachers (P1-11)', () => {
     });
     const listed = async () => (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t3)).expect(200)).body.data.map((s: any) => s.username);
 
-    // Policy off (the default): approved at registration → listed immediately.
-    expect((await reg('appr.off').expect(201)).body.requiresApproval).toBe(false);
+    const verifyClaim = async (username: string) => {
+      const u = await p().user.findUniqueOrThrow({ where: { username } });
+      const claim = await p().studentSchoolAffiliation.findFirstOrThrow({ where: { studentId: u.id, supersededAt: null } });
+      await http().post(`/api/v1/admin/school-affiliations/${claim.id}/verify`).set(bearer(admin)).send({}).expect(200);
+    };
+
+    // Policy off (the default): approved at registration — but the school claim is PENDING, so not listed
+    // until an Administrator verifies the membership (school administration PR A).
+    const off = await reg('appr.off').expect(201);
+    expect(off.body).toMatchObject({ requiresApproval: false, schoolVerification: 'PENDING' });
+    expect(await listed()).not.toContain('appr.off');
+    await verifyClaim('appr.off');
     expect(await listed()).toContain('appr.off');
 
     // Policy on: registered unapproved → cannot sign in, not listed; listed on the next request after approval.
@@ -318,6 +338,10 @@ describe('Teachers (P1-11)', () => {
       expect((await http().post('/api/v1/auth/login').send({ username: 'appr.on', password: 'Secret123' })).body.code).toBe('ACCOUNT_PENDING_APPROVAL');
       expect(await listed()).not.toContain('appr.on');
       expect((await http().get(`/api/v1/teacher/students/${pendingUser.id}`).set(bearer(t1))).status).not.toBe(200);
+      // Verifying the school does not approve the account, and approving does not verify the school.
+      await verifyClaim('appr.on');
+      expect(await listed()).not.toContain('appr.on');
+      expect((await p().user.findUniqueOrThrow({ where: { id: pendingUser.id } })).isApproved).toBe(false);
       await http().patch(`/api/v1/admin/users/${pendingUser.id}/status`).set(bearer(admin)).send({ isApproved: true }).expect(200);
       expect(await listed()).toContain('appr.on');
     } finally {

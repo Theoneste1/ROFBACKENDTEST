@@ -23543,6 +23543,13 @@
         ],
         "type": "object"
       },
+      "schoolVerification": {
+        "nullable": true,
+        "type": "string",
+        "enum": [
+          "PENDING"
+        ]
+      },
       "username": {
         "type": "string"
       }
@@ -23564,6 +23571,7 @@
       "requiresEmailVerification",
       "role",
       "school",
+      "schoolVerification",
       "username"
     ],
     "type": "object"

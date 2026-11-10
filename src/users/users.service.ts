@@ -14,6 +14,7 @@ import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
 import { endTeacherSchools, revokeTeacherDelegations } from '../teachers/teacher-schools.service.js';
+import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -44,6 +45,7 @@ export class UsersService {
     private readonly academicYears: AcademicYearsService,
     private readonly accountEmails: AccountEmailsService,
     private readonly roles:     RoleAssignmentPolicy,
+    private readonly affiliations: SchoolAffiliationService,
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
@@ -102,6 +104,12 @@ export class UsersService {
       });
       if (role === 'STUDENT') {
         await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel!, data.schoolId ?? null);
+        // An Administrator's choice of school is a claim too: PENDING until verified.
+        if (data.schoolId) {
+          await this.affiliations.claim(tx, {
+            studentId: created.id, schoolId: data.schoolId, source: 'ADMIN', reason: 'NEW_CLAIM', actor: { actorId: caller.id, actorRole: caller.role },
+          });
+        }
       }
       await ensureDefaultMembership(tx, { id: created.id, role }, caller.id);   // students and coaches (P1-07, K6)
       return tx.user.findUniqueOrThrow({ where: { id: created.id }, select: SAFE_SELECT });
@@ -209,6 +217,21 @@ export class UsersService {
       // (a former coach's assignments never become a Head Coach's, H4).
       if ((existing.role === 'MENTOR' || existing.role === 'HEAD_COACH') && role !== existing.role) {
         await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+
+      // School affiliation follows the student's school and role, in this transaction:
+      //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
+      //   becoming STUDENT, a school → a new PENDING claim;
+      //   another school             → the current claim is superseded and a new PENDING one created.
+      if (existing.role === 'STUDENT' && role !== 'STUDENT') {
+        await this.affiliations.supersede(tx, id, 'ROLE_CHANGE', actor);
+      } else if (role === 'STUDENT' && (existing.role !== 'STUDENT' || updated.schoolId !== existing.schoolId)) {
+        const reason = existing.role !== 'STUDENT' ? 'NEW_CLAIM' : 'SCHOOL_CHANGE';
+        if (updated.schoolId) {
+          await this.affiliations.claim(tx, { studentId: id, schoolId: updated.schoolId, source: 'ADMIN', reason, actor });
+        } else {
+          await this.affiliations.supersede(tx, id, reason, actor);
+        }
       }
 
       // A Teacher who changes role keeps no school scope (P1-11): their school assignments end here.

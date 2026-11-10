@@ -74,6 +74,8 @@ export const PERMISSIONS = [
   'students.viewProfile',        // a student's profile (no contact details)
   'students.viewProgress',       // assignment availability and submission history (no grades, D7)
   'submissions.submitOnBehalf',  // submit for a student; the student stays the owner
+  // ── School administration: student–school verification (Administrators, Super Admins) ──
+  'schools.manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -118,6 +120,7 @@ const ADMIN_GRANTS: Grants = {
   'users.manageAdmins': 'global',   // A7: kept until the Super Admin boundary (P1-08)
   'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
   'permissions.view': 'global',
+  'schools.manage': 'global',
 };
 
 /**
@@ -177,6 +180,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'users.manageHeadCoaches': 'global', 'users.manageAdmins': 'global',
     'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
     'permissions.view': 'global', 'permissions.manageOverrides': 'global', 'settings.manageSystem': 'global',
+    'schools.manage': 'global',
   },
 };
 

@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 225 endpoints — 17 public, 109 administrator-only.
+Totals: 232 endpoints — 17 public, 115 administrator-only.
 
 ## Academic years
 
@@ -143,6 +143,17 @@ Totals: 225 endpoints — 17 public, 109 administrator-only.
 | GET | `/api/v1/admin/reports/student-progress.csv` |  |  |  | ✓ |
 | GET | `/api/v1/admin/reports/students` |  |  |  | ✓ |
 | GET | `/api/v1/admin/reports/students.csv` |  |  |  | ✓ |
+
+## Admin · School affiliations
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/school-affiliations` |  |  |  | ✓ |
+| GET | `/api/v1/admin/school-affiliations/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/reject` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/revoke` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/verify` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/{id}/school-affiliations` |  |  |  | ✓ |
 
 ## Admin · Settings
 
@@ -308,6 +319,7 @@ Totals: 225 endpoints — 17 public, 109 administrator-only.
 | GET | `/api/v1/me/results` |  | ✓ |  |  |
 | GET | `/api/v1/me/results/{submissionId}` |  | ✓ |  |  |
 | GET | `/api/v1/me/results/{submissionId}/feedback-files/{attachmentId}` |  | ✓ |  |  |
+| GET | `/api/v1/me/school-affiliation` |  | ✓ |  |  |
 | GET | `/api/v1/me/submissions` |  | ✓ |  |  |
 | GET | `/api/v1/me/teaching` |  |  | ✓ |  |
 
