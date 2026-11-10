@@ -15,7 +15,7 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
   const http = () => ctx.http();
   let admin: string, mentorJ: string, studentJ: string;
   let superAdmin: string, headCoach: string, teacher: string;
-  let subId: string, assignmentId: string;
+  let subId: string, assignmentId: string, headCoachId: string;
 
   const status = async (req: any) => { const r = await req; return [r.status, r.body?.code ?? null]; };
 
@@ -26,9 +26,10 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
     [admin, mentorJ, studentJ] = await Promise.all(['admin', 'mentor.j', 'student.j'].map((u) => login(ctx, u)));
 
     for (const [username, role] of [['p6.teacher', 'TEACHER'], ['p6.head', 'HEAD_COACH']] as const) {
-      await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+      const created = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
         firstName: 'P6', lastName: role, username, email: `${username}@test.local`, password: 'Str0ng!Passw0rd', role,
       }).expect(201);
+      if (role === 'HEAD_COACH') headCoachId = created.body.id;
     }
     const hash = (await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
     await ctx.prisma.user.create({ data: {
@@ -168,6 +169,49 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
       () => http().post('/api/v1/auth/register/admin').send({ firstName: 'X', lastName: 'Y', username: 'm.admin', email: 'm.admin@test.local', password: 'Str0ng!Passw0rd' }),
     ]) expect(await status(make().set(bearer(mentorJ)))).toEqual([403, 'PERMISSION_REQUIRED']);
     expect(await ctx.prisma.user.count({ where: { username: { in: ['hc.admin', 'm.admin'] } } })).toBe(0);
+  });
+
+  it('SUPER_ADMIN: the granted administrative permissions also work at service level (incl. resources and course analytics)', async () => {
+    // resources.manage (global): create, publish, archive a course resource.
+    const res = await http().post(`/api/v1/courses/${ctx.ids.algebra}/resources`).set(bearer(superAdmin))
+      .field('divisionId', ctx.ids.junior).field('type', 'NOTE').field('title', 'Super admin note').expect(201);
+    await http().patch(`/api/v1/courses/${ctx.ids.algebra}/resources/${res.body.id}/publish`).set(bearer(superAdmin)).expect(200);
+    await http().patch(`/api/v1/courses/${ctx.ids.algebra}/resources/${res.body.id}/archive`).set(bearer(superAdmin)).expect(200);
+    // analytics.course (global).
+    await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(superAdmin)).expect(200);
+    // Other administrative areas: no caller-role check behind the permission.
+    await http().patch(`/api/v1/admin/courses/${ctx.ids.geometry}`).set(bearer(superAdmin)).send({ title: 'Geometry (SA)' }).expect(200);
+    await http().get('/api/v1/submissions').set(bearer(superAdmin)).expect(200);
+    await http().get(`/api/v1/assignments/${assignmentId}/distribution-batches`).set(bearer(superAdmin)).expect(200);
+    await http().get(`/api/v1/assignments/${assignmentId}/result-releases`).set(bearer(superAdmin)).expect(200);
+    await http().get('/api/v1/admin/moderation/reports').set(bearer(superAdmin)).expect(200);
+    await http().get('/api/v1/mentor-requests').set(bearer(superAdmin)).expect(200);
+    await http().get('/api/v1/admin/divisions').set(bearer(superAdmin)).expect(200);
+  });
+
+  it('the global-scope rule does not widen anyone else: HEAD_COACH and TEACHER still cannot manage resources or see course analytics; the assigned coach still can', async () => {
+    for (const token of [headCoach, teacher]) {
+      expect((await http().post(`/api/v1/courses/${ctx.ids.algebra}/resources`).set(bearer(token))
+        .field('divisionId', ctx.ids.junior).field('type', 'NOTE').field('title', 'Nope')).status).toBe(403);
+      expect((await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(token))).status).toBe(403);
+    }
+    await http().post(`/api/v1/courses/${ctx.ids.algebra}/resources`).set(bearer(mentorJ))
+      .field('divisionId', ctx.ids.junior).field('type', 'NOTE').field('title', 'Coach note').expect(201);
+    await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(mentorJ)).expect(200);
+    expect(await ctx.prisma.courseResource.count({ where: { title: 'Nope' } })).toBe(0);
+  });
+
+  it('HEAD_COACH H4 is NOT functional yet (P1-10): an Administrator cannot assign a Head Coach to a course × division, nor route work to one', async () => {
+    const assign = await http().post('/api/v1/admin/mentor-assignments').set(bearer(admin))
+      .send({ mentorId: headCoachId, courseId: ctx.ids.algebra, divisionId: ctx.ids.junior }).expect(400);
+    expect(assign.body.code).toBe('NOT_A_MENTOR');
+    expect(await ctx.prisma.mentorAssignment.count({ where: { mentorId: headCoachId } })).toBe(0);
+
+    const before = await reviewState();
+    const route = await http().patch(`/api/v1/submissions/${subId}/reassign`).set(bearer(admin)).send({ mentorId: headCoachId }).expect(400);
+    expect(route.body.code).toBe('NOT_A_MENTOR');
+    expect(await reviewState()).toEqual(before);
+    expect(await ctx.prisma.mentorReview.count({ where: { mentorId: headCoachId } })).toBe(0);
   });
 
   it('the assigned coach still works normally behind the permission', async () => {

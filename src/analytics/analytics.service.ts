@@ -9,6 +9,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AccessService } from '../common/access/access.service.js';
+import { PermissionService } from '../auth/permission.service.js';
 import type { AuthUser } from '../common/auth-user.js';
 
 const BUCKETS = [
@@ -24,7 +25,19 @@ export class AnalyticsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly permissions: PermissionService,
   ) {}
+
+  /**
+   * Who may manage this course × division: a holder of `analytics.course` at GLOBAL
+   * scope (ADMIN, SUPER_ADMIN — plan §5), or the coach assigned to it. Any
+   * narrower grant (e.g. a Head Coach's programme scope, until P1-07/P1-10) is
+   * not enough on its own.
+   */
+  private async assertCanManageScope(user: AuthUser, scope: { courseId: string; divisionId: string }) {
+    if (this.permissions.scopeOf(user, 'analytics.course') === 'global') return;
+    await this.access.assertCanManage(user, scope);
+  }
 
   async courseAnalytics(courseId: string, divisionId: string, user: AuthUser) {
     const [course, division] = await Promise.all([
@@ -33,7 +46,7 @@ export class AnalyticsService {
     ]);
     if (!course)   throw new NotFoundException('Course not found.');
     if (!division) throw new NotFoundException('Division not found.');
-    await this.access.assertCanManage(user, { courseId, divisionId });
+    await this.assertCanManageScope(user, { courseId, divisionId });
 
     const studentWhere = { role: 'STUDENT' as const, divisionId, isActive: true, isApproved: true };
     const scope        = { courseId, divisionId };
