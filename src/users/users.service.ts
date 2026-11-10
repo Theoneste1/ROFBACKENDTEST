@@ -203,9 +203,10 @@ export class UsersService {
         enrollment = 'WITHDRAWN';
       }
 
-      // A coach who changes role keeps no coach scope: their course × division
-      // assignments are deactivated (kept as history) in the same transaction.
-      if (existing.role === 'MENTOR' && role !== 'MENTOR') {
+      // A coach or Head Coach who changes role keeps no course × division scope:
+      // their assignments are deactivated (kept as history) in the same transaction
+      // (a former coach's assignments never become a Head Coach's, H4).
+      if ((existing.role === 'MENTOR' || existing.role === 'HEAD_COACH') && role !== existing.role) {
         await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
       }
 

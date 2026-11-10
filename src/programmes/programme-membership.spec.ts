@@ -59,7 +59,7 @@ describe('membership never feeds student or coach access (plan §7.3, §11.5 cod
     expect(read(file)).not.toMatch(/programmeMembership|ProgrammeMembership|programmesOf|isProgrammeMember|programmeMembersFilter|programmeCoursesFilter/);
   });
 
-  it('mentor-assignments reads membership only in its two Head Coach helpers (P1-10) — never for a coach\'s own scope or the admin path', () => {
+  it('mentor-assignments reads membership only in its three Head Coach helpers (P1-10) — never for a coach\'s own scope or the admin path', () => {
     const text = read('mentor-assignments/mentor-assignments.service.ts');
     const MEMBERSHIP = /programmeMembership|ProgrammeMembership|programmesOf|isProgrammeMember|programmeMembersFilter|programmeCoursesFilter|headedProgrammes/;
     const body = (name: string) => {
@@ -68,7 +68,7 @@ describe('membership never feeds student or coach access (plan §7.3, §11.5 cod
       const next = text.indexOf('\n  /**', start);
       return text.slice(start, next > start ? next : undefined);
     };
-    const helpers = [body('callerFilter'), body('assertHeadCoachMayAssign')];
+    const helpers = [body('callerFilter'), body('assertHeadCoachMayAssign'), body('assertHeadsCourseProgramme')];
     for (const h of helpers) expect(h).toMatch(MEMBERSHIP);
     let rest = text;
     for (const h of helpers) rest = rest.replace(h, '');

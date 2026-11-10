@@ -771,6 +771,7 @@
     "path": "/api/v1/assignments/{id}/history",
     "roles": [
       "MENTOR",
+      "HEAD_COACH",
       "ADMIN",
       "SUPER_ADMIN"
     ],
@@ -1483,7 +1484,8 @@
     "method": "GET",
     "path": "/api/v1/me/teaching",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Me"
   },
@@ -1915,6 +1917,7 @@
     "roles": [
       "ADMIN",
       "MENTOR",
+      "HEAD_COACH",
       "SUPER_ADMIN"
     ],
     "tag": "Submissions"

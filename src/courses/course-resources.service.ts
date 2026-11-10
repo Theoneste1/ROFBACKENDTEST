@@ -28,7 +28,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { ATTACHMENT_SELECT, MAX_ATTACHMENTS } from '../common/storage/attachments.js';
 import type { AuthUser } from '../common/auth-user.js';
-import { isAdmin, isCoach, isStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
+import { isAdmin, isCourseStaff, isCourseWorker, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { FileObject, Prisma } from '../generated/prisma/client.js';
 import { Events } from '../notifications/events.js';
 import { CreateResourceDto, ListResourcesDto } from './dto/create-resource.dto.js';
@@ -123,7 +123,7 @@ export class CourseResourcesService {
 
   async findAll(courseId: string, user: AuthUser, q: ListResourcesDto) {
     // A role-dependent list: refuse an unsupported role before revealing anything about the course.
-    if (!isStudent(user) && !isStaff(user)) throw unsupportedRole();
+    if (!isStudent(user) && !isCourseStaff(user)) throw unsupportedRole();
     await this.requireCourse(courseId);
 
     const where: Prisma.CourseResourceWhereInput = {
@@ -142,7 +142,7 @@ export class CourseResourcesService {
       const divisionId = this.access.studentDivision(user);
       await this.access.assertCanView(user, { courseId, divisionId });
       Object.assign(where, { divisionId, isPublished: true, archivedAt: null });
-    } else if (isCoach(user)) {
+    } else if (isCourseWorker(user)) {
       const divisions = (await this.access.mentorScopes(user.id))
         .filter((s) => s.courseId === courseId)
         .map((s) => s.divisionId);

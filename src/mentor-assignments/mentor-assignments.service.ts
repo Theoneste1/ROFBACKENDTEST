@@ -3,7 +3,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService, scopeForbidden } from '../common/access/access.service.js';
-import { isAdmin, isHeadCoach, unsupportedRole } from '../common/access/roles.js';
+import { COURSE_WORK_ROLES, isAdmin, isHeadCoach, unsupportedRole } from '../common/access/roles.js';
 import { AppError } from '../common/errors/app-error.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -70,8 +70,13 @@ export class MentorAssignmentsService {
     if (isHeadCoach(caller)) await this.assertHeadCoachMayAssign(caller, mentor, course);
     else if (!isAdmin(caller)) throw unsupportedRole();
     if (!mentor) throw new NotFoundException('Coach not found.');
-    if (mentor.role !== 'MENTOR') {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Only users with the MENTOR role can be assigned.');
+    if (mentor.role === 'HEAD_COACH' && isAdmin(caller)) {
+      // H4: an Administrator (only) gives a Head Coach a course × division to teach and
+      // grade — on a course of a programme they head (HC-A). Head Coaches never reach
+      // here for a Head Coach target (403 above).
+      if (course) await this.assertHeadsCourseProgramme(mentor, course);
+    } else if (mentor.role !== 'MENTOR') {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Only Coaches, or Head Coaches (by an Administrator), can be assigned.');
     }
     if (!mentor.isActive) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'ACCOUNT_SUSPENDED', 'This coach account is suspended.');
@@ -156,10 +161,17 @@ export class MentorAssignmentsService {
     }
   }
 
-  /** The current mentor's teaching scopes. */
+  /** H4: a Head Coach is assigned (by an Administrator) only to courses of a programme they head. */
+  private async assertHeadsCourseProgramme(headCoach: { id: string; role: string }, course: { disciplineId: string }) {
+    if (!(await this.access.headedProgrammes(headCoach as AuthUser)).includes(course.disciplineId)) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_PROGRAMME_HEAD', 'A Head Coach can only be assigned to courses of a programme they head.');
+    }
+  }
+
+  /** The caller's own teaching scopes (a coach, or a Head Coach with Administrator-created assignments). */
   async findMine(mentorId: string) {
     return this.prisma.mentorAssignment.findMany({
-      where:   { mentorId, isActive: true, mentor: { role: 'MENTOR' } },
+      where:   { mentorId, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
       select:  { id: true, course: SELECT.course, division: SELECT.division, createdAt: true },
       orderBy: { course: { sortOrder: 'asc' } },
     });

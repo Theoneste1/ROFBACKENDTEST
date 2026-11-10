@@ -179,7 +179,7 @@ export class AssignmentsController {
 
   /** Everything that happened to the assignment, oldest first (mentors of the scope, admins). */
   @Get(':id/history')
-  @Roles('MENTOR', 'ADMIN', 'SUPER_ADMIN')
+  @Roles('MENTOR', 'HEAD_COACH', 'ADMIN', 'SUPER_ADMIN')
   history(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.history(id, user);
   }

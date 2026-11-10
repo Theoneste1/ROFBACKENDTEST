@@ -3404,7 +3404,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** MENTOR, ADMIN, SUPER_ADMIN"
+            "description": "**Access:** MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN"
           }
         },
         {
@@ -6174,7 +6174,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** MENTOR"
+            "description": "**Access:** MENTOR, HEAD_COACH"
           }
         }
       ]
@@ -7640,7 +7640,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
+            "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN"
           }
         },
         {

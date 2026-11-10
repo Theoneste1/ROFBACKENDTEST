@@ -106,10 +106,11 @@ describe('PermissionService', () => {
       expect(r.roleLabel).toBe(label);
       expect([...r.permissions].sort()).toEqual(Object.keys(ROLE_GRANTS[role]).sort());
       expect(r.permissions).toEqual(PERMISSIONS.filter((p) => p in ROLE_GRANTS[role]));   // catalogue order
-      // Only a Head Coach has programme scope: the programmes they head (read fresh).
-      const programmes = role === 'HEAD_COACH' ? ['prog-maths'] : [];
-      expect(r.scopes).toEqual({ courseDivisions: [], programmes });
-      expect(calls).toEqual(role === 'HEAD_COACH' ? ['programmes:u1'] : []);
+      // Only a Head Coach has programme scope (the programmes they head) and, like a coach,
+      // the course × division assignments an Administrator created for them (H4) — read fresh.
+      const hc = role === 'HEAD_COACH';
+      expect(r.scopes).toEqual({ courseDivisions: hc ? SCOPES : [], programmes: hc ? ['prog-maths'] : [] });
+      expect(calls).toEqual(hc ? ['u1', 'programmes:u1'] : []);
     });
 
     it("SUPER_ADMIN's list never contains a prohibited grading permission", async () => {

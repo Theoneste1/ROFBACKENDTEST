@@ -16,7 +16,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AccessService } from '../common/access/access.service.js';
-import { isCoach } from '../common/access/roles.js';
+import { isCourseWorker } from '../common/access/roles.js';
 import type { ActiveOverride, AuthUser } from '../common/auth-user.js';
 import { overrideRefusal } from './override-policy.js';
 import {
@@ -125,9 +125,9 @@ export class PermissionService {
       .map((o) => o.permission);
   }
 
-  /** A coach's active course × division assignments; nobody else has any. */
+  /** Active course × division assignments of a coach or Head Coach (H4); nobody else has any. */
   private async courseDivisions(user: AuthUser) {
-    if (isCoach(user)) {
+    if (isCourseWorker(user)) {
       const scopes = await this.access.mentorScopes(user.id);
       return scopes.map((s) => ({ courseId: s.courseId, divisionId: s.divisionId }));
     }

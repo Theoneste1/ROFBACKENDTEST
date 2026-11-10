@@ -121,7 +121,7 @@ export class SubmissionsController {
 
   /** Review history (all cycles with events). Admins: all; mentors: their own cycles. */
   @Get(':id/reviews')
-  @Roles('ADMIN', 'MENTOR', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'MENTOR', 'HEAD_COACH', 'SUPER_ADMIN')
   reviews(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.reviewHistory(id, user);
   }
