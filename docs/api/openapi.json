@@ -8861,18 +8861,18 @@
             "bearer": []
           }
         ],
-        "summary": "Students of my schools: name, username, grade, division, school.",
+        "summary": "Teachers only: every registered student of the schools an Administrator has assigned to you\n(active school assignments) — name, username, grade, division, school. Other roles: 403.",
         "tags": [
           "Teacher"
         ],
+        "x-served-roles": [
+          "TEACHER"
+        ],
         "x-roles": [
-          "TEACHER",
-          "HEAD_COACH",
-          "ADMIN",
-          "SUPER_ADMIN"
+          "TEACHER"
         ],
         "x-permission": "students.viewScoped",
-        "description": "**Access:** permission `students.viewScoped` (TEACHER, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+        "description": "**Access:** permission `students.viewScoped` (TEACHER)"
       }
     },
     "/api/v1/teacher/students/{id}": {
@@ -8908,17 +8908,15 @@
             "bearer": []
           }
         ],
-        "summary": "A student's profile (delegation students.viewProfile). No contact details.",
+        "summary": "A student of your assigned schools: profile and account status, no contact details. Needs the students.viewProfile delegation.",
         "tags": [
           "Teacher"
         ],
         "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
+          "TEACHER"
         ],
         "x-permission": "students.viewProfile",
-        "description": "**Access:** permission `students.viewProfile` ()"
+        "description": "**Access:** permission `students.viewProfile` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
       }
     },
     "/api/v1/teacher/students/{id}/progress": {
@@ -8954,17 +8952,15 @@
             "bearer": []
           }
         ],
-        "summary": "Assignment availability and submission history (delegation students.viewProgress). No scores or feedback.",
+        "summary": "A student of your assigned schools: assignment availability and submission history, no scores or feedback. Needs the students.viewProgress delegation.",
         "tags": [
           "Teacher"
         ],
         "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
+          "TEACHER"
         ],
         "x-permission": "students.viewProgress",
-        "description": "**Access:** permission `students.viewProgress` ()"
+        "description": "**Access:** permission `students.viewProgress` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
       }
     },
     "/api/v1/teacher/students/{id}/submissions": {
@@ -9010,17 +9006,15 @@
             "bearer": []
           }
         ],
-        "summary": "Submit for the student (delegation submissions.submitOnBehalf; multipart like\nPOST /submissions). The student stays the owner; you are recorded as the submitter.",
+        "summary": "Submit for a student of your assigned schools (multipart, as POST /submissions). Needs the\nsubmissions.submitOnBehalf delegation. The student stays the owner; you are recorded as the submitter.",
         "tags": [
           "Teacher"
         ],
         "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
+          "TEACHER"
         ],
         "x-permission": "submissions.submitOnBehalf",
-        "description": "**Access:** permission `submissions.submitOnBehalf` ()"
+        "description": "**Access:** permission `submissions.submitOnBehalf` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
       }
     },
     "/api/v1/submissions": {

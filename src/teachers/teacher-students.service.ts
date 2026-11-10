@@ -1,8 +1,10 @@
 /**
  * A Teacher's view of the students of their schools (P1-11; owner decisions
  * 2026-11-10). Every method is school-scoped: only STUDENT accounts whose
- * school is one of the teacher's ACTIVE school assignments, read fresh on each
- * request; any other student → 404 (not revealed).
+ * `schoolId` is one of the teacher's ACTIVE school assignments (set by an
+ * Administrator), read fresh on each request; any other student → 404 (not
+ * revealed). Every registered student of those schools counts — no programme,
+ * course or enrolment condition.
  *
  *   list      students.viewScoped (Teacher default): name, username, grade, division, school
  *   profile   students.viewProfile (delegation): + account and enrolment status
@@ -28,8 +30,9 @@ import { CreateSubmissionDto } from '../submissions/dto/create-submission.dto.js
 import { SubmissionsService } from '../submissions/submissions.service.js';
 import { ListTeacherStudentsDto } from './dto/teacher.dto.js';
 
+/** The default list (students.viewScoped): name, username, grade, division, school — nothing else. */
 const STUDENT_SELECT = {
-  id: true, username: true, firstName: true, lastName: true, gradeLevel: true, isActive: true,
+  id: true, username: true, firstName: true, lastName: true, gradeLevel: true,
   division: { select: { id: true, code: true, name: true } },
   school:   { select: { id: true, name: true, location: true } },
 } as const;
@@ -53,7 +56,7 @@ export class TeacherStudentsService {
     const schools = await this.schools(user);
     const student = await this.prisma.user.findFirst({
       where:  { id: studentId, ...this.access.schoolStudentsFilter(schools) },
-      select: { ...STUDENT_SELECT, divisionId: true, isApproved: true, activatedAt: true, createdAt: true, lastLoginAt: true },
+      select: { ...STUDENT_SELECT, divisionId: true, isActive: true, isApproved: true, activatedAt: true, createdAt: true, lastLoginAt: true },
     });
     if (!student) throw new NotFoundException('Student not found.');
     return student;

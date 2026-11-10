@@ -3398,9 +3398,10 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/teacher/students`
 
-**Access:** TEACHER, HEAD_COACH, ADMIN, SUPER_ADMIN
+**Access:** TEACHER
 
-Students of my schools: name, username, grade, division, school.
+Teachers only: every registered student of the schools an Administrator has assigned to you
+(active school assignments) — name, username, grade, division, school. Other roles: 403.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -3412,9 +3413,9 @@ Returns `200` with no body.
 
 ### GET `/api/v1/teacher/students/{id}`
 
-**Access:** STUDENT, MENTOR, ADMIN
+**Access:** TEACHER
 
-A student's profile (delegation students.viewProfile). No contact details.
+A student of your assigned schools: profile and account status, no contact details. Needs the students.viewProfile delegation.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -3424,9 +3425,9 @@ Returns `200` with no body.
 
 ### GET `/api/v1/teacher/students/{id}/progress`
 
-**Access:** STUDENT, MENTOR, ADMIN
+**Access:** TEACHER
 
-Assignment availability and submission history (delegation students.viewProgress). No scores or feedback.
+A student of your assigned schools: assignment availability and submission history, no scores or feedback. Needs the students.viewProgress delegation.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -3436,10 +3437,10 @@ Returns `200` with no body.
 
 ### POST `/api/v1/teacher/students/{id}/submissions`
 
-**Access:** STUDENT, MENTOR, ADMIN
+**Access:** TEACHER
 
-Submit for the student (delegation submissions.submitOnBehalf; multipart like
-POST /submissions). The student stays the owner; you are recorded as the submitter.
+Submit for a student of your assigned schools (multipart, as POST /submissions). Needs the
+submissions.submitOnBehalf delegation. The student stays the owner; you are recorded as the submitter.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|

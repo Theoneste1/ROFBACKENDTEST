@@ -10,7 +10,7 @@
     "paths": 197,
     "schemas": 60
   },
-  "fingerprint": "a15b501d8bd6d449a6d9ad5b75c6c532ee29550fd7e05d1a07bfbb1a211497e5",
+  "fingerprint": "55e4a5766d7303d1ff0a7e9c65e4abea53ef73c92bcd4fa971e5dc68034484fe",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -34453,9 +34453,6 @@
         "Teacher"
       ],
       "roles": [
-        "ADMIN",
-        "HEAD_COACH",
-        "SUPER_ADMIN",
         "TEACHER"
       ],
       "public": false,
@@ -34513,9 +34510,7 @@
         "Teacher"
       ],
       "roles": [
-        "ADMIN",
-        "MENTOR",
-        "STUDENT"
+        "TEACHER"
       ],
       "public": false,
       "parameters": [
@@ -34545,9 +34540,7 @@
         "Teacher"
       ],
       "roles": [
-        "ADMIN",
-        "MENTOR",
-        "STUDENT"
+        "TEACHER"
       ],
       "public": false,
       "parameters": [
@@ -34577,9 +34570,7 @@
         "Teacher"
       ],
       "roles": [
-        "ADMIN",
-        "MENTOR",
-        "STUDENT"
+        "TEACHER"
       ],
       "public": false,
       "parameters": [

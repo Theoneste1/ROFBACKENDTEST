@@ -2042,10 +2042,7 @@
     "method": "GET",
     "path": "/api/v1/teacher/students",
     "roles": [
-      "TEACHER",
-      "HEAD_COACH",
-      "ADMIN",
-      "SUPER_ADMIN"
+      "TEACHER"
     ],
     "tag": "Teacher"
   },
@@ -2053,9 +2050,7 @@
     "method": "GET",
     "path": "/api/v1/teacher/students/{id}",
     "roles": [
-      "STUDENT",
-      "MENTOR",
-      "ADMIN"
+      "TEACHER"
     ],
     "tag": "Teacher"
   },
@@ -2063,9 +2058,7 @@
     "method": "GET",
     "path": "/api/v1/teacher/students/{id}/progress",
     "roles": [
-      "STUDENT",
-      "MENTOR",
-      "ADMIN"
+      "TEACHER"
     ],
     "tag": "Teacher"
   },
@@ -2073,9 +2066,7 @@
     "method": "POST",
     "path": "/api/v1/teacher/students/{id}/submissions",
     "roles": [
-      "STUDENT",
-      "MENTOR",
-      "ADMIN"
+      "TEACHER"
     ],
     "tag": "Teacher"
   }

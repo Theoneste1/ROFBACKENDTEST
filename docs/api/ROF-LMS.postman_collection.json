@@ -8077,7 +8077,7 @@
                 }
               ]
             },
-            "description": "**Access:** permission `students.viewScoped` (TEACHER, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+            "description": "**Access:** permission `students.viewScoped` (TEACHER)"
           }
         },
         {
@@ -8104,7 +8104,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** permission `students.viewProfile` ()"
+            "description": "**Access:** permission `students.viewProfile` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
           }
         },
         {
@@ -8132,7 +8132,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** permission `students.viewProgress` ()"
+            "description": "**Access:** permission `students.viewProgress` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
           }
         },
         {
@@ -8160,7 +8160,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** permission `submissions.submitOnBehalf` ()",
+            "description": "**Access:** permission `submissions.submitOnBehalf` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments",
             "body": {
               "mode": "formdata",
               "formdata": [

@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiConsumes, ApiExtension, ApiTags } from '@nestjs/swagger';
 
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -83,21 +83,25 @@ export class TeacherDelegationsController {
 export class TeacherStudentsController {
   constructor(private readonly service: TeacherStudentsService) {}
 
-  /** Students of my schools: name, username, grade, division, school. */
+  /**
+   * Teachers only: every registered student of the schools an Administrator has assigned to you
+   * (active school assignments) — name, username, grade, division, school. Other roles: 403.
+   */
   @Get()
   @RequirePermission('students.viewScoped')
+  @ApiExtension('x-served-roles', ['TEACHER'])
   list(@Query() q: ListTeacherStudentsDto, @CurrentUser() user: AuthUser) {
     return this.service.list(user, q);
   }
 
-  /** A student's profile (delegation students.viewProfile). No contact details. */
+  /** A student of your assigned schools: profile and account status, no contact details. Needs the students.viewProfile delegation. */
   @Get(':id')
   @RequirePermission('students.viewProfile')
   profile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.service.profile(user, id);
   }
 
-  /** Assignment availability and submission history (delegation students.viewProgress). No scores or feedback. */
+  /** A student of your assigned schools: assignment availability and submission history, no scores or feedback. Needs the students.viewProgress delegation. */
   @Get(':id/progress')
   @RequirePermission('students.viewProgress')
   progress(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
@@ -105,8 +109,8 @@ export class TeacherStudentsController {
   }
 
   /**
-   * Submit for the student (delegation submissions.submitOnBehalf; multipart like
-   * POST /submissions). The student stays the owner; you are recorded as the submitter.
+   * Submit for a student of your assigned schools (multipart, as POST /submissions). Needs the
+   * submissions.submitOnBehalf delegation. The student stays the owner; you are recorded as the submitter.
    */
   @Post(':id/submissions')
   @RequirePermission('submissions.submitOnBehalf')

@@ -8,6 +8,10 @@
  * T3 (no school); a published Algebra × Junior assignment with a published result
  * for student.j.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { buildOpenApiDocument } from '../src/openapi.js';
 import { createTestApp, login, bearer, inDays, PDF, PASSWORD, type TestContext } from './helpers.js';
 
 describe('Teachers (P1-11)', () => {
@@ -81,15 +85,51 @@ describe('Teachers (P1-11)', () => {
   });
 
   it('school isolation: a Teacher lists only students of their schools, without contact details; other schools 404; other roles refused', async () => {
+    // Access follows the School relationship (schoolId), not a name: a school with a similar name stays invisible.
+    const lookalike = (await p().school.create({ data: { name: 'Test School Branch', location: 'Kigali' } })).id;
+    const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const branchStudent = (await p().user.create({ data: {
+      username: 'student.branch', firstName: 'B', lastName: 'S', email: 'student.branch@test.local', role: 'STUDENT', passwordHash: hash,
+      activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: lookalike,
+    } })).id;
+
     const mine = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t1)).expect(200)).body.data;
     expect(mine.map((s: any) => s.id).sort()).toEqual([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior].sort());
-    for (const s of mine) for (const key of ['email', 'phone', 'homeLocation', 'passwordHash']) expect([s.id, key in s]).toEqual([s.id, false]);
+    expect(mine.map((s: any) => s.id)).not.toContain(branchStudent);
+    // The default list exposes exactly: name, username, grade, division, school.
+    for (const s of mine) expect(Object.keys(s).sort()).toEqual(['division', 'firstName', 'gradeLevel', 'id', 'lastName', 'school', 'username']);
+
+    // Every registered student of the school counts — no programme, course or enrolment condition.
+    expect(await p().programmeMembership.count({ where: { userId: studentO } })).toBe(0);
+    expect(await p().studentEnrollment.count({ where: { studentId: studentO } })).toBe(0);
+    expect(await p().courseEnrollment.count({ where: { studentId: studentO } })).toBe(0);
     expect((await http().get('/api/v1/teacher/students').set(bearer(t2)).expect(200)).body.data.map((s: any) => s.id)).toEqual([studentO]);
     expect((await http().get('/api/v1/teacher/students').set(bearer(t3)).expect(200)).body.data).toEqual([]);
     expect((await http().get('/api/v1/teacher/students').query({ schoolId: schoolB }).set(bearer(t1))).status).toBe(404);
     // Administrators use the admin user API; Coaches and Students have no access.
     expect(await status(http().get('/api/v1/teacher/students').set(bearer(admin)))).toEqual([403, 'ROLE_NOT_SUPPORTED']);
     for (const token of [coachJ, studentJ2]) expect(await status(http().get('/api/v1/teacher/students').set(bearer(token)))).toEqual([403, 'PERMISSION_REQUIRED']);
+  });
+
+  it('API documentation: the four Teacher student routes name exactly TEACHER, the school-assignment rule and the delegation', async () => {
+    // Access lines come from the running app; route summaries from the generated document (build plugin, JSDoc).
+    const doc = buildOpenApiDocument(ctx.app);
+    const generated = JSON.parse(readFileSync(join(__dirname, '..', 'docs', 'api', 'openapi.json'), 'utf8'));
+    const op = (path: string, method: string) => (doc.paths[path] as any)[method];
+    const routes: Array<[string, string, string, boolean]> = [
+      ['/api/v1/teacher/students', 'get', 'students.viewScoped', false],
+      ['/api/v1/teacher/students/{id}', 'get', 'students.viewProfile', true],
+      ['/api/v1/teacher/students/{id}/progress', 'get', 'students.viewProgress', true],
+      ['/api/v1/teacher/students/{id}/submissions', 'post', 'submissions.submitOnBehalf', true],
+    ];
+    for (const [path, method, permission, delegated] of routes) {
+      const o = op(path, method);
+      expect([path, o['x-roles'], o['x-permission']]).toEqual([path, ['TEACHER'], permission]);
+      const summary: string = generated.paths[path][method].summary ?? '';
+      expect([path, /assigned schools|assigned to you/.test(summary)]).toEqual([path, true]);
+      expect(generated.paths[path][method]['x-roles']).toEqual(['TEACHER']);
+      if (delegated) expect([path, o.description]).toEqual([path, expect.stringContaining('granted individually by an Administrator or Super Admin')]);
+    }
   });
 
   it('without a delegation a Teacher cannot view profiles or progress, nor submit for a student', async () => {
