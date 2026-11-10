@@ -36,14 +36,14 @@ export class SchoolsController {
 
   /** ADMIN: schools with student counts. */
   @Get()
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   findAll(@Query() query: ListSchoolsDto) {
     return this.schoolsService.findAll(query);
   }
 
   /** ADMIN: a school and its students (paginated). */
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   findOne(@Param('id', ParseUUIDPipe) id: string, @Query() query: PaginationQueryDto) {
     return this.schoolsService.findOne(id, query);
   }

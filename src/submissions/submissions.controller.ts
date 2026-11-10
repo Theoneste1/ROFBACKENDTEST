@@ -121,7 +121,7 @@ export class SubmissionsController {
 
   /** Review history (all cycles with events). Admins: all; mentors: their own cycles. */
   @Get(':id/reviews')
-  @Roles('ADMIN', 'MENTOR')
+  @Roles('ADMIN', 'MENTOR', 'SUPER_ADMIN')
   reviews(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.submissionsService.reviewHistory(id, user);
   }
@@ -360,7 +360,7 @@ export class MentorReviewsController {
 
 @ApiTags('Admin · Leaderboard')
 @Controller('admin/leaderboard')
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class AdminPointsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 

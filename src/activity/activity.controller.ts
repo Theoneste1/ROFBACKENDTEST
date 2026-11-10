@@ -7,7 +7,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 
 @ApiTags('Admin · Activity')
 @Controller('admin/activity')
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class ActivityController {
   constructor(private readonly activity: ActivityService) {}
 
