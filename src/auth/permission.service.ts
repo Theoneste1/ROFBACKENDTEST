@@ -17,7 +17,8 @@ import { Injectable } from '@nestjs/common';
 
 import { AccessService } from '../common/access/access.service.js';
 import { isCoach } from '../common/access/roles.js';
-import type { AuthUser } from '../common/auth-user.js';
+import type { ActiveOverride, AuthUser } from '../common/auth-user.js';
+import { overrideRefusal } from './override-policy.js';
 import {
   ADMINISTRATIVE_ROLES, ADMIN_PROHIBITED, PERMISSIONS, ROLE_LABELS, ROLE_PERMISSIONS, grantsForRole, permissionsFor,
   type AppRole, type Permission, type ScopeKind,
@@ -33,6 +34,13 @@ export interface PermissionSummary {
    */
   permissions: readonly Permission[];
   scopes:      { courseDivisions: Array<{ courseId: string; divisionId: string }> };
+  /** The caller's active individual overrides (P1-09). */
+  overrides:   Array<{ permission: string; effect: 'GRANT' | 'DENY'; courseId: string | null; divisionId: string | null; expiresAt: Date | null }>;
+}
+
+/** Overrides that still apply at `now` (expiresAt is re-checked at every decision). */
+function activeOverrides(user: AuthUser, now: Date): readonly ActiveOverride[] {
+  return (user.overrides ?? []).filter((o) => o.expiresAt === null || o.expiresAt.getTime() > now.getTime());
 }
 
 @Injectable()
@@ -44,10 +52,26 @@ export class PermissionService {
     return user.role;
   }
 
-  /** Effective grants: permission → scope kind. Empty for an unknown role. */
-  effective(user: AuthUser): ReadonlyMap<Permission, ScopeKind> {
+  /**
+   * Effective grants: permission → scope kind. Empty for an unknown role.
+   * Role defaults, then the user's active individual overrides (P1-09): DENY
+   * removes a permission; GRANT adds one only if the approved list allows it for
+   * the role (never a never-grantable one), scoped to course × division — the
+   * service then checks that scope. Each override's expiresAt is checked again
+   * here, at the moment of the decision. No override ever applies to a
+   * SUPER_ADMIN or an unknown role. RS1 is applied last, whatever the source.
+   */
+  effective(user: AuthUser, now: Date = new Date()): ReadonlyMap<Permission, ScopeKind> {
     const role = this.roleOf(user);
-    const grants = new Map(Object.entries(grantsForRole(role) ?? {}) as Array<[Permission, ScopeKind]>);
+    const defaults = grantsForRole(role);
+    const grants = new Map(Object.entries(defaults ?? {}) as Array<[Permission, ScopeKind]>);
+    if (defaults && role !== 'SUPER_ADMIN') {
+      for (const o of activeOverrides(user, now)) {
+        if (overrideRefusal(role, o.permission, o.effect) !== null) continue;
+        if (o.effect === 'DENY') grants.delete(o.permission as Permission);
+        else grants.set(o.permission as Permission, 'courseDivision');
+      }
+    }
     if ((ADMINISTRATIVE_ROLES as readonly string[]).includes(role)) {
       for (const p of ADMIN_PROHIBITED) grants.delete(p);
     }
@@ -71,11 +95,15 @@ export class PermissionService {
   async describe(user: AuthUser): Promise<PermissionSummary> {
     const role = this.roleOf(user);
     const label = Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role as AppRole] : null;
+    const denied = new Set(this.deniedFor(user));
     return {
       role,
       roleLabel: label,
-      permissions: this.listFor(user),
+      permissions: this.listFor(user).filter((p) => !denied.has(p)),
       scopes: { courseDivisions: await this.courseDivisions(user) },
+      overrides: activeOverrides(user, new Date()).map((o) => ({
+        permission: o.permission, effect: o.effect, courseId: o.courseId, divisionId: o.divisionId, expiresAt: o.expiresAt,
+      })),
     };
   }
 
@@ -85,6 +113,15 @@ export class PermissionService {
     if (Object.hasOwn(ROLE_PERMISSIONS, role)) return permissionsFor(role as never);
     const held = this.effective(user);
     return PERMISSIONS.filter((p) => held.has(p));
+  }
+
+  /** Permissions removed by an applicable DENY override (none for SUPER_ADMIN). */
+  private deniedFor(user: AuthUser): string[] {
+    const role = this.roleOf(user);
+    if (role === 'SUPER_ADMIN') return [];
+    return activeOverrides(user, new Date())
+      .filter((o) => o.effect === 'DENY' && overrideRefusal(role, o.permission, 'DENY') === null)
+      .map((o) => o.permission);
   }
 
   /** A coach's active course × division assignments; nobody else has any. */

@@ -386,47 +386,50 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignmentsCreated    Assignment[]             @relation("AssignmentCreator")
-  assignmentsApproved   Assignment[]             @relation("AssignmentApprover")
-  assignmentEvents      AssignmentEvent[]
-  courseEnrollments     CourseEnrollment[]       @relation("CourseEnrollments")
-  resourcesUploaded     CourseResource[]         @relation("ResourceUploader")
-  resourceViews         ResourceView[]
-  comments              Comment[]                @relation("CommentAuthor")
-  commentReactions      CommentReaction[]        @relation("CommentReactions")
-  studyGroupsCreated    StudyGroup[]             @relation("StudyGroupCreator")
-  studyGroupMemberships StudyGroupMember[]       @relation("StudyGroupMemberships")
-  emailJobsCreated      EmailJob[]               @relation("EmailJobCreator")
-  submissions           Submission[]             @relation("StudentSubmissions")
-  submissionRevisions   SubmissionRevision[]
-  assignmentViews       AssignmentView[]         @relation("AssignmentViewer")
-  auditLogs             AuditLog[]               @relation("AuditActor")
-  mentorAssignments     MentorAssignment[]       @relation("MentorAssignmentMentor")
-  mentorAssignmentsMade MentorAssignment[]       @relation("MentorAssignmentAssigner")
-  programmeMemberships      ProgrammeMembership[] @relation("ProgrammeMember")
-  programmeMembershipsAdded ProgrammeMembership[] @relation("ProgrammeMemberAddedBy")
-  programmeMembershipsEnded ProgrammeMembership[] @relation("ProgrammeMemberEndedBy")
-  notifications         Notification[]
-  notificationPrefs     NotificationPreference[]
-  notificationSettings  NotificationSetting[]
-  refreshTokens         RefreshToken[]
-  passwordResetTokens   PasswordResetToken[]
-  activationTokens      AccountActivationToken[] @relation("ActivationUser")
-  invitationsSent       AccountActivationToken[] @relation("ActivationInviter")
-  filesUploaded         FileObject[]
-  settingsUpdated       SystemSetting[]
-  studentEnrollments    StudentEnrollment[]
-  reviews               MentorReview[]           @relation("ReviewMentor")
-  reviewsAssigned       MentorReview[]           @relation("ReviewAssigner")
-  reviewsDecided        MentorReview[]           @relation("ReviewDecider")
-  reviewEvents          ReviewEvent[]
-  distributionBatches   DistributionBatch[]
-  resultReleases        ResultRelease[]
-  threadsCreated        DiscussionThread[]
-  reportsFiled          ContentReport[]          @relation("ReportReporter")
-  reportsResolved       ContentReport[]          @relation("ReportResolver")
-  moderationActions     ModerationAction[]
-  activityLogs          ActivityLog[]
+  assignmentsCreated         Assignment[]             @relation("AssignmentCreator")
+  assignmentsApproved        Assignment[]             @relation("AssignmentApprover")
+  assignmentEvents           AssignmentEvent[]
+  courseEnrollments          CourseEnrollment[]       @relation("CourseEnrollments")
+  resourcesUploaded          CourseResource[]         @relation("ResourceUploader")
+  resourceViews              ResourceView[]
+  comments                   Comment[]                @relation("CommentAuthor")
+  commentReactions           CommentReaction[]        @relation("CommentReactions")
+  studyGroupsCreated         StudyGroup[]             @relation("StudyGroupCreator")
+  studyGroupMemberships      StudyGroupMember[]       @relation("StudyGroupMemberships")
+  emailJobsCreated           EmailJob[]               @relation("EmailJobCreator")
+  submissions                Submission[]             @relation("StudentSubmissions")
+  submissionRevisions        SubmissionRevision[]
+  assignmentViews            AssignmentView[]         @relation("AssignmentViewer")
+  auditLogs                  AuditLog[]               @relation("AuditActor")
+  mentorAssignments          MentorAssignment[]       @relation("MentorAssignmentMentor")
+  mentorAssignmentsMade      MentorAssignment[]       @relation("MentorAssignmentAssigner")
+  programmeMemberships       ProgrammeMembership[]    @relation("ProgrammeMember")
+  programmeMembershipsAdded  ProgrammeMembership[]    @relation("ProgrammeMemberAddedBy")
+  programmeMembershipsEnded  ProgrammeMembership[]    @relation("ProgrammeMemberEndedBy")
+  permissionOverrides        UserPermissionOverride[] @relation("OverrideTarget")
+  permissionOverridesCreated UserPermissionOverride[] @relation("OverrideCreatedBy")
+  permissionOverridesRevoked UserPermissionOverride[] @relation("OverrideRevokedBy")
+  notifications              Notification[]
+  notificationPrefs          NotificationPreference[]
+  notificationSettings       NotificationSetting[]
+  refreshTokens              RefreshToken[]
+  passwordResetTokens        PasswordResetToken[]
+  activationTokens           AccountActivationToken[] @relation("ActivationUser")
+  invitationsSent            AccountActivationToken[] @relation("ActivationInviter")
+  filesUploaded              FileObject[]
+  settingsUpdated            SystemSetting[]
+  studentEnrollments         StudentEnrollment[]
+  reviews                    MentorReview[]           @relation("ReviewMentor")
+  reviewsAssigned            MentorReview[]           @relation("ReviewAssigner")
+  reviewsDecided             MentorReview[]           @relation("ReviewDecider")
+  reviewEvents               ReviewEvent[]
+  distributionBatches        DistributionBatch[]
+  resultReleases             ResultRelease[]
+  threadsCreated             DiscussionThread[]
+  reportsFiled               ContentReport[]          @relation("ReportReporter")
+  reportsResolved            ContentReport[]          @relation("ReportResolver")
+  moderationActions          ModerationAction[]
+  activityLogs               ActivityLog[]
 
   @@index([points])
   @@index([role])
@@ -545,12 +548,13 @@ model Division {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  students           User[]
-  studentEnrollments StudentEnrollment[]
-  mentorAssignments  MentorAssignment[]
-  resources          CourseResource[]
-  assignments        Assignment[]
-  threads            DiscussionThread[]
+  students            User[]
+  studentEnrollments  StudentEnrollment[]
+  mentorAssignments   MentorAssignment[]
+  resources           CourseResource[]
+  assignments         Assignment[]
+  threads             DiscussionThread[]
+  permissionOverrides UserPermissionOverride[]
 }
 
 /// A subject area (e.g. Mathematics). The platform launches with Mathematics
@@ -586,8 +590,8 @@ model AcademicYear {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  enrollments  StudentEnrollment[]
-  assignments  Assignment[]
+  enrollments StudentEnrollment[]
+  assignments Assignment[]
 
   @@index([status])
 }
@@ -636,12 +640,13 @@ model Course {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
-  assignments       Assignment[]
-  enrollments       CourseEnrollment[]
-  resources         CourseResource[]
-  threads           DiscussionThread[]
-  mentorAssignments MentorAssignment[]
-  activityLogs      ActivityLog[]
+  assignments         Assignment[]
+  enrollments         CourseEnrollment[]
+  resources           CourseResource[]
+  threads             DiscussionThread[]
+  mentorAssignments   MentorAssignment[]
+  activityLogs        ActivityLog[]
+  permissionOverrides UserPermissionOverride[]
 
   @@unique([disciplineId, code])
   @@index([status])
@@ -800,11 +805,11 @@ model Assignment {
   points       Int
   maximumMarks Int
 
-  allowResubmission   Boolean   @default(false)
+  allowResubmission   Boolean @default(false)
   /// 0 = unlimited resubmissions while the deadline has not passed.
-  maxResubmissions    Int       @default(0)
+  maxResubmissions    Int     @default(0)
   /// When true, first submissions after the deadline are accepted and flagged late.
-  allowLateSubmission Boolean   @default(false)
+  allowLateSubmission Boolean @default(false)
 
   status             AssignmentStatus @default(DRAFT)
   submittedAt        DateTime?
@@ -1437,6 +1442,49 @@ model ProgrammeMembership {
   @@index([disciplineId, isActive])
   @@index([addedById])
   @@index([endedById])
+}
+
+/// Whether an individual override adds or removes a permission.
+enum OverrideEffect {
+  GRANT
+  DENY
+}
+
+/// An individual permission override (P1-09, plan §6.3/§6.4): set by a Super
+/// Admin only, validated against the approved list in code, applied on every
+/// authorization decision while `revokedAt` is null and `expiresAt` is in the
+/// future (or null). A GRANT applies only inside the target's existing scope
+/// (courseId × divisionId for a teacher's assignments.prepare). Never deleted:
+/// revocation is soft and the history is kept.
+model UserPermissionOverride {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation("OverrideTarget", fields: [userId], references: [id], onDelete: Cascade)
+  permission       String
+  effect           OverrideEffect
+  /// GRANT scope (course × division); null for DENY.
+  courseId         String?
+  course           Course?        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  divisionId       String?
+  division         Division?      @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  reason           String
+  expiresAt        DateTime?
+  createdById      String?
+  createdBy        User?          @relation("OverrideCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime       @default(now())
+  revokedAt        DateTime?
+  revokedById      String?
+  revokedBy        User?          @relation("OverrideRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokeReason     String?
+  /// When the expiry was recorded in the audit log (record only; the override stopped applying at expiresAt).
+  expiryRecordedAt DateTime?
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@index([createdById])
+  @@index([revokedById])
+  @@index([courseId])
+  @@index([divisionId])
 }
 
 /// Append-only: a database trigger rejects UPDATE and DELETE (the only

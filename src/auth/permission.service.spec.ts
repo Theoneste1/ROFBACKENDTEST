@@ -78,6 +78,7 @@ describe('PermissionService', () => {
         roleLabel: role === 'STUDENT' ? 'Student' : 'Administrator',
         permissions: ROLE_PERMISSIONS[role],
         scopes: { courseDivisions: [] },
+        overrides: [],
       });
       expect(calls).toEqual([]);
     });
@@ -86,7 +87,7 @@ describe('PermissionService', () => {
       const { service: svc, calls } = make();
       await expect(svc.describe(user('MENTOR'))).resolves.toEqual({
         role: 'MENTOR', roleLabel: 'Coach', permissions: ROLE_PERMISSIONS.MENTOR,
-        scopes: { courseDivisions: SCOPES },
+        scopes: { courseDivisions: SCOPES }, overrides: [],
       });
       expect(calls).toEqual(['u1']);
     });
@@ -112,7 +113,7 @@ describe('PermissionService', () => {
     it.each(['UNKNOWN_ROLE', '__proto__', 'constructor', 'toString'])('unsupported role %s: no label, no permissions, no scopes, no lookup', async (role) => {
       const { service: svc, calls } = make();
       await expect(svc.describe(user(role))).resolves.toEqual({
-        role, roleLabel: null, permissions: [], scopes: { courseDivisions: [] },
+        role, roleLabel: null, permissions: [], scopes: { courseDivisions: [] }, overrides: [],
       });
       expect(calls).toEqual([]);
     });

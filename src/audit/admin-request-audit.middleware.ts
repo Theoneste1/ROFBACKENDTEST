@@ -30,6 +30,7 @@ const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 /** Path parameters that are record identifiers (or fixed enums) and safe to record. */
 export const RECORDED_PARAMS: ReadonlySet<string> = new Set([
   'id', 'courseId', 'resourceId', 'attachmentId', 'userId', 'submissionId', 'assignmentId', 'revisionNumber', 'op',
+  'overrideId',
 ]);
 
 type AuditedRequest = Request & { user?: AuthUser; id?: string };

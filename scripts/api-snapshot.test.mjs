@@ -93,7 +93,8 @@ const P1_04_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-04.json';
 const P1_05_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-09-p1-05.json';
 const P1_06_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-06.json';
 const P1_08_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-08.json';
-const CURRENT_SNAPSHOT = P1_08_SNAPSHOT;
+const P1_09_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-09.json';
+const CURRENT_SNAPSHOT = P1_09_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -431,6 +432,23 @@ describe('approved API contract history', () => {
     const other = res.additive.filter((l) => !/: roles added: SUPER_ADMIN$/.test(l));
     assert.equal(roles.length, 36);
     assert.deepEqual(other, ['PATCH /api/v1/admin/users/{id} › request application/json.currentPassword: new optional field']);
+  });
+
+  test('P1-08 → P1-09 (permission overrides): exactly the five new operations, their request DTO and /me/permissions.overrides; nothing breaking or for review', () => {
+    for (const f of [P1_08_SNAPSHOT, P1_09_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_08_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_09_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'DELETE /api/v1/admin/users/{id}/permission-overrides/{overrideId}: operation added',
+      'GET /api/v1/admin/permissions/catalogue: operation added',
+      'GET /api/v1/admin/users/{id}/permission-overrides: operation added',
+      'GET /api/v1/admin/users/{id}/permissions: operation added',
+      'GET /api/v1/me/permissions › response 200 application/json.overrides: new field',
+      'POST /api/v1/admin/users/{id}/permission-overrides: operation added',
+      'schema CreateOverrideDto: added',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

@@ -4441,6 +4441,1244 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/admin/users/{id}/permission-overrides": {
+      "get": {
+        "operationId": "PermissionOverridesController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "active": {
+                        "type": "boolean"
+                      },
+                      "courseId": {
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "createdBy": {
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "username"
+                        ],
+                        "type": "object"
+                      },
+                      "divisionId": {
+                        "nullable": true
+                      },
+                      "effect": {
+                        "type": "string"
+                      },
+                      "expiresAt": {
+                        "nullable": true
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "permission": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "revokeReason": {
+                        "nullable": true
+                      },
+                      "revokedAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "revokedBy": {
+                        "properties": {
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "username"
+                        ],
+                        "type": "object"
+                      }
+                    },
+                    "required": [
+                      "active",
+                      "courseId",
+                      "createdAt",
+                      "createdBy",
+                      "divisionId",
+                      "effect",
+                      "expiresAt",
+                      "id",
+                      "permission",
+                      "reason",
+                      "revokeReason",
+                      "revokedAt",
+                      "revokedBy"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The user's overrides, newest first (active and past).",
+        "tags": [
+          "Admin · Permissions"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "permissions.manageOverrides",
+        "description": "**Access:** permission `permissions.manageOverrides` (SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "PermissionOverridesController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOverrideDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "active": {
+                      "type": "boolean"
+                    },
+                    "courseId": {
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "divisionId": {
+                      "nullable": true
+                    },
+                    "effect": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "permission": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "revokeReason": {
+                      "nullable": true
+                    },
+                    "revokedAt": {
+                      "nullable": true
+                    },
+                    "revokedBy": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "active",
+                    "courseId",
+                    "createdAt",
+                    "createdBy",
+                    "divisionId",
+                    "effect",
+                    "expiresAt",
+                    "id",
+                    "permission",
+                    "reason",
+                    "revokeReason",
+                    "revokedAt",
+                    "revokedBy"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add an override, validated against the approved list (400 OVERRIDE_NOT_ALLOWED otherwise).",
+        "tags": [
+          "Admin · Permissions"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "permissions.manageOverrides",
+        "description": "**Access:** permission `permissions.manageOverrides` (SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/{id}/permission-overrides/{overrideId}": {
+      "delete": {
+        "operationId": "PermissionOverridesController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overrideId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "active": {
+                      "type": "boolean"
+                    },
+                    "courseId": {
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "divisionId": {
+                      "nullable": true
+                    },
+                    "effect": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "nullable": true
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "permission": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "revokeReason": {
+                      "nullable": true
+                    },
+                    "revokedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "revokedBy": {
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "username"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "active",
+                    "courseId",
+                    "createdAt",
+                    "createdBy",
+                    "divisionId",
+                    "effect",
+                    "expiresAt",
+                    "id",
+                    "permission",
+                    "reason",
+                    "revokeReason",
+                    "revokedAt",
+                    "revokedBy"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Revoke an override (soft; history kept). Applies on the user's next request.",
+        "tags": [
+          "Admin · Permissions"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "permissions.manageOverrides",
+        "description": "**Access:** permission `permissions.manageOverrides` (SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/{id}/permissions": {
+      "get": {
+        "operationId": "PermissionOverridesController_effective",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "overrides": {
+                      "items": {
+                        "properties": {
+                          "courseId": {
+                            "nullable": true
+                          },
+                          "divisionId": {
+                            "nullable": true
+                          },
+                          "effect": {
+                            "type": "string"
+                          },
+                          "expiresAt": {
+                            "nullable": true
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "permission": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "courseId",
+                          "divisionId",
+                          "effect",
+                          "expiresAt",
+                          "id",
+                          "permission"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "permissions": {
+                      "items": {
+                        "properties": {
+                          "permission": {
+                            "type": "string"
+                          },
+                          "scope": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "permission",
+                          "scope"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "roleLabel": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "overrides",
+                    "permissions",
+                    "role",
+                    "roleLabel",
+                    "userId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "What the user can do now: role defaults with their active overrides applied.",
+        "tags": [
+          "Admin · Permissions"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "permissions.view",
+        "description": "**Access:** permission `permissions.view` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/permissions/catalogue": {
+      "get": {
+        "operationId": "PermissionOverridesController_catalogue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "overridePolicy": {
+                      "properties": {
+                        "deniableRoles": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "grantable": {
+                          "properties": {
+                            "TEACHER": {
+                              "items": {
+                                "type": "string"
+                              },
+                              "type": "array"
+                            }
+                          },
+                          "required": [
+                            "TEACHER"
+                          ],
+                          "type": "object"
+                        },
+                        "neverGrantable": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "deniableRoles",
+                        "grantable",
+                        "neverGrantable"
+                      ],
+                      "type": "object"
+                    },
+                    "permissions": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "roles": {
+                      "properties": {
+                        "ADMIN": {
+                          "properties": {
+                            "grants": {
+                              "properties": {
+                                "academicYears.manage": {
+                                  "type": "string"
+                                },
+                                "activity.view": {
+                                  "type": "string"
+                                },
+                                "analytics.course": {
+                                  "type": "string"
+                                },
+                                "assignments.publish": {
+                                  "type": "string"
+                                },
+                                "assignments.view": {
+                                  "type": "string"
+                                },
+                                "audit.view": {
+                                  "type": "string"
+                                },
+                                "coaches.monitor": {
+                                  "type": "string"
+                                },
+                                "courses.manage": {
+                                  "type": "string"
+                                },
+                                "courses.view": {
+                                  "type": "string"
+                                },
+                                "discussions.moderate": {
+                                  "type": "string"
+                                },
+                                "discussions.participate": {
+                                  "type": "string"
+                                },
+                                "discussions.report": {
+                                  "type": "string"
+                                },
+                                "divisions.manage": {
+                                  "type": "string"
+                                },
+                                "email.bulkSend": {
+                                  "type": "string"
+                                },
+                                "enrollments.manage": {
+                                  "type": "string"
+                                },
+                                "leaderboard.view": {
+                                  "type": "string"
+                                },
+                                "mentorAssignments.manage": {
+                                  "type": "string"
+                                },
+                                "mentorRequests.decide": {
+                                  "type": "string"
+                                },
+                                "permissions.view": {
+                                  "type": "string"
+                                },
+                                "programmes.manageHeads": {
+                                  "type": "string"
+                                },
+                                "programmes.manageMembers": {
+                                  "type": "string"
+                                },
+                                "reports.export": {
+                                  "type": "string"
+                                },
+                                "reports.view": {
+                                  "type": "string"
+                                },
+                                "resources.manage": {
+                                  "type": "string"
+                                },
+                                "resources.view": {
+                                  "type": "string"
+                                },
+                                "results.approve": {
+                                  "type": "string"
+                                },
+                                "results.publish": {
+                                  "type": "string"
+                                },
+                                "settings.manage": {
+                                  "type": "string"
+                                },
+                                "students.viewScoped": {
+                                  "type": "string"
+                                },
+                                "submissions.distribute": {
+                                  "type": "string"
+                                },
+                                "users.manage": {
+                                  "type": "string"
+                                },
+                                "users.manageAdmins": {
+                                  "type": "string"
+                                },
+                                "users.manageCoaches": {
+                                  "type": "string"
+                                },
+                                "users.manageHeadCoaches": {
+                                  "type": "string"
+                                },
+                                "users.manageStudents": {
+                                  "type": "string"
+                                },
+                                "users.manageTeachers": {
+                                  "type": "string"
+                                },
+                                "users.view": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "academicYears.manage",
+                                "activity.view",
+                                "analytics.course",
+                                "assignments.publish",
+                                "assignments.view",
+                                "audit.view",
+                                "coaches.monitor",
+                                "courses.manage",
+                                "courses.view",
+                                "discussions.moderate",
+                                "discussions.participate",
+                                "discussions.report",
+                                "divisions.manage",
+                                "email.bulkSend",
+                                "enrollments.manage",
+                                "leaderboard.view",
+                                "mentorAssignments.manage",
+                                "mentorRequests.decide",
+                                "permissions.view",
+                                "programmes.manageHeads",
+                                "programmes.manageMembers",
+                                "reports.export",
+                                "reports.view",
+                                "resources.manage",
+                                "resources.view",
+                                "results.approve",
+                                "results.publish",
+                                "settings.manage",
+                                "students.viewScoped",
+                                "submissions.distribute",
+                                "users.manage",
+                                "users.manageAdmins",
+                                "users.manageCoaches",
+                                "users.manageHeadCoaches",
+                                "users.manageStudents",
+                                "users.manageTeachers",
+                                "users.view"
+                              ],
+                              "type": "object"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "grants",
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "HEAD_COACH": {
+                          "properties": {
+                            "grants": {
+                              "properties": {
+                                "activity.view": {
+                                  "type": "string"
+                                },
+                                "analytics.course": {
+                                  "type": "string"
+                                },
+                                "assignments.prepare": {
+                                  "type": "string"
+                                },
+                                "assignments.view": {
+                                  "type": "string"
+                                },
+                                "coaches.monitor": {
+                                  "type": "string"
+                                },
+                                "courses.view": {
+                                  "type": "string"
+                                },
+                                "discussions.participate": {
+                                  "type": "string"
+                                },
+                                "discussions.report": {
+                                  "type": "string"
+                                },
+                                "leaderboard.view": {
+                                  "type": "string"
+                                },
+                                "mentorAssignments.manage": {
+                                  "type": "string"
+                                },
+                                "programmes.manageMembers": {
+                                  "type": "string"
+                                },
+                                "reports.view": {
+                                  "type": "string"
+                                },
+                                "resources.view": {
+                                  "type": "string"
+                                },
+                                "reviews.grade": {
+                                  "type": "string"
+                                },
+                                "students.viewScoped": {
+                                  "type": "string"
+                                },
+                                "users.manageCoaches": {
+                                  "type": "string"
+                                },
+                                "users.manageStudents": {
+                                  "type": "string"
+                                },
+                                "users.view": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "activity.view",
+                                "analytics.course",
+                                "assignments.prepare",
+                                "assignments.view",
+                                "coaches.monitor",
+                                "courses.view",
+                                "discussions.participate",
+                                "discussions.report",
+                                "leaderboard.view",
+                                "mentorAssignments.manage",
+                                "programmes.manageMembers",
+                                "reports.view",
+                                "resources.view",
+                                "reviews.grade",
+                                "students.viewScoped",
+                                "users.manageCoaches",
+                                "users.manageStudents",
+                                "users.view"
+                              ],
+                              "type": "object"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "grants",
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "MENTOR": {
+                          "properties": {
+                            "grants": {
+                              "properties": {
+                                "analytics.course": {
+                                  "type": "string"
+                                },
+                                "assignments.prepare": {
+                                  "type": "string"
+                                },
+                                "assignments.view": {
+                                  "type": "string"
+                                },
+                                "courses.view": {
+                                  "type": "string"
+                                },
+                                "discussions.participate": {
+                                  "type": "string"
+                                },
+                                "discussions.report": {
+                                  "type": "string"
+                                },
+                                "leaderboard.view": {
+                                  "type": "string"
+                                },
+                                "resources.manage": {
+                                  "type": "string"
+                                },
+                                "resources.view": {
+                                  "type": "string"
+                                },
+                                "reviews.grade": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "analytics.course",
+                                "assignments.prepare",
+                                "assignments.view",
+                                "courses.view",
+                                "discussions.participate",
+                                "discussions.report",
+                                "leaderboard.view",
+                                "resources.manage",
+                                "resources.view",
+                                "reviews.grade"
+                              ],
+                              "type": "object"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "grants",
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "STUDENT": {
+                          "properties": {
+                            "grants": {
+                              "properties": {
+                                "assignments.view": {
+                                  "type": "string"
+                                },
+                                "courses.complete": {
+                                  "type": "string"
+                                },
+                                "courses.view": {
+                                  "type": "string"
+                                },
+                                "discussions.participate": {
+                                  "type": "string"
+                                },
+                                "discussions.report": {
+                                  "type": "string"
+                                },
+                                "leaderboard.view": {
+                                  "type": "string"
+                                },
+                                "resources.view": {
+                                  "type": "string"
+                                },
+                                "submissions.submit": {
+                                  "type": "string"
+                                },
+                                "submissions.viewOwn": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "assignments.view",
+                                "courses.complete",
+                                "courses.view",
+                                "discussions.participate",
+                                "discussions.report",
+                                "leaderboard.view",
+                                "resources.view",
+                                "submissions.submit",
+                                "submissions.viewOwn"
+                              ],
+                              "type": "object"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "grants",
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "SUPER_ADMIN": {
+                          "properties": {
+                            "grants": {
+                              "properties": {
+                                "academicYears.manage": {
+                                  "type": "string"
+                                },
+                                "activity.view": {
+                                  "type": "string"
+                                },
+                                "analytics.course": {
+                                  "type": "string"
+                                },
+                                "assignments.publish": {
+                                  "type": "string"
+                                },
+                                "assignments.view": {
+                                  "type": "string"
+                                },
+                                "audit.view": {
+                                  "type": "string"
+                                },
+                                "coaches.monitor": {
+                                  "type": "string"
+                                },
+                                "courses.manage": {
+                                  "type": "string"
+                                },
+                                "courses.view": {
+                                  "type": "string"
+                                },
+                                "discussions.moderate": {
+                                  "type": "string"
+                                },
+                                "discussions.participate": {
+                                  "type": "string"
+                                },
+                                "discussions.report": {
+                                  "type": "string"
+                                },
+                                "divisions.manage": {
+                                  "type": "string"
+                                },
+                                "email.bulkSend": {
+                                  "type": "string"
+                                },
+                                "enrollments.manage": {
+                                  "type": "string"
+                                },
+                                "leaderboard.view": {
+                                  "type": "string"
+                                },
+                                "mentorAssignments.manage": {
+                                  "type": "string"
+                                },
+                                "mentorRequests.decide": {
+                                  "type": "string"
+                                },
+                                "permissions.manageOverrides": {
+                                  "type": "string"
+                                },
+                                "permissions.view": {
+                                  "type": "string"
+                                },
+                                "programmes.manageHeads": {
+                                  "type": "string"
+                                },
+                                "programmes.manageMembers": {
+                                  "type": "string"
+                                },
+                                "reports.export": {
+                                  "type": "string"
+                                },
+                                "reports.view": {
+                                  "type": "string"
+                                },
+                                "resources.manage": {
+                                  "type": "string"
+                                },
+                                "resources.view": {
+                                  "type": "string"
+                                },
+                                "results.approve": {
+                                  "type": "string"
+                                },
+                                "results.publish": {
+                                  "type": "string"
+                                },
+                                "settings.manage": {
+                                  "type": "string"
+                                },
+                                "settings.manageSystem": {
+                                  "type": "string"
+                                },
+                                "students.viewScoped": {
+                                  "type": "string"
+                                },
+                                "submissions.distribute": {
+                                  "type": "string"
+                                },
+                                "users.manage": {
+                                  "type": "string"
+                                },
+                                "users.manageAdmins": {
+                                  "type": "string"
+                                },
+                                "users.manageCoaches": {
+                                  "type": "string"
+                                },
+                                "users.manageHeadCoaches": {
+                                  "type": "string"
+                                },
+                                "users.manageStudents": {
+                                  "type": "string"
+                                },
+                                "users.manageTeachers": {
+                                  "type": "string"
+                                },
+                                "users.view": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "academicYears.manage",
+                                "activity.view",
+                                "analytics.course",
+                                "assignments.publish",
+                                "assignments.view",
+                                "audit.view",
+                                "coaches.monitor",
+                                "courses.manage",
+                                "courses.view",
+                                "discussions.moderate",
+                                "discussions.participate",
+                                "discussions.report",
+                                "divisions.manage",
+                                "email.bulkSend",
+                                "enrollments.manage",
+                                "leaderboard.view",
+                                "mentorAssignments.manage",
+                                "mentorRequests.decide",
+                                "permissions.manageOverrides",
+                                "permissions.view",
+                                "programmes.manageHeads",
+                                "programmes.manageMembers",
+                                "reports.export",
+                                "reports.view",
+                                "resources.manage",
+                                "resources.view",
+                                "results.approve",
+                                "results.publish",
+                                "settings.manage",
+                                "settings.manageSystem",
+                                "students.viewScoped",
+                                "submissions.distribute",
+                                "users.manage",
+                                "users.manageAdmins",
+                                "users.manageCoaches",
+                                "users.manageHeadCoaches",
+                                "users.manageStudents",
+                                "users.manageTeachers",
+                                "users.view"
+                              ],
+                              "type": "object"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "grants",
+                            "label"
+                          ],
+                          "type": "object"
+                        },
+                        "TEACHER": {
+                          "properties": {
+                            "grants": {
+                              "properties": {
+                                "assignments.view": {
+                                  "type": "string"
+                                },
+                                "courses.view": {
+                                  "type": "string"
+                                },
+                                "discussions.participate": {
+                                  "type": "string"
+                                },
+                                "discussions.report": {
+                                  "type": "string"
+                                },
+                                "leaderboard.view": {
+                                  "type": "string"
+                                },
+                                "resources.view": {
+                                  "type": "string"
+                                },
+                                "students.viewScoped": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "assignments.view",
+                                "courses.view",
+                                "discussions.participate",
+                                "discussions.report",
+                                "leaderboard.view",
+                                "resources.view",
+                                "students.viewScoped"
+                              ],
+                              "type": "object"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "grants",
+                            "label"
+                          ],
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "ADMIN",
+                        "HEAD_COACH",
+                        "MENTOR",
+                        "STUDENT",
+                        "SUPER_ADMIN",
+                        "TEACHER"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "overridePolicy",
+                    "permissions",
+                    "roles"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The permission catalogue, role defaults and the override policy (defined in code).",
+        "tags": [
+          "Admin · Permissions"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "permissions.view",
+        "description": "**Access:** permission `permissions.view` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "operationId": "UsersController_findAll",
@@ -6184,6 +7422,46 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "overrides": {
+                      "items": {
+                        "properties": {
+                          "courseId": {
+                            "format": "uuid",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "divisionId": {
+                            "format": "uuid",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "effect": {
+                            "enum": [
+                              "DENY",
+                              "GRANT"
+                            ],
+                            "type": "string"
+                          },
+                          "expiresAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "permission": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "courseId",
+                          "divisionId",
+                          "effect",
+                          "expiresAt",
+                          "permission"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
                     "permissions": {
                       "items": {
                         "type": "string"
@@ -6227,6 +7505,7 @@
                     }
                   },
                   "required": [
+                    "overrides",
                     "permissions",
                     "role",
                     "roleLabel",
@@ -35557,6 +36836,49 @@
         "required": [
           "currentPassword",
           "newPassword"
+        ]
+      },
+      "CreateOverrideDto": {
+        "type": "object",
+        "properties": {
+          "permission": {
+            "type": "string",
+            "description": "A permission name from the catalogue (GET /admin/permissions/catalogue).",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "effect": {
+            "type": "string",
+            "description": "GRANT adds a permission (approved list only); DENY removes a default one.",
+            "enum": [
+              "GRANT",
+              "DENY"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the override is needed (kept in the audit trail).",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "When it stops applying (ISO 8601, in the future). Omit for no expiry."
+          },
+          "courseId": {
+            "type": "string",
+            "description": "GRANT only: the course × division it applies to (must be within the user's existing scope).",
+            "format": "uuid"
+          },
+          "divisionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "permission",
+          "effect",
+          "reason"
         ]
       },
       "CreateUserDto": {
