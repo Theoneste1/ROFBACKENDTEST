@@ -96,7 +96,8 @@ const P1_08_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-08.json';
 const P1_09_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-09.json';
 const P1_10_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10.json';
 const P1_10_H4_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-h4.json';
-const CURRENT_SNAPSHOT = P1_10_H4_SNAPSHOT;
+const P1_10_MONITORING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-monitoring.json';
+const CURRENT_SNAPSHOT = P1_10_MONITORING_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -485,6 +486,25 @@ describe('approved API contract history', () => {
       'GET /api/v1/assignments/{id}/history: roles added: HEAD_COACH',
       'GET /api/v1/me/teaching: roles added: HEAD_COACH',
       'GET /api/v1/submissions/{id}/reviews: roles added: HEAD_COACH',
+    ]);
+  });
+
+  test('P1-10 H4 → P1-10 part 3 (monitoring, coach invitation): HEAD_COACH on the programme-scoped monitoring routes and the invitation operation; nothing else', () => {
+    for (const f of [P1_10_H4_SNAPSHOT, P1_10_MONITORING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_10_H4_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_10_MONITORING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/activity/summary: roles added: HEAD_COACH',
+      'GET /api/v1/admin/activity: roles added: HEAD_COACH',
+      'GET /api/v1/admin/dashboard: roles added: HEAD_COACH',
+      'GET /api/v1/admin/reports/course-participation: roles added: HEAD_COACH',
+      'GET /api/v1/admin/reports/mentor-activity: roles added: HEAD_COACH',
+      'GET /api/v1/admin/reports/mentors: roles added: HEAD_COACH',
+      'GET /api/v1/admin/reports/students: roles added: HEAD_COACH',
+      'POST /api/v1/admin/programmes/{id}/coach-invitations: operation added',
+      'schema InviteCoachDto: added',
     ]);
   });
 

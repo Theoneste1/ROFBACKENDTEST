@@ -19,7 +19,9 @@ import { AuthService, PROFILE_SELECT } from '../auth/auth.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { parseCsv } from '../common/csv-parse.js';
 import { divisionCodeForGrade } from '../common/grade-levels.js';
-import type { CallerCtx } from '../common/auth-user.js';
+import type { AuthUser, CallerCtx } from '../common/auth-user.js';
+import { AccessService } from '../common/access/access.service.js';
+import { isHeadCoach } from '../common/access/roles.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -52,6 +54,7 @@ export class UserProvisioningService {
     private readonly activation:    ActivationService,
     private readonly auth:          AuthService,
     private readonly roles:         RoleAssignmentPolicy,
+    private readonly access:        AccessService,
   ) {}
 
   // ─── Invitations ──────────────────────────────────────────────────────────
@@ -72,6 +75,36 @@ export class UserProvisioningService {
       metadata: { role: user.role, username: user.username },
     });
     return { user, invitation };
+  }
+
+  /**
+   * Invite a Coach into a programme (P1-10, plan §7.2). An Administrator's
+   * invitation is approved at once; a Head Coach's — only into a programme they
+   * head — is created PENDING (isApproved = false: no login until an
+   * Administrator approves it through PATCH /admin/users/:id/status). Either way
+   * the coach is a member of the programme, in the same transaction as the
+   * account and its audit record.
+   */
+  async inviteCoachToProgramme(disciplineId: string, dto: InviteUserDto, caller: AuthUser) {
+    const programme = await this.prisma.discipline.findUnique({ where: { id: disciplineId }, select: { id: true } });
+    if (!programme) throw new NotFoundException('Programme not found.');
+    await this.access.assertProgrammeInScope(caller, disciplineId);
+    this.roles.assertCanInviteCoach(caller);
+    await this.assertFree(dto.email, dto.username);
+    const username = dto.username ?? (await this.generateUsername(dto.email));
+    const pendingApproval = isHeadCoach(caller);
+
+    const { user, issued } = await this.prisma.$transaction(async (tx) => {
+      const created = await this.createInvited(tx, { ...dto, role: 'MENTOR', username }, caller, { coachInvite: { disciplineId, pendingApproval } });
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'INVITE_USER', entity: 'User', entityId: created.user.id,
+        metadata: { role: 'MENTOR', username: created.user.username, programmeId: disciplineId, pendingApproval },
+      }, tx);
+      return created;
+    });
+    const invitation = await this.activation.send(issued);
+    return { user, invitation, pendingApproval };
   }
 
   /** Send a fresh invitation (the previous link stops working). */
@@ -272,9 +305,16 @@ export class UserProvisioningService {
   /** Create an invited (password-less, not activated) account and its activation token. */
   private async createInvited(
     tx: Tx, dto: InviteUserDto & { username: string }, caller: CallerCtx,
+    opts: { coachInvite?: { disciplineId: string; pendingApproval: boolean } } = {},
   ): Promise<{ user: Prisma.UserGetPayload<{ select: typeof INVITED_SELECT }>; issued: IssuedActivation }> {
     const role = dto.role ?? 'STUDENT';
-    await this.roles.assertCanAssign(caller, role);   // defence in depth: every invited account
+    // Defence in depth: every invited account. A programme coach invitation has its own rule (MENTOR only).
+    if (opts.coachInvite) {
+      if (role !== 'MENTOR') throw new AppError(HttpStatus.FORBIDDEN, 'ROLE_NOT_ASSIGNABLE', 'This role cannot be assigned.', { role });
+      this.roles.assertCanInviteCoach(caller);
+    } else {
+      await this.roles.assertCanAssign(caller, role);
+    }
     const isStudent = role === 'STUDENT';
 
     let schoolId: string | null = null;
@@ -304,6 +344,7 @@ export class UserProvisioningService {
         role,
         passwordHash: null,
         activatedAt:  null,
+        ...(opts.coachInvite?.pendingApproval && { isApproved: false }),
         ...(isStudent && {
           gradeLevel:   dto.gradeLevel,
           divisionId:   division!.id,
@@ -316,6 +357,14 @@ export class UserProvisioningService {
 
     if (isStudent) await this.academicYears.enrollInCurrentYear(tx, created.id, dto.gradeLevel!, schoolId);
     await ensureDefaultMembership(tx, { id: created.id, role }, caller.id);   // invite and CSV import (P1-07, K6)
+    if (opts.coachInvite) {
+      const disciplineId = opts.coachInvite.disciplineId;
+      await tx.programmeMembership.upsert({
+        where:  { userId_disciplineId: { userId: created.id, disciplineId } },
+        create: { userId: created.id, disciplineId, source: 'MANUAL', addedById: caller.id },
+        update: {},
+      });
+    }
     const issued = await this.activation.issue(created.id, 'INVITATION', caller.id, tx);
     const user = await tx.user.findUniqueOrThrow({ where: { id: created.id }, select: INVITED_SELECT });
     return { user, issued };

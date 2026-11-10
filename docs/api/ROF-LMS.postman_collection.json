@@ -375,7 +375,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `activity.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -409,7 +409,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `activity.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -762,7 +762,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -1277,6 +1277,48 @@
       "name": "Admin · Programmes",
       "item": [
         {
+          "name": "POST /admin/programmes/{id}/coach-invitations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/coach-invitations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "coach-invitations"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"email\": \"name@example.org\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "GET /admin/programmes/{id}/heads",
           "request": {
             "method": "GET",
@@ -1581,7 +1623,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -1633,7 +1675,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -1685,7 +1727,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -1789,7 +1831,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -1853,7 +1895,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `coaches.monitor` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -1917,7 +1959,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -1938,7 +1980,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2002,7 +2044,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `coaches.monitor` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2066,7 +2108,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2191,7 +2233,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2212,7 +2254,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2316,7 +2358,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2337,7 +2379,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2401,7 +2443,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -2465,7 +2507,7 @@
                 }
               ]
             },
-            "description": "**Access:** ADMIN, SUPER_ADMIN"
+            "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
         }
       ]

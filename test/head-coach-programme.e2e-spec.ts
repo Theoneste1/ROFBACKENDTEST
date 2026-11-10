@@ -255,18 +255,18 @@ describe('Head Coach programme scope (P1-10)', () => {
     expect((await http().get(heads(maths)).set(bearer(admin)).expect(200)).body.map((h: any) => h.id)).toEqual([hmId]);
   });
 
-  it('Head Coach still has no global administration, and no other programme-scoped area is opened by this change', async () => {
+  it('Head Coach still has no global administration; monitoring is programme-scoped and exports stay closed', async () => {
     for (const make of [
       () => http().get('/api/v1/admin/users'),
       () => http().get('/api/v1/admin/audit-logs'),
       () => http().put(heads(maths)).send({ userIds: [hmId] }),
       () => http().get('/api/v1/admin/email/jobs'),
     ]) expect(await status(make().set(bearer(hm)))).toEqual([403, 'PERMISSION_REQUIRED']);
-    // Reports, dashboard and activity stay closed until their programme filter lands.
-    for (const make of [
-      () => http().get('/api/v1/admin/dashboard'),
-      () => http().get('/api/v1/admin/reports/students'),
-      () => http().get('/api/v1/admin/activity'),
-    ]) expect((await make().set(bearer(hm))).status).toBe(403);
+    // P1-10 part 3: dashboard, reports and activity are open for the programmes headed (details in
+    // head-coach-monitoring.e2e-spec.ts); exports (reports.export, H8) stay closed.
+    for (const path of ['/api/v1/admin/dashboard', '/api/v1/admin/reports/students', '/api/v1/admin/activity']) {
+      expect([path, (await http().get(path).set(bearer(hm))).status]).toEqual([path, 200]);
+    }
+    expect(await status(http().get('/api/v1/admin/reports/students.csv').set(bearer(hm)))).toEqual([403, 'PERMISSION_REQUIRED']);
   });
 });

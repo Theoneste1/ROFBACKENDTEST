@@ -23,8 +23,10 @@
  *    HEAD_COACHES_ENABLED are off (the default);
  *  - any other value, or an actor without the global permission, is refused.
  *
- * Programme-scoped management by Head Coaches (membership, coach invitations →
- * pending approval) comes with P1-10; until then only global grants count.
+ * Programme-scoped management by Head Coaches (P1-10) never goes through
+ * assertCanAssign / assertCanManage (global grants only): membership is
+ * ProgrammesService, and coach invitations use assertCanInviteCoach below —
+ * the account is created pending an Administrator's approval.
  */
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -76,6 +78,17 @@ export class RoleAssignmentPolicy {
     if (flag && this.config.get<string>(flag.env) !== 'true') {
       throw new AppError(HttpStatus.FORBIDDEN, flag.code, flag.message, { role });
     }
+  }
+
+  /**
+   * Invite a Coach into a programme (users.manageCoaches): global (Administrators)
+   * or programme scope (Head Coach — the programme itself is checked by the caller,
+   * and the account starts pending approval). Nothing else is assignable this way.
+   */
+  assertCanInviteCoach(actor: CallerCtx): void {
+    const scope = this.permissions.scopeOf(actor as AuthUser, 'users.manageCoaches');
+    if (scope === 'global' || scope === 'programme') return;
+    throw notAssignable('MENTOR');
   }
 
   /** The actor may act on an account that currently holds this role. */

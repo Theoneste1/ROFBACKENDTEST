@@ -112,17 +112,18 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
     ]) expect(await status(make().set(bearer(headCoach)))).toEqual([403, 'PERMISSION_REQUIRED']);
   });
 
-  it('HEAD_COACH (Option A) heading no programme: coach assignments show nothing and change nothing (P1-10); other programme-scoped areas stay closed', async () => {
+  it('HEAD_COACH (Option A) heading no programme: coach assignments, reports, dashboard and activity show nothing and change nothing (P1-10)', async () => {
     // P1-10: mentorAssignments.manage is programme-scoped — with no programme headed, nothing is visible or assignable.
     expect((await http().get('/api/v1/admin/mentor-assignments').set(bearer(headCoach)).expect(200)).body.data).toEqual([]);
     expect((await http().post('/api/v1/admin/mentor-assignments').set(bearer(headCoach))
       .send({ mentorId: ctx.ids.mentorJunior2, courseId: ctx.ids.geometry, divisionId: ctx.ids.junior })).status).toBe(404);
     expect(await ctx.prisma.mentorAssignment.count({ where: { courseId: ctx.ids.geometry } })).toBe(0);
-    for (const make of [
-      () => http().get('/api/v1/admin/dashboard'),
-      () => http().get('/api/v1/admin/reports/students'),
-      () => http().get('/api/v1/admin/activity'),
-    ]) expect((await make().set(bearer(headCoach))).status).toBe(403);
+    // P1-10 part 3: programme-scoped monitoring — with no programme headed, every list is empty.
+    const dash = (await http().get('/api/v1/admin/dashboard').set(bearer(headCoach)).expect(200)).body;
+    expect([dash.students.total, dash.mentors.total, dash.submissions.total, dash.students.byCourse]).toEqual([0, 0, 0, []]);
+    expect((await http().get('/api/v1/admin/reports/students').set(bearer(headCoach)).expect(200)).body.data).toEqual([]);
+    expect((await http().get('/api/v1/admin/reports/mentors').set(bearer(headCoach)).expect(200)).body.data).toEqual([]);
+    expect((await http().get('/api/v1/admin/activity').set(bearer(headCoach)).expect(200)).body.data).toEqual([]);
     // No course content without an Administrator-created assignment (H4): the course list is empty.
     expect((await http().get('/api/v1/courses').set(bearer(headCoach)).expect(200)).body).toEqual([]);
   });
@@ -136,7 +137,8 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
       .field('title', 'HC work').field('courseId', ctx.ids.algebra).field('divisionId', ctx.ids.junior)
       .field('instructions', 'xxxxxxxxxxxx').field('deadline', inDays(3)).field('points', '1').field('maximumMarks', '1')))
       .toEqual([403, 'NOT_ASSIGNED_TO_SCOPE']);
-    expect((await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(headCoach))).status).toBe(403);
+    // P1-10 part 3: analytics is programme-scoped — a course outside the programmes headed is not revealed.
+    expect((await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(headCoach))).status).toBe(404);
     expect(await reviewState()).toEqual(before);
     expect(await ctx.prisma.assignment.count({ where: { title: 'HC work' } })).toBe(0);
   });
@@ -192,12 +194,14 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
     await http().get('/api/v1/admin/divisions').set(bearer(superAdmin)).expect(200);
   });
 
-  it('the global-scope rule does not widen anyone else: HEAD_COACH and TEACHER still cannot manage resources or see course analytics; the assigned coach still can', async () => {
+  it('the global-scope rule does not widen anyone else: HEAD_COACH and TEACHER still cannot manage resources or see course analytics outside their scope; the assigned coach still can', async () => {
     for (const token of [headCoach, teacher]) {
       expect((await http().post(`/api/v1/courses/${ctx.ids.algebra}/resources`).set(bearer(token))
         .field('divisionId', ctx.ids.junior).field('type', 'NOTE').field('title', 'Nope')).status).toBe(403);
-      expect((await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(token))).status).toBe(403);
     }
+    // Teacher: no analytics permission (403). Head Coach heading no programme: the course is not revealed (404, P1-10).
+    expect((await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(teacher))).status).toBe(403);
+    expect((await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(headCoach))).status).toBe(404);
     await http().post(`/api/v1/courses/${ctx.ids.algebra}/resources`).set(bearer(mentorJ))
       .field('divisionId', ctx.ids.junior).field('type', 'NOTE').field('title', 'Coach note').expect(201);
     await http().get(`/api/v1/analytics/courses/${ctx.ids.algebra}`).query({ divisionId: ctx.ids.junior }).set(bearer(mentorJ)).expect(200);
