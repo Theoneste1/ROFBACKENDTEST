@@ -30,8 +30,8 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   },
   // ── Administrator request audit (P1-08) ────────────────────────────────────
   {
-    file: 'src/audit/admin-request-audit.interceptor.ts', rule: 'U1', code: '!user || !isAdmin(user) || !STATE_CHANGING.has(req.method)',
-    reason: 'Chooses whether to WRITE an audit row (ADMIN / SUPER_ADMIN state-changing requests); every other request passes through unchanged. Not an access decision: guards have already decided.',
+    file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !isAdmin(user)',
+    reason: 'Chooses whether to WRITE an audit row after the response (ADMIN / SUPER_ADMIN state-changing requests); every other request is unaffected. Not an access decision: guards decide.',
   },
   // ── Course resources ───────────────────────────────────────────────────────
   {

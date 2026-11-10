@@ -191,6 +191,8 @@ describe('Super Admin (P1-08)', () => {
     });
   });
 
+  let superAdminToken: string;
+
   describe('break-glass (operator command)', () => {
     it('refuses without reason or approval reference, for a non-Super-Admin reset, or promote-admin while a Super Admin exists', async () => {
       const base = { username: 'boot.target', reason: 'Owner lost e-mail access', approvalRef: 'APR-1' };
@@ -208,7 +210,8 @@ describe('Super Admin (P1-08)', () => {
       expect(r.temporaryPassword).toMatch(/^[A-Za-z0-9_-]{20,}$/);
       await http().get('/api/v1/admin/users').set(bearer(oldToken)).expect(401);
       await http().post('/api/v1/auth/login').send({ username: 'boot.target', password: PASSWORD }).expect(401);
-      await http().post('/api/v1/auth/login').send({ username: 'boot.target', password: r.temporaryPassword }).expect(200);
+      const relog = await http().post('/api/v1/auth/login').send({ username: 'boot.target', password: r.temporaryPassword }).expect(200);
+      superAdminToken = relog.body.access_token;
       const audit = await p().auditLog.findMany({ where: { action: 'SUPER_ADMIN_BREAK_GLASS' } });
       expect(audit).toHaveLength(1);
       expect(audit[0].metadata).toMatchObject({ mode: 'reset-credentials', approvalRef: 'APR-2', operatorNote: 'by phone' });
@@ -233,12 +236,17 @@ describe('Super Admin (P1-08)', () => {
       const sas = await p().user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true } });
       // Make the Super Admins non-active the only way the trigger allows: add a temporary one, then remove all but it, then it.
       const temp = await makeAdmin('bound.temp');
-      await p().user.update({ where: { id: temp.id }, data: { role: 'SUPER_ADMIN' } });
-      for (const s of sas) await p().user.update({ where: { id: s.id }, data: { role: 'ADMIN' } });
-      await p().$executeRawUnsafe(`ALTER TABLE "User" DISABLE TRIGGER user_last_super_admin_guard`);
-      await p().user.update({ where: { id: temp.id }, data: { role: 'ADMIN' } });
-      await p().$executeRawUnsafe(`ALTER TABLE "User" ENABLE TRIGGER user_last_super_admin_guard`);
       try {
+        await p().user.update({ where: { id: temp.id }, data: { role: 'SUPER_ADMIN' } });
+        for (const s of sas) await p().user.update({ where: { id: s.id }, data: { role: 'ADMIN' } });
+        await p().$executeRawUnsafe(`ALTER TABLE "User" DISABLE TRIGGER user_last_super_admin_guard`);
+        try {
+          await p().user.update({ where: { id: temp.id }, data: { role: 'ADMIN' } });
+        } finally {
+          await p().$executeRawUnsafe(`ALTER TABLE "User" ENABLE TRIGGER user_last_super_admin_guard`);   // always re-enabled
+        }
+        const enabled = await p().$queryRaw<Array<{ state: string }>>`SELECT tgenabled::text AS state FROM pg_trigger WHERE tgname = 'user_last_super_admin_guard'`;
+        expect(enabled[0].state).toBe('O');   // enabled again
         expect(await p().user.count({ where: { role: 'SUPER_ADMIN', isActive: true } })).toBe(0);
         process.env.SUPER_ADMIN_BOUNDARY_ENABLED = 'true';
         const other = await p().user.findUniqueOrThrow({ where: { username: 'bound.other' } });
@@ -250,22 +258,53 @@ describe('Super Admin (P1-08)', () => {
   });
 
   describe('administrator request audit', () => {
-    it('records each state-changing ADMIN / SUPER_ADMIN request (method, route template, ids, outcome, request id) without bodies; not reads or other roles', async () => {
-      const before = await p().auditLog.count({ where: { action: 'ADMIN_REQUEST' } });
-      const res = await http().patch(`/api/v1/admin/users/${ctx.ids.studentJunior}`).set(bearer(admin)).set('X-Request-Id', 'audit-test-1')
+    const rows = () => p().auditLog.findMany({ where: { action: 'ADMIN_REQUEST' }, orderBy: { createdAt: 'asc' } });
+    /** The row is written when the response has finished: wait (bounded) until n new rows exist. */
+    async function newRows(before: number, n: number) {
+      for (let i = 0; i < 50; i++) {
+        const all = await rows();
+        if (all.length >= before + n) return all.slice(before);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error(`expected ${n} new ADMIN_REQUEST row(s)`);
+    }
+
+    it('records each state-changing ADMIN request — success and controller failure — once, with route template, ids, final status and request id; no bodies, not reads, not other roles', async () => {
+      const before = (await rows()).length;
+      const res = await http().patch(`/api/v1/admin/users/${ctx.ids.studentJunior}?note=query-secret`).set(bearer(admin)).set('X-Request-Id', 'audit-test-1')
         .send({ firstName: 'Audited', homeLocation: 'Secret-Place' }).expect(200);
       expect(res.headers['x-request-id']).toBe('audit-test-1');
-      await http().patch('/api/v1/admin/users/00000000-0000-0000-0000-000000000000').set(bearer(admin)).send({ firstName: 'Nobody' }).expect(404);
+      await http().patch('/api/v1/admin/users/00000000-0000-0000-0000-000000000000').set(bearer(admin)).set('X-Request-Id', 'audit-test-2').send({ firstName: 'Nobody' }).expect(404);
+      const mine = await newRows(before, 2);
       await http().get('/api/v1/admin/users').set(bearer(admin)).expect(200);          // read: not recorded
       const student = await login(ctx, 'student.j');
       await http().patch('/api/v1/me').set(bearer(student)).send({ homeLocation: 'Kigali' });   // not an administrator
-      const rows = await p().auditLog.findMany({ where: { action: 'ADMIN_REQUEST' }, orderBy: { createdAt: 'asc' } });
-      const mine = rows.slice(before);
-      expect(mine.map((r) => (r.metadata as any).outcome)).toEqual([200, 404]);
+      await http().post('/api/v1/auth/login').send({ username: 'admin', password: 'wrong-password' });   // unauthenticated
+      expect((await rows()).length).toBe(before + 2);   // exactly one row per administrator request, nothing else
+
+      expect(mine.map((r) => [(r.metadata as any).requestId, (r.metadata as any).outcome])).toEqual([['audit-test-1', 200], ['audit-test-2', 404]]);
       expect(mine[0]).toMatchObject({ actorId: ctx.ids.admin, actorRole: 'ADMIN', entity: 'Request',
-        metadata: { method: 'PATCH', route: '/api/v1/admin/users/:id', params: { id: ctx.ids.studentJunior }, requestId: 'audit-test-1' } });
+        metadata: { method: 'PATCH', route: '/api/v1/admin/users/:id', params: { id: ctx.ids.studentJunior } } });
       expect(Object.keys(mine[0].metadata as object).sort()).toEqual(['method', 'outcome', 'params', 'requestId', 'route']);
-      expect(JSON.stringify(mine)).not.toContain('Secret-Place');
+      const stored = JSON.stringify(mine);
+      for (const secret of ['Secret-Place', 'query-secret', 'note=', 'Audited']) expect(stored).not.toContain(secret);
+    });
+
+    it.each([
+      ['ADMIN', 'admin', () => http().patch('/api/v1/submissions/00000000-0000-0000-0000-000000000000/start-review'), '/api/v1/submissions/:id/start-review'],
+      ['SUPER_ADMIN', 'boot.target', () => http().post('/api/v1/submissions').field('assignmentId', '00000000-0000-0000-0000-000000000000'), '/api/v1/submissions'],
+    ] as const)('%s request refused by the permission guard (403) is recorded exactly once with actor, status and request id', async (role, username, make, route) => {
+      const user = await p().user.findUniqueOrThrow({ where: { username } });
+      const token = role === 'SUPER_ADMIN' ? superAdminToken : admin;
+      const before = (await rows()).length;
+      const requestId = `guard-denied-${role.toLowerCase()}`;
+      const res = await make().set(bearer(token)).set('X-Request-Id', requestId);
+      expect([res.status, res.body.code]).toEqual([403, 'PERMISSION_REQUIRED']);
+      const [row] = await newRows(before, 1);
+      await http().get('/api/v1/admin/users').set(bearer(admin)).expect(200);   // settle: a later request adds nothing
+      expect((await rows()).length).toBe(before + 1);
+      expect(row).toMatchObject({ actorId: user.id, actorRole: role, entity: 'Request',
+        metadata: { route, outcome: 403, requestId } });
     });
   });
 });
