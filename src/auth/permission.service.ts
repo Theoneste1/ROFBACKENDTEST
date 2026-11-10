@@ -18,7 +18,7 @@ import { Injectable } from '@nestjs/common';
 import { AccessService } from '../common/access/access.service.js';
 import { isCourseWorker } from '../common/access/roles.js';
 import type { ActiveOverride, AuthUser } from '../common/auth-user.js';
-import { overrideRefusal } from './override-policy.js';
+import { grantScopeOf, overrideRefusal } from './override-policy.js';
 import {
   ADMINISTRATIVE_ROLES, ADMIN_PROHIBITED, PERMISSIONS, ROLE_LABELS, ROLE_PERMISSIONS, grantsForRole, permissionsFor,
   type AppRole, type Permission, type ScopeKind,
@@ -57,8 +57,8 @@ export class PermissionService {
    * Effective grants: permission → scope kind. Empty for an unknown role.
    * Role defaults, then the user's active individual overrides (P1-09): DENY
    * removes a permission; GRANT adds one only if the approved list allows it for
-   * the role (never a never-grantable one), scoped to course × division — the
-   * service then checks that scope. Each override's expiresAt is checked again
+   * the role (never a never-grantable one), scoped to course × division, or to the
+   * teacher's schools for a teacher delegation (P1-11) — the service then checks that scope. Each override's expiresAt is checked again
    * here, at the moment of the decision. No override ever applies to a
    * SUPER_ADMIN or an unknown role. RS1 is applied last, whatever the source.
    */
@@ -70,7 +70,7 @@ export class PermissionService {
       for (const o of activeOverrides(user, now)) {
         if (overrideRefusal(role, o.permission, o.effect) !== null) continue;
         if (o.effect === 'DENY') grants.delete(o.permission as Permission);
-        else grants.set(o.permission as Permission, 'courseDivision');
+        else grants.set(o.permission as Permission, grantScopeOf(o.permission));
       }
     }
     if ((ADMINISTRATIVE_ROLES as readonly string[]).includes(role)) {

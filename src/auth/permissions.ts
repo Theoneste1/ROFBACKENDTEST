@@ -69,6 +69,11 @@ export const PERMISSIONS = [
   'settings.manageSystem',       // Super Admin only
   'permissions.view',
   'permissions.manageOverrides', // Super Admin only
+  // ── P1-11: teacher delegations — no role holds them by default; granted to an
+  //    individual TEACHER (P1-09 override, GRANT), school scope only ─────────
+  'students.viewProfile',        // a student's profile (no contact details)
+  'students.viewProgress',       // assignment availability and submission history (no grades, D7)
+  'submissions.submitOnBehalf',  // submit for a student; the student stays the owner
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -82,7 +87,7 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 export const APP_ROLES_MATCH_DATABASE: Same<AppRole, Role> = true;
 
 /** Where a grant applies. Enforced by the services (AccessService), not by the permission guard. */
-export type ScopeKind = 'own' | 'division' | 'courseDivision' | 'programme' | 'global';
+export type ScopeKind = 'own' | 'division' | 'courseDivision' | 'programme' | 'school' | 'global';
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   STUDENT:     'Student',
@@ -129,9 +134,13 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
   TEACHER: {
     'courses.view': 'courseDivision', 'resources.view': 'courseDivision', 'assignments.view': 'courseDivision',
     'discussions.participate': 'courseDivision', 'discussions.report': 'courseDivision',
-    'students.viewScoped': 'courseDivision',
+    // P1-11 (owner decision 2026-11-10): students of the teacher's assigned schools only
+    // (TeacherSchoolAssignment): name, school, grade, division — never grades or contact details.
+    'students.viewScoped': 'school',
     'leaderboard.view': 'global',
     // assignments.prepare: only by individual override (D2, P1-09)
+    // students.viewProfile, students.viewProgress, submissions.submitOnBehalf: only by
+    // an individual GRANT (Administrator or Super Admin), school scope (P1-11)
   },
   MENTOR: {
     'courses.view': 'courseDivision', 'resources.view': 'courseDivision', 'resources.manage': 'courseDivision',

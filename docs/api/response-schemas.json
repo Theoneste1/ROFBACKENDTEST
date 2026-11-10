@@ -10680,6 +10680,13 @@
   "GET /api/v1/schools/search 200": {
     "items": {
       "properties": {
+        "code": {
+          "type": "string"
+        },
+        "district": {
+          "nullable": true,
+          "type": "string"
+        },
         "id": {
           "format": "uuid",
           "type": "string"
@@ -10689,12 +10696,19 @@
         },
         "name": {
           "type": "string"
+        },
+        "sector": {
+          "nullable": true,
+          "type": "string"
         }
       },
       "required": [
+        "code",
+        "district",
         "id",
         "location",
-        "name"
+        "name",
+        "sector"
       ],
       "type": "object"
     },
@@ -23509,6 +23523,7 @@
         "type": "string"
       },
       "school": {
+        "nullable": true,
         "properties": {
           "id": {
             "format": "uuid",

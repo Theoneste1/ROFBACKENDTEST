@@ -4,11 +4,12 @@ import { PermissionService } from './permission.service.js';
 import { APP_ROLES, NEVER_GRANTABLE, PERMISSIONS, ROLE_GRANTS } from './permissions.js';
 
 describe('approved override list (plan §6.3)', () => {
-  it('GRANT: only assignments.prepare, only for TEACHER', () => {
-    expect(GRANTABLE).toEqual({ TEACHER: ['assignments.prepare'] });
+  it('GRANT: only for TEACHER — assignments.prepare and the three P1-11 teacher delegations', () => {
+    const TEACHER_GRANTS = ['assignments.prepare', 'students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'];
+    expect(GRANTABLE).toEqual({ TEACHER: TEACHER_GRANTS });
     for (const role of APP_ROLES) {
       for (const p of PERMISSIONS) {
-        const ok = role === 'TEACHER' && p === 'assignments.prepare';
+        const ok = role === 'TEACHER' && TEACHER_GRANTS.includes(p);
         expect([role, p, overrideRefusal(role, p, 'GRANT') === null]).toEqual([role, p, ok]);
       }
     }

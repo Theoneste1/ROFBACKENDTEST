@@ -590,6 +590,60 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/teacher-assignments",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-assignments",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teacher-assignments/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teachers/{id}/delegations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teachers/{id}/delegations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/users",
     "roles": [
       "ADMIN",
@@ -1719,6 +1773,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/schools/locations",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Schools"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/schools/search",
     "roles": [
       "PUBLIC"
@@ -1983,5 +2045,37 @@
       "PUBLIC"
     ],
     "tag": "Support"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students/{id}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students/{id}/progress",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/teacher/students/{id}/submissions",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
   }
 ]

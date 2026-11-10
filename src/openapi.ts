@@ -7,7 +7,10 @@
  * metadata the guards enforce, so the documentation cannot drift from the real
  * authorization. For a permission route, `x-roles` lists the roles holding the
  * permission in the catalogue (administrators never for grading, RS1) and
- * `x-permission` names it.
+ * `x-permission` names it. A permission no role holds by default (a P1-11
+ * teacher delegation) lists the roles it can be granted to, and says so. A route
+ * whose service serves fewer roles than hold its permission declares them with
+ * `@ApiExtension('x-served-roles', [...])`; `x-roles` is then narrowed to those.
  */
 import type { INestApplication } from '@nestjs/common';
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants.js';
@@ -16,7 +19,8 @@ import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swag
 
 import { ROLES_KEY } from './auth/decorators/roles.decorator.js';
 import { REQUIRED_PERMISSION_KEY } from './auth/decorators/require-permission.decorator.js';
-import { ADMINISTRATIVE_ROLES, ADMIN_PROHIBITED, APP_ROLES, ROLE_GRANTS, type Permission } from './auth/permissions.js';
+import { ADMINISTRATIVE_ROLES, ADMIN_PROHIBITED, APP_ROLES, ROLE_GRANTS, type AppRole, type Permission } from './auth/permissions.js';
+import { GRANTABLE, TEACHER_DELEGATIONS } from './auth/override-policy.js';
 import { IS_PUBLIC_KEY } from './common/decorators/public.decorator.js';
 
 export interface RouteAccess {
@@ -27,12 +31,19 @@ export interface RouteAccess {
   roles:       string[];
   /** The permission required (@RequirePermission), if any. */
   permission?: string;
+  /** True when no role holds the permission by default and `roles` are those it can be granted to. */
+  grantOnly?:  boolean;
 }
 
 /** Roles holding a permission (catalogue order); never ADMIN / SUPER_ADMIN for grading or authoring (RS1). */
 export function rolesHolding(permission: Permission): string[] {
   return APP_ROLES.filter((r) => permission in ROLE_GRANTS[r]
     && !(ADMINISTRATIVE_ROLES.includes(r) && ADMIN_PROHIBITED.includes(permission)));
+}
+
+/** Roles an individual GRANT override can give a permission to (the approved list). */
+export function rolesGrantable(permission: Permission): string[] {
+  return APP_ROLES.filter((r) => (GRANTABLE[r as AppRole] ?? []).includes(permission));
 }
 
 export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
@@ -59,10 +70,16 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       if (!op || typeof op !== 'object' || !('operationId' in op)) continue;
       const a = access.get(op.operationId as string);
       if (!a) continue;
+      const served = op['x-served-roles'] as string[] | undefined;
+      const roles = served ? a.roles.filter((r) => served.includes(r)) : a.roles;
+      const delegation = a.permission && (TEACHER_DELEGATIONS as readonly string[]).includes(a.permission)
+        ? ' — granted individually by an Administrator or Super Admin; applies only to students of the teacher\'s active school assignments'
+        : '';
       const who = a.public ? 'Public (no token)'
-        : a.permission ? `permission \`${a.permission}\` (${a.roles.join(', ')})`
-        : a.roles.length ? a.roles.join(', ') : 'Any signed-in user';
-      op['x-roles'] = a.public ? ['PUBLIC'] : a.roles.length ? a.roles : ['STUDENT', 'MENTOR', 'ADMIN'];
+        : a.permission ? `permission \`${a.permission}\` (${roles.join(', ') || 'nobody'}${a.grantOnly ? ', by individual grant only' : ''})${delegation}`
+        : roles.length ? roles.join(', ') : 'Any signed-in user';
+      // A permission route lists exactly its callers (never the "any signed-in user" fallback).
+      op['x-roles'] = a.public ? ['PUBLIC'] : roles.length || a.permission ? roles : ['STUDENT', 'MENTOR', 'ADMIN'];
       if (a.permission) op['x-permission'] = a.permission;
       op.description = `**Access:** ${who}${op.description ? `\n\n${op.description as string}` : ''}`;
       if (a.public) op.security = [];
@@ -86,11 +103,14 @@ export function routeAccess(app: INestApplication): RouteAccess[] {
         if (Reflect.getMetadata(METHOD_METADATA, handler) === undefined) continue;
         const targets = [handler as () => unknown, ctrl];
         const permission = reflector.getAllAndOverride<Permission | undefined>(REQUIRED_PERMISSION_KEY, targets);
+        const holders = permission ? rolesHolding(permission) : [];
+        const grantOnly = !!permission && holders.length === 0;
         out.push({
           operationId: `${ctrl.name}_${name}`,
           public:      !!reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets),
-          roles:       permission ? rolesHolding(permission) : reflector.getAllAndOverride<string[]>(ROLES_KEY, targets) ?? [],
+          roles:       permission ? (grantOnly ? rolesGrantable(permission) : holders) : reflector.getAllAndOverride<string[]>(ROLES_KEY, targets) ?? [],
           ...(permission && { permission }),
+          ...(grantOnly && { grantOnly }),
         });
       }
     }

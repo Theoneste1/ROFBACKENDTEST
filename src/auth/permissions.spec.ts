@@ -137,7 +137,7 @@ describe('permissions', () => {
       TEACHER: {
         'courses.view': CD, 'resources.view': CD, 'assignments.view': CD,
         'discussions.participate': CD, 'discussions.report': CD,
-        'students.viewScoped': CD, 'leaderboard.view': G,
+        'students.viewScoped': 'school', 'leaderboard.view': G,
       },
       MENTOR: {
         'courses.view': CD, 'resources.view': CD, 'resources.manage': CD,

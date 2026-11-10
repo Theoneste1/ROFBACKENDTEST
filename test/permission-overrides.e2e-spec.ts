@@ -63,7 +63,7 @@ describe('Permission overrides (P1-09)', () => {
     expect(await code(http().post(base(ctx.ids.studentJunior)).set(bearer(student)).send(deny('submissions.viewOwn')))).toEqual([403, 'PERMISSION_REQUIRED']);
     expect((await http().get(base(ctx.ids.studentJunior))).status).toBe(401);
     const cat = await http().get('/api/v1/admin/permissions/catalogue').set(bearer(admin)).expect(200);
-    expect(cat.body.overridePolicy).toMatchObject({ grantable: { TEACHER: ['assignments.prepare'] }, neverGrantable: expect.arrayContaining(['reviews.grade']) });
+    expect(cat.body.overridePolicy).toMatchObject({ grantable: { TEACHER: ['assignments.prepare', 'students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'] }, neverGrantable: expect.arrayContaining(['reviews.grade']) });
     await http().get(`/api/v1/admin/users/${ctx.ids.studentJunior}/permissions`).set(bearer(admin)).expect(200);
     await http().get(`/api/v1/admin/users/${ctx.ids.studentJunior}/permissions`).set(bearer(student)).expect(403);
     expect(await p().userPermissionOverride.count()).toBe(0);

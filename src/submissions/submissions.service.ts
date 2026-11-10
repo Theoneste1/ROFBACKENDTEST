@@ -95,7 +95,14 @@ export class SubmissionsService {
   // STAGE 3 — Student submits / resubmits work
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async submit(data: CreateSubmissionDto, user: AuthUser, files: Express.Multer.File[] = []) {
+  /**
+   * `user` is the student who owns the submission. `actor` is who actually submits:
+   * the student themselves (default), or a Teacher with submissions.submitOnBehalf
+   * for a student of their schools (P1-11). The student stays the owner; the actor
+   * is recorded as the attempt's submitter, the files' uploader and the audit actor.
+   */
+  async submit(data: CreateSubmissionDto, user: AuthUser, files: Express.Multer.File[] = [], actor: AuthUser = user) {
+    const onBehalf = actor.id !== user.id;
     if (files.length === 0 && !data.answerText) {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
@@ -169,7 +176,7 @@ export class SubmissionsService {
     }
 
     const stored: FileObject[] = [];
-    for (const f of files) stored.push(await this.storage.store(f, 'SUBMISSION', user.id));
+    for (const f of files) stored.push(await this.storage.store(f, 'SUBMISSION', actor.id));
     const attempt: Attempt = { fileIds: stored.map((s) => s.id), note: data.note, answerText: data.answerText };
 
     // After a request, the new attempt goes straight back to the requesting
@@ -179,8 +186,8 @@ export class SubmissionsService {
       : null;
 
     const submission = existing
-      ? await this.resubmit(existing, attempt, user, returnTo)
-      : await this.firstSubmit(assignment.id, attempt, isLate, user);
+      ? await this.resubmit(existing, attempt, user, returnTo, actor)
+      : await this.firstSubmit(assignment.id, attempt, isLate, user, actor);
 
     if (returnTo) {
       this.events.emit(Events.SubmissionsAssigned, { assignmentId: assignment.id, byMentor: { [returnTo]: 1 } });
@@ -188,12 +195,13 @@ export class SubmissionsService {
 
     this.activity.record(user.id, existing ? 'SUBMISSION_RESUBMITTED' : 'SUBMISSION_CREATED', {
       courseId: assignment.courseId, entityType: 'Submission', entityId: submission.id,
+      ...(onBehalf && { metadata: { submittedById: actor.id, submittedByRole: actor.role } }),
     });
     this.events.emit(Events.SubmissionReceived, { submissionId: submission.id });
     return studentView(submission);
   }
 
-  private async firstSubmit(assignmentId: string, attempt: Attempt, isLate: boolean, user: AuthUser) {
+  private async firstSubmit(assignmentId: string, attempt: Attempt, isLate: boolean, user: AuthUser, actor: AuthUser = user) {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const now = new Date();
@@ -207,16 +215,19 @@ export class SubmissionsService {
             revisions: {
               create: {
                 revisionNumber: 1, note: attempt.note ?? null, answerText: attempt.answerText ?? null,
-                isLate, submittedById: user.id, submittedAt: now,
+                isLate, submittedById: actor.id, submittedAt: now,
                 attachments: { create: attempt.fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
               },
             },
           },
         });
         await this.audit.log({
-          actorId: user.id, actorRole: user.role,
+          actorId: actor.id, actorRole: actor.role,
           action: 'SUBMIT_ASSIGNMENT', entity: 'Submission', entityId: created.id,
-          metadata: { assignmentId, isLate, files: attempt.fileIds.length, typedAnswer: !!attempt.answerText },
+          metadata: {
+            assignmentId, isLate, files: attempt.fileIds.length, typedAnswer: !!attempt.answerText,
+            ...(actor.id !== user.id && onBehalfMeta(user, attempt)),
+          },
         }, tx);
         return this.load(tx, created.id);
       });
@@ -243,6 +254,7 @@ export class SubmissionsService {
     attempt: Attempt,
     user: AuthUser,
     returnTo: string | null,
+    actor: AuthUser = user,
   ) {
     const requested = existing.status === 'RESUBMISSION_REQUESTED';
     return this.prisma.$transaction(async (tx) => {
@@ -263,14 +275,14 @@ export class SubmissionsService {
 
       if (existing.currentReviewId && !requested) {
         await this.moveReview(tx, existing.currentReviewId, ['ASSIGNED'], { status: 'CANCELLED' },
-          'CANCELLED', user.id, 'Student replaced their work before review started.');
+          'CANCELLED', actor.id, actor.id === user.id ? 'Student replaced their work before review started.' : 'Work replaced on the student\'s behalf before review started.');
       }
 
       const revisionNumber = existing.revisionCount + 2;
       await tx.submissionRevision.create({
         data: {
           submissionId: existing.id, revisionNumber, note: attempt.note ?? null, answerText: attempt.answerText ?? null,
-          submittedById: user.id, submittedAt: now,
+          submittedById: actor.id, submittedAt: now,
           attachments: { create: attempt.fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
         },
       });
@@ -281,11 +293,12 @@ export class SubmissionsService {
       }
 
       await this.audit.log({
-        actorId: user.id, actorRole: user.role,
+        actorId: actor.id, actorRole: actor.role,
         action: 'RESUBMIT_ASSIGNMENT', entity: 'Submission', entityId: existing.id,
         metadata: {
           revisionNumber, requested, returnedToMentorId: returnTo,
           ...(!requested && { cancelledReviewId: existing.currentReviewId }),
+          ...(actor.id !== user.id && onBehalfMeta(user, attempt)),
         },
       }, tx);
 
@@ -1135,4 +1148,9 @@ export class SubmissionsService {
       );
     }
   }
+}
+
+/** Audit metadata of an attempt made on a student's behalf (P1-11): who it is for, and which files. */
+function onBehalfMeta(student: AuthUser, attempt: Attempt) {
+  return { onBehalfOf: student.id, studentId: student.id, fileIds: attempt.fileIds };
 }

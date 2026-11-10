@@ -1,7 +1,7 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
-import { IsOptional, IsString, Length } from 'class-validator';
+import { IsOptional, IsString, Length, ValidateIf } from 'class-validator';
 
 import { SchoolsService } from './schools.service.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -15,10 +15,16 @@ class ListSchoolsDto extends PaginationQueryDto {
   search?: string;
 }
 
+/** Name or code (2+ characters), and/or a Province → District → Sector (official schools only). */
 class SearchSchoolsDto {
+  @ValidateIf((o: SearchSchoolsDto) => o.q !== undefined || (!o.district && !o.sector))
   @IsString()
   @Length(2, 100)
-  q: string;
+  q?: string;
+
+  @IsOptional() @IsString() @Length(1, 100) province?: string;
+  @IsOptional() @IsString() @Length(1, 100) district?: string;
+  @IsOptional() @IsString() @Length(1, 100) sector?: string;
 }
 
 @ApiTags('Schools')
@@ -26,12 +32,23 @@ class SearchSchoolsDto {
 export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
-  /** Public autocomplete for the sign-up form (max 10 matches). */
+  /**
+   * Public, for the sign-up form: official schools by name or code (max 10), or every
+   * official school of a district / sector (Rwanda: Province → District → Sector → School).
+   */
   @Public()
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('search')
   search(@Query() query: SearchSchoolsDto) {
-    return this.schoolsService.search(query.q);
+    return this.schoolsService.search(query.q, { province: query.province, district: query.district, sector: query.sector });
+  }
+
+  /** Public: Rwanda's provinces → districts → sectors that have official schools. */
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('locations')
+  locations() {
+    return this.schoolsService.locations();
   }
 
   /** ADMIN: schools with student counts. */

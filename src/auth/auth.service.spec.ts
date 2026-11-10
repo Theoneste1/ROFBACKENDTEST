@@ -22,7 +22,7 @@ function makeMocks() {
       findUnique: vi.fn().mockResolvedValue(null),
       updateMany: vi.fn(),
     },
-    school: { upsert: vi.fn() },
+    school: { upsert: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
@@ -166,7 +166,7 @@ describe('AuthService', () => {
     it('creates the student and enrols them in the current academic year inside the transaction', async () => {
       const { service, prisma, settings, academicYears, audit } = makeMocks();
       settings.get.mockImplementation(async (key: string) => key === 'registration.studentSelfSignup');
-      prisma.school.upsert.mockResolvedValue({ id: 'sch1', name: 'GS Kigali' });
+      prisma.school.findMany.mockResolvedValue([{ id: 'sch1', code: '110306', name: 'GS Kigali' }]);   // the one official school with that name (P1-11)
       prisma.user.create.mockResolvedValue({ id: 'u-new', username: 'ab' });
 
       const result = await service.registerStudent(dto);
@@ -185,7 +185,7 @@ describe('AuthService', () => {
       const { service, prisma, settings, activation, issued } = makeMocks();
       settings.get.mockImplementation(async (key: string) =>
         key === 'registration.studentSelfSignup' || key === 'registration.requireEmailVerification');
-      prisma.school.upsert.mockResolvedValue({ id: 'sch1', name: 'GS Kigali' });
+      prisma.school.findMany.mockResolvedValue([{ id: 'sch1', code: '110306', name: 'GS Kigali' }]);   // the one official school with that name (P1-11)
       prisma.user.create.mockResolvedValue({ id: 'u-new', username: 'ab' });
 
       const result = await service.registerStudent(dto);
@@ -199,7 +199,7 @@ describe('AuthService', () => {
     it('fails the registration when no academic year is current', async () => {
       const { service, prisma, settings, academicYears, audit } = makeMocks();
       settings.get.mockResolvedValue(true);
-      prisma.school.upsert.mockResolvedValue({ id: 'sch1', name: 'GS Kigali' });
+      prisma.school.findMany.mockResolvedValue([{ id: 'sch1', code: '110306', name: 'GS Kigali' }]);   // the one official school with that name (P1-11)
       prisma.user.create.mockResolvedValue({ id: 'u-new' });
       academicYears.enrollInCurrentYear.mockRejectedValue(Object.assign(new Error('none'), { code: 'NO_CURRENT_ACADEMIC_YEAR' }));
 

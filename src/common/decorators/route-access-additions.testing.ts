@@ -13,6 +13,10 @@ export interface AddedRouteDecisions { anonymous: Decision; STUDENT: Decision; M
 const SUPER_ADMIN_ONLY: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const ADMINISTRATORS:   AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** courses.view: every known role that views courses; an unknown role holds nothing. */
+/** @Public: everyone, signed in or not. */
+const PUBLIC: AddedRouteDecisions = { anonymous: 'allow', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
+/** Granted only by an individual delegation (P1-11): no baseline caller holds it. */
+const NOBODY_BY_DEFAULT: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 
 export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>> = {
@@ -33,4 +37,19 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'DELETE /api/v1/admin/programmes/:id/members/:userId  AdminProgrammesController.endMember':                ADMINISTRATORS,
   // P1-10 part 3 — coach invitation into a programme (users.manageCoaches; Head Coaches too, pending approval)
   'POST /api/v1/admin/programmes/:id/coach-invitations  AdminProgrammesController.inviteCoach':              ADMINISTRATORS,
+  // P1-11 — teacher school assignments and delegations (users.manageTeachers)
+  'GET /api/v1/admin/teacher-assignments  TeacherSchoolsController.list':                                     ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-assignments  TeacherSchoolsController.assign':                                  ADMINISTRATORS,
+  'DELETE /api/v1/admin/teacher-assignments/:id  TeacherSchoolsController.end':                               ADMINISTRATORS,
+  'GET /api/v1/admin/teachers/:id/delegations  TeacherDelegationsController.list':                            ADMINISTRATORS,
+  'POST /api/v1/admin/teachers/:id/delegations  TeacherDelegationsController.grant':                          ADMINISTRATORS,
+  'DELETE /api/v1/admin/teachers/:id/delegations/:overrideId  TeacherDelegationsController.revoke':           ADMINISTRATORS,
+  // P1-11 — the teacher's school-scoped views. students.viewScoped: ADMIN holds it (guard allows; the
+  // service serves Teachers only → 403 ROLE_NOT_SUPPORTED). The other three: delegation only.
+  'GET /api/v1/teacher/students  TeacherStudentsController.list':                                             ADMINISTRATORS,
+  'GET /api/v1/teacher/students/:id  TeacherStudentsController.profile':                                      NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/students/:id/progress  TeacherStudentsController.progress':                            NOBODY_BY_DEFAULT,
+  'POST /api/v1/teacher/students/:id/submissions  TeacherStudentsController.submit':                          NOBODY_BY_DEFAULT,
+  // P1-11 — the official directory's Province → District → Sector tree for the Rwanda sign-up form
+  'GET /api/v1/schools/locations  SchoolsController.locations':                                               PUBLIC,
 };

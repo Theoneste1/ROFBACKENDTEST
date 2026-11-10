@@ -6,10 +6,14 @@
  *   - never for the actor themselves, never on a SUPER_ADMIN;
  *   - DENY: any default permission of the target's role (TEACHER, STUDENT,
  *     COACH, HEAD_COACH, ADMIN);
- *   - GRANT: only assignments.prepare for a TEACHER, only for a course ×
- *     division where the teacher already has an active TeacherAssignment.
- *     TeacherAssignment arrives with P1-11 (M6); until then no teacher has one,
- *     so every GRANT is refused (400 OVERRIDE_NOT_ALLOWED);
+ *   - GRANT: assignments.prepare for a TEACHER, only for a course × division
+ *     where the teacher already has an active TeacherAssignment — none exists
+ *     under the school-based teacher design (P1-11), so it is refused (400);
+ *   - GRANT: a teacher delegation (P1-11 — students.viewProfile,
+ *     students.viewProgress, submissions.submitOnBehalf) for a TEACHER with at
+ *     least one active school assignment; school scope, no course × division.
+ *     Administrators may give and revoke these too (delegation mode, used by
+ *     /admin/teachers/:id/delegations with users.manageTeachers) — nothing else;
  *   - never grantable permissions are refused even if the list were edited.
  *
  * Create and revoke write their audit row in the SAME transaction as the change
@@ -23,7 +27,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 import { AuditService } from '../audit/audit.service.js';
-import { DENIABLE_ROLES, GRANTABLE, overrideRefusal } from '../auth/override-policy.js';
+import { DENIABLE_ROLES, GRANTABLE, TEACHER_DELEGATIONS, grantScopeOf, overrideRefusal } from '../auth/override-policy.js';
 import { PermissionService } from '../auth/permission.service.js';
 import { NEVER_GRANTABLE, PERMISSIONS, ROLE_GRANTS, ROLE_LABELS, type AppRole } from '../auth/permissions.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
@@ -41,6 +45,15 @@ const SELECT = {
 /** Namespace of the per-user advisory lock taken while creating overrides (any fixed int, unique to this purpose). */
 const OVERRIDE_LOCK_NAMESPACE = 4209;
 
+/** Administrators' teacher-delegation mode (P1-11). */
+interface DelegationMode { delegation?: boolean }
+
+function assertTeacherTarget(target: { role: string }) {
+  if (target.role !== 'TEACHER') {
+    throw new AppError(HttpStatus.BAD_REQUEST, 'OVERRIDE_NOT_ALLOWED', 'This override is not allowed: teacher delegations apply to Teacher accounts only.', { reason: 'not a teacher', role: target.role });
+  }
+}
+
 const notAllowed = (reason: string, details: Record<string, unknown> = {}) =>
   new AppError(HttpStatus.BAD_REQUEST, 'OVERRIDE_NOT_ALLOWED', `This override is not allowed: ${reason}.`, { reason, ...details });
 
@@ -55,17 +68,27 @@ export class PermissionOverridesService {
     private readonly config: ConfigService,
   ) {}
 
-  async list(userId: string) {
-    await this.requireUser(userId);
-    const rows = await this.prisma.userPermissionOverride.findMany({ where: { userId }, select: SELECT, orderBy: { createdAt: 'desc' } });
+  async list(userId: string, opts: DelegationMode = {}) {
+    const target = await this.requireUser(userId);
+    if (opts.delegation) assertTeacherTarget(target);
+    const rows = await this.prisma.userPermissionOverride.findMany({
+      where: { userId, ...(opts.delegation && { permission: { in: [...TEACHER_DELEGATIONS] } }) }, select: SELECT, orderBy: { createdAt: 'desc' },
+    });
     const now = Date.now();
     return rows.map((r) => ({ ...r, active: r.revokedAt === null && (r.expiresAt === null || r.expiresAt.getTime() > now) }));
   }
 
-  async create(userId: string, dto: CreateOverrideDto, actor: CallerCtx) {
+  async create(userId: string, dto: CreateOverrideDto, actor: CallerCtx, opts: DelegationMode = {}) {
     const target = await this.requireUser(userId);
     if (target.id === actor.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'OVERRIDE_NOT_ALLOWED', 'You cannot set an override on your own account.', { reason: 'self' });
+    }
+    // Delegation mode (Administrators): only a teacher delegation GRANT, only on a Teacher.
+    if (opts.delegation) {
+      assertTeacherTarget(target);
+      if (dto.effect !== 'GRANT' || !(TEACHER_DELEGATIONS as readonly string[]).includes(dto.permission)) {
+        throw notAllowed('not a teacher delegation', { permission: dto.permission, effect: dto.effect, delegations: TEACHER_DELEGATIONS });
+      }
     }
     if (!(PERMISSIONS as readonly string[]).includes(dto.permission)) throw notAllowed('unknown permission');
     const refusal = overrideRefusal(target.role, dto.permission, dto.effect);
@@ -76,7 +99,13 @@ export class PermissionOverridesService {
 
     let courseId: string | null = null;
     let divisionId: string | null = null;
-    if (dto.effect === 'GRANT') {
+    if (dto.effect === 'GRANT' && grantScopeOf(dto.permission) === 'school') {
+      // Teacher delegation: applies to the teacher's schools (checked on every request), never a course × division.
+      if (dto.courseId || dto.divisionId) throw notAllowed('a teacher delegation applies to the teacher\'s schools; omit courseId and divisionId');
+      if (!(await this.prisma.teacherSchoolAssignment.count({ where: { teacherId: target.id, isActive: true } }))) {
+        throw notAllowed('outside the user’s existing scope (the teacher has no active school assignment)');
+      }
+    } else if (dto.effect === 'GRANT') {
       if (!dto.courseId || !dto.divisionId) throw notAllowed('a GRANT needs the course × division it applies to');
       // Only inside the teacher's existing scope: an active TeacherAssignment for this
       // course × division. TeacherAssignment (M6) arrives with P1-11; none exists yet.
@@ -111,31 +140,38 @@ export class PermissionOverridesService {
         actorId: actor.id, actorRole: actor.role, action: 'PERMISSION_OVERRIDE_CREATE', entity: 'UserPermissionOverride', entityId: created.id,
         metadata: {
           targetUserId: userId, targetRole: target.role, permission: dto.permission, effect: dto.effect,
-          scope: courseId ? { courseId, divisionId } : null, reason: dto.reason, expiresAt,
-          previous: null, next: { active: true },
+          scope: courseId ? { courseId, divisionId } : grantScopeOf(dto.permission) === 'school' && dto.effect === 'GRANT' ? 'SCHOOL' : null,
+          reason: dto.reason, expiresAt, previous: null, next: { active: true },
+          ...(opts.delegation && { via: 'TEACHER_DELEGATION' }),
         },
       }, tx);
       return { ...created, active: true };
     });
   }
 
-  async revoke(userId: string, overrideId: string, actor: CallerCtx) {
+  async revoke(userId: string, overrideId: string, actor: CallerCtx, opts: DelegationMode = {}) {
+    if (opts.delegation) assertTeacherTarget(await this.requireUser(userId));
+    // Delegation mode: an Administrator only ever touches teacher delegations (others: not found).
+    const only = opts.delegation ? { permission: { in: [...TEACHER_DELEGATIONS] } } : {};
     return this.prisma.$transaction(async (tx) => {
       // Atomic: only an UNREVOKED row is updated. A concurrent revoke waits on the row lock,
       // re-checks the condition after the first commits, updates nothing and gets 409 — so
       // exactly one request revokes and writes the audit row.
       const { count } = await tx.userPermissionOverride.updateMany({
-        where: { id: overrideId, userId, revokedAt: null }, data: { revokedAt: new Date(), revokedById: actor.id },
+        where: { id: overrideId, userId, revokedAt: null, ...only }, data: { revokedAt: new Date(), revokedById: actor.id },
       });
       if (count === 0) {
-        const exists = await tx.userPermissionOverride.findFirst({ where: { id: overrideId, userId }, select: { id: true } });
+        const exists = await tx.userPermissionOverride.findFirst({ where: { id: overrideId, userId, ...only }, select: { id: true } });
         if (!exists) throw new NotFoundException('Override not found.');
         throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_ALREADY_REVOKED', 'This override has already been revoked.');
       }
       const updated = await tx.userPermissionOverride.findUniqueOrThrow({ where: { id: overrideId }, select: SELECT });
       await this.audit.log({
         actorId: actor.id, actorRole: actor.role, action: 'PERMISSION_OVERRIDE_REVOKE', entity: 'UserPermissionOverride', entityId: overrideId,
-        metadata: { targetUserId: userId, permission: updated.permission, effect: updated.effect, previous: { active: true }, next: { active: false } },
+        metadata: {
+          targetUserId: userId, permission: updated.permission, effect: updated.effect, previous: { active: true }, next: { active: false },
+          ...(opts.delegation && { via: 'TEACHER_DELEGATION' }),
+        },
       }, tx);
       return { ...updated, active: false };
     });
@@ -204,7 +240,10 @@ export class PermissionOverridesService {
     return user;
   }
 
-  /** TeacherAssignment arrives with P1-11 (M6). Until then no teacher has an assignment. */
+  /**
+   * Course × division teacher assignments do not exist: P1-11 scopes teachers by school
+   * (owner decision 2026-11-10), so a course × division GRANT (assignments.prepare) stays refused.
+   */
   private async hasActiveTeacherAssignment(_userId: string, _courseId: string, _divisionId: string): Promise<boolean> {
     return false;
   }

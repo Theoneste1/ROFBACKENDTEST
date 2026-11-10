@@ -14,7 +14,7 @@ The permission layer added in P1-04 ([Phase 1 plan](PHASE-1-PLAN.md) v5.2 §4–
 | Stored value | Label | Today | Intended permissions (summary) |
 |---|---|---|---|
 | `STUDENT` | Student | in use | Own division's courses, resources and assignments; completes courses, submits and sees **own** work; takes part in and reports division discussions; leaderboard. |
-| `TEACHER` | Teacher | after M1 (P1-05) | Read-only view of assigned course × division (courses, resources, assignments, discussions, scoped student info). No grading, no assignment preparation (preparation only by individual override, D2, P1-09). |
+| `TEACHER` | Teacher | after M1 (P1-05) | Students of the teacher's assigned schools (P1-11, school scope): list by default; profile, assignment progress (no grades) and submitting on a student's behalf only by an individual delegation from an Administrator or Super Admin. No grading, no student account or password changes. |
 | `MENTOR` | Coach | in use | Assigned course × division: manage resources, prepare assignments, **grade**, course analytics, discussions; leaderboard. |
 | `HEAD_COACH` | Head Coach | after M1 (P1-05) | Own programme(s): view, analytics, reports, scoped student and user info, manage student membership and coaches (invite → approval), assign coaches, monitor coaches, activity. Grades and prepares **only** through a course × division assignment an Administrator created (H4). No discussion moderation (H7). |
 | `ADMIN` | Administrator | in use | Everything administrative: today's 25 permissions plus the new granular administrative names. **Never grades or prepares assignments** (RS1). Keeps `users.manageAdmins` until the Super Admin boundary (P1-08, A7). |
@@ -65,7 +65,7 @@ permission guard.
 | `audit.view` | — | — | — | — | all | all |
 | `activity.view` | — | — | — | programme | all | all |
 | `reports.view` | — | — | — | programme | all | all |
-| `students.viewScoped` | — | course × division | — | programme | all | all |
+| `students.viewScoped` | — | school | — | programme | all | all |
 | `users.view` | — | — | — | programme | all | all |
 | `users.manageStudents` | — | — | — | programme | all | all |
 | `users.manageCoaches` | — | — | — | programme | all | all |
@@ -78,6 +78,9 @@ permission guard.
 | `settings.manageSystem` | — | — | — | — | — | all |
 | `permissions.view` | — | — | — | — | all | all |
 | `permissions.manageOverrides` | — | — | — | — | — | all |
+| `students.viewProfile` | — | — | — | — | — | — |
+| `students.viewProgress` | — | — | — | — | — | — |
+| `submissions.submitOnBehalf` | — | — | — | — | — | — |
 
 ## Grading restriction for administrators (RS1)
 

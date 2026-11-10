@@ -21,7 +21,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppError } from '../errors/app-error.js';
 import type { AuthUser } from '../auth-user.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { COURSE_WORK_ROLES, isAdmin, isCoach, isCourseWorker, isHeadCoach, isStudent, unsupportedRole } from './roles.js';
+import { COURSE_WORK_ROLES, isAdmin, isCoach, isCourseWorker, isHeadCoach, isStudent, isTeacher, unsupportedRole } from './roles.js';
 
 export interface Scope {
   courseId:   string;
@@ -138,6 +138,32 @@ export class AccessService {
     if (isAdmin(user)) return 'all';
     if (isHeadCoach(user)) return this.headedProgrammes(user);
     throw unsupportedRole();
+  }
+
+  // ─── Teacher school scope (P1-11) ───────────────────────────────────────────
+
+  /** The schools a Teacher is ACTIVELY assigned to, read fresh on every call; nobody else has any. */
+  async teacherSchools(user: AuthUser): Promise<string[]> {
+    if (isTeacher(user)) {
+      const rows = await this.prisma.teacherSchoolAssignment.findMany({
+        where: { teacherId: user.id, isActive: true }, select: { schoolId: true }, orderBy: { schoolId: 'asc' },
+      });
+      return rows.map((r) => r.schoolId);
+    }
+    return [];
+  }
+
+  /**
+   * `User` filter: APPROVED and ACTIVATED (e-mail verified) student accounts of these
+   * schools (none → matches nobody). Used by every Teacher student view — list, profile,
+   * progress and submit on behalf (P1-11): an unapproved or unverified student is never
+   * shown to, or acted on by, a teacher. Neither is proof of school membership: an
+   * Administrator-controlled school verification follows with the school-administration
+   * work; until then TEACHERS_ENABLED and HEAD_COACHES_ENABLED stay off.
+   */
+  schoolStudentsFilter(schoolIds: readonly string[]): Prisma.UserWhereInput {
+    if (schoolIds.length === 0) return { id: { in: [] } };
+    return { role: 'STUDENT', isApproved: true, activatedAt: { not: null }, schoolId: { in: [...schoolIds] } };
   }
 
   /** 404 unless the caller's programme scope includes this programme (HC-A: others are not revealed). */

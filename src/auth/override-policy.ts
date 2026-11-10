@@ -4,6 +4,10 @@
  *
  *   TEACHER                       GRANT assignments.prepare (only inside an active
  *                                 TeacherAssignment for that course × division);
+ *                                 GRANT students.viewProfile, students.viewProgress,
+ *                                 submissions.submitOnBehalf (P1-11, school scope:
+ *                                 only with an active school assignment; also
+ *                                 manageable by Administrators — TEACHER_DELEGATIONS);
  *                                 DENY any default permission
  *   STUDENT, MENTOR, HEAD_COACH   DENY any default permission
  *   ADMIN                         DENY any default permission
@@ -13,13 +17,25 @@
  * (reviews.grade, results.*, submissions.distribute, users.manageAdmins,
  * permissions.*, settings.manageSystem).
  */
-import { NEVER_GRANTABLE, ROLE_GRANTS, grantsForRole, type AppRole, type Permission } from './permissions.js';
+import { NEVER_GRANTABLE, ROLE_GRANTS, grantsForRole, type AppRole, type Permission, type ScopeKind } from './permissions.js';
 
 export type OverrideEffectValue = 'GRANT' | 'DENY';
 
 export const GRANTABLE: Readonly<Partial<Record<AppRole, readonly Permission[]>>> = {
-  TEACHER: ['assignments.prepare'],
+  TEACHER: ['assignments.prepare', 'students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'],
 };
+
+/**
+ * Teacher delegations (P1-11): the GRANTs an Administrator may also give or revoke
+ * (users.manageTeachers), besides the Super Admin. School scope — the teacher's
+ * active school assignments, checked by the service on every request.
+ */
+export const TEACHER_DELEGATIONS: readonly Permission[] = ['students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'];
+
+/** The scope a GRANT override applies at: school for teacher delegations, course × division otherwise. */
+export function grantScopeOf(permission: string): ScopeKind {
+  return (TEACHER_DELEGATIONS as readonly string[]).includes(permission) ? 'school' : 'courseDivision';
+}
 export const DENIABLE_ROLES: readonly AppRole[] = ['STUDENT', 'TEACHER', 'MENTOR', 'HEAD_COACH', 'ADMIN'];
 
 /** Why this override is not allowed for a role, or null when the policy allows it (scope is checked separately). */

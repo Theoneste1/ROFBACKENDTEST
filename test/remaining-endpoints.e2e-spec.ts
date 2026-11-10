@@ -203,10 +203,19 @@ describe('Remaining endpoints (e2e)', () => {
       await http().patch(`/api/v1/admin/divisions/${ctx.ids.junior}`).set(bearer(studentJ)).send({ name: 'x' }).expect(403);
     });
 
-    it('schools: a public search for sign-up exposes names only; administrators see details', async () => {
+    it('schools: a public search for sign-up exposes official schools only (name, code, place); administrators see details', async () => {
+      // P1-11: only schools of the official list (with a code) are offered; 'Test School' has none.
+      await ctx.prisma.school.create({ data: { name: 'TEST OFFICIAL SCHOOL', location: 'Kigali, Gasabo', code: '120999', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'test official school' } });
       const found = await http().get('/api/v1/schools/search').query({ q: 'Test' }).expect(200);
-      expect(found.body).toEqual([expect.objectContaining({ name: 'Test School' })]);
-      expect(Object.keys(found.body[0]).sort()).toEqual(['id', 'location', 'name']);
+      expect(found.body).toEqual([expect.objectContaining({ name: 'TEST OFFICIAL SCHOOL', code: '120999' })]);
+      expect(Object.keys(found.body[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'sector']);
+      expect((await http().get('/api/v1/schools/search').query({ q: '1209' }).expect(200)).body.map((s: any) => s.code)).toEqual(['120999']);
+      // Rwanda cascade: Province → District → Sector, then every official school of the sector.
+      await ctx.prisma.school.update({ where: { code: '120999' }, data: { province: 'Kigali City' } });
+      expect((await http().get('/api/v1/schools/locations').expect(200)).body)
+        .toEqual([{ province: 'Kigali City', districts: [{ district: 'Gasabo', sectors: ['Kigali'] }] }]);
+      expect((await http().get('/api/v1/schools/search').query({ district: 'Gasabo', sector: 'Kigali' }).expect(200)).body.map((s: any) => s.code)).toEqual(['120999']);
+      expect((await http().get('/api/v1/schools/search').query({ district: 'Huye' }).expect(200)).body).toEqual([]);
       await http().get('/api/v1/schools/search').query({ q: 'T' }).expect(400);
 
       const list = await http().get('/api/v1/schools').set(bearer(admin)).expect(200);
