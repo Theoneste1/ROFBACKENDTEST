@@ -18,6 +18,21 @@ export interface AuthUser {
   jti?:       string;
   /** Access-token expiry (seconds since epoch). */
   exp?:       number;
+  /**
+   * The user's active individual permission overrides (P1-09), loaded with the
+   * user on every request: not revoked, and not expired when loaded. Expiry is
+   * checked again at each authorization decision (PermissionService).
+   */
+  overrides?: readonly ActiveOverride[];
+}
+
+export interface ActiveOverride {
+  id:         string;
+  permission: string;
+  effect:     'GRANT' | 'DENY';
+  courseId:   string | null;
+  divisionId: string | null;
+  expiresAt:  Date | null;
 }
 
 /**
