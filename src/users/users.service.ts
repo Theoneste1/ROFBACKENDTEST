@@ -195,10 +195,29 @@ export class UsersService {
 
     const actor = { actorId: caller.id, actorRole: caller.role };
     const user = await this.prisma.$transaction(async (tx) => {
+      // Lock the user row first: a concurrent edit of this user waits here, and the school
+      // affiliation below is decided on the committed state, not on `existing` (read before).
+      const [locked] = await tx.$queryRaw<Array<{ schoolId: string | null }>>`SELECT "schoolId" FROM "User" WHERE "id" = ${id} FOR UPDATE`;
+
+      // School affiliation follows the student's school and role, in this transaction:
+      //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
+      //   becoming STUDENT, a school → a new PENDING claim;
+      //   another school             → the current claim is superseded and a new PENDING one created;
+      //   the same school            → nothing changes (a VERIFIED claim stays VERIFIED).
+      // The old claim ends BEFORE the User row changes and the new one is created after it, so
+      // every statement leaves the student consistent (M10).
+      const nextClaim = roleChange || data.schoolId !== undefined
+        ? await this.affiliations.beginUserChange(tx, {
+            id, isStudent: role === 'STUDENT', becameStudent: role === 'STUDENT' && existing.role !== 'STUDENT',
+            schoolId: role === 'STUDENT' ? (data.schoolId ?? locked?.schoolId ?? null) : null,
+          }, actor)
+        : null;
+
       const updated = await tx.user.update({
         where: { id }, data: updateData,
         select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true },
       });
+      if (nextClaim) await this.affiliations.claim(tx, nextClaim);
       let enrollment: 'PLACED' | 'WITHDRAWN' | null = null;
       if (placementChanged && role === 'STUDENT') {
         // Keep the current-year enrolment in step with the new placement.
@@ -219,20 +238,6 @@ export class UsersService {
         await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
       }
 
-      // School affiliation follows the student's school and role, in this transaction:
-      //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
-      //   becoming STUDENT, a school → a new PENDING claim;
-      //   another school             → the current claim is superseded and a new PENDING one created.
-      if (existing.role === 'STUDENT' && role !== 'STUDENT') {
-        await this.affiliations.supersede(tx, id, 'ROLE_CHANGE', actor);
-      } else if (role === 'STUDENT' && (existing.role !== 'STUDENT' || updated.schoolId !== existing.schoolId)) {
-        const reason = existing.role !== 'STUDENT' ? 'NEW_CLAIM' : 'SCHOOL_CHANGE';
-        if (updated.schoolId) {
-          await this.affiliations.claim(tx, { studentId: id, schoolId: updated.schoolId, source: 'ADMIN', reason, actor });
-        } else {
-          await this.affiliations.supersede(tx, id, reason, actor);
-        }
-      }
 
       // A Teacher who changes role keeps no school scope (P1-11): their school assignments end here.
       if (existing.role === 'TEACHER' && role !== 'TEACHER') {

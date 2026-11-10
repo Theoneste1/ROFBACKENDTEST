@@ -30,6 +30,8 @@ function makeMocks() {
     mentorReview:      { count: vi.fn().mockResolvedValue(0) },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
+    // Admin edits lock the user row first (PR A.1).
+    $queryRaw: vi.fn().mockResolvedValue([{ schoolId: null }]),
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
@@ -44,7 +46,7 @@ function makeMocks() {
 
   const accountEmails = { approved: vi.fn() };
   const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn() };
-  const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() };
+  const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn(), beginUserChange: vi.fn().mockResolvedValue(null) };
   const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any);
   return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations };
 }

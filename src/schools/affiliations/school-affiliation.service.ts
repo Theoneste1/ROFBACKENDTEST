@@ -9,12 +9,20 @@
  *                 supersedes the current claim (SCHOOL_CHANGE / NEW_CLAIM) and creates a
  *                 PENDING one; both audited in that transaction.
  *   supersede()   ends the current claim without a new one (ROLE_CHANGE).
+ *   beginUserChange()
+ *                 in a user edit, BEFORE User.schoolId or the role changes: ends a current
+ *                 claim that will no longer match and returns the claim to create once the
+ *                 User row is written; decided from the locked current claim, so concurrent
+ *                 edits agree.
  *   verify / reject / revoke
  *                 one conditional update each (current, expected status) + its audit row,
  *                 atomically; a stale or concurrent decision gets 409.
  *
  * Teacher access requires a current VERIFIED claim for the student's school
  * (AccessService.schoolStudentsFilter).
+ *
+ * The database enforces both invariants after every statement (M10): at most one current claim per
+ * student, and the current claim's school is User.schoolId.
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -94,24 +102,55 @@ export class SchoolAffiliationService {
     await this.supersedeLocked(tx, studentId, reason, actor);
   }
 
+  /**
+   * Step 1 of a user edit, inside its transaction, after the caller has locked the User row and
+   * BEFORE it writes the new role or school (M10 checks every statement, so the claim that will
+   * no longer match must end first): a non-student keeps no current claim; a student's current
+   * claim must be for `user.schoolId`. When it already is (re-sending the same school), nothing
+   * changes and its status — VERIFIED included — is kept.
+   * Returns the claim to create (`claim()`) once the User row is written, or null.
+   */
+  async beginUserChange(
+    tx: Prisma.TransactionClient,
+    user: { id: string; isStudent: boolean; schoolId: string | null; becameStudent: boolean },
+    actor: AffiliationActor,
+  ): Promise<ClaimInput | null> {
+    await this.lock(tx, user.id);
+    if (!user.isStudent) {
+      await this.supersedeLocked(tx, user.id, 'ROLE_CHANGE', actor);
+      return null;
+    }
+    const current = await tx.studentSchoolAffiliation.findFirst({ where: { studentId: user.id, supersededAt: null }, select: { schoolId: true } });
+    if ((current?.schoolId ?? null) === user.schoolId) return null;   // the same school (or none, and no claim)
+    const reason = user.becameStudent ? 'NEW_CLAIM' : 'SCHOOL_CHANGE';
+    await this.supersedeLocked(tx, user.id, reason, actor);
+    return user.schoolId ? { studentId: user.id, schoolId: user.schoolId, source: 'ADMIN', reason, actor } : null;
+  }
+
   private async lock(tx: Prisma.TransactionClient, studentId: string) {
     await tx.$queryRaw`SELECT pg_advisory_xact_lock(${AFFILIATION_LOCK_NAMESPACE}::int, hashtext(${studentId}))::text`;
   }
 
   private async supersedeLocked(tx: Prisma.TransactionClient, studentId: string, reason: SupersedeReason, actor: AffiliationActor) {
-    const current = await tx.studentSchoolAffiliation.findFirst({
-      where: { studentId, supersededAt: null }, select: { id: true, status: true, schoolId: true },
-    });
-    if (!current) return;
-    await tx.studentSchoolAffiliation.updateMany({
-      where: { id: current.id, supersededAt: null },
-      data:  { supersededAt: new Date(), supersededById: actor.actorId, supersedeReason: reason },
-    });
-    await this.audit.log({
-      ...actor, action: 'SCHOOL_AFFILIATION_SUPERSEDED',
-      entity: 'StudentSchoolAffiliation', entityId: current.id,
-      metadata: { studentId, schoolId: current.schoolId, reason, previous: { status: current.status, current: true }, next: { current: false } },
-    }, tx);
+    // Row-locked read: Administrator decisions do not take the per-student lock, so a plain read
+    // could return a status a concurrent decision is changing. FOR UPDATE waits for that decision
+    // and returns the committed status; a decision arriving later waits for this transaction and,
+    // the claim no longer being current, gets 409. The audit's previous status is therefore exact.
+    const rows = await tx.$queryRaw<Array<{ id: string; status: SchoolAffiliationStatus; schoolId: string | null }>>`
+      SELECT "id", "status"::text AS "status", "schoolId" FROM "StudentSchoolAffiliation"
+       WHERE "studentId" = ${studentId} AND "supersededAt" IS NULL
+         FOR UPDATE`;
+    for (const current of rows) {
+      await tx.studentSchoolAffiliation.update({
+        where: { id: current.id },
+        data:  { supersededAt: new Date(), supersededById: actor.actorId, supersedeReason: reason },
+      });
+      await this.audit.log({
+        ...actor, action: 'SCHOOL_AFFILIATION_SUPERSEDED',
+        entity: 'StudentSchoolAffiliation', entityId: current.id,
+        metadata: { studentId, schoolId: current.schoolId, reason, previous: { status: current.status, current: true }, next: { current: false } },
+      }, tx);
+    }
   }
 
   // ─── Administrator decisions (each atomic with its audit row) ───────────────

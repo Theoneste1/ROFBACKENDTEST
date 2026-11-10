@@ -26,11 +26,13 @@ import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CURRENT_CLAIM_SELECT, withVerification } from '../schools/affiliations/school-verification.js';
 import { AddProgrammeMemberDto, ListProgrammeMembersDto, MEMBER_ROLES, SetProgrammeHeadsDto } from './dto/programme.dto.js';
 
 const PROGRAMME_SELECT = { id: true, code: true, name: true, description: true, isActive: true, sortOrder: true } as const;
 
-/** What a member row shows: no e-mail, phone, grades, marks or feedback (D7). */
+/** What a member row shows: no e-mail, phone, grades, marks or feedback (D7). The school carries
+ *  `verification` (VERIFIED / UNVERIFIED): an unverified school is never presented as fact. */
 const MEMBER_SELECT = {
   source: true, isActive: true, createdAt: true, endedAt: true,
   user: {
@@ -38,6 +40,7 @@ const MEMBER_SELECT = {
       id: true, username: true, firstName: true, lastName: true, role: true, gradeLevel: true, isActive: true,
       division: { select: { id: true, code: true, name: true } },
       school:   { select: { id: true, name: true } },
+      schoolAffiliations: CURRENT_CLAIM_SELECT,
     },
   },
 } as const;
@@ -51,8 +54,9 @@ const HEAD_SELECT = {
 const HEADS_LOCK_NAMESPACE = 4210;
 
 type MemberRow = Prisma.ProgrammeMembershipGetPayload<{ select: typeof MEMBER_SELECT }>;
-const memberView = (m: MemberRow) => ({
-  ...m.user,
+const memberView = ({ user: { schoolAffiliations, ...user }, ...m }: MemberRow) => ({
+  ...user,
+  school: withVerification(user.school, schoolAffiliations),
   membership: { source: m.source, isActive: m.isActive, createdAt: m.createdAt, endedAt: m.endedAt },
 });
 
