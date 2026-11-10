@@ -100,7 +100,7 @@ describe('permission equivalence — catalogue (A4)', () => {
     expect(ROLE_PERMISSIONS.ADMIN.filter((p) => !admin.includes(p))).toEqual([]);
     expect(admin.filter((p) => !ROLE_PERMISSIONS.ADMIN.includes(p as Permission)).sort()).toEqual([
       'coaches.monitor', 'permissions.view', 'programmes.manageHeads', 'programmes.manageMembers',
-      'reports.view', 'students.viewScoped', 'users.manageAdmins', 'users.manageCoaches',
+      'reports.view', 'schools.manage', 'students.viewScoped', 'users.manageAdmins', 'users.manageCoaches',
       'users.manageHeadCoaches', 'users.manageStudents', 'users.manageTeachers', 'users.view',
     ]);
   });
@@ -136,7 +136,9 @@ describe('permission equivalence — routes (A4)', () => {
     const mapped = handlers.filter((h) => isMapped(h.cls, h.handler) && !(keyOf(h) in ADDED_SINCE_BASELINE))
       .map((h) => ({ key: keyOf(h), cls: h.cls, handler: h.handler }));
     expect(mapped).toHaveLength(114);
-    for (const h of handlers.filter((x) => keyOf(x) in ADDED_SINCE_BASELINE)) {
+    // Added routes that declare a permission (the permission layer only; every added route's full
+    // guard decision — @Roles ones included — is checked in route-declarations.spec.ts).
+    for (const h of handlers.filter((x) => keyOf(x) in ADDED_SINCE_BASELINE && isMapped(x.cls, x.handler))) {
       for (const c of CALLERS) expect([keyOf(h), c, permissionDecision(h.cls, h.handler, c)]).toEqual([keyOf(h), c, ADDED_SINCE_BASELINE[keyOf(h)][c]]);
     }
     expect(PERMISSION_EQUIVALENCE_EXCEPTIONS).toEqual([]);

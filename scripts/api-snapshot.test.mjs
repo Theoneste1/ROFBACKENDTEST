@@ -98,7 +98,8 @@ const P1_10_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10.json';
 const P1_10_H4_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-h4.json';
 const P1_10_MONITORING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-monitoring.json';
 const P1_11_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-11.json';
-const CURRENT_SNAPSHOT = P1_11_SNAPSHOT;
+const SCHOOL_AFFILIATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-school-affiliation.json';
+const CURRENT_SNAPSHOT = SCHOOL_AFFILIATION_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -538,6 +539,26 @@ describe('approved API contract history', () => {
       'POST /api/v1/teacher/students/{id}/submissions: operation added',
       'schema CreateDelegationDto: added',
       'schema CreateTeacherSchoolDto: added',
+    ]);
+  });
+
+  test('P1-11 → school administration PR A (student–school verification): the affiliation operations, their DTOs and registration schoolVerification; nothing else', () => {
+    for (const f of [P1_11_SNAPSHOT, SCHOOL_AFFILIATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_11_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_AFFILIATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/school-affiliations/{id}: operation added',
+      'GET /api/v1/admin/school-affiliations: operation added',
+      'GET /api/v1/admin/users/{id}/school-affiliations: operation added',
+      'GET /api/v1/me/school-affiliation: operation added',
+      'POST /api/v1/admin/school-affiliations/{id}/reject: operation added',
+      'POST /api/v1/admin/school-affiliations/{id}/revoke: operation added',
+      'POST /api/v1/admin/school-affiliations/{id}/verify: operation added',
+      'POST /api/v1/auth/register/student › response 201 application/json.schoolVerification: new field',
+      'schema AffiliationReasonDto: added',
+      'schema VerifyAffiliationDto: added',
     ]);
   });
 

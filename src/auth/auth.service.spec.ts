@@ -56,6 +56,7 @@ function makeMocks() {
     prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
     academicYears as any, activity as any, activation as any, accountEmails as any,
     { assertCanAssign: vi.fn(), assertCanManage: vi.fn() } as any,
+    { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() } as any,   // school affiliation (claims are tested end to end)
   );
   return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails };
 }
@@ -178,7 +179,7 @@ describe('AuthService', () => {
       expect(prisma.user.create.mock.calls[0][0].data.activatedAt).toBeInstanceOf(Date);
       expect(academicYears.enrollInCurrentYear).toHaveBeenCalledWith(prisma, 'u-new', 'S2', 'sch1');
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'REGISTER', entityId: 'u-new' }), prisma);
-      expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false, requiresEmailVerification: false });
+      expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false, requiresEmailVerification: false, schoolVerification: 'PENDING' });
     });
 
     it('with e-mail verification on: not activated, token issued in the transaction, e-mail sent after commit', async () => {

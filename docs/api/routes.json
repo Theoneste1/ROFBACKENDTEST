@@ -572,6 +572,60 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/school-affiliations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-affiliations/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/revoke",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/verify",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/school-affiliations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/settings",
     "roles": [
       "ADMIN",
@@ -1538,6 +1592,14 @@
   {
     "method": "GET",
     "path": "/api/v1/me/results/{submissionId}/feedback-files/{attachmentId}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/school-affiliation",
     "roles": [
       "STUDENT"
     ],

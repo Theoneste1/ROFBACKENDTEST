@@ -2513,6 +2513,243 @@
       ]
     },
     {
+      "name": "Admin · School affiliations",
+      "item": [
+        {
+          "name": "GET /admin/school-affiliations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "REJECTED",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "country",
+                  "value": "country",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "current",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Current claims only (default true); false includes superseded history."
+                }
+              ]
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/school-affiliations/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/school-affiliations/{id}/reject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations/:id/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations",
+                ":id",
+                "reject"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/school-affiliations/{id}/revoke",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations/:id/revoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations",
+                ":id",
+                "revoke"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/school-affiliations/{id}/verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations/:id/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations",
+                ":id",
+                "verify"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"note\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/users/{id}/school-affiliations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/school-affiliations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "school-affiliations"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Settings",
       "item": [
         {
@@ -6349,6 +6586,26 @@
               "query": []
             },
             "description": "**Access:** permission `submissions.viewOwn` (STUDENT)"
+          }
+        },
+        {
+          "name": "GET /me/school-affiliation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/school-affiliation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "school-affiliation"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** STUDENT"
           }
         },
         {

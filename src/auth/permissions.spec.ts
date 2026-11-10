@@ -126,7 +126,7 @@ describe('permissions', () => {
       'users.manageStudents': G, 'users.manageCoaches': G, 'users.manageTeachers': G,
       'users.manageHeadCoaches': G, 'users.manageAdmins': G,
       'programmes.manageHeads': G, 'programmes.manageMembers': G, 'coaches.monitor': G,
-      'permissions.view': G,
+      'permissions.view': G, 'schools.manage': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {

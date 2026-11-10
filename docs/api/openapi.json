@@ -3598,6 +3598,13 @@
                       ],
                       "type": "object"
                     },
+                    "schoolVerification": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "PENDING"
+                      ]
+                    },
                     "username": {
                       "type": "string"
                     }
@@ -3619,6 +3626,7 @@
                     "requiresEmailVerification",
                     "role",
                     "school",
+                    "schoolVerification",
                     "username"
                   ],
                   "type": "object"
@@ -18899,6 +18907,386 @@
           "SUPER_ADMIN"
         ],
         "description": "**Access:** ADMIN, SUPER_ADMIN"
+      }
+    },
+    "/api/v1/admin/school-affiliations": {
+      "get": {
+        "operationId": "AdminSchoolAffiliationsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "REJECTED",
+                "PENDING",
+                "VERIFIED",
+                "REVOKED"
+              ]
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "current",
+            "required": false,
+            "in": "query",
+            "description": "Current claims only (default true); false includes superseded history.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Claims (default: current only), filterable by status, school, student and country.",
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-affiliations/{id}": {
+      "get": {
+        "operationId": "AdminSchoolAffiliationsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-affiliations/{id}/verify": {
+      "post": {
+        "operationId": "AdminSchoolAffiliationsController_verify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyAffiliationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Confirm that the student belongs to the claim's school.",
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-affiliations/{id}/reject": {
+      "post": {
+        "operationId": "AdminSchoolAffiliationsController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AffiliationReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-affiliations/{id}/revoke": {
+      "post": {
+        "operationId": "AdminSchoolAffiliationsController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AffiliationReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Withdraw a verification; applies on the next request.",
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/{id}/school-affiliations": {
+      "get": {
+        "operationId": "AdminSchoolAffiliationsController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A student's claims, newest first.",
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/me/school-affiliation": {
+      "get": {
+        "operationId": "MySchoolAffiliationController_mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Current claim: status, school or entered name, and the reason of a rejection or revocation.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "description": "**Access:** STUDENT"
       }
     },
     "/api/v1/schools/search": {
@@ -38801,6 +39189,29 @@
       "PublishResultsDto": {
         "type": "object",
         "properties": {}
+      },
+      "VerifyAffiliationDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        }
+      },
+      "AffiliationReasonDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "CreateResourceDto": {
         "type": "object",

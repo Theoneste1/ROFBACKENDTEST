@@ -44,8 +44,9 @@ function makeMocks() {
 
   const accountEmails = { approved: vi.fn() };
   const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn() };
-  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any);
-  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles };
+  const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() };
+  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any);
+  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations };
 }
 
 describe('UsersService', () => {

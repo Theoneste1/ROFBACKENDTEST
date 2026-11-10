@@ -81,6 +81,7 @@ permission guard.
 | `students.viewProfile` | — | — | — | — | — | — |
 | `students.viewProgress` | — | — | — | — | — | — |
 | `submissions.submitOnBehalf` | — | — | — | — | — | — |
+| `schools.manage` | — | — | — | — | all | all |
 
 ## Grading restriction for administrators (RS1)
 

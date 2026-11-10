@@ -386,51 +386,56 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignmentsCreated         Assignment[]              @relation("AssignmentCreator")
-  assignmentsApproved        Assignment[]              @relation("AssignmentApprover")
+  assignmentsCreated         Assignment[]               @relation("AssignmentCreator")
+  assignmentsApproved        Assignment[]               @relation("AssignmentApprover")
   assignmentEvents           AssignmentEvent[]
-  courseEnrollments          CourseEnrollment[]        @relation("CourseEnrollments")
-  resourcesUploaded          CourseResource[]          @relation("ResourceUploader")
+  courseEnrollments          CourseEnrollment[]         @relation("CourseEnrollments")
+  resourcesUploaded          CourseResource[]           @relation("ResourceUploader")
   resourceViews              ResourceView[]
-  comments                   Comment[]                 @relation("CommentAuthor")
-  commentReactions           CommentReaction[]         @relation("CommentReactions")
-  studyGroupsCreated         StudyGroup[]              @relation("StudyGroupCreator")
-  studyGroupMemberships      StudyGroupMember[]        @relation("StudyGroupMemberships")
-  emailJobsCreated           EmailJob[]                @relation("EmailJobCreator")
-  submissions                Submission[]              @relation("StudentSubmissions")
+  comments                   Comment[]                  @relation("CommentAuthor")
+  commentReactions           CommentReaction[]          @relation("CommentReactions")
+  studyGroupsCreated         StudyGroup[]               @relation("StudyGroupCreator")
+  studyGroupMemberships      StudyGroupMember[]         @relation("StudyGroupMemberships")
+  emailJobsCreated           EmailJob[]                 @relation("EmailJobCreator")
+  submissions                Submission[]               @relation("StudentSubmissions")
   submissionRevisions        SubmissionRevision[]
-  assignmentViews            AssignmentView[]          @relation("AssignmentViewer")
-  auditLogs                  AuditLog[]                @relation("AuditActor")
-  mentorAssignments          MentorAssignment[]        @relation("MentorAssignmentMentor")
-  mentorAssignmentsMade      MentorAssignment[]        @relation("MentorAssignmentAssigner")
-  programmeMemberships       ProgrammeMembership[]     @relation("ProgrammeMember")
-  programmeMembershipsAdded  ProgrammeMembership[]     @relation("ProgrammeMemberAddedBy")
-  programmeMembershipsEnded  ProgrammeMembership[]     @relation("ProgrammeMemberEndedBy")
-  permissionOverrides        UserPermissionOverride[]  @relation("OverrideTarget")
-  permissionOverridesCreated UserPermissionOverride[]  @relation("OverrideCreatedBy")
-  permissionOverridesRevoked UserPermissionOverride[]  @relation("OverrideRevokedBy")
-  teacherSchools             TeacherSchoolAssignment[] @relation("TeacherSchool")
-  teacherSchoolsAssigned     TeacherSchoolAssignment[] @relation("TeacherSchoolAssignedBy")
-  teacherSchoolsEnded        TeacherSchoolAssignment[] @relation("TeacherSchoolEndedBy")
+  assignmentViews            AssignmentView[]           @relation("AssignmentViewer")
+  auditLogs                  AuditLog[]                 @relation("AuditActor")
+  mentorAssignments          MentorAssignment[]         @relation("MentorAssignmentMentor")
+  mentorAssignmentsMade      MentorAssignment[]         @relation("MentorAssignmentAssigner")
+  programmeMemberships       ProgrammeMembership[]      @relation("ProgrammeMember")
+  programmeMembershipsAdded  ProgrammeMembership[]      @relation("ProgrammeMemberAddedBy")
+  programmeMembershipsEnded  ProgrammeMembership[]      @relation("ProgrammeMemberEndedBy")
+  permissionOverrides        UserPermissionOverride[]   @relation("OverrideTarget")
+  permissionOverridesCreated UserPermissionOverride[]   @relation("OverrideCreatedBy")
+  permissionOverridesRevoked UserPermissionOverride[]   @relation("OverrideRevokedBy")
+  teacherSchools             TeacherSchoolAssignment[]  @relation("TeacherSchool")
+  teacherSchoolsAssigned     TeacherSchoolAssignment[]  @relation("TeacherSchoolAssignedBy")
+  teacherSchoolsEnded        TeacherSchoolAssignment[]  @relation("TeacherSchoolEndedBy")
+  schoolAffiliations         StudentSchoolAffiliation[] @relation("AffiliationStudent")
+  affiliationsCreated        StudentSchoolAffiliation[] @relation("AffiliationCreatedBy")
+  affiliationsDecided        StudentSchoolAffiliation[] @relation("AffiliationDecidedBy")
+  affiliationsRevoked        StudentSchoolAffiliation[] @relation("AffiliationRevokedBy")
+  affiliationsSuperseded     StudentSchoolAffiliation[] @relation("AffiliationSupersededBy")
   notifications              Notification[]
   notificationPrefs          NotificationPreference[]
   notificationSettings       NotificationSetting[]
   refreshTokens              RefreshToken[]
   passwordResetTokens        PasswordResetToken[]
-  activationTokens           AccountActivationToken[]  @relation("ActivationUser")
-  invitationsSent            AccountActivationToken[]  @relation("ActivationInviter")
+  activationTokens           AccountActivationToken[]   @relation("ActivationUser")
+  invitationsSent            AccountActivationToken[]   @relation("ActivationInviter")
   filesUploaded              FileObject[]
   settingsUpdated            SystemSetting[]
   studentEnrollments         StudentEnrollment[]
-  reviews                    MentorReview[]            @relation("ReviewMentor")
-  reviewsAssigned            MentorReview[]            @relation("ReviewAssigner")
-  reviewsDecided             MentorReview[]            @relation("ReviewDecider")
+  reviews                    MentorReview[]             @relation("ReviewMentor")
+  reviewsAssigned            MentorReview[]             @relation("ReviewAssigner")
+  reviewsDecided             MentorReview[]             @relation("ReviewDecider")
   reviewEvents               ReviewEvent[]
   distributionBatches        DistributionBatch[]
   resultReleases             ResultRelease[]
   threadsCreated             DiscussionThread[]
-  reportsFiled               ContentReport[]           @relation("ReportReporter")
-  reportsResolved            ContentReport[]           @relation("ReportResolver")
+  reportsFiled               ContentReport[]            @relation("ReportReporter")
+  reportsResolved            ContentReport[]            @relation("ReportResolver")
   moderationActions          ModerationAction[]
   activityLogs               ActivityLog[]
 
@@ -542,9 +547,10 @@ model School {
   /// Normalised official name (src/schools/school-key.ts): resolves a registration that sends a name.
   nameKey   String?
 
-  students    User[]
-  enrollments StudentEnrollment[]
-  teachers    TeacherSchoolAssignment[]
+  students     User[]
+  enrollments  StudentEnrollment[]
+  teachers     TeacherSchoolAssignment[]
+  affiliations StudentSchoolAffiliation[]
 
   @@index([nameKey])
   @@index([province, district, sector])
@@ -1598,4 +1604,66 @@ model TeacherSchoolAssignment {
   @@index([schoolId, isActive])
   @@index([assignedById])
   @@index([endedById])
+}
+
+/// Student–school affiliation (P1-11 follow-up, PR A): whether an Administrator has
+/// verified that a student genuinely belongs to a school. Choosing a school at sign-up,
+/// account approval or e-mail verification are NOT proof of membership.
+enum SchoolAffiliationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  REVOKED
+}
+
+/// How a claim was created.
+enum SchoolAffiliationSource {
+  REGISTRATION
+  ADMIN
+  MIGRATION
+  STUDENT_REQUEST
+}
+
+/// One row per claim (history and current state). The CURRENT claim of a student is the one
+/// with supersededAt NULL — at most one, written only by SchoolAffiliationService under a
+/// per-student lock. Teacher access requires a current VERIFIED claim for the student's school.
+model StudentSchoolAffiliation {
+  id              String                  @id @default(uuid())
+  studentId       String
+  student         User                    @relation("AffiliationStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// The canonical school; NULL while the school is not yet resolved (international, unmatched or not listed).
+  schoolId        String?
+  school          School?                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  claimedName     String?
+  claimedCountry  String?
+  claimedProvince String?
+  claimedDistrict String?
+  claimedSector   String?
+  status          SchoolAffiliationStatus @default(PENDING)
+  source          SchoolAffiliationSource
+  createdById     String?
+  createdBy       User?                   @relation("AffiliationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime                @default(now())
+  decidedById     String?
+  decidedBy       User?                   @relation("AffiliationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt       DateTime?
+  /// Verification note or rejection reason (a rejection reason is shown to the student).
+  decisionReason  String?
+  revokedById     String?
+  revokedBy       User?                   @relation("AffiliationRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokedAt       DateTime?
+  revokeReason    String?
+  supersededAt    DateTime?
+  supersededById  String?
+  supersededBy    User?                   @relation("AffiliationSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  /// SCHOOL_CHANGE, ROLE_CHANGE or NEW_CLAIM.
+  supersedeReason String?
+
+  @@index([studentId, supersededAt])
+  @@index([schoolId, status])
+  @@index([status])
+  @@index([createdById])
+  @@index([decidedById])
+  @@index([revokedById])
+  @@index([supersededById])
 }

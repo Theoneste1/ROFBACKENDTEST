@@ -37,6 +37,10 @@ interface RankedRow {
   schoolName:     string | null;
 }
 
+/** The student (`u`) holds a current VERIFIED affiliation for their school. */
+const VERIFIED_AT_SCHOOL = Prisma.sql`EXISTS (SELECT 1 FROM "StudentSchoolAffiliation" a
+  WHERE a."studentId" = u."id" AND a."supersededAt" IS NULL AND a."status" = 'VERIFIED' AND a."schoolId" = u."schoolId")`;
+
 @Injectable()
 export class LeaderboardService {
   constructor(
@@ -45,14 +49,18 @@ export class LeaderboardService {
     private readonly access:    AccessService,
   ) {}
 
-  /** Ranked students of one division, optionally narrowed to a school. */
+  /**
+   * Ranked students of one division, optionally narrowed to a school. A school filter lists
+   * only students whose membership of that school is VERIFIED, and a student's school is
+   * shown only when verified (an unverified claim is never displayed).
+   */
   async findGeneral(user: AuthUser, q: LeaderboardQueryDto) {
     const divisionId = await this.resolveDivision(user, q.divisionId);
     const { page, limit, skip, take } = pageArgs(q);
 
     const filter = Prisma.sql`
       u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
-      ${q.schoolId ? Prisma.sql`AND u."schoolId" = ${q.schoolId}` : Prisma.empty}`;
+      ${q.schoolId ? Prisma.sql`AND u."schoolId" = ${q.schoolId} AND ${VERIFIED_AT_SCHOOL}` : Prisma.empty}`;
 
     const [rows, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>`
@@ -60,7 +68,7 @@ export class LeaderboardService {
                u."id", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
                s."id" AS "schoolId", s."name" AS "schoolName"
         FROM "User" u
-        LEFT JOIN "School" s ON s."id" = u."schoolId"
+        LEFT JOIN "School" s ON s."id" = u."schoolId" AND ${VERIFIED_AT_SCHOOL}
         WHERE ${filter}
         ORDER BY "rank" ASC, u."createdAt" ASC
         LIMIT ${take} OFFSET ${skip}`,
@@ -97,7 +105,7 @@ export class LeaderboardService {
     };
   }
 
-  /** Schools ranked by total student points within a division. */
+  /** Schools ranked by total points of their VERIFIED students within a division. */
   async findSchoolSummary(user: AuthUser, q: LeaderboardQueryDto) {
     const divisionId = await this.resolveDivision(user, q.divisionId);
     const { page, limit, skip, take } = pageArgs(q);
@@ -112,14 +120,15 @@ export class LeaderboardService {
              ROUND(AVG(u."points")::numeric, 1)::float AS "averagePoints"
       FROM "User" u
       JOIN "School" s ON s."id" = u."schoolId"
-      WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
+      WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId} AND ${VERIFIED_AT_SCHOOL}
       GROUP BY s."id", s."name", s."location"
       ORDER BY "rank" ASC, s."name" ASC
       LIMIT ${take} OFFSET ${skip}`;
 
-    const total = await this.prisma.school.count({
-      where: { students: { some: { role: 'STUDENT', isActive: true, divisionId } } },
-    });
+    const counted = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(DISTINCT u."schoolId") AS "count" FROM "User" u
+       WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId} AND u."schoolId" IS NOT NULL AND ${VERIFIED_AT_SCHOOL}`;
+    const total = Number(counted[0]?.count ?? 0);
 
     return {
       divisionId,

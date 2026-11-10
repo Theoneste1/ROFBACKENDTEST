@@ -19,6 +19,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { schoolKey } from '../schools/school-key.js';
+import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { CallerCtx } from '../common/auth-user.js';
 
@@ -58,6 +59,7 @@ export class AuthService {
     private readonly activation:    ActivationService,
     private readonly accountEmails: AccountEmailsService,
     private readonly roles:         RoleAssignmentPolicy,
+    private readonly affiliations:  SchoolAffiliationService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -125,6 +127,14 @@ export class AuthService {
       await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel, school?.id ?? null);
       // Mathematics programme membership (self-registration: no actor). P1-07, K6.
       await ensureDefaultMembership(tx, { id: created.id, role: 'STUDENT' }, null);
+      // School claim, PENDING until an Administrator verifies it (choosing a school proves nothing).
+      const affiliationId = school || data.schoolName
+        ? await this.affiliations.claim(tx, {
+            studentId: created.id, schoolId: school?.id ?? null, source: 'REGISTRATION', reason: 'NEW_CLAIM',
+            actor: { actorId: created.id, actorRole: 'STUDENT' },
+            ...(!school && { claimed: { name: data.schoolName ?? null, country: data.country ?? 'RW' } }),
+          })
+        : null;
 
       await this.audit.log({
         actorId:   created.id,
@@ -135,8 +145,8 @@ export class AuthService {
         metadata:  {
           gradeLevel: data.gradeLevel, country: data.country ?? 'RW', schoolCode: school?.code ?? null, schoolName: school?.name ?? null,
           ...(data.schoolCode === undefined && { schoolNameEntered: data.schoolName, schoolMatched: !!school }),
-          // Not linked to a canonical School: the affiliation stays unverified until an Administrator confirms it.
-          schoolVerified: !!school,
+          // Linked to a canonical School or not; membership is verified separately by an Administrator.
+          schoolLinked: !!school,
         },
       }, tx);
 
@@ -144,7 +154,7 @@ export class AuthService {
         ? await this.activation.issue(created.id, 'EMAIL_VERIFICATION', null, tx)
         : null;
 
-      return { created, verification };
+      return { created, verification, affiliationId };
     });
 
     if (student.verification) await this.activation.send(student.verification);
@@ -154,6 +164,8 @@ export class AuthService {
       ...student.created,
       requiresApproval,
       requiresEmailVerification: requiresVerification,
+      // 'PENDING' when a school claim was created (an Administrator verifies it); null otherwise.
+      schoolVerification: student.affiliationId ? ('PENDING' as const) : null,
     };
   }
 
