@@ -141,9 +141,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
   },
   HEAD_COACH: {
     'courses.view': 'programme', 'resources.view': 'programme', 'assignments.view': 'programme',
-    // H4: only through a course × division assignment created by an Administrator (+ normal distribution).
-    // Not functional yet (P1-10): coach assignment and grading distribution accept role MENTOR only,
-    // so these two grants are inert for Head Coaches until then (test/route-permissions.e2e-spec.ts).
+    // H4: only through a course × division assignment created by an Administrator (+ normal distribution);
+    // the services require that assignment (AccessService.assertMentorOf, the review's assigned coach).
     'assignments.prepare': 'courseDivision', 'reviews.grade': 'courseDivision',
     'discussions.participate': 'programme', 'discussions.report': 'programme',
     // H7: no discussions.moderate

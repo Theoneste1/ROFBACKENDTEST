@@ -42,7 +42,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
-import { isStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
+import { isCourseStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { AssignmentEventType, AssignmentStatus, FileObject, Prisma } from '../generated/prisma/client.js';
 import { Events } from '../notifications/events.js';
 import { deriveStudentDisplayStatus } from '../submissions/student-display-status.js';
@@ -451,7 +451,7 @@ export class AssignmentsService {
   /**
    * Paginated list.
    *   STUDENT: published or closed assignments of their division (published courses only).
-   *   MENTOR:  every status, within their scopes.
+   *   MENTOR, HEAD_COACH (H4): every status, within their assigned scopes.
    *   ADMIN:   everything.
    *   Any other role: refused (403 ROLE_NOT_SUPPORTED, from scopeFilter).
    */
@@ -470,7 +470,7 @@ export class AssignmentsService {
       return paginated(rows, total, page, limit);
     }
 
-    if (isStaff(user)) {
+    if (isCourseStaff(user)) {
       const where: Prisma.AssignmentWhereInput = {
         AND: [
           scope ?? {},
@@ -492,7 +492,7 @@ export class AssignmentsService {
 
   /** Single assignment. Opening it as a student records the view (New → Opened). */
   async findOne(assignmentId: string, user: AuthUser) {
-    if (isStaff(user)) {
+    if (isCourseStaff(user)) {
       const assignment = await this.prisma.assignment.findUnique({ where: { id: assignmentId }, select: STAFF_DETAIL });
       if (!assignment) throw new NotFoundException('Assignment not found.');
       await this.access.assertCanView(user, assignment);

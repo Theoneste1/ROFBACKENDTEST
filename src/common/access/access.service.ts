@@ -7,6 +7,8 @@
  *
  *   ADMIN   — every scope.
  *   MENTOR  — only scopes they are actively assigned to (MentorAssignment).
+ *   HEAD_COACH — the same, for course × division assignments an Administrator
+ *             created for them (H4); never resource management (H6).
  *   STUDENT — only their own division, and only for PUBLISHED courses.
  *
  * Students who are out of scope get 404 (existence is not revealed);
@@ -19,7 +21,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppError } from '../errors/app-error.js';
 import type { AuthUser } from '../auth-user.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { isAdmin, isCoach, isHeadCoach, isStudent, unsupportedRole } from './roles.js';
+import { COURSE_WORK_ROLES, isAdmin, isCoach, isCourseWorker, isHeadCoach, isStudent, unsupportedRole } from './roles.js';
 
 export interface Scope {
   courseId:   string;
@@ -30,17 +32,17 @@ export interface Scope {
 export class AccessService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Active (course, division) pairs a mentor is assigned to. */
+  /** Active (course, division) pairs a coach or Head Coach (H4) is assigned to. */
   async mentorScopes(mentorId: string): Promise<Scope[]> {
     return this.prisma.mentorAssignment.findMany({
-      where:  { mentorId, isActive: true, mentor: { role: 'MENTOR' } },
+      where:  { mentorId, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
       select: { courseId: true, divisionId: true },
     });
   }
 
   async isAssignedMentor(mentorId: string, scope: Scope): Promise<boolean> {
     const found = await this.prisma.mentorAssignment.findFirst({
-      where:  { mentorId, courseId: scope.courseId, divisionId: scope.divisionId, isActive: true, mentor: { role: 'MENTOR' } },
+      where:  { mentorId, courseId: scope.courseId, divisionId: scope.divisionId, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
       select: { id: true },
     });
     return found !== null;
@@ -61,6 +63,7 @@ export class AccessService {
       case 'SUPER_ADMIN':
         return;
       case 'MENTOR':
+      case 'HEAD_COACH':
         if (await this.isAssignedMentor(user.id, scope)) return;
         throw notAssigned();
       case 'STUDENT': {
@@ -84,9 +87,9 @@ export class AccessService {
     throw notAssigned();
   }
 
-  /** Mentor-only variant: admins are NOT allowed (e.g. preparing assignments). */
+  /** Course-worker variant: admins are NOT allowed (e.g. preparing assignments). Coaches and assigned Head Coaches (H4). */
   async assertMentorOf(user: AuthUser, scope: Scope): Promise<void> {
-    if (isCoach(user) && (await this.isAssignedMentor(user.id, scope))) return;
+    if (isCourseWorker(user) && (await this.isAssignedMentor(user.id, scope))) return;
     throw notAssigned();
   }
 
@@ -101,7 +104,7 @@ export class AccessService {
     if (isStudent(user)) {
       return { divisionId: this.studentDivision(user), course: { status: 'PUBLISHED' } };
     }
-    if (isCoach(user)) {
+    if (isCourseWorker(user)) {
       const scopes = await this.mentorScopes(user.id);
       // No scopes → match nothing.
       if (scopes.length === 0) return { id: { in: [] } };

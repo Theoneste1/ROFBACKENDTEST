@@ -1385,7 +1385,7 @@ Returns `200`: The file, streamed with its stored content type and a Content-Dis
 
 ### GET `/api/v1/assignments/{id}/history`
 
-**Access:** MENTOR, ADMIN, SUPER_ADMIN
+**Access:** MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN
 
 Everything that happened to the assignment, oldest first (mentors of the scope, admins).
 
@@ -2579,9 +2579,9 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/me/teaching`
 
-**Access:** MENTOR
+**Access:** MENTOR, HEAD_COACH
 
-Course × division pairs the current mentor is assigned to.
+Course × division pairs the current coach (or Head Coach, H4) is assigned to.
 
 Returns `200` JSON, an array of objects with:
 
@@ -3214,7 +3214,7 @@ Returns `200` JSON with:
 
 ### GET `/api/v1/submissions/{id}/reviews`
 
-**Access:** ADMIN, MENTOR, SUPER_ADMIN
+**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN
 
 Review history (all cycles with events). Admins: all; mentors: their own cycles.
 

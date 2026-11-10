@@ -123,8 +123,8 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
       () => http().get('/api/v1/admin/reports/students'),
       () => http().get('/api/v1/admin/activity'),
     ]) expect((await make().set(bearer(headCoach))).status).toBe(403);
-    // No course content outside a programme either.
-    expect((await http().get('/api/v1/courses').set(bearer(headCoach))).status).toBe(403);
+    // No course content without an Administrator-created assignment (H4): the course list is empty.
+    expect((await http().get('/api/v1/courses').set(bearer(headCoach)).expect(200)).body).toEqual([]);
   });
 
   it('HEAD_COACH: the course-work grants pass the guard, but the services still require an assigned coach (H4) — nothing is exposed or changed', async () => {
@@ -204,15 +204,17 @@ describe('Route permissions — six-role boundaries (P1-06)', () => {
     expect(await ctx.prisma.courseResource.count({ where: { title: 'Nope' } })).toBe(0);
   });
 
-  it('HEAD_COACH H4 is NOT functional yet (P1-10): an Administrator cannot assign a Head Coach to a course × division, nor route work to one', async () => {
+  it('HEAD_COACH H4 (P1-10): an Administrator assigns a Head Coach only on a course of a programme they head; without that assignment no work is routed to them', async () => {
+    // p6.head heads no programme: refused, nothing written.
     const assign = await http().post('/api/v1/admin/mentor-assignments').set(bearer(admin))
       .send({ mentorId: headCoachId, courseId: ctx.ids.algebra, divisionId: ctx.ids.junior }).expect(400);
-    expect(assign.body.code).toBe('NOT_A_MENTOR');
+    expect(assign.body.code).toBe('NOT_PROGRAMME_HEAD');
     expect(await ctx.prisma.mentorAssignment.count({ where: { mentorId: headCoachId } })).toBe(0);
 
     const before = await reviewState();
+    // No assignment in the scope: not eligible for the normal distribution.
     const route = await http().patch(`/api/v1/submissions/${subId}/reassign`).set(bearer(admin)).send({ mentorId: headCoachId }).expect(400);
-    expect(route.body.code).toBe('NOT_A_MENTOR');
+    expect(route.body.code).toBe('MENTOR_NOT_ELIGIBLE');
     expect(await reviewState()).toEqual(before);
     expect(await ctx.prisma.mentorReview.count({ where: { mentorId: headCoachId } })).toBe(0);
   });

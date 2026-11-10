@@ -58,7 +58,7 @@ interface EngineOptions {
   display: (fileName: string) => string;
 }
 
-const HELPERS = new Set(['isAdmin', 'isCoach', 'isStudent', 'isStaff', 'isHeadCoach']);
+const HELPERS = new Set(['isAdmin', 'isCoach', 'isStudent', 'isStaff', 'isHeadCoach', 'isCourseWorker', 'isCourseStaff']);
 const norm = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 function scan(program: ts.Program, files: readonly ts.SourceFile[], opts: EngineOptions): Finding[] {

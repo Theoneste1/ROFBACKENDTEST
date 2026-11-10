@@ -12838,14 +12838,15 @@
             }
           }
         },
-        "summary": "Course × division pairs the current mentor is assigned to.",
+        "summary": "Course × division pairs the current coach (or Head Coach, H4) is assigned to.",
         "tags": [
           "Me"
         ],
         "x-roles": [
-          "MENTOR"
+          "MENTOR",
+          "HEAD_COACH"
         ],
-        "description": "**Access:** MENTOR"
+        "description": "**Access:** MENTOR, HEAD_COACH"
       }
     },
     "/api/v1/assignments": {
@@ -17273,10 +17274,11 @@
         ],
         "x-roles": [
           "MENTOR",
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** MENTOR, ADMIN, SUPER_ADMIN"
+        "description": "**Access:** MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/assignments/{id}/file": {
@@ -19746,9 +19748,10 @@
         "x-roles": [
           "ADMIN",
           "MENTOR",
+          "HEAD_COACH",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
+        "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN"
       }
     },
     "/api/v1/submissions/{id}/file": {

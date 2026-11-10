@@ -411,10 +411,20 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
 
   it('HEAD_COACH passes the guard only on its catalogue grants — no global administrative route', async () => {
     const admitted = [];
+    const byRole: string[] = [];
     for (const h of handlers) {
       if (isPublic(h) || (permissionOf(h) === undefined && rolesOf(h).length === 0)) continue;
-      if ((await decide(h, 'HEAD_COACH' as unknown as Caller)) === 'allow') admitted.push(permissionOf(h));
+      if ((await decide(h, 'HEAD_COACH' as unknown as Caller)) !== 'allow') continue;
+      if (permissionOf(h) === undefined) byRole.push(keyOf(h));
+      else admitted.push(permissionOf(h));
     }
+    // H4 (P1-10): the three read-only course-work views listing HEAD_COACH in @Roles;
+    // each service then requires an assigned scope or the caller's own review cycles.
+    expect(byRole.sort()).toEqual([
+      'GET /api/v1/assignments/:id/history  AssignmentsController.history',
+      'GET /api/v1/me/teaching  MyTeachingController.findMine',
+      'GET /api/v1/submissions/:id/reviews  SubmissionsController.reviews',
+    ]);
     // Course-work grants (services still require an Administrator-created coach
     // assignment, H4) and the programme-scoped ones whose services restrict a Head Coach
     // to the programmes they head (P1-10) — none of the global administration permissions.

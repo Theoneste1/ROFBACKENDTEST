@@ -25,8 +25,8 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: "roleOf(): the single place PermissionService reads the role. Every use maps an unknown role to least privilege: grantsForRole() → no grants, permissionsFor() → [], roleLabel → null, isAdministrative() → false; describe() returns the caller's own role to the caller.",
   },
   {
-    file: 'src/auth/permission.service.ts', rule: 'U4', code: 'isCoach(user)',
-    reason: 'courseDivisions(): only a coach has course × division teaching scopes; every other role (including an unsupported one) gets the empty list — the least-privileged result. Informational only; no access decision.',
+    file: 'src/auth/permission.service.ts', rule: 'U4', code: 'isCourseWorker(user)',
+    reason: 'courseDivisions(): only a coach or Head Coach (H4) has course × division teaching scopes; every other role (including an unsupported one) gets the empty list — the least-privileged result. Informational only; no access decision.',
   },
   // ── Programme scope (P1-10) ────────────────────────────────────────────────
   {
@@ -61,7 +61,7 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   },
   {
     file: 'src/submissions/submissions.service.ts', rule: 'U6',
-    code: 'allowed = s && (isAdmin(user) || (isStudent(user) && s.studentId === user.id) || (isCoach(user) && s.currentReview?.mentor.id === user.id))',
+    code: 'allowed = s && (isAdmin(user) || (isStudent(user) && s.studentId === user.id) || (isCourseWorker(user) && s.currentReview?.mentor.id === user.id))',
     reason: 'loadForCaller(): positive membership test per role; anything else leaves allowed false, which throws 404.',
   },
   // ── Discussions ────────────────────────────────────────────────────────────

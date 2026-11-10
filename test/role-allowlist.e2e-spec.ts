@@ -165,8 +165,14 @@ describe('Role allow-list — flags on (TEACHERS_ENABLED / HEAD_COACHES_ENABLED 
       const perms = await http().get('/api/v1/me/permissions').set(bearer(token)).expect(200);
       expect(perms.body.roleLabel).toBe(username === 'on.teacher' ? 'Teacher' : 'Head Coach');
       await http().get('/api/v1/admin/users').set(bearer(token)).expect(403);
-      await http().get('/api/v1/me/teaching').set(bearer(token)).expect(403);
-      await http().get('/api/v1/courses').set(bearer(token)).expect(403);
+      if (username === 'on.teacher') {
+        await http().get('/api/v1/me/teaching').set(bearer(token)).expect(403);
+        await http().get('/api/v1/courses').set(bearer(token)).expect(403);
+      } else {
+        // H4 (P1-10): a Head Coach's own teaching scopes and courses — none without an Administrator-created assignment.
+        expect((await http().get('/api/v1/me/teaching').set(bearer(token)).expect(200)).body).toEqual([]);
+        expect((await http().get('/api/v1/courses').set(bearer(token)).expect(200)).body).toEqual([]);
+      }
     }
   });
 

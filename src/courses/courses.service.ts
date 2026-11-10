@@ -10,7 +10,7 @@ import { AccessService } from '../common/access/access.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
-import { isAdmin, isCoach, isStudent, unsupportedRole } from '../common/access/roles.js';
+import { COURSE_WORK_ROLES, isAdmin, isCourseWorker, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { CourseEnrollmentStatus } from '../generated/prisma/client.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
 
@@ -86,9 +86,9 @@ export class CoursesService {
       });
     }
 
-    if (isCoach(user)) {
+    if (isCourseWorker(user)) {
       const scopes = await this.prisma.mentorAssignment.findMany({
-        where:  { mentorId: user.id, isActive: true, mentor: { role: 'MENTOR' } },
+        where:  { mentorId: user.id, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
         select: { courseId: true, division: { select: { id: true, code: true, name: true } } },
       });
       const courseIds = [...new Set(scopes.map((s) => s.courseId))];
@@ -111,7 +111,7 @@ export class CoursesService {
         ...COURSE_SELECT,
         createdAt: true,
         updatedAt: true,
-        _count: { select: { assignments: true, resources: true, mentorAssignments: { where: { isActive: true, mentor: { role: 'MENTOR' } } } } },
+        _count: { select: { assignments: true, resources: true, mentorAssignments: { where: { isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } } } } },
       },
     });
   }
@@ -149,9 +149,9 @@ export class CoursesService {
       };
     }
 
-    if (isCoach(user)) {
+    if (isCourseWorker(user)) {
       const divisions = await this.prisma.mentorAssignment.findMany({
-        where:  { mentorId: user.id, courseId, isActive: true, mentor: { role: 'MENTOR' } },
+        where:  { mentorId: user.id, courseId, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
         select: { division: { select: { id: true, code: true, name: true } } },
       });
       if (divisions.length === 0) {
@@ -163,7 +163,7 @@ export class CoursesService {
     // Course with its coach assignments — administrators only; any other role gets 404.
     if (!isAdmin(user)) throw new NotFoundException('Course not found.');
     const mentors = await this.prisma.mentorAssignment.findMany({
-      where:  { courseId, isActive: true, mentor: { role: 'MENTOR' } },
+      where:  { courseId, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
       select: {
         id:       true,
         division: { select: { id: true, code: true, name: true } },

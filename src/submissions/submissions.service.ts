@@ -15,7 +15,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
-import { isAdmin, isCoach, isStaff, isStudent } from '../common/access/roles.js';
+import { COURSE_WORK_ROLES, isAdmin, isCourseStaff, isCourseWorker, isStaff, isStudent } from '../common/access/roles.js';
 import {
   Prisma,
   type ReviewEventType,
@@ -343,7 +343,7 @@ export class SubmissionsService {
       }
       return studentView(s);
     }
-    if (isCoach(user)) return mentorView(s);
+    if (isCourseWorker(user)) return mentorView(s);
     if (isAdmin(user)) return adminView(s);
     throw new NotFoundException('Submission not found.');
   }
@@ -353,11 +353,11 @@ export class SubmissionsService {
    * Admins see all cycles; mentors see only the cycles they did themselves.
    */
   async reviewHistory(submissionId: string, user: AuthUser) {
-    if (!isStaff(user)) throw new NotFoundException('Submission not found.');
+    if (!isCourseStaff(user)) throw new NotFoundException('Submission not found.');
     const sub = await this.prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
     if (!sub) throw new NotFoundException('Submission not found.');
 
-    if (isCoach(user)) {
+    if (isCourseWorker(user)) {
       const reviews = await this.prisma.mentorReview.findMany({
         where:   { submissionId, mentorId: user.id },
         orderBy: { cycle: 'asc' },
@@ -495,7 +495,7 @@ export class SubmissionsService {
     const eligible = await this.prisma.mentorAssignment.findMany({
       where: {
         courseId: assignment.courseId, divisionId: assignment.divisionId, isActive: true,
-        mentor: { isActive: true, isApproved: true, role: 'MENTOR' },
+        mentor: { isActive: true, isApproved: true, role: { in: [...COURSE_WORK_ROLES] } },
         ...(body.mentorIds && { mentorId: { in: body.mentorIds } }),
       },
       select:  { mentorId: true },
@@ -1068,7 +1068,7 @@ export class SubmissionsService {
       s &&
       (isAdmin(user) ||
         (isStudent(user) && s.studentId === user.id) ||
-        (isCoach(user) && s.currentReview?.mentor.id === user.id));
+        (isCourseWorker(user) && s.currentReview?.mentor.id === user.id));
     if (!allowed) throw new NotFoundException('Submission not found.');
     return s;
   }
@@ -1098,7 +1098,7 @@ export class SubmissionsService {
 
   /** The caller must be the mentor of the current review cycle. Returns its id. */
   private requireAssignedMentor(sub: { currentReview: { id: string; mentorId: string } | null }, user: AuthUser) {
-    if (!isCoach(user) || sub.currentReview?.mentorId !== user.id) {
+    if (!isCourseWorker(user) || sub.currentReview?.mentorId !== user.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_MENTOR', 'This submission is not assigned to you.');
     }
     return sub.currentReview.id;
@@ -1120,7 +1120,8 @@ export class SubmissionsService {
       select: { role: true, isActive: true, isApproved: true },
     });
     if (!user) throw new NotFoundException('Coach not found.');
-    if (user.role !== 'MENTOR') {
+    // Coaches, and Head Coaches with an Administrator-created assignment in this scope (H4, checked below).
+    if (!(COURSE_WORK_ROLES as readonly string[]).includes(user.role)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Selected user is not a coach.');
     }
     if (!user.isActive || !user.isApproved) {

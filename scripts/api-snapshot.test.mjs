@@ -95,7 +95,8 @@ const P1_06_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-06.json';
 const P1_08_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-08.json';
 const P1_09_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-09.json';
 const P1_10_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10.json';
-const CURRENT_SNAPSHOT = P1_10_SNAPSHOT;
+const P1_10_H4_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-h4.json';
+const CURRENT_SNAPSHOT = P1_10_H4_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -471,6 +472,19 @@ describe('approved API contract history', () => {
       'PUT /api/v1/admin/programmes/{id}/heads: operation added',
       'schema AddProgrammeMemberDto: added',
       'schema SetProgrammeHeadsDto: added',
+    ]);
+  });
+
+  test('P1-10 → P1-10 H4 (Head Coach course work): HEAD_COACH on the three read-only course-work views; nothing else', () => {
+    for (const f of [P1_10_SNAPSHOT, P1_10_H4_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(P1_10_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(P1_10_H4_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/assignments/{id}/history: roles added: HEAD_COACH',
+      'GET /api/v1/me/teaching: roles added: HEAD_COACH',
+      'GET /api/v1/submissions/{id}/reviews: roles added: HEAD_COACH',
     ]);
   });
 

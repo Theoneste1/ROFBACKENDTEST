@@ -29,6 +29,15 @@ export const isCoach   = (u: Caller): boolean => u.role === 'MENTOR';
 export const isStudent = (u: Caller): boolean => u.role === 'STUDENT';
 /** Head Coach (P1-10): programme-scoped authority only (plan §7.2, HC-A). */
 export const isHeadCoach = (u: Caller): boolean => u.role === 'HEAD_COACH';
+/**
+ * Roles that do course work (view their scopes, prepare assignments, grade)
+ * through an active MentorAssignment: Coaches, and Head Coaches whose assignment
+ * was created by an Administrator (H4, P1-10 — only Administrators can create one).
+ */
+export const COURSE_WORK_ROLES = ['MENTOR', 'HEAD_COACH'] as const;
+export const isCourseWorker = (u: Caller): boolean => u.role === 'MENTOR' || u.role === 'HEAD_COACH';
+/** Administrators or course workers — for course-work views that then apply the caller's scope. */
+export const isCourseStaff = (u: Caller): boolean => isAdmin(u) || isCourseWorker(u);
 /** Staff = ADMIN or MENTOR, named explicitly — never "not a student". */
 export const isStaff   = (u: Caller): boolean => isAdmin(u) || isCoach(u);
 

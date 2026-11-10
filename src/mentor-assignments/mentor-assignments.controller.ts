@@ -41,11 +41,11 @@ export class MentorAssignmentsController {
 
 @ApiTags('Me')
 @Controller('me/teaching')
-@Roles('MENTOR')
+@Roles('MENTOR', 'HEAD_COACH')
 export class MyTeachingController {
   constructor(private readonly service: MentorAssignmentsService) {}
 
-  /** Course × division pairs the current mentor is assigned to. */
+  /** Course × division pairs the current coach (or Head Coach, H4) is assigned to. */
   @Get()
   findMine(@CurrentUser() user: AuthUser) {
     return this.service.findMine(user.id);
