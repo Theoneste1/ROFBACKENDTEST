@@ -5679,6 +5679,772 @@
         "description": "**Access:** permission `permissions.view` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/programmes": {
+      "get": {
+        "operationId": "ProgrammesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "code": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "nullable": true
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "sortOrder": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "description",
+                      "id",
+                      "isActive",
+                      "name",
+                      "sortOrder"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Programmes"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "TEACHER",
+          "MENTOR",
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "courses.view",
+        "description": "**Access:** permission `courses.view` (STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/programmes/{id}/heads": {
+      "get": {
+        "operationId": "AdminProgrammesController_heads",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "email": {
+                        "type": "string"
+                      },
+                      "firstName": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "lastName": {
+                        "type": "string"
+                      },
+                      "since": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "username": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "email",
+                      "firstName",
+                      "id",
+                      "isActive",
+                      "lastName",
+                      "since",
+                      "username"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Head Coaches heading the programme.",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "programmes.manageHeads",
+        "description": "**Access:** permission `programmes.manageHeads` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "AdminProgrammesController_setHeads",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProgrammeHeadsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "properties": {
+                      "email": {
+                        "type": "string"
+                      },
+                      "firstName": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "isActive": {
+                        "type": "boolean"
+                      },
+                      "lastName": {
+                        "type": "string"
+                      },
+                      "since": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "username": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "email",
+                      "firstName",
+                      "id",
+                      "isActive",
+                      "lastName",
+                      "since",
+                      "username"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace the heads with exactly this list of HEAD_COACH users.",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "programmes.manageHeads",
+        "description": "**Access:** permission `programmes.manageHeads` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/programmes/{id}/members": {
+      "get": {
+        "operationId": "AdminProgrammesController_members",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "STUDENT or MENTOR (Coach). Default: both.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STUDENT",
+                "MENTOR"
+              ]
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Membership state. Default: active memberships only.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "division": {
+                            "nullable": true,
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "id",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "gradeLevel": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "lastName": {
+                            "type": "string"
+                          },
+                          "membership": {
+                            "properties": {
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "endedAt": {
+                                "nullable": true
+                              },
+                              "isActive": {
+                                "type": "boolean"
+                              },
+                              "source": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "createdAt",
+                              "endedAt",
+                              "isActive",
+                              "source"
+                            ],
+                            "type": "object"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "school": {
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "username": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "division",
+                          "firstName",
+                          "gradeLevel",
+                          "id",
+                          "isActive",
+                          "lastName",
+                          "membership",
+                          "role",
+                          "school",
+                          "username"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Students and Coaches in the programme (no contact details, grades or feedback).",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "programmes.manageMembers",
+        "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "AdminProgrammesController_addMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddProgrammeMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "division": {
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "gradeLevel": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "membership": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "endedAt": {
+                          "nullable": true
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "source": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "createdAt",
+                        "endedAt",
+                        "isActive",
+                        "source"
+                      ],
+                      "type": "object"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "school": {
+                      "nullable": true
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "division",
+                    "firstName",
+                    "gradeLevel",
+                    "id",
+                    "isActive",
+                    "lastName",
+                    "membership",
+                    "role",
+                    "school",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add (or re-activate) a membership. Head Coaches: students only.",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "programmes.manageMembers",
+        "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/programmes/{id}/members/{userId}": {
+      "delete": {
+        "operationId": "AdminProgrammesController_endMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "division": {
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "gradeLevel": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "type": "boolean"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "membership": {
+                      "properties": {
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "endedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "source": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "createdAt",
+                        "endedAt",
+                        "isActive",
+                        "source"
+                      ],
+                      "type": "object"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "school": {
+                      "nullable": true
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "division",
+                    "firstName",
+                    "gradeLevel",
+                    "id",
+                    "isActive",
+                    "lastName",
+                    "membership",
+                    "role",
+                    "school",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "End a membership (kept as history). Head Coaches: students only.",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "programmes.manageMembers",
+        "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "operationId": "UsersController_findAll",
@@ -7496,10 +8262,18 @@
                             "type": "object"
                           },
                           "type": "array"
+                        },
+                        "programmes": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "type": "array"
                         }
                       },
                       "required": [
-                        "courseDivisions"
+                        "courseDivisions",
+                        "programmes"
                       ],
                       "type": "object"
                     }
@@ -11649,10 +12423,12 @@
           "Admin · Mentor assignments"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "mentorAssignments.manage",
+        "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       },
       "post": {
         "operationId": "MentorAssignmentsController_assign",
@@ -11805,10 +12581,12 @@
           "Admin · Mentor assignments"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "mentorAssignments.manage",
+        "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/mentor-assignments/{id}": {
@@ -11967,10 +12745,12 @@
           "Admin · Mentor assignments"
         ],
         "x-roles": [
+          "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "mentorAssignments.manage",
+        "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/me/teaching": {
@@ -36879,6 +37659,37 @@
           "permission",
           "effect",
           "reason"
+        ]
+      },
+      "SetProgrammeHeadsDto": {
+        "type": "object",
+        "properties": {
+          "userIds": {
+            "description": "Users with the HEAD_COACH role. An empty list removes every head.",
+            "uniqueItems": true,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "userIds"
+        ]
+      },
+      "AddProgrammeMemberDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "A STUDENT (Head Coach or Administrator) or a Coach (Administrator only).",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "userId"
         ]
       },
       "CreateUserDto": {

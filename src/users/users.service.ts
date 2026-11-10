@@ -209,6 +209,23 @@ export class UsersService {
         await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
       }
 
+      // Heading a programme = HEAD_COACH role + active membership (P1-10). A change
+      // to or from HEAD_COACH ends every active membership in the same transaction,
+      // so a promoted Student/Coach never inherits a programme to head, and a former
+      // head keeps no membership; heads are then set explicitly (PUT …/heads).
+      if (existing.role !== role && (existing.role === 'HEAD_COACH' || role === 'HEAD_COACH')) {
+        const memberships = await tx.programmeMembership.findMany({ where: { userId: id, isActive: true }, select: { disciplineId: true } });
+        if (memberships.length) {
+          await tx.programmeMembership.updateMany({
+            where: { userId: id, isActive: true }, data: { isActive: false, endedAt: new Date(), endedById: caller.id },
+          });
+          await this.audit.log({
+            ...actor, action: 'PROGRAMME_MEMBERSHIPS_ENDED', entity: 'User', entityId: id,
+            metadata: { reason: 'ROLE_CHANGE', from: existing.role, to: role, disciplineIds: memberships.map((m) => m.disciplineId) },
+          }, tx);
+        }
+      }
+
       // The audit entries commit with the change: what changed, from what, to what.
       const changes = diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
       await this.audit.log({

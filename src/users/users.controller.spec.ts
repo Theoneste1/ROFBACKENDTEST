@@ -49,12 +49,12 @@ describe('MeController authorization metadata', () => {
   });
 
   it('permissions returns the caller role and its permission list', async () => {
-    const permissions = new PermissionService({ mentorScopes: async () => [] } as any);
+    const permissions = new PermissionService({ mentorScopes: async () => [], headedProgrammes: async () => [] } as any);
     const controller = new MeController({} as any, permissions);
     const result = await controller.permissions({ id: 's1', role: 'STUDENT' } as any);
     expect(result.role).toBe('STUDENT');
     expect(result.permissions).toContain('submissions.submit');
     expect(result.roleLabel).toBe('Student');
-    expect(result.scopes).toEqual({ courseDivisions: [] });
+    expect(result.scopes).toEqual({ courseDivisions: [], programmes: [] });
   });
 });

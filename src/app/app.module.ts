@@ -27,6 +27,7 @@ import { AuthModule } from '../auth/auth.module.js';
 import { PermissionsModule } from '../auth/permissions.module.js';
 import { SuperAdminModule } from '../super-admin/super-admin.module.js';
 import { PermissionOverridesModule } from '../permission-overrides/permission-overrides.module.js';
+import { ProgrammesModule } from '../programmes/programmes.module.js';
 import { PermissionGuard } from '../auth/guards/permission.guard.js';
 import { AdminRequestAuditMiddleware } from '../audit/admin-request-audit.middleware.js';
 import { UsersModule } from '../users/users.module.js';
@@ -81,6 +82,7 @@ import { ReportsModule } from '../reports/reports.module.js';
     PermissionsModule,
     SuperAdminModule,
     PermissionOverridesModule,
+    ProgrammesModule,
     UsersModule,
     SchoolsModule,
     CoursesModule,

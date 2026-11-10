@@ -28,6 +28,11 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/auth/permission.service.ts', rule: 'U4', code: 'isCoach(user)',
     reason: 'courseDivisions(): only a coach has course × division teaching scopes; every other role (including an unsupported one) gets the empty list — the least-privileged result. Informational only; no access decision.',
   },
+  // ── Programme scope (P1-10) ────────────────────────────────────────────────
+  {
+    file: 'src/common/access/access.service.ts', rule: 'U4', code: 'isHeadCoach(user)',
+    reason: 'headedProgrammes(): only a HEAD_COACH heads programmes; every other role (including an unsupported one) heads none — the empty list, the least-privileged result. Callers that make access decisions (programmeScope(), the mentor-assignment filter) dispatch positively and refuse other roles.',
+  },
   // ── Administrator request audit (P1-08) ────────────────────────────────────
   {
     file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !isAdmin(user)',

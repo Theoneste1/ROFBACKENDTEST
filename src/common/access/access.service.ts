@@ -19,7 +19,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppError } from '../errors/app-error.js';
 import type { AuthUser } from '../auth-user.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { isAdmin, isCoach, isStudent, unsupportedRole } from './roles.js';
+import { isAdmin, isCoach, isHeadCoach, isStudent, unsupportedRole } from './roles.js';
 
 export interface Scope {
   courseId:   string;
@@ -111,9 +111,37 @@ export class AccessService {
   }
 
   // ─── Programme scope helpers (P1-07, plan §7.2; decision K8) ──────────────
-  // Read-only building blocks for Head Coach and Teacher scope (P1-10/P1-11).
-  // Not called by any route yet, and never by student or coach access above:
-  // student access stays division-based, coach access MentorAssignment-based.
+  // Used by Head Coach scope (P1-10) and, later, Teacher scope (P1-11) — never
+  // by student or coach access above: student access stays division-based,
+  // coach access MentorAssignment-based.
+
+  /**
+   * The programmes a Head Coach heads: their ACTIVE memberships, read fresh on
+   * every call (a change by an Administrator applies on the next request).
+   * Anyone who is not a HEAD_COACH heads nothing — a membership row alone never
+   * makes a user a head (role changes to/from HEAD_COACH end memberships).
+   */
+  async headedProgrammes(user: AuthUser): Promise<string[]> {
+    if (isHeadCoach(user)) return this.programmesOf(user.id);
+    return [];
+  }
+
+  /**
+   * Programme scope of a caller for programme-scoped administration:
+   * `'all'` for administrators, the headed programmes for a Head Coach; any
+   * other role is refused (least privilege).
+   */
+  async programmeScope(user: AuthUser): Promise<'all' | string[]> {
+    if (isAdmin(user)) return 'all';
+    if (isHeadCoach(user)) return this.headedProgrammes(user);
+    throw unsupportedRole();
+  }
+
+  /** 404 unless the caller's programme scope includes this programme (HC-A: others are not revealed). */
+  async assertProgrammeInScope(user: AuthUser, disciplineId: string): Promise<void> {
+    const scope = await this.programmeScope(user);
+    if (scope !== 'all' && !scope.includes(disciplineId)) throw new NotFoundException('Programme not found.');
+  }
 
   /** The programmes (discipline ids) a user is an ACTIVE member of. */
   async programmesOf(userId: string): Promise<string[]> {
@@ -145,6 +173,11 @@ export class AccessService {
     if (disciplineIds.length === 0) return { id: { in: [] } };
     return { disciplineId: { in: [...disciplineIds] } };
   }
+}
+
+/** 403 for a programme-scoped action outside what the caller's role may do (plan §10.1 error code). */
+export function scopeForbidden(message: string, details?: unknown) {
+  return new AppError(HttpStatus.FORBIDDEN, 'SCOPE_FORBIDDEN', message, details);
 }
 
 function notAssigned() {

@@ -27,6 +27,8 @@ export const isAdmin   = (u: Caller): boolean => u.role === 'ADMIN' || u.role ==
 export const isSuperAdmin = (u: Caller): boolean => u.role === 'SUPER_ADMIN';
 export const isCoach   = (u: Caller): boolean => u.role === 'MENTOR';
 export const isStudent = (u: Caller): boolean => u.role === 'STUDENT';
+/** Head Coach (P1-10): programme-scoped authority only (plan §7.2, HC-A). */
+export const isHeadCoach = (u: Caller): boolean => u.role === 'HEAD_COACH';
 /** Staff = ADMIN or MENTOR, named explicitly — never "not a student". */
 export const isStaff   = (u: Caller): boolean => isAdmin(u) || isCoach(u);
 

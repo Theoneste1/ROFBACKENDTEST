@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 16 @Public + 48 @Roles + 98 @RequirePermission + 54 @Authenticated = 216, none undeclared', () => {
+  it('declarations add up: 16 @Public + 45 @Roles + 107 @RequirePermission + 54 @Authenticated = 222, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 16, '@Roles': 48, '@RequirePermission': 98, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 16, '@Roles': 45, '@RequirePermission': 107, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -192,6 +192,9 @@ describe('route declarations (P1-02 §5)', () => {
       'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
       // P1-09: individual overrides (new routes, listed in route-access-additions.testing.ts)
       'permissions.manageOverrides': 3, 'permissions.view': 2,
+      // P1-10: coach assignments converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions for every
+      // baseline caller); programmes, heads and members are new routes (route-access-additions.testing.ts)
+      'mentorAssignments.manage': 3, 'courses.view': 1, 'programmes.manageHeads': 2, 'programmes.manageMembers': 3,
     });
   });
 
@@ -304,7 +307,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 5 added since: 207 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 11 added since: 213 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -412,9 +415,12 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
       if (isPublic(h) || (permissionOf(h) === undefined && rolesOf(h).length === 0)) continue;
       if ((await decide(h, 'HEAD_COACH' as unknown as Caller)) === 'allow') admitted.push(permissionOf(h));
     }
-    // Only course-work grants (services still require an Administrator-created coach
-    // assignment, H4) — none of the global administration permissions.
-    expect([...new Set(admitted)].sort()).toEqual(['analytics.course', 'assignments.prepare', 'reviews.grade']);
+    // Course-work grants (services still require an Administrator-created coach
+    // assignment, H4) and the programme-scoped ones whose services restrict a Head Coach
+    // to the programmes they head (P1-10) — none of the global administration permissions.
+    expect([...new Set(admitted)].sort()).toEqual([
+      'analytics.course', 'assignments.prepare', 'courses.view', 'mentorAssignments.manage', 'programmes.manageMembers', 'reviews.grade',
+    ]);
   });
 });
 
