@@ -25,6 +25,7 @@ import { AcademicYearsModule } from '../academic-years/academic-years.module.js'
 import { ActivityModule } from '../activity/activity.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { PermissionsModule } from '../auth/permissions.module.js';
+import { SuperAdminModule } from '../super-admin/super-admin.module.js';
 import { PermissionGuard } from '../auth/guards/permission.guard.js';
 import { AdminRequestAuditInterceptor } from '../audit/admin-request-audit.interceptor.js';
 import { UsersModule } from '../users/users.module.js';
@@ -77,6 +78,7 @@ import { ReportsModule } from '../reports/reports.module.js';
     // ── Features ──────────────────────────────────────────────────────────
     AuthModule,
     PermissionsModule,
+    SuperAdminModule,
     UsersModule,
     SchoolsModule,
     CoursesModule,
