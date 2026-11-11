@@ -126,6 +126,19 @@ describe('AllExceptionsFilter', () => {
     expect(body).toMatchObject({ code: 'UPLOAD_REJECTED' });
   });
 
+  it('maps the M10 affiliation triggers to 409 with their code, never echoing the database message (it names the student)', () => {
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const one = run(new Error('ERROR: AFFILIATION_ONE_CURRENT: student stu-123 has 2 current school claims'));
+    expect(one.status).toBe(409);
+    expect(one.body).toMatchObject({ statusCode: 409, code: 'AFFILIATION_ONE_CURRENT' });
+    const mismatch = run(new Prisma.PrismaClientKnownRequestError('AFFILIATION_SCHOOL_MISMATCH: the current school claim of student stu-123 is not for the school of the student', { code: 'P2010', clientVersion: 'x' }));
+    expect(mismatch.status).toBe(409);
+    expect(mismatch.body).toMatchObject({ code: 'AFFILIATION_SCHOOL_MISMATCH' });
+    expect(JSON.stringify([one.body, mismatch.body])).not.toContain('stu-123');
+    expect(Logger.prototype.warn).toHaveBeenCalledTimes(2);
+    expect(Logger.prototype.error).not.toHaveBeenCalled();
+  });
+
   it('returns a generic 500 for unknown errors without leaking the message', () => {
     const { status, body } = run(new Error('password=hunter2 at db.internal:5432'));
     expect(status).toBe(500);

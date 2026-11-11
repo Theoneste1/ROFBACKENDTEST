@@ -133,14 +133,7 @@ export class UsersService {
 
   // ─── Update a user (admin) ──────────────────────────────────────────────────
   async update(id: string, data: UpdateUserDto, caller: CallerCtx) {
-    const existing = await this.prisma.user.findUnique({
-      where:  { id },
-      select: {
-        id: true, role: true, gradeLevel: true, username: true, email: true,
-        firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
-        isActive: true, activatedAt: true,
-      },
-    });
+    const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
     await this.roles.assertCanManage(caller, existing.role);
 
@@ -195,10 +188,40 @@ export class UsersService {
 
     const actor = { actorId: caller.id, actorRole: caller.role };
     const user = await this.prisma.$transaction(async (tx) => {
+      // Lock the user row, then re-read it. Everything above — authorization, the role rules,
+      // step-up, and the update itself (role, grade, division, school) — was prepared from
+      // `existing`, read before this transaction. If another edit committed in between, writing
+      // this one would silently restore stale values (e.g. a demoted Administrator's role), so it
+      // is refused instead; the caller reloads and retries. Concurrent edits of this user wait here.
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${id} FOR UPDATE`;
+      const locked = await tx.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
+      if (!locked) throw new NotFoundException(`User ${id} not found.`);
+      if (changedSince(existing, locked)) {
+        throw new AppError(HttpStatus.CONFLICT, 'USER_CHANGED_CONCURRENTLY',
+          'This user was changed by someone else in the meantime. Reload the user and try again.');
+      }
+
+      // School affiliation follows the student's school and role, in this transaction:
+      //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
+      //   becoming STUDENT, a school → a new PENDING claim;
+      //   another school             → the current claim is superseded and a new PENDING one created;
+      //   the same school            → nothing changes (a VERIFIED claim stays VERIFIED).
+      // The old claim ends BEFORE the User row changes and the new one is created after it, so
+      // every statement leaves the student consistent (M10).
+      // The student's school after this edit: omitted → the locked (committed) school is kept;
+      // an id → that school; explicit null → cleared.
+      const nextSchoolId = role !== 'STUDENT' ? null : data.schoolId !== undefined ? data.schoolId : locked.schoolId;
+      const nextClaim = roleChange || data.schoolId !== undefined
+        ? await this.affiliations.beginUserChange(tx, {
+            id, isStudent: role === 'STUDENT', becameStudent: role === 'STUDENT' && existing.role !== 'STUDENT', schoolId: nextSchoolId,
+          }, actor)
+        : null;
+
       const updated = await tx.user.update({
         where: { id }, data: updateData,
         select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true },
       });
+      if (nextClaim) await this.affiliations.claim(tx, nextClaim);
       let enrollment: 'PLACED' | 'WITHDRAWN' | null = null;
       if (placementChanged && role === 'STUDENT') {
         // Keep the current-year enrolment in step with the new placement.
@@ -219,20 +242,6 @@ export class UsersService {
         await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
       }
 
-      // School affiliation follows the student's school and role, in this transaction:
-      //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
-      //   becoming STUDENT, a school → a new PENDING claim;
-      //   another school             → the current claim is superseded and a new PENDING one created.
-      if (existing.role === 'STUDENT' && role !== 'STUDENT') {
-        await this.affiliations.supersede(tx, id, 'ROLE_CHANGE', actor);
-      } else if (role === 'STUDENT' && (existing.role !== 'STUDENT' || updated.schoolId !== existing.schoolId)) {
-        const reason = existing.role !== 'STUDENT' ? 'NEW_CLAIM' : 'SCHOOL_CHANGE';
-        if (updated.schoolId) {
-          await this.affiliations.claim(tx, { studentId: id, schoolId: updated.schoolId, source: 'ADMIN', reason, actor });
-        } else {
-          await this.affiliations.supersede(tx, id, reason, actor);
-        }
-      }
 
       // A Teacher who changes role keeps no school scope (P1-11): their school assignments end here.
       if (existing.role === 'TEACHER' && role !== 'TEACHER') {
@@ -402,7 +411,8 @@ export class UsersService {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  private async studentFields(gradeLevel: GradeLevel, schoolId?: string) {
+  /** Student placement fields. `schoolId`: omitted → unchanged; an id → that (existing) school; null → cleared. */
+  private async studentFields(gradeLevel: GradeLevel, schoolId?: string | null) {
     if (schoolId) {
       const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { id: true } });
       if (!school) throw new NotFoundException('School not found.');
@@ -410,7 +420,7 @@ export class UsersService {
     return {
       gradeLevel,
       divisionId: await this.divisions.idForGrade(gradeLevel),
-      ...(schoolId && { schoolId }),
+      ...(schoolId !== undefined && { schoolId }),
     };
   }
 
@@ -465,6 +475,22 @@ const PRIVILEGED: readonly string[] = ['ADMIN', 'SUPER_ADMIN'];
 
 function lastSuperAdmin() {
   return new AppError(HttpStatus.CONFLICT, 'LAST_SUPER_ADMIN', 'At least one active Super Administrator must remain.');
+}
+
+/** What an Administrator edit is prepared from (and re-checked against under the row lock). */
+const EDIT_STATE_SELECT = {
+  id: true, role: true, gradeLevel: true, username: true, email: true,
+  firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
+  isActive: true, activatedAt: true,
+} as const;
+type EditState = Prisma.UserGetPayload<{ select: typeof EDIT_STATE_SELECT }>;
+
+/** True when any field the edit was prepared from differs from the locked, committed row. */
+function changedSince(before: EditState, now: EditState): boolean {
+  return (Object.keys(EDIT_STATE_SELECT) as Array<keyof EditState>).some((k) => {
+    const a = before[k], b = now[k];
+    return a instanceof Date || b instanceof Date ? (a as Date | null)?.getTime() !== (b as Date | null)?.getTime() : a !== b;
+  });
 }
 
 const isLastSuperAdminError = (err: unknown) => String((err as Error)?.message ?? '').includes('LAST_SUPER_ADMIN');

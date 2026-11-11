@@ -38965,6 +38965,8 @@
           },
           "schoolId": {
             "type": "string",
+            "nullable": true,
+            "description": "Omitted: the school is kept. A school id: the student moves to that school. null: the\nstudent's school is cleared (their current school claim ends; no new claim is created).",
             "format": "uuid"
           },
           "homeLocation": {

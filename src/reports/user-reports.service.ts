@@ -14,6 +14,7 @@ import type { AuthUser } from '../common/auth-user.js';
 import { ReportScopeService, teachingIn, type ReportScope } from './report-scope.js';
 import type { ReportListDto, UserReportDto, UserStatusFilter } from './dto/report-filters.dto.js';
 import { toCsv } from './csv.js';
+import { CURRENT_CLAIM_SELECT, withVerification } from '../schools/affiliations/school-verification.js';
 
 export const MAX_ROWS = 50_000;
 
@@ -87,6 +88,7 @@ export class UserReportsService {
       createdAt: true, lastLoginAt: true, points: true,
       division: { select: { id: true, code: true, name: true } },
       school:   { select: { id: true, name: true } },
+      schoolAffiliations: CURRENT_CLAIM_SELECT,
       studentEnrollments: {
         where:  { academicYearId: s.year?.id ?? '' },
         take:   1,
@@ -115,7 +117,8 @@ export class UserReportsService {
         // The selected year's enrolment when there is one; otherwise current placement.
         division:         enrol?.division ?? u.division,
         gradeLevel:       enrol?.gradeLevel ?? u.gradeLevel,
-        school:           enrol?.school ?? u.school,
+        // Labelled VERIFIED only for the school of the student's current VERIFIED claim.
+        school:           withVerification(enrol?.school ?? u.school, u.schoolAffiliations),
         enrollmentStatus: enrol?.status ?? null,
         submissions:      mine.reduce((n, c) => n + c._count._all, 0),
         resultsPublished: mine.find((c) => c.status === 'PUBLISHED')?._count._all ?? 0,

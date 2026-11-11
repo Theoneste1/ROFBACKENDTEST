@@ -30,6 +30,8 @@ function makeMocks() {
     mentorReview:      { count: vi.fn().mockResolvedValue(0) },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
+    // Admin edits lock the user row first (PR A.1).
+    $queryRaw: vi.fn().mockResolvedValue([{ schoolId: null }]),
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
@@ -44,7 +46,7 @@ function makeMocks() {
 
   const accountEmails = { approved: vi.fn() };
   const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn() };
-  const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() };
+  const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn(), beginUserChange: vi.fn().mockResolvedValue(null) };
   const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any);
   return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations };
 }
@@ -136,6 +138,15 @@ describe('UsersService', () => {
       prisma.user.findFirst.mockResolvedValue({ id: 'u3' });
       await expect(service.update('u2', { username: 'taken' } as any, ADMIN))
         .rejects.toMatchObject({ code: 'IDENTITY_TAKEN' });
+    });
+
+    it('refuses (409 USER_CHANGED_CONCURRENTLY) when the user changed between the first read and the row lock — nothing is written', async () => {
+      const { service, prisma, audit } = makeMocks();
+      // First read: STUDENT; inside the transaction, after the lock: already MENTOR (another edit committed).
+      prisma.user.findUnique.mockResolvedValueOnce(existing).mockResolvedValueOnce({ ...existing, role: 'MENTOR', gradeLevel: null });
+      await expect(service.update('u2', { firstName: 'Stale' } as any, ADMIN)).rejects.toMatchObject({ code: 'USER_CHANGED_CONCURRENTLY' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
     });
 
     it('clears student data and revokes sessions when a student becomes a mentor', async () => {

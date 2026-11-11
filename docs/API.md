@@ -1276,7 +1276,7 @@ Body (JSON):
 | `role` | STUDENT \| MENTOR \| ADMIN \| TEACHER \| HEAD_COACH \| SUPER_ADMIN |  |  |
 | `currentPassword` | string |  | Your own current password (step-up, P1-08). Required to change a role to or from ADMIN or SUPER_ADMIN; otherwise ignored. Never stored or logged. |
 | `gradeLevel` | S1 \| S2 \| S3 \| S4 \| S5 \| S6 |  | Changing the grade moves a student to the matching division. |
-| `schoolId` | string (uuid) |  |  |
+| `schoolId` | string (uuid) |  | Omitted: the school is kept. A school id: the student moves to that school. null: the student's school is cleared (their current school claim ends; no new claim is created). |
 | `homeLocation` | string |  |  |
 
 Returns `200` JSON with:
