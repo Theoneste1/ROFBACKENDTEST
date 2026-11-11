@@ -9,7 +9,15 @@ import { PRINTABLE } from '../dto/admin-school.dto.js';
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 const upper = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toUpperCase() : value);
 
+const bool = ({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value);
+
 export const MAX_CONTACTS = 20;
+
+/** GET /admin/schools/:id/contacts */
+export class SchoolContactsQueryDto {
+  /** Also list removed and replaced contacts (with when and by whom). */
+  @IsOptional() @Transform(bool) @IsBoolean() includeRemoved?: boolean;
+}
 export const MAX_PROGRAMMES = 100;
 
 export class ContactInputDto {
@@ -24,8 +32,9 @@ export class ContactInputDto {
 }
 
 /**
- * PUT /admin/schools/:id/contacts — the school's complete contact list. Contacts left out are
- * removed; a changed type or value loses its verification (back to ADMIN_ONLY).
+ * PUT /admin/schools/:id/contacts — the school's complete list of active contacts. Contacts left
+ * out are removed (kept, with removedAt). A changed type or value replaces the contact: the old
+ * one is kept as removed and a new, unverified, ADMIN_ONLY contact takes its place.
  */
 export class PutSchoolContactsDto {
   @IsArray() @ArrayMaxSize(MAX_CONTACTS) @ValidateNested({ each: true }) @Type(() => ContactInputDto)

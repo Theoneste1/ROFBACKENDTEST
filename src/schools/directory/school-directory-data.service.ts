@@ -4,12 +4,15 @@
  *
  *   contacts    e-mail addresses and phone numbers. ADMIN_ONLY by default; REPRESENTATIVES only
  *               after an Administrator verifies the contact and authorises it (also enforced by a
- *               database CHECK). A changed type or value loses its verification. Contacts are
- *               never returned by public search, registration, the deprecated /schools routes or
- *               any export.
+ *               database CHECK). Never deleted: a removed contact is kept with removedAt, and a
+ *               changed type or value replaces the contact (the old one kept as removed, the new
+ *               one unverified). Full values are returned only by these Administrator routes —
+ *               never by public search, registration, the deprecated /schools routes, any export,
+ *               or an audit entry (audit entries record a masked value: maskContact).
  *   offerings   education levels and programmes. Programmes that still need review are marked
  *               needsReview and are never presented as verified offerings.
- *   history     the school's audit entries and the source records it was matched with.
+ *   history     the source records the school was matched with, and its audit entries — only for
+ *               a caller who also holds audit.view (an Administrator may be denied it).
  *
  * Every write takes the directory lock (shared) and then the school's row lock, and is written
  * in one transaction with its audit record.
@@ -17,13 +20,14 @@
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { AuditService } from '../../audit/audit.service.js';
-import type { CallerCtx } from '../../common/auth-user.js';
+import { PermissionService } from '../../auth/permission.service.js';
+import type { AuthUser, CallerCtx } from '../../common/auth-user.js';
 import { AppError } from '../../common/errors/app-error.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../../common/pagination.js';
 import type { Prisma, SchoolContactType } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { lockSchoolDirectory } from '../school-locks.js';
-import { normaliseContact } from './school-contacts.js';
+import { maskContact, normaliseContact, redactContactText } from './school-contacts.js';
 import { PutSchoolContactsDto, PutSchoolOfferingsDto, VerifySchoolContactDto } from './school-directory.dto.js';
 
 type Tx = Prisma.TransactionClient;
@@ -32,19 +36,31 @@ const CONTACT_SELECT = {
   id: true, type: true, value: true, rawValue: true, label: true, isPrimary: true, visibility: true,
   verifiedAt: true, verifiedBy: { select: { id: true, username: true } },
   dataSource: { select: { key: true } }, createdAt: true, updatedAt: true,
+  removedAt: true, removedBy: { select: { id: true, username: true } },
 } as const;
 
 const PROGRAMME_SELECT = { id: true, code: true, name: true, category: true, tvetLevel: true, needsReview: true } as const;
 
-/** What an audit entry records of a contact. */
-const contactFacts = (c: { id: string; type: string; value: string; label: string | null; isPrimary: boolean }) =>
-  ({ id: c.id, type: c.type, value: c.value, label: c.label, isPrimary: c.isPrimary });
+/** What an audit entry records of a contact: a masked value, never the value itself (D6, M1). */
+const contactFacts = (c: { id: string; type: SchoolContactType; value: string; label: string | null; isPrimary: boolean }) =>
+  ({ id: c.id, type: c.type, masked: maskContact(c.type, c.value), label: c.label, isPrimary: c.isPrimary });
+
+/**
+ * The Administrator's reason for a contact change, as recorded in the audit entry: kept, with any
+ * e-mail address or phone number in it masked (reasonRedacted marks that something was masked).
+ */
+const contactReason = (reason: string | undefined) => {
+  if (!reason) return { reason: null };
+  const r = redactContactText(reason);
+  return { reason: r.text, ...(r.redacted && { reasonRedacted: true }) };
+};
 
 @Injectable()
 export class SchoolDirectoryDataService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit:  AuditService,
+    private readonly permissions: PermissionService,
   ) {}
 
   // ─── Reference data ─────────────────────────────────────────────────────────
@@ -59,22 +75,22 @@ export class SchoolDirectoryDataService {
 
   // ─── Contacts ───────────────────────────────────────────────────────────────
 
-  async contacts(schoolId: string) {
+  async contacts(schoolId: string, includeRemoved = false) {
     await this.assertSchool(this.prisma, schoolId);
-    return { schoolId, contacts: await this.listContacts(this.prisma, schoolId) };
+    return { schoolId, contacts: await this.listContacts(this.prisma, schoolId, includeRemoved) };
   }
 
   async putContacts(schoolId: string, dto: PutSchoolContactsDto, caller: CallerCtx) {
     return this.prisma.$transaction(async (tx) => {
       await this.lockSchool(tx, schoolId);
-      const existing = await tx.schoolContact.findMany({ where: { schoolId } });
+      const existing = await tx.schoolContact.findMany({ where: { schoolId, removedAt: null } });
       const byId = new Map(existing.map((c) => [c.id, c]));
 
       const problems: string[] = [];
       const wanted = dto.contacts.map((c, i) => {
         const n = normaliseContact(c.type, c.value);
         if ('problem' in n) problems.push(`contacts[${i}]: ${n.problem}`);
-        if (c.id && !byId.has(c.id)) problems.push(`contacts[${i}]: not a contact of this school.`);
+        if (c.id && !byId.has(c.id)) problems.push(`contacts[${i}]: not an active contact of this school.`);
         return {
           i, id: c.id ?? null, type: c.type, value: 'value' in n ? n.value : '', rawValue: c.value.trim(),
           label: c.label ?? null, isPrimary: c.isPrimary ?? false,
@@ -108,38 +124,35 @@ export class SchoolDirectoryDataService {
         return { schoolId, changed: false, contacts: await this.listContacts(tx, schoolId) };
       }
 
-      if (removed.length) await tx.schoolContact.deleteMany({ where: { id: { in: removed.map((c) => c.id) } } });
-      // Values may be exchanged between contacts: free each changed value first (unique per school,
-      // type and value). The placeholder starts with a control character, which no entered value can contain.
-      for (const { before } of changed.filter((c) => c.valueChanged)) {
-        await tx.schoolContact.update({ where: { id: before.id }, data: { value: `\u0001moving:${before.id}` } });
+      // Never deleted: removed and replaced contacts are kept with removedAt (Administrators only).
+      const now = new Date();
+      const replaced = changed.filter((c) => c.valueChanged);
+      const retire = [...removed.map((c) => c.id), ...replaced.map((c) => c.before.id)];
+      if (retire.length) await tx.schoolContact.updateMany({ where: { id: { in: retire } }, data: { removedAt: now, removedById: caller.id } });
+      for (const { before, after } of changed.filter((c) => !c.valueChanged)) {
+        await tx.schoolContact.update({ where: { id: before.id }, data: { label: after.label, isPrimary: after.isPrimary } });
       }
-      for (const { before, after, valueChanged } of changed) {
-        await tx.schoolContact.update({
-          where: { id: before.id },
-          data: {
-            type: after.type, value: after.value, label: after.label, isPrimary: after.isPrimary,
-            ...(valueChanged && { rawValue: after.rawValue, verifiedAt: null, verifiedById: null, visibility: 'ADMIN_ONLY', dataSourceId: null }),
-          },
-        });
-      }
+      const newContact = (a: (typeof wanted)[number]) => tx.schoolContact.create({
+        data: { schoolId, type: a.type, value: a.value, rawValue: a.rawValue, label: a.label, isPrimary: a.isPrimary },
+      });
       const created = [];
-      for (const a of added) {
-        created.push(await tx.schoolContact.create({
-          data: { schoolId, type: a.type, value: a.value, rawValue: a.rawValue, label: a.label, isPrimary: a.isPrimary },
-        }));
-      }
+      for (const a of added) created.push(await newContact(a));
+      const replacements = [];
+      for (const { before, after } of replaced) replacements.push({ before, after: await newContact(after) });
 
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role, action: 'UPDATE_SCHOOL_CONTACTS', entity: 'School', entityId: schoolId,
         metadata: {
           added: created.map(contactFacts),
-          changed: changed.map(({ before, after, valueChanged }) => ({
+          changed: changed.filter((c) => !c.valueChanged).map(({ before, after }) => ({
             id: before.id, from: contactFacts(before), to: contactFacts({ ...after, id: before.id }),
-            ...(valueChanged && { verificationReset: before.verifiedAt !== null, previousVisibility: before.visibility }),
+          })),
+          replaced: replacements.map(({ before, after }) => ({
+            id: before.id, replacedBy: after.id, from: contactFacts(before), to: contactFacts(after),
+            verificationReset: before.verifiedAt !== null, previousVisibility: before.visibility,
           })),
           removed: removed.map((c) => ({ ...contactFacts(c), verified: c.verifiedAt !== null, visibility: c.visibility })),
-          reason: dto.reason ?? null,
+          ...contactReason(dto.reason),
         },
       }, tx);
       return { schoolId, changed: true, contacts: await this.listContacts(tx, schoolId) };
@@ -149,8 +162,8 @@ export class SchoolDirectoryDataService {
   async verifyContact(schoolId: string, contactId: string, dto: VerifySchoolContactDto, caller: CallerCtx) {
     return this.prisma.$transaction(async (tx) => {
       await this.lockSchool(tx, schoolId);
-      const contact = await tx.schoolContact.findFirst({ where: { id: contactId, schoolId } });
-      if (!contact) throw new NotFoundException('Contact not found for this school.');
+      const contact = await tx.schoolContact.findFirst({ where: { id: contactId, schoolId, removedAt: null } });
+      if (!contact) throw new NotFoundException('No active contact with this id for this school.');
       const visibility = dto.visibility ?? 'ADMIN_ONLY';
       const updated = await tx.schoolContact.update({
         where: { id: contactId },
@@ -162,7 +175,7 @@ export class SchoolDirectoryDataService {
         metadata: {
           contact: contactFacts(contact), visibility,
           previous: { verifiedAt: contact.verifiedAt?.toISOString() ?? null, visibility: contact.visibility },
-          reason: dto.reason ?? null,
+          ...contactReason(dto.reason),
         },
       }, tx);
       return updated;
@@ -232,26 +245,31 @@ export class SchoolDirectoryDataService {
 
   // ─── History ────────────────────────────────────────────────────────────────
 
-  /** The school's audit entries (newest first, paginated) and every source record matched with it. */
-  async history(schoolId: string, q: PaginationQueryDto) {
+  /**
+   * Every source record matched with the school, and its audit entries (newest first, paginated)
+   * when the caller also holds audit.view — otherwise audit is null and auditVisible false.
+   */
+  async history(schoolId: string, q: PaginationQueryDto, caller: AuthUser) {
     await this.assertSchool(this.prisma, schoolId);
+    const auditVisible = this.permissions.has(caller, 'audit.view');
+    const sourceRecords = await this.prisma.schoolSourceRecord.findMany({
+      where: { schoolId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true, dataSource: { select: { key: true, name: true } }, datasetLabel: true, datasetSha256: true, sourceRef: true,
+        raw: true, rowHash: true, matchedBy: true, issues: true, createdAt: true,
+      },
+    });
+    if (!auditVisible) return { schoolId, sourceRecords, auditVisible, audit: null };
     const { page, limit, skip, take } = pageArgs(q);
     const where: Prisma.AuditLogWhereInput = { entity: 'School', entityId: schoolId };
-    const [rows, total, sourceRecords] = await this.prisma.$transaction([
+    const [rows, total] = await this.prisma.$transaction([
       this.prisma.auditLog.findMany({
         where, skip, take, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: { id: true, action: true, actorId: true, actorUsername: true, actorRole: true, metadata: true, createdAt: true },
       }),
       this.prisma.auditLog.count({ where }),
-      this.prisma.schoolSourceRecord.findMany({
-        where: { schoolId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        select: {
-          id: true, dataSource: { select: { key: true, name: true } }, datasetLabel: true, datasetSha256: true, sourceRef: true,
-          raw: true, rowHash: true, matchedBy: true, issues: true, createdAt: true,
-        },
-      }),
     ]);
-    return { schoolId, sourceRecords, audit: paginated(rows, total, page, limit) };
+    return { schoolId, sourceRecords, auditVisible, audit: paginated(rows, total, page, limit) };
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -267,8 +285,13 @@ export class SchoolDirectoryDataService {
     if (!(await db.school.findUnique({ where: { id: schoolId }, select: { id: true } }))) throw new NotFoundException('School not found.');
   }
 
-  private listContacts(db: Pick<Tx, 'schoolContact'>, schoolId: string) {
-    return db.schoolContact.findMany({ where: { schoolId }, orderBy: [{ type: 'asc' }, { isPrimary: 'desc' }, { value: 'asc' }], select: CONTACT_SELECT });
+  /** Active contacts; with includeRemoved, the removed and replaced ones too (after the active ones). */
+  private listContacts(db: Pick<Tx, 'schoolContact'>, schoolId: string, includeRemoved = false) {
+    return db.schoolContact.findMany({
+      where: { schoolId, ...(!includeRemoved && { removedAt: null }) },
+      orderBy: [{ removedAt: { sort: 'desc', nulls: 'first' } }, { type: 'asc' }, { isPrimary: 'desc' }, { value: 'asc' }, { id: 'asc' }],
+      select: CONTACT_SELECT,
+    });
   }
 
   private async listOfferings(db: Pick<Tx, 'schoolEducationLevel' | 'schoolProgramme'>, schoolId: string) {

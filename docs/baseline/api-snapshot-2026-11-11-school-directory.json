@@ -10,7 +10,7 @@
     "paths": 219,
     "schemas": 73
   },
-  "fingerprint": "653345530e7f6540f16357daf9cb8b9e5e04e093c5fca73802b39ae6ada35fe2",
+  "fingerprint": "863b7a1bfa70d8cf04f5357007bce3208a2d1dd0b7cf62271807f0954e7132ed",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -10712,6 +10712,14 @@
           "schema": {
             "type": "string"
           }
+        },
+        {
+          "name": "includeRemoved",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
         }
       ],
       "requestBody": null,
@@ -10831,7 +10839,13 @@
       ],
       "requestBody": null,
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [],
+            "properties": {}
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"

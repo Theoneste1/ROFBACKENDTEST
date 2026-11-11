@@ -20393,6 +20393,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "includeRemoved",
+            "required": false,
+            "in": "query",
+            "description": "Also list removed and replaced contacts (with when and by whom).",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -20468,7 +20477,7 @@
             "bearer": []
           }
         ],
-        "summary": "Replace the school's contact list (audited). A changed type or value loses its verification.",
+        "summary": "Replace the school's active contacts (audited with masked values). Removed and replaced\ncontacts are kept (includeRemoved lists them); a new or changed value is unverified.",
         "tags": [
           "Admin · Schools"
         ],
@@ -20656,7 +20665,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -20674,7 +20690,7 @@
             "bearer": []
           }
         ],
-        "summary": "The school's audit history (newest first) and the source records it was matched with.",
+        "summary": "The source records the school was matched with and — only with audit.view — its audit entries (newest first).",
         "tags": [
           "Admin · Schools"
         ],

@@ -1267,6 +1267,7 @@ registration or exports; school representatives (S3) see only verified contacts 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
+| `includeRemoved` | query | boolean |  | Also list removed and replaced contacts (with when and by whom). |
 
 Returns `200` with no body.
 
@@ -1274,7 +1275,8 @@ Returns `200` with no body.
 
 **Access:** ADMIN, SUPER_ADMIN
 
-Replace the school's contact list (audited). A changed type or value loses its verification.
+Replace the school's active contacts (audited with masked values). Removed and replaced
+contacts are kept (includeRemoved lists them); a new or changed value is unverified.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -1313,13 +1315,13 @@ Returns `200` with no body.
 
 **Access:** ADMIN, SUPER_ADMIN
 
-The school's audit history (newest first) and the source records it was matched with.
+The source records the school was matched with and — only with audit.view — its audit entries (newest first).
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
-Returns `200` with no body.
+Returns `200` JSON.
 
 ### GET `/api/v1/admin/schools/{id}/offerings`
 

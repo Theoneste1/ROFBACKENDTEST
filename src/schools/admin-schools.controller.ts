@@ -10,7 +10,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import { AdminSchoolsService } from './admin-schools.service.js';
 import { SchoolDirectoryDataService } from './directory/school-directory-data.service.js';
-import { PutSchoolContactsDto, PutSchoolOfferingsDto, VerifySchoolContactDto } from './directory/school-directory.dto.js';
+import { PutSchoolContactsDto, PutSchoolOfferingsDto, SchoolContactsQueryDto, VerifySchoolContactDto } from './directory/school-directory.dto.js';
 import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
 import { ImportSchoolsQueryDto, ImportTemplateQueryDto } from './import/school-import.dto.js';
 import { IMPORT_MAX_BYTES } from './import/school-import.parser.js';
@@ -97,11 +97,14 @@ export class AdminSchoolsController {
    */
   @Get(':id/contacts')
   @RequirePermission('schools.manage')
-  contacts(@Param('id', ParseUUIDPipe) id: string) {
-    return this.directory.contacts(id);
+  contacts(@Param('id', ParseUUIDPipe) id: string, @Query() q: SchoolContactsQueryDto) {
+    return this.directory.contacts(id, q.includeRemoved ?? false);
   }
 
-  /** Replace the school's contact list (audited). A changed type or value loses its verification. */
+  /**
+   * Replace the school's active contacts (audited with masked values). Removed and replaced
+   * contacts are kept (includeRemoved lists them); a new or changed value is unverified.
+   */
   @Put(':id/contacts')
   @RequirePermission('schools.manage')
   putContacts(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PutSchoolContactsDto, @CurrentUser() user: AuthUser) {
@@ -135,11 +138,11 @@ export class AdminSchoolsController {
     return this.directory.putOfferings(id, dto, user);
   }
 
-  /** The school's audit history (newest first) and the source records it was matched with. */
+  /** The source records the school was matched with and — only with audit.view — its audit entries (newest first). */
   @Get(':id/history')
   @RequirePermission('schools.manage')
-  history(@Param('id', ParseUUIDPipe) id: string, @Query() q: PaginationQueryDto) {
-    return this.directory.history(id, q);
+  history(@Param('id', ParseUUIDPipe) id: string, @Query() q: PaginationQueryDto, @CurrentUser() user: AuthUser) {
+    return this.directory.history(id, q, user);
   }
 
   /** Create a school (409 SCHOOL_CODE_TAKEN / POSSIBLE_DUPLICATE). Names may repeat (M12). */

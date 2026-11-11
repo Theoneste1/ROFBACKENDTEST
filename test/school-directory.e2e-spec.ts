@@ -5,8 +5,13 @@
  *        relationships unchanged; rollback restores the unique index and removes only M12's
  *        objects — and refuses, changing nothing, while names repeat (no override) or while
  *        directory data exists (unless explicitly acknowledged); it never deletes a school.
- *   Database safeguards: source records keep their published data; external ids are permanent;
- *        contacts are REPRESENTATIVES only once verified; directory data blocks a school's deletion.
+ *   Database safeguards: source records keep their published data; external ids and contacts are
+ *        never deleted; contacts are REPRESENTATIVES only once verified; directory data blocks a
+ *        school's deletion.
+ *   Contact privacy (M1): audit entries record masked values only — the audit trail and its CSV
+ *        export (Administrators and Super Admins) never contain a contact value; removed and
+ *        replaced contacts are kept, visible to Administrators only.
+ *   History (m1): audit entries only for a caller who holds audit.view.
  *   Names: kept exactly as published; the same name elsewhere is another school; nearby it is a
  *        POSSIBLE_DUPLICATE (explicit, audited confirmation); the import maps rows back by id.
  *   Contacts (Administrators only), offerings, history, reference data; public search `level`.
@@ -116,7 +121,7 @@ describe('School directory S1 (M12)', () => {
       const tables = async () => (await q(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`, [M12_TABLES]))[0].n;
       const columns = async () => (await q(`SELECT count(*)::int AS n FROM information_schema.columns WHERE table_name = 'School' AND column_name = ANY($1)`, [M12_COLUMNS]))[0].n;
       const types = async () => (await q(`SELECT count(*)::int AS n FROM pg_type WHERE typname = ANY($1)`, [M12_TYPES]))[0].n;
-      const functions = async () => (await q(`SELECT count(*)::int AS n FROM pg_proc WHERE proname IN ('school_source_record_immutable', 'school_external_id_keep')`))[0].n;
+      const functions = async () => (await q(`SELECT count(*)::int AS n FROM pg_proc WHERE proname IN ('school_source_record_immutable', 'school_external_id_keep', 'school_contact_keep')`))[0].n;
       const nameIndexes = async () => (await q(`SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'School' AND indexname IN ('School_name_key', 'School_name_idx') ORDER BY indexname`))
         .map((r) => [r.indexname, /UNIQUE/.test(r.indexdef)]);
       try {
@@ -126,11 +131,12 @@ describe('School directory S1 (M12)', () => {
         await c.query(M12_ROLLBACK);
         expect([await tables(), await columns(), await types(), await functions()]).toEqual([0, 0, 0, 0]);
         expect(await nameIndexes()).toEqual([['School_name_key', true]]);
-        expect((await q(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = '20261121001100_school_directory_model'`))[0].n).toBe(1);   // history untouched
+        expect((await q(`SELECT count(*)::int AS n FROM "_prisma_migrations" WHERE migration_name = '20261121001100_school_directory_model'
+                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL`))[0].n).toBe(1);   // history untouched: still applied
         expect(await links(q)).toEqual(before);
 
         await c.query(M12);
-        expect([await tables(), await columns(), await types(), await functions()]).toEqual([8, 6, 5, 2]);
+        expect([await tables(), await columns(), await types(), await functions()]).toEqual([8, 6, 5, 3]);
         expect(await nameIndexes()).toEqual([['School_name_idx', false]]);
         expect((await q(`SELECT array_agg("code" ORDER BY "sortOrder") AS codes FROM "EducationLevel"`))[0].codes).toEqual(['PPR', 'PR', 'OL', 'AL', 'PE']);
         expect((await q(`SELECT array_agg("key") AS keys FROM "SchoolDataSource"`))[0].keys).toEqual(['NESA']);
@@ -183,7 +189,7 @@ describe('School directory S1 (M12)', () => {
       }
     });
 
-    it('database safeguards: source records keep their published data; external ids are permanent (one key, one school); REPRESENTATIVES only once verified; directory data blocks deleting a school', async () => {
+    it('database safeguards: source records keep their published data; external ids and contacts are permanent (one key, one school); REPRESENTATIVES only once verified; directory data blocks deleting a school', async () => {
       const nesa = await p().schoolDataSource.findUniqueOrThrow({ where: { key: 'NESA' } });
       const raw = { 'School Code': '220001', 'School Name': 'GS NGOMA OFFICIAL', Email: 'N/A', Phone: 'No Primary' };
       const rec = await p().schoolSourceRecord.create({ data: {
@@ -207,8 +213,10 @@ describe('School directory S1 (M12)', () => {
       expect(await p().schoolContact.count({ where: { schoolId: officialKigali } })).toBe(0);
 
       const doomed = await p().school.create({ data: { name: 'Delete Me Not', location: 'Huye' } });
-      await p().schoolContact.create({ data: { schoolId: doomed.id, type: 'PHONE', value: '+250788000001' } });
+      const kept = await p().schoolContact.create({ data: { schoolId: doomed.id, type: 'PHONE', value: '+250788000001' } });
       await expect(p().school.delete({ where: { id: doomed.id } })).rejects.toThrow();
+      await expect(p().schoolContact.delete({ where: { id: kept.id } })).rejects.toThrow(/SCHOOL_CONTACT_PERMANENT/);
+      await expect(p().schoolContact.deleteMany({ where: { schoolId: doomed.id } })).rejects.toThrow(/SCHOOL_CONTACT_PERMANENT/);
       expect(await p().schoolContact.count({ where: { schoolId: doomed.id } })).toBe(1);
     });
   });
@@ -322,36 +330,56 @@ describe('School directory S1 (M12)', () => {
       ]) {
         const r = await putContacts(school, contacts);
         expect([contacts, r.status, errorCode(r)]).toEqual([contacts, 400, 'INVALID_CONTACTS']);
+        for (const c of contacts) expect([c.value, JSON.stringify(r.body).includes(c.value)]).toEqual([c.value, false]);   // M1: never echoed
       }
       expect(await status(putContacts(school, [{ type: 'FAX', value: '123' }]))).toEqual([400, 'VALIDATION_FAILED']);
       expect(await contactsOf(school)).toEqual(before);
     });
 
-    it('verify: REPRESENTATIVES only through an Administrator\'s verification (audited); a changed value loses it; values can be exchanged; removal is audited', async () => {
+    it('verify: REPRESENTATIVES only through an Administrator\'s verification (audited); a changed value replaces the contact (old kept as removed, new unverified); values can be exchanged; removal keeps the contact', async () => {
       const [email, phoneA, phoneB] = await contactsOf(school);
       const verified = await http().post(`${S}/${school}/contacts/${phoneB.id}/verify`).set(bearer(admin)).send({ visibility: 'REPRESENTATIVES', reason: 'Called the head teacher' }).expect(200);
       expect(verified.body).toMatchObject({ visibility: 'REPRESENTATIVES', verifiedAt: expect.any(String), verifiedBy: { id: ctx.ids.admin } });
       expect((await p().auditLog.findFirstOrThrow({ where: { action: 'SCHOOL_CONTACT_VERIFIED', entityId: school } })).metadata)
-        .toMatchObject({ contact: { id: phoneB.id, value: '+250788123456' }, visibility: 'REPRESENTATIVES', previous: { verifiedAt: null, visibility: 'ADMIN_ONLY' } });
+        .toEqual({
+          contact: { id: phoneB.id, type: 'PHONE', masked: '+250•••56', label: 'Head teacher', isPrimary: false },
+          visibility: 'REPRESENTATIVES', previous: { verifiedAt: null, visibility: 'ADMIN_ONLY' }, reason: 'Called the head teacher',
+        });
       await http().post(`${S}/${school}/contacts/${email.id}/verify`).set(bearer(admin)).send({}).expect(200);   // verified, still ADMIN_ONLY
       expect(await status(http().post(`${S}/${other}/contacts/${email.id}/verify`).set(bearer(admin)).send({}))).toEqual([404, expect.any(String)]);
 
-      // Exchange the two phone numbers: each contact's value changes → both lose their verification.
+      // Exchange the two phone numbers: each value change replaces its contact — the old ones are kept
+      // as removed (with their verification), the new ones are unverified and ADMIN_ONLY.
       const swapped = await putContacts(school, [asInput(email), { ...asInput(phoneA), value: phoneB.value }, { ...asInput(phoneB), value: phoneA.value }]).expect(200);
-      const byId = new Map(swapped.body.contacts.map((c: any) => [c.id, c]));
-      expect(byId.get(phoneA.id)).toMatchObject({ value: '+250788123456', visibility: 'ADMIN_ONLY', verifiedAt: null });
-      expect(byId.get(phoneB.id)).toMatchObject({ value: '+250722000111', visibility: 'ADMIN_ONLY', verifiedAt: null });
-      expect(byId.get(email.id)).toMatchObject({ verifiedAt: expect.any(String) });   // unchanged: keeps its verification
+      const active = swapped.body.contacts;
+      expect(active.map((c: any) => c.id)).toEqual(expect.arrayContaining([email.id]));
+      expect(active.map((c: any) => c.id)).not.toEqual(expect.arrayContaining([phoneA.id]));
+      expect(active.filter((c: any) => c.type === 'PHONE').map((c: any) => [c.value, c.label, c.visibility, c.verifiedAt]).sort()).toEqual([
+        ['+250722000111', 'Head teacher', 'ADMIN_ONLY', null], ['+250788123456', null, 'ADMIN_ONLY', null],
+      ]);
+      expect(active.find((c: any) => c.id === email.id)).toMatchObject({ verifiedAt: expect.any(String) });   // unchanged: keeps its verification
+      const old = await p().schoolContact.findUniqueOrThrow({ where: { id: phoneB.id } });
+      expect(old).toMatchObject({ value: '+250788123456', visibility: 'REPRESENTATIVES', removedById: ctx.ids.admin, removedAt: expect.any(Date) });
       const swapLog = await p().auditLog.findFirstOrThrow({ where: { action: 'UPDATE_SCHOOL_CONTACTS', entityId: school }, orderBy: { createdAt: 'desc' } });
-      expect((swapLog.metadata as any).changed).toEqual(expect.arrayContaining([
-        expect.objectContaining({ id: phoneB.id, verificationReset: true, previousVisibility: 'REPRESENTATIVES' }),
+      expect((swapLog.metadata as any).replaced).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: phoneB.id, replacedBy: expect.any(String), from: expect.objectContaining({ masked: '+250•••56' }), to: expect.objectContaining({ masked: '+250•••11' }), verificationReset: true, previousVisibility: 'REPRESENTATIVES' }),
       ]));
+      expect(await status(http().post(`${S}/${school}/contacts/${phoneB.id}/verify`).set(bearer(admin)).send({}))).toEqual([404, expect.any(String)]);   // removed: not verifiable
+      expect(await status(putContacts(school, [{ id: phoneB.id, type: 'PHONE', value: '+250788123456' }]))).toEqual([400, 'INVALID_CONTACTS']);   // nor editable
 
+      const newPhones = active.filter((c: any) => c.type === 'PHONE').map((c: any) => c.id);
       const removed = await putContacts(school, [asInput(email)]).expect(200);
-      expect(removed.body.contacts).toHaveLength(1);
+      expect(removed.body.contacts.map((c: any) => c.id)).toEqual([email.id]);
       const removeLog = await p().auditLog.findFirstOrThrow({ where: { action: 'UPDATE_SCHOOL_CONTACTS', entityId: school }, orderBy: { createdAt: 'desc' } });
-      expect((removeLog.metadata as any).removed.map((c: any) => c.id).sort()).toEqual([phoneA.id, phoneB.id].sort());
-      await putContacts(school, [asInput(email), { type: 'PHONE', value: '0788123456' }]).expect(200);
+      expect((removeLog.metadata as any).removed.map((c: any) => c.id).sort()).toEqual([...newPhones].sort());
+      // Every value the school ever had stays with Administrators: includeRemoved lists them all.
+      const all = (await http().get(`${S}/${school}/contacts`).query({ includeRemoved: true }).set(bearer(admin)).expect(200)).body.contacts;
+      expect(all.map((c: any) => [c.value, c.removedAt === null])).toEqual(expect.arrayContaining([
+        ['head@gs-contact.rw', true], ['+250788123456', false], ['+250722000111', false],
+      ]));
+      expect(all).toHaveLength(5);
+      expect(await p().schoolContact.count({ where: { schoolId: school } })).toBe(5);   // nothing deleted
+      await putContacts(school, [asInput(email), { type: 'PHONE', value: '0788123456' }]).expect(200);   // a removed value can be added again
     });
 
     it('never outside Administrator routes: public search and locations, registration, the deprecated /schools routes, the admin list and record carry no contact', async () => {
@@ -372,6 +400,56 @@ describe('School directory S1 (M12)', () => {
       expect(responses[0].body.map((s: any) => s.code)).toEqual(['220901']);
       expect(responses[3].status).toBeLessThan(300);
       responses.forEach((r, i) => { for (const secret of secrets) expect([i, JSON.stringify(r.body).includes(secret)]).toEqual([i, false]); });
+    });
+
+    it('M1: an e-mail address or phone number written in a contact change\'s reason is masked in the audit entry, its list and CSV export (Administrator and Super Admin); the rest of the reason is kept', async () => {
+      const current = await contactsOf(school);
+      await http().put(`${S}/${school}/contacts`).set(bearer(admin)).send({
+        contacts: [...current.map(asInput), { type: 'EMAIL', value: 'deputy@gs-contact.rw' }],
+        reason: 'Requested by Jean.Bosco@Parents-Mail.com on 0788 555 123 (school code 220901, 2026-11-11)',
+      }).expect(200);
+      const deputy = (await contactsOf(school)).find((c: any) => c.value === 'deputy@gs-contact.rw');
+      await http().post(`${S}/${school}/contacts/${deputy.id}/verify`).set(bearer(admin))
+        .send({ visibility: 'REPRESENTATIVES', reason: 'Confirmed by phone: +250 722 999 888' }).expect(200);
+
+      const updateLog = await p().auditLog.findFirstOrThrow({ where: { action: 'UPDATE_SCHOOL_CONTACTS', entityId: school }, orderBy: { createdAt: 'desc' } });
+      expect(updateLog.metadata).toMatchObject({ reason: 'Requested by j•••@p•••.com on +250•••23 (school code 220901, 2026-11-11)', reasonRedacted: true });
+      const verifyLog = await p().auditLog.findFirstOrThrow({ where: { action: 'SCHOOL_CONTACT_VERIFIED', entityId: school }, orderBy: { createdAt: 'desc' } });
+      expect(verifyLog.metadata).toMatchObject({ reason: 'Confirmed by phone: +250•••88', reasonRedacted: true });
+
+      const secrets = ['jean.bosco@parents-mail.com', 'Jean.Bosco@Parents-Mail.com', 'parents-mail', '788555123', '788 555 123', '722999888', '722 999 888'];
+      const trail = JSON.stringify(await p().auditLog.findMany({ select: { metadata: true } }));
+      for (const s of secrets) expect([s, trail.includes(s)]).toEqual([s, false]);
+      for (const token of [admin, superAdmin]) {
+        const csv = await http().get('/api/v1/admin/audit-logs/export.csv').set(bearer(token)).expect(200);
+        const list = await http().get('/api/v1/admin/audit-logs').query({ limit: 100 }).set(bearer(token)).expect(200);
+        expect(csv.text).toContain('school code 220901');   // the reason is still there, for accountability
+        for (const s of secrets) expect([s, csv.text.includes(s), JSON.stringify(list.body).includes(s)]).toEqual([s, false, false]);
+      }
+
+      // A reason without contact details is kept exactly (no reasonRedacted) …
+      await http().post(`${S}/${school}/contacts/${deputy.id}/verify`).set(bearer(admin)).send({ reason: 'Re-checked with NESA on 2026-11-11' }).expect(200);
+      expect((await p().auditLog.findFirstOrThrow({ where: { action: 'SCHOOL_CONTACT_VERIFIED', entityId: school }, orderBy: { createdAt: 'desc' } })).metadata)
+        .toMatchObject({ reason: 'Re-checked with NESA on 2026-11-11' });
+      expect((await p().auditLog.findFirstOrThrow({ where: { action: 'SCHOOL_CONTACT_VERIFIED', entityId: school }, orderBy: { createdAt: 'desc' } })).metadata).not.toHaveProperty('reasonRedacted');
+      // … and reasons outside contact changes are unchanged (recorded as written).
+      expect(await patch(school, { location: 'Ngoma, by the market', reason: 'Head teacher at 0788 000 111 asked' })).toEqual([200, null]);
+      expect((await p().auditLog.findFirstOrThrow({ where: { action: 'UPDATE_SCHOOL', entityId: school }, orderBy: { createdAt: 'desc' } })).metadata)
+        .toMatchObject({ reason: 'Head teacher at 0788 000 111 asked' });
+    });
+
+    it('M1: no audit entry, the audit-log list or its CSV export (Administrator and Super Admin) contains a contact value — only masked values', async () => {
+      const secrets = ['head@gs-contact.rw', 'Head@GS-Contact.RW', 'gs-contact', '788123456', '788 123 456', '722000111', '722 000 111', 'office@other.rw'];
+      const trail = JSON.stringify(await p().auditLog.findMany({ select: { metadata: true } }));
+      expect(trail).toContain('h•••@g•••.rw');   // the contact entries exist, masked
+      for (const s of secrets) expect([s, trail.includes(s)]).toEqual([s, false]);
+      for (const token of [admin, superAdmin]) {
+        const csv = await http().get('/api/v1/admin/audit-logs/export.csv').set(bearer(token)).expect(200);
+        expect(csv.text).toContain('UPDATE_SCHOOL_CONTACTS');
+        expect(csv.text).toContain('SCHOOL_CONTACT_VERIFIED');
+        const list = await http().get('/api/v1/admin/audit-logs').query({ limit: 100 }).set(bearer(token)).expect(200);
+        for (const s of secrets) expect([s, csv.text.includes(s), JSON.stringify(list.body).includes(s)]).toEqual([s, false, false]);
+      }
     });
   });
 
@@ -449,10 +527,32 @@ describe('School directory S1 (M12)', () => {
     await putContacts(school, [{ type: 'EMAIL', value: 'history@x.rw' }]).expect(200);
     await apart();
     await putOfferings(school, { levels: [{ code: 'PR' }], programmes: [] }).expect(200);
-    const log = (await http().get(`${S}/${school}/history`).set(bearer(admin)).expect(200)).body;
-    expect(log.audit.data.map((a: any) => a.action)).toEqual(['UPDATE_SCHOOL_OFFERINGS', 'UPDATE_SCHOOL_CONTACTS', 'CREATE_SCHOOL']);
-    expect(log.sourceRecords).toEqual([]);
+    for (const token of [admin, superAdmin]) {
+      const log = (await http().get(`${S}/${school}/history`).set(bearer(token)).expect(200)).body;
+      expect(log.auditVisible).toBe(true);
+      expect(log.audit.data.map((a: any) => a.action)).toEqual(['UPDATE_SCHOOL_OFFERINGS', 'UPDATE_SCHOOL_CONTACTS', 'CREATE_SCHOOL']);
+      expect(log.sourceRecords).toEqual([]);
+    }
     expect(await status(http().get(`${S}/00000000-0000-4000-8000-000000000000/history`).set(bearer(admin)))).toEqual([404, expect.any(String)]);
+  });
+
+  it('m1: an Administrator denied audit.view gets the source records but no audit entries; with the DENY lifted, the entries return; Super Admins always see them', async () => {
+    const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const restricted = await p().user.create({ data: { username: 'sd.admin.noaudit', firstName: 'No', lastName: 'Audit', email: 'sd.admin.noaudit@test.local', role: 'ADMIN', passwordHash: hash, activatedAt: new Date() } });
+    const token = await login(ctx, 'sd.admin.noaudit');
+    const history = async (t: string) => (await http().get(`${S}/${officialSouth}/history`).set(bearer(t)).expect(200)).body;
+    expect((await history(token)).auditVisible).toBe(true);
+    const deny = await http().post(`/api/v1/admin/users/${restricted.id}/permission-overrides`).set(bearer(superAdmin))
+      .send({ permission: 'audit.view', effect: 'DENY', reason: 'm1 test: no audit access' }).expect(201);
+    await http().get('/api/v1/admin/audit-logs').set(bearer(token)).expect(403);   // the DENY applies to the audit routes …
+    const h = await history(token);                                              // … and to the school history
+    expect(h).toMatchObject({ schoolId: officialSouth, auditVisible: false, audit: null });
+    expect(h.sourceRecords).toHaveLength(1);
+    expect((await history(superAdmin)).auditVisible).toBe(true);
+    expect((await history(admin)).auditVisible).toBe(true);
+    await http().delete(`/api/v1/admin/users/${restricted.id}/permission-overrides/${deny.body.id}`).set(bearer(superAdmin)).expect(200);
+    const lifted = await history(token);
+    expect(lifted).toMatchObject({ auditVisible: true, audit: { data: expect.any(Array), meta: expect.objectContaining({ total: expect.any(Number) }) } });
   });
 
   // ─── Authorization ───────────────────────────────────────────────────────────

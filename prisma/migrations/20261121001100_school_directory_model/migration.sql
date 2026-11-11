@@ -17,7 +17,8 @@
 --   SchoolSourceRecord   each source row verbatim (every column); never deleted, and its source
 --                        data never edited (trigger) — only its link to a school may change
 --   SchoolContact        e-mail / phone; ADMIN_ONLY by default; REPRESENTATIVES only when
---                        verified (CHECK constraint)
+--                        verified (CHECK constraint); never deleted — removal sets removedAt
+--                        (trigger school_contact_keep)
 --   EducationLevel       reference data (seeded: PPR, PR, OL, AL, PE)
 --   SchoolEducationLevel, Programme, SchoolProgramme   what each school offers
 --
@@ -112,6 +113,8 @@ CREATE TABLE "SchoolContact" (
     "dataSourceId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "removedAt" TIMESTAMP(3),
+    "removedById" TEXT,
 
     CONSTRAINT "SchoolContact_pkey" PRIMARY KEY ("id")
 );
@@ -186,7 +189,10 @@ CREATE INDEX "SchoolContact_verifiedById_idx" ON "SchoolContact"("verifiedById")
 CREATE INDEX "SchoolContact_dataSourceId_idx" ON "SchoolContact"("dataSourceId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SchoolContact_schoolId_type_value_key" ON "SchoolContact"("schoolId", "type", "value");
+CREATE INDEX "SchoolContact_schoolId_type_value_idx" ON "SchoolContact"("schoolId", "type", "value");
+
+-- CreateIndex
+CREATE INDEX "SchoolContact_removedById_idx" ON "SchoolContact"("removedById");
 
 -- CreateIndex
 CREATE INDEX "SchoolEducationLevel_levelCode_idx" ON "SchoolEducationLevel"("levelCode");
@@ -231,6 +237,9 @@ ALTER TABLE "SchoolContact" ADD CONSTRAINT "SchoolContact_schoolId_fkey" FOREIGN
 ALTER TABLE "SchoolContact" ADD CONSTRAINT "SchoolContact_verifiedById_fkey" FOREIGN KEY ("verifiedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "SchoolContact" ADD CONSTRAINT "SchoolContact_removedById_fkey" FOREIGN KEY ("removedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "SchoolContact" ADD CONSTRAINT "SchoolContact_dataSourceId_fkey" FOREIGN KEY ("dataSourceId") REFERENCES "SchoolDataSource"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -258,6 +267,19 @@ ALTER TABLE "School" ADD CONSTRAINT "School_lastVerifiedById_fkey" FOREIGN KEY (
 -- Contacts: visible to school representatives only once an Administrator has verified them.
 ALTER TABLE "SchoolContact" ADD CONSTRAINT "SchoolContact_visibility_verified_check"
   CHECK ("visibility" = 'ADMIN_ONLY' OR "verifiedAt" IS NOT NULL);
+
+-- Contacts are never deleted: removing or replacing one sets removedAt, so every value a school
+-- had stays readable by Administrators (and only by them).
+CREATE OR REPLACE FUNCTION school_contact_keep() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'SCHOOL_CONTACT_PERMANENT: contacts are removed by setting removedAt, never deleted'
+    USING ERRCODE = 'insufficient_privilege';
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER school_contact_keep
+  BEFORE DELETE ON "SchoolContact"
+  FOR EACH ROW EXECUTE FUNCTION school_contact_keep();
 
 -- Source records: the published data is permanent. Only the link to a school (schoolId,
 -- matchedBy) and the recorded issues may change; the row is never deleted.

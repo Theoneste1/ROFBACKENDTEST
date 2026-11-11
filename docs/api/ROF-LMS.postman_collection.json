@@ -3130,7 +3130,14 @@
                   "description": ""
                 }
               ],
-              "query": []
+              "query": [
+                {
+                  "key": "includeRemoved",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Also list removed and replaced contacts (with when and by whom)."
+                }
+              ]
             },
             "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
           }

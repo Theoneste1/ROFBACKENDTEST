@@ -15,8 +15,9 @@
 --      (through the application) — never by deleting schools or relationships.
 --        SELECT "name", count(*) FROM "School" GROUP BY "name" HAVING count(*) > 1;
 --
---   2. Directory data exists (contacts, offerings, external ids, source records, programmes, or a
---      value in a new School column) — it would be lost with the tables. To discard it knowingly,
+--   2. Directory data exists (contacts — removed ones included —, offerings, external ids, source
+--      records, programmes, or a value in a new School column) — it would be lost with the tables.
+--      To discard it knowingly,
 --      after a backup that contains it, run this file in a session that first sets:
 --        SET rof.m12_rollback = 'discard-directory-data';
 --      (EducationLevel and SchoolDataSource hold only the seeded reference rows and do not count.)
@@ -60,8 +61,10 @@ BEGIN
   END IF;
 END $$;
 
+DROP TRIGGER IF EXISTS school_contact_keep ON "SchoolContact";
 DROP TRIGGER IF EXISTS school_source_record_immutable ON "SchoolSourceRecord";
 DROP TRIGGER IF EXISTS school_external_id_keep ON "SchoolExternalId";
+DROP FUNCTION IF EXISTS school_contact_keep();
 DROP FUNCTION IF EXISTS school_source_record_immutable();
 DROP FUNCTION IF EXISTS school_external_id_keep();
 

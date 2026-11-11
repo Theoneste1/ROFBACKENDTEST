@@ -30,6 +30,25 @@ describe('school directory guards (S1)', () => {
       .toEqual(['schools/directory/school-directory-data.service.ts']);
   });
 
+  it('contacts are never deleted, and what an audit entry records of a contact is masked — never its value (M1)', () => {
+    const service = readFileSync(join(SRC, 'schools/directory/school-directory-data.service.ts'), 'utf8');
+    for (const f of files(SRC)) expect([rel(f), /\.schoolContact\.(delete|deleteMany)\s*\(|DELETE\s+FROM\s+"SchoolContact"/i.test(readFileSync(f, 'utf8'))]).toEqual([rel(f), false]);
+    const start = service.indexOf('const contactFacts');
+    const facts = service.slice(service.indexOf('=>', start), service.indexOf('\n\n', start));   // the returned object
+    expect(facts).toContain('masked: maskContact(c.type, c.value)');
+    expect(facts.replace('maskContact(c.type, c.value)', '')).not.toMatch(/\bvalue\b\s*:|c\.value|rawValue/);
+    // Every contact handed to an audit entry goes through contactFacts.
+    const auditCalls = service.split('this.audit.log(').slice(1).map((c) => c.slice(0, c.indexOf('}, tx);')));
+    for (const call of auditCalls) expect(call).not.toMatch(/\.value\b|rawValue/);
+    // The reason of a contact change is recorded only through contactReason (e-mails and phones masked).
+    const contactCalls = auditCalls.filter((c) => /'UPDATE_SCHOOL_CONTACTS'|'SCHOOL_CONTACT_VERIFIED'/.test(c));
+    expect(contactCalls).toHaveLength(2);
+    for (const call of contactCalls) {
+      expect(call).toContain('...contactReason(dto.reason)');
+      expect(call).not.toMatch(/reason:\s*dto\.reason/);
+    }
+  });
+
   it('every file that writes a school or its directory data takes the directory lock', () => {
     const writers = files(SRC).filter((f) => WRITES_SCHOOL_DATA.test(readFileSync(f, 'utf8')));
     expect(writers.map(rel).sort()).toEqual([

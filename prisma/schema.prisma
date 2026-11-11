@@ -420,6 +420,7 @@ model User {
   schoolsCreated             School[]                   @relation("SchoolCreatedBy")
   schoolsVerified            School[]                   @relation("SchoolVerifiedBy")
   schoolContactsVerified     SchoolContact[]            @relation("SchoolContactVerifiedBy")
+  schoolContactsRemoved      SchoolContact[]            @relation("SchoolContactRemovedBy")
   notifications              Notification[]
   notificationPrefs          NotificationPreference[]
   notificationSettings       NotificationSetting[]
@@ -578,7 +579,10 @@ model SchoolSourceRecord {
 }
 
 /// A school's e-mail address or phone number. ADMIN_ONLY by default; REPRESENTATIVES only once an
-/// Administrator has verified it (database check). Never in public search, registration or exports.
+/// Administrator has verified it (database check). Never in public search, registration, exports or
+/// audit entries (which record a masked value). Never deleted: removing or replacing a contact sets
+/// removedAt, so every value it had stays readable by Administrators only. At most one active
+/// contact per school, type and value (enforced under the school's row lock).
 model SchoolContact {
   id           String                  @id @default(uuid())
   schoolId     String
@@ -599,9 +603,14 @@ model SchoolContact {
   dataSource   SchoolDataSource?       @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @default(now()) @updatedAt
+  /// Removed (or replaced by a new value): kept, no longer active.
+  removedAt    DateTime?
+  removedById  String?
+  removedBy    User?                   @relation("SchoolContactRemovedBy", fields: [removedById], references: [id], onDelete: SetNull)
 
-  @@unique([schoolId, type, value])
+  @@index([schoolId, type, value])
   @@index([verifiedById])
+  @@index([removedById])
   @@index([dataSourceId])
 }
 
