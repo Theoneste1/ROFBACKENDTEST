@@ -74,4 +74,7 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/school-affiliations/:id/reopen  AdminSchoolAffiliationsController.reopen':              ADMINISTRATORS,
   'GET /api/v1/admin/school-affiliations/:id/candidates  AdminSchoolAffiliationsController.candidates':       ADMINISTRATORS,
   'POST /api/v1/me/school-affiliation  MySchoolAffiliationController.request':                                STUDENTS_ONLY,
+  // School administration PR D — bulk school import (schools.manage)
+  'GET /api/v1/admin/schools/import-template  AdminSchoolsController.importTemplate':                         ADMINISTRATORS,
+  'POST /api/v1/admin/schools/import  AdminSchoolsController.import':                                         ADMINISTRATORS,
 };

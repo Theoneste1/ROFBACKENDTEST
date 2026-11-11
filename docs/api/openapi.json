@@ -19877,6 +19877,129 @@
         "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
+    "/api/v1/admin/schools/import-template": {
+      "get": {
+        "operationId": "AdminSchoolsController_importTemplate",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "description": "csv (default) or xlsx.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "xlsx"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The import template: CSV (header row) or XLSX (a Schools sheet + an Instructions sheet). Declared before :id.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/import": {
+      "post": {
+        "operationId": "AdminSchoolsController_import",
+        "parameters": [
+          {
+            "name": "dryRun",
+            "required": false,
+            "in": "query",
+            "description": "Validate and report only; create nothing.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "confirmPossibleDuplicates",
+            "required": false,
+            "in": "query",
+            "description": "Import rows that have possible duplicates — requires the reviewToken of the dry run that showed them.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "reviewToken",
+            "required": false,
+            "in": "query",
+            "description": "From the dry run (or a 409 response): binds the confirmation to this file, these candidates and this Administrator.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 2000,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import schools from a .csv or .xlsx file (at most 1 MB / 1,000 schools). All-or-nothing: any\ninvalid row → 422 and nothing is created. Possible duplicates need confirmPossibleDuplicates\nwith the reviewToken of a dry run (409 when unconfirmed or changed since the review).\ndryRun=true validates only (200); a successful import returns 201.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/schools": {
       "get": {
         "operationId": "AdminSchoolsController_list",

@@ -1,5 +1,8 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { memoryStorage } from 'multer';
 
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -7,6 +10,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import { AdminSchoolsService } from './admin-schools.service.js';
 import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
+import { ImportSchoolsQueryDto, ImportTemplateQueryDto } from './import/school-import.dto.js';
+import { IMPORT_MAX_BYTES } from './import/school-import.parser.js';
+import { SchoolImportService } from './import/school-import.service.js';
+import { csvTemplate, TEMPLATE_CSV_NAME, TEMPLATE_XLSX_NAME, XLSX_CONTENT_TYPE, xlsxTemplate } from './import/school-import.template.js';
 
 /**
  * School administration (schools.manage: Administrators and Super Admins only). Every change is
@@ -17,7 +24,41 @@ import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolD
 @ApiBearerAuth()
 @Controller('admin/schools')
 export class AdminSchoolsController {
-  constructor(private readonly service: AdminSchoolsService) {}
+  constructor(
+    private readonly service: AdminSchoolsService,
+    private readonly importer: SchoolImportService,
+  ) {}
+
+  /** The import template: CSV (header row) or XLSX (a Schools sheet + an Instructions sheet). Declared before :id. */
+  @Get('import-template')
+  @RequirePermission('schools.manage')
+  async importTemplate(@Query() q: ImportTemplateQueryDto, @Res() res: Response) {
+    const xlsx = q.format === 'xlsx';
+    res.setHeader('Content-Type', xlsx ? XLSX_CONTENT_TYPE : 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${xlsx ? TEMPLATE_XLSX_NAME : TEMPLATE_CSV_NAME}"`);
+    res.send(xlsx ? await xlsxTemplate() : csvTemplate());
+  }
+
+  /**
+   * Import schools from a .csv or .xlsx file (at most 1 MB / 1,000 schools). All-or-nothing: any
+   * invalid row → 422 and nothing is created. Possible duplicates need confirmPossibleDuplicates
+   * with the reviewToken of a dry run (409 when unconfirmed or changed since the review).
+   * dryRun=true validates only (200); a successful import returns 201.
+   */
+  @Post('import')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_MAX_BYTES, files: 1 } }))
+  @RequirePermission('schools.manage')
+  async import(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Query() q: ImportSchoolsQueryDto,
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.importer.run(file, q, user);
+    res.status(result.dryRun ? 200 : 201);
+    return result;
+  }
 
   /** Every school — official, Administrator-created and legacy; active and inactive — with student counts. */
   @Get()

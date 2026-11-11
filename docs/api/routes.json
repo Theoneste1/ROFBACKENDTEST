@@ -706,6 +706,24 @@
     "tag": "Admin · Schools"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/schools/import",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/import-template",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/settings",
     "roles": [

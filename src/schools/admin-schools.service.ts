@@ -18,6 +18,10 @@
  * country is a POSSIBLE_DUPLICATE (409) unless the request confirms it; the confirmation is
  * audited. The duplicate check and the write run under an advisory lock on the normalised name,
  * so two concurrent requests cannot both pass the check.
+ *
+ * PR D: the rules live in school-validation.ts (shared with the bulk import), and every write
+ * takes its locks through schoolLockPlan / lockSchoolKeys (school-locks.ts): the edited school's
+ * row first, then sorted name locks, then sorted code locks.
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -28,27 +32,22 @@ import { pageArgs, paginated, type PaginationQueryDto } from '../common/paginati
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
-import { assertDirectoryPlace, SQL_NAME_KEY } from './school-directory.js';
-import { schoolKey } from './school-key.js';
-import { codeProblems, RWANDA } from './school-rules.js';
+import { lockSchoolKeys, schoolLockPlan } from './school-locks.js';
+import { RWANDA } from './school-rules.js';
+import {
+  assertCodeFree, assertNameFree, assertSchoolPlace, codeTaken, EDITABLE, findPossibleDuplicates, nameTaken,
+  newSchoolRecord, possibleDuplicateError, schoolNameKey, schoolSnapshot, validateSchoolFields,
+  type DuplicateCandidate, type Editable, type SchoolFields,
+} from './school-validation.js';
 
 type Tx = Prisma.TransactionClient;
-
-/** Namespace of the advisory lock taken on a normalised school name while creating / renaming. */
-const SCHOOL_NAME_LOCK_NAMESPACE = 4213;
+type Place = SchoolFields;
 
 const SCHOOL_SELECT = {
   id: true, name: true, code: true, countryCode: true, province: true, district: true, sector: true,
   location: true, ownership: true, source: true, isActive: true, createdAt: true, updatedAt: true,
   createdBy: { select: { id: true, username: true } },
 } as const;
-
-/** Fields an edit may change, in audit order. */
-const EDITABLE = ['name', 'countryCode', 'code', 'province', 'district', 'sector', 'location', 'ownership'] as const;
-type Editable = (typeof EDITABLE)[number];
-type Place = Record<Editable, string | null>;
-
-interface DuplicateCandidate { id: string; name: string; code: string | null; countryCode: string; district: string | null; isActive: boolean }
 
 @Injectable()
 export class AdminSchoolsService {
@@ -129,22 +128,14 @@ export class AdminSchoolsService {
     const key = this.nameKey(place.name!);
 
     return this.write(async (tx) => {
-      await this.lockName(tx, key);
+      await lockSchoolKeys(tx, schoolLockPlan([{ before: null, after: { ...place, isActive: true } }]));
       await this.assertDirectoryPlace(tx, place);
       await this.assertNameFree(tx, place.name!, null);
       if (place.code) await this.assertCodeFree(tx, place.code, null);
       const candidates = await this.possibleDuplicates(tx, key, place, null);
       this.assertNoDuplicate(candidates, dto.confirmPossibleDuplicate);
 
-      const school = await tx.school.create({
-        data: {
-          name: place.name!, nameKey: key, code: place.code, countryCode: place.countryCode!,
-          province: place.province, district: place.district, sector: place.sector,
-          location: place.location ?? `${place.sector}, ${place.district}`, ownership: place.ownership,
-          source: 'ADMIN', isActive: true, createdById: caller.id,
-        },
-        select: SCHOOL_SELECT,
-      });
+      const school = await tx.school.create({ data: newSchoolRecord(place, key, caller.id), select: SCHOOL_SELECT });
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role, action: 'CREATE_SCHOOL', entity: 'School', entityId: school.id,
         metadata: {
@@ -179,7 +170,9 @@ export class AdminSchoolsService {
       }
 
       const key = this.nameKey(after.name!);
-      if (changed('name')) await this.lockName(tx, key);
+      await lockSchoolKeys(tx, schoolLockPlan([{
+        before: { ...before, isActive: current.isActive }, after: { ...after, isActive: current.isActive },
+      }]));
       if ((['countryCode', 'province', 'district', 'sector', 'code'] as const).some(changed)) await this.assertDirectoryPlace(tx, after);
       if (changed('name')) await this.assertNameFree(tx, after.name!, id);
       if (changed('code')) await this.assertCodeFree(tx, after.code!, id);
@@ -214,6 +207,10 @@ export class AdminSchoolsService {
   async setActive(id: string, dto: SetSchoolActiveDto, caller: CallerCtx) {
     return this.write(async (tx) => {
       const current = await this.lockSchool(tx, id);
+      const fields = { name: current.name, code: current.code, countryCode: current.countryCode, district: current.district };
+      await lockSchoolKeys(tx, schoolLockPlan([{
+        before: { ...fields, isActive: current.isActive }, after: { ...fields, isActive: dto.isActive },
+      }]));
       const impact = await this.impact(tx, id);
       if (current.isActive === dto.isActive) {
         return { school: await tx.school.findUniqueOrThrow({ where: { id }, select: SCHOOL_SELECT }), changed: false, impact };
@@ -262,82 +259,32 @@ export class AdminSchoolsService {
     return school;
   }
 
-  private lockName(tx: Tx, key: string) {
-    return tx.$queryRaw`SELECT pg_advisory_xact_lock(${SCHOOL_NAME_LOCK_NAMESPACE}::int, hashtext(${key}))::text`;
-  }
-
   private nameKey(name: string) {
-    const key = schoolKey(name);
-    if (!key) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SCHOOL_NAME', 'The school name must contain letters or digits.');
-    return key;
+    return schoolNameKey(name);
   }
 
-  /**
-   * The resulting school's country rules. Rwanda: province, district and sector (official directory)
-   * are required — except for a LEGACY school (entered before the directory), which may keep none
-   * until a place or a code is given; then the place must be complete.
-   */
   private placeFor(p: Place, opts: { legacy?: boolean } = {}): Place {
-    const problems: string[] = [];
-    if (p.countryCode === RWANDA) {
-      const anyPlace = !!(p.province || p.district || p.sector);
-      const placeRequired = !opts.legacy || anyPlace || !!p.code;
-      if (placeRequired && (!p.province || !p.district || !p.sector)) {
-        problems.push('A school in Rwanda needs province, district and sector (from the official directory).');
-      }
-      if (p.code) problems.push(...codeProblems(p.code, p.province));
-    } else {
-      if (p.code) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda.');
-      }
-      if (p.province || p.district || p.sector) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY',
-          'Province, district and sector are Rwanda\'s directory; for another country give a location instead.');
-      }
-      if (!p.location) problems.push('A school outside Rwanda needs a location.');
-    }
-    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SCHOOL', problems.join(' '), { problems });
-    return p;
+    return validateSchoolFields(p, opts);
   }
 
-  /** Rwanda: the province / district / sector must exist in the official directory (M8). */
-  private async assertDirectoryPlace(tx: Tx, p: Place) {
-    if (p.countryCode !== RWANDA || (!p.province && !p.district && !p.sector)) return;   // a legacy school without a place
-    await assertDirectoryPlace(tx, p);
+  private assertDirectoryPlace(tx: Tx, p: Place) {
+    return assertSchoolPlace(tx, p);
   }
 
-  private async assertNameFree(tx: Tx, name: string, exceptId: string | null) {
-    const other = await tx.school.findUnique({ where: { name }, select: { id: true } });
-    if (other && other.id !== exceptId) throw nameTaken(other.id);
+  private assertNameFree(tx: Tx, name: string, exceptId: string | null) {
+    return assertNameFree(tx, name, exceptId);
   }
 
-  private async assertCodeFree(tx: Tx, code: string, exceptId: string | null) {
-    const other = await tx.school.findUnique({ where: { code }, select: { id: true } });
-    if (other && other.id !== exceptId) throw codeTaken(other.id);
+  private assertCodeFree(tx: Tx, code: string, exceptId: string | null) {
+    return assertCodeFree(tx, code, exceptId);
   }
 
-  /**
-   * Same normalised name — Rwanda: in the same district, or with no district recorded (legacy);
-   * elsewhere: in the same country. Legacy rows without a nameKey are normalised in SQL.
-   */
   private possibleDuplicates(tx: Tx, key: string, p: Place, exceptId: string | null) {
-    const place = p.countryCode === RWANDA
-      ? Prisma.sql`"countryCode" = ${RWANDA} AND ("district" = ${p.district} OR "district" IS NULL)`
-      : Prisma.sql`"countryCode" = ${p.countryCode}`;
-    return tx.$queryRaw<DuplicateCandidate[]>`
-      SELECT "id", "name", "code", "countryCode", "district", "isActive" FROM "School"
-       WHERE ${place}
-         AND ("nameKey" = ${key} OR ("nameKey" IS NULL AND ${SQL_NAME_KEY} = ${key}))
-         AND "id" <> ${exceptId ?? ''}
-       ORDER BY "name", "id" LIMIT 20`;
+    return findPossibleDuplicates(tx, key, p, exceptId);
   }
 
   private assertNoDuplicate(candidates: DuplicateCandidate[], confirmed?: boolean) {
-    if (candidates.length && !confirmed) {
-      throw new AppError(HttpStatus.CONFLICT, 'POSSIBLE_DUPLICATE',
-        'A school with the same name already exists nearby. Use it, or repeat the request with confirmPossibleDuplicate: true.',
-        { candidates });
-    }
+    if (candidates.length && !confirmed) throw possibleDuplicateError(candidates);
   }
 
   /** What deactivating (or reactivating) the school touches — none of it is changed. */
@@ -352,13 +299,6 @@ export class AdminSchoolsService {
   }
 
   private snapshot(s: Record<string, unknown>) {
-    return Object.fromEntries([...EDITABLE, 'source', 'isActive'].map((k) => [k, s[k] ?? null]));
+    return schoolSnapshot(s);
   }
-}
-
-function nameTaken(schoolId?: string) {
-  return new AppError(HttpStatus.CONFLICT, 'SCHOOL_NAME_TAKEN', 'A school with this name already exists.', schoolId && { schoolId });
-}
-function codeTaken(schoolId?: string) {
-  return new AppError(HttpStatus.CONFLICT, 'SCHOOL_CODE_TAKEN', 'A school with this code already exists.', schoolId && { schoolId });
 }

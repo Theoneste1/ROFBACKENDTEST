@@ -8,7 +8,8 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative, sep } from 'path';
 
 const SRC = join(__dirname, '..');
-const ALLOWED = ['schools/admin-schools.service.ts'];
+/** Single create (PR B) and the separately authorised bulk import (PR D) — nothing else. */
+const ALLOWED = ['schools/admin-schools.service.ts', 'schools/import/school-import.service.ts'];
 const CREATES_SCHOOL = /\.school\.(create|createMany|createManyAndReturn|upsert)\s*\(|INSERT\s+INTO\s+"School"/i;
 
 function files(dir: string): string[] {
@@ -23,6 +24,16 @@ describe('school creation guard (PR B)', () => {
   it('only AdminSchoolsService creates schools', () => {
     const creators = files(SRC).filter((f) => CREATES_SCHOOL.test(readFileSync(f, 'utf8'))).map((f) => relative(SRC, f).split(sep).join('/'));
     expect(creators).toEqual(ALLOWED);
+  });
+
+  it('the import service creates schools in exactly one place — its createSchools step — not through a general helper', () => {
+    const source = readFileSync(join(SRC, 'schools/import/school-import.service.ts'), 'utf8');
+    const creations = source.match(new RegExp(CREATES_SCHOOL.source, 'gi')) ?? [];
+    expect(creations).toHaveLength(1);
+    const body = source.slice(source.indexOf('private async createSchools('));
+    expect(CREATES_SCHOOL.test(body.slice(0, body.indexOf('\n  }\n')))).toBe(true);
+    // AdminSchoolsService: exactly one creation too (its create()).
+    expect(readFileSync(join(SRC, 'schools/admin-schools.service.ts'), 'utf8').match(new RegExp(CREATES_SCHOOL.source, 'gi'))).toHaveLength(1);
   });
 
   it('the pattern catches every Prisma creation form and raw SQL', () => {
