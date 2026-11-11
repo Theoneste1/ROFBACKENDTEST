@@ -7,7 +7,8 @@
  * All-or-nothing; exactly the single-create rules; create-only; possible duplicates need an
  * explicit, token-bound confirmation that is re-checked under the locks; every school and audit
  * record in one transaction; refusals never write CREATE_SCHOOL. Shared locks for create, import,
- * PATCH and setActive: the edited school's row, then sorted name locks, then sorted code locks.
+ * PATCH and setActive: the directory lock (shared, S1), the edited school's row, then sorted name
+ * locks, then sorted code locks. Names may repeat (M12): rows are mapped back to schools by id.
  */
 import { deflateRawSync } from 'node:zlib';
 
@@ -131,21 +132,26 @@ describe('Bulk school import (PR D)', () => {
       R('Dry Taken Code', { code: '220001' }),
       R('Dry Valid School'),
       R('Dry Bad Ownership', { ownership: 'CHARITY' }),
+      R('gs kacyiru official'),
     ]);
     const res = await upload(file, { dryRun: true }, { filename: '../../evil/dir/schools-batch.csv' }).expect(200);
-    expect(res.body).toMatchObject({ dryRun: true, totalRows: 8, valid: 2, failed: 6, canImport: false, possibleDuplicates: [] });
-    expect(res.body.reviewToken).toBeUndefined();
+    // M12: names repeat. Row 6 has an existing school's exact name in the same district → a possible
+    // duplicate (not an error); row 10 has one from another district → simply a valid row.
+    expect(res.body).toMatchObject({
+      dryRun: true, totalRows: 9, valid: 4, failed: 5, canImport: false,
+      possibleDuplicates: [{ row: 6, name: 'gs ngoma official', candidates: [expect.objectContaining({ name: 'gs ngoma official', code: '220001' })] }],
+    });
+    expect(res.body.reviewToken).toBeUndefined();   // rows have errors: nothing can be confirmed yet
     expect(res.body.errors.map((e: any) => [e.row, e.errors.join(' ')])).toEqual([
       [4, 'Code 120555 belongs to Kigali City, not Southern Province.'],
       [5, 'Nowhere, Huye, Southern Province is not a place in the official directory.'],
-      [6, 'A school with this name already exists.'],
       [7, 'A school with this code already exists.'],
-      [8, 'name repeats row 2.'],
+      [8, 'same name as row 2 in the same district (a duplicate within this file).'],
       [9, expect.stringMatching(/ownership must be one of/)],
     ]);
     expect(await schoolCount()).toBe(before);
     const log = await p().auditLog.findFirstOrThrow({ where: { action: 'IMPORT_SCHOOLS_DRY_RUN' }, orderBy: { createdAt: 'desc' } });
-    expect(log.metadata).toMatchObject({ fileName: 'schools-batch.csv', fileSha256: expect.stringMatching(/^[0-9a-f]{64}$/), totalRows: 8, failed: 6 });
+    expect(log.metadata).toMatchObject({ fileName: 'schools-batch.csv', fileSha256: expect.stringMatching(/^[0-9a-f]{64}$/), totalRows: 9, failed: 5 });
     expect(JSON.stringify(log.metadata)).not.toContain('evil');
   });
 
@@ -159,9 +165,9 @@ describe('Bulk school import (PR D)', () => {
     expect(res.body).toMatchObject({ dryRun: false, totalRows: 3, created: 3, confirmedPossibleDuplicates: 0 });
     expect(res.body.schools.map((s: any) => [s.row, s.name, s.code])).toEqual([[2, 'Import One School', '220501'], [3, 'Import Two School', null], [4, 'Import Kenya Academy', null]]);
     expect(await schoolCount()).toBe(before + 3);
-    const two = await p().school.findUniqueOrThrow({ where: { name: 'Import Two School' } });
+    const two = await p().school.findFirstOrThrow({ where: { name: 'Import Two School' } });
     expect(two).toMatchObject({ source: 'ADMIN', isActive: true, createdById: ctx.ids.admin, ownership: null, location: 'Ngoma, Huye', countryCode: 'RW', nameKey: 'import two school' });
-    expect(await p().school.findUniqueOrThrow({ where: { name: 'Import Kenya Academy' } })).toMatchObject({ countryCode: 'KE', province: null, location: 'Mombasa' });
+    expect(await p().school.findFirstOrThrow({ where: { name: 'Import Kenya Academy' } })).toMatchObject({ countryCode: 'KE', province: null, location: 'Mombasa' });
     const creates = await p().auditLog.findMany({ where: { action: 'CREATE_SCHOOL', metadata: { path: ['importId'], equals: res.body.importId } } });
     expect(creates).toHaveLength(3);
     expect(creates.find((c) => c.entityId === two.id)!.metadata).toMatchObject({ via: 'IMPORT', row: 3, fileName: 'schools.csv', school: { name: 'Import Two School', source: 'ADMIN', isActive: true } });
@@ -198,10 +204,17 @@ describe('Bulk school import (PR D)', () => {
       .toMatchObject({ reason: 'IMPORT_INVALID', failed: 1, totalRows: 3, fileName: 'schools.csv' });
   });
 
-  it('create-only: an existing name or code is a row error; existing schools are never changed', async () => {
-    const existing = await p().school.findUniqueOrThrow({ where: { name: 'Import One School' } });
+  it('create-only: an existing code is a row error; an existing name nearby is a possible duplicate (M12: names repeat); existing schools are never changed', async () => {
+    const existing = await p().school.findFirstOrThrow({ where: { name: 'Import One School' } });
+    const before = await schoolCount();
     const res = await upload(csvOf([R('Import One School', { location: 'Changed' }), R('Other New School', { code: '220501' })])).expect(422);
-    expect(res.body.details.errors.map((e: any) => e.errors[0])).toEqual(['A school with this name already exists.', 'A school with this code already exists.']);
+    expect(res.body.details.errors).toEqual([{ row: 3, errors: ['A school with this code already exists.'] }]);
+    const dup = await upload(csvOf([R('Import One School', { location: 'Changed' })])).expect(409);
+    expect(dup.body).toMatchObject({
+      code: 'POSSIBLE_DUPLICATES_UNCONFIRMED',
+      details: { possibleDuplicates: [{ row: 2, candidates: [expect.objectContaining({ id: existing.id })] }] },
+    });
+    expect(await schoolCount()).toBe(before);
     expect(await p().school.findUniqueOrThrow({ where: { id: existing.id } })).toEqual(existing);
   });
 
@@ -218,7 +231,6 @@ describe('Bulk school import (PR D)', () => {
       { body: { name: 'Parity Kenya No Location', countryCode: 'KE' }, row: R('Parity Kenya No Location', { country: 'KE', place: null }) },
       { body: { name: 'Parity Bad Country', countryCode: 'XX', location: 'Somewhere' }, row: R('Parity Bad Country', { country: 'XX', place: null, location: 'Somewhere' }) },
       { body: { name: '!!', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }, row: R('!!') },
-      { body: { name: 'gs tumba official', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }, row: R('gs tumba official') },
       { body: { name: 'Parity Taken Code', code: '220002', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }, row: R('Parity Taken Code', { code: '220002' }) },
       { body: { name: 'Parity Bad Ownership', ownership: 'CHARITY', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }, row: R('Parity Bad Ownership', { ownership: 'CHARITY' }) },
     ];
@@ -228,10 +240,16 @@ describe('Bulk school import (PR D)', () => {
       const dry = await upload(csvOf([c.row]), { dryRun: true }).expect(200);
       expect([c.body.name, single.status >= 400, dry.body.errors[0]?.errors]).toEqual([c.body.name, true, singleMessages]);
     }
+    // An existing name in the same district (M12: names repeat): a possible duplicate for both, with the same candidates.
+    const dupSingle = await http().post(S).set(bearer(admin)).send({ name: 'gs tumba official', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }).expect(409);
+    const dupDry = await upload(csvOf([R('gs tumba official')]), { dryRun: true }).expect(200);
+    expect(dupSingle.body.code).toBe('POSSIBLE_DUPLICATE');
+    expect(dupDry.body.errors).toEqual([]);
+    expect(dupDry.body.possibleDuplicates[0].candidates.map((c: any) => c.id)).toEqual(dupSingle.body.details.candidates.map((c: any) => c.id));
     // Accepted alike, with the same defaults.
     const viaCreate = (await http().post(S).set(bearer(admin)).send({ name: 'Parity Accept A', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }).expect(201)).body;
     await upload(csvOf([R('Parity Accept B')])).expect(201);
-    const viaImport = await p().school.findUniqueOrThrow({ where: { name: 'Parity Accept B' } });
+    const viaImport = await p().school.findFirstOrThrow({ where: { name: 'Parity Accept B' } });
     for (const k of ['countryCode', 'province', 'district', 'sector', 'location', 'ownership', 'source', 'isActive', 'code'] as const) {
       expect([k, viaImport[k]]).toEqual([k, viaCreate[k]]);
     }
@@ -260,7 +278,7 @@ describe('Bulk school import (PR D)', () => {
       expect(await status(upload(dupFile(), { confirmPossibleDuplicates: true }))).toEqual([400, 'REVIEW_TOKEN_REQUIRED']);
       const ok = await upload(dupFile(), { confirmPossibleDuplicates: true, reviewToken: dry.body.reviewToken }).expect(201);
       expect(ok.body).toMatchObject({ created: 2, confirmedPossibleDuplicates: 1 });
-      const created = await p().school.findUniqueOrThrow({ where: { name: 'LYCEE DE HUYE' } });
+      const created = await p().school.findFirstOrThrow({ where: { name: 'LYCEE DE HUYE' } });
       expect((await p().auditLog.findFirstOrThrow({ where: { action: 'CREATE_SCHOOL', entityId: created.id } })).metadata)
         .toMatchObject({ confirmedPossibleDuplicate: true, possibleDuplicates: [expect.objectContaining({ id: target })] });
     });
@@ -341,7 +359,7 @@ describe('Bulk school import (PR D)', () => {
 
   it('a formula-like school name is kept as typed and neutralised in CSV exports', async () => {
     await upload(csvOf([R('=SUM(A1)')])).expect(201);
-    const school = await p().school.findUniqueOrThrow({ where: { name: '=SUM(A1)' } });
+    const school = await p().school.findFirstOrThrow({ where: { name: '=SUM(A1)' } });
     await http().post('/api/v1/admin/users').set(bearer(admin)).send({
       firstName: 'F', lastName: 'Ormula', username: 'si.formula', email: 'si.formula@test.local', password: 'Str0ng!Passw0rd', role: 'STUDENT', gradeLevel: 'S2', schoolId: school.id,
     }).expect(201);
@@ -492,7 +510,7 @@ describe('Bulk school import (PR D)', () => {
       expect(move).toBe(200);
       // Either the import ran first (no candidate yet in Huye, imported) or saw the moved school (409 unconfirmed).
       expect([[201, null], [409, 'POSSIBLE_DUPLICATES_UNCONFIRMED']]).toContainEqual(imp);
-      const imported = await p().school.findUnique({ where: { name: 'MOVING SCHOOL!' } });
+      const imported = await p().school.findFirst({ where: { name: 'MOVING SCHOOL!' } });
       if (imp[0] === 201) expect(imported).not.toBeNull(); else expect(imported).toBeNull();
     });
   });

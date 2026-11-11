@@ -169,11 +169,9 @@ async function seedDemo() {
   const courses   = await prisma.course.findMany();
   const admin     = await prisma.user.findFirstOrThrow({ where: { role: 'ADMIN' } });
 
-  const school = await prisma.school.upsert({
-    where:  { name: 'Demo Secondary School' },
-    create: { name: 'Demo Secondary School', location: 'Kigali' },
-    update: {},
-  });
+  // School names are not unique (M12): find the demo school by name and place, create it once.
+  const school = await prisma.school.findFirst({ where: { name: 'Demo Secondary School', location: 'Kigali', code: null } })
+    ?? await prisma.school.create({ data: { name: 'Demo Secondary School', location: 'Kigali' } });
 
   const mentors = [
     { username: 'mentor.junior', firstName: 'Jean',   lastName: 'Mentor', division: 'JUNIOR' as const },

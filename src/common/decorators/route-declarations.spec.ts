@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 17 @Public + 29 @Roles + 153 @RequirePermission + 54 @Authenticated = 253, none undeclared', () => {
+  it('declarations add up: 17 @Public + 29 @Roles + 160 @RequirePermission + 54 @Authenticated = 260, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 17, '@Roles': 29, '@RequirePermission': 153, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 17, '@Roles': 29, '@RequirePermission': 160, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -202,8 +202,9 @@ describe('route declarations (P1-02 §5)', () => {
       'users.manageTeachers': 6, 'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
       // School administration PR A: student–school verification (new routes);
       // PR B: school records (list, get, students, create, update, activate / deactivate);
-      // PR C: claim match, reopen, candidates; PR D: import template, import
-      'schools.manage': 17,
+      // PR C: claim match, reopen, candidates; PR D: import template, import;
+      // directory S1: reference data, contacts (get, replace, verify), offerings (get, replace), history
+      'schools.manage': 24,
     });
   });
 
@@ -316,7 +317,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 42 added since: 244 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 49 added since: 251 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

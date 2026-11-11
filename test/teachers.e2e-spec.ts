@@ -39,7 +39,7 @@ describe('Teachers (P1-11)', () => {
     admin = await login(ctx, 'admin');
     coachJ = await login(ctx, 'mentor.j');
     studentJ2 = await login(ctx, 'student.j2');
-    schoolA = (await p().school.findUniqueOrThrow({ where: { name: 'Test School' } })).id;
+    schoolA = (await p().school.findFirstOrThrow({ where: { name: 'Test School' } })).id;
     schoolB = (await p().school.create({ data: { name: 'Other School', location: 'Huye' } })).id;
     const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
     const mk = async (username: string, role: 'TEACHER' | 'STUDENT' | 'SUPER_ADMIN', extra: object = {}) =>

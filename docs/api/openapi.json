@@ -20000,6 +20000,42 @@
         "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/schools/reference-data": {
+      "get": {
+        "operationId": "AdminSchoolsController_referenceData",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Directory reference data: education levels and programmes (needsReview: not yet reviewed). Declared before :id.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/schools": {
       "get": {
         "operationId": "AdminSchoolsController_list",
@@ -20073,6 +20109,58 @@
                 "LEGACY"
               ]
             }
+          },
+          {
+            "name": "level",
+            "required": false,
+            "in": "query",
+            "description": "Offers this education level (e.g. PR, OL, AL).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 10,
+              "type": "string"
+            }
+          },
+          {
+            "name": "programme",
+            "required": false,
+            "in": "query",
+            "description": "Offers this programme (its id).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "accommodation",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DAY",
+                "BOARDING",
+                "MIXED"
+              ]
+            }
+          },
+          {
+            "name": "hasCode",
+            "required": false,
+            "in": "query",
+            "description": "false: schools without an official code.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "hasSourceIssues",
+            "required": false,
+            "in": "query",
+            "description": "true: schools whose source records report data problems.",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -20139,7 +20227,7 @@
             "bearer": []
           }
         ],
-        "summary": "Create a school (409 SCHOOL_NAME_TAKEN / SCHOOL_CODE_TAKEN / POSSIBLE_DUPLICATE).",
+        "summary": "Create a school (409 SCHOOL_CODE_TAKEN / POSSIBLE_DUPLICATE). Names may repeat (M12).",
         "tags": [
           "Admin · Schools"
         ],
@@ -20283,6 +20371,326 @@
           }
         ],
         "summary": "The school's students with the status of their current claim for this school.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/contacts": {
+      "get": {
+        "operationId": "AdminSchoolsController_contacts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeRemoved",
+            "required": false,
+            "in": "query",
+            "description": "Also list removed and replaced contacts (with when and by whom).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The school's contacts (Administrators only). Contacts are never returned by public search,\nregistration or exports; school representatives (S3) see only verified contacts authorised for them.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "AdminSchoolsController_putContacts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutSchoolContactsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace the school's active contacts (audited with masked values). Removed and replaced\ncontacts are kept (includeRemoved lists them); a new or changed value is unverified.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/contacts/{contactId}/verify": {
+      "post": {
+        "operationId": "AdminSchoolsController_verifyContact",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifySchoolContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Verify a contact; visibility REPRESENTATIVES also authorises it for the school's representatives (audited).",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/offerings": {
+      "get": {
+        "operationId": "AdminSchoolsController_offerings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The school's education levels and programmes.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "AdminSchoolsController_putOfferings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutSchoolOfferingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace the school's education levels and programmes (audited).",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/history": {
+      "get": {
+        "operationId": "AdminSchoolsController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The source records the school was matched with and — only with audit.view — its audit entries (newest first).",
         "tags": [
           "Admin · Schools"
         ],
@@ -39999,6 +40407,141 @@
           }
         }
       },
+      "ContactInputDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "An existing contact of this school (keeps its verification while its type and value are unchanged); omit for a new one.",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "OTHER",
+              "EMAIL",
+              "PHONE"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "description": "E-mail, phone (normalised to E.164; Rwanda: 07… → +2507…) or other text.",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "description": "At most one primary contact per type."
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ]
+      },
+      "PutSchoolContactsDto": {
+        "type": "object",
+        "properties": {
+          "contacts": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContactInputDto"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "contacts"
+        ]
+      },
+      "VerifySchoolContactDto": {
+        "type": "object",
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "description": "ADMIN_ONLY (default): verified, still visible to Administrators only. REPRESENTATIVES: also\nauthorised for the school's representatives (S3). Sending ADMIN_ONLY withdraws that authorisation.",
+            "enum": [
+              "ADMIN_ONLY",
+              "REPRESENTATIVES"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        }
+      },
+      "LevelInputDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "An education level code (GET /admin/schools/reference-data).",
+            "minLength": 1,
+            "maxLength": 10
+          },
+          "qualifier": {
+            "type": "string",
+            "description": "A published variant of the level (e.g. \"L\").",
+            "minLength": 1,
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "ProgrammeInputDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "PutSchoolOfferingsDto": {
+        "type": "object",
+        "properties": {
+          "levels": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LevelInputDto"
+            }
+          },
+          "programmes": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgrammeInputDto"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "levels",
+          "programmes"
+        ]
+      },
       "CreateSchoolDto": {
         "type": "object",
         "properties": {
@@ -40043,6 +40586,25 @@
               "PUBLIC",
               "GOVERNMENT_AIDED",
               "PRIVATE"
+            ]
+          },
+          "cell": {
+            "type": "string",
+            "description": "Rwanda only: the cell and village (free text, as in the official directory).",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "village": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "accommodation": {
+            "type": "string",
+            "enum": [
+              "DAY",
+              "BOARDING",
+              "MIXED"
             ]
           },
           "confirmPossibleDuplicate": {
@@ -40100,6 +40662,28 @@
               "PUBLIC",
               "GOVERNMENT_AIDED",
               "PRIVATE"
+            ]
+          },
+          "cell": {
+            "type": "string",
+            "nullable": true,
+            "description": "null clears.",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "village": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "accommodation": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "DAY",
+              "BOARDING",
+              "MIXED"
             ]
           },
           "reason": {

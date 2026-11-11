@@ -12,9 +12,10 @@
  *              claims, registrations and Teacher assignments (school-usage.ts). Reactivation
  *              restores that eligibility; history is never rewritten.
  *
- * Every change and its audit record are written in one transaction. Name and code are unique
- * (409 SCHOOL_NAME_TAKEN / SCHOOL_CODE_TAKEN, also when two requests race). A school with the
- * same normalised name in the same district (Rwanda; or with no district recorded) or the same
+ * Every change and its audit record are written in one transaction. The code is unique (409
+ * SCHOOL_CODE_TAKEN, also when two requests race). Names are not (school directory S1, M12):
+ * official names are kept exactly as published and several schools may share one. A school with
+ * the same normalised name in the same district (Rwanda; or with no district recorded) or the same
  * country is a POSSIBLE_DUPLICATE (409) unless the request confirms it; the confirmation is
  * audited. The duplicate check and the write run under an advisory lock on the normalised name,
  * so two concurrent requests cannot both pass the check.
@@ -22,6 +23,9 @@
  * PR D: the rules live in school-validation.ts (shared with the bulk import), and every write
  * takes its locks through schoolLockPlan / lockSchoolKeys (school-locks.ts): the edited school's
  * row first, then sorted name locks, then sorted code locks.
+ *
+ * S1: every write first takes the directory lock in shared mode (lockSchoolDirectory), so a
+ * directory sync (exclusive) never runs alongside a school write.
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -32,11 +36,10 @@ import { pageArgs, paginated, type PaginationQueryDto } from '../common/paginati
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
-import { lockSchoolKeys, schoolLockPlan } from './school-locks.js';
+import { lockSchoolDirectory, lockSchoolKeys, schoolLockPlan } from './school-locks.js';
 import { RWANDA } from './school-rules.js';
 import {
-  assertCodeFree, assertNameFree, assertSchoolPlace, codeTaken, EDITABLE, findPossibleDuplicates, nameTaken,
-  newSchoolRecord, possibleDuplicateError, schoolNameKey, schoolSnapshot, validateSchoolFields,
+  assertCodeFree, assertSchoolPlace, codeTaken, EDITABLE, findPossibleDuplicates, newSchoolRecord, possibleDuplicateError, schoolNameKey, schoolSnapshot, validateSchoolFields,
   type DuplicateCandidate, type Editable, type SchoolFields,
 } from './school-validation.js';
 
@@ -46,6 +49,7 @@ type Place = SchoolFields;
 const SCHOOL_SELECT = {
   id: true, name: true, code: true, countryCode: true, province: true, district: true, sector: true,
   location: true, ownership: true, source: true, isActive: true, createdAt: true, updatedAt: true,
+  cell: true, village: true, accommodation: true, lastSourceSyncAt: true, lastVerifiedAt: true,
   createdBy: { select: { id: true, username: true } },
 } as const;
 
@@ -68,6 +72,13 @@ export class AdminSchoolsService {
       ...(q.sector && { sector: q.sector }),
       ...(q.isActive !== undefined && { isActive: q.isActive }),
       ...(q.source && { source: q.source }),
+      ...(q.accommodation && { accommodation: q.accommodation }),
+      ...(q.hasCode !== undefined && { code: q.hasCode ? { not: null } : null }),
+      ...(q.level && { levels: { some: { levelCode: q.level } } }),
+      ...(q.programme && { programmes: { some: { programmeId: q.programme } } }),
+      ...(q.hasSourceIssues !== undefined && {
+        sourceRecords: q.hasSourceIssues ? { some: { issueCount: { gt: 0 } } } : { none: { issueCount: { gt: 0 } } },
+      }),
     };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.school.findMany({
@@ -124,13 +135,14 @@ export class AdminSchoolsService {
       name: dto.name, countryCode: dto.countryCode ?? RWANDA, code: dto.code ?? null,
       province: dto.province ?? null, district: dto.district ?? null, sector: dto.sector ?? null,
       location: dto.location ?? null, ownership: dto.ownership ?? null,
+      cell: dto.cell ?? null, village: dto.village ?? null, accommodation: dto.accommodation ?? null,
     });
     const key = this.nameKey(place.name!);
 
     return this.write(async (tx) => {
+      await lockSchoolDirectory(tx, 'shared');
       await lockSchoolKeys(tx, schoolLockPlan([{ before: null, after: { ...place, isActive: true } }]));
       await this.assertDirectoryPlace(tx, place);
-      await this.assertNameFree(tx, place.name!, null);
       if (place.code) await this.assertCodeFree(tx, place.code, null);
       const candidates = await this.possibleDuplicates(tx, key, place, null);
       this.assertNoDuplicate(candidates, dto.confirmPossibleDuplicate);
@@ -151,6 +163,7 @@ export class AdminSchoolsService {
 
   async update(id: string, dto: UpdateSchoolDto, caller: CallerCtx) {
     return this.write(async (tx) => {
+      await lockSchoolDirectory(tx, 'shared');
       const current = await this.lockSchool(tx, id);
       const before: Place = Object.fromEntries(EDITABLE.map((k) => [k, current[k] ?? null])) as Place;
       const requested = Object.fromEntries(EDITABLE.filter((k) => dto[k] !== undefined).map((k) => [k, dto[k] ?? null]));
@@ -163,10 +176,10 @@ export class AdminSchoolsService {
       if (before.code && !after.code) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_REQUIRED', 'A school code cannot be removed.');
       }
-      const directoryChange = (['name', 'countryCode', 'province', 'district', 'sector'] as const).some(changed);
+      const directoryChange = (['name', 'countryCode', 'province', 'district', 'sector', 'cell', 'village'] as const).some(changed);
       if (!dto.reason && (changed('code') || (current.source === 'OFFICIAL_LIST' && directoryChange))) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED',
-          'A reason is required to set or change a school code, or to change the name, country or place of an official-directory school.');
+          'A reason is required to set or change a school code, or to change the name, country or place (including cell and village) of an official-directory school.');
       }
 
       const key = this.nameKey(after.name!);
@@ -174,7 +187,6 @@ export class AdminSchoolsService {
         before: { ...before, isActive: current.isActive }, after: { ...after, isActive: current.isActive },
       }]));
       if ((['countryCode', 'province', 'district', 'sector', 'code'] as const).some(changed)) await this.assertDirectoryPlace(tx, after);
-      if (changed('name')) await this.assertNameFree(tx, after.name!, id);
       if (changed('code')) await this.assertCodeFree(tx, after.code!, id);
       const candidates = changed('name') || changed('district') || changed('countryCode')
         ? await this.possibleDuplicates(tx, key, after, id)
@@ -206,6 +218,7 @@ export class AdminSchoolsService {
    */
   async setActive(id: string, dto: SetSchoolActiveDto, caller: CallerCtx) {
     return this.write(async (tx) => {
+      await lockSchoolDirectory(tx, 'shared');
       const current = await this.lockSchool(tx, id);
       const fields = { name: current.name, code: current.code, countryCode: current.countryCode, district: current.district };
       await lockSchoolKeys(tx, schoolLockPlan([{
@@ -233,14 +246,13 @@ export class AdminSchoolsService {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  /** One transaction; a unique-constraint race on name or code becomes the specific 409. */
+  /** One transaction; a unique-constraint race on the code becomes the specific 409. */
   private async write<T>(fn: (tx: Tx) => Promise<T>): Promise<T> {
     try {
       return await this.prisma.$transaction(fn);
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        const target = JSON.stringify(err.meta ?? {});
-        throw /code/i.test(target) ? codeTaken() : nameTaken();
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002' && /code/i.test(JSON.stringify(err.meta ?? {}))) {
+        throw codeTaken();
       }
       throw err;
     }
@@ -252,7 +264,7 @@ export class AdminSchoolsService {
       where: { id },
       select: {
         name: true, countryCode: true, code: true, province: true, district: true, sector: true, location: true, ownership: true,
-        source: true, isActive: true,
+        cell: true, village: true, accommodation: true, source: true, isActive: true,
       },
     });
     if (!school) throw new NotFoundException('School not found.');
@@ -269,10 +281,6 @@ export class AdminSchoolsService {
 
   private assertDirectoryPlace(tx: Tx, p: Place) {
     return assertSchoolPlace(tx, p);
-  }
-
-  private assertNameFree(tx: Tx, name: string, exceptId: string | null) {
-    return assertNameFree(tx, name, exceptId);
   }
 
   private assertCodeFree(tx: Tx, code: string, exceptId: string | null) {

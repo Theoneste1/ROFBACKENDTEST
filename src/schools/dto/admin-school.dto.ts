@@ -1,18 +1,20 @@
 import { Transform } from 'class-transformer';
 import {
-  IsBoolean, IsEnum, IsIn, IsISO31661Alpha2, IsOptional, IsString, Length, Matches, ValidateIf,
+  IsBoolean, IsEnum, IsIn, IsISO31661Alpha2, IsOptional, IsString, IsUUID, Length, Matches, ValidateIf,
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/pagination.js';
-import { SchoolSource } from '../../generated/prisma/client.js';
+import { SchoolAccommodation, SchoolSource } from '../../generated/prisma/client.js';
 import { cleanSchoolName, SCHOOL_OWNERSHIP } from '../school-rules.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 const upper = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toUpperCase() : value);
 const cleanName = ({ value }: { value: unknown }) => (typeof value === 'string' ? cleanSchoolName(value) : value);
 const bool = ({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value);
+/** Free-text directory places (cell, village): trimmed, inner whitespace collapsed; null clears. */
+const place = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value);
 /** No control characters (names and places are shown everywhere and exported to CSV). */
-const PRINTABLE = /^\P{Cc}+$/u;
+export const PRINTABLE = /^\P{Cc}+$/u;
 
 /** GET /admin/schools — every school (official, Administrator-created and legacy; active or not). */
 export class ListAdminSchoolsDto extends PaginationQueryDto {
@@ -24,6 +26,15 @@ export class ListAdminSchoolsDto extends PaginationQueryDto {
   @IsOptional() @IsString() @Length(1, 100) sector?: string;
   @IsOptional() @Transform(bool) @IsBoolean() isActive?: boolean;
   @IsOptional() @IsEnum(SchoolSource) source?: SchoolSource;
+  /** Offers this education level (e.g. PR, OL, AL). */
+  @IsOptional() @Transform(upper) @IsString() @Length(1, 10) level?: string;
+  /** Offers this programme (its id). */
+  @IsOptional() @IsUUID() programme?: string;
+  @IsOptional() @IsEnum(SchoolAccommodation) accommodation?: SchoolAccommodation;
+  /** false: schools without an official code. */
+  @IsOptional() @Transform(bool) @IsBoolean() hasCode?: boolean;
+  /** true: schools whose source records report data problems. */
+  @IsOptional() @Transform(bool) @IsBoolean() hasSourceIssues?: boolean;
 }
 
 /**
@@ -58,6 +69,12 @@ export class CreateSchoolDto {
   @IsOptional() @Transform(trim) @IsString() @Length(2, 200) @Matches(PRINTABLE) location?: string;
 
   @IsOptional() @IsIn(SCHOOL_OWNERSHIP) ownership?: (typeof SCHOOL_OWNERSHIP)[number];
+
+  /** Rwanda only: the cell and village (free text, as in the official directory). */
+  @IsOptional() @Transform(place) @IsString() @Length(1, 100) @Matches(PRINTABLE) cell?: string;
+  @IsOptional() @Transform(place) @IsString() @Length(1, 100) @Matches(PRINTABLE) village?: string;
+
+  @IsOptional() @IsEnum(SchoolAccommodation) accommodation?: SchoolAccommodation;
 
   /** Create even though schools with the same normalised name exist nearby (recorded in the audit log). */
   @IsOptional() @IsBoolean() confirmPossibleDuplicate?: boolean;
@@ -96,6 +113,11 @@ export class UpdateSchoolDto {
   @IsOptional() @Transform(trim) @IsString() @Length(2, 200) @Matches(PRINTABLE) location?: string;
 
   @IsOptional() @IsIn(SCHOOL_OWNERSHIP) ownership?: (typeof SCHOOL_OWNERSHIP)[number];
+
+  /** null clears. */
+  @IsOptional() @Transform(place) @IsString() @Length(1, 100) @Matches(PRINTABLE) cell?: string | null;
+  @IsOptional() @Transform(place) @IsString() @Length(1, 100) @Matches(PRINTABLE) village?: string | null;
+  @IsOptional() @IsEnum(SchoolAccommodation) accommodation?: SchoolAccommodation | null;
 
   @IsOptional() @Transform(trim) @IsString() @Length(3, 500) reason?: string;
 
