@@ -48,3 +48,36 @@ describe('apply approval token (S2b)', () => {
     expect(tokenSha256(token)).not.toContain(body);
   });
 });
+
+/**
+ * The exact shape Prisma 7 + @prisma/adapter-pg produce for a raw query (verified by raising each
+ * SQLSTATE through the real client and adapter): P2010 with the adapter error in meta.
+ */
+const rawQueryError = (originalCode: string, kind: string) => new Prisma.PrismaClientKnownRequestError(
+  `Raw query failed. Code: \`${originalCode}\`. Message: \`probe\``,
+  { code: 'P2010', clientVersion: 'test', meta: { driverAdapterError: Object.assign(new Error('probe'), { name: 'DriverAdapterError', cause: { originalCode, originalMessage: 'probe', kind } }) } },
+);
+
+describe('sync retry — Prisma 7 adapter errors for raw queries (P2010)', () => {
+  it('retries P2010 only for the adapter\'s TransactionWriteConflict (40001, 40P01) — never another P2010', () => {
+    expect(isSerializationFailure(rawQueryError('40001', 'TransactionWriteConflict'))).toBe(true);
+    expect(isSerializationFailure(rawQueryError('40P01', 'TransactionWriteConflict'))).toBe(true);
+    expect(isSerializationFailure(rawQueryError('23505', 'UniqueConstraintViolation'))).toBe(false);
+    expect(isSerializationFailure(rawQueryError('40001', 'postgres'))).toBe(false);                    // the code alone is not enough
+    expect(isSerializationFailure(rawQueryError('23505', 'TransactionWriteConflict'))).toBe(false);    // nor the kind alone
+    expect(isSerializationFailure(rawQueryError('P0001', 'postgres'))).toBe(false);                    // a trigger's exception
+    expect(isSerializationFailure(new Prisma.PrismaClientKnownRequestError('Raw query failed', { code: 'P2010', clientVersion: 't' }))).toBe(false);
+    // Unchanged: P2034 and a direct 40001.
+    expect(isSerializationFailure(p2034())).toBe(true);
+    expect(isSerializationFailure(serialization())).toBe(true);
+  });
+
+  it('a P2010 40001 is retried up to 3 attempts; a P2010 23505 is thrown at once', async () => {
+    const calls: number[] = [];
+    await expect(withSerializationRetry(async (n) => { calls.push(n); throw rawQueryError('40001', 'TransactionWriteConflict'); }, exhausted, { backoffMs: () => 0 })).rejects.toThrow('EXHAUSTED');
+    expect(calls).toEqual([1, 2, 3]);
+    const unique: number[] = [];
+    await expect(withSerializationRetry(async (n) => { unique.push(n); throw rawQueryError('23505', 'UniqueConstraintViolation'); }, exhausted, { backoffMs: () => 0 })).rejects.toMatchObject({ code: 'P2010' });
+    expect(unique).toEqual([1]);
+  });
+});
