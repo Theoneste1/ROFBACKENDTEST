@@ -421,6 +421,11 @@ model User {
   schoolsVerified            School[]                   @relation("SchoolVerifiedBy")
   schoolContactsVerified     SchoolContact[]            @relation("SchoolContactVerifiedBy")
   schoolContactsRemoved      SchoolContact[]            @relation("SchoolContactRemovedBy")
+  schoolSyncRunsCreated      SchoolSyncRun[]            @relation("SchoolSyncRunCreatedBy")
+  schoolSyncRunsApplied      SchoolSyncRun[]            @relation("SchoolSyncRunAppliedBy")
+  schoolSyncProposals        SchoolSyncItem[]           @relation("SchoolSyncItemProposedBy")
+  schoolSyncResolutions      SchoolSyncItem[]           @relation("SchoolSyncItemResolvedBy")
+  schoolSyncDecisions        SchoolSyncChange[]         @relation("SchoolSyncChangeDecidedBy")
   notifications              Notification[]
   notificationPrefs          NotificationPreference[]
   notificationSettings       NotificationSetting[]
@@ -525,6 +530,7 @@ model SchoolDataSource {
   contacts      SchoolContact[]
   levels        SchoolEducationLevel[]
   programmes    SchoolProgramme[]
+  syncRuns      SchoolSyncRun[]
 }
 
 /// A school's identity in a data source: its code there, or (no usable code) a fingerprint of its
@@ -572,8 +578,13 @@ model SchoolSourceRecord {
   issues        Json             @default("[]")
   issueCount    Int              @default(0)
   createdAt     DateTime         @default(now())
+  /// The directory sync run (S2) that recorded this row; NULL for rows recorded otherwise.
+  syncRunId     String?
+  syncRun       SchoolSyncRun?   @relation(fields: [syncRunId], references: [id], onDelete: Restrict)
+  syncItem      SchoolSyncItem?
 
   @@unique([dataSourceId, datasetSha256, sourceRef])
+  @@index([syncRunId])
   @@index([schoolId])
   @@index([dataSourceId, rowHash])
 }
@@ -653,6 +664,140 @@ model Programme {
   schools     SchoolProgramme[]
 
   @@unique([category, name])
+}
+
+// ─── School directory sync (M13, S2) ─────────────────────────────────────────────
+
+/// One upload of a source export, compared with the directory (a dry run). Staging only until an
+/// approved apply (S2b). datasetKey and normaliserVersion come from the server's dataset
+/// configuration (src/schools/sync/sync-datasets.ts), never from the file. Never deleted; once
+/// APPLIED or SUPERSEDED only stagedPurgedAt may change (trigger school_sync_run_guard).
+model SchoolSyncRun {
+  id                String              @id @default(uuid())
+  datasetKey        String
+  normaliserVersion String
+  dataSourceId      String
+  dataSource        SchoolDataSource    @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  datasetLabel      String
+  /// Cleaned file name (src/schools/import/file-name.ts) and the SHA-256 of the file.
+  fileName          String
+  fileSha256        String
+  format            String
+  rowCount          Int
+  /// The source's own totals (e.g. NESA's Summary tab), as read.
+  sourceSummary     Json?
+  /// The source totals compared with the rows read.
+  reconciliation    Json
+  /// Counts per outcome and per change kind.
+  counts            Json
+  reportDigest      String
+  decisionsDigest   String
+  /// Incremented by every recompare and decision change (S2b); review tokens are bound to it.
+  reviewGeneration  Int                 @default(0)
+  status            SchoolSyncRunStatus @default(PREVIEW)
+  comparedAt        DateTime
+  createdAt         DateTime            @default(now())
+  createdById       String?
+  createdBy         User?               @relation("SchoolSyncRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  expiresAt         DateTime
+  appliedAt         DateTime?
+  appliedById       String?
+  appliedBy         User?               @relation("SchoolSyncRunAppliedBy", fields: [appliedById], references: [id], onDelete: SetNull)
+  supersededAt      DateTime?
+  supersededByRunId String?
+  supersededBy      SchoolSyncRun?      @relation("SchoolSyncRunSupersededBy", fields: [supersededByRunId], references: [id], onDelete: Restrict)
+  supersedes        SchoolSyncRun[]     @relation("SchoolSyncRunSupersededBy")
+  /// When the staged raw and normalised values were purged (7 days after the run ended).
+  stagedPurgedAt    DateTime?
+  /// Apply measurements (S2b): duration, lock wait, memory peak, rows written.
+  metrics           Json?
+
+  items         SchoolSyncItem[]
+  changes       SchoolSyncChange[]
+  sourceRecords SchoolSourceRecord[]
+
+  @@index([datasetKey, status])
+  @@index([status, expiresAt])
+  @@index([dataSourceId])
+  @@index([createdById])
+  @@index([appliedById])
+  @@index([supersededByRunId])
+}
+
+/// One source row of a run (or a directory school missing from the source). raw and normalized
+/// are staged copies, purged 7 days after the run ended; the permanent copy of an applied row is
+/// its SchoolSourceRecord (sourceRecordId). Never deleted.
+model SchoolSyncItem {
+  id             String                   @id @default(uuid())
+  runId          String
+  run            SchoolSyncRun            @relation(fields: [runId], references: [id], onDelete: Restrict)
+  /// NULL for MISSING_FROM_SOURCE (a directory school, not a source row).
+  rowNumber      Int?
+  sourceRef      String?
+  raw            Json?
+  normalized     Json?
+  outcome        SchoolSyncItemOutcome
+  schoolId       String?
+  school         School?                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  matchedBy      String?
+  conflictGroup  String?
+  /// Candidates, conflict reasons and the like — never contact values.
+  details        Json?
+  issues         Json                     @default("[]")
+  issueCount     Int                      @default(0)
+  conflictState  SchoolSyncConflictState?
+  proposal       Json?
+  proposedById   String?
+  proposedBy     User?                    @relation("SchoolSyncItemProposedBy", fields: [proposedById], references: [id], onDelete: SetNull)
+  proposedAt     DateTime?
+  resolution     Json?
+  resolvedById   String?
+  resolvedBy     User?                    @relation("SchoolSyncItemResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt     DateTime?
+  sourceRecordId String?                  @unique
+  sourceRecord   SchoolSourceRecord?      @relation(fields: [sourceRecordId], references: [id], onDelete: Restrict)
+  auditLogId     String?
+  createdAt      DateTime                 @default(now())
+  changes        SchoolSyncChange[]
+
+  @@index([runId, outcome])
+  @@index([runId, rowNumber])
+  @@index([conflictState])
+  @@index([schoolId])
+  @@index([proposedById])
+  @@index([resolvedById])
+}
+
+/// One proposed change — one field, one addition, one new place or one new school. Decided one by
+/// one or (allowed kinds) by category in S2b. currentValue / publishedValue are staged copies,
+/// purged with the run's staging data. Never deleted.
+model SchoolSyncChange {
+  id                     String               @id @default(uuid())
+  runId                  String
+  run                    SchoolSyncRun        @relation(fields: [runId], references: [id], onDelete: Restrict)
+  /// NULL for a run-level change (NEW_PLACE).
+  itemId                 String?
+  item                   SchoolSyncItem?      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  schoolId               String?
+  school                 School?              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  kind                   SchoolSyncChangeKind
+  field                  String?
+  currentValue           Json?
+  publishedValue         Json?
+  decision               SchoolSyncDecision   @default(PENDING)
+  decidedById            String?
+  decidedBy              User?                @relation("SchoolSyncChangeDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt              DateTime?
+  decisionNote           String?
+  categoryApprovalDigest String?
+  appliedAt              DateTime?
+  auditLogId             String?
+  createdAt              DateTime             @default(now())
+
+  @@index([runId, kind, decision])
+  @@index([itemId])
+  @@index([schoolId])
+  @@index([decidedById])
 }
 
 model SchoolProgramme {
@@ -742,6 +887,8 @@ model School {
   programmes    SchoolProgramme[]
   externalIds   SchoolExternalId[]
   sourceRecords SchoolSourceRecord[]
+  syncItems     SchoolSyncItem[]
+  syncChanges   SchoolSyncChange[]
 
   @@index([name])
   @@index([nameKey])
@@ -779,6 +926,47 @@ enum ProgrammeCategory {
   A_LEVEL_COMBINATION
   TVET_TRADE
   OTHER
+}
+
+enum SchoolSyncRunStatus {
+  PREVIEW
+  APPLIED
+  EXPIRED
+  SUPERSEDED
+}
+
+enum SchoolSyncItemOutcome {
+  MATCHED
+  NEW
+  DUPLICATE_ROW
+  CONFLICT
+  POSSIBLE_DUPLICATE
+  INVALID
+  MISSING_FROM_SOURCE
+}
+
+enum SchoolSyncChangeKind {
+  CREATE_SCHOOL
+  FILL_EMPTY
+  CHANGE
+  NAME_RESTORE
+  NEW_PLACE
+  ADD_CONTACT
+  ADD_LEVEL
+  ADD_PROGRAMME
+  RESOLVE_CONFLICT
+}
+
+enum SchoolSyncDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SchoolSyncConflictState {
+  OPEN
+  PROPOSED
+  RESOLVED
 }
 
 enum SchoolExternalIdKind {

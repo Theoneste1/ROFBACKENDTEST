@@ -20757,6 +20757,376 @@
         "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/school-sync/runs": {
+      "post": {
+        "operationId": "SchoolSyncController_create",
+        "parameters": [
+          {
+            "name": "dataset",
+            "required": true,
+            "in": "query",
+            "description": "The dataset (trusted server configuration), e.g. NESA:ACCREDITED_SCHOOLS.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NESA:ACCREDITED_SCHOOLS"
+              ]
+            }
+          },
+          {
+            "name": "label",
+            "required": false,
+            "in": "query",
+            "description": "A label for this run (default: the dataset name and the file name).",
+            "schema": {
+              "minLength": 3,
+              "maxLength": 200,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Upload a source export (.xlsx or .csv, at most 10 MB / 10,000 rows) for a configured dataset:\nalways a dry run — the comparison is staged for review (24 hours); nothing else is written.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "get": {
+        "operationId": "SchoolSyncController_list",
+        "parameters": [
+          {
+            "name": "datasetKey",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NESA:ACCREDITED_SCHOOLS"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUPERSEDED",
+                "PREVIEW",
+                "APPLIED",
+                "EXPIRED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Runs, newest first.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}": {
+      "get": {
+        "operationId": "SchoolSyncController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A run: counts, the reconciliation with the source's totals, digests, status.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/items": {
+      "get": {
+        "operationId": "SchoolSyncController_items",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outcome",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MATCHED",
+                "NEW",
+                "DUPLICATE_ROW",
+                "CONFLICT",
+                "POSSIBLE_DUPLICATE",
+                "INVALID",
+                "MISSING_FROM_SOURCE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The run's rows (and directory schools missing from the source), contact values masked.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/changes": {
+      "get": {
+        "operationId": "SchoolSyncController_changes",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CREATE_SCHOOL",
+                "FILL_EMPTY",
+                "CHANGE",
+                "NAME_RESTORE",
+                "NEW_PLACE",
+                "ADD_CONTACT",
+                "ADD_LEVEL",
+                "ADD_PROGRAMME",
+                "RESOLVE_CONFLICT"
+              ]
+            }
+          },
+          {
+            "name": "decision",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "REJECTED",
+                "APPROVED",
+                "PENDING"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The proposed changes, one per field or addition, contact values masked.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/report.csv": {
+      "get": {
+        "operationId": "SchoolSyncController_report",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file (UTF-8 with BOM), sent as an attachment.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The run as CSV — no contact column.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/courses": {
       "get": {
         "operationId": "CoursesController_findAll",

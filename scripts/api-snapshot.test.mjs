@@ -104,7 +104,8 @@ const SCHOOL_ADMINISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-sc
 const SCHOOL_CLAIMS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-claims.json';
 const SCHOOL_IMPORT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-import.json';
 const SCHOOL_DIRECTORY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-directory.json';
-const CURRENT_SNAPSHOT = SCHOOL_DIRECTORY_SNAPSHOT;
+const SCHOOL_SYNC_STAGING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-staging.json';
+const CURRENT_SNAPSHOT = SCHOOL_SYNC_STAGING_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -667,6 +668,24 @@ describe('approved API contract history', () => {
       'schema PutSchoolContactsDto: added',
       'schema PutSchoolOfferingsDto: added',
       'schema VerifySchoolContactDto: added',
+    ]);
+  });
+
+  test('S1 → school directory S2a: the sync dry run and its reports (runs, run, items, changes, report.csv); nothing else', () => {
+    for (const f of [SCHOOL_DIRECTORY_SNAPSHOT, SCHOOL_SYNC_STAGING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_DIRECTORY_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_SYNC_STAGING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    // Not visible in the contract: GET /admin/schools/:id/history now masks contact values in
+    // source records (R6) — the response shape is unchanged.
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/school-sync/runs/{id}/changes: operation added',
+      'GET /api/v1/admin/school-sync/runs/{id}/items: operation added',
+      'GET /api/v1/admin/school-sync/runs/{id}/report.csv: operation added',
+      'GET /api/v1/admin/school-sync/runs/{id}: operation added',
+      'GET /api/v1/admin/school-sync/runs: operation added',
+      'POST /api/v1/admin/school-sync/runs: operation added',
     ]);
   });
 

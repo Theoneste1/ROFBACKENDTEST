@@ -47,7 +47,9 @@ export function maskContact(type: SchoolContactType, value: string): string {
 
 const EMAIL_IN_TEXT = /[^\s@<>()[\]"',;:]+@[^\s@<>()[\]"',;:]+\.[a-z]{2,}/gi;
 /** A run of digits (with the separators people write) long enough to be a phone number: 9+ digits. */
-const PHONE_IN_TEXT = /\+?\d[\d\s().\-/]{7,}\d/g;
+const PHONE_IN_TEXT = /\+?\d[\d\s().-]{7,}\d/g;
+/** E.164 allows at most 15 digits: a longer run is hidden entirely. */
+const PHONE_MAX_DIGITS = 15;
 const PHONE_MIN_DIGITS = 9;
 
 /**
@@ -63,9 +65,33 @@ export function redactContactText(text: string): { text: string; redacted: boole
       const digits = m.replace(/\D/g, '');
       if (digits.length < PHONE_MIN_DIGITS) return m;
       redacted = true;
+      if (digits.length > PHONE_MAX_DIGITS) return HIDDEN;
       return maskContact('PHONE', normalisePhone(m) ?? `+${digits}`);
     });
   return { text: out, redacted };
+}
+
+/** A column of a source row that holds contact details (Email, Phone, Telephone, Mobile, Contact…). */
+const CONTACT_COLUMN = /e-?mail|phone|tel|mobile|contact|fax/i;
+/** What maskContact produces (h•••@g•••.rw, o•••@•••, +250•••56). */
+const MASKED_TOKEN = /[^\s@]?•••@[^\s@]?•••(?:\.[a-z]{2,})?|\+\d{1,4}•••\d{2}/gi;
+
+/**
+ * A raw source row as shown by an API (sync reports, school history): contact columns masked, and
+ * every other value passed through redactContactText as a defence. The stored row is untouched.
+ * In a contact column anything still holding 5+ digits or an "@" after masking is hidden entirely.
+ */
+export function maskRawRow(raw: unknown): unknown {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).map(([column, value]) => {
+    if (typeof value !== 'string') return [column, value];
+    const masked = redactContactText(value).text;
+    if (CONTACT_COLUMN.test(column)) {
+      const rest = masked.replace(MASKED_TOKEN, '');
+      if (rest.includes('@') || rest.replace(/\D/g, '').length >= 5) return [column, HIDDEN];
+    }
+    return [column, masked];
+  }));
 }
 
 /** E.164, or null. Rwanda: 9 national digits starting with 2 (landline) or 7 (mobile). */

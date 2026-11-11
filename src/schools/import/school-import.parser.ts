@@ -161,7 +161,10 @@ function columnLetter(col: number): string {
  * Zip safety checks on the raw bytes, before any library unpacks them (see the file comment).
  * Throws 415 INVALID_XLSX.
  */
-export function inspectZip(buf: Buffer): void {
+export function inspectZip(
+  buf: Buffer,
+  limits: { maxEntries: number; maxUncompressed: number } = { maxEntries: ZIP_MAX_ENTRIES, maxUncompressed: ZIP_MAX_UNCOMPRESSED },
+): void {
   const bad = (why: string) => invalidXlsx(`The workbook was refused: ${why}.`);
   let eocd = -1;
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 22 - 0xffff); i--) {
@@ -172,7 +175,7 @@ export function inspectZip(buf: Buffer): void {
   const cdSize = buf.readUInt32LE(eocd + 12);
   const cdOffset = buf.readUInt32LE(eocd + 16);
   if (entries === 0xffff || cdOffset === 0xffffffff || cdSize === 0xffffffff) throw bad('ZIP64 archives are not accepted');
-  if (entries > ZIP_MAX_ENTRIES) throw bad(`it has more than ${ZIP_MAX_ENTRIES} parts`);
+  if (entries > limits.maxEntries) throw bad(`it has more than ${limits.maxEntries} parts`);
   if (cdOffset + cdSize > eocd) throw bad('its directory is corrupt');
 
   let p = cdOffset;
@@ -193,7 +196,7 @@ export function inspectZip(buf: Buffer): void {
     if (name.startsWith('/') || name.includes('\\') || /^[a-zA-Z]:/.test(name) || name.split('/').includes('..')) throw bad('it contains an unsafe path');
     if (/(^|\/)vbaProject\.bin$/i.test(name)) throw bad('it contains macros');
     declared += usize;
-    if (declared > ZIP_MAX_UNCOMPRESSED) throw bad('it unpacks to more than 20 MB');
+    if (declared > limits.maxUncompressed) throw bad(`it unpacks to more than ${Math.round(limits.maxUncompressed / (1024 * 1024))} MB`);
 
     // Inflate this entry for real, bounded by its declared size: a zip that under-declares fails here.
     if (localOffset + 30 > buf.length || buf.readUInt32LE(localOffset) !== 0x04034b50) throw bad('it is corrupt');

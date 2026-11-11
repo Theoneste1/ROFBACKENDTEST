@@ -25,13 +25,21 @@ const READS_CONTACTS = /\.schoolContact\.|\bcontacts\s*:\s*(true|\{)|"SchoolCont
 const WRITES_SCHOOL_DATA = /\.(school|schoolContact|schoolEducationLevel|schoolProgramme|schoolExternalId|schoolSourceRecord)\.(create|createMany|createManyAndReturn|upsert|update|updateMany|delete|deleteMany)\s*\(|(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+"School(Contact|EducationLevel|Programme|ExternalId|SourceRecord)?"/i;
 
 describe('school directory guards (S1)', () => {
-  it('contacts: only SchoolDirectoryDataService reads or writes them', () => {
+  it('contacts: only SchoolDirectoryDataService reads and writes them; the directory sync (S2a) only reads them, never writes, and masks them in every response', () => {
     expect(files(SRC).filter((f) => READS_CONTACTS.test(readFileSync(f, 'utf8'))).map(rel))
-      .toEqual(['schools/directory/school-directory-data.service.ts']);
+      .toEqual(['schools/directory/school-directory-data.service.ts', 'schools/sync/school-sync.service.ts']);
+    const sync = readFileSync(join(SRC, 'schools/sync/school-sync.service.ts'), 'utf8');
+    expect(sync).not.toMatch(/\.schoolContact\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/);
+    expect(sync).toContain('schoolContact.findMany({ where: { removedAt: null }, select: { schoolId: true, type: true, value: true } })');
+    // Staged contact values leave the service only through the masking helpers.
+    expect(sync).toContain('maskChangeValue(r.kind, r.publishedValue)');
+    expect(sync).toContain('normalized: maskNormalized(r.normalized)');
+    expect(sync).toContain('raw: maskRaw(r.raw)');
   });
 
   it('contacts are never deleted, and what an audit entry records of a contact is masked — never its value (M1)', () => {
-    const service = readFileSync(join(SRC, 'schools/directory/school-directory-data.service.ts'), 'utf8');
+    // Line endings normalised: the slices below look for blank lines.
+    const service = readFileSync(join(SRC, 'schools/directory/school-directory-data.service.ts'), 'utf8').replace(/\r\n/g, '\n');
     for (const f of files(SRC)) expect([rel(f), /\.schoolContact\.(delete|deleteMany)\s*\(|DELETE\s+FROM\s+"SchoolContact"/i.test(readFileSync(f, 'utf8'))]).toEqual([rel(f), false]);
     const start = service.indexOf('const contactFacts');
     const facts = service.slice(service.indexOf('=>', start), service.indexOf('\n\n', start));   // the returned object

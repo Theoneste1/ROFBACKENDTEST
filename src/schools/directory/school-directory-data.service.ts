@@ -27,7 +27,7 @@ import { pageArgs, paginated, type PaginationQueryDto } from '../../common/pagin
 import type { Prisma, SchoolContactType } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { lockSchoolDirectory } from '../school-locks.js';
-import { maskContact, normaliseContact, redactContactText } from './school-contacts.js';
+import { maskContact, maskRawRow, normaliseContact, redactContactText } from './school-contacts.js';
 import { PutSchoolContactsDto, PutSchoolOfferingsDto, VerifySchoolContactDto } from './school-directory.dto.js';
 
 type Tx = Prisma.TransactionClient;
@@ -252,13 +252,15 @@ export class SchoolDirectoryDataService {
   async history(schoolId: string, q: PaginationQueryDto, caller: AuthUser) {
     await this.assertSchool(this.prisma, schoolId);
     const auditVisible = this.permissions.has(caller, 'audit.view');
-    const sourceRecords = await this.prisma.schoolSourceRecord.findMany({
+    // S2a (R6): contact values in the source rows are masked in the response; the stored,
+    // immutable records are not changed.
+    const sourceRecords = (await this.prisma.schoolSourceRecord.findMany({
       where: { schoolId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       select: {
         id: true, dataSource: { select: { key: true, name: true } }, datasetLabel: true, datasetSha256: true, sourceRef: true,
         raw: true, rowHash: true, matchedBy: true, issues: true, createdAt: true,
       },
-    });
+    })).map((r) => ({ ...r, raw: maskRawRow(r.raw) }));
     if (!auditVisible) return { schoolId, sourceRecords, auditVisible, audit: null };
     const { page, limit, skip, take } = pageArgs(q);
     const where: Prisma.AuditLogWhereInput = { entity: 'School', entityId: schoolId };

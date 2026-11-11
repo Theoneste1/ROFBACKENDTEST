@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 251 endpoints — 17 public, 133 administrator-only.
+Totals: 257 endpoints — 17 public, 139 administrator-only.
 
 ## Academic years
 
@@ -157,6 +157,17 @@ Totals: 251 endpoints — 17 public, 133 administrator-only.
 | POST | `/api/v1/admin/school-affiliations/{id}/revoke` |  |  |  | ✓ |
 | POST | `/api/v1/admin/school-affiliations/{id}/verify` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/{id}/school-affiliations` |  |  |  | ✓ |
+
+## Admin · School directory sync
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/school-sync/runs` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-sync/runs` |  |  |  | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/changes` |  |  |  | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/items` |  |  |  | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/report.csv` |  |  |  | ✓ |
 
 ## Admin · Schools
 

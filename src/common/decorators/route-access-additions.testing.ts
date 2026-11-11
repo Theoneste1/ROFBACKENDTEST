@@ -85,4 +85,11 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/schools/:id/offerings  AdminSchoolsController.offerings':                                ADMINISTRATORS,
   'PUT /api/v1/admin/schools/:id/offerings  AdminSchoolsController.putOfferings':                             ADMINISTRATORS,
   'GET /api/v1/admin/schools/:id/history  AdminSchoolsController.history':                                    ADMINISTRATORS,
+  // School directory S2a — directory sync dry runs and reports (schools.manage)
+  'POST /api/v1/admin/school-sync/runs  SchoolSyncController.create':                                         ADMINISTRATORS,
+  'GET /api/v1/admin/school-sync/runs  SchoolSyncController.list':                                            ADMINISTRATORS,
+  'GET /api/v1/admin/school-sync/runs/:id  SchoolSyncController.get':                                         ADMINISTRATORS,
+  'GET /api/v1/admin/school-sync/runs/:id/items  SchoolSyncController.items':                                 ADMINISTRATORS,
+  'GET /api/v1/admin/school-sync/runs/:id/changes  SchoolSyncController.changes':                             ADMINISTRATORS,
+  'GET /api/v1/admin/school-sync/runs/:id/report.csv  SchoolSyncController.report':                           ADMINISTRATORS,
 };
