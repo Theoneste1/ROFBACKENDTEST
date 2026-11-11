@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
+import { RWANDA } from './school-rules.js';
+
+/** What the public directory shows (PR B): active, official, Rwandan schools only. */
+const PUBLIC_DIRECTORY = { code: { not: null }, countryCode: RWANDA, isActive: true } as const;
 
 @Injectable()
 export class SchoolsService {
@@ -25,8 +29,8 @@ export class SchoolsService {
   }
 
   /**
-   * Public autocomplete for the sign-up form (P1-11): official schools only, by name or
-   * code prefix; registration sends the chosen `code`.
+   * Public autocomplete for the sign-up form (P1-11): active official schools only, by name or
+   * code prefix; registration sends the chosen `code`. Inactive schools are not offered.
    */
   async search(term: string | undefined, place: { province?: string; district?: string; sector?: string } = {}) {
     const q = term?.trim();
@@ -34,7 +38,7 @@ export class SchoolsService {
     if (!byPlace && (!q || q.length < 2)) return [];
     return this.prisma.school.findMany({
       where: {
-        code: { not: null },
+        ...PUBLIC_DIRECTORY,
         ...(place.province && { province: place.province }),
         ...(place.district && { district: place.district }),
         ...(place.sector && { sector: place.sector }),
@@ -46,10 +50,10 @@ export class SchoolsService {
     });
   }
 
-  /** Provinces → districts → sectors of the official directory (ordered by code). */
+  /** Provinces → districts → sectors that have an active official school (ordered by code). */
   async locations() {
     const rows = await this.prisma.school.groupBy({
-      by: ['province', 'district', 'sector'], where: { code: { not: null } }, _min: { code: true },
+      by: ['province', 'district', 'sector'], where: PUBLIC_DIRECTORY, _min: { code: true },
     });
     rows.sort((a, b) => (a._min.code ?? '').localeCompare(b._min.code ?? ''));
     const provinces = new Map<string, Map<string, Set<string>>>();

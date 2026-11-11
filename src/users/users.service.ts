@@ -15,6 +15,7 @@ import { AcademicYearsService } from '../academic-years/academic-years.service.j
 import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
 import { endTeacherSchools, revokeTeacherDelegations } from '../teachers/teacher-schools.service.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
+import { resolveSchoolReference } from '../schools/school-reference.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -84,6 +85,8 @@ export class UsersService {
     await this.assertIdentityFree(data.username, data.email);
 
     const role = data.role ?? 'STUDENT';
+    // An existing, active school by id or code (PR B); the claim re-checks it under a row lock.
+    if (role === 'STUDENT') data = { ...data, schoolId: (await this.schoolFromReference(data, true)) ?? undefined };
     const studentFields = role === 'STUDENT' ? await this.studentFields(data.gradeLevel!, data.schoolId) : {};
     const passwordHash  = await bcrypt.hash(data.password, BCRYPT_COST);
 
@@ -139,6 +142,15 @@ export class UsersService {
 
     if (Object.keys(data).filter((k) => k !== 'currentPassword').length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
+    }
+    // schoolCode → the school's id (PR B). Not required to be active here: re-sending a student's
+    // current school creates no claim; a NEW claim for an inactive school is refused by claim().
+    if (data.schoolCode !== undefined) {
+      if (data.schoolId === null) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH', 'schoolId: null clears the school; do not send a schoolCode with it.');
+      }
+      const { schoolCode: _code, ...rest } = data;
+      data = { ...rest, schoolId: (await this.schoolFromReference(data, false))! };
     }
     if (id === caller.id && data.role && data.role !== existing.role) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_CHANGE_OWN_ROLE', 'You cannot change your own role.');
@@ -410,6 +422,12 @@ export class UsersService {
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  /** The id of the existing school a create / edit names by schoolId and/or schoolCode (null: none). */
+  private async schoolFromReference(data: { schoolId?: string | null; schoolCode?: string }, requireActive: boolean) {
+    const school = await resolveSchoolReference(this.prisma, { schoolId: data.schoolId, schoolCode: data.schoolCode }, { requireActive });
+    return school?.id ?? null;
+  }
 
   /** Student placement fields. `schoolId`: omitted → unchanged; an id → that (existing) school; null → cleared. */
   private async studentFields(gradeLevel: GradeLevel, schoolId?: string | null) {

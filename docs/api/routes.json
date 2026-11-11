@@ -626,6 +626,60 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/schools",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/schools",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/schools/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/schools/{id}/active",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/settings",
     "roles": [
       "ADMIN",

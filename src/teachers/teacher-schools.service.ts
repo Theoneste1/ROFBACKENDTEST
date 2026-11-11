@@ -14,6 +14,7 @@ import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { lockSchoolsForUse } from '../schools/school-usage.js';
 import { CreateTeacherSchoolDto, ListTeacherSchoolsDto } from './dto/teacher.dto.js';
 
 const SELECT = {
@@ -58,6 +59,9 @@ export class TeacherSchoolsService {
     if (!school) throw new NotFoundException('School not found.');
 
     return this.prisma.$transaction(async (tx) => {
+      // A new (or re-activated) assignment needs an ACTIVE school, locked until commit (PR B):
+      // a concurrent deactivation waits for it, and one committed first makes this 409 SCHOOL_INACTIVE.
+      await lockSchoolsForUse(tx, [dto.schoolId]);
       const existing = await tx.teacherSchoolAssignment.findUnique({
         where: { teacherId_schoolId: { teacherId: dto.teacherId, schoolId: dto.schoolId } }, select: { id: true, isActive: true },
       });

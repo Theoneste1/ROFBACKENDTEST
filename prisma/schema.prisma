@@ -417,6 +417,7 @@ model User {
   affiliationsDecided        StudentSchoolAffiliation[] @relation("AffiliationDecidedBy")
   affiliationsRevoked        StudentSchoolAffiliation[] @relation("AffiliationRevokedBy")
   affiliationsSuperseded     StudentSchoolAffiliation[] @relation("AffiliationSupersededBy")
+  schoolsCreated             School[]                   @relation("SchoolCreatedBy")
   notifications              Notification[]
   notificationPrefs          NotificationPreference[]
   notificationSettings       NotificationSetting[]
@@ -531,21 +532,30 @@ model MentorRequest {
 }
 
 model School {
-  id        String   @id @default(uuid())
+  id          String       @id @default(uuid())
   /// Normalised to title-case; unique to prevent duplicates.
-  name      String   @unique
-  location  String
-  createdAt DateTime @default(now())
+  name        String       @unique
+  location    String
+  createdAt   DateTime     @default(now())
   /// Official school code (6 digits; P1-11 official list, M8). NULL for a school entered before the list.
-  code      String?  @unique
+  code        String?      @unique
   /// Rwanda province (official list; the first digit of the code).
-  province  String?
-  district  String?
-  sector    String?
+  province    String?
+  district    String?
+  sector      String?
   /// PUBLIC, GOVERNMENT_AIDED or PRIVATE (official list).
-  ownership String?
+  ownership   String?
   /// Normalised official name (src/schools/school-key.ts): resolves a registration that sends a name.
-  nameKey   String?
+  nameKey     String?
+  /// ISO 3166-1 alpha-2 (school administration PR B, M11). Codes and the official directory are Rwanda only.
+  countryCode String       @default("RW")
+  /// Inactive: kept with all its history, but accepts no new claim, registration or Teacher assignment.
+  isActive    Boolean      @default(true)
+  /// OFFICIAL_LIST (M8 directory), ADMIN (created by an Administrator) or LEGACY (entered before the list).
+  source      SchoolSource @default(LEGACY)
+  createdById String?
+  createdBy   User?        @relation("SchoolCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedAt   DateTime     @default(now()) @updatedAt
 
   students     User[]
   enrollments  StudentEnrollment[]
@@ -554,6 +564,15 @@ model School {
 
   @@index([nameKey])
   @@index([province, district, sector])
+  @@index([countryCode, isActive])
+  @@index([createdById])
+}
+
+/// Where a school record comes from (M11).
+enum SchoolSource {
+  OFFICIAL_LIST
+  ADMIN
+  LEGACY
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

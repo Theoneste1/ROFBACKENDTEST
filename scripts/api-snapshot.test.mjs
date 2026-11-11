@@ -100,7 +100,8 @@ const P1_10_MONITORING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-10-m
 const P1_11_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-11.json';
 const SCHOOL_AFFILIATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-school-affiliation.json';
 const AFFILIATION_HARDENING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-affiliation-hardening.json';
-const CURRENT_SNAPSHOT = AFFILIATION_HARDENING_SNAPSHOT;
+const SCHOOL_ADMINISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-administration.json';
+const CURRENT_SNAPSHOT = SCHOOL_ADMINISTRATION_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -570,6 +571,32 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, ['PATCH /api/v1/admin/users/{id} › request application/json.schoolId: null now accepted']);
+  });
+
+  // Behaviour change not visible in the schema (documented, owner-approved): an invitation or a
+  // CSV row naming a school by schoolName alone is now refused (400 SCHOOL_REFERENCE_REQUIRED /
+  // row error) instead of creating that school; GET /schools and /schools/:id are deprecated
+  // (same guard). Do not release to main before the frontend sends schoolId / schoolCode.
+  test('PR A.1 → school administration PR B: /admin/schools operations and DTOs, schoolCode on user create / edit / invite; nothing else', () => {
+    for (const f of [AFFILIATION_HARDENING_SNAPSHOT, SCHOOL_ADMINISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(AFFILIATION_HARDENING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_ADMINISTRATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/schools/{id}/students: operation added',
+      'GET /api/v1/admin/schools/{id}: operation added',
+      'GET /api/v1/admin/schools: operation added',
+      'PATCH /api/v1/admin/schools/{id}/active: operation added',
+      'PATCH /api/v1/admin/schools/{id}: operation added',
+      'PATCH /api/v1/admin/users/{id} › request application/json.schoolCode: new optional field',
+      'POST /api/v1/admin/schools: operation added',
+      'POST /api/v1/admin/users › request application/json.schoolCode: new optional field',
+      'POST /api/v1/admin/users/invite › request application/json.schoolCode: new optional field',
+      'schema CreateSchoolDto: added',
+      'schema SetSchoolActiveDto: added',
+      'schema UpdateSchoolDto: added',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

@@ -19,6 +19,8 @@ import { LoginDto } from './dto/login.dto.js';
 import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { schoolKey } from '../schools/school-key.js';
+import { RWANDA } from '../schools/school-rules.js';
+import { schoolInactive } from '../schools/school-usage.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { CallerCtx } from '../common/auth-user.js';
@@ -76,13 +78,19 @@ export class AuthService {
       }
       return null;
     }
+    // Codes and name matching are for Rwandan schools only; an inactive school takes no new
+    // registrations (PR B). The claim re-checks the school under a row lock.
     if (data.schoolCode !== undefined) {
-      const byCode = await tx.school.findUnique({ where: { code: data.schoolCode }, select: { id: true, code: true, name: true } });
+      const byCode = await tx.school.findFirst({
+        where: { code: data.schoolCode, countryCode: RWANDA }, select: { id: true, code: true, name: true, isActive: true },
+      });
       if (!byCode) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL_CODE', 'No school has this code. Choose your school from the list.');
+      if (!byCode.isActive) throw schoolInactive(byCode.id);
       return byCode;
     }
     const matches = await tx.school.findMany({
-      where: { code: { not: null }, nameKey: schoolKey(data.schoolName ?? '') }, select: { id: true, code: true, name: true }, take: 2,
+      where: { code: { not: null }, countryCode: RWANDA, isActive: true, nameKey: schoolKey(data.schoolName ?? '') },
+      select: { id: true, code: true, name: true }, take: 2,
     });
     return matches.length === 1 ? matches[0] : null;
   }

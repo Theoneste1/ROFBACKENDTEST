@@ -181,7 +181,7 @@ describe('Student–school affiliation (school administration PR A)', () => {
         firstName: 'I', lastName: 'Inv', email: 'aff.invited@test.local', username: 'aff.invited', gradeLevel: 'S2', schoolId: schoolB,
       }).expect(201);
       expect(await current(invited.body.user.id)).toEqual([expect.objectContaining({ schoolId: schoolB, status: 'PENDING', source: 'ADMIN' })]);
-      const csv = ['firstName,lastName,email,username,role,gradeLevel,schoolName,schoolLocation', 'Csv,Row,aff.csv@test.local,aff.csv,STUDENT,S2,Test School,Kigali'].join('\r\n');
+      const csv = ['firstName,lastName,email,username,role,gradeLevel,schoolId', `Csv,Row,aff.csv@test.local,aff.csv,STUDENT,S2,${schoolA}`].join('\r\n');
       await http().post('/api/v1/admin/users/import').query({ dryRun: false }).set(bearer(admin))
         .attach('file', Buffer.from(csv, 'utf8'), { filename: 's.csv', contentType: 'text/csv' }).expect(200);
       const csvUser = await p().user.findUniqueOrThrow({ where: { username: 'aff.csv' } });

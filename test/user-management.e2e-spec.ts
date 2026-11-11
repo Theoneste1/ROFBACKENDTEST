@@ -25,6 +25,12 @@ describe('User management (e2e)', () => {
   beforeAll(async () => {
     ctx = await createTestApp();
     [admin, studentJ, mentorJ] = await Promise.all([login(ctx, 'admin'), login(ctx, 'student.j'), login(ctx, 'mentor.j')]);
+    // Official schools the invitations and the CSV import refer to (PR B: they never create one).
+    for (const [code, name] of [['110998', 'Groupe Scolaire Kigali'], ['110997', 'Lycée de Kigali, Annexe']]) {
+      await ctx.prisma.school.create({ data: {
+        name, code, location: 'Kacyiru, Gasabo', province: 'Kigali City', district: 'Gasabo', sector: 'Kacyiru', source: 'OFFICIAL_LIST',
+      } });
+    }
   });
 
   afterAll(async () => {
@@ -37,7 +43,8 @@ describe('User management (e2e)', () => {
     it('admin invites a student: account exists, enrolled, but cannot log in', async () => {
       const res = await ctx.http().post('/api/v1/admin/users/invite').set(bearer(admin)).send({
         firstName: 'Aline', lastName: 'Mukamana', email: 'Aline.M@example.com', gradeLevel: 'S4',
-        schoolName: 'groupe scolaire kigali', schoolLocation: 'kigali',
+        // By code; the optional name check ignores case (PR B — a name alone is refused, never created).
+        schoolCode: '110998', schoolName: 'groupe scolaire kigali',
       }).expect(201);
 
       expect(res.body.user).toMatchObject({
@@ -163,13 +170,16 @@ describe('User management (e2e)', () => {
 
   describe('CSV import', () => {
     const csv = [
-      'firstName,lastName,email,role,gradeLevel,schoolName,schoolLocation,homeLocation,username',
-      'Grace,Uwase,grace@example.com,,S5,"Lycée de Kigali, Annexe",Kigali,Kigali,',
-      'Jean,Habimana,jean.mentor@example.com,mentor,,,,,jean.h',
-      'No,Grade,nograde@example.com,STUDENT,,,,,',
-      'Bad,Email,not-an-email,STUDENT,S1,,,,',
-      'Grace,Again,GRACE@example.com,STUDENT,S2,,,,',
-      'Taken,Already,student.s@test.local,STUDENT,S3,,,,',
+      'firstName,lastName,email,role,gradeLevel,schoolCode,schoolName,schoolLocation,homeLocation,username',
+      'Grace,Uwase,grace@example.com,,S5,110997,"LYCEE DE KIGALI ANNEXE",Kigali,Kigali,',
+      'Jean,Habimana,jean.mentor@example.com,mentor,,,,,,jean.h',
+      'No,Grade,nograde@example.com,STUDENT,,,,,,',
+      'Bad,Email,not-an-email,STUDENT,S1,,,,,',
+      'Grace,Again,GRACE@example.com,STUDENT,S2,,,,,',
+      'Taken,Already,student.s@test.local,STUDENT,S3,,,,,',
+      // PR B: a school by name only is a row error (never created); a name that does not match the code too.
+      'Name,Only,name.only@example.com,STUDENT,S2,,"Brand New School",Huye,,',
+      'Wrong,Name,wrong.name@example.com,STUDENT,S2,110997,"Lycée de Huye",,,',
     ].join('\r\n');
 
     const upload = (body: string, dryRun: boolean) =>
@@ -178,23 +188,30 @@ describe('User management (e2e)', () => {
 
     it('dry run reports every problem and creates nothing', async () => {
       const before = await ctx.prisma.user.count();
+      const schools = await ctx.prisma.school.count();
       const res = await upload(csv, true).expect(200);
-      expect(res.body).toMatchObject({ dryRun: true, totalRows: 6, valid: 2, created: 0, failed: 4 });
-      expect(res.body.errors.map((e: any) => e.row)).toEqual([4, 5, 6, 7]);
+      expect(res.body).toMatchObject({ dryRun: true, totalRows: 8, valid: 2, created: 0, failed: 6 });
+      expect(res.body.errors.map((e: any) => e.row)).toEqual([4, 5, 6, 7, 8, 9]);
       expect(res.body.errors.find((e: any) => e.row === 6).errors.join()).toContain('repeats row 2');
       expect(res.body.errors.find((e: any) => e.row === 7).errors.join()).toContain('already exists');
+      expect(res.body.errors.find((e: any) => e.row === 8).errors.join()).toMatch(/"Brand New School" was given by name only/);
+      expect(res.body.errors.find((e: any) => e.row === 9).errors.join()).toMatch(/"Lycée De Huye" does not match the school with code 110997 \("Lycée de Kigali, Annexe"\)/);
       expect(await ctx.prisma.user.count()).toBe(before);
+      expect(await ctx.prisma.school.count()).toBe(schools);
     });
 
     it('import invites the valid rows (placed, enrolled, e-mailed) and reports the rest', async () => {
+      const schools = await ctx.prisma.school.count();
       const res = await upload(csv, false).expect(200);
-      expect(res.body).toMatchObject({ dryRun: false, created: 2, failed: 4 });
+      expect(res.body).toMatchObject({ dryRun: false, created: 2, failed: 6 });
+      expect(await ctx.prisma.school.count()).toBe(schools);   // no school created (PR B)
+      expect(await ctx.prisma.user.count({ where: { email: { in: ['name.only@example.com', 'wrong.name@example.com'] } } })).toBe(0);
 
       const grace = await ctx.prisma.user.findUniqueOrThrow({
         where: { email: 'grace@example.com' }, include: { school: true, studentEnrollments: true },
       });
       expect(grace).toMatchObject({ username: 'grace', role: 'STUDENT', gradeLevel: 'S5', divisionId: ctx.ids.senior, activatedAt: null });
-      expect(grace.school?.name).toBe('Lycée De Kigali, Annexe');
+      expect(grace.school?.name).toBe('Lycée de Kigali, Annexe');   // the existing school its code names
       expect(grace.studentEnrollments).toHaveLength(1);
 
       const jean = await ctx.prisma.user.findUniqueOrThrow({ where: { email: 'jean.mentor@example.com' } });

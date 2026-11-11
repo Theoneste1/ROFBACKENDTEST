@@ -62,4 +62,11 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/school-affiliations/:id/revoke  AdminSchoolAffiliationsController.revoke':              ADMINISTRATORS,
   'GET /api/v1/admin/users/:id/school-affiliations  AdminSchoolAffiliationsController.history':               ADMINISTRATORS,
   'GET /api/v1/me/school-affiliation  MySchoolAffiliationController.mine':                                    STUDENTS_ONLY,
+  // School administration PR B — school records (schools.manage: Administrators, Super Admins)
+  'GET /api/v1/admin/schools  AdminSchoolsController.list':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id  AdminSchoolsController.get':                                                ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/students  AdminSchoolsController.students':                                  ADMINISTRATORS,
+  'POST /api/v1/admin/schools  AdminSchoolsController.create':                                                ADMINISTRATORS,
+  'PATCH /api/v1/admin/schools/:id  AdminSchoolsController.update':                                           ADMINISTRATORS,
+  'PATCH /api/v1/admin/schools/:id/active  AdminSchoolsController.setActive':                                 ADMINISTRATORS,
 };
