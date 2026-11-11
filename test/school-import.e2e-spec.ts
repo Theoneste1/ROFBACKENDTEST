@@ -50,7 +50,9 @@ describe('Bulk school import (PR D)', () => {
   const p = () => ctx.prisma;
   const S = '/api/v1/admin/schools';
   const I = `${S}/import`;
-  const status = async (req: any) => { const r = await req; return [r.status, r.body?.code ?? null]; };
+  /** The error code of an error response (a school's own `code` field on a success is not an error code). */
+  const errorCode = (r: { status: number; body?: any }) => (r.status >= 400 ? r.body?.code ?? null : null);
+  const status = async (req: any) => { const r = await req; return [r.status, errorCode(r)]; };
   const upload = (body: string | Buffer, query: object = {}, opts: { token?: string; filename?: string } = {}) =>
     http().post(I).query(query).set(bearer(opts.token ?? admin))
       .attach('file', Buffer.isBuffer(body) ? body : Buffer.from(body, 'utf8'), { filename: opts.filename ?? (Buffer.isBuffer(body) ? 'schools.xlsx' : 'schools.csv') });
@@ -389,7 +391,7 @@ describe('Bulk school import (PR D)', () => {
     };
     const mk = async (name: string, code: string | null) =>
       (await http().post(S).set(bearer(admin)).send({ name, ...(code && { code }), province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }).expect(201)).body.id as string;
-    const patch = (id: string, body: object) => http().patch(`${S}/${id}`).set(bearer(admin)).send({ reason: 'concurrency test', ...body }).then((r) => [r.status, r.body?.code ?? null]);
+    const patch = (id: string, body: object) => http().patch(`${S}/${id}`).set(bearer(admin)).send({ reason: 'concurrency test', ...body }).then((r) => [r.status, errorCode(r)]);
     const codeOf = async (id: string) => (await p().school.findUniqueOrThrow({ where: { id } })).code;
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -422,7 +424,7 @@ describe('Bulk school import (PR D)', () => {
       const a = await mk('Race Patch School', null);
       const [pr, cr] = await Promise.all([
         patch(a, { code: '220704' }),
-        http().post(S).set(bearer(admin)).send({ name: 'Race Create School', code: '220704', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }).then((r) => [r.status, r.body?.code ?? null]),
+        http().post(S).set(bearer(admin)).send({ name: 'Race Create School', code: '220704', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2] }).then((r) => [r.status, errorCode(r)]),
       ]);
       // Exactly one wins: the PATCH (200) and the create is refused, or the create (201) and the PATCH is refused.
       expect([[[200, null], [409, 'SCHOOL_CODE_TAKEN']], [[409, 'SCHOOL_CODE_TAKEN'], [201, null]]]).toContainEqual([pr, cr]);
@@ -431,7 +433,7 @@ describe('Bulk school import (PR D)', () => {
       const b = await mk('Race Patch School 2', null);
       const [pr2, ir] = await Promise.all([
         patch(b, { code: '220705' }),
-        upload(csvOf([R('Race Import School', { code: '220705' })])).then((r) => [r.status, r.body?.code ?? null, r.body?.details?.errors?.[0]?.errors?.[0] ?? null]),
+        upload(csvOf([R('Race Import School', { code: '220705' })])).then((r) => [r.status, errorCode(r), r.body?.details?.errors?.[0]?.errors?.[0] ?? null]),
       ]);
       // Exactly one wins: the PATCH (and the import is refused with the row error) or the import (and the PATCH is refused).
       expect([
@@ -445,7 +447,7 @@ describe('Bulk school import (PR D)', () => {
       if (!(await requireConcurrency(test))) return;
       const one = csvOf([R('Overlap Alpha', { code: '220711' }), R('Overlap Beta', { code: '220712' })]);
       const two = csvOf([R('Overlap Beta', { code: '220712' }), R('Overlap Alpha', { code: '220711' })]);
-      const results = await Promise.all([upload(one), upload(two)].map((q) => q.then((r) => [r.status, r.body?.code ?? null])));
+      const results = await Promise.all([upload(one), upload(two)].map((q) => q.then((r) => [r.status, errorCode(r)])));
       expect(results).toEqual(expect.arrayContaining([[201, null], [422, 'IMPORT_INVALID']]));
       expect(await p().school.count({ where: { name: { in: ['Overlap Alpha', 'Overlap Beta'] } } })).toBe(2);
     });
@@ -485,7 +487,7 @@ describe('Bulk school import (PR D)', () => {
       await http().patch(`${S}/${elsewhere}`).set(bearer(admin)).send({ countryCode: 'KE', province: null, district: null, sector: null, location: 'Nairobi', reason: 'abroad' }).expect(200);
       const [move, imp] = await Promise.all([
         http().patch(`${S}/${elsewhere}`).set(bearer(admin)).send({ countryCode: 'RW', province: NGOMA[0], district: NGOMA[1], sector: NGOMA[2], reason: 'back', confirmPossibleDuplicate: true }).then((r) => r.status),
-        upload(csvOf([R('MOVING SCHOOL!')])).then((r) => [r.status, r.body?.code ?? null]),
+        upload(csvOf([R('MOVING SCHOOL!')])).then((r) => [r.status, errorCode(r)]),
       ]);
       expect(move).toBe(200);
       // Either the import ran first (no candidate yet in Huye, imported) or saw the moved school (409 unconfirmed).
