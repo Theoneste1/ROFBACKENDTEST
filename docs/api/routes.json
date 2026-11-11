@@ -653,6 +653,60 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/changes",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/items",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/report.csv",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/schools",
     "roles": [
       "ADMIN",
