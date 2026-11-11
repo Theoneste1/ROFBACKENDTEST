@@ -58,20 +58,36 @@ export class InviteUserDto {
   @IsEnum(GradeLevel, { message: 'gradeLevel must be one of S1, S2, S3, S4, S5, S6.' })
   gradeLevel?: GradeLevel;
 
-  /** Existing school id … */
+  /**
+   * The student's school: an EXISTING school, by id and/or official code (PR B). Invitations and
+   * CSV imports never create a school — an Administrator creates it first (POST /admin/schools).
+   */
   @IsOptional()
   @Transform(emptyToUndefined)
   @IsUUID()
   schoolId?: string;
 
-  /** … or a school name (created if new, normalised to Title Case). */
+  /** A Rwandan school's 6-digit official code (alternative to schoolId; both must name the same school). */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? (value.trim() || undefined) : value))
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'schoolCode must be exactly 6 digits.' })
+  schoolCode?: string;
+
+  /**
+   * Optional check only: when given with schoolCode / schoolId it must be that school's name
+   * (case, accents and punctuation ignored), otherwise the invitation or row is refused
+   * (SCHOOL_NAME_MISMATCH). Alone it is refused (SCHOOL_REFERENCE_REQUIRED) — it never creates
+   * or matches a school.
+   */
   @IsOptional()
   @Transform(titleCase)
   @IsString()
   @Length(2, 200)
   schoolName?: string;
 
-  @ValidateIf((o) => !!o.schoolName)
+  /** Accepted for compatibility with earlier clients and CSV files; not used (the school's own location applies). */
+  @IsOptional()
   @Transform(titleCase)
   @IsString()
   @Length(2, 200)

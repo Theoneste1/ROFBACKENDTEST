@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 17 @Public + 28 @Roles + 142 @RequirePermission + 54 @Authenticated = 241, none undeclared', () => {
+  it('declarations add up: 17 @Public + 28 @Roles + 148 @RequirePermission + 54 @Authenticated = 247, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 17, '@Roles': 28, '@RequirePermission': 142, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 17, '@Roles': 28, '@RequirePermission': 148, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -200,8 +200,9 @@ describe('route declarations (P1-02 §5)', () => {
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
       // P1-11: teacher school assignments, delegations and the teacher's school-scoped views (new routes)
       'users.manageTeachers': 6, 'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
-      // School administration PR A: student–school verification (new routes)
-      'schools.manage': 6,
+      // School administration PR A: student–school verification (new routes);
+      // PR B: school records (list, get, students, create, update, activate / deactivate)
+      'schools.manage': 12,
     });
   });
 
@@ -314,7 +315,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 30 added since: 232 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 36 added since: 238 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

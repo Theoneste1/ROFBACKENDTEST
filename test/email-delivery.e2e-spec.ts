@@ -136,7 +136,8 @@ describe('E-mail delivery through Resend (e2e)', () => {
   it('delivers an invitation whose activation link works, then a welcome e-mail', async () => {
     await ctx.http().post('/api/v1/admin/users/invite').set(bearer(admin)).send({
       firstName: 'Aline', lastName: 'Mukamana', email: 'aline.invite@example.org', gradeLevel: 'S4',
-      schoolName: 'Groupe Scolaire Kigali', schoolLocation: 'Kigali',
+      // An existing school (PR B: invitations never create one), as before a school of its own.
+      schoolId: (await ctx.prisma.school.create({ data: { name: 'Groupe Scolaire Kigali', location: 'Kigali' } })).id,
     }).expect(201);
     await drain();
 

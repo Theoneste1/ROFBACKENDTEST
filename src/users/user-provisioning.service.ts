@@ -6,6 +6,10 @@
  * the e-mailed activation link and chooses one (ActivationService). Students
  * are placed in a division by grade and enrolled in the current academic year
  * in the same transaction that creates them.
+ *
+ * A student's school must be an EXISTING, active school named by schoolId or schoolCode
+ * (school administration PR B): invitations and CSV imports never create a school, and a
+ * school name alone is refused (school-reference.ts).
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
@@ -23,6 +27,7 @@ import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { AccessService } from '../common/access/access.service.js';
 import { isHeadCoach } from '../common/access/roles.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
+import { resolveSchoolReference } from '../schools/school-reference.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -33,7 +38,7 @@ export const IMPORT_MAX_BYTES = 1024 * 1024;
 
 const KNOWN_COLUMNS = [
   'firstName', 'lastName', 'email', 'username', 'role',
-  'gradeLevel', 'schoolName', 'schoolLocation', 'homeLocation',
+  'gradeLevel', 'schoolCode', 'schoolId', 'schoolName', 'schoolLocation', 'homeLocation',
 ] as const;
 const REQUIRED_COLUMNS = ['firstName', 'lastName', 'email'] as const;
 
@@ -155,8 +160,12 @@ export class UserProvisioningService {
    *
    * Columns (header row, any order, case-sensitive names):
    *   firstName*, lastName*, email*, role (STUDENT|MENTOR|ADMIN, default STUDENT),
-   *   gradeLevel (required for students), schoolName, schoolLocation,
+   *   gradeLevel (required for students), schoolCode or schoolId (an existing school),
+   *   schoolName (optional check: must be that school's name), schoolLocation (not used),
    *   homeLocation, username (generated when empty)
+   *
+   * A row naming a school by schoolName only, an unknown or inactive school, or a name that
+   * does not match the code is a row error (dry run too); no school is ever created.
    */
   async importCsv(file: Express.Multer.File | undefined, dryRun: boolean, caller: CallerCtx) {
     if (!file?.buffer?.length) {
@@ -218,6 +227,10 @@ export class UserProvisioningService {
         const first = seenUsernames.get(dto.username);
         if (first) problems.push(`username repeats row ${first}.`);
         else seenUsernames.set(dto.username, rec.line);
+      }
+      if (problems.length === 0) {
+        const schoolProblem = await this.schoolProblem(dto);
+        if (schoolProblem) problems.push(schoolProblem);
       }
 
       if (problems.length) errors.push({ row: rec.line, email: rec.values['email'], errors: problems });
@@ -294,6 +307,17 @@ export class UserProvisioningService {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
+  /** A CSV row's school problem as a row error message (null when the row's school is fine or none). */
+  private async schoolProblem(dto: InviteUserDto): Promise<string | null> {
+    if ((dto.role ?? 'STUDENT') !== 'STUDENT') return null;
+    try {
+      await resolveSchoolReference(this.prisma, dto, { requireActive: true });
+      return null;
+    } catch (err) {
+      return (err as Error).message;
+    }
+  }
+
   /** The allow-list refusal for a CSV row, as a row error message (null when allowed). */
   private async roleRefusal(caller: CallerCtx, role: string): Promise<string | null> {
     try {
@@ -319,19 +343,11 @@ export class UserProvisioningService {
     }
     const isStudent = role === 'STUDENT';
 
-    let schoolId: string | null = null;
-    if (isStudent && dto.schoolId) {
-      const school = await tx.school.findUnique({ where: { id: dto.schoolId }, select: { id: true } });
-      if (!school) throw new NotFoundException('School not found.');
-      schoolId = school.id;
-    } else if (isStudent && dto.schoolName) {
-      const school = await tx.school.upsert({
-        where:  { name: dto.schoolName },
-        update: {},
-        create: { name: dto.schoolName, location: dto.schoolLocation ?? 'Unknown' },
-      });
-      schoolId = school.id;
-    }
+    // An existing, active school by id / code — never created here (PR B). The claim below
+    // locks it and re-checks that it is still active.
+    const schoolId = isStudent
+      ? ((await resolveSchoolReference(tx, dto, { requireActive: true }))?.id ?? null)
+      : null;
 
     const division = isStudent
       ? await tx.division.findUniqueOrThrow({ where: { code: divisionCodeForGrade(dto.gradeLevel!) }, select: { id: true } })

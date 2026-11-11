@@ -19392,6 +19392,7 @@
     },
     "/api/v1/schools": {
       "get": {
+        "deprecated": true,
         "operationId": "SchoolsController_findAll",
         "parameters": [],
         "responses": {
@@ -19485,7 +19486,7 @@
             }
           }
         },
-        "summary": "ADMIN: schools with student counts.",
+        "summary": "ADMIN: schools with student counts. Deprecated: use GET /admin/schools (same callers; unchanged guard).",
         "tags": [
           "Schools"
         ],
@@ -19498,6 +19499,7 @@
     },
     "/api/v1/schools/{id}": {
       "get": {
+        "deprecated": true,
         "operationId": "SchoolsController_findOne",
         "parameters": [
           {
@@ -19641,7 +19643,7 @@
             }
           }
         },
-        "summary": "ADMIN: a school and its students (paginated).",
+        "summary": "ADMIN: a school and its students (paginated). Deprecated: use GET /admin/schools/:id and …/students.",
         "tags": [
           "Schools"
         ],
@@ -19650,6 +19652,355 @@
           "SUPER_ADMIN"
         ],
         "description": "**Access:** ADMIN, SUPER_ADMIN"
+      }
+    },
+    "/api/v1/admin/schools": {
+      "get": {
+        "operationId": "AdminSchoolsController_list",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Name (contains) or code (starts with).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "countryCode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "province",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "district",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "sector",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "OFFICIAL_LIST",
+                "LEGACY"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Every school — official, Administrator-created and legacy; active and inactive — with student counts.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "AdminSchoolsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSchoolDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a school (409 SCHOOL_NAME_TAKEN / SCHOOL_CODE_TAKEN / POSSIBLE_DUPLICATE).",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}": {
+      "get": {
+        "operationId": "AdminSchoolsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A school with what refers to it: students, verified students, pending claims, Teacher assignments, enrolments.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "patch": {
+        "operationId": "AdminSchoolsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSchoolDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit a school; its id, students, claims and Teacher assignments are unchanged.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/students": {
+      "get": {
+        "operationId": "AdminSchoolsController_students",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The school's students with the status of their current claim for this school.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/active": {
+      "patch": {
+        "operationId": "AdminSchoolsController_setActive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSchoolActiveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Deactivate or reactivate (reason required); the response lists what refers to the school.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses": {
@@ -38818,6 +39169,11 @@
             "type": "string",
             "format": "uuid"
           },
+          "schoolCode": {
+            "type": "string",
+            "description": "A Rwandan school by its official code — an alternative to schoolId (PR B). Given together,\nboth must name the same school.",
+            "pattern": "^\\d{6}$"
+          },
           "homeLocation": {
             "type": "string",
             "minLength": 2,
@@ -38882,17 +39238,23 @@
           },
           "schoolId": {
             "type": "string",
-            "description": "Existing school id …",
+            "description": "The student's school: an EXISTING school, by id and/or official code (PR B). Invitations and\nCSV imports never create a school — an Administrator creates it first (POST /admin/schools).",
             "format": "uuid"
+          },
+          "schoolCode": {
+            "type": "string",
+            "description": "A Rwandan school's 6-digit official code (alternative to schoolId; both must name the same school).",
+            "pattern": "^\\d{6}$"
           },
           "schoolName": {
             "type": "string",
-            "description": "… or a school name (created if new, normalised to Title Case).",
+            "description": "Optional check only: when given with schoolCode / schoolId it must be that school's name\n(case, accents and punctuation ignored), otherwise the invitation or row is refused\n(SCHOOL_NAME_MISMATCH). Alone it is refused (SCHOOL_REFERENCE_REQUIRED) — it never creates\nor matches a school.",
             "minLength": 2,
             "maxLength": 200
           },
           "schoolLocation": {
             "type": "string",
+            "description": "Accepted for compatibility with earlier clients and CSV files; not used (the school's own location applies).",
             "minLength": 2,
             "maxLength": 200
           },
@@ -38968,6 +39330,11 @@
             "nullable": true,
             "description": "Omitted: the school is kept. A school id: the student moves to that school. null: the\nstudent's school is cleared (their current school claim ends; no new claim is created).",
             "format": "uuid"
+          },
+          "schoolCode": {
+            "type": "string",
+            "description": "A Rwandan school by its official code — an alternative to schoolId (PR B). Given together,\nboth must name the same school.",
+            "pattern": "^\\d{6}$"
           },
           "homeLocation": {
             "type": "string",
@@ -39212,6 +39579,137 @@
           }
         },
         "required": [
+          "reason"
+        ]
+      },
+      "CreateSchoolDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "countryCode": {
+            "type": "string",
+            "description": "ISO 3166-1 alpha-2; default RW."
+          },
+          "code": {
+            "type": "string",
+            "description": "Rwanda only: the official code (6 digits; first digit = province).",
+            "pattern": "^\\d{6}$"
+          },
+          "province": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "district": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "sector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "location": {
+            "type": "string",
+            "description": "Required outside Rwanda; in Rwanda defaults to \"Sector, District\".",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "ownership": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "GOVERNMENT_AIDED",
+              "PRIVATE"
+            ]
+          },
+          "confirmPossibleDuplicate": {
+            "type": "boolean",
+            "description": "Create even though schools with the same normalised name exist nearby (recorded in the audit log)."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateSchoolDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "countryCode": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Set or change the official code (it cannot be removed).",
+            "pattern": "^\\d{6}$"
+          },
+          "province": {
+            "type": "string",
+            "nullable": true,
+            "description": "null clears (only when the school is moved outside Rwanda).",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "district": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "sector": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "location": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "ownership": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "GOVERNMENT_AIDED",
+              "PRIVATE"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "confirmPossibleDuplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SetSchoolActiveDto": {
+        "type": "object",
+        "properties": {
+          "isActive": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why (recorded in the audit log).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "isActive",
           "reason"
         ]
       },

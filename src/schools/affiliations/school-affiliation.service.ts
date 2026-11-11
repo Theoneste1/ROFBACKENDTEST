@@ -23,6 +23,11 @@
  *
  * The database enforces both invariants after every statement (M10): at most one current claim per
  * student, and the current claim's school is User.schoolId.
+ *
+ * Inactive schools (PR B): a new claim for a school, and its verification, lock the school row
+ * (FOR SHARE, school-usage.ts) and are refused when it is inactive (409 SCHOOL_INACTIVE).
+ * Rejecting and revoking stay possible. Lock order everywhere: the student's claim row, then the
+ * school — so a claim, a verification and a deactivation can never deadlock.
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
@@ -32,6 +37,7 @@ import { AppError } from '../../common/errors/app-error.js';
 import { pageArgs, paginated } from '../../common/pagination.js';
 import type { Prisma, SchoolAffiliationSource, SchoolAffiliationStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { lockSchoolsForUse } from '../school-usage.js';
 import { ListAffiliationsDto } from './school-affiliation.dto.js';
 
 /** Namespace of the per-student advisory lock taken while changing the current claim. */
@@ -76,6 +82,8 @@ export class SchoolAffiliationService {
   async claim(tx: Prisma.TransactionClient, input: ClaimInput): Promise<string> {
     await this.lock(tx, input.studentId);
     await this.supersedeLocked(tx, input.studentId, input.reason, input.actor);
+    // A claim for a school needs an ACTIVE school, locked until this transaction commits.
+    if (input.schoolId) await lockSchoolsForUse(tx, [input.schoolId]);
     const c = input.claimed ?? {};
     const created = await tx.studentSchoolAffiliation.create({
       data: {
@@ -175,15 +183,19 @@ export class SchoolAffiliationService {
     data: Prisma.StudentSchoolAffiliationUncheckedUpdateManyInput, opts: { requireSchool?: boolean; reason: string | null },
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const row = await tx.studentSchoolAffiliation.findUnique({
-        where: { id }, select: { id: true, studentId: true, schoolId: true, status: true, supersededAt: true },
-      });
+      // The claim row first (FOR UPDATE: a concurrent decision or supersession waits here), then
+      // — for a verification — the school: the same order as claim() takes them.
+      const [row] = await tx.$queryRaw<Array<{ id: string; studentId: string; schoolId: string | null; status: SchoolAffiliationStatus; supersededAt: Date | null }>>`
+        SELECT "id", "studentId", "schoolId", "status"::text AS "status", "supersededAt"
+          FROM "StudentSchoolAffiliation" WHERE "id" = ${id} FOR UPDATE`;
       if (!row) throw new NotFoundException('Affiliation not found.');
       if (row.supersededAt) throw conflict('AFFILIATION_SUPERSEDED', 'This claim has been replaced by a newer one.');
       if (row.status !== from) throw conflict('AFFILIATION_STATUS_CONFLICT', `Only a ${from} claim can become ${to}.`, { status: row.status });
       if (opts.requireSchool && !row.schoolId) {
         throw conflict('AFFILIATION_SCHOOL_REQUIRED', 'The claim has no school yet; resolve the school before verifying membership.');
       }
+      // Verifying membership of an inactive school is refused (rejecting / revoking is not).
+      if (opts.requireSchool) await lockSchoolsForUse(tx, [row.schoolId!]);
       // Atomic: only the still-current claim in the expected status changes; a concurrent
       // decision or a new claim makes this update nothing → 409, and nothing is audited.
       const { count } = await tx.studentSchoolAffiliation.updateMany({

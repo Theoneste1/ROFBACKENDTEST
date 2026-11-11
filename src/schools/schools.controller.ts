@@ -1,6 +1,6 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, Length, ValidateIf } from 'class-validator';
 
 import { SchoolsService } from './schools.service.js';
@@ -51,15 +51,17 @@ export class SchoolsController {
     return this.schoolsService.locations();
   }
 
-  /** ADMIN: schools with student counts. */
+  /** ADMIN: schools with student counts. Deprecated: use GET /admin/schools (same callers; unchanged guard). */
   @Get()
+  @ApiOperation({ deprecated: true })
   @Roles('ADMIN', 'SUPER_ADMIN')
   findAll(@Query() query: ListSchoolsDto) {
     return this.schoolsService.findAll(query);
   }
 
-  /** ADMIN: a school and its students (paginated). */
+  /** ADMIN: a school and its students (paginated). Deprecated: use GET /admin/schools/:id and …/students. */
   @Get(':id')
+  @ApiOperation({ deprecated: true })
   @Roles('ADMIN', 'SUPER_ADMIN')
   findOne(@Param('id', ParseUUIDPipe) id: string, @Query() query: PaginationQueryDto) {
     return this.schoolsService.findOne(id, query);
