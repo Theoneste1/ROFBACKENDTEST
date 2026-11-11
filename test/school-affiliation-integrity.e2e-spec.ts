@@ -484,15 +484,23 @@ describe('Student–school affiliation hardening (school administration PR A.1)'
       await consistent(s);
     });
 
-    it('simultaneous Administrator edits of one student all succeed and leave exactly one current claim, for the school the student ends at', async (test) => {
+    it('simultaneous Administrator edits of one student: each one succeeds or is refused as stale (409, nothing written); the student ends with exactly one current claim, for the school of a successful edit', async (test) => {
       if (!(await requireConcurrency(test))) return;
       const s = await student(schoolA);
+      const updates = () => p().auditLog.count({ where: { action: 'UPDATE_USER', entityId: s } });
       for (let round = 0; round < 3; round++) {
-        const statuses = await Promise.all([schoolB, schoolA, schoolB, schoolA, schoolB].map((schoolId) =>
-          http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ schoolId }).then((r) => r.status)));
-        expect(statuses).toEqual([200, 200, 200, 200, 200]);
+        const before = await updates();
+        const results = await Promise.all([schoolB, schoolA, schoolB, schoolA, schoolB].map((schoolId) =>
+          http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ schoolId }).then((r) => ({ schoolId, status: r.status, code: r.body?.code }))));
+        // An edit read before another committed is refused rather than overwriting it (USER_CHANGED_CONCURRENTLY).
+        for (const r of results) expect([[200, undefined], [409, 'USER_CHANGED_CONCURRENTLY']]).toContainEqual([r.status, r.code]);
+        const succeeded = results.filter((r) => r.status === 200);
+        expect(succeeded.length).toBeGreaterThanOrEqual(1);
+        expect(await updates()).toBe(before + succeeded.length);   // refused edits wrote no audit entry
+        const final = (await p().user.findUniqueOrThrow({ where: { id: s } })).schoolId;
+        expect(succeeded.map((r) => r.schoolId)).toContain(final);
         await consistent(s);
-        expect(await current(s)).toHaveLength(1);
+        expect(await current(s)).toEqual([expect.objectContaining({ schoolId: final })]);
       }
     });
   });
