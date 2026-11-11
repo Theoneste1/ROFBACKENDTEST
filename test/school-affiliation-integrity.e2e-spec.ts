@@ -13,8 +13,9 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import pg from 'pg';
 
+import { RoleAssignmentPolicy } from '../src/auth/role-assignment.policy.js';
 import { SchoolAffiliationService } from '../src/schools/affiliations/school-affiliation.service.js';
-import { createTestApp, login, bearer, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, PASSWORD, type TestContext } from './helpers.js';
 
 const ROOT = join(__dirname, '..');
 /** A migration or rollback file without its BEGIN/COMMIT, to run inside a test's own transaction. */
@@ -315,6 +316,81 @@ describe('Student–school affiliation hardening (school administration PR A.1)'
     await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ role: 'STUDENT', gradeLevel: 'S2', schoolId: schoolB }).expect(200);
     expect(await current(s)).toEqual([expect.objectContaining({ schoolId: schoolB, status: 'PENDING' })]);
     await consistent(s);
+  });
+
+  // ─── Stale reads in an Administrator edit (PR #26 review) ──────────────────
+
+  describe('an edit prepared from a stale read never overwrites a change committed meanwhile', () => {
+    /**
+     * Deterministic interleaving (no parallel connections needed): request B is held right after
+     * it has read the user and passed its checks — before its transaction — while request A runs
+     * to completion; then B continues.
+     */
+    async function interleave(first: () => Promise<any>, second: () => Promise<any>) {
+      const policy = ctx.app.get(RoleAssignmentPolicy);
+      const original = policy.assertCanManage.bind(policy);
+      let reached!: () => void; const atGate = new Promise<void>((r) => (reached = r));
+      let release!: () => void; const gate = new Promise<void>((r) => (release = r));
+      const spy = vi.spyOn(policy, 'assertCanManage').mockImplementationOnce(async (...args: Parameters<typeof original>) => {
+        await original(...args);
+        reached();
+        await gate;
+      });
+      try {
+        const b = second();          // reads the user, then waits at the gate
+        await atGate;
+        const a = await first();     // commits while B holds its stale read
+        release();
+        return { a, b: await b };
+      } finally {
+        spy.mockRestore();
+      }
+    }
+
+    it('student → Coach committed meanwhile: a stale name-only edit is refused (409), the role and every role cleanup stand', async () => {
+      const s = await student(schoolA);
+      await verify(s);
+      await p().studentEnrollment.create({ data: { studentId: s, academicYearId: ctx.ids.year, gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolA } });
+      const { a, b } = await interleave(
+        () => http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ role: 'MENTOR' }).then((r) => r),
+        () => http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ firstName: 'Stale' }).then((r) => r),
+      );
+      expect(a.status).toBe(200);
+      expect([b.status, b.body.code]).toEqual([409, 'USER_CHANGED_CONCURRENTLY']);
+      expect(await p().user.findUniqueOrThrow({ where: { id: s } })).toMatchObject({ role: 'MENTOR', gradeLevel: null, divisionId: null, schoolId: null, firstName: 'A1' });
+      expect(await current(s)).toEqual([]);   // the claim ended with the role (ROLE_CHANGE) and was not revived
+      expect(await p().studentEnrollment.count({ where: { studentId: s, status: 'ACTIVE' } })).toBe(0);
+      expect(await p().auditLog.count({ where: { action: 'UPDATE_USER', entityId: s } })).toBe(1);   // A only
+      await consistent(s);
+      // Retrying from a fresh read works.
+      await http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ firstName: 'Fresh' }).expect(200);
+      expect(await p().user.findUniqueOrThrow({ where: { id: s } })).toMatchObject({ role: 'MENTOR', firstName: 'Fresh' });
+    });
+
+    it('Administrator demoted meanwhile: a stale name-only edit cannot restore ADMIN (no privilege re-escalation without the role-change checks)', async () => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      const target = (await p().user.create({ data: {
+        username: 'a1.admin.target', firstName: 'Ad', lastName: 'Min', email: 'a1.admin.target@test.local', role: 'ADMIN', passwordHash: hash, activatedAt: new Date(),
+      } })).id;
+      const { a, b } = await interleave(
+        () => http().patch(`/api/v1/admin/users/${target}`).set(bearer(admin)).send({ role: 'MENTOR', currentPassword: PASSWORD }).then((r) => r),
+        () => http().patch(`/api/v1/admin/users/${target}`).set(bearer(admin)).send({ lastName: 'Stale' }).then((r) => r),
+      );
+      expect(a.status).toBe(200);
+      expect([b.status, b.body.code]).toEqual([409, 'USER_CHANGED_CONCURRENTLY']);
+      expect(await p().user.findUniqueOrThrow({ where: { id: target } })).toMatchObject({ role: 'MENTOR', lastName: 'Min' });
+      expect(await p().auditLog.count({ where: { action: 'CHANGE_USER_ROLE', entityId: target } })).toBe(1);
+    });
+
+    it('nothing committed in between: the same interleaving helper lets the edit through unchanged', async () => {
+      const s = await student(schoolA);
+      const { a, b } = await interleave(
+        async () => ({ status: 200 }),   // no concurrent change
+        () => http().patch(`/api/v1/admin/users/${s}`).set(bearer(admin)).send({ firstName: 'Calm' }).then((r) => r),
+      );
+      expect([a.status, b.status]).toEqual([200, 200]);
+      expect(await p().user.findUniqueOrThrow({ where: { id: s } })).toMatchObject({ role: 'STUDENT', firstName: 'Calm', schoolId: schoolA });
+    });
   });
 
   // ─── Head Coach views ──────────────────────────────────────────────────────

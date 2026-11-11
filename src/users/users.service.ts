@@ -133,14 +133,7 @@ export class UsersService {
 
   // ─── Update a user (admin) ──────────────────────────────────────────────────
   async update(id: string, data: UpdateUserDto, caller: CallerCtx) {
-    const existing = await this.prisma.user.findUnique({
-      where:  { id },
-      select: {
-        id: true, role: true, gradeLevel: true, username: true, email: true,
-        firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
-        isActive: true, activatedAt: true,
-      },
-    });
+    const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
     await this.roles.assertCanManage(caller, existing.role);
 
@@ -195,9 +188,18 @@ export class UsersService {
 
     const actor = { actorId: caller.id, actorRole: caller.role };
     const user = await this.prisma.$transaction(async (tx) => {
-      // Lock the user row first: a concurrent edit of this user waits here, and the school
-      // affiliation below is decided on the committed state, not on `existing` (read before).
-      const [locked] = await tx.$queryRaw<Array<{ schoolId: string | null }>>`SELECT "schoolId" FROM "User" WHERE "id" = ${id} FOR UPDATE`;
+      // Lock the user row, then re-read it. Everything above — authorization, the role rules,
+      // step-up, and the update itself (role, grade, division, school) — was prepared from
+      // `existing`, read before this transaction. If another edit committed in between, writing
+      // this one would silently restore stale values (e.g. a demoted Administrator's role), so it
+      // is refused instead; the caller reloads and retries. Concurrent edits of this user wait here.
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${id} FOR UPDATE`;
+      const locked = await tx.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
+      if (!locked) throw new NotFoundException(`User ${id} not found.`);
+      if (changedSince(existing, locked)) {
+        throw new AppError(HttpStatus.CONFLICT, 'USER_CHANGED_CONCURRENTLY',
+          'This user was changed by someone else in the meantime. Reload the user and try again.');
+      }
 
       // School affiliation follows the student's school and role, in this transaction:
       //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
@@ -208,7 +210,7 @@ export class UsersService {
       // every statement leaves the student consistent (M10).
       // The student's school after this edit: omitted → the locked (committed) school is kept;
       // an id → that school; explicit null → cleared.
-      const nextSchoolId = role !== 'STUDENT' ? null : data.schoolId !== undefined ? data.schoolId : (locked?.schoolId ?? null);
+      const nextSchoolId = role !== 'STUDENT' ? null : data.schoolId !== undefined ? data.schoolId : locked.schoolId;
       const nextClaim = roleChange || data.schoolId !== undefined
         ? await this.affiliations.beginUserChange(tx, {
             id, isStudent: role === 'STUDENT', becameStudent: role === 'STUDENT' && existing.role !== 'STUDENT', schoolId: nextSchoolId,
@@ -473,6 +475,22 @@ const PRIVILEGED: readonly string[] = ['ADMIN', 'SUPER_ADMIN'];
 
 function lastSuperAdmin() {
   return new AppError(HttpStatus.CONFLICT, 'LAST_SUPER_ADMIN', 'At least one active Super Administrator must remain.');
+}
+
+/** What an Administrator edit is prepared from (and re-checked against under the row lock). */
+const EDIT_STATE_SELECT = {
+  id: true, role: true, gradeLevel: true, username: true, email: true,
+  firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
+  isActive: true, activatedAt: true,
+} as const;
+type EditState = Prisma.UserGetPayload<{ select: typeof EDIT_STATE_SELECT }>;
+
+/** True when any field the edit was prepared from differs from the locked, committed row. */
+function changedSince(before: EditState, now: EditState): boolean {
+  return (Object.keys(EDIT_STATE_SELECT) as Array<keyof EditState>).some((k) => {
+    const a = before[k], b = now[k];
+    return a instanceof Date || b instanceof Date ? (a as Date | null)?.getTime() !== (b as Date | null)?.getTime() : a !== b;
+  });
 }
 
 const isLastSuperAdminError = (err: unknown) => String((err as Error)?.message ?? '').includes('LAST_SUPER_ADMIN');

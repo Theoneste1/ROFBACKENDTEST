@@ -140,6 +140,15 @@ describe('UsersService', () => {
         .rejects.toMatchObject({ code: 'IDENTITY_TAKEN' });
     });
 
+    it('refuses (409 USER_CHANGED_CONCURRENTLY) when the user changed between the first read and the row lock — nothing is written', async () => {
+      const { service, prisma, audit } = makeMocks();
+      // First read: STUDENT; inside the transaction, after the lock: already MENTOR (another edit committed).
+      prisma.user.findUnique.mockResolvedValueOnce(existing).mockResolvedValueOnce({ ...existing, role: 'MENTOR', gradeLevel: null });
+      await expect(service.update('u2', { firstName: 'Stale' } as any, ADMIN)).rejects.toMatchObject({ code: 'USER_CHANGED_CONCURRENTLY' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
     it('clears student data and revokes sessions when a student becomes a mentor', async () => {
       const { service, prisma, tokens } = makeMocks();
       prisma.user.findUnique.mockResolvedValue(existing);
