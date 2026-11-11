@@ -28,6 +28,7 @@ import { pageArgs, paginated, type PaginationQueryDto } from '../common/paginati
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
+import { assertDirectoryPlace, SQL_NAME_KEY } from './school-directory.js';
 import { schoolKey } from './school-key.js';
 import { codeProblems, RWANDA } from './school-rules.js';
 
@@ -46,9 +47,6 @@ const SCHOOL_SELECT = {
 const EDITABLE = ['name', 'countryCode', 'code', 'province', 'district', 'sector', 'location', 'ownership'] as const;
 type Editable = (typeof EDITABLE)[number];
 type Place = Record<Editable, string | null>;
-
-/** The same normalisation as schoolKey(), in SQL (as in M8), for legacy rows without a nameKey. */
-const SQL_NAME_KEY = Prisma.sql`trim(regexp_replace(translate(lower("name"), 'àáâäãåçèéêëìíîïñòóôöõùúûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy'), '[^a-z0-9]+', ' ', 'g'))`;
 
 interface DuplicateCandidate { id: string; name: string; code: string | null; countryCode: string; district: string | null; isActive: boolean }
 
@@ -305,15 +303,7 @@ export class AdminSchoolsService {
   /** Rwanda: the province / district / sector must exist in the official directory (M8). */
   private async assertDirectoryPlace(tx: Tx, p: Place) {
     if (p.countryCode !== RWANDA || (!p.province && !p.district && !p.sector)) return;   // a legacy school without a place
-    const known = await tx.school.findFirst({
-      where: { source: 'OFFICIAL_LIST', countryCode: RWANDA, province: p.province, district: p.district, sector: p.sector },
-      select: { id: true },
-    });
-    if (!known) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL_LOCATION',
-        `${p.sector}, ${p.district}, ${p.province} is not a place in the official directory.`,
-        { province: p.province, district: p.district, sector: p.sector });
-    }
+    await assertDirectoryPlace(tx, p);
   }
 
   private async assertNameFree(tx: Tx, name: string, exceptId: string | null) {

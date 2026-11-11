@@ -18954,6 +18954,15 @@
             }
           },
           {
+            "name": "hasSchool",
+            "required": false,
+            "in": "query",
+            "description": "Whether the claim is linked to a school (false: the queue of name-only claims to match). Independent of status.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "current",
             "required": false,
             "in": "query",
@@ -19203,6 +19212,171 @@
         "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/school-affiliations/{id}/match": {
+      "post": {
+        "operationId": "AdminSchoolAffiliationsController_match",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchAffiliationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Link a name-only claim (not listed / another country) to an existing school. The claim stays\nPENDING — verifying is a separate action. Different country: 400; different province /\ndistrict / sector: needs confirmDifferentPlace. Create a missing school first with POST /admin/schools.",
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-affiliations/{id}/reopen": {
+      "post": {
+        "operationId": "AdminSchoolAffiliationsController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AffiliationReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reopen the student's current REJECTED or REVOKED claim as a new PENDING claim (reason required).",
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-affiliations/{id}/candidates": {
+      "get": {
+        "operationId": "AdminSchoolAffiliationsController_candidates",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Schools a name-only claim may be matched to (same normalised name in its country / district).",
+        "tags": [
+          "Admin · School affiliations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users/{id}/school-affiliations": {
       "get": {
         "operationId": "AdminSchoolAffiliationsController_history",
@@ -19280,6 +19454,55 @@
           }
         ],
         "summary": "Current claim: status, school or entered name, and the reason of a rejection or revocation.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "description": "**Access:** STUDENT"
+      },
+      "post": {
+        "operationId": "MySchoolAffiliationController_request",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentClaimDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Claim a school: by code, \"my school is not listed\" (name + province / district / sector), or\nanother country (country + name). Always PENDING until an Administrator verifies it. At most 3\nrequests in 24 hours; 7 days after a rejection or revocation of the same school.",
         "tags": [
           "Me"
         ],
@@ -38833,6 +39056,22 @@
             "minLength": 2,
             "maxLength": 200
           },
+          "schoolProvince": {
+            "type": "string",
+            "description": "Rwanda, \"My school is not listed\" (PR C): the school's place in the official directory, sent\nwith schoolName — all three together (from GET /schools/locations). The claim keeps the name\nand place, PENDING until an Administrator matches and verifies it; an exact unique match with\nan active official school in that sector links that school (still PENDING).",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "schoolDistrict": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "schoolSector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
           "schoolLocation": {
             "type": "string",
             "description": "Legacy, with schoolName: city / region of the school (not stored).",
@@ -39581,6 +39820,61 @@
         "required": [
           "reason"
         ]
+      },
+      "MatchAffiliationDto": {
+        "type": "object",
+        "properties": {
+          "schoolId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "confirmDifferentPlace": {
+            "type": "boolean",
+            "description": "Required when the school's province, district or sector differs from what the student entered."
+          }
+        },
+        "required": [
+          "schoolId"
+        ]
+      },
+      "StudentClaimDto": {
+        "type": "object",
+        "properties": {
+          "schoolCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "schoolName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "country": {
+            "type": "string",
+            "description": "Default RW."
+          },
+          "schoolProvince": {
+            "type": "string",
+            "description": "Rwanda, \"not listed\": the school's place in the official directory (all three together).",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "schoolDistrict": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "schoolSector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        }
       },
       "CreateSchoolDto": {
         "type": "object",
