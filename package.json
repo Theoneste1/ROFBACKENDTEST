@@ -51,6 +51,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
+    "exceljs": "^4.4.0",
     "file-type": "^22.3.0",
     "helmet": "^8.3.0",
     "multer": "^2.5.0",
@@ -95,6 +96,9 @@
   "overrides": {
     "@nestjs/cli": {
       "minimatch": "^11.0.4"
+    },
+    "exceljs": {
+      "uuid": "^11.1.1"
     }
   }
 }

@@ -102,7 +102,8 @@ const SCHOOL_AFFILIATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-schoo
 const AFFILIATION_HARDENING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-affiliation-hardening.json';
 const SCHOOL_ADMINISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-administration.json';
 const SCHOOL_CLAIMS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-claims.json';
-const CURRENT_SNAPSHOT = SCHOOL_CLAIMS_SNAPSHOT;
+const SCHOOL_IMPORT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-import.json';
+const CURRENT_SNAPSHOT = SCHOOL_IMPORT_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -617,6 +618,18 @@ describe('approved API contract history', () => {
       'POST /api/v1/me/school-affiliation: operation added',
       'schema MatchAffiliationDto: added',
       'schema StudentClaimDto: added',
+    ]);
+  });
+
+  test('PR C → school administration PR D: the bulk school import and its template; nothing else', () => {
+    for (const f of [SCHOOL_CLAIMS_SNAPSHOT, SCHOOL_IMPORT_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CLAIMS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_IMPORT_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/schools/import-template: operation added',
+      'POST /api/v1/admin/schools/import: operation added',
     ]);
   });
 

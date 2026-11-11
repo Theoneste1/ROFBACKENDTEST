@@ -3104,6 +3104,74 @@
             },
             "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
           }
+        },
+        {
+          "name": "POST /admin/schools/import",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                "import"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "dryRun",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Validate and report only; create nothing."
+                },
+                {
+                  "key": "confirmPossibleDuplicates",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Import rows that have possible duplicates — requires the reviewToken of the dry run that showed them."
+                },
+                {
+                  "key": "reviewToken",
+                  "value": "reviewToken",
+                  "disabled": true,
+                  "description": "From the dry run (or a 409 response): binds the confirmation to this file, these candidates and this Administrator."
+                }
+              ]
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/schools/import-template",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/import-template",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                "import-template"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "csv",
+                  "disabled": true,
+                  "description": "csv (default) or xlsx."
+                }
+              ]
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
         }
       ]
     },
