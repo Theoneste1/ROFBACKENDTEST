@@ -84,6 +84,24 @@ export class RegisterStudentDto {
   @Transform(titleCase)
   schoolName?: string;
 
+  /**
+   * Rwanda, "My school is not listed" (PR C): the school's place in the official directory, sent
+   * with schoolName — all three together (from GET /schools/locations). The claim keeps the name
+   * and place, PENDING until an Administrator matches and verifies it; an exact unique match with
+   * an active official school in that sector links that school (still PENDING).
+   */
+  @ValidateIf((o: RegisterStudentDto) => o.schoolProvince !== undefined || o.schoolDistrict !== undefined || o.schoolSector !== undefined)
+  @IsString() @Length(1, 100) @Transform(trim)
+  schoolProvince?: string;
+
+  @ValidateIf((o: RegisterStudentDto) => o.schoolProvince !== undefined || o.schoolDistrict !== undefined || o.schoolSector !== undefined)
+  @IsString() @Length(1, 100) @Transform(trim)
+  schoolDistrict?: string;
+
+  @ValidateIf((o: RegisterStudentDto) => o.schoolProvince !== undefined || o.schoolDistrict !== undefined || o.schoolSector !== undefined)
+  @IsString() @Length(1, 100) @Transform(trim)
+  schoolSector?: string;
+
   /** Legacy, with schoolName: city / region of the school (not stored). */
   @IsOptional()
   @IsString()

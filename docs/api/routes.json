@@ -589,8 +589,35 @@
     "tag": "Admin · School affiliations"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/school-affiliations/{id}/candidates",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/match",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/school-affiliations/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/reopen",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -1653,6 +1680,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/me/school-affiliation",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/me/school-affiliation",
     "roles": [
       "STUDENT"

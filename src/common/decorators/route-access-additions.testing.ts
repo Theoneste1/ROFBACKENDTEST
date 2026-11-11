@@ -69,4 +69,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/schools  AdminSchoolsController.create':                                                ADMINISTRATORS,
   'PATCH /api/v1/admin/schools/:id  AdminSchoolsController.update':                                           ADMINISTRATORS,
   'PATCH /api/v1/admin/schools/:id/active  AdminSchoolsController.setActive':                                 ADMINISTRATORS,
+  // School administration PR C — claim resolution (schools.manage) and the student's own claim (STUDENT)
+  'POST /api/v1/admin/school-affiliations/:id/match  AdminSchoolAffiliationsController.match':                ADMINISTRATORS,
+  'POST /api/v1/admin/school-affiliations/:id/reopen  AdminSchoolAffiliationsController.reopen':              ADMINISTRATORS,
+  'GET /api/v1/admin/school-affiliations/:id/candidates  AdminSchoolAffiliationsController.candidates':       ADMINISTRATORS,
+  'POST /api/v1/me/school-affiliation  MySchoolAffiliationController.request':                                STUDENTS_ONLY,
 };

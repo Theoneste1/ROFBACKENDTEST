@@ -2556,6 +2556,12 @@
                   "description": ""
                 },
                 {
+                  "key": "hasSchool",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Whether the claim is linked to a school (false: the queue of name-only claims to match). Independent of status."
+                },
+                {
                   "key": "current",
                   "value": "true",
                   "disabled": true,
@@ -2594,6 +2600,76 @@
           }
         },
         {
+          "name": "GET /admin/school-affiliations/{id}/candidates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations/:id/candidates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations",
+                ":id",
+                "candidates"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/school-affiliations/{id}/match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations/:id/match",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations",
+                ":id",
+                "match"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "POST /admin/school-affiliations/{id}/reject",
           "request": {
             "method": "POST",
@@ -2613,6 +2689,48 @@
                 "school-affiliations",
                 ":id",
                 "reject"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/school-affiliations/{id}/reopen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-affiliations/:id/reopen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-affiliations",
+                ":id",
+                "reopen"
               ],
               "variable": [
                 {
@@ -6846,6 +6964,40 @@
               "query": []
             },
             "description": "**Access:** STUDENT"
+          }
+        },
+        {
+          "name": "POST /me/school-affiliation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/school-affiliation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "school-affiliation"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** STUDENT",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolCode\": \"schoolCode\",\n  \"schoolName\": \"schoolName\",\n  \"country\": \"country\",\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"schoolSector\": \"schoolSector\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         },
         {

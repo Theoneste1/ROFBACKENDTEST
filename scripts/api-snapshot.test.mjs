@@ -101,7 +101,8 @@ const P1_11_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-p1-11.json';
 const SCHOOL_AFFILIATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-10-school-affiliation.json';
 const AFFILIATION_HARDENING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-affiliation-hardening.json';
 const SCHOOL_ADMINISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-administration.json';
-const CURRENT_SNAPSHOT = SCHOOL_ADMINISTRATION_SNAPSHOT;
+const SCHOOL_CLAIMS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-claims.json';
+const CURRENT_SNAPSHOT = SCHOOL_CLAIMS_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -596,6 +597,26 @@ describe('approved API contract history', () => {
       'schema CreateSchoolDto: added',
       'schema SetSchoolActiveDto: added',
       'schema UpdateSchoolDto: added',
+    ]);
+  });
+
+  test('PR B → school administration PR C: claim match / reopen / candidates, hasSchool filter, the student\'s own claim, registration place fields; nothing else', () => {
+    for (const f of [SCHOOL_ADMINISTRATION_SNAPSHOT, SCHOOL_CLAIMS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_ADMINISTRATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CLAIMS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/school-affiliations/{id}/candidates: operation added',
+      'GET /api/v1/admin/school-affiliations: new optional query parameter "hasSchool"',
+      'POST /api/v1/admin/school-affiliations/{id}/match: operation added',
+      'POST /api/v1/admin/school-affiliations/{id}/reopen: operation added',
+      'POST /api/v1/auth/register/student › request application/json.schoolDistrict: new optional field',
+      'POST /api/v1/auth/register/student › request application/json.schoolProvince: new optional field',
+      'POST /api/v1/auth/register/student › request application/json.schoolSector: new optional field',
+      'POST /api/v1/me/school-affiliation: operation added',
+      'schema MatchAffiliationDto: added',
+      'schema StudentClaimDto: added',
     ]);
   });
 

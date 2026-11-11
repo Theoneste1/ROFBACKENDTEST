@@ -20,6 +20,7 @@ import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { schoolKey } from '../schools/school-key.js';
 import { RWANDA } from '../schools/school-rules.js';
+import { assertDirectoryPlace, uniqueOfficialSchoolInPlace } from '../schools/school-directory.js';
 import { schoolInactive } from '../schools/school-usage.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -72,11 +73,23 @@ export class AuthService {
    * is never matched to a Rwandan school; a Rwandan school code is refused.
    */
   private async registrationSchool(tx: Prisma.TransactionClient, data: RegisterStudentDto) {
+    const placeGiven = data.schoolProvince !== undefined;   // all three, or none (DTO)
     if ((data.country ?? 'RW') !== 'RW') {
       if (data.schoolCode !== undefined) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda. Enter your school\'s name.');
       }
+      if (placeGiven) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY', 'Province, district and sector are Rwanda\'s directory; for another country enter the school\'s name only.');
+      }
       return null;
+    }
+    // "My school is not listed" (PR C): a place from the official directory; only an exact unique
+    // active official school with this name IN THAT SECTOR is linked (still PENDING).
+    if (data.schoolCode === undefined && placeGiven) {
+      const place = { province: data.schoolProvince!, district: data.schoolDistrict!, sector: data.schoolSector! };
+      await assertDirectoryPlace(tx, place);
+      const id = await uniqueOfficialSchoolInPlace(tx, schoolKey(data.schoolName ?? ''), place);
+      return id ? tx.school.findUniqueOrThrow({ where: { id }, select: { id: true, code: true, name: true } }) : null;
     }
     // Codes and name matching are for Rwandan schools only; an inactive school takes no new
     // registrations (PR B). The claim re-checks the school under a row lock.
@@ -140,7 +153,11 @@ export class AuthService {
         ? await this.affiliations.claim(tx, {
             studentId: created.id, schoolId: school?.id ?? null, source: 'REGISTRATION', reason: 'NEW_CLAIM',
             actor: { actorId: created.id, actorRole: 'STUDENT' },
-            ...(!school && { claimed: { name: data.schoolName ?? null, country: data.country ?? 'RW' } }),
+            // What the student entered — kept with the place on a "not listed" claim, linked or not.
+            ...((!school || (data.schoolCode === undefined && data.schoolProvince !== undefined)) && { claimed: {
+              name: data.schoolName ?? null, country: data.country ?? 'RW',
+              ...(data.schoolProvince !== undefined && { province: data.schoolProvince, district: data.schoolDistrict, sector: data.schoolSector }),
+            } }),
           })
         : null;
 
@@ -153,6 +170,9 @@ export class AuthService {
         metadata:  {
           gradeLevel: data.gradeLevel, country: data.country ?? 'RW', schoolCode: school?.code ?? null, schoolName: school?.name ?? null,
           ...(data.schoolCode === undefined && { schoolNameEntered: data.schoolName, schoolMatched: !!school }),
+          ...(data.schoolCode === undefined && data.schoolProvince !== undefined && {
+            schoolPlaceEntered: { province: data.schoolProvince, district: data.schoolDistrict, sector: data.schoolSector },
+          }),
           // Linked to a canonical School or not; membership is verified separately by an Administrator.
           schoolLinked: !!school,
         },
