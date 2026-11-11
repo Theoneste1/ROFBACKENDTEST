@@ -5,6 +5,7 @@
  * review that was sent back, a published result and a reported comment. Also filters, validation, CSV exports and authorization.
  */
 import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
+import { zonedDate } from './support/zoned-dates.js';
 
 describe('Admin dashboard and reports (e2e)', () => {
   let ctx: TestContext;
@@ -101,6 +102,18 @@ describe('Admin dashboard and reports (e2e)', () => {
 
   // ═══════════════════════════════════════════════════════════════════════════
   describe('dashboard', () => {
+    it('test dates follow the API time zone: between 22:00 and 24:00 UTC "today" is already the next Kigali day', () => {
+      // Fixed instants, so this holds at any time of day (the date tests below once failed only in that window).
+      expect(zonedDate(0, new Date('2026-11-10T21:59:59Z'), 'Africa/Kigali')).toBe('2026-11-10');
+      expect(zonedDate(0, new Date('2026-11-10T22:00:00Z'), 'Africa/Kigali')).toBe('2026-11-11');
+      expect(zonedDate(-1, new Date('2026-11-10T22:30:00Z'), 'Africa/Kigali')).toBe('2026-11-10');
+      expect(zonedDate(1, new Date('2026-11-10T23:59:59Z'), 'Africa/Kigali')).toBe('2026-11-12');
+      expect(zonedDate(1, new Date('2026-12-31T22:00:00Z'), 'Africa/Kigali')).toBe('2027-01-02');   // month and year boundaries
+      // Calendar-day offsets, not 24 hours: correct across a daylight-saving change too.
+      expect(zonedDate(1, new Date('2026-03-28T23:30:00Z'), 'Europe/London')).toBe('2026-03-29');
+      expect(zonedDate(0, new Date('2026-11-10T22:30:00Z'), 'UTC')).toBe('2026-11-10');
+    });
+
     it('returns accurate statistics for the current academic year', async () => {
       const { body } = await get('/admin/dashboard').expect(200);
       expect(body.filters.academicYear).toMatchObject({ id: ctx.ids.year, name: '2026-2027' });
@@ -166,8 +179,9 @@ describe('Admin dashboard and reports (e2e)', () => {
       expect(future.reviews.pendingMentorReview).toBe(1);
       expect(future.reportedContent.open).toBe(1);
 
-      const today = new Date().toISOString().slice(0, 10);
-      const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+      // Calendar dates in the API's time zone (Kigali), not UTC: the UTC date lags by a day 22:00–24:00 UTC.
+      const today = zonedDate(0);
+      const yesterday = zonedDate(-1);
       const recent = (await get('/admin/dashboard', { from: yesterday, to: today }).expect(200)).body;
       expect(recent.submissions.total).toBe(3);
       expect(recent.students.registeredInRange).toBe(5);
