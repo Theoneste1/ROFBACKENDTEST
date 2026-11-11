@@ -105,9 +105,9 @@ describe('permission equivalence — catalogue (A4)', () => {
     ]);
   });
 
-  it('SUPER_ADMIN holds everything ADMIN holds plus the two Super-Admin-only permissions, and nothing prohibited', () => {
+  it('SUPER_ADMIN holds everything ADMIN holds plus the three Super-Admin-only permissions (S2b: schools.syncDirectory), and nothing prohibited', () => {
     const sa = held('SUPER_ADMIN');
-    expect(sa).toEqual([...held('ADMIN'), 'permissions.manageOverrides', 'settings.manageSystem'].sort());
+    expect(sa).toEqual([...held('ADMIN'), 'permissions.manageOverrides', 'schools.syncDirectory', 'settings.manageSystem'].sort());
     for (const p of ADMIN_PROHIBITED) expect(sa).not.toContain(p);
   });
 

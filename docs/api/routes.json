@@ -679,8 +679,42 @@
     "tag": "Admin · School directory sync"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/apply",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/approve",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/categories",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/school-sync/runs/{id}/changes",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/decisions",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -697,8 +731,43 @@
     "tag": "Admin · School directory sync"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/items/{itemId}/proposal",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/items/{itemId}/resolve",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/recompare",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/school-sync/runs/{id}/report.csv",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/review",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"

@@ -7,8 +7,8 @@
  * education level, programme, external id or source record — those writes belong exclusively to
  * S2b's approved, locked apply (school-sync-boundary.guard.spec.ts; e2e checksums).
  *
- *   dry run   the file is read (source-file.ts), normalised (nesa-normaliser.ts) and matched
- *             (sync-matcher.ts) against ONE consistent snapshot of the directory (a REPEATABLE
+ *   dry run   the file is read (source-file.ts), normalised and matched (sync-compare.ts — the
+ *             same comparison recompare and apply use) against ONE consistent snapshot of the directory (a REPEATABLE
  *             READ transaction, read-only for the directory); the run, its items and its proposed
  *             changes are staged in the same transaction, with the report digest and the initial
  *             decisions digest; one SCHOOL_SYNC_DRY_RUN audit entry (counts only)
@@ -32,14 +32,13 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { toCsv } from '../../reports/csv.js';
 import { sanitizeFileName } from '../import/file-name.js';
-import { directoryPlaces, normaliseNesaRow, NESA_NORMALISER_VERSION, type NormalisedRow } from './nesa-normaliser.js';
+import { NESA_NORMALISER_VERSION, type NormalisedRow } from './nesa-normaliser.js';
 import { readSourceFile } from './source-file.js';
 import { SYNC_RUN_TTL_MS, SYNC_STAGING_RETENTION_MS, syncDataset } from './sync-datasets.js';
-import { matchRows, type DirectorySnapshot } from './sync-matcher.js';
-import { countsOf, decisionsDigest, maskChangeValue, maskNormalized, maskRaw, reconcile, reportDigest } from './sync-report.js';
+import { compareRows, loadDirectorySnapshot } from './sync-compare.js';
+import { maskChangeValue, maskNormalized, maskRaw, reconcile } from './sync-report.js';
 import type { CreateSyncRunQueryDto, ListSyncRunsDto, SyncChangesQueryDto, SyncItemsQueryDto } from './school-sync.dto.js';
 
-type Tx = Prisma.TransactionClient;
 const CHUNK = 1000;
 const json = (v: unknown) => (v === null || v === undefined ? Prisma.DbNull : (v as Prisma.InputJsonValue));
 
@@ -77,14 +76,8 @@ export class SchoolSyncService {
     if (!source) throw new AppError(HttpStatus.CONFLICT, 'SYNC_SOURCE_MISSING', `The data source ${dataset.dataSourceKey} is not configured.`);
 
     const runId = await this.prisma.$transaction(async (tx) => {
-      const { snap, places } = await this.snapshot(tx, source.id);
-      const dir = directoryPlaces(places);
-      const inputs = parsed.rows.map((r) => ({ ...r, n: normaliseNesaRow(r.raw, dir) }));
-      const { items, changes } = matchRows(inputs, snap);
-      const rowOf = (i: number | null) => (i === null ? null : items[i].rowNumber);
-      const digest = reportDigest(items, changes.map((c) => ({ ...c, rowNumber: rowOf(c.itemIndex) })));
-      const decisions = decisionsDigest(changes.map((c) => ({ ...c, rowNumber: rowOf(c.itemIndex), decision: 'PENDING' })));
-      const counts = countsOf(items, changes);
+      const { snap, places } = await loadDirectorySnapshot(tx, source.id);
+      const { inputs, items, changes, reportDigest: digest, pendingDecisionsDigest: decisions, counts } = compareRows(parsed.rows, snap, places);
       const reconciliation = reconcile(parsed.summary, inputs.map((x) => x.n));
       const now = this.now();
 
@@ -126,38 +119,6 @@ export class SchoolSyncService {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 180_000, maxWait: 10_000 });
 
     return this.get(runId);
-  }
-
-  /** One consistent read of the directory (inside the dry run's REPEATABLE READ transaction). */
-  private async snapshot(tx: Tx, dataSourceId: string): Promise<{ snap: DirectorySnapshot; places: Array<{ province: string | null; district: string | null; sector: string | null }> }> {
-    const schools = await tx.school.findMany({
-      select: {
-        id: true, name: true, nameKey: true, code: true, countryCode: true, province: true, district: true, sector: true,
-        cell: true, village: true, accommodation: true, ownership: true, source: true, isActive: true,
-      },
-    });
-    const externalIds = await tx.schoolExternalId.findMany({ where: { dataSourceId }, select: { externalKey: true, schoolId: true } });
-    // Read only to avoid proposing a contact a school already has; never returned unmasked.
-    const contacts = await tx.schoolContact.findMany({ where: { removedAt: null }, select: { schoolId: true, type: true, value: true } });
-    const levels = await tx.schoolEducationLevel.findMany({ select: { schoolId: true, levelCode: true } });
-    const links = await tx.schoolProgramme.findMany({ select: { schoolId: true, programmeId: true } });
-    const programmes = await tx.programme.findMany({ select: { id: true, code: true, name: true, category: true, needsReview: true } });
-    const group = <T>(rows: T[], key: (r: T) => string, value: (r: T) => string) => {
-      const m = new Map<string, Set<string>>();
-      for (const r of rows) { const k = key(r); if (!m.has(k)) m.set(k, new Set()); m.get(k)!.add(value(r)); }
-      return m;
-    };
-    return {
-      snap: {
-        schools: schools.map((s) => ({ ...s, accommodation: s.accommodation ?? null, source: s.source })),
-        externalIds: new Map(externalIds.map((e) => [e.externalKey, e.schoolId])),
-        contacts: group(contacts, (c) => c.schoolId, (c) => `${c.type}|${c.value}`),
-        levels: group(levels, (l) => l.schoolId, (l) => l.levelCode),
-        programmeLinks: group(links, (l) => l.schoolId, (l) => l.programmeId),
-        programmes,
-      },
-      places: schools.filter((s) => s.source === 'OFFICIAL_LIST' && s.countryCode === 'RW'),
-    };
   }
 
   // ─── Reports ────────────────────────────────────────────────────────────────

@@ -38,6 +38,9 @@ const M12_ROLLBACK = body('docs/migrations/20261121001100_school_directory_model
 // M13 (S2a) builds on M12: rolled back first and re-applied after it (docs/migrations/README.md order).
 const M13 = body('prisma/migrations/20261121001200_school_directory_sync/migration.sql');
 const M13_ROLLBACK = body('docs/migrations/20261121001200_school_directory_sync.rollback.sql');
+// M14 (S2b) builds on M13: rolled back first and re-applied after it.
+const M14 = body('prisma/migrations/20261121001300_school_directory_sync_approval/migration.sql');
+const M14_ROLLBACK = body('docs/migrations/20261121001300_school_directory_sync_approval.rollback.sql');
 const M12_TABLES = ['SchoolDataSource', 'SchoolExternalId', 'SchoolSourceRecord', 'SchoolContact', 'EducationLevel', 'SchoolEducationLevel', 'Programme', 'SchoolProgramme'];
 const M12_COLUMNS = ['cell', 'village', 'accommodation', 'lastSourceSyncAt', 'lastVerifiedAt', 'lastVerifiedById'];
 const M12_TYPES = ['SchoolAccommodation', 'SchoolContactType', 'SchoolContactVisibility', 'ProgrammeCategory', 'SchoolExternalIdKind'];
@@ -131,6 +134,7 @@ describe('School directory S1 (M12)', () => {
         const before = await links(q);
         expect(await nameIndexes()).toEqual([['School_name_idx', false]]);
         await c.query('BEGIN');
+        await c.query(M14_ROLLBACK);
         await c.query(M13_ROLLBACK);
         await c.query(M12_ROLLBACK);
         expect([await tables(), await columns(), await types(), await functions()]).toEqual([0, 0, 0, 0]);
@@ -141,6 +145,7 @@ describe('School directory S1 (M12)', () => {
 
         await c.query(M12);
         await c.query(M13);
+        await c.query(M14);
         expect([await tables(), await columns(), await types(), await functions()]).toEqual([8, 6, 5, 3]);
         expect(await nameIndexes()).toEqual([['School_name_idx', false]]);
         expect((await q(`SELECT array_agg("code" ORDER BY "sortOrder") AS codes FROM "EducationLevel"`))[0].codes).toEqual(['PPR', 'PR', 'OL', 'AL', 'PE']);
@@ -164,7 +169,8 @@ describe('School directory S1 (M12)', () => {
           for (const sql of setup) await c.query(sql);
           const count = await schools();
           if (acknowledge) await c.query(`SET LOCAL rof.m12_rollback = 'discard-directory-data'`);
-          await c.query(M13_ROLLBACK);   // no sync runs here: M13's rollback goes through
+          await c.query(M14_ROLLBACK);   // no approvals or sync runs here: M14's and M13's rollbacks go through
+          await c.query(M13_ROLLBACK);
           await c.query(M12_ROLLBACK);
           const tables = (await q(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`, [M12_TABLES]))[0].n;
           return { applied: true, tables, schoolsKept: (await schools()) === count };

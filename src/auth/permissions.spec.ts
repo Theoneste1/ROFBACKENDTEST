@@ -156,7 +156,7 @@ describe('permissions', () => {
         'coaches.monitor': P, 'activity.view': P,
       },
       ADMIN: ADMIN_TABLE,
-      SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G },
+      SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },
     };
 
     it('covers exactly the six roles', () => {

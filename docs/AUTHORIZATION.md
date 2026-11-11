@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 257 endpoints — 17 public, 139 administrator-only.
+Totals: 265 endpoints — 17 public, 144 administrator-only.
 
 ## Academic years
 
@@ -165,9 +165,17 @@ Totals: 257 endpoints — 17 public, 139 administrator-only.
 | GET | `/api/v1/admin/school-sync/runs` |  |  |  | ✓ |
 | POST | `/api/v1/admin/school-sync/runs` |  |  |  | ✓ |
 | GET | `/api/v1/admin/school-sync/runs/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/apply` |  |  |  |  |
+| POST | `/api/v1/admin/school-sync/runs/{id}/approve` |  |  |  |  |
+| GET | `/api/v1/admin/school-sync/runs/{id}/categories` |  |  |  | ✓ |
 | GET | `/api/v1/admin/school-sync/runs/{id}/changes` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/decisions` |  |  |  | ✓ |
 | GET | `/api/v1/admin/school-sync/runs/{id}/items` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/items/{itemId}/proposal` |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/items/{itemId}/resolve` |  |  |  |  |
+| POST | `/api/v1/admin/school-sync/runs/{id}/recompare` |  |  |  | ✓ |
 | GET | `/api/v1/admin/school-sync/runs/{id}/report.csv` |  |  |  | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/review` |  |  |  | ✓ |
 
 ## Admin · Schools
 

@@ -150,3 +150,38 @@ describe('sync matcher — proposed changes', () => {
     expect(res.changes.filter((c) => c.schoolId === 'gone')).toEqual([]);
   });
 });
+
+describe('sync matcher — reviewer resolutions and identity (S2b)', () => {
+  it('a code whose school differs from the school its fingerprint already belongs to is a CONFLICT (no match, no change)', () => {
+    const a = school({ id: 'a', name: 'EP A', code: '220010' });
+    const b = school({ id: 'b', name: 'EP B' });
+    const res = run([{ 'School Name': 'EP A', 'School Code': '220010', Village: 'V' }], snapshot([a, b], { externalIds: new Map([['fp1|ep a|southern province|huye|ngoma|butare|v', 'b']]) }));
+    expect(outcomes(res)).toEqual([[2, 'CONFLICT', null, null]]);
+    expect(res.items[0].details).toMatchObject({ reasons: ['FINGERPRINT_BELONGS_TO_ANOTHER_SCHOOL'], fingerprintSchoolId: 'b' });
+    expect(res.changes).toEqual([]);
+  });
+
+  it('LINK: a CONFLICT / POSSIBLE_DUPLICATE row becomes MATCHED by REVIEW; its differences are ordinary per-field changes; a disputed code is never used — a verified one is', () => {
+    const target = school({ id: 't', name: 'EP TARGET', code: null, cell: null });
+    const conflictRows = [{ 'School Name': 'EP ONE', 'School Code': '220500', Cell: 'Butare' }, { 'School Name': 'EP TWO', 'School Code': '220500' }];
+    const plain = run(conflictRows, snapshot([target]), );
+    expect(outcomes(plain)).toEqual([[2, 'CONFLICT', null, null], [3, 'CONFLICT', null, null]]);
+    const linked = matchRows(conflictRows.map((r, i) => { const raw = nesaRow(r); return { row: i + 2, sourceRef: `x!${i + 2}`, raw, problems: [], n: normaliseNesaRow(raw, places) }; }),
+      snapshot([target]), new Map([[2, { action: 'LINK' as const, schoolId: 't' }]]));
+    expect(outcomes(linked)).toEqual([[2, 'MATCHED', 't', 'REVIEW'], [3, 'CONFLICT', null, null]]);
+    expect(linked.items[0].details).toMatchObject({ resolvedFrom: 'CONFLICT', codeDisputed: true });
+    expect(linked.changes.filter((c) => c.schoolId === 't').map((c) => [c.kind, c.field])).toEqual(expect.arrayContaining([['CHANGE', 'name'], ['FILL_EMPTY', 'cell']]));
+    expect(linked.changes.find((c) => c.field === 'code')).toBeUndefined();   // the disputed 220500 is never used
+    const verified = matchRows(conflictRows.map((r, i) => { const raw = nesaRow(r); return { row: i + 2, sourceRef: `x!${i + 2}`, raw, problems: [], n: normaliseNesaRow(raw, places) }; }),
+      snapshot([target]), new Map([[2, { action: 'LINK' as const, schoolId: 't', code: '220777' }]]));
+    expect(verified.changes.find((c) => c.field === 'code')).toMatchObject({ kind: 'FILL_EMPTY', publishedValue: '220777' });
+  });
+
+  it('CREATE: the row becomes NEW with a CREATE_SCHOOL carrying only a verified code (never the disputed one); a resolution on an ordinary row is ignored', () => {
+    const rows = [{ 'School Name': 'EP ONE', 'School Code': '220500' }, { 'School Name': 'EP TWO', 'School Code': '220500' }, { 'School Name': 'EP PLAIN' }];
+    const inputs = rows.map((r, i) => { const raw = nesaRow(r); return { row: i + 2, sourceRef: `x!${i + 2}`, raw, problems: [], n: normaliseNesaRow(raw, places) }; });
+    const res = matchRows(inputs, snapshot([]), new Map<number, { action: 'CREATE'; code?: string | null }>([[2, { action: 'CREATE' }], [3, { action: 'CREATE', code: '220888' }], [4, { action: 'CREATE', code: '220999' }]]));
+    expect(outcomes(res)).toEqual([[2, 'NEW', null, null], [3, 'NEW', null, null], [4, 'NEW', null, null]]);
+    expect(res.changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => (c.publishedValue as any).code)).toEqual([null, '220888', null]);
+  });
+});

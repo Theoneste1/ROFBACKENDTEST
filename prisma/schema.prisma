@@ -423,6 +423,7 @@ model User {
   schoolContactsRemoved      SchoolContact[]            @relation("SchoolContactRemovedBy")
   schoolSyncRunsCreated      SchoolSyncRun[]            @relation("SchoolSyncRunCreatedBy")
   schoolSyncRunsApplied      SchoolSyncRun[]            @relation("SchoolSyncRunAppliedBy")
+  schoolSyncRunsApproved     SchoolSyncRun[]            @relation("SchoolSyncRunApprovedBy")
   schoolSyncProposals        SchoolSyncItem[]           @relation("SchoolSyncItemProposedBy")
   schoolSyncResolutions      SchoolSyncItem[]           @relation("SchoolSyncItemResolvedBy")
   schoolSyncDecisions        SchoolSyncChange[]         @relation("SchoolSyncChangeDecidedBy")
@@ -673,44 +674,52 @@ model Programme {
 /// configuration (src/schools/sync/sync-datasets.ts), never from the file. Never deleted; once
 /// APPLIED or SUPERSEDED only stagedPurgedAt may change (trigger school_sync_run_guard).
 model SchoolSyncRun {
-  id                String              @id @default(uuid())
-  datasetKey        String
-  normaliserVersion String
-  dataSourceId      String
-  dataSource        SchoolDataSource    @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
-  datasetLabel      String
+  id                 String              @id @default(uuid())
+  datasetKey         String
+  normaliserVersion  String
+  dataSourceId       String
+  dataSource         SchoolDataSource    @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  datasetLabel       String
   /// Cleaned file name (src/schools/import/file-name.ts) and the SHA-256 of the file.
-  fileName          String
-  fileSha256        String
-  format            String
-  rowCount          Int
+  fileName           String
+  fileSha256         String
+  format             String
+  rowCount           Int
   /// The source's own totals (e.g. NESA's Summary tab), as read.
-  sourceSummary     Json?
+  sourceSummary      Json?
   /// The source totals compared with the rows read.
-  reconciliation    Json
+  reconciliation     Json
   /// Counts per outcome and per change kind.
-  counts            Json
-  reportDigest      String
-  decisionsDigest   String
+  counts             Json
+  reportDigest       String
+  decisionsDigest    String
   /// Incremented by every recompare and decision change (S2b); review tokens are bound to it.
-  reviewGeneration  Int                 @default(0)
-  status            SchoolSyncRunStatus @default(PREVIEW)
-  comparedAt        DateTime
-  createdAt         DateTime            @default(now())
-  createdById       String?
-  createdBy         User?               @relation("SchoolSyncRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  expiresAt         DateTime
-  appliedAt         DateTime?
-  appliedById       String?
-  appliedBy         User?               @relation("SchoolSyncRunAppliedBy", fields: [appliedById], references: [id], onDelete: SetNull)
-  supersededAt      DateTime?
-  supersededByRunId String?
-  supersededBy      SchoolSyncRun?      @relation("SchoolSyncRunSupersededBy", fields: [supersededByRunId], references: [id], onDelete: Restrict)
-  supersedes        SchoolSyncRun[]     @relation("SchoolSyncRunSupersededBy")
+  reviewGeneration   Int                 @default(0)
+  status             SchoolSyncRunStatus @default(PREVIEW)
+  comparedAt         DateTime
+  createdAt          DateTime            @default(now())
+  createdById        String?
+  createdBy          User?               @relation("SchoolSyncRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  expiresAt          DateTime
+  appliedAt          DateTime?
+  appliedById        String?
+  appliedBy          User?               @relation("SchoolSyncRunAppliedBy", fields: [appliedById], references: [id], onDelete: SetNull)
+  /// M14 (S2b): the Super Admin who approved the run for apply, when, and the review generation
+  /// approved. approvalTokenId identifies the one valid apply token (never the token itself);
+  /// any decision, recompare or new approval replaces or clears it.
+  approvedAt         DateTime?
+  approvedById       String?
+  approvedBy         User?               @relation("SchoolSyncRunApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedGeneration Int?
+  approvalTokenId    String?
+  supersededAt       DateTime?
+  supersededByRunId  String?
+  supersededBy       SchoolSyncRun?      @relation("SchoolSyncRunSupersededBy", fields: [supersededByRunId], references: [id], onDelete: Restrict)
+  supersedes         SchoolSyncRun[]     @relation("SchoolSyncRunSupersededBy")
   /// When the staged raw and normalised values were purged (7 days after the run ended).
-  stagedPurgedAt    DateTime?
+  stagedPurgedAt     DateTime?
   /// Apply measurements (S2b): duration, lock wait, memory peak, rows written.
-  metrics           Json?
+  metrics            Json?
 
   items         SchoolSyncItem[]
   changes       SchoolSyncChange[]
@@ -721,6 +730,7 @@ model SchoolSyncRun {
   @@index([dataSourceId])
   @@index([createdById])
   @@index([appliedById])
+  @@index([approvedById])
   @@index([supersededByRunId])
 }
 
@@ -793,8 +803,12 @@ model SchoolSyncChange {
   appliedAt              DateTime?
   auditLogId             String?
   createdAt              DateTime             @default(now())
+  /// M14 (S2b): a recompare found this change no longer part of the comparison. Kept (with its
+  /// decision) as history; never applied.
+  retiredAt              DateTime?
 
   @@index([runId, kind, decision])
+  @@index([runId, retiredAt])
   @@index([itemId])
   @@index([schoolId])
   @@index([decidedById])

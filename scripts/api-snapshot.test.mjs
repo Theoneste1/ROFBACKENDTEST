@@ -105,7 +105,8 @@ const SCHOOL_CLAIMS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-cla
 const SCHOOL_IMPORT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-import.json';
 const SCHOOL_DIRECTORY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-directory.json';
 const SCHOOL_SYNC_STAGING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-staging.json';
-const CURRENT_SNAPSHOT = SCHOOL_SYNC_STAGING_SNAPSHOT;
+const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-apply.json';
+const CURRENT_SNAPSHOT = SCHOOL_SYNC_APPLY_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -686,6 +687,30 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/school-sync/runs/{id}: operation added',
       'GET /api/v1/admin/school-sync/runs: operation added',
       'POST /api/v1/admin/school-sync/runs: operation added',
+    ]);
+  });
+
+  test('S2a → school directory S2b: review summary, categories, decisions, proposals, recompare, approve, apply, resolve; nothing else', () => {
+    for (const f of [SCHOOL_SYNC_STAGING_SNAPSHOT, SCHOOL_SYNC_APPLY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_SYNC_STAGING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_SYNC_APPLY_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/school-sync/runs/{id}/categories: operation added',
+      'GET /api/v1/admin/school-sync/runs/{id}/review: operation added',
+      'POST /api/v1/admin/school-sync/runs/{id}/apply: operation added',
+      'POST /api/v1/admin/school-sync/runs/{id}/approve: operation added',
+      'POST /api/v1/admin/school-sync/runs/{id}/decisions: operation added',
+      'POST /api/v1/admin/school-sync/runs/{id}/items/{itemId}/proposal: operation added',
+      'POST /api/v1/admin/school-sync/runs/{id}/items/{itemId}/resolve: operation added',
+      'POST /api/v1/admin/school-sync/runs/{id}/recompare: operation added',
+      'schema ApplySyncRunDto: added',
+      'schema CategoryApprovalDto: added',
+      'schema ChangeDecisionDto: added',
+      'schema ProposeResolutionDto: added',
+      'schema ResolveAfterApplyDto: added',
+      'schema SyncDecisionsDto: added',
     ]);
   });
 

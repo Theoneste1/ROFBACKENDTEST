@@ -25,13 +25,19 @@ const READS_CONTACTS = /\.schoolContact\.|\bcontacts\s*:\s*(true|\{)|"SchoolCont
 const WRITES_SCHOOL_DATA = /\.(school|schoolContact|schoolEducationLevel|schoolProgramme|schoolExternalId|schoolSourceRecord)\.(create|createMany|createManyAndReturn|upsert|update|updateMany|delete|deleteMany)\s*\(|(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+"School(Contact|EducationLevel|Programme|ExternalId|SourceRecord)?"/i;
 
 describe('school directory guards (S1)', () => {
-  it('contacts: only SchoolDirectoryDataService reads and writes them; the directory sync (S2a) only reads them, never writes, and masks them in every response', () => {
-    expect(files(SRC).filter((f) => READS_CONTACTS.test(readFileSync(f, 'utf8'))).map(rel))
-      .toEqual(['schools/directory/school-directory-data.service.ts', 'schools/sync/school-sync.service.ts']);
+  it('contacts: SchoolDirectoryDataService reads and writes them; the sync comparison (S2a) only reads them; the sync apply (S2b) only adds them (ADMIN_ONLY, unverified, masked in its audit); the sync reports mask them', () => {
+    expect(files(SRC).filter((f) => READS_CONTACTS.test(readFileSync(f, 'utf8'))).map(rel)).toEqual([
+      'schools/directory/school-directory-data.service.ts', 'schools/sync/review/school-sync-apply.service.ts', 'schools/sync/sync-compare.ts',
+    ]);
+    const compare = readFileSync(join(SRC, 'schools/sync/sync-compare.ts'), 'utf8');
+    expect(compare).not.toMatch(/\.schoolContact\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/);
+    expect(compare).toContain('schoolContact.findMany({ where: { removedAt: null }, select: { schoolId: true, type: true, value: true } })');
+    const apply = readFileSync(join(SRC, 'schools/sync/review/school-sync-apply.service.ts'), 'utf8');
+    expect(apply.match(/\.schoolContact\.[a-zA-Z]+\s*\(/g)).toEqual(['.schoolContact.createMany(']);
+    expect(apply).toContain("masked: maskContact(v.type, v.value), visibility: 'ADMIN_ONLY', verified: false");
     const sync = readFileSync(join(SRC, 'schools/sync/school-sync.service.ts'), 'utf8');
-    expect(sync).not.toMatch(/\.schoolContact\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/);
-    expect(sync).toContain('schoolContact.findMany({ where: { removedAt: null }, select: { schoolId: true, type: true, value: true } })');
-    // Staged contact values leave the service only through the masking helpers.
+    expect(sync).not.toMatch(/\.schoolContact\./);
+    // Staged contact values leave the sync reports only through the masking helpers.
     expect(sync).toContain('maskChangeValue(r.kind, r.publishedValue)');
     expect(sync).toContain('normalized: maskNormalized(r.normalized)');
     expect(sync).toContain('raw: maskRaw(r.raw)');
@@ -63,8 +69,13 @@ describe('school directory guards (S1)', () => {
       'schools/admin-schools.service.ts',
       'schools/directory/school-directory-data.service.ts',
       'schools/import/school-import.service.ts',
+      'schools/sync/review/school-sync-apply.service.ts',
     ]);
-    for (const f of writers) expect([rel(f), /lockSchoolDirectory\(tx, 'shared'\)/.test(readFileSync(f, 'utf8'))]).toEqual([rel(f), true]);
+    // Ordinary school writes take it shared; the sync apply (S2b) takes it exclusive.
+    for (const f of writers) {
+      const mode = rel(f) === 'schools/sync/review/school-sync-apply.service.ts' ? 'exclusive' : 'shared';
+      expect([rel(f), new RegExp(`lockSchoolDirectory\\(tx, '${mode}'\\)`).test(readFileSync(f, 'utf8'))]).toEqual([rel(f), true]);
+    }
   });
 
   it('the patterns catch what they must', () => {

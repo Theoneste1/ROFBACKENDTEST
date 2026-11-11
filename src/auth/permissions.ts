@@ -76,6 +76,8 @@ export const PERMISSIONS = [
   'submissions.submitOnBehalf',  // submit for a student; the student stays the owner
   // ── School administration: student–school verification (Administrators, Super Admins) ──
   'schools.manage',
+  // ── School directory S2b: approve and apply a directory sync, resolve its conflicts (Super Admins only; never grantable) ──
+  'schools.syncDirectory',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -180,7 +182,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'users.manageHeadCoaches': 'global', 'users.manageAdmins': 'global',
     'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
     'permissions.view': 'global', 'permissions.manageOverrides': 'global', 'settings.manageSystem': 'global',
-    'schools.manage': 'global',
+    'schools.manage': 'global', 'schools.syncDirectory': 'global',
   },
 };
 
@@ -192,6 +194,7 @@ export const ADMIN_PROHIBITED: readonly Permission[] = ['reviews.grade', 'assign
 export const NEVER_GRANTABLE: readonly Permission[] = [
   'reviews.grade', 'results.approve', 'results.publish', 'submissions.distribute',
   'users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem',
+  'schools.syncDirectory',
 ];
 
 // ── Legacy lists, returned unchanged by GET /me/permissions (decision A1) ────

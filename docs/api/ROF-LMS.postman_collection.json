@@ -2967,6 +2967,107 @@
           }
         },
         {
+          "name": "POST /admin/school-sync/runs/{id}/apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/apply",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "apply"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.syncDirectory` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"token token token token token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/school-sync/runs/{id}/approve",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.syncDirectory` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/school-sync/runs/{id}/categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "categories"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "GET /admin/school-sync/runs/{id}/changes",
           "request": {
             "method": "GET",
@@ -3009,6 +3110,49 @@
           }
         },
         {
+          "name": "POST /admin/school-sync/runs/{id}/decisions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/decisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "decisions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisions\": [\n    {\n      \"changeId\": \"00000000-0000-4000-8000-000000000000\",\n      \"decision\": \"APPROVED\"\n    }\n  ],\n  \"categories\": [\n    {\n      \"kind\": \"CREATE_SCHOOL\",\n      \"listDigest\": \"listDigest listDigest listDigest listDigest listDigest listDigest listDigest\"\n    }\n  ],\n  \"note\": \"note\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "GET /admin/school-sync/runs/{id}/items",
           "request": {
             "method": "GET",
@@ -3045,6 +3189,135 @@
           }
         },
         {
+          "name": "POST /admin/school-sync/runs/{id}/items/{itemId}/proposal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/items/:itemId/proposal",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "items",
+                ":itemId",
+                "proposal"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "itemId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"LINK\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/school-sync/runs/{id}/items/{itemId}/resolve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/items/:itemId/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "items",
+                ":itemId",
+                "resolve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "itemId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.syncDirectory` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/school-sync/runs/{id}/recompare",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/recompare",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "recompare"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "GET /admin/school-sync/runs/{id}/report.csv",
           "request": {
             "method": "GET",
@@ -3060,6 +3333,35 @@
                 "runs",
                 ":id",
                 "report.csv"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/school-sync/runs/{id}/review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/school-sync/runs/:id/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "school-sync",
+                "runs",
+                ":id",
+                "review"
               ],
               "variable": [
                 {
