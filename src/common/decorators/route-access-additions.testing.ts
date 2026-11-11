@@ -77,4 +77,12 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // School administration PR D — bulk school import (schools.manage)
   'GET /api/v1/admin/schools/import-template  AdminSchoolsController.importTemplate':                         ADMINISTRATORS,
   'POST /api/v1/admin/schools/import  AdminSchoolsController.import':                                         ADMINISTRATORS,
+  // School directory S1 — contacts, offerings, history and reference data (schools.manage)
+  'GET /api/v1/admin/schools/reference-data  AdminSchoolsController.referenceData':                           ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/contacts  AdminSchoolsController.contacts':                                  ADMINISTRATORS,
+  'PUT /api/v1/admin/schools/:id/contacts  AdminSchoolsController.putContacts':                               ADMINISTRATORS,
+  'POST /api/v1/admin/schools/:id/contacts/:contactId/verify  AdminSchoolsController.verifyContact':          ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/offerings  AdminSchoolsController.offerings':                                ADMINISTRATORS,
+  'PUT /api/v1/admin/schools/:id/offerings  AdminSchoolsController.putOfferings':                             ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/history  AdminSchoolsController.history':                                    ADMINISTRATORS,
 };

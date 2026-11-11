@@ -698,6 +698,60 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/contacts",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/schools/{id}/contacts",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/schools/{id}/contacts/{contactId}/verify",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/offerings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/schools/{id}/offerings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/schools/{id}/students",
     "roles": [
       "ADMIN",
@@ -717,6 +771,15 @@
   {
     "method": "GET",
     "path": "/api/v1/admin/schools/import-template",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/reference-data",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"

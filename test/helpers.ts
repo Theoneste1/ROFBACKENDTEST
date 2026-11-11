@@ -16,6 +16,7 @@ import { AppModule } from '../src/app/app.module.js';
 import { configureApp } from '../src/main.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import type { GradeLevel } from '../src/generated/prisma/client.js';
+import { EDUCATION_LEVELS, NESA_DATA_SOURCE } from '../src/schools/directory/reference-data.js';
 
 export const PASSWORD = 'Passw0rd!';
 
@@ -160,6 +161,9 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
   const algebra  = courses[0];
   const geometry = courses[1];
 
+  // Directory reference data (seeded by M12 in real databases; every table is truncated here).
+  await prisma.educationLevel.createMany({ data: [...EDUCATION_LEVELS] });
+  await prisma.schoolDataSource.create({ data: { ...NESA_DATA_SOURCE } });
   const school = await prisma.school.create({ data: { name: 'Test School', location: 'Kigali' } });
 
   const user = (username: string, role: 'ADMIN' | 'MENTOR' | 'STUDENT', grade?: GradeLevel) =>

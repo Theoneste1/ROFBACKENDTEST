@@ -87,7 +87,7 @@ describe('Student–school affiliation hardening (school administration PR A.1)'
     process.env.HEAD_COACHES_ENABLED = 'true';
     ctx = await createTestApp();
     admin = await login(ctx, 'admin');
-    schoolA = (await p().school.findUniqueOrThrow({ where: { name: 'Test School' } })).id;
+    schoolA = (await p().school.findFirstOrThrow({ where: { name: 'Test School' } })).id;
     schoolB = (await p().school.create({ data: { name: 'A1 OTHER SCHOOL', location: 'Huye', code: '220998', province: 'Southern Province', district: 'Huye', sector: 'Ngoma', ownership: 'PUBLIC', nameKey: 'a1 other school' } })).id;
     maths = (await p().discipline.findUniqueOrThrow({ where: { code: 'MATHEMATICS' } })).id;
     const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;

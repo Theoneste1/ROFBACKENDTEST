@@ -103,7 +103,8 @@ const AFFILIATION_HARDENING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-af
 const SCHOOL_ADMINISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-administration.json';
 const SCHOOL_CLAIMS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-claims.json';
 const SCHOOL_IMPORT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-import.json';
-const CURRENT_SNAPSHOT = SCHOOL_IMPORT_SNAPSHOT;
+const SCHOOL_DIRECTORY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-directory.json';
+const CURRENT_SNAPSHOT = SCHOOL_DIRECTORY_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -630,6 +631,42 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, [
       'GET /api/v1/admin/schools/import-template: operation added',
       'POST /api/v1/admin/schools/import: operation added',
+    ]);
+  });
+
+  test('PR D → school directory S1: contacts, offerings, history, reference data, new school fields and list filters; nothing else', () => {
+    for (const f of [SCHOOL_IMPORT_SNAPSHOT, SCHOOL_DIRECTORY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_IMPORT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_DIRECTORY_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    // Not visible in the contract: 409 SCHOOL_NAME_TAKEN is no longer returned (names may repeat, M12) —
+    // an identical name nearby is a POSSIBLE_DUPLICATE, elsewhere it is accepted.
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/schools/reference-data: operation added',
+      'GET /api/v1/admin/schools/{id}/contacts: operation added',
+      'GET /api/v1/admin/schools/{id}/history: operation added',
+      'GET /api/v1/admin/schools/{id}/offerings: operation added',
+      'GET /api/v1/admin/schools: new optional query parameter "accommodation"',
+      'GET /api/v1/admin/schools: new optional query parameter "hasCode"',
+      'GET /api/v1/admin/schools: new optional query parameter "hasSourceIssues"',
+      'GET /api/v1/admin/schools: new optional query parameter "level"',
+      'GET /api/v1/admin/schools: new optional query parameter "programme"',
+      'PATCH /api/v1/admin/schools/{id} › request application/json.accommodation: new optional field',
+      'PATCH /api/v1/admin/schools/{id} › request application/json.cell: new optional field',
+      'PATCH /api/v1/admin/schools/{id} › request application/json.village: new optional field',
+      'POST /api/v1/admin/schools › request application/json.accommodation: new optional field',
+      'POST /api/v1/admin/schools › request application/json.cell: new optional field',
+      'POST /api/v1/admin/schools › request application/json.village: new optional field',
+      'POST /api/v1/admin/schools/{id}/contacts/{contactId}/verify: operation added',
+      'PUT /api/v1/admin/schools/{id}/contacts: operation added',
+      'PUT /api/v1/admin/schools/{id}/offerings: operation added',
+      'schema ContactInputDto: added',
+      'schema LevelInputDto: added',
+      'schema ProgrammeInputDto: added',
+      'schema PutSchoolContactsDto: added',
+      'schema PutSchoolOfferingsDto: added',
+      'schema VerifySchoolContactDto: added',
     ]);
   });
 

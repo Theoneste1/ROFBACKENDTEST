@@ -32,7 +32,11 @@ export class SchoolsService {
    * Public autocomplete for the sign-up form (P1-11): active official schools only, by name or
    * code prefix; registration sends the chosen `code`. Inactive schools are not offered.
    */
-  async search(term: string | undefined, place: { province?: string; district?: string; sector?: string } = {}) {
+  /**
+   * `level` (school directory S1): only schools offering that education level. The response never
+   * contains contacts, and programmes (reviewed or not) are not part of it.
+   */
+  async search(term: string | undefined, place: { province?: string; district?: string; sector?: string; level?: string } = {}) {
     const q = term?.trim();
     const byPlace = !!(place.district || place.sector);
     if (!byPlace && (!q || q.length < 2)) return [];
@@ -42,6 +46,7 @@ export class SchoolsService {
         ...(place.province && { province: place.province }),
         ...(place.district && { district: place.district }),
         ...(place.sector && { sector: place.sector }),
+        ...(place.level && { levels: { some: { levelCode: place.level } } }),
         ...(q && { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { code: { startsWith: q } }] }),
       },
       select:  { id: true, code: true, name: true, location: true, district: true, sector: true },

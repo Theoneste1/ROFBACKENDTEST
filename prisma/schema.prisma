@@ -418,6 +418,8 @@ model User {
   affiliationsRevoked        StudentSchoolAffiliation[] @relation("AffiliationRevokedBy")
   affiliationsSuperseded     StudentSchoolAffiliation[] @relation("AffiliationSupersededBy")
   schoolsCreated             School[]                   @relation("SchoolCreatedBy")
+  schoolsVerified            School[]                   @relation("SchoolVerifiedBy")
+  schoolContactsVerified     SchoolContact[]            @relation("SchoolContactVerifiedBy")
   notifications              Notification[]
   notificationPrefs          NotificationPreference[]
   notificationSettings       NotificationSetting[]
@@ -505,6 +507,160 @@ model AccountActivationToken {
   @@index([createdById])
 }
 
+// ─── School directory (M12, S1) ─────────────────────────────────────────────────
+
+/// A source of directory data (NESA first). New sources are new rows, not new code paths.
+model SchoolDataSource {
+  id          String   @id @default(uuid())
+  /// Stable key, e.g. NESA.
+  key         String   @unique
+  name        String
+  url         String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  externalIds   SchoolExternalId[]
+  sourceRecords SchoolSourceRecord[]
+  contacts      SchoolContact[]
+  levels        SchoolEducationLevel[]
+  programmes    SchoolProgramme[]
+}
+
+/// A school's identity in a data source: its code there, or (no usable code) a fingerprint of its
+/// published name and place. A matching aid, not an immutable identity: a school keeps every key it
+/// was ever matched by (supersededAt marks an older one), so a renamed or moved school is still
+/// found and never created twice. One key → one school per source.
+model SchoolExternalId {
+  id           String               @id @default(uuid())
+  dataSourceId String
+  dataSource   SchoolDataSource     @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  externalKey  String
+  kind         SchoolExternalIdKind
+  schoolId     String
+  school       School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  firstSeenAt  DateTime             @default(now())
+  lastSeenAt   DateTime             @default(now())
+  /// A newer key replaced this one; it still identifies the school.
+  supersededAt DateTime?
+
+  @@unique([dataSourceId, externalKey])
+  @@index([schoolId])
+}
+
+/// One source row exactly as published (every column, verbatim) — never edited or deleted
+/// (trigger school_source_record_immutable); only its link to a school may be set or corrected.
+model SchoolSourceRecord {
+  id            String           @id @default(uuid())
+  dataSourceId  String
+  dataSource    SchoolDataSource @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  /// e.g. "NESA accredited schools, generated 2026-11-11".
+  datasetLabel  String
+  /// SHA-256 of the source file.
+  datasetSha256 String
+  /// Where in the file: sheet / tab and row.
+  sourceRef     String
+  /// Every source column with its original header and value.
+  raw           Json
+  /// SHA-256 of the raw row.
+  rowHash       String
+  schoolId      String?
+  school        School?          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  /// How the row was matched to the school (CODE, EXTERNAL_ID, FINGERPRINT, REVIEW…); NULL: not matched.
+  matchedBy     String?
+  /// Data problems found in the row (missing or conflicting code, unreadable phone…).
+  issues        Json             @default("[]")
+  issueCount    Int              @default(0)
+  createdAt     DateTime         @default(now())
+
+  @@unique([dataSourceId, datasetSha256, sourceRef])
+  @@index([schoolId])
+  @@index([dataSourceId, rowHash])
+}
+
+/// A school's e-mail address or phone number. ADMIN_ONLY by default; REPRESENTATIVES only once an
+/// Administrator has verified it (database check). Never in public search, registration or exports.
+model SchoolContact {
+  id           String                  @id @default(uuid())
+  schoolId     String
+  school       School                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  type         SchoolContactType
+  /// Normalised (e-mail lower-case; phone E.164 where recognisable).
+  value        String
+  /// As entered or published.
+  rawValue     String?
+  label        String?
+  isPrimary    Boolean                 @default(false)
+  visibility   SchoolContactVisibility @default(ADMIN_ONLY)
+  verifiedAt   DateTime?
+  verifiedById String?
+  verifiedBy   User?                   @relation("SchoolContactVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  /// NULL: entered by an Administrator.
+  dataSourceId String?
+  dataSource   SchoolDataSource?       @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @default(now()) @updatedAt
+
+  @@unique([schoolId, type, value])
+  @@index([verifiedById])
+  @@index([dataSourceId])
+}
+
+/// Education levels (reference data; Rwanda: PPR, PR, OL, AL, PE).
+model EducationLevel {
+  code      String                 @id
+  name      String
+  sortOrder Int
+  schools   SchoolEducationLevel[]
+}
+
+model SchoolEducationLevel {
+  schoolId     String
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  levelCode    String
+  level        EducationLevel    @relation(fields: [levelCode], references: [code], onDelete: Restrict)
+  /// A published variant of the level (e.g. "L"), kept as published.
+  qualifier    String?
+  /// The exact source text this offering came from.
+  sourceToken  String?
+  dataSourceId String?
+  dataSource   SchoolDataSource? @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+
+  @@id([schoolId, levelCode])
+  @@index([levelCode])
+  @@index([dataSourceId])
+}
+
+/// A-Level combinations, TVET trades and other programmes (reference data). needsReview: created
+/// from a source and not yet reviewed — never shown as a verified offering.
+model Programme {
+  id          String            @id @default(uuid())
+  code        String?           @unique
+  name        String
+  category    ProgrammeCategory
+  tvetLevel   Int?
+  needsReview Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  schools     SchoolProgramme[]
+
+  @@unique([category, name])
+}
+
+model SchoolProgramme {
+  schoolId     String
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  programmeId  String
+  programme    Programme         @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  sourceToken  String?
+  dataSourceId String?
+  dataSource   SchoolDataSource? @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+
+  @@id([schoolId, programmeId])
+  @@index([programmeId])
+  @@index([dataSourceId])
+}
+
 /// Access-token revocation list (logout). Rows are purged after expiry.
 model TokenBlacklist {
   id        String   @id @default(uuid())
@@ -532,40 +688,58 @@ model MentorRequest {
 }
 
 model School {
-  id          String       @id @default(uuid())
-  /// Normalised to title-case; unique to prevent duplicates.
-  name        String       @unique
-  location    String
-  createdAt   DateTime     @default(now())
+  id               String               @id @default(uuid())
+  /// Exactly as published (M12: not unique — several schools share a name; identified by code,
+  /// external source ids and place, never by name).
+  name             String
+  location         String
+  createdAt        DateTime             @default(now())
   /// Official school code (6 digits; P1-11 official list, M8). NULL for a school entered before the list.
-  code        String?      @unique
+  code             String?              @unique
   /// Rwanda province (official list; the first digit of the code).
-  province    String?
-  district    String?
-  sector      String?
+  province         String?
+  district         String?
+  sector           String?
   /// PUBLIC, GOVERNMENT_AIDED or PRIVATE (official list).
-  ownership   String?
+  ownership        String?
   /// Normalised official name (src/schools/school-key.ts): resolves a registration that sends a name.
-  nameKey     String?
+  nameKey          String?
   /// ISO 3166-1 alpha-2 (school administration PR B, M11). Codes and the official directory are Rwanda only.
-  countryCode String       @default("RW")
+  countryCode      String               @default("RW")
   /// Inactive: kept with all its history, but accepts no new claim, registration or Teacher assignment.
-  isActive    Boolean      @default(true)
+  isActive         Boolean              @default(true)
   /// OFFICIAL_LIST (M8 directory), ADMIN (created by an Administrator) or LEGACY (entered before the list).
-  source      SchoolSource @default(LEGACY)
-  createdById String?
-  createdBy   User?        @relation("SchoolCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedAt   DateTime     @default(now()) @updatedAt
+  source           SchoolSource         @default(LEGACY)
+  createdById      String?
+  createdBy        User?                @relation("SchoolCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedAt        DateTime             @default(now()) @updatedAt
+  /// M12 (school directory S1): the official directory's cell and village (free text, trimmed).
+  cell             String?
+  village          String?
+  accommodation    SchoolAccommodation?
+  /// When a directory sync (S2) last compared this school with a source.
+  lastSourceSyncAt DateTime?
+  /// When an Administrator last confirmed the record (S2 / S3).
+  lastVerifiedAt   DateTime?
+  lastVerifiedById String?
+  lastVerifiedBy   User?                @relation("SchoolVerifiedBy", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
 
-  students     User[]
-  enrollments  StudentEnrollment[]
-  teachers     TeacherSchoolAssignment[]
-  affiliations StudentSchoolAffiliation[]
+  students      User[]
+  enrollments   StudentEnrollment[]
+  teachers      TeacherSchoolAssignment[]
+  affiliations  StudentSchoolAffiliation[]
+  contacts      SchoolContact[]
+  levels        SchoolEducationLevel[]
+  programmes    SchoolProgramme[]
+  externalIds   SchoolExternalId[]
+  sourceRecords SchoolSourceRecord[]
 
+  @@index([name])
   @@index([nameKey])
   @@index([province, district, sector])
   @@index([countryCode, isActive])
   @@index([createdById])
+  @@index([lastVerifiedById])
 }
 
 /// Where a school record comes from (M11).
@@ -573,6 +747,35 @@ enum SchoolSource {
   OFFICIAL_LIST
   ADMIN
   LEGACY
+}
+
+enum SchoolAccommodation {
+  DAY
+  BOARDING
+  MIXED
+}
+
+enum SchoolContactType {
+  EMAIL
+  PHONE
+  OTHER
+}
+
+enum SchoolContactVisibility {
+  ADMIN_ONLY
+  REPRESENTATIVES
+}
+
+enum ProgrammeCategory {
+  A_LEVEL_COMBINATION
+  TVET_TRADE
+  OTHER
+}
+
+enum SchoolExternalIdKind {
+  CODE
+  FINGERPRINT
+  OTHER
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

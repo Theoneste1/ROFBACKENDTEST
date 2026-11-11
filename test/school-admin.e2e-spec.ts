@@ -6,8 +6,9 @@
  *   /admin/schools (schools.manage): list, get, students, create, edit, deactivate / reactivate,
  *        every change atomic with its audit record.
  *   Creation rules: Rwanda (official directory place; optional code whose first digit is the
- *        province) or another country (ISO 3166-1 alpha-2, location, never a code); unique name and
- *        code; possible duplicates need an explicit, audited confirmation.
+ *        province) or another country (ISO 3166-1 alpha-2, location, never a code); unique code;
+ *        names may repeat (school directory S1, M12) — possible duplicates (same name nearby) need
+ *        an explicit, audited confirmation.
  *   Inactive schools: no new registration, claim, verification, invitation, CSV row or Teacher
  *        assignment; every existing record and Teacher access kept; reactivation restores.
  *   Invitations and CSV imports never create a school; a name alone, a mismatching name, an
@@ -94,7 +95,7 @@ describe('School administration (PR B)', () => {
     admin = await login(ctx, 'admin');
     coach = await login(ctx, 'mentor.j');
     student = await login(ctx, 'student.j');
-    legacy = (await p().school.findUniqueOrThrow({ where: { name: 'Test School' } })).id;   // seeded without a code → LEGACY
+    legacy = (await p().school.findFirstOrThrow({ where: { name: 'Test School' } })).id;   // seeded without a code → LEGACY
     // The official directory (a part of it): places for Rwandan schools.
     officialSouth = (await p().school.create({ data: {
       name: 'GS Ngoma Official', code: '220001', location: 'Ngoma, Huye', ...RW, ownership: 'PUBLIC', nameKey: 'gs ngoma official', source: 'OFFICIAL_LIST',
@@ -228,8 +229,12 @@ describe('School administration (PR B)', () => {
       await invite('sa.inv.ke@test.local', { schoolId: ke.body.id }).expect(201);
     });
 
-    it('name and code are unique (409), whatever the case of the code holder', async () => {
-      expect(await status(create({ name: 'GS Ngoma Official', ...RW }))).toEqual([409, 'SCHOOL_NAME_TAKEN']);
+    it('the code is unique (409); a name is not (M12): the same name in the same district is a possible duplicate, in another district simply another school', async () => {
+      expect(await status(create({ name: 'GS Ngoma Official', ...RW }))).toEqual([409, 'POSSIBLE_DUPLICATE']);
+      const elsewhere = await create({ name: 'GS Ngoma Official', province: 'Kigali City', district: 'Gasabo', sector: 'Kacyiru' }).expect(201);
+      expect(elsewhere.body).toMatchObject({ name: 'GS Ngoma Official', district: 'Gasabo', code: null });
+      expect(await p().school.count({ where: { name: 'GS Ngoma Official' } })).toBe(2);
+      expect((await p().school.findUniqueOrThrow({ where: { id: officialSouth } })).name).toBe('GS Ngoma Official');   // untouched
       expect(await status(create({ name: 'Another Ngoma', code: '220001', ...RW }))).toEqual([409, 'SCHOOL_CODE_TAKEN']);
     });
 
@@ -283,7 +288,7 @@ describe('School administration (PR B)', () => {
       expect(await patch(school, { code: '120557', reason: 'typo' })).toEqual([400, 'INVALID_SCHOOL']);
       expect(await patch(school, { code: null, reason: 'remove' })).toEqual([400, 'VALIDATION_FAILED']);
       expect(await patch(school, { code: '220001', reason: 'clash' })).toEqual([409, 'SCHOOL_CODE_TAKEN']);
-      expect(await patch(school, { name: 'GS Ngoma Official' })).toEqual([409, 'SCHOOL_NAME_TAKEN']);
+      expect(await patch(school, { name: 'GS Ngoma Official' })).toEqual([409, 'POSSIBLE_DUPLICATE']);   // same name, same district (M12: not unique)
       expect(await patch(school, { name: 'Rules School' })).toEqual([400, 'NO_CHANGES']);
       expect(await patch(school, { countryCode: 'KE', location: 'Nairobi' })).toEqual([400, 'SCHOOL_CODE_RWANDA_ONLY']);
       expect(await patch(officialKigali, { name: 'Renamed Official' })).toEqual([400, 'REASON_REQUIRED']);
@@ -454,7 +459,7 @@ describe('School administration (PR B)', () => {
     expect(await ids({ q: '1100' })).toContain(officialKigali);
     expect(await ids({ source: 'LEGACY' })).toContain(legacy);
     expect(await ids({ source: 'OFFICIAL_LIST' })).not.toContain(legacy);
-    expect(await ids({ countryCode: 'KE' })).toEqual(expect.arrayContaining([(await p().school.findUniqueOrThrow({ where: { name: 'Nairobi School' } })).id]));
+    expect(await ids({ countryCode: 'KE' })).toEqual(expect.arrayContaining([(await p().school.findFirstOrThrow({ where: { name: 'Nairobi School' } })).id]));
     expect(await ids({ district: 'Gasabo' })).toContain(officialKigali);
     expect(await ids({ isActive: 'true' })).not.toContain((await p().school.findFirst({ where: { isActive: false } }))?.id ?? 'none');
     const s = await mkStudent(officialKigali);
@@ -495,11 +500,12 @@ describe('School administration (PR B)', () => {
     };
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-    it('two creates racing for one name, or one code: exactly one school, the other 409', async (test) => {
+    it('two creates racing for one name in one district, or one code: exactly one school, the others 409', async (test) => {
       if (!(await requireConcurrency(test))) return;
       const byName = await Promise.all([1, 2, 3].map(() => create({ name: 'Race Name School', ...RW }).then((r) => [r.status, r.body.code ?? null])));
       expect(byName.filter(([s]) => s === 201)).toHaveLength(1);
-      for (const r of byName.filter(([s]) => s !== 201)) expect([[409, 'SCHOOL_NAME_TAKEN'], [409, 'POSSIBLE_DUPLICATE']]).toContainEqual(r);
+      // M12: names are not unique; the name lock makes the later ones see the first as a possible duplicate.
+      expect(byName.filter(([s]) => s !== 201)).toEqual([[409, 'POSSIBLE_DUPLICATE'], [409, 'POSSIBLE_DUPLICATE']]);
       expect(await p().school.count({ where: { name: 'Race Name School' } })).toBe(1);
 
       const byCode = await Promise.all(['A', 'B', 'C'].map((x) => create({ name: `Race Code ${x}`, code: '220321', ...RW }).then((r) => [r.status, r.body.code ?? null])));

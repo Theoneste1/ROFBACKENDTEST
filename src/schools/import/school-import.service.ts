@@ -5,12 +5,16 @@
  * (school-creation.guard.spec.ts). Every row passes exactly the single-create rules: the same
  * CreateSchoolDto validation, then the same functions of school-validation.ts — and is written
  * with the same newSchoolRecord (active, source ADMIN, the importer as creator). An import only
- * creates: an existing name or code is a row error; no school is ever changed, and the official
- * directory (provinces, districts, sectors, OFFICIAL_LIST) is never touched.
+ * creates: an existing code is a row error; no school is ever changed, and the official
+ * directory (provinces, districts, sectors, OFFICIAL_LIST) is never touched. Names are not unique
+ * (school directory S1, M12): a same-name school in the same district (or country) is a possible
+ * duplicate, elsewhere simply another school; created schools are mapped back to their rows by
+ * ids assigned up front, never by name.
  *
  *   dry run      validates against the database without locks or writes; when rows have possible
  *                duplicates it returns them with a signed review token (review-token.ts)
- *   real import  ONE transaction: sorted name locks, then sorted code locks (school-locks.ts);
+ *   real import  ONE transaction: the directory lock (shared, S1), then sorted name locks, then
+ *                sorted code locks (school-locks.ts);
  *                every check again under the locks; possible duplicates rebuilt and compared with
  *                the token (a change → 409 IMPORT_REVIEW_OUTDATED); then every school and every
  *                audit record — or nothing at all (all-or-nothing)
@@ -31,10 +35,10 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateSchoolDto } from '../dto/admin-school.dto.js';
 import { directoryPlaceProblem, SQL_NAME_KEY } from '../school-directory.js';
-import { lockSchoolKeys, schoolLockPlan } from '../school-locks.js';
+import { lockSchoolDirectory, lockSchoolKeys, schoolLockPlan } from '../school-locks.js';
 import { RWANDA } from '../school-rules.js';
 import {
-  codeTaken, nameTaken, newSchoolRecord, schoolNameKey, schoolSnapshot, validateSchoolFields, type SchoolFields,
+  codeTaken, newSchoolRecord, schoolNameKey, schoolSnapshot, validateSchoolFields, type SchoolFields,
 } from '../school-validation.js';
 import { sanitizeFileName } from './file-name.js';
 import { checkReviewToken, reviewKey, signReviewToken, snapshotDigest, type ReviewCandidate, type ReviewRow } from './review-token.js';
@@ -110,6 +114,7 @@ export class SchoolImportService {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const ready = rows.filter((r) => r.fields);
+        await lockSchoolDirectory(tx, 'shared');
         await lockSchoolKeys(tx, schoolLockPlan(ready.map((r) => ({ before: null, after: { ...r.fields!, isActive: true } }))));
         const result = await this.evaluate(tx, rows);
         if (result.errors.length) {
@@ -145,8 +150,8 @@ export class SchoolImportService {
         });
         throw err.error;
       }
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw /code/i.test(JSON.stringify(err.meta ?? {})) ? codeTaken() : nameTaken();
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002' && /code/i.test(JSON.stringify(err.meta ?? {}))) {
+        throw codeTaken();
       }
       throw err;
     }
@@ -157,13 +162,17 @@ export class SchoolImportService {
     tx: Prisma.TransactionClient, rows: PreparedRow[], result: Evaluation,
     ctx: { importId: string; caller: CallerCtx; fileName: string; fileSha256: string; format: string; totalRows: number },
   ) {
+    const ids = rows.map(() => randomUUID());   // assigned up front: rows are mapped back by id (names repeat)
     const created = await tx.school.createManyAndReturn({
-      data: rows.map((r) => newSchoolRecord(r.fields!, r.key!, ctx.caller.id)),
-      select: { id: true, name: true, code: true, countryCode: true, province: true, district: true, sector: true, location: true, ownership: true, source: true, isActive: true },
+      data: rows.map((r, i) => newSchoolRecord(r.fields!, r.key!, ctx.caller.id, ids[i])),
+      select: {
+        id: true, name: true, code: true, countryCode: true, province: true, district: true, sector: true, cell: true, village: true,
+        location: true, ownership: true, accommodation: true, source: true, isActive: true,
+      },
     });
-    const byName = new Map(created.map((s) => [s.name, s]));
+    const byId = new Map(created.map((s) => [s.id, s]));
     const flagged = new Map(result.possibleDuplicates.map((d) => [d.row, d.candidates]));
-    const schools = rows.map((r) => ({ row: r.row, school: byName.get(r.fields!.name!)! }));
+    const schools = rows.map((r, i) => ({ row: r.row, school: byId.get(ids[i])! }));
     await this.audit.logMany(schools.map(({ row, school }) => ({
       actorId: ctx.caller.id, actorRole: ctx.caller.role, action: 'CREATE_SCHOOL', entity: 'School', entityId: school.id,
       metadata: {
@@ -206,6 +215,7 @@ export class SchoolImportService {
             name: dto.name, countryCode: dto.countryCode ?? RWANDA, code: dto.code ?? null,
             province: dto.province ?? null, district: dto.district ?? null, sector: dto.sector ?? null,
             location: dto.location ?? null, ownership: dto.ownership ?? null,
+            cell: dto.cell ?? null, village: dto.village ?? null, accommodation: dto.accommodation ?? null,
           });
           key = schoolNameKey(fields.name!);
         } catch (err) {
@@ -215,9 +225,9 @@ export class SchoolImportService {
       }
       out.push({ row: r.row, fields: errors.length ? null : fields, key: errors.length ? null : key, errors });
     }
-    // Duplicates inside the file are always errors (they cannot be confirmed).
+    // Duplicates inside the file are always errors (they cannot be confirmed): a repeated code, or
+    // the same name in the same district (Rwanda) or country. The same name elsewhere is allowed.
     const firstCode = new Map<string, number>();
-    const firstName = new Map<string, number>();
     const firstPlace = new Map<string, number>();
     for (const r of out) {
       if (!r.fields) continue;
@@ -225,8 +235,7 @@ export class SchoolImportService {
       const place = f.countryCode === RWANDA ? `${r.key}|RW|${f.district}` : `${r.key}|${f.countryCode}`;
       const repeats: string[] = [];
       if (f.code && firstCode.has(f.code)) repeats.push(`code ${f.code} repeats row ${firstCode.get(f.code)}.`);
-      if (firstName.has(f.name!)) repeats.push(`name repeats row ${firstName.get(f.name!)}.`);
-      else if (firstPlace.has(place)) {
+      if (firstPlace.has(place)) {
         repeats.push(`same name as row ${firstPlace.get(place)} in the same ${f.countryCode === RWANDA ? 'district' : 'country'} (a duplicate within this file).`);
       }
       if (repeats.length) {
@@ -235,13 +244,12 @@ export class SchoolImportService {
         continue;
       }
       if (f.code) firstCode.set(f.code, r.row);
-      firstName.set(f.name!, r.row);
       firstPlace.set(place, r.row);
     }
     return out;
   }
 
-  /** Database checks — directory place, existing name and code, possible duplicates — loaded once for all rows. */
+  /** Database checks — directory place, existing code, possible duplicates — loaded once for all rows. */
   private async evaluate(db: Db, rows: PreparedRow[]): Promise<Evaluation> {
     const ready = rows.filter((r) => r.fields);
     const rowErrors = new Map<number, string[]>(rows.filter((r) => r.errors.length).map((r) => [r.row, [...r.errors]]));
@@ -258,7 +266,6 @@ export class SchoolImportService {
           select: { province: true, district: true, sector: true }, distinct: ['province', 'district', 'sector'],
         })).map((p) => `${p.province}|${p.district}|${p.sector}`))
       : new Set<string>();
-    const names = new Set((await db.school.findMany({ where: { name: { in: ready.map((r) => r.fields!.name!) } }, select: { name: true } })).map((s) => s.name));
     const codes = ready.flatMap((r) => (r.fields!.code ? [r.fields!.code] : []));
     const takenCodes = new Set(codes.length ? (await db.school.findMany({ where: { code: { in: codes } }, select: { code: true } })).map((s) => s.code!) : []);
     const keys = [...new Set(ready.map((r) => r.key!))];
@@ -272,7 +279,6 @@ export class SchoolImportService {
     for (const r of ready) {
       const f = r.fields!;
       if (f.countryCode === RWANDA && !knownPlaces.has(`${f.province}|${f.district}|${f.sector}`)) fail(r.row, directoryPlaceProblem(f).message);
-      if (names.has(f.name!)) fail(r.row, nameTaken().message);
       if (f.code && takenCodes.has(f.code)) fail(r.row, codeTaken().message);
       if (rowErrors.has(r.row)) continue;   // like single create: a refused school is not also checked for duplicates
       // The same rule as single create (findPossibleDuplicates): same key; Rwanda — same district or none; else same country.

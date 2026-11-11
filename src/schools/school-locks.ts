@@ -4,10 +4,18 @@
  * Every operation that creates or changes a school's name, code, district, country or active
  * flag — single create, bulk import, PATCH, activate / deactivate — takes, in this order:
  *
+ *   0. the directory lock (namespace 4215) in SHARED mode (school directory S1, M12; D1
+ *      owner-approved 2026-11-11) — every school write, including contacts and offerings, takes
+ *      it first; shared holders never wait for each other. A directory sync (S2) takes it
+ *      EXCLUSIVELY, so it runs alone against every school write without thousands of per-key
+ *      locks (PostgreSQL's lock table is finite); claims and verifications write no school and
+ *      do not take it;
  *   1. the existing school's row lock (FOR UPDATE), when it edits an existing school
  *      (taken by the caller before this plan);
  *   2. name locks (namespace 4213) on normalised name keys — sorted, each once;
  *   3. code locks (namespace 4214) on school codes — sorted, each once.
+ *
+ * The general import (PR D) keeps its per-key locks after the shared directory lock.
  *
  * All paths take names before codes and each group in ascending order, and only PATCH /
  * setActive hold an existing school's row (taken first; create and import lock no existing
@@ -27,6 +35,16 @@ import { schoolKey } from './school-key.js';
 
 export const SCHOOL_NAME_LOCK_NAMESPACE = 4213;
 export const SCHOOL_CODE_LOCK_NAMESPACE = 4214;
+export const SCHOOL_DIRECTORY_LOCK_NAMESPACE = 4215;
+
+/**
+ * Step 0 for every school write: the directory lock, SHARED (create, PATCH, setActive, import,
+ * contacts, offerings) or EXCLUSIVE (a directory sync). Taken before any other school lock.
+ */
+export async function lockSchoolDirectory(tx: Prisma.TransactionClient, mode: 'shared' | 'exclusive'): Promise<void> {
+  if (mode === 'shared') await tx.$queryRaw`SELECT pg_advisory_xact_lock_shared(${SCHOOL_DIRECTORY_LOCK_NAMESPACE}::int, 0)::text`;
+  else await tx.$queryRaw`SELECT pg_advisory_xact_lock(${SCHOOL_DIRECTORY_LOCK_NAMESPACE}::int, 0)::text`;
+}
 
 /** The fields of a school that the locks protect. */
 export interface LockableSchool {

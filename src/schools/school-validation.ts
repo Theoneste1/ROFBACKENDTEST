@@ -2,11 +2,16 @@
  * The rules a school record must satisfy — ONE implementation for single creation / editing
  * (AdminSchoolsService) and bulk import (SchoolImportService), so both accept and refuse exactly
  * the same schools with the same error codes and messages (PR D parity requirement).
+ *
+ * School directory S1 (M12): names are not unique — an official name is kept exactly as published,
+ * and several schools may share one. A school is identified by its code (unique), its source ids
+ * and its place, never by its name. A same-name school nearby is a POSSIBLE_DUPLICATE (explicit,
+ * audited confirmation); a same-name school elsewhere is simply another school.
  */
 import { HttpStatus } from '@nestjs/common';
 
 import { AppError } from '../common/errors/app-error.js';
-import { Prisma } from '../generated/prisma/client.js';
+import { Prisma, type SchoolAccommodation } from '../generated/prisma/client.js';
 import { assertDirectoryPlace, SQL_NAME_KEY } from './school-directory.js';
 import { schoolKey } from './school-key.js';
 import { codeProblems, RWANDA } from './school-rules.js';
@@ -14,7 +19,7 @@ import { codeProblems, RWANDA } from './school-rules.js';
 type Tx = Prisma.TransactionClient;
 
 /** Fields an edit may change, in audit order. */
-export const EDITABLE = ['name', 'countryCode', 'code', 'province', 'district', 'sector', 'location', 'ownership'] as const;
+export const EDITABLE = ['name', 'countryCode', 'code', 'province', 'district', 'sector', 'cell', 'village', 'location', 'ownership', 'accommodation'] as const;
 export type Editable = (typeof EDITABLE)[number];
 export type SchoolFields = Record<Editable, string | null>;
 
@@ -35,7 +40,7 @@ export function schoolNameKey(name: string): string {
 export function validateSchoolFields(p: SchoolFields, opts: { legacy?: boolean } = {}): SchoolFields {
   const problems: string[] = [];
   if (p.countryCode === RWANDA) {
-    const anyPlace = !!(p.province || p.district || p.sector);
+    const anyPlace = !!(p.province || p.district || p.sector || p.cell || p.village);
     const placeRequired = !opts.legacy || anyPlace || !!p.code;
     if (placeRequired && (!p.province || !p.district || !p.sector)) {
       problems.push('A school in Rwanda needs province, district and sector (from the official directory).');
@@ -45,9 +50,9 @@ export function validateSchoolFields(p: SchoolFields, opts: { legacy?: boolean }
     if (p.code) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda.');
     }
-    if (p.province || p.district || p.sector) {
+    if (p.province || p.district || p.sector || p.cell || p.village) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY',
-        'Province, district and sector are Rwanda\'s directory; for another country give a location instead.');
+        'Province, district, sector, cell and village are Rwanda\'s directory; for another country give a location instead.');
     }
     if (!p.location) problems.push('A school outside Rwanda needs a location.');
   }
@@ -61,16 +66,8 @@ export async function assertSchoolPlace(db: Pick<Tx, 'school'>, p: SchoolFields)
   await assertDirectoryPlace(db, p);
 }
 
-export function nameTaken(schoolId?: string) {
-  return new AppError(HttpStatus.CONFLICT, 'SCHOOL_NAME_TAKEN', 'A school with this name already exists.', schoolId && { schoolId });
-}
 export function codeTaken(schoolId?: string) {
   return new AppError(HttpStatus.CONFLICT, 'SCHOOL_CODE_TAKEN', 'A school with this code already exists.', schoolId && { schoolId });
-}
-
-export async function assertNameFree(db: Pick<Tx, 'school'>, name: string, exceptId: string | null): Promise<void> {
-  const other = await db.school.findUnique({ where: { name }, select: { id: true } });
-  if (other && other.id !== exceptId) throw nameTaken(other.id);
 }
 
 export async function assertCodeFree(db: Pick<Tx, 'school'>, code: string, exceptId: string | null): Promise<void> {
@@ -94,12 +91,18 @@ export function findPossibleDuplicates(db: Pick<Tx, '$queryRaw'>, key: string, p
      ORDER BY "name", "id" LIMIT 20`;
 }
 
-/** The record written for a NEW school — single create and import alike: active, source ADMIN, its creator. */
-export function newSchoolRecord(p: SchoolFields, nameKey: string, createdById: string): Prisma.SchoolUncheckedCreateInput {
+/**
+ * The record written for a NEW school — single create and import alike: active, source ADMIN, its
+ * creator. `id`: the import assigns ids up front, so it maps created schools back to its rows by
+ * id (names are not unique).
+ */
+export function newSchoolRecord(p: SchoolFields, nameKey: string, createdById: string, id?: string): Prisma.SchoolUncheckedCreateInput {
   return {
+    ...(id && { id }),
     name: p.name!, nameKey, code: p.code, countryCode: p.countryCode!,
-    province: p.province, district: p.district, sector: p.sector,
+    province: p.province, district: p.district, sector: p.sector, cell: p.cell, village: p.village,
     location: p.location ?? `${p.sector}, ${p.district}`, ownership: p.ownership,
+    accommodation: p.accommodation as SchoolAccommodation | null,
     source: 'ADMIN', isActive: true, createdById,
   };
 }

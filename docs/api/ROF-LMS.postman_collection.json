@@ -2927,6 +2927,36 @@
                   "value": "ADMIN",
                   "disabled": true,
                   "description": ""
+                },
+                {
+                  "key": "level",
+                  "value": "level",
+                  "disabled": true,
+                  "description": "Offers this education level (e.g. PR, OL, AL)."
+                },
+                {
+                  "key": "programme",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "Offers this programme (its id)."
+                },
+                {
+                  "key": "accommodation",
+                  "value": "DAY",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "hasCode",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "false: schools without an official code."
+                },
+                {
+                  "key": "hasSourceIssues",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: schools whose source records report data problems."
                 }
               ]
             },
@@ -3026,7 +3056,7 @@
             "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"name\",\n  \"countryCode\": \"countryCode\",\n  \"code\": \"code\",\n  \"province\": \"province\",\n  \"district\": \"district\",\n  \"sector\": \"sector\",\n  \"location\": \"location\",\n  \"ownership\": \"PUBLIC\",\n  \"reason\": \"reason\",\n  \"confirmPossibleDuplicate\": true\n}",
+              "raw": "{\n  \"name\": \"name\",\n  \"countryCode\": \"countryCode\",\n  \"code\": \"code\",\n  \"province\": \"province\",\n  \"district\": \"district\",\n  \"sector\": \"sector\",\n  \"location\": \"location\",\n  \"ownership\": \"PUBLIC\",\n  \"cell\": \"cell\",\n  \"village\": \"village\",\n  \"accommodation\": \"DAY\",\n  \"reason\": \"reason\",\n  \"confirmPossibleDuplicate\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3069,6 +3099,223 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isActive\": true,\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/schools/{id}/contacts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "contacts"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/schools/{id}/contacts",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "contacts"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contacts\": [\n    {\n      \"type\": \"OTHER\",\n      \"value\": \"value\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/schools/{id}/contacts/{contactId}/verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/contacts/:contactId/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "contacts",
+                ":contactId",
+                "verify"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "contactId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visibility\": \"ADMIN_ONLY\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/schools/{id}/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "history"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/schools/{id}/offerings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/offerings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "offerings"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/schools/{id}/offerings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/offerings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "offerings"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"levels\": [\n    {\n      \"code\": \"code\"\n    }\n  ],\n  \"programmes\": [\n    {\n      \"id\": \"00000000-0000-4000-8000-000000000000\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3169,6 +3416,27 @@
                   "description": "csv (default) or xlsx."
                 }
               ]
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/schools/reference-data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/reference-data",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                "reference-data"
+              ],
+              "variable": [],
+              "query": []
             },
             "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
           }

@@ -72,7 +72,7 @@ describe('Student–school affiliation (school administration PR A)', () => {
     ctx = await createTestApp();
     admin = await login(ctx, 'admin');
     coachJ = await login(ctx, 'mentor.j');
-    schoolA = (await p().school.findUniqueOrThrow({ where: { name: 'Test School' } })).id;
+    schoolA = (await p().school.findFirstOrThrow({ where: { name: 'Test School' } })).id;
     schoolB = (await p().school.create({ data: { name: 'AFF OTHER SCHOOL', location: 'Huye', code: '220999', province: 'Southern Province', district: 'Huye', sector: 'Ngoma', ownership: 'PUBLIC', nameKey: 'aff other school' } })).id;
     const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
     const mk = async (username: string, role: 'TEACHER' | 'HEAD_COACH' | 'SUPER_ADMIN') =>

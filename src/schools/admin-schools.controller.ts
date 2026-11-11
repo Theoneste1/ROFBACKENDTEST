@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -9,6 +9,8 @@ import type { AuthUser } from '../common/auth-user.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import { AdminSchoolsService } from './admin-schools.service.js';
+import { SchoolDirectoryDataService } from './directory/school-directory-data.service.js';
+import { PutSchoolContactsDto, PutSchoolOfferingsDto, VerifySchoolContactDto } from './directory/school-directory.dto.js';
 import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
 import { ImportSchoolsQueryDto, ImportTemplateQueryDto } from './import/school-import.dto.js';
 import { IMPORT_MAX_BYTES } from './import/school-import.parser.js';
@@ -27,6 +29,7 @@ export class AdminSchoolsController {
   constructor(
     private readonly service: AdminSchoolsService,
     private readonly importer: SchoolImportService,
+    private readonly directory: SchoolDirectoryDataService,
   ) {}
 
   /** The import template: CSV (header row) or XLSX (a Schools sheet + an Instructions sheet). Declared before :id. */
@@ -60,6 +63,13 @@ export class AdminSchoolsController {
     return result;
   }
 
+  /** Directory reference data: education levels and programmes (needsReview: not yet reviewed). Declared before :id. */
+  @Get('reference-data')
+  @RequirePermission('schools.manage')
+  referenceData() {
+    return this.directory.referenceData();
+  }
+
   /** Every school — official, Administrator-created and legacy; active and inactive — with student counts. */
   @Get()
   @RequirePermission('schools.manage')
@@ -81,7 +91,58 @@ export class AdminSchoolsController {
     return this.service.students(id, q);
   }
 
-  /** Create a school (409 SCHOOL_NAME_TAKEN / SCHOOL_CODE_TAKEN / POSSIBLE_DUPLICATE). */
+  /**
+   * The school's contacts (Administrators only). Contacts are never returned by public search,
+   * registration or exports; school representatives (S3) see only verified contacts authorised for them.
+   */
+  @Get(':id/contacts')
+  @RequirePermission('schools.manage')
+  contacts(@Param('id', ParseUUIDPipe) id: string) {
+    return this.directory.contacts(id);
+  }
+
+  /** Replace the school's contact list (audited). A changed type or value loses its verification. */
+  @Put(':id/contacts')
+  @RequirePermission('schools.manage')
+  putContacts(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PutSchoolContactsDto, @CurrentUser() user: AuthUser) {
+    return this.directory.putContacts(id, dto, user);
+  }
+
+  /** Verify a contact; visibility REPRESENTATIVES also authorises it for the school's representatives (audited). */
+  @Post(':id/contacts/:contactId/verify')
+  @HttpCode(200)
+  @RequirePermission('schools.manage')
+  verifyContact(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('contactId', ParseUUIDPipe) contactId: string,
+    @Body() dto: VerifySchoolContactDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.directory.verifyContact(id, contactId, dto, user);
+  }
+
+  /** The school's education levels and programmes. */
+  @Get(':id/offerings')
+  @RequirePermission('schools.manage')
+  offerings(@Param('id', ParseUUIDPipe) id: string) {
+    return this.directory.offerings(id);
+  }
+
+  /** Replace the school's education levels and programmes (audited). */
+  @Put(':id/offerings')
+  @RequirePermission('schools.manage')
+  putOfferings(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PutSchoolOfferingsDto, @CurrentUser() user: AuthUser) {
+    return this.directory.putOfferings(id, dto, user);
+  }
+
+  /** The school's audit history (newest first) and the source records it was matched with. */
+  @Get(':id/history')
+  @RequirePermission('schools.manage')
+  history(@Param('id', ParseUUIDPipe) id: string, @Query() q: PaginationQueryDto) {
+    return this.directory.history(id, q);
+  }
+
+  /** Create a school (409 SCHOOL_CODE_TAKEN / POSSIBLE_DUPLICATE). Names may repeat (M12). */
   @Post()
   @RequirePermission('schools.manage')
   create(@Body() dto: CreateSchoolDto, @CurrentUser() user: AuthUser) {
