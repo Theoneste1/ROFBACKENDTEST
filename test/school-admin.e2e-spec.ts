@@ -20,6 +20,7 @@ import { join } from 'path';
 import pg from 'pg';
 
 import { AuditService } from '../src/audit/audit.service.js';
+import { PERMISSIONS, ROLE_GRANTS, ROLE_PERMISSIONS } from '../src/auth/permissions.js';
 import { SchoolAffiliationService } from '../src/schools/affiliations/school-affiliation.service.js';
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
@@ -182,6 +183,29 @@ describe('School administration (PR B)', () => {
     expect(await p().school.count({ where: { name: 'Nope School' } })).toBe(0);
     for (const token of [admin, superAdmin]) await http().get('/api/v1/schools').set(bearer(token)).expect(200);
     for (const token of [teacher, headCoach, coach, student]) expect((await http().get('/api/v1/schools').set(bearer(token))).status).toBe(403);
+  });
+
+  it('GET /me/permissions matches what the backend allows: ADMIN reports schools.manage (and reaches /admin/schools) but never schools.syncDirectory (approve / apply / resolve 403); SUPER_ADMIN keeps both', async () => {
+    const perms = async (token: string) => (await http().get('/api/v1/me/permissions').set(bearer(token)).expect(200)).body.permissions as string[];
+    const adminPerms = await perms(admin);
+    expect(adminPerms).toContain('schools.manage');
+    expect(adminPerms).not.toContain('schools.syncDirectory');
+    expect(adminPerms).toEqual(ROLE_PERMISSIONS.ADMIN);
+    await http().get(S).set(bearer(admin)).expect(200);
+
+    const superPerms = await perms(superAdmin);
+    expect(superPerms).toEqual(expect.arrayContaining(['schools.manage', 'schools.syncDirectory', 'permissions.manageOverrides', 'settings.manageSystem']));
+    expect(superPerms).toEqual(PERMISSIONS.filter((x) => Object.hasOwn(ROLE_GRANTS.SUPER_ADMIN, x)));
+
+    const R = '/api/v1/admin/school-sync/runs';
+    const fake = '00000000-0000-4000-8000-000000000000';
+    const syncOnly: Array<[string, object]> = [
+      [`${R}/${fake}/approve`, {}], [`${R}/${fake}/apply`, { token: 'x'.repeat(40) }], [`${R}/${fake}/items/${fake}/resolve`, { schoolId: fake }],
+    ];
+    for (const [url, body] of syncOnly) {
+      expect([url, (await http().post(url).set(bearer(admin)).send(body)).status]).toEqual([url, 403]);
+      expect([url, (await http().post(url).set(bearer(superAdmin)).send(body)).status]).not.toEqual([url, 403]);
+    }
   });
 
   // ─── Create ────────────────────────────────────────────────────────────────

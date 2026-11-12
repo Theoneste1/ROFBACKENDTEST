@@ -88,6 +88,22 @@ describe('PermissionService', () => {
       expect(calls).toEqual([]);
     });
 
+    it('ADMIN: the list reports schools.manage, which the guard grants, and never schools.syncDirectory', async () => {
+      const { service: svc } = make();
+      const { permissions } = await svc.describe(user('ADMIN'));
+      expect(permissions).toContain('schools.manage');
+      expect(svc.has(user('ADMIN'), 'schools.manage')).toBe(true);
+      expect(permissions).not.toContain('schools.syncDirectory');
+      expect(svc.has(user('ADMIN'), 'schools.syncDirectory')).toBe(false);
+    });
+
+    it('SUPER_ADMIN keeps its full effective list, including schools.manage and schools.syncDirectory', async () => {
+      const { service: svc } = make();
+      const { permissions } = await svc.describe(user('SUPER_ADMIN'));
+      expect(permissions).toEqual(PERMISSIONS.filter((p) => Object.hasOwn(ROLE_GRANTS.SUPER_ADMIN, p)));
+      expect(permissions).toEqual(expect.arrayContaining(['schools.manage', 'schools.syncDirectory', 'permissions.manageOverrides', 'settings.manageSystem']));
+    });
+
     it("MENTOR: legacy list, 'Coach', and its active course × division assignments", async () => {
       const { service: svc, calls } = make();
       await expect(svc.describe(user('MENTOR'))).resolves.toEqual({

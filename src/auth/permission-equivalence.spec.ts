@@ -100,7 +100,7 @@ describe('permission equivalence — catalogue (A4)', () => {
     expect(ROLE_PERMISSIONS.ADMIN.filter((p) => !admin.includes(p))).toEqual([]);
     expect(admin.filter((p) => !ROLE_PERMISSIONS.ADMIN.includes(p as Permission)).sort()).toEqual([
       'coaches.monitor', 'permissions.view', 'programmes.manageHeads', 'programmes.manageMembers',
-      'reports.view', 'schools.manage', 'students.viewScoped', 'users.manageAdmins', 'users.manageCoaches',
+      'reports.view', 'students.viewScoped', 'users.manageAdmins', 'users.manageCoaches',
       'users.manageHeadCoaches', 'users.manageStudents', 'users.manageTeachers', 'users.view',
     ]);
   });

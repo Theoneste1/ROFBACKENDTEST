@@ -222,6 +222,10 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'users.manage', 'academicYears.manage', 'enrollments.manage', 'divisions.manage', 'courses.manage',
     'mentorAssignments.manage', 'mentorRequests.decide', 'settings.manage', 'email.bulkSend',
     'audit.view', 'activity.view',
+    // Appended (additive): ADMIN already holds it (ADMIN_GRANTS) and 35 routes require it. Without it
+    // here, GET /me/permissions under-reported what the backend allows. schools.syncDirectory is
+    // Super-Admin-only and never listed for ADMIN.
+    'schools.manage',
   ],
 };
 
