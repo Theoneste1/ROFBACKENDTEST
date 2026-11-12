@@ -372,6 +372,21 @@ describe('real API (docs/api/openapi.json)', () => {
     assert.equal(res.identical, true);
     assert.ok(none(res));
   });
+  test('GET /api/v1 is documented: description pointing to docs/INTEGRATION.md, Cache-Control no-store, string feature names without an enum', () => {
+    const doc = JSON.parse(readFileSync('docs/api/openapi.json', 'utf8'));
+    const ok = doc.paths['/api/v1'].get.responses['200'];
+    assert.match(ok.description, /docs\/INTEGRATION\.md/);
+    assert.match(ok.description, /LEGACY \/ NEW \/ UNKNOWN/);
+    assert.equal(ok.headers['Cache-Control'].schema.example, 'no-store');
+    const caps = ok.content['application/json'].schema.properties.capabilities;
+    assert.deepEqual(caps.required, ['features', 'roles', 'schemaVersion']);
+    assert.equal(caps.properties.schemaVersion.type, 'integer');
+    for (const k of ['features', 'roles']) {
+      assert.equal(caps.properties[k].type, 'array');
+      assert.equal(caps.properties[k].items.type, 'string');
+      assert.equal(caps.properties[k].items.enum, undefined, `${k}: no restrictive enum (clients ignore unknown names)`);
+    }
+  });
   test('the current approved snapshot (P1-04) matches the current document exactly', () => {
     assert.ok(existsSync(CURRENT_SNAPSHOT), `${CURRENT_SNAPSHOT} is missing`);
     const saved = JSON.parse(readFileSync(CURRENT_SNAPSHOT, 'utf8'));

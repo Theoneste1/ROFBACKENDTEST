@@ -10,7 +10,22 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired'];
+const ALWAYS = ['permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired'];
+
+/**
+ * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
+ * feature is added here AND in FEATURES. Removing or renaming a feature, or changing its gate
+ * (what it means), is a breaking change for clients: it requires raising
+ * CAPABILITIES_SCHEMA_VERSION and a new frozen list — never an edit of this one.
+ */
+const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>> = {
+  headCoachAccounts:       'HEAD_COACH',
+  permissionScopes:        'always',
+  schoolAdministration:    'always',
+  schoolAffiliations:      'always',
+  schoolReferenceRequired: 'always',
+  teacherAccounts:         'TEACHER',
+};
 
 describe('GET /api/v1 capabilities', () => {
   describe('legacy-compatible fields', () => {
@@ -64,6 +79,28 @@ describe('GET /api/v1 capabilities', () => {
       for (const gate of Object.values(FEATURES)) {
         expect(gate === 'always' || (APP_ROLES as readonly string[]).includes(gate)).toBe(true);
       }
+    });
+  });
+
+  describe('frozen V1 vocabulary', () => {
+    it('while schemaVersion is 1, every frozen V1 feature still exists with the same gate (none silently removed, renamed or redefined)', () => {
+      expect(CAPABILITIES_SCHEMA_VERSION).toBe(1);
+      for (const [name, gate] of Object.entries(V1_FEATURES)) {
+        expect([name, (FEATURES as Record<string, string>)[name]]).toEqual([name, gate]);
+      }
+    });
+
+    it('today the advertisable features are exactly the frozen V1 list (a new feature must be added to it deliberately)', () => {
+      expect(Object.keys(FEATURES).sort()).toEqual(Object.keys(V1_FEATURES).sort());
+    });
+
+    it('the official-directory sync is never advertised, under any flag combination (owner decision 2026-11-12)', () => {
+      for (const env of [{}, { TEACHERS_ENABLED: 'true' }, { HEAD_COACHES_ENABLED: 'true' }, { TEACHERS_ENABLED: 'true', HEAD_COACHES_ENABLED: 'true' }]) {
+        const { features } = capabilitiesOf(configOf(env));
+        expect(features).not.toContain('schoolDirectorySync');
+        expect(features.every((f) => Object.hasOwn(V1_FEATURES, f))).toBe(true);
+      }
+      expect(Object.hasOwn(FEATURES, 'schoolDirectorySync')).toBe(false);
     });
   });
 

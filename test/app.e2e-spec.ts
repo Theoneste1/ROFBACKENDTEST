@@ -27,12 +27,25 @@ describe('App basics (e2e)', () => {
     const res = await ctx.http().get('/api/v1').expect(200);
     expect(Object.keys(res.body)).toEqual(['name', 'version', 'docs', 'health', 'capabilities']);
     expect(res.body).toMatchObject({ name: 'ROF LMS API', version: '1.0.0', docs: '/api/docs', health: '/health' });
-    expect(res.body.capabilities).toEqual(capabilitiesOf(ctx.app.get(ConfigService)));
-    expect(res.body.capabilities.features).toEqual(expect.arrayContaining(
-      ['permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired'],
-    ));
+    const config = ctx.app.get(ConfigService);
+    expect(res.body.capabilities).toEqual(capabilitiesOf(config));
+    // Exactly the approved V1 features for this configuration — never the directory sync.
+    expect(res.body.capabilities.features).toEqual([
+      ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
+      'permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired',
+      ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts'] : []),
+    ]);
+    expect(res.body.capabilities.features).not.toContain('schoolDirectorySync');
     const again = await ctx.http().get('/api/v1').expect(200);
     expect(again.body).toEqual(res.body);
+  });
+
+  it('GET /api/v1 is sent with Cache-Control: no-store; other routes keep their caching behaviour', async () => {
+    const res = await ctx.http().get('/api/v1').expect(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['content-type']).toMatch(/^application\/json/);
+    expect((await ctx.http().get('/health').expect(200)).headers['cache-control']).toBeUndefined();
+    expect((await ctx.http().get('/api/v1/courses').expect(401)).headers['cache-control']).toBeUndefined();
   });
 
   it('every always-available feature refers to routes this build registers (401 without a token, never 404)', async () => {
@@ -43,12 +56,17 @@ describe('App basics (e2e)', () => {
       ['get', '/api/v1/admin/schools'],                  // schoolAdministration
       ['get', '/api/v1/me/school-affiliation'],          // schoolAffiliations
       ['get', '/api/v1/admin/school-affiliations'],
-      ['get', '/api/v1/admin/school-sync/runs'],         // schoolDirectorySync
     ];
     for (const [method, path] of routes) {
       const res = method === 'get' ? await ctx.http().get(path) : await ctx.http().post(path).send({});
       expect([path, res.status]).toEqual([path, 401]);
     }
+  });
+
+  it('the directory sync is not advertised but its routes are unchanged (still registered and protected)', async () => {
+    expect((await ctx.http().get('/api/v1').expect(200)).body.capabilities.features).not.toContain('schoolDirectorySync');
+    expect((await ctx.http().get('/api/v1/admin/school-sync/runs')).status).toBe(401);
+    expect((await ctx.http().post('/api/v1/admin/school-sync/runs/x/apply').send({})).status).toBe(401);
   });
 
   it('protected routes require a token, with the standard error shape', async () => {

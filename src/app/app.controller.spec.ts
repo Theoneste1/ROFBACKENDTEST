@@ -1,3 +1,4 @@
+import { HEADERS_METADATA } from '@nestjs/common/constants.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
@@ -14,7 +15,7 @@ describe('AppController', () => {
       capabilities: {
         schemaVersion: 1,
         roles: ['STUDENT', 'TEACHER', 'MENTOR', 'HEAD_COACH', 'ADMIN', 'SUPER_ADMIN'],
-        features: ['permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired'],
+        features: ['permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired'],
       },
     });
   });
@@ -28,5 +29,9 @@ describe('AppController', () => {
 
   it('getInfo is public', () => {
     expect(Reflect.getMetadata(IS_PUBLIC_KEY, AppController.prototype.getInfo)).toBe(true);
+  });
+
+  it('getInfo sends exactly one response header of its own: Cache-Control: no-store', () => {
+    expect(Reflect.getMetadata(HEADERS_METADATA, AppController.prototype.getInfo)).toEqual([{ name: 'Cache-Control', value: 'no-store' }]);
   });
 });

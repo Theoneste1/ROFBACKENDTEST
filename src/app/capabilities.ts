@@ -11,8 +11,12 @@
  *    no environment names, flag values, hosts, counts, versions of dependencies or any
  *    other internal detail.
  *
+ * Capabilities describe the BACKEND, never the caller: they are the same for every viewer and say
+ * nothing about anyone's permissions or access (that is GET /api/v1/me/permissions).
+ *
  * Changing the shape: adding a feature is additive; renaming or removing one, or changing
- * `roles` / `features` semantics, needs a new `schemaVersion`.
+ * `roles` / `features` semantics, needs a new `schemaVersion` (the frozen V1 vocabulary in
+ * capabilities.spec.ts enforces this). Clients: docs/INTEGRATION.md "Backend capabilities".
  */
 import { APP_ROLES, type AppRole } from '../auth/permissions.js';
 import { roleFlagOn } from '../auth/role-assignment.policy.js';
@@ -34,11 +38,15 @@ export const FEATURES = {
   schoolAdministration: 'always',
   /** Students claim a school (/api/v1/me/school-affiliation); staff review claims (/api/v1/admin/school-affiliations). */
   schoolAffiliations: 'always',
-  /** /api/v1/admin/school-sync: official-directory dry run, review, approval and apply. */
-  schoolDirectorySync: 'always',
-  /** TEACHER accounts can be created and assigned (the Teacher role is enabled). */
+  // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
+  // (owner decision 2026-11-12): its production use is not yet approved.
+  /**
+   * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
+   * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing
+   * TEACHER accounts may still exist and use their portal.
+   */
   teacherAccounts: 'TEACHER',
-  /** HEAD_COACH accounts can be created and assigned (the Head Coach role is enabled). */
+  /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;
 
@@ -47,11 +55,25 @@ export type Feature = keyof typeof FEATURES;
 export interface Capabilities {
   /** Version of this structure (see the rules above). */
   schemaVersion: number;
-  /** Every value the `role` field of a user may hold in this API's responses. */
+  /**
+   * Every role a stored user account may hold (the database Role enum) — NOT the roles that can
+   * currently be registered or assigned (see teacherAccounts / headCoachAccounts).
+   */
   roles: AppRole[];
   /** The features available right now, sorted. A feature not listed is not available. */
   features: Feature[];
 }
+
+/** The OpenAPI description of the GET /api/v1 200 response (the docs show it with the recorded schema). */
+export const API_INFO_RESPONSE_DESCRIPTION = [
+  'API information. `name` ("ROF LMS API"), `version`, `docs` and `health` are the original fields, unchanged.',
+  '`capabilities` is absent on the legacy backend. When present: `schemaVersion` (integer; this contract is 1 —',
+  'treat any other value as an unknown backend); `roles` (every role a stored user account may hold, not the',
+  'roles that can currently be assigned); `features` (sorted names of backend-wide functionality available now —',
+  'never the caller\'s permissions; ignore names you do not know). Never cached (Cache-Control: no-store).',
+  'Detection contract (LEGACY / NEW / UNKNOWN) and the meaning of every feature: docs/INTEGRATION.md,',
+  'section "Backend capabilities (GET /api/v1)".',
+].join(' ');
 
 /** The capabilities of the running backend under `config`. */
 export function capabilitiesOf(config: { get(key: string): unknown }): Capabilities {
