@@ -106,7 +106,8 @@ const SCHOOL_IMPORT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-imp
 const SCHOOL_DIRECTORY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-directory.json';
 const SCHOOL_SYNC_STAGING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-staging.json';
 const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-apply.json';
-const CURRENT_SNAPSHOT = SCHOOL_SYNC_APPLY_SNAPSHOT;
+const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-capabilities.json';
+const CURRENT_SNAPSHOT = API_CAPABILITIES_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -712,6 +713,15 @@ describe('approved API contract history', () => {
       'schema ResolveAfterApplyDto: added',
       'schema SyncDecisionsDto: added',
     ]);
+  });
+
+  test('S2b → API capabilities: exactly the additive GET /api/v1 capabilities field; nothing else', () => {
+    for (const f of [SCHOOL_SYNC_APPLY_SNAPSHOT, API_CAPABILITIES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_SYNC_APPLY_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(API_CAPABILITIES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['GET /api/v1 › response 200 application/json.capabilities: new field']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

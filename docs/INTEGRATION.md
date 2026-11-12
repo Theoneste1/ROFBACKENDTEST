@@ -52,6 +52,47 @@ Every backend error has one shape, which the frontend's `ApiError` reads:
   "message": "Request validation failed.", "details": ["…"], "requestId": "…" }
 ```
 
+## Backend capabilities (`GET /api/v1`)
+
+`GET /api/v1` is public. It returns the original `name`, `version`, `docs` and
+`health` fields unchanged. Backends that support it also return `capabilities`:
+
+```json
+{
+  "name": "ROF LMS API", "version": "1.0.0", "docs": "/api/docs", "health": "/health",
+  "capabilities": {
+    "schemaVersion": 1,
+    "roles": ["STUDENT", "TEACHER", "MENTOR", "HEAD_COACH", "ADMIN", "SUPER_ADMIN"],
+    "features": ["permissionScopes", "schoolAdministration", "schoolAffiliations",
+                 "schoolDirectorySync", "schoolReferenceRequired"]
+  }
+}
+```
+
+- **No `capabilities` field:** the older backend. Use the legacy behaviour,
+  for example an invitation may send `schoolName` for a new school. Never
+  infer capabilities from `version` (it is `1.0.0` on both) or from failed requests.
+- **`features`:** what the running backend supports right now, sorted. A
+  feature that is not listed is not available. Unknown names are ignored.
+
+| Feature | The frontend may rely on |
+|---|---|
+| `permissionScopes` | `GET /me/permissions` also returns `roleLabel`, `scopes.courseDivisions`, `scopes.programmes` and `overrides` |
+| `schoolReferenceRequired` | Invitations and CSV imports name an **existing** school by `schoolId` or `schoolCode`. A name alone is refused (`SCHOOL_REFERENCE_REQUIRED`) and never creates a school. A name sent with a reference must match it (`SCHOOL_NAME_MISMATCH`). Creating and editing users also accepts `schoolCode` |
+| `schoolAdministration` | `/admin/schools`: create, edit, activate/deactivate, import, contacts, offerings, history |
+| `schoolAffiliations` | Students claim a school (`/me/school-affiliation`); staff review claims (`/admin/school-affiliations`) |
+| `schoolDirectorySync` | `/admin/school-sync`: official-directory dry run, review, approval and apply |
+| `teacherAccounts` | Listed only while the Teacher role is enabled: TEACHER accounts can be created and assigned |
+| `headCoachAccounts` | Listed only while the Head Coach role is enabled: HEAD_COACH accounts can be created and assigned |
+
+- **`roles`:** every value a user's `role` field may hold. The frontend must
+  show each one safely, even where no account holds it yet.
+- **`schemaVersion`:** adding a feature does not change it. Renaming or
+  removing one, or changing what `roles` or `features` mean, raises it.
+
+The definitions live in `src/app/capabilities.ts`. The response lists only
+role and feature names, never configuration values or other internal details.
+
 ## E-mail links
 
 The backend builds links from its `APP_URL` (the frontend's address):

@@ -57,6 +57,16 @@ const FLAGGED: Readonly<Partial<Record<AppRole, { env: string; code: string; mes
   HEAD_COACH: { env: 'HEAD_COACHES_ENABLED', code: 'HEAD_COACHES_DISABLED', message: 'The Head Coach role is not enabled yet.' },
 };
 
+/**
+ * The running configuration allows this role to be assigned: true for a role without a flag,
+ * otherwise only when its flag is exactly "true". The single flag check — assertCanAssign and the
+ * GET /api/v1 capabilities both use it, so the two can never disagree.
+ */
+export function roleFlagOn(role: AppRole, config: { get(key: string): unknown }): boolean {
+  const flag = Object.hasOwn(FLAGGED, role) ? FLAGGED[role] : undefined;
+  return !flag || config.get(flag.env) === 'true';
+}
+
 /** How a role is being given: on a new account, or by changing an existing account's role. */
 export type AssignVia = 'create' | 'roleChange';
 
@@ -75,7 +85,7 @@ export class RoleAssignmentPolicy {
     if (role === 'SUPER_ADMIN' && via === 'create') throw notAssignable(role);
     if (!(await this.mayManage(actor, role))) throw notAssignable(role);
     const flag = Object.hasOwn(FLAGGED, role) ? FLAGGED[role as AppRole] : undefined;
-    if (flag && this.config.get<string>(flag.env) !== 'true') {
+    if (flag && !roleFlagOn(role as AppRole, this.config)) {
       throw new AppError(HttpStatus.FORBIDDEN, flag.code, flag.message, { role });
     }
   }

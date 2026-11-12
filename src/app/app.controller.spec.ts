@@ -3,14 +3,19 @@ import { AppService } from './app.service.js';
 import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
 
 describe('AppController', () => {
-  const controller = new AppController(new AppService());
+  const controller = new AppController(new AppService({ get: () => undefined } as never));
 
-  it('getInfo returns the API description', () => {
+  it('getInfo returns the API description (legacy fields unchanged) with its capabilities', () => {
     expect(controller.getInfo()).toEqual({
       name:    'ROF LMS API',
       version: '1.0.0',
       docs:    '/api/docs',
       health:  '/health',
+      capabilities: {
+        schemaVersion: 1,
+        roles: ['STUDENT', 'TEACHER', 'MENTOR', 'HEAD_COACH', 'ADMIN', 'SUPER_ADMIN'],
+        features: ['permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired'],
+      },
     });
   });
 

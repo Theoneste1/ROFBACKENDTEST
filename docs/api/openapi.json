@@ -12,6 +12,31 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "capabilities": {
+                      "properties": {
+                        "features": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "roles": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "schemaVersion": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "features",
+                        "roles",
+                        "schemaVersion"
+                      ],
+                      "type": "object"
+                    },
                     "docs": {
                       "type": "string"
                     },
@@ -26,6 +51,7 @@
                     }
                   },
                   "required": [
+                    "capabilities",
                     "docs",
                     "health",
                     "name",

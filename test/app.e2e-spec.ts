@@ -1,3 +1,5 @@
+import { ConfigService } from '@nestjs/config';
+import { capabilitiesOf } from '../src/app/capabilities.js';
 import { createTestApp, type TestContext } from './helpers.js';
 
 describe('App basics (e2e)', () => {
@@ -19,6 +21,34 @@ describe('App basics (e2e)', () => {
   it('GET /api/v1 returns API info', async () => {
     const res = await ctx.http().get('/api/v1').expect(200);
     expect(res.body.name).toBe('ROF LMS API');
+  });
+
+  it('GET /api/v1: legacy fields unchanged, plus the capabilities of the running configuration (public, stable)', async () => {
+    const res = await ctx.http().get('/api/v1').expect(200);
+    expect(Object.keys(res.body)).toEqual(['name', 'version', 'docs', 'health', 'capabilities']);
+    expect(res.body).toMatchObject({ name: 'ROF LMS API', version: '1.0.0', docs: '/api/docs', health: '/health' });
+    expect(res.body.capabilities).toEqual(capabilitiesOf(ctx.app.get(ConfigService)));
+    expect(res.body.capabilities.features).toEqual(expect.arrayContaining(
+      ['permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired'],
+    ));
+    const again = await ctx.http().get('/api/v1').expect(200);
+    expect(again.body).toEqual(res.body);
+  });
+
+  it('every always-available feature refers to routes this build registers (401 without a token, never 404)', async () => {
+    const routes: Array<[string, string]> = [
+      ['get', '/api/v1/me/permissions'],                 // permissionScopes
+      ['post', '/api/v1/admin/users/invite'],            // schoolReferenceRequired
+      ['post', '/api/v1/admin/users/import'],
+      ['get', '/api/v1/admin/schools'],                  // schoolAdministration
+      ['get', '/api/v1/me/school-affiliation'],          // schoolAffiliations
+      ['get', '/api/v1/admin/school-affiliations'],
+      ['get', '/api/v1/admin/school-sync/runs'],         // schoolDirectorySync
+    ];
+    for (const [method, path] of routes) {
+      const res = method === 'get' ? await ctx.http().get(path) : await ctx.http().post(path).send({});
+      expect([path, res.status]).toEqual([path, 401]);
+    }
   });
 
   it('protected routes require a token, with the standard error shape', async () => {

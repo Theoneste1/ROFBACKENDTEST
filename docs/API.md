@@ -3112,7 +3112,7 @@ GET /api/v1 — basic API information.
 
 Returns `200` JSON with:
 
-`docs` string · `health` string · `name` string · `version` string
+`capabilities` object · `docs` string · `health` string · `name` string · `version` string
 
 ### GET `/health`
 
