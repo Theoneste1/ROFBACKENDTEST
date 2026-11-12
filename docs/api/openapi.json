@@ -21127,6 +21127,433 @@
         "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/school-sync/runs/{id}/review": {
+      "get": {
+        "operationId": "SchoolSyncReviewController_summary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Counts by outcome, change kind × decision and manual review; what still blocks an apply; who uploaded, decided, approved, applied.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/categories": {
+      "get": {
+        "operationId": "SchoolSyncReviewController_categories",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Category kinds with their counts and the digest of exactly the list (a category approval sends it back).",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/decisions": {
+      "post": {
+        "operationId": "SchoolSyncReviewController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncDecisionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record decisions — individual (any kind; CHANGE, ADD_CONTACT, NEW_PLACE only so) or by category (digest-bound).",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/items/{itemId}/proposal": {
+      "post": {
+        "operationId": "SchoolSyncReviewController_propose",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeResolutionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Propose how a CONFLICT / POSSIBLE_DUPLICATE row is resolved (a Super Admin decides it).",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/recompare": {
+      "post": {
+        "operationId": "SchoolSyncReviewController_recompare",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Compare the run with the directory again (identical changes keep their decisions).",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/approve": {
+      "post": {
+        "operationId": "SchoolSyncReviewController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Super Admin: approve the reviewed run; returns the apply token (30 min; any later decision invalidates it).",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.syncDirectory",
+        "description": "**Access:** permission `schools.syncDirectory` (SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/apply": {
+      "post": {
+        "operationId": "SchoolSyncReviewController_apply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplySyncRunDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Super Admin: apply the approved changes — one locked, atomic, audited transaction.",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.syncDirectory",
+        "description": "**Access:** permission `schools.syncDirectory` (SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/school-sync/runs/{id}/items/{itemId}/resolve": {
+      "post": {
+        "operationId": "SchoolSyncReviewController_resolve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveAfterApplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Super Admin, after apply: link an open CONFLICT / POSSIBLE_DUPLICATE row to a school (identifiers only).",
+        "tags": [
+          "Admin · School directory sync"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.syncDirectory",
+        "description": "**Access:** permission `schools.syncDirectory` (SUPER_ADMIN)"
+      }
+    },
     "/api/v1/courses": {
       "get": {
         "operationId": "CoursesController_findAll",
@@ -41082,6 +41509,144 @@
         "required": [
           "isActive",
           "reason"
+        ]
+      },
+      "ChangeDecisionDto": {
+        "type": "object",
+        "properties": {
+          "changeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "type": "string",
+            "description": "PENDING withdraws an earlier decision.",
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "PENDING"
+            ]
+          }
+        },
+        "required": [
+          "changeId",
+          "decision"
+        ]
+      },
+      "CategoryApprovalDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "FILL_EMPTY, ADD_LEVEL, ADD_PROGRAMME, CREATE_SCHOOL or NAME_RESTORE.",
+            "enum": [
+              "CREATE_SCHOOL",
+              "FILL_EMPTY",
+              "CHANGE",
+              "NAME_RESTORE",
+              "NEW_PLACE",
+              "ADD_CONTACT",
+              "ADD_LEVEL",
+              "ADD_PROGRAMME",
+              "RESOLVE_CONFLICT"
+            ]
+          },
+          "listDigest": {
+            "type": "string",
+            "description": "From GET …/categories: the digest of exactly the list reviewed.",
+            "minLength": 64,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "kind",
+          "listDigest"
+        ]
+      },
+      "SyncDecisionsDto": {
+        "type": "object",
+        "properties": {
+          "decisions": {
+            "maxItems": 5000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangeDecisionDto"
+            }
+          },
+          "categories": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryApprovalDto"
+            }
+          },
+          "note": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        }
+      },
+      "ProposeResolutionDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "LINK: this row is an existing school; CREATE: a new school (before apply only).",
+            "enum": [
+              "LINK",
+              "CREATE"
+            ]
+          },
+          "schoolId": {
+            "type": "string",
+            "description": "LINK only: the school (for a possible duplicate, one of its listed candidates).",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "description": "An official code the reviewer verified (6 digits; the province's first digit). Before apply only.",
+            "pattern": "^\\d{6}$"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "ApplySyncRunDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "From POST …/approve.",
+            "minLength": 20,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "ResolveAfterApplyDto": {
+        "type": "object",
+        "properties": {
+          "schoolId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "schoolId"
         ]
       },
       "CreateResourceDto": {

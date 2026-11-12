@@ -92,4 +92,13 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/school-sync/runs/:id/items  SchoolSyncController.items':                                 ADMINISTRATORS,
   'GET /api/v1/admin/school-sync/runs/:id/changes  SchoolSyncController.changes':                             ADMINISTRATORS,
   'GET /api/v1/admin/school-sync/runs/:id/report.csv  SchoolSyncController.report':                           ADMINISTRATORS,
+  // School directory S2b — review (schools.manage) and approve / apply / resolve (schools.syncDirectory: Super Admins only)
+  'GET /api/v1/admin/school-sync/runs/:id/review  SchoolSyncReviewController.summary':                         ADMINISTRATORS,
+  'GET /api/v1/admin/school-sync/runs/:id/categories  SchoolSyncReviewController.categories':                  ADMINISTRATORS,
+  'POST /api/v1/admin/school-sync/runs/:id/decisions  SchoolSyncReviewController.decide':                      ADMINISTRATORS,
+  'POST /api/v1/admin/school-sync/runs/:id/items/:itemId/proposal  SchoolSyncReviewController.propose':        ADMINISTRATORS,
+  'POST /api/v1/admin/school-sync/runs/:id/recompare  SchoolSyncReviewController.recompare':                   ADMINISTRATORS,
+  'POST /api/v1/admin/school-sync/runs/:id/approve  SchoolSyncReviewController.approve':                       SUPER_ADMIN_ONLY,
+  'POST /api/v1/admin/school-sync/runs/:id/apply  SchoolSyncReviewController.apply':                           SUPER_ADMIN_ONLY,
+  'POST /api/v1/admin/school-sync/runs/:id/items/:itemId/resolve  SchoolSyncReviewController.resolve':         SUPER_ADMIN_ONLY,
 };

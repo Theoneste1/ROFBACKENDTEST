@@ -27,6 +27,9 @@ const body = (path: string) => readFileSync(join(ROOT, path), 'utf8').replace(/\
   .filter((l) => !/^(BEGIN|COMMIT);$/.test(l.trim())).join('\n');
 const M13 = body('prisma/migrations/20261121001200_school_directory_sync/migration.sql');
 const M13_ROLLBACK = body('docs/migrations/20261121001200_school_directory_sync.rollback.sql');
+// M14 (S2b) builds on M13: rolled back first and re-applied after it (docs/migrations/README.md order).
+const M14 = body('prisma/migrations/20261121001300_school_directory_sync_approval/migration.sql');
+const M14_ROLLBACK = body('docs/migrations/20261121001300_school_directory_sync_approval.rollback.sql');
 const DATASET = 'NESA:ACCREDITED_SCHOOLS';
 const DIRECTORY_TABLES = [
   'School', 'SchoolContact', 'SchoolEducationLevel', 'SchoolProgramme', 'Programme', 'SchoolExternalId', 'SchoolSourceRecord',
@@ -138,9 +141,11 @@ describe('School directory sync — S2a staging', () => {
         (SELECT count(*)::int FROM pg_type WHERE typname IN ('SchoolSyncRunStatus', 'SchoolSyncItemOutcome', 'SchoolSyncChangeKind', 'SchoolSyncDecision', 'SchoolSyncConflictState')) AS types`))[0];
     try {
       await c.query('BEGIN');
+      await c.query(M14_ROLLBACK);   // M14 (S2b) first — the documented order
       await c.query(M13_ROLLBACK);
       expect(await objects()).toEqual({ tables: 0, col: 0, fns: 0, types: 0 });
       await c.query(M13);
+      await c.query(M14);
       expect(await objects()).toEqual({ tables: 3, col: 1, fns: 2, types: 5 });
       await c.query('ROLLBACK');
     } finally {
@@ -342,6 +347,7 @@ describe('School directory sync — S2a staging', () => {
       await c.query('BEGIN');
       try {
         if (ack) await c.query(`SET LOCAL rof.m13_rollback = 'discard-sync-history'`);
+        await c.query(M14_ROLLBACK);   // no approvals here: M14's rollback goes through (M14 before M13)
         await c.query(M13_ROLLBACK);
         return (await c.query(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_name = 'SchoolSyncRun'`)).rows[0].n;
       } catch (err) {

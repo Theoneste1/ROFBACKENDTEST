@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 
 export interface AuditEntry {
+  /** A pre-assigned id, so the caller can link a record to its audit entry (school directory sync, S2b). */
+  id?: string;
   actorId?: string | null;
   actorRole?: string | null;
   action: string;
@@ -67,6 +69,7 @@ export class AuditService {
 
 function toRow(entry: AuditEntry) {
   return {
+    ...(entry.id && { id: entry.id }),
     actorId:   entry.actorId   ?? null,
     actorRole: entry.actorRole ?? null,
     action:    entry.action,

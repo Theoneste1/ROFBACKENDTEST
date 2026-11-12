@@ -82,12 +82,23 @@ export interface StagedChange {
 
 export interface MatchResult { items: StagedItem[]; changes: StagedChange[] }
 
+/**
+ * A reviewer's explicit resolution of a CONFLICT or POSSIBLE_DUPLICATE row (S2b), approved by a
+ * Super Admin — never automatic. LINK: the row is the given school (its field differences become
+ * ordinary proposed changes); CREATE: the row is a new school. `code`: an official code the
+ * reviewer verified (a disputed code is otherwise never used).
+ */
+export type SyncResolutionAction = 'LINK' | 'CREATE';
+export type SyncResolution =
+  | { action: Extract<SyncResolutionAction, 'LINK'>; schoolId: string; code?: string | null }
+  | { action: Extract<SyncResolutionAction, 'CREATE'>; code?: string | null };
+
 const COMPARED_FIELDS = ['province', 'district', 'sector', 'cell', 'village', 'accommodation', 'ownership'] as const;
 const lower = (v: string | null | undefined) => (v ?? '').toLowerCase();
 const keyOf = (s: DirectorySchool) => s.nameKey ?? schoolKey(s.name);
 const identity = (n: NormalisedRow) => [n.nameKey, n.province, n.district, n.sector, n.cell ?? '', n.village ?? ''].map((x) => lower(x)).join('|');
 
-export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot): MatchResult {
+export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot, resolutions?: ReadonlyMap<number, SyncResolution>): MatchResult {
   const byCode = new Map(snap.schools.filter((s) => s.code).map((s) => [s.code!, s]));
   const byId = new Map(snap.schools.map((s) => [s.id, s]));
   const byKey = new Map<string, DirectorySchool[]>();
@@ -155,6 +166,11 @@ export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot): MatchR
           conflict(it, `code:${n.code}`, 'CODE_MATCHES_A_DIFFERENT_SCHOOL', { code: n.code, schoolId: school.id });
           continue;
         }
+        const fpOwner = n.fingerprint ? snap.externalIds.get(n.fingerprint) : undefined;
+        if (fpOwner && fpOwner !== school.id) {
+          conflict(it, `code:${n.code}`, 'FINGERPRINT_BELONGS_TO_ANOTHER_SCHOOL', { code: n.code, schoolId: school.id, fingerprintSchoolId: fpOwner });
+          continue;
+        }
         it.outcome = 'MATCHED'; it.schoolId = school.id; it.matchedBy = viaExternal ? 'EXTERNAL_ID_CODE' : 'CODE';
         continue;
       }
@@ -177,6 +193,23 @@ export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot): MatchR
           id: s.id, name: s.name, code: s.code, district: s.district, sector: s.sector, isActive: s.isActive, source: s.source,
         })),
       };
+    }
+  }
+
+  // Approved resolutions (S2b): only for CONFLICT and POSSIBLE_DUPLICATE rows, only as approved.
+  if (resolutions) {
+    for (const it of items) {
+      const res = it.rowNumber !== null ? resolutions.get(it.rowNumber) : undefined;
+      if (!res || (it.outcome !== 'CONFLICT' && it.outcome !== 'POSSIBLE_DUPLICATE')) continue;
+      const resolvedFrom = it.outcome;
+      it.details = { ...it.details, resolvedFrom, resolution: res, codeDisputed: resolvedFrom === 'CONFLICT' };
+      if (res.action === 'CREATE') { it.outcome = 'NEW'; it.schoolId = null; it.matchedBy = null; continue; }
+      const school = byId.get(res.schoolId);
+      const fp = it.normalized!.fingerprint;
+      const fpOwner = fp ? snap.externalIds.get(fp) : undefined;
+      if (!school) { it.details = { ...it.details, resolutionProblem: 'SCHOOL_NOT_FOUND' }; continue; }
+      if (fpOwner && fpOwner !== school.id) { it.details = { ...it.details, resolutionProblem: 'FINGERPRINT_BELONGS_TO_ANOTHER_SCHOOL' }; continue; }
+      it.outcome = 'MATCHED'; it.schoolId = school.id; it.matchedBy = 'REVIEW';
     }
   }
 
@@ -207,11 +240,16 @@ export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot): MatchR
       place.rows.push(it.rowNumber!);
       newPlaces.set(k, place);
     }
+    // The code a change may carry: a reviewer-verified code, else the row's own valid, unclaimed,
+    // undisputed code — never a disputed one (D7).
+    const resolution = it.details?.resolution as SyncResolution | undefined;
+    const rowCode = !it.details?.codeDisputed && n.codeStatus === 'VALID' && !claimedCodes.has(n.code!) ? n.code : null;
+    const wantedCode = resolution?.code ?? rowCode;
     if (it.outcome === 'NEW') {
       changes.push({
         itemIndex: it.index, schoolId: null, kind: 'CREATE_SCHOOL', field: null, currentValue: null,
         publishedValue: {
-          name: n.name, code: n.codeStatus === 'VALID' && !claimedCodes.has(n.code!) ? n.code : null,
+          name: n.name, code: wantedCode,
           province: n.province, district: n.district, sector: n.sector, cell: n.cell, village: n.village,
           accommodation: n.accommodation, ownership: n.ownership, newPlace: !n.placeKnown,
         },
@@ -232,8 +270,10 @@ export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot): MatchR
       if (published === null || published === current) continue;
       changes.push({ itemIndex: it.index, schoolId: s.id, kind: current === null ? 'FILL_EMPTY' : 'CHANGE', field: f, currentValue: current, publishedValue: published });
     }
-    if (s.code === null && n.codeStatus === 'VALID' && !claimedCodes.has(n.code!)) {
-      changes.push({ itemIndex: it.index, schoolId: s.id, kind: 'FILL_EMPTY', field: 'code', currentValue: null, publishedValue: n.code });
+    if (wantedCode && s.code === null) {
+      changes.push({ itemIndex: it.index, schoolId: s.id, kind: 'FILL_EMPTY', field: 'code', currentValue: null, publishedValue: wantedCode });
+    } else if (resolution?.code && s.code !== resolution.code) {
+      changes.push({ itemIndex: it.index, schoolId: s.id, kind: 'CHANGE', field: 'code', currentValue: s.code, publishedValue: resolution.code });
     }
     additions(changes, it, n, s.id, snap);
   }
