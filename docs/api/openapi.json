@@ -7,11 +7,45 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
+            "description": "API information. `name` (\"ROF LMS API\"), `version`, `docs` and `health` are the original fields, unchanged. `capabilities` is absent on the legacy backend. When present: `schemaVersion` (integer; this contract is 1 — treat any other value as an unknown backend); `roles` (every role a stored user account may hold, not the roles that can currently be assigned); `features` (sorted names of backend-wide functionality available now — never the caller's permissions; ignore names you do not know). Never cached (Cache-Control: no-store). Detection contract (LEGACY / NEW / UNKNOWN) and the meaning of every feature: docs/INTEGRATION.md, section \"Backend capabilities (GET /api/v1)\".",
+            "headers": {
+              "Cache-Control": {
+                "description": "Always `no-store`.",
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
                   "properties": {
+                    "capabilities": {
+                      "properties": {
+                        "features": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "roles": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "schemaVersion": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "features",
+                        "roles",
+                        "schemaVersion"
+                      ],
+                      "type": "object"
+                    },
                     "docs": {
                       "type": "string"
                     },
@@ -26,6 +60,7 @@
                     }
                   },
                   "required": [
+                    "capabilities",
                     "docs",
                     "health",
                     "name",

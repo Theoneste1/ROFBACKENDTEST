@@ -106,7 +106,8 @@ const SCHOOL_IMPORT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-imp
 const SCHOOL_DIRECTORY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-directory.json';
 const SCHOOL_SYNC_STAGING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-staging.json';
 const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-apply.json';
-const CURRENT_SNAPSHOT = SCHOOL_SYNC_APPLY_SNAPSHOT;
+const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-capabilities.json';
+const CURRENT_SNAPSHOT = API_CAPABILITIES_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -370,6 +371,21 @@ describe('real API (docs/api/openapi.json)', () => {
     const res = compare(buildSnapshot(doc), buildSnapshot(doc));
     assert.equal(res.identical, true);
     assert.ok(none(res));
+  });
+  test('GET /api/v1 is documented: description pointing to docs/INTEGRATION.md, Cache-Control no-store, string feature names without an enum', () => {
+    const doc = JSON.parse(readFileSync('docs/api/openapi.json', 'utf8'));
+    const ok = doc.paths['/api/v1'].get.responses['200'];
+    assert.match(ok.description, /docs\/INTEGRATION\.md/);
+    assert.match(ok.description, /LEGACY \/ NEW \/ UNKNOWN/);
+    assert.equal(ok.headers['Cache-Control'].schema.example, 'no-store');
+    const caps = ok.content['application/json'].schema.properties.capabilities;
+    assert.deepEqual(caps.required, ['features', 'roles', 'schemaVersion']);
+    assert.equal(caps.properties.schemaVersion.type, 'integer');
+    for (const k of ['features', 'roles']) {
+      assert.equal(caps.properties[k].type, 'array');
+      assert.equal(caps.properties[k].items.type, 'string');
+      assert.equal(caps.properties[k].items.enum, undefined, `${k}: no restrictive enum (clients ignore unknown names)`);
+    }
   });
   test('the current approved snapshot (P1-04) matches the current document exactly', () => {
     assert.ok(existsSync(CURRENT_SNAPSHOT), `${CURRENT_SNAPSHOT} is missing`);
@@ -712,6 +728,15 @@ describe('approved API contract history', () => {
       'schema ResolveAfterApplyDto: added',
       'schema SyncDecisionsDto: added',
     ]);
+  });
+
+  test('S2b → API capabilities: exactly the additive GET /api/v1 capabilities field; nothing else', () => {
+    for (const f of [SCHOOL_SYNC_APPLY_SNAPSHOT, API_CAPABILITIES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_SYNC_APPLY_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(API_CAPABILITIES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['GET /api/v1 › response 200 application/json.capabilities: new field']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

@@ -76,6 +76,8 @@ const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
     }
     op.responses[status] = {
       description: op.responses[status]?.description || 'Success. Shape recorded from the end-to-end tests.',
+      // Response headers declared with @ApiOkResponse({ headers }) are kept (e.g. Cache-Control on GET /api/v1).
+      ...(op.responses[status]?.headers && { headers: op.responses[status].headers }),
       content: { 'application/json': { schema } },
     };
   }
