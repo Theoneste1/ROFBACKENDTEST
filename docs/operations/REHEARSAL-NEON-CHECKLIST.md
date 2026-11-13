@@ -22,6 +22,11 @@ line, or none: **stop** — an older copy is running.
 | `scripts/release/phase1-postcheck.sql` | post-migration MUSTs | no (READ ONLY transaction) |
 | `node scripts/db-drill-verify.mjs [--baseline pre-phase1]` | integrity + id fingerprints of a copy; default = migrated to this checkout, `--baseline pre-phase1` = before M1–M14 (production `main` today: 17 migrations, 46 tables), derived from this checkout | no (one rolled-back trigger test) |
 
+**Phase 1 only (exit 5):** the runner refuses every command when the checkout contains a migration after
+M14 (`20261121001300_…`), and every command that connects when the target database already records one —
+`deploy` would otherwise apply it too and `rollback` would leave it behind. Run the kit from a checkout
+whose last migration is M14 (backend `develop` 293e08d). Exit 5: **stop**, do not work around it.
+
 The runner reads `DRILL_DATABASE_URL` from `.env.drill.local` and uses the fail-closed guard of
 `db-drill-verify.mjs`: it refuses to run unless `.env.production.local` names the production host and
 the target differs from it — by host and by endpoint id; pooled/direct, letter case, percent-encoding

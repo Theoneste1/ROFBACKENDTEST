@@ -41,7 +41,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:pat
 import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { REPO_ROOT, VERIFIER, resolveDrillTarget, readTargetInputs } from '../db-drill-verify.mjs';
-import { PHASE1, PHASE1_COUNT } from './phase1.mjs';
+import { PHASE1, PHASE1_COUNT, laterMigrations, migrationDirs } from './phase1.mjs';
 
 export { PHASE1 };
 const WRITES = new Set(['deploy', 'rollback', 'rollback-history', 'dump', 'restore']);
@@ -206,6 +206,19 @@ async function runSqlFile(url, file, { readOnly }) {
   }
 }
 
+/** migration_name of every row in _prisma_migrations (none when the table does not exist yet). Read only. */
+async function appliedMigrations(url) {
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    const exists = (await client.query(`SELECT to_regclass('public."_prisma_migrations"') IS NOT NULL AS ok`)).rows[0].ok;
+    if (!exists) return [];
+    return (await client.query('SELECT migration_name FROM "_prisma_migrations"')).rows.map((r) => r.migration_name);
+  } finally {
+    await client.end();
+  }
+}
+
 function prisma(url, args) {
   const cli = createRequire(import.meta.url).resolve('prisma/build/index.js');
   const r = spawnSync(process.execPath, [cli, ...args], { stdio: 'inherit', cwd: REPO_ROOT, env: childEnv(process.env, url) });
@@ -224,6 +237,15 @@ async function main() {
   }
   console.log(`verifier guard: ${VERIFIER}`);
 
+  // Phase 1 only: a checkout with migrations after M14 would make `deploy` apply them too and leave them
+  // behind on `rollback` (exit 5, before any target is read).
+  const laterInCheckout = laterMigrations(migrationDirs(REPO_ROOT));
+  if (laterInCheckout.length) {
+    console.error(`✗ refused: this checkout has ${laterInCheckout.length} migration(s) after M14 (${laterInCheckout.join(', ')}). `
+      + 'The kit rehearses exactly the 14 Phase 1 migrations: run it from a checkout whose last migration is M14.');
+    return 5;
+  }
+
   const target = resolveDrillTarget(readTargetInputs());
   if (!target.ok) { console.error(`✗ ${target.reason}`); return target.code; }
   const ep = endpointId(target.url);
@@ -234,6 +256,17 @@ async function main() {
   console.log(`target: rehearsal branch endpoint ${WRITES.has(command) ? ep : '(guard passed)'} via direct endpoint`);
   const started = Date.now();
   let code = 0;
+
+  // …and a database that already records a migration after M14 is not a Phase 1 state either (exit 5).
+  // check-target never connects; restore requires an empty database (no history table).
+  if (!['check-target', 'restore'].includes(command)) {
+    const laterInDb = laterMigrations(await appliedMigrations(target.url));
+    if (laterInDb.length) {
+      console.error(`✗ refused: the target database records ${laterInDb.length} migration(s) after M14 (${laterInDb.join(', ')}). `
+        + 'The kit handles exactly the 14 Phase 1 migrations.');
+      return 5;
+    }
+  }
 
   switch (command) {
     case 'check-target': console.log('✔ guard passed. No connection made.'); break;

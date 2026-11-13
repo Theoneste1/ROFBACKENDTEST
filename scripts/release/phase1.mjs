@@ -5,6 +5,20 @@ import { join } from 'node:path';
 /** Phase 1 migration names: 20261121000000_… to 20261121001300_… (M1–M14). */
 export const PHASE1 = /^2026112100[01]\d00_/;
 export const PHASE1_COUNT = 14;
+/** The timestamp of M14, the last Phase 1 migration. */
+export const LAST_PHASE1_TIMESTAMP = '20261121001300';
+
+/**
+ * Migration names that sort AFTER M14 (Prisma applies migrations in name order). The kit rehearses and
+ * rolls back exactly the 14 Phase 1 migrations, so any later migration — in the checkout or already
+ * recorded in a database — means this is not the Phase 1 state the kit was built for (owner decision
+ * 2026-11-13: refuse rather than deploy or roll back more, or less, than Phase 1).
+ * @param {string[]} names migration directory names, or migration_name values from _prisma_migrations
+ */
+export function laterMigrations(names) {
+  // By timestamp alone: e.g. a `20261121001400_…` would also match the PHASE1 pattern but comes after M14.
+  return names.filter((n) => n.slice(0, LAST_PHASE1_TIMESTAMP.length) > LAST_PHASE1_TIMESTAMP).sort();
+}
 
 /**
  * What a database looks like BEFORE the Phase 1 migrations (production `main` today), derived from this
