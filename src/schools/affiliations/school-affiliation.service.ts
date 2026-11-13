@@ -211,9 +211,12 @@ export class SchoolAffiliationService {
         student: { select: { id: true, email: true, firstName: true, isActive: true } },
       },
     });
-    if (!claim.claimedName || !claim.school || !claim.student.isActive) return null;
+    if (!claim.claimedName || !claim.school || !claim.student.isActive || !row.schoolId) return null;
+    // Once per student and school: a claim revoked, reopened (a new row) and verified again for the same
+    // school must not tell the student a second time that their school was added to the directory.
     return this.notices.enqueue(tx, {
-      type: DecisionEvents.SchoolRequestVerified, dedupeKey: `${DecisionEvents.SchoolRequestVerified}:affiliation:${row.id}`,
+      type: DecisionEvents.SchoolRequestVerified,
+      dedupeKey: `${DecisionEvents.SchoolRequestVerified}:student:${claim.student.id}:school:${row.schoolId}`,
       recipient: { userId: claim.student.id, email: claim.student.email, firstName: claim.student.firstName },
       entity: { type: 'StudentSchoolAffiliation', id: row.id }, payload: { schoolName: claim.school.name },
     });

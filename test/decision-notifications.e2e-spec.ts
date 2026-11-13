@@ -379,7 +379,7 @@ describe('Decision notifications', () => {
       const rows = await outbox({ recipientUserId: s.id });
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
-        type: 'school.request.verified', dedupeKey: `school.request.verified:affiliation:${matched.id}`, recipientEmail: s.email,
+        type: 'school.request.verified', dedupeKey: `school.request.verified:student:${s.id}:school:${school}`, recipientEmail: s.email,
         firstName: 'Diane', entityType: 'StudentSchoolAffiliation', entityId: matched.id, status: 'SENT',
       });
       const inApp = await p().notification.findMany({ where: { userId: s.id, type: 'school.request.verified' } });
@@ -408,6 +408,20 @@ describe('Decision notifications', () => {
       await http().post(`${AFFILIATIONS}/${matched.id}/revoke`).set(bearer(admin)).send({ reason: 'Left the school' }).expect(200);
       await settle();
       expect(await outbox({ recipientUserId: s.id })).toHaveLength(1);
+
+      // Regression (browser verification): revoke → reopen (a NEW claim row) → verify again for the SAME school
+      // must not tell the student a second time that their school was added to the directory.
+      await http().post(`${AFFILIATIONS}/${matched.id}/reopen`).set(bearer(admin)).send({ reason: 'Back at this school' }).expect((r) => {
+        if (r.status !== 200 && r.status !== 201) throw new Error(`reopen ${r.status} ${JSON.stringify(r.body)}`);
+      });
+      const reopened = await currentClaim(s.id);
+      expect(reopened.id).not.toBe(matched.id);
+      expect(reopened).toMatchObject({ schoolId: school, status: 'PENDING' });
+      await http().post(`${AFFILIATIONS}/${reopened.id}/verify`).set(bearer(admin)).send({}).expect(200);
+      await settle();
+      expect(await outbox({ recipientUserId: s.id })).toHaveLength(1);
+      expect(await p().notification.count({ where: { userId: s.id, type: 'school.request.verified' } })).toBe(1);
+      expect(mailsTo(s.email)).toHaveLength(1);
     });
 
     it('an ordinary claim of a listed school: verified exactly as before, no school-verified notification', async () => {
