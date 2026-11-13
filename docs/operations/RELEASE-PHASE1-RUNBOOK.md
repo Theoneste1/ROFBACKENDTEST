@@ -27,7 +27,9 @@ API does not check migrations at start-up. Render deploys `main` automatically (
    new features on by itself when the new backend answers `GET /api/v1` with capabilities).
 2. **Independent backup drill (Part B)**: `pg_dump` of production restored into a scratch database and
    verified (docs/operations/BACKUP-RESTORE-DRILL-2026-11-09.md — Part B has not been done yet).
-3. **Rehearsal on a Neon branch of production** (point-in-time copy; never production itself):
+3. **Rehearsal on a Neon branch of production** (point-in-time copy; never production itself). Step by
+   step, with the guarded runner `scripts/release/rehearsal.mjs` and expected values:
+   docs/operations/REHEARSAL-NEON-CHECKLIST.md.
    1. `psql "$BRANCH_URL" -f scripts/release/phase1-precheck.sql` — every MUST holds.
    2. `DATABASE_URL="$BRANCH_URL" npx prisma migrate deploy` — record the NOTICE lines (M3 counts,
       M8 adopted / inserted / uncoded, M9 with-school / name-only, M10 "0 violations; N diverged").
