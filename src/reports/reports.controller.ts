@@ -13,6 +13,8 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { AuditService } from '../audit/audit.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
+import type { CsvExport } from './csv.js';
+import { sendCsvExport } from './csv-stream.js';
 
 class ResultsReportDto {
   @IsOptional() @IsUUID() assignmentId?: string;
@@ -215,14 +217,13 @@ export class ReportsController {
    * Exports contain personal data, so every download is audited (with its
    * filters) — and the entry is saved before the file is sent.
    */
-  private async sendCsv(res: Response, name: string, csv: string, user: AuthUser, filters: object) {
+  /** Audits the export, then streams it (csv-stream.ts: no row limit; a late failure aborts the download). */
+  private async sendCsv(res: Response, name: string, csv: CsvExport, user: AuthUser, filters: object) {
     await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'EXPORT_REPORT', entity: 'Report',
       metadata: { report: name, filters: { ...filters } },
     });
     const date = new Date().toISOString().slice(0, 10);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}-${date}.csv"`);
-    res.send(csv);
+    await sendCsvExport(res, `${name}-${date}.csv`, csv);
   }
 }

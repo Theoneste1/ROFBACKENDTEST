@@ -1,7 +1,7 @@
 /**
  * User reports for administrators: student and mentor lists, enrolment and
  * course participation. JSON for the API (lists are paginated) and CSV for
- * download (up to MAX_ROWS rows). All figures come from live records using
+ * download (streamed in batches, no row limit — csv.ts). All figures come from live records using
  * aggregate queries; per-row statistics are fetched for the current page only.
  */
 import { Injectable } from '@nestjs/common';
@@ -13,10 +13,9 @@ import { Prisma } from '../generated/prisma/client.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { ReportScopeService, teachingIn, type ReportScope } from './report-scope.js';
 import type { ReportListDto, UserReportDto, UserStatusFilter } from './dto/report-filters.dto.js';
-import { toCsv } from './csv.js';
+import { csvFromRows, keysetBatches, mapBatches, type CsvExport } from './csv.js';
 import { CURRENT_CLAIM_SELECT, withVerification } from '../schools/affiliations/school-verification.js';
 
-export const MAX_ROWS = 50_000;
 
 const PERSON = { id: true, firstName: true, lastName: true, username: true } as const;
 
@@ -54,21 +53,21 @@ export class UserReportsService {
     return { filters: { ...this.scope.describe(s), status: q.status ?? null }, ...paginated(await this.studentViews(s, rows), total, page, limit) };
   }
 
-  async studentsCsv(q: UserReportDto, user: AuthUser) {
+  async studentsCsv(q: UserReportDto, user: AuthUser): Promise<CsvExport> {
     const s = await this.scope.resolve(q, user);
-    const rows = await this.prisma.user.findMany({
-      where: this.studentListWhere(s, q), take: MAX_ROWS,
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: this.studentSelect(s),
-    });
-    const views = await this.studentViews(s, rows);
-    return toCsv(
-      ['Student', 'Username', 'Email', 'Status', 'Division', 'Grade', 'School', 'Enrolment status',
-       'Submissions', 'Results published', 'Points', 'Registered', 'Activated', 'Last login'],
-      views.map((v) => [
+    const where = this.studentListWhere(s, q);
+    const select = this.studentSelect(s);
+    const pages = keysetBatches((page) => this.prisma.user.findMany({
+      where, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select, ...page,
+    }));
+    return {
+      headers: ['Student', 'Username', 'Email', 'Status', 'Division', 'Grade', 'School', 'Enrolment status',
+        'Submissions', 'Results published', 'Points', 'Registered', 'Activated', 'Last login'],
+      batches: mapBatches(pages, async (rows) => (await this.studentViews(s, rows)).map((v) => [
         v.name, v.username, v.email, v.status, v.division?.name, v.gradeLevel, v.school?.name, v.enrollmentStatus,
         v.submissions, v.resultsPublished, v.points, v.registeredAt, v.activatedAt, v.lastLoginAt,
-      ]),
-    );
+      ])),
+    };
   }
 
   private studentListWhere(s: ReportScope, q: UserReportDto): Prisma.UserWhereInput {
@@ -146,21 +145,20 @@ export class UserReportsService {
     return { filters: { ...this.scope.describe(s), status: q.status ?? null }, ...paginated(await this.mentorViews(s, rows), total, page, limit) };
   }
 
-  async mentorsCsv(q: UserReportDto, user: AuthUser) {
+  async mentorsCsv(q: UserReportDto, user: AuthUser): Promise<CsvExport> {
     const s = await this.scope.resolve(q, user);
-    const rows = await this.prisma.user.findMany({
-      where: this.mentorListWhere(s, q), take: MAX_ROWS,
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: MENTOR_SELECT,
-    });
-    const views = await this.mentorViews(s, rows);
-    return toCsv(
-      ['Coach', 'Username', 'Email', 'Status', 'Teaching', 'Open reviews', 'Registered', 'Activated', 'Last login'],
-      views.map((v) => [
+    const where = this.mentorListWhere(s, q);
+    const pages = keysetBatches((page) => this.prisma.user.findMany({
+      where, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: MENTOR_SELECT, ...page,
+    }));
+    return {
+      headers: ['Coach', 'Username', 'Email', 'Status', 'Teaching', 'Open reviews', 'Registered', 'Activated', 'Last login'],
+      batches: mapBatches(pages, async (rows) => (await this.mentorViews(s, rows)).map((v) => [
         v.name, v.username, v.email, v.status,
         v.teaching.map((t) => `${t.course.title} (${t.division.name})`).join('; '),
         v.openReviews, v.registeredAt, v.activatedAt, v.lastLoginAt,
-      ]),
-    );
+      ])),
+    };
   }
 
   private mentorListWhere(s: ReportScope, q: UserReportDto): Prisma.UserWhereInput {
@@ -258,9 +256,10 @@ export class UserReportsService {
     };
   }
 
-  async enrollmentCsv(q: ReportListDto, user: AuthUser) {
+  /** Aggregate rows (year × division × school × grade): bounded by the directory, not by students. */
+  async enrollmentCsv(q: ReportListDto, user: AuthUser): Promise<CsvExport> {
     const report = await this.enrollment(q, user);
-    return toCsv(
+    return csvFromRows(
       ['Academic year', 'Division', 'School', 'Location', 'Grade', 'Active', 'Promoted', 'Graduated', 'Withdrawn', 'Total'],
       report.rows.map((r) => [
         r.academicYear.name, r.division.name, r.school?.name ?? '(no school)', r.school?.location, r.gradeLevel,
@@ -345,9 +344,10 @@ export class UserReportsService {
     return { filters: this.scope.describe(s), rows };
   }
 
-  async courseParticipationCsv(q: ReportListDto, user: AuthUser) {
+  /** Aggregate rows (course × division). */
+  async courseParticipationCsv(q: ReportListDto, user: AuthUser): Promise<CsvExport> {
     const { rows } = await this.courseParticipation(q, user);
-    return toCsv(
+    return csvFromRows(
       ['Course', 'Division', 'Students', 'Opened course', 'Completed course', 'Participation %', 'Assignments published',
        'Submissions', 'Students who submitted', 'Submission %', 'Average score %', 'Discussion threads', 'Comments'],
       rows.map((r) => [

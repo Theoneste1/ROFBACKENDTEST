@@ -3,9 +3,10 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
-import { toCsv } from './csv.js';
+import { csvBatchSize, keysetBatches, mapBatches, offsetBatches, type CsvExport } from './csv.js';
 
-const MAX_ROWS = 50_000;
+/** Coaches per batch for the workload export: each row loads that coach's reviews. */
+const WORKLOAD_BATCH = 200;
 
 /**
  * The admin "action required" overview and the original CSV exports (results,
@@ -55,16 +56,18 @@ export class ReportsService {
   }
 
   /** One row per submission with its result. Filter by assignment or by course × division. */
-  async resultsCsv(q: { assignmentId?: string; courseId?: string; divisionId?: string }) {
+  async resultsCsv(q: { assignmentId?: string; courseId?: string; divisionId?: string }): Promise<CsvExport> {
     if (!q.assignmentId && !(q.courseId && q.divisionId)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'FILTER_REQUIRED', 'Provide assignmentId, or courseId and divisionId.');
     }
-    const rows = await this.prisma.submission.findMany({
-      where: q.assignmentId
-        ? { assignmentId: q.assignmentId }
-        : { assignment: { courseId: q.courseId, divisionId: q.divisionId } },
-      orderBy: [{ assignment: { deadline: 'asc' } }, { student: { lastName: 'asc' } }],
-      take:    MAX_ROWS,
+    const where = q.assignmentId
+      ? { assignmentId: q.assignmentId }
+      : { assignment: { courseId: q.courseId, divisionId: q.divisionId } };
+    // Ordered through relations: offset paging (keyset needs the model's own columns); id makes it total.
+    const pages = offsetBatches((page) => this.prisma.submission.findMany({
+      where,
+      orderBy: [{ assignment: { deadline: 'asc' } }, { student: { lastName: 'asc' } }, { id: 'asc' }],
+      ...page,
       select: {
         status: true, pointsAwarded: true, isLate: true,
         revisionCount: true, submittedAt: true, publishedAt: true,
@@ -73,12 +76,12 @@ export class ReportsService {
         assignment: { select: { title: true, maximumMarks: true, course: { select: { title: true } }, division: { select: { name: true } } } },
         student:    { select: { firstName: true, lastName: true, username: true, gradeLevel: true, school: { select: { name: true } } } },
       },
-    });
+    }));
 
-    return toCsv(
-      ['Course', 'Division', 'Assignment', 'Student', 'Username', 'Grade', 'School', 'Status',
+    return {
+      headers: ['Course', 'Division', 'Assignment', 'Student', 'Username', 'Grade', 'School', 'Status',
        'Score', 'Max marks', 'Percentage', 'Points', 'Late', 'Resubmissions', 'Coach', 'Submitted at', 'Published at'],
-      rows.map((r) => [
+      batches: mapBatches(pages, (rows) => rows.map((r) => [
         r.assignment.course.title, r.assignment.division.name, r.assignment.title,
         `${r.student.firstName} ${r.student.lastName}`, r.student.username, r.student.gradeLevel,
         r.student.school?.name, r.status,
@@ -87,20 +90,21 @@ export class ReportsService {
         r.isLate ? 'yes' : 'no', r.revisionCount,
         r.currentReview ? `${r.currentReview.mentor.firstName} ${r.currentReview.mentor.lastName}` : null,
         r.submittedAt, r.publishedAt,
-      ]),
-    );
+      ])),
+    };
   }
 
   /** One row per student in a division with course progress and results summary. */
-  async studentProgressCsv(divisionId: string) {
+  async studentProgressCsv(divisionId: string): Promise<CsvExport> {
     const division = await this.prisma.division.findUnique({ where: { id: divisionId } });
     if (!division) throw new NotFoundException('Division not found.');
 
-    const [students, courses] = await Promise.all([
-      this.prisma.user.findMany({
+    // The course columns are known first; the students are then read a batch at a time.
+    const courses = await this.prisma.course.findMany({ orderBy: { sortOrder: 'asc' }, select: { id: true, title: true } });
+    const pages = keysetBatches((page) => this.prisma.user.findMany({
         where:   { role: 'STUDENT', divisionId },
-        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-        take:    MAX_ROWS,
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
+        ...page,
         select: {
           id: true, firstName: true, lastName: true, username: true, email: true, gradeLevel: true,
           isActive: true, points: true, problemsSolved: true, lastLoginAt: true,
@@ -108,14 +112,12 @@ export class ReportsService {
           courseEnrollments: { select: { courseId: true, status: true } },
           submissions: { select: { status: true, publishedReview: { select: { percentage: true } } } },
         },
-      }),
-      this.prisma.course.findMany({ orderBy: { sortOrder: 'asc' }, select: { id: true, title: true } }),
-    ]);
+      }), csvBatchSize());
 
-    return toCsv(
-      ['Student', 'Username', 'Email', 'Grade', 'School', 'Active', 'Points', 'Results published',
+    return {
+      headers: ['Student', 'Username', 'Email', 'Grade', 'School', 'Active', 'Points', 'Results published',
        'Average %', 'Submissions', ...courses.map((c) => `${c.title} status`), 'Last login'],
-      students.map((s) => {
+      batches: mapBatches(pages, (students) => students.map((s) => {
         const published = s.submissions.filter((x) => x.status === 'PUBLISHED');
         const avg = published.length
           ? Math.round((published.reduce((a, x) => a + (x.publishedReview?.percentage ?? 0), 0) / published.length) * 10) / 10
@@ -126,28 +128,29 @@ export class ReportsService {
           ...courses.map((c) => s.courseEnrollments.find((e) => e.courseId === c.id)?.status ?? 'UNROLLED'),
           s.lastLoginAt,
         ];
-      }),
-    );
+      })),
+    };
   }
 
   /** One row per mentor: scopes, open reviews, completed reviews and turnaround. */
-  async mentorWorkloadCsv() {
-    const mentors = await this.prisma.user.findMany({
+  async mentorWorkloadCsv(): Promise<CsvExport> {
+    const pages = keysetBatches((page) => this.prisma.user.findMany({
       where:   { role: 'MENTOR' },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
+      ...page,
       select: {
-        firstName: true, lastName: true, username: true, email: true, isActive: true,
+        id: true, firstName: true, lastName: true, username: true, email: true, isActive: true,
         mentorAssignments: {
           where:  { isActive: true },
           select: { course: { select: { title: true } }, division: { select: { name: true } } },
         },
         reviews: { select: { status: true, assignedAt: true, returnedAt: true } },
       },
-    });
+    }), Math.min(WORKLOAD_BATCH, csvBatchSize()));
 
-    return toCsv(
-      ['Coach', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours'],
-      mentors.map((m) => {
+    return {
+      headers: ['Coach', 'Username', 'Email', 'Active', 'Teaching', 'Open reviews', 'Returned reviews', 'Average review hours'],
+      batches: mapBatches(pages, (mentors) => mentors.map((m) => {
         const open     = m.reviews.filter((r) => OPEN_REVIEW_STATUSES.includes(r.status)).length;
         const returned = m.reviews.filter((r) => r.returnedAt);
         const hours = returned.map((r) => (r.returnedAt!.getTime() - r.assignedAt.getTime()) / 3_600_000);
@@ -157,7 +160,7 @@ export class ReportsService {
           open, returned.length,
           hours.length ? Math.round((hours.reduce((a, b) => a + b, 0) / hours.length) * 10) / 10 : null,
         ];
-      }),
-    );
+      })),
+    };
   }
 }

@@ -650,7 +650,7 @@
             }
           }
         },
-        "summary": "The filtered trail as CSV (up to 50 000 rows). The export itself is audited.",
+        "summary": "The filtered trail as CSV, streamed (no row limit; was 50 000). The export itself is audited.",
         "tags": [
           "Admin · Audit"
         ],

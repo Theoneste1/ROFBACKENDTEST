@@ -291,8 +291,11 @@ hard-coded. Every endpoint is `ADMIN`-only.
 | `GET /admin/reports/results-publication` | Published, awaiting, releases, publishers, per assignment |
 | `GET /admin/reports/mentor-activity` | Per mentor: reviews assigned/completed/open, send-backs, turnaround, assignments, comments |
 
-Each report also has a `….csv` download with the same filters (every row, up
-to 50 000); downloads are audited with their filters.
+Each report also has a `….csv` download with the same filters: every row,
+streamed from the database in batches of 2 000 (keyset paging; no row limit, flat
+memory — `src/reports/csv.ts`, `csv-stream.ts`). A failure after the download has
+started aborts the connection, so a truncated file is never saved as complete.
+Downloads are audited with their filters.
 
 **Filters** (validated; unknown ids → 404): `academicYearId` (default the
 current year, `all` for every year), `divisionId`, `courseId`, `from`/`to`

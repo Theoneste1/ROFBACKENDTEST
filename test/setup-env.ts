@@ -26,6 +26,8 @@ process.env.STORAGE_DRIVER  = 'local';
 process.env.UPLOAD_DIR      = join(tmpdir(), `rof-e2e-${process.pid}`);
 process.env.WORKERS_ENABLED = 'false';   // tests drive workers explicitly
 process.env.THROTTLE_DISABLED = 'true';
+// CSV exports read 2 rows per batch, so every CSV test crosses batch borders (keyset / offset paging).
+process.env.REPORT_CSV_BATCH_SIZE = '2';
 process.env.APP_URL         = 'http://localhost:5173';
 // E-mail never leaves the machine in tests: dry run, no redirect, no real
 // sender. Set to empty rather than deleted — the app's ConfigModule fills

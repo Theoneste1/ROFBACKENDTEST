@@ -254,7 +254,7 @@ Returns `200` JSON, an array of objects with:
 
 **Access:** ADMIN, SUPER_ADMIN
 
-The filtered trail as CSV (up to 50 000 rows). The export itself is audited.
+The filtered trail as CSV, streamed (no row limit; was 50 000). The export itself is audited.
 
 Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
