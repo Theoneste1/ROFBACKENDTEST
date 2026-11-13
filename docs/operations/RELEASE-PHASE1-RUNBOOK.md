@@ -98,5 +98,6 @@ Then lift the freeze (registration on) and announce the end of the window.
 
 - Every existing student's school claim is PENDING (M9): the school leaderboard counts only VERIFIED
   claims, so it is empty until administrators verify claims under **Schools → School verification**.
+  Claims are never approved in bulk; the workflow is in docs/operations/SCHOOL-CLAIM-VERIFICATION.md.
 - Super Admin bootstrap, `TEACHERS_ENABLED`, `HEAD_COACHES_ENABLED`, `SUPER_ADMIN_BOUNDARY_ENABLED` and the
   directory sync are separate, later decisions (docs/operations/super-admin.md). Keep them off.
