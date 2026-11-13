@@ -58,6 +58,8 @@ import {
   classifyClaimRequest, cooldownUntil, limitRetryAfter, sameSchool, type ClaimIdentity, type ClaimRequest,
 } from './school-claim-rules.js';
 import { ListAffiliationsDto, MatchAffiliationDto, StudentClaimDto } from './school-affiliation.dto.js';
+import { DecisionNotificationsService } from '../../decision-notifications/decision-notifications.service.js';
+import { DecisionEvents } from '../../decision-notifications/decision-content.js';
 
 /** Namespace of the per-student advisory lock taken while changing the current claim. */
 const AFFILIATION_LOCK_NAMESPACE = 4212;
@@ -94,6 +96,7 @@ export class SchoolAffiliationService {
     private readonly prisma:        PrismaService,
     private readonly audit:         AuditService,
     private readonly academicYears: AcademicYearsService,
+    private readonly notices:       DecisionNotificationsService,
   ) {}
 
   // ─── Claims (inside the caller's transaction) ───────────────────────────────
@@ -183,9 +186,37 @@ export class SchoolAffiliationService {
 
   // ─── Administrator decisions (each atomic with its audit row) ───────────────
 
-  verify(id: string, actor: AuthUser, note?: string) {
-    return this.decide(id, actor, 'PENDING', 'VERIFIED', 'SCHOOL_AFFILIATION_VERIFIED',
-      { decidedAt: new Date(), decidedById: actor.id, decisionReason: note ?? null }, { requireSchool: true, reason: note ?? null });
+  async verify(id: string, actor: AuthUser, note?: string) {
+    let notice: string | null = null;
+    const result = await this.decide(id, actor, 'PENDING', 'VERIFIED', 'SCHOOL_AFFILIATION_VERIFIED',
+      { decidedAt: new Date(), decidedById: actor.id, decisionReason: note ?? null }, { requireSchool: true, reason: note ?? null },
+      async (tx, row) => { notice = await this.enqueueSchoolVerified(tx, row); });
+    this.notices.dispatchAfterCommit([notice]);
+    return result;
+  }
+
+  /**
+   * Decision notification (school.request.verified), inside the verification's transaction after all of
+   * its checks: only for a claim the student submitted as "not listed" / name-only. Such a claim keeps the
+   * name the student entered (claimedName) — set only for name-only entries (registration and
+   * POST /me/school-affiliation), and kept through match() and reopen(); an ordinary claim of a listed
+   * school (by code, or chosen from the list) has none and is not notified. Inactive accounts are skipped.
+   */
+  private async enqueueSchoolVerified(tx: Prisma.TransactionClient, row: { id: string; studentId: string; schoolId: string | null }) {
+    const claim = await tx.studentSchoolAffiliation.findUniqueOrThrow({
+      where:  { id: row.id },
+      select: {
+        claimedName: true,
+        school:  { select: { name: true } },
+        student: { select: { id: true, email: true, firstName: true, isActive: true } },
+      },
+    });
+    if (!claim.claimedName || !claim.school || !claim.student.isActive) return null;
+    return this.notices.enqueue(tx, {
+      type: DecisionEvents.SchoolRequestVerified, dedupeKey: `${DecisionEvents.SchoolRequestVerified}:affiliation:${row.id}`,
+      recipient: { userId: claim.student.id, email: claim.student.email, firstName: claim.student.firstName },
+      entity: { type: 'StudentSchoolAffiliation', id: row.id }, payload: { schoolName: claim.school.name },
+    });
   }
 
   reject(id: string, actor: AuthUser, reason: string) {
@@ -201,6 +232,8 @@ export class SchoolAffiliationService {
   private async decide(
     id: string, actor: AuthUser, from: SchoolAffiliationStatus, to: SchoolAffiliationStatus, action: string,
     data: Prisma.StudentSchoolAffiliationUncheckedUpdateManyInput, opts: { requireSchool?: boolean; reason: string | null },
+    /** Runs in the same transaction, after the change and its audit row (decision notifications). */
+    after?: (tx: Prisma.TransactionClient, row: { id: string; studentId: string; schoolId: string | null }) => Promise<void>,
   ) {
     return this.prisma.$transaction(async (tx) => {
       // The claim row first (FOR UPDATE: a concurrent decision or supersession waits here), then
@@ -227,6 +260,7 @@ export class SchoolAffiliationService {
         actorId: actor.id, actorRole: actor.role, action, entity: 'StudentSchoolAffiliation', entityId: id,
         metadata: { studentId: row.studentId, schoolId: row.schoolId, previous: { status: from }, next: { status: to }, reason: opts.reason },
       }, tx);
+      if (after) await after(tx, row);
       return tx.studentSchoolAffiliation.findUniqueOrThrow({ where: { id }, select: ADMIN_SELECT });
     });
   }

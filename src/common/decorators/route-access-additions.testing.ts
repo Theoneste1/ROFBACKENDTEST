@@ -108,4 +108,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/teacher-applications/:id  AdminTeacherApplicationsController.get':                       ADMINISTRATORS,
   'POST /api/v1/admin/teacher-applications/:id/approve  AdminTeacherApplicationsController.approve':          ADMINISTRATORS,
   'POST /api/v1/admin/teacher-applications/:id/reject  AdminTeacherApplicationsController.reject':            ADMINISTRATORS,
+  // Decision notifications (owner-approved): school verification of a missing-school application
+  // (users.manageTeachers) and the delivery log (email.bulkSend: Administrators, Super Admins)
+  'POST /api/v1/admin/teacher-applications/:id/school  AdminTeacherApplicationsController.verifySchool':      ADMINISTRATORS,
+  'GET /api/v1/admin/notification-deliveries  DecisionNotificationsController.list':                          ADMINISTRATORS,
+  'POST /api/v1/admin/notification-deliveries/:id/retry  DecisionNotificationsController.retry':              ADMINISTRATORS,
 };

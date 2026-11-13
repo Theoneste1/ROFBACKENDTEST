@@ -76,3 +76,11 @@ describe('teacher self-registration rules', () => {
     });
   });
 });
+
+describe('school verification errors (decision notifications)', () => {
+  it('SCHOOL_NOT_VERIFIED (400) and SCHOOL_ALREADY_VERIFIED (409)', async () => {
+    const { schoolNotVerified, schoolAlreadyVerified } = await import('./teacher-application.rules.js');
+    expect([schoolNotVerified().getStatus(), schoolNotVerified().code]).toEqual([400, 'SCHOOL_NOT_VERIFIED']);
+    expect([schoolAlreadyVerified().getStatus(), schoolAlreadyVerified().code]).toEqual([409, 'SCHOOL_ALREADY_VERIFIED']);
+  });
+});

@@ -122,3 +122,14 @@ export class RejectTeacherApplicationDto {
   @IsString() @Length(2, 500) @Transform(trim)
   reason: string;
 }
+
+/** POST /admin/teacher-applications/:id/school */
+export class VerifyTeacherApplicationSchoolDto {
+  /** An existing, active school in Rwanda (create it first through POST /admin/schools when needed). */
+  @IsUUID()
+  schoolId: string;
+
+  @IsOptional()
+  @IsString() @MaxLength(500) @Transform(trim)
+  note?: string;
+}

@@ -72,3 +72,12 @@ export const identityTaken = () =>
 
 export const unknownSchool = (schoolId: string) =>
   new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL', 'This school is not an active school of the official directory.', { schoolId });
+
+/** A missing-school application is approved only once an Administrator verified its school. */
+export const schoolNotVerified = () =>
+  new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_NOT_VERIFIED',
+    'This applicant\'s school is missing from the directory: verify it first (POST /admin/teacher-applications/:id/school), then approve.');
+
+/** School verification applies once, and only to a missing-school application. */
+export const schoolAlreadyVerified = () =>
+  new AppError(HttpStatus.CONFLICT, 'SCHOOL_ALREADY_VERIFIED', 'This application\'s school is already verified.');

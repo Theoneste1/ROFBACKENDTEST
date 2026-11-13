@@ -282,12 +282,12 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(Object.keys(one).sort()).toEqual([
         'assignedSchool', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeSector',
         'id', 'lastName', 'olympiadInterests', 'phone', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
-        'schoolSector', 'status', 'userId', 'username',
+        'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username',
       ]);
       expect(one).toMatchObject({
         username: 'tr.approve', phone: '+250788123456', country: 'RW', olympiadInterests: ['MATHEMATICS', 'PHYSICS'], status: 'PENDING',
         school: { id: ngoma, code: '220001', province: 'Southern Province', district: 'Huye', sector: 'Ngoma' },
-        decidedBy: null, assignedSchool: null, userId: null,
+        decidedBy: null, assignedSchool: null, userId: null, schoolVerifiedAt: null, schoolVerifiedBy: null,
       });
       expect((await http().get(ADMIN_APPS).query({ status: 'REJECTED' }).set(bearer(admin)).expect(200)).body.data.every((a: any) => a.status === 'REJECTED')).toBe(true);
       expect(await status(http().get(`${ADMIN_APPS}/${randomUUID()}`).set(bearer(admin)))).toEqual([404, 'NOT_FOUND']);
@@ -331,20 +331,37 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await status(reject(listedId))).toEqual([409, 'APPLICATION_ALREADY_DECIDED']);
     });
 
-    it('missing school: SCHOOL_REQUIRED without a school; an inactive or unknown school is refused and nothing is created; approved with the school an Administrator created', async () => {
+    it('missing school: SCHOOL_NOT_VERIFIED until an Administrator verifies the school (inactive or unknown refused, nothing created); then approved with that school', async () => {
+      const verifySchool = (id: string, body: object, token = admin) => http().post(`${ADMIN_APPS}/${id}/school`).set(bearer(token)).send(body);
       const before = { users: await p().user.count(), assignments: await p().teacherSchoolAssignment.count() };
-      expect(await status(approve(missingId))).toEqual([400, 'SCHOOL_REQUIRED']);
-      expect(await status(approve(missingId, { schoolId: inactive }))).toEqual([400, 'UNKNOWN_SCHOOL']);
-      expect(await status(approve(missingId, { schoolId: randomUUID() }))).toEqual([400, 'UNKNOWN_SCHOOL']);
+      expect(await status(approve(missingId))).toEqual([400, 'SCHOOL_NOT_VERIFIED']);
+      expect(await status(approve(missingId, { schoolId: tumba }))).toEqual([400, 'SCHOOL_NOT_VERIFIED']);
+      expect(await status(verifySchool(missingId, { schoolId: inactive }))).toEqual([400, 'UNKNOWN_SCHOOL']);
+      expect(await status(verifySchool(missingId, { schoolId: randomUUID() }))).toEqual([400, 'UNKNOWN_SCHOOL']);
+      expect(await status(verifySchool(missingId, {}))).toEqual([400, 'VALIDATION_FAILED']);
+      for (const token of [coach, student]) expect(await status(verifySchool(missingId, { schoolId: tumba }, token))).toEqual([403, 'PERMISSION_REQUIRED']);
+      // A listed-school application has nothing to verify.
+      expect(await status(verifySchool(listedId, { schoolId: ngoma }))).toEqual([409, 'APPLICATION_ALREADY_DECIDED']);
       expect({ users: await p().user.count(), assignments: await p().teacherSchoolAssignment.count() }).toEqual(before);
       expect((await p().teacherApplication.findUniqueOrThrow({ where: { id: missingId } })).status).toBe('PENDING');
 
       const created = await http().post('/api/v1/admin/schools').set(bearer(admin)).send({
         name: 'GS Not Yet Listed', code: '220999', province: 'Southern Province', district: 'Huye', sector: 'Tumba', location: 'Huye',
       }).expect(201);
-      const res = await approve(missingId, { schoolId: created.body.id }).expect(200);
-      expect(res.body.application).toMatchObject({ status: 'APPROVED', school: null, proposedSchoolName: 'GS Not Yet Listed', assignedSchool: { id: created.body.id } });
+      const verified = await verifySchool(missingId, { schoolId: created.body.id, note: 'Created from the application' }).expect(200);
+      expect(verified.body).toMatchObject({
+        id: missingId, status: 'PENDING', school: { id: created.body.id }, proposedSchoolName: 'GS Not Yet Listed',
+        schoolVerifiedBy: { id: ctx.ids.admin }, userId: null, assignedSchool: null,
+      });
+      expect(verified.body.schoolVerifiedAt).not.toBeNull();
+      expect({ users: await p().user.count(), assignments: await p().teacherSchoolAssignment.count() }).toEqual(before);
+      expect(await status(verifySchool(missingId, { schoolId: created.body.id }))).toEqual([409, 'SCHOOL_ALREADY_VERIFIED']);
+
+      expect(await status(approve(missingId, { schoolId: tumba }))).toEqual([400, 'SCHOOL_MISMATCH']);
+      const res = await approve(missingId).expect(200);
+      expect(res.body.application).toMatchObject({ status: 'APPROVED', school: { id: created.body.id }, proposedSchoolName: 'GS Not Yet Listed', assignedSchool: { id: created.body.id } });
       expect(await p().teacherSchoolAssignment.count({ where: { teacherId: res.body.teacher.id, schoolId: created.body.id, isActive: true } })).toBe(1);
+      expect(await status(verifySchool(missingId, { schoolId: created.body.id }))).toEqual([409, 'APPLICATION_ALREADY_DECIDED']);
     });
 
     it('a listed school deactivated before approval: refused, nothing created', async () => {

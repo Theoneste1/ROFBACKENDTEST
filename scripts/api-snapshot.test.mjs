@@ -109,7 +109,24 @@ const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school
 const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-capabilities.json';
 const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
 const TEACHER_REGISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-teacher-registration.json';
-const CURRENT_SNAPSHOT = TEACHER_REGISTRATION_SNAPSHOT;
+const DECISION_NOTIFICATIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-decision-notifications.json';
+const CURRENT_SNAPSHOT = DECISION_NOTIFICATIONS_SNAPSHOT;
+/** Decision notifications (owner-approved): additive only. */
+const DECISION_NOTIFICATIONS_ADDITIONS = [
+  'GET /api/v1/admin/notification-deliveries: operation added',
+  'GET /api/v1/admin/teacher-applications › response 200 application/json.data[].schoolVerifiedAt: new field',
+  'GET /api/v1/admin/teacher-applications › response 200 application/json.data[].schoolVerifiedBy: new field',
+  'GET /api/v1/admin/teacher-applications/{id} › response 200 application/json.schoolVerifiedAt: new field',
+  'GET /api/v1/admin/teacher-applications/{id} › response 200 application/json.schoolVerifiedBy: new field',
+  'POST /api/v1/admin/notification-deliveries/{id}/retry: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/approve › response 200 application/json.application.school: no longer null',
+  'POST /api/v1/admin/teacher-applications/{id}/approve › response 200 application/json.application.schoolVerifiedAt: new field',
+  'POST /api/v1/admin/teacher-applications/{id}/approve › response 200 application/json.application.schoolVerifiedBy: new field',
+  'POST /api/v1/admin/teacher-applications/{id}/reject › response 200 application/json.schoolVerifiedAt: new field',
+  'POST /api/v1/admin/teacher-applications/{id}/reject › response 200 application/json.schoolVerifiedBy: new field',
+  'POST /api/v1/admin/teacher-applications/{id}/school: operation added',
+  'schema VerifyTeacherApplicationSchoolDto: added',
+];
 /** Teacher self-registration (owner-approved): additive only. */
 const TEACHER_REGISTRATION_ADDITIONS = [
   'GET /api/v1/admin/teacher-applications/{id}: operation added',
@@ -775,6 +792,15 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, TEACHER_REGISTRATION_ADDITIONS);
+  });
+
+  test('teacher self-registration → decision notifications: the school verification route, the delivery log and the verification fields; nothing else', () => {
+    for (const f of [TEACHER_REGISTRATION_SNAPSHOT, DECISION_NOTIFICATIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEACHER_REGISTRATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(DECISION_NOTIFICATIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, DECISION_NOTIFICATIONS_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

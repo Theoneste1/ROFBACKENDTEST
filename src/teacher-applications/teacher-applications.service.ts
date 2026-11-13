@@ -24,12 +24,15 @@ import { PUBLIC_DIRECTORY, directoryPlaceProblem, publicDirectoryHasPlace } from
 import { RWANDA } from '../schools/school-rules.js';
 import { lockSchoolsForUse } from '../schools/school-usage.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
+import { DecisionEvents } from '../decision-notifications/decision-content.js';
 import {
   ApproveTeacherApplicationDto, ListTeacherApplicationsDto, RegisterTeacherDto, RejectTeacherApplicationDto,
+  VerifyTeacherApplicationSchoolDto,
 } from './dto/teacher-application.dto.js';
 import {
   applicationAlreadyDecided, approvalSchoolId, assertPasswordsMatch, identityTaken, registrationClosed,
-  schoolChoice, teacherRegistrationOpen, unknownSchool,
+  schoolAlreadyVerified, schoolChoice, schoolNotVerified, teacherRegistrationOpen, unknownSchool,
 } from './teacher-application.rules.js';
 
 const SCHOOL_SELECT = { id: true, name: true, code: true, province: true, district: true, sector: true } as const;
@@ -44,6 +47,8 @@ export const APPLICATION_SELECT = {
   decidedBy: { select: { id: true, firstName: true, lastName: true } },
   rejectionReason: true, decisionNote: true, userId: true,
   assignedSchool: { select: { id: true, name: true, code: true } },
+  schoolVerifiedAt: true,
+  schoolVerifiedBy: { select: { id: true, firstName: true, lastName: true } },
 } as const satisfies Prisma.TeacherApplicationSelect;
 
 const isUniqueViolation = (e: unknown) => (e as { code?: string })?.code === 'P2002';
@@ -57,6 +62,7 @@ export class TeacherApplicationsService {
     private readonly activation: ActivationService,
     private readonly roles:      RoleAssignmentPolicy,
     private readonly config:     ConfigService,
+    private readonly notices:    DecisionNotificationsService,
   ) {}
 
   // ─── Public ────────────────────────────────────────────────────────────────
@@ -174,6 +180,8 @@ export class TeacherApplicationsService {
     const application = await this.prisma.teacherApplication.findUnique({ where: { id } });
     if (!application) throw notFound();
     if (application.status !== 'PENDING' || !application.passwordHash) throw applicationAlreadyDecided();
+    // A missing-school application: an Administrator verifies the school first (POST …/:id/school).
+    if (application.proposedSchoolName !== null && !application.schoolVerifiedAt) throw schoolNotVerified();
 
     const schoolId = approvalSchoolId(application.schoolId, dto.schoolId);
     const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, isActive: true, countryCode: true } });
@@ -181,6 +189,7 @@ export class TeacherApplicationsService {
 
     const verify = await this.settings.get('registration.requireEmailVerification');
     let issued: IssuedActivation | null = null;
+    let notice: string | null = null;
 
     const teacher = await this.prisma.$transaction(async (tx) => {
       const now = new Date();
@@ -222,21 +231,75 @@ export class TeacherApplicationsService {
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
-        metadata: { newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: !application.schoolId },
+        metadata: { newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null },
       }, tx);
+      notice = await this.notices.enqueue(tx, {
+        type: DecisionEvents.TeacherApplicationApproved, dedupeKey: `${DecisionEvents.TeacherApplicationApproved}:${id}`,
+        recipient: { userId: user.id, email: user.email, firstName: application.firstName },
+        entity: { type: 'TeacherApplication', id }, payload: { activated: !verify },
+      });
       return user;
     }).catch((e: unknown) => {
       throw isUniqueViolation(e) ? identityTaken() : e;
     });
 
-    // The confirmation e-mail doubles as the approval notice.
+    // With e-mail verification on, the confirmation e-mail is sent as before; the approval notice tells
+    // the teacher to use it (no login link until the account is activated).
     if (issued) await this.activation.send(issued);
+    this.notices.dispatchAfterCommit([notice]);
 
     return {
       application: await this.prisma.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT }),
       teacher,
       emailVerificationRequired: verify,
     };
+  }
+
+  /**
+   * Verify the school of a missing-school application (owner-approved): the Administrator links it to an
+   * EXISTING active Rwandan school (created first through POST /admin/schools when needed). Records who and
+   * when, sets the application's school and queues school.request.verified to the applicant's e-mail. The
+   * application stays PENDING: no account and no assignment until approval.
+   */
+  async verifySchool(id: string, dto: VerifyTeacherApplicationSchoolDto, caller: CallerCtx) {
+    await this.roles.assertCanAssign(caller, 'TEACHER');
+    const application = await this.prisma.teacherApplication.findUnique({
+      where: { id }, select: { id: true, status: true, proposedSchoolName: true, schoolVerifiedAt: true, email: true, firstName: true },
+    });
+    if (!application) throw notFound();
+    if (application.status !== 'PENDING') throw applicationAlreadyDecided();
+    if (application.proposedSchoolName === null || application.schoolVerifiedAt) throw schoolAlreadyVerified();
+
+    const school = await this.prisma.school.findUnique({ where: { id: dto.schoolId }, select: { id: true, name: true, isActive: true, countryCode: true } });
+    if (!school || !school.isActive || school.countryCode !== RWANDA) throw unknownSchool(dto.schoolId);
+
+    let notice: string | null = null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.teacherApplication.updateMany({
+        where: { id, status: 'PENDING', proposedSchoolName: { not: null }, schoolVerifiedAt: null },
+        data:  { schoolId: school.id, schoolVerifiedAt: new Date(), schoolVerifiedById: caller.id },
+      });
+      if (count === 0) {
+        const now = await tx.teacherApplication.findUnique({ where: { id }, select: { status: true } });
+        throw now?.status === 'PENDING' ? schoolAlreadyVerified() : applicationAlreadyDecided();
+      }
+      // The school must still be active, and stays so until commit.
+      await lockSchoolsForUse(tx, [school.id]);
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'VERIFY_TEACHER_APPLICATION_SCHOOL', entity: 'TeacherApplication', entityId: id,
+        metadata: { schoolId: school.id, proposedSchoolName: application.proposedSchoolName, note: dto.note ?? null },
+      }, tx);
+      notice = await this.notices.enqueue(tx, {
+        type: DecisionEvents.SchoolRequestVerified, dedupeKey: `${DecisionEvents.SchoolRequestVerified}:teacher-application:${id}`,
+        // No account yet: e-mail only, to the address given in the application.
+        recipient: { userId: null, email: application.email, firstName: application.firstName },
+        entity: { type: 'TeacherApplication', id }, payload: { schoolName: school.name },
+      });
+      return tx.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
+    });
+    this.notices.dispatchAfterCommit([notice]);
+    return result;
   }
 
   /** Reject: no account and no assignment; the reason and decider are recorded, the password hash cleared. */

@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 19 @Public + 29 @Roles + 178 @RequirePermission + 54 @Authenticated = 280, none undeclared', () => {
+  it('declarations add up: 19 @Public + 29 @Roles + 181 @RequirePermission + 54 @Authenticated = 283, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 19, '@Roles': 29, '@RequirePermission': 178, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 19, '@Roles': 29, '@RequirePermission': 181, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -187,7 +187,7 @@ describe('route declarations (P1-02 §5)', () => {
     expect(byPermission).toEqual({
       'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
       'audit.view': 4, 'users.manage': 11, 'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
-      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 6, 'mentorRequests.decide': 3,
+      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 8, 'mentorRequests.decide': 3,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
       'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
       // P1-09: individual overrides (new routes, listed in route-access-additions.testing.ts)
@@ -199,7 +199,7 @@ describe('route declarations (P1-02 §5)', () => {
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
       // P1-11: teacher school assignments, delegations and the teacher's school-scoped views (new routes)
-      'users.manageTeachers': 10,   // + 4 teacher-application review routes (teacher self-registration)
+      'users.manageTeachers': 11,   // + 4 teacher-application review routes (teacher self-registration) + school verification (decision notifications)
       'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
       // School administration PR A: student–school verification (new routes);
       // PR B: school records (list, get, students, create, update, activate / deactivate);
@@ -322,7 +322,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 69 added since: 271 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 72 added since: 274 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

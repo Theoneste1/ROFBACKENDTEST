@@ -9,6 +9,7 @@ import type { AuthUser } from '../common/auth-user.js';
 import { TeacherApplicationsService } from './teacher-applications.service.js';
 import {
   ApproveTeacherApplicationDto, ListTeacherApplicationsDto, RegisterTeacherDto, RejectTeacherApplicationDto,
+  VerifyTeacherApplicationSchoolDto,
 } from './dto/teacher-application.dto.js';
 
 /** Teacher self-registration (public): availability and the application itself. */
@@ -53,7 +54,18 @@ export class AdminTeacherApplicationsController {
     return this.service.get(id, user);
   }
 
-  /** Creates the TEACHER account and its school assignment. */
+  /**
+   * Missing-school application: link it to an existing official school (records the verification and
+   * e-mails the applicant that the school was verified). The application stays PENDING.
+   */
+  @Post(':id/school')
+  @HttpCode(200)
+  @RequirePermission('users.manageTeachers')
+  verifySchool(@Param('id', ParseUUIDPipe) id: string, @Body() body: VerifyTeacherApplicationSchoolDto, @CurrentUser() user: AuthUser) {
+    return this.service.verifySchool(id, body, user);
+  }
+
+  /** Creates the TEACHER account and its school assignment (a missing-school application: after its school is verified). */
   @Post(':id/approve')
   @HttpCode(200)
   @RequirePermission('users.manageTeachers')

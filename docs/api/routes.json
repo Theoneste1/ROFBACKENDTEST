@@ -248,6 +248,24 @@
     "tag": "Admin · Email"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/notification-deliveries",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/notification-deliveries/{id}/retry",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/leaderboard/recompute",
     "roles": [
@@ -2479,6 +2497,15 @@
   {
     "method": "POST",
     "path": "/api/v1/admin/teacher-applications/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/school",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"

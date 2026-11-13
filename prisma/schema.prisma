@@ -323,6 +323,14 @@ enum EmailJobStatus {
   FAILED
 }
 
+/// Delivery state of a decision notification (NotificationOutbox).
+enum NotificationOutboxStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
 enum EmailDeliveryStatus {
   PENDING
   SENT
@@ -405,70 +413,72 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignmentsCreated         Assignment[]               @relation("AssignmentCreator")
-  assignmentsApproved        Assignment[]               @relation("AssignmentApprover")
-  assignmentEvents           AssignmentEvent[]
-  courseEnrollments          CourseEnrollment[]         @relation("CourseEnrollments")
-  resourcesUploaded          CourseResource[]           @relation("ResourceUploader")
-  resourceViews              ResourceView[]
-  comments                   Comment[]                  @relation("CommentAuthor")
-  commentReactions           CommentReaction[]          @relation("CommentReactions")
-  studyGroupsCreated         StudyGroup[]               @relation("StudyGroupCreator")
-  studyGroupMemberships      StudyGroupMember[]         @relation("StudyGroupMemberships")
-  emailJobsCreated           EmailJob[]                 @relation("EmailJobCreator")
-  submissions                Submission[]               @relation("StudentSubmissions")
-  submissionRevisions        SubmissionRevision[]
-  assignmentViews            AssignmentView[]           @relation("AssignmentViewer")
-  auditLogs                  AuditLog[]                 @relation("AuditActor")
-  mentorAssignments          MentorAssignment[]         @relation("MentorAssignmentMentor")
-  mentorAssignmentsMade      MentorAssignment[]         @relation("MentorAssignmentAssigner")
-  programmeMemberships       ProgrammeMembership[]      @relation("ProgrammeMember")
-  programmeMembershipsAdded  ProgrammeMembership[]      @relation("ProgrammeMemberAddedBy")
-  programmeMembershipsEnded  ProgrammeMembership[]      @relation("ProgrammeMemberEndedBy")
-  permissionOverrides        UserPermissionOverride[]   @relation("OverrideTarget")
-  permissionOverridesCreated UserPermissionOverride[]   @relation("OverrideCreatedBy")
-  permissionOverridesRevoked UserPermissionOverride[]   @relation("OverrideRevokedBy")
-  teacherSchools             TeacherSchoolAssignment[]  @relation("TeacherSchool")
-  teacherSchoolsAssigned     TeacherSchoolAssignment[]  @relation("TeacherSchoolAssignedBy")
-  teacherSchoolsEnded        TeacherSchoolAssignment[]  @relation("TeacherSchoolEndedBy")
-  schoolAffiliations         StudentSchoolAffiliation[] @relation("AffiliationStudent")
-  affiliationsCreated        StudentSchoolAffiliation[] @relation("AffiliationCreatedBy")
-  affiliationsDecided        StudentSchoolAffiliation[] @relation("AffiliationDecidedBy")
-  affiliationsRevoked        StudentSchoolAffiliation[] @relation("AffiliationRevokedBy")
-  affiliationsSuperseded     StudentSchoolAffiliation[] @relation("AffiliationSupersededBy")
-  schoolsCreated             School[]                   @relation("SchoolCreatedBy")
-  schoolsVerified            School[]                   @relation("SchoolVerifiedBy")
-  schoolContactsVerified     SchoolContact[]            @relation("SchoolContactVerifiedBy")
-  schoolContactsRemoved      SchoolContact[]            @relation("SchoolContactRemovedBy")
-  schoolSyncRunsCreated      SchoolSyncRun[]            @relation("SchoolSyncRunCreatedBy")
-  schoolSyncRunsApplied      SchoolSyncRun[]            @relation("SchoolSyncRunAppliedBy")
-  schoolSyncRunsApproved     SchoolSyncRun[]            @relation("SchoolSyncRunApprovedBy")
-  schoolSyncProposals        SchoolSyncItem[]           @relation("SchoolSyncItemProposedBy")
-  schoolSyncResolutions      SchoolSyncItem[]           @relation("SchoolSyncItemResolvedBy")
-  schoolSyncDecisions        SchoolSyncChange[]         @relation("SchoolSyncChangeDecidedBy")
-  notifications              Notification[]
-  notificationPrefs          NotificationPreference[]
-  notificationSettings       NotificationSetting[]
-  refreshTokens              RefreshToken[]
-  passwordResetTokens        PasswordResetToken[]
-  activationTokens           AccountActivationToken[]   @relation("ActivationUser")
-  invitationsSent            AccountActivationToken[]   @relation("ActivationInviter")
-  filesUploaded              FileObject[]
-  settingsUpdated            SystemSetting[]
-  studentEnrollments         StudentEnrollment[]
-  reviews                    MentorReview[]             @relation("ReviewMentor")
-  reviewsAssigned            MentorReview[]             @relation("ReviewAssigner")
-  reviewsDecided             MentorReview[]             @relation("ReviewDecider")
-  reviewEvents               ReviewEvent[]
-  distributionBatches        DistributionBatch[]
-  resultReleases             ResultRelease[]
-  threadsCreated             DiscussionThread[]
-  reportsFiled               ContentReport[]            @relation("ReportReporter")
-  reportsResolved            ContentReport[]            @relation("ReportResolver")
-  moderationActions          ModerationAction[]
-  activityLogs               ActivityLog[]
-  teacherApplicationsDecided TeacherApplication[]       @relation("TeacherApplicationDecidedBy")
-  teacherApplication         TeacherApplication?        @relation("TeacherApplicationUser")
+  assignmentsCreated                Assignment[]               @relation("AssignmentCreator")
+  assignmentsApproved               Assignment[]               @relation("AssignmentApprover")
+  assignmentEvents                  AssignmentEvent[]
+  courseEnrollments                 CourseEnrollment[]         @relation("CourseEnrollments")
+  resourcesUploaded                 CourseResource[]           @relation("ResourceUploader")
+  resourceViews                     ResourceView[]
+  comments                          Comment[]                  @relation("CommentAuthor")
+  commentReactions                  CommentReaction[]          @relation("CommentReactions")
+  studyGroupsCreated                StudyGroup[]               @relation("StudyGroupCreator")
+  studyGroupMemberships             StudyGroupMember[]         @relation("StudyGroupMemberships")
+  emailJobsCreated                  EmailJob[]                 @relation("EmailJobCreator")
+  submissions                       Submission[]               @relation("StudentSubmissions")
+  submissionRevisions               SubmissionRevision[]
+  assignmentViews                   AssignmentView[]           @relation("AssignmentViewer")
+  auditLogs                         AuditLog[]                 @relation("AuditActor")
+  mentorAssignments                 MentorAssignment[]         @relation("MentorAssignmentMentor")
+  mentorAssignmentsMade             MentorAssignment[]         @relation("MentorAssignmentAssigner")
+  programmeMemberships              ProgrammeMembership[]      @relation("ProgrammeMember")
+  programmeMembershipsAdded         ProgrammeMembership[]      @relation("ProgrammeMemberAddedBy")
+  programmeMembershipsEnded         ProgrammeMembership[]      @relation("ProgrammeMemberEndedBy")
+  permissionOverrides               UserPermissionOverride[]   @relation("OverrideTarget")
+  permissionOverridesCreated        UserPermissionOverride[]   @relation("OverrideCreatedBy")
+  permissionOverridesRevoked        UserPermissionOverride[]   @relation("OverrideRevokedBy")
+  teacherSchools                    TeacherSchoolAssignment[]  @relation("TeacherSchool")
+  teacherSchoolsAssigned            TeacherSchoolAssignment[]  @relation("TeacherSchoolAssignedBy")
+  teacherSchoolsEnded               TeacherSchoolAssignment[]  @relation("TeacherSchoolEndedBy")
+  schoolAffiliations                StudentSchoolAffiliation[] @relation("AffiliationStudent")
+  affiliationsCreated               StudentSchoolAffiliation[] @relation("AffiliationCreatedBy")
+  affiliationsDecided               StudentSchoolAffiliation[] @relation("AffiliationDecidedBy")
+  affiliationsRevoked               StudentSchoolAffiliation[] @relation("AffiliationRevokedBy")
+  affiliationsSuperseded            StudentSchoolAffiliation[] @relation("AffiliationSupersededBy")
+  schoolsCreated                    School[]                   @relation("SchoolCreatedBy")
+  schoolsVerified                   School[]                   @relation("SchoolVerifiedBy")
+  schoolContactsVerified            SchoolContact[]            @relation("SchoolContactVerifiedBy")
+  schoolContactsRemoved             SchoolContact[]            @relation("SchoolContactRemovedBy")
+  schoolSyncRunsCreated             SchoolSyncRun[]            @relation("SchoolSyncRunCreatedBy")
+  schoolSyncRunsApplied             SchoolSyncRun[]            @relation("SchoolSyncRunAppliedBy")
+  schoolSyncRunsApproved            SchoolSyncRun[]            @relation("SchoolSyncRunApprovedBy")
+  schoolSyncProposals               SchoolSyncItem[]           @relation("SchoolSyncItemProposedBy")
+  schoolSyncResolutions             SchoolSyncItem[]           @relation("SchoolSyncItemResolvedBy")
+  schoolSyncDecisions               SchoolSyncChange[]         @relation("SchoolSyncChangeDecidedBy")
+  notifications                     Notification[]
+  notificationPrefs                 NotificationPreference[]
+  notificationSettings              NotificationSetting[]
+  refreshTokens                     RefreshToken[]
+  passwordResetTokens               PasswordResetToken[]
+  activationTokens                  AccountActivationToken[]   @relation("ActivationUser")
+  invitationsSent                   AccountActivationToken[]   @relation("ActivationInviter")
+  filesUploaded                     FileObject[]
+  settingsUpdated                   SystemSetting[]
+  studentEnrollments                StudentEnrollment[]
+  reviews                           MentorReview[]             @relation("ReviewMentor")
+  reviewsAssigned                   MentorReview[]             @relation("ReviewAssigner")
+  reviewsDecided                    MentorReview[]             @relation("ReviewDecider")
+  reviewEvents                      ReviewEvent[]
+  distributionBatches               DistributionBatch[]
+  resultReleases                    ResultRelease[]
+  threadsCreated                    DiscussionThread[]
+  reportsFiled                      ContentReport[]            @relation("ReportReporter")
+  reportsResolved                   ContentReport[]            @relation("ReportResolver")
+  moderationActions                 ModerationAction[]
+  activityLogs                      ActivityLog[]
+  teacherApplicationsDecided        TeacherApplication[]       @relation("TeacherApplicationDecidedBy")
+  teacherApplication                TeacherApplication?        @relation("TeacherApplicationUser")
+  teacherApplicationSchoolsVerified TeacherApplication[]       @relation("TeacherApplicationSchoolVerifiedBy")
+  notificationOutbox                NotificationOutbox[]
 
   @@index([points])
   @@index([role])
@@ -918,11 +928,17 @@ model TeacherApplication {
   /// The school the approval assigned (TeacherSchoolAssignment).
   assignedSchoolId   String?
   assignedSchool     School?                  @relation("TeacherApplicationAssignedSchool", fields: [assignedSchoolId], references: [id], onDelete: Restrict)
+  /// A missing-school application: when and by whom an Administrator linked it to an official school
+  /// (POST /admin/teacher-applications/:id/school; schoolId is then that school). Required before approval.
+  schoolVerifiedAt   DateTime?
+  schoolVerifiedById String?
+  schoolVerifiedBy   User?                    @relation("TeacherApplicationSchoolVerifiedBy", fields: [schoolVerifiedById], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([schoolId])
   @@index([assignedSchoolId])
   @@index([decidedById])
+  @@index([schoolVerifiedById])
 }
 
 model School {
@@ -962,19 +978,19 @@ model School {
   lastVerifiedById String?
   lastVerifiedBy   User?                @relation("SchoolVerifiedBy", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
 
-  students      User[]
-  enrollments   StudentEnrollment[]
-  teachers      TeacherSchoolAssignment[]
-  affiliations  StudentSchoolAffiliation[]
-  contacts      SchoolContact[]
-  levels        SchoolEducationLevel[]
-  programmes    SchoolProgramme[]
-  externalIds   SchoolExternalId[]
-  sourceRecords SchoolSourceRecord[]
-  syncItems     SchoolSyncItem[]
-  syncChanges   SchoolSyncChange[]
-  teacherApplications         TeacherApplication[] @relation("TeacherApplicationSchool")
-  teacherApplicationsAssigned TeacherApplication[] @relation("TeacherApplicationAssignedSchool")
+  students                    User[]
+  enrollments                 StudentEnrollment[]
+  teachers                    TeacherSchoolAssignment[]
+  affiliations                StudentSchoolAffiliation[]
+  contacts                    SchoolContact[]
+  levels                      SchoolEducationLevel[]
+  programmes                  SchoolProgramme[]
+  externalIds                 SchoolExternalId[]
+  sourceRecords               SchoolSourceRecord[]
+  syncItems                   SchoolSyncItem[]
+  syncChanges                 SchoolSyncChange[]
+  teacherApplications         TeacherApplication[]       @relation("TeacherApplicationSchool")
+  teacherApplicationsAssigned TeacherApplication[]       @relation("TeacherApplicationAssignedSchool")
 
   @@index([name])
   @@index([nameKey])
@@ -1868,6 +1884,42 @@ model NotificationSetting {
   @@unique([userId, type])
   /// Sending looks up the recipients who turned a type off.
   @@index([type, userId])
+}
+
+/// Decision notifications (owner-approved): one row per event and recipient, written in the SAME
+/// transaction as the Administrator's action, so it exists if and only if that action committed.
+/// The e-mail is sent after commit (src/decision-notifications); a failure only marks the row FAILED
+/// with a backoff (nextAttemptAt) — it never undoes the action. dedupeKey makes a repeated action or
+/// delivery a no-op. While SENDING, nextAttemptAt is the end of the claim's lease: a row still SENDING
+/// after it (a crashed sender) is recovered by the retry sweep. payload holds only what the message needs.
+model NotificationOutbox {
+  id                  String                   @id @default(uuid())
+  /// Event type, e.g. "teacher.application.approved".
+  type                String
+  dedupeKey           String                   @unique
+  recipientUserId     String?
+  recipientUser       User?                    @relation(fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientEmail      String
+  firstName           String
+  entityType          String
+  entityId            String
+  payload             Json
+  status              NotificationOutboxStatus @default(PENDING)
+  attempts            Int                      @default(0)
+  /// Sanitised (no addresses, keys or tokens), at most 500 characters.
+  lastError           String?
+  /// When the next automatic attempt is due (NULL: none — sent, or retries exhausted).
+  nextAttemptAt       DateTime?                @default(now())
+  createdAt           DateTime                 @default(now())
+  sentAt              DateTime?
+  /// The in-app Notification written with this row (recipients with an account).
+  inAppNotificationId String?
+
+  /// The retry sweep: due rows by status.
+  @@index([status, nextAttemptAt])
+  @@index([recipientUserId])
+  @@index([type, createdAt])
+  @@index([createdAt])
 }
 
 /// One per admin bulk-send request.

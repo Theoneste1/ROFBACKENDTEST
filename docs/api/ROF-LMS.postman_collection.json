@@ -975,6 +975,67 @@
             },
             "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
           }
+        },
+        {
+          "name": "GET /admin/notification-deliveries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notification-deliveries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notification-deliveries"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "type",
+                  "value": "type",
+                  "disabled": true,
+                  "description": "Event type, e.g. \"teacher.application.approved\"."
+                }
+              ]
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/notification-deliveries/{id}/retry",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notification-deliveries/:id/retry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notification-deliveries",
+                ":id",
+                "retry"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
         }
       ]
     },
@@ -9906,6 +9967,48 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/teacher-applications/{id}/school",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications/:id/school",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications",
+                ":id",
+                "school"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
