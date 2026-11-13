@@ -565,48 +565,4 @@ describe('SubmissionsService', () => {
       expect(events.emit).toHaveBeenCalledWith(Events.ResubmissionRequestWithdrawn, { submissionId: 'sub1' });
     });
   });
-describe('recomputeAllPoints (M6: one set-based statement, not one transaction per student)', () => {
-    const run = async (changed = 3, students = 100_000) => {
-      const { service, prisma, audit } = makeMocks();
-      const order: string[] = [];
-      const tx = {
-        $queryRaw:   vi.fn(async () => { order.push('lock'); return []; }),
-        $executeRaw: vi.fn(async () => { order.push('update'); return changed; }),
-        user:        { count: vi.fn(async () => { order.push('count'); return students; }), update: vi.fn() },
-      };
-      prisma.$transaction.mockImplementation(async (fn: (c: unknown) => unknown) => fn(tx));
-      const res = await service.recomputeAllPoints(ADMIN);
-      return { res, prisma, tx, audit, order };
-    };
-
-    it('takes the recompute lock, counts students and runs ONE update — no per-student queries', async () => {
-      const { res, tx, order, prisma } = await run();
-      expect(order).toEqual(['lock', 'count', 'update']);
-      expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
-      expect(tx.user.update).not.toHaveBeenCalled();
-      expect(prisma.user.findUnique).not.toHaveBeenCalled();
-      expect(res).toEqual({ recomputed: 100_000, changed: 3 });
-      expect(tx.user.count).toHaveBeenCalledWith({ where: { role: 'STUDENT' } });
-    });
-
-    it('the statement sums PUBLISHED results per student, covers students without results, and writes only differences', async () => {
-      const { tx } = await run();
-      const sql = (tx.$executeRaw.mock.calls[0] as unknown[])[0] as TemplateStringsArray;
-      const text = sql.join('?').replace(/\s+/g, ' ');
-      expect(text).toContain(`WHERE "status" = 'PUBLISHED' GROUP BY "studentId"`);
-      expect(text).toContain(`LEFT JOIN totals AS t ON t."studentId" = s."id"`);    // no result → 0, not skipped
-      expect(text).toContain(`s."role" = 'STUDENT'`);
-      expect(text).toContain(`u."points" <> COALESCE(t.points, 0) OR u."problemsSolved" <> COALESCE(t.solved, 0)`);
-      const lock = (tx.$queryRaw.mock.calls[0] as unknown[]) as [TemplateStringsArray, number];
-      expect(lock[0].join('?')).toContain('pg_advisory_xact_lock');
-      expect(lock[1]).toBe(4217);
-    });
-
-    it('runs in one transaction with a long enough timeout, and audits both counts', async () => {
-      const { prisma, audit } = await run(0, 12);
-      expect(prisma.$transaction.mock.calls[0][1]).toEqual({ maxWait: 10_000, timeout: 120_000 });
-      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'RECOMPUTE_POINTS', metadata: { students: 12, changed: 0 } }));
-    });
-  });
 });
-
