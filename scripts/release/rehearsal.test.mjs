@@ -1,13 +1,81 @@
 // node --test scripts/release/rehearsal.test.mjs — pure helpers of the rehearsal runner (no database).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { endpointId, segments, rollbackFiles, childEnv, checkDumpDir, conninfoFrom, pgToolEnv, toolMajor, serverMajor, isInside,
   PHASE1, M9_M14_TABLES, M9_M14_ENUMS } from './rehearsal.mjs';
+import { LAST_PHASE1_TIMESTAMP, laterMigrations, migrationDirs } from './phase1.mjs';
 import { REPO_ROOT } from '../db-drill-verify.mjs';
+
+// ── Later-migration guard (owner decision 2026-11-13) ─────────────────────────────────────────────
+
+const LATER = ['20261201000000_teacher_applications', '20261202000000_notification_outbox'];
+
+test('laterMigrations: nothing after M14 in the original state (this checkout: 17 + 14 migrations); M14 itself is not "later"', () => {
+  const dirs = migrationDirs(REPO_ROOT);
+  assert.equal(dirs.filter((d) => PHASE1.test(d)).length, 14);
+  assert.deepEqual(laterMigrations(dirs), []);
+  assert.deepEqual(laterMigrations([`${LAST_PHASE1_TIMESTAMP}_school_directory_sync_approval`, '20261120000000_email_html_body']), []);
+});
+
+test('laterMigrations: the 16-migration state (two migrations after M14) is detected, by name order, from directories or history rows', () => {
+  const sixteen = [...migrationDirs(REPO_ROOT), ...LATER];
+  assert.equal(sixteen.filter((d) => PHASE1.test(d) || LATER.includes(d)).length, 16);
+  assert.deepEqual(laterMigrations(sixteen), LATER);
+  assert.deepEqual(laterMigrations([...LATER].reverse()), LATER);
+  assert.deepEqual(laterMigrations(['20261121001400_m15']), ['20261121001400_m15']);
+});
+
+/**
+ * A throw-away copy of this checkout's scripts and migrations (node_modules linked, never copied),
+ * optionally with extra migration directories; removed afterwards without touching the real node_modules.
+ */
+function withCheckoutCopy(extra, fn) {
+  const root = mkdtempSync(join(tmpdir(), 'rof-kit-guard-'));
+  const modules = join(root, 'node_modules');
+  try {
+    cpSync(join(REPO_ROOT, 'scripts'), join(root, 'scripts'), { recursive: true });
+    cpSync(join(REPO_ROOT, 'prisma'), join(root, 'prisma'), { recursive: true });
+    cpSync(join(REPO_ROOT, 'docs/migrations'), join(root, 'docs/migrations'), { recursive: true });
+    symlinkSync(join(REPO_ROOT, 'node_modules'), modules, 'junction');
+    for (const name of extra) {
+      mkdirSync(join(root, 'prisma/migrations', name));
+      writeFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'SELECT 1;\n');
+    }
+    return fn(root);
+  } finally {
+    if (existsSync(modules)) unlinkSync(modules);           // the link only
+    assert.ok(existsSync(join(REPO_ROOT, 'node_modules')), 'the real node_modules is untouched');
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const run = (root, ...args) => spawnSync(process.execPath, [join(root, 'scripts/release/rehearsal.mjs'), ...args],
+  { cwd: root, encoding: 'utf8', env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot ?? '' } });
+
+test('the runner refuses a checkout with migrations after M14 (16-migration state): exit 5 for every command, before reading any target', () => {
+  withCheckoutCopy(LATER, (root) => {
+    for (const command of ['check-target', 'precheck', 'status', 'deploy', 'diff', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore']) {
+      const r = run(root, command, '--confirm', 'ep-anything');
+      assert.equal(r.status, 5, `${command}: ${r.stderr}`);
+      assert.match(r.stderr, /refused: this checkout has 2 migration\(s\) after M14 \(20261201000000_teacher_applications, 20261202000000_notification_outbox\)/);
+    }
+  });
+});
+
+test('the runner accepts the original 14-migration checkout: it passes the later-migration guard and goes on to the target check', () => {
+  withCheckoutCopy([], (root) => {
+    const r = run(root, 'deploy', '--confirm', 'ep-anything');
+    assert.notEqual(r.status, 5, r.stderr);
+    assert.doesNotMatch(r.stderr, /after M14/);
+    assert.match(r.stdout, /verifier guard: db-drill-verify rev 2/);
+    // No .env.production.local / DRILL_DATABASE_URL in the copy: the target guard refuses next (fail-closed).
+    assert.ok(r.status !== 0, 'no target configured, so the target guard refuses');
+  });
+});
 
 const BRANCH = 'postgresql://rof_user:s%40cret%27pw@ep-branch-222.c-1.us-east-2.aws.example.tech/neondb?sslmode=require';
 
