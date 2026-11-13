@@ -191,6 +191,9 @@ describe('School administration (PR B)', () => {
     expect(adminPerms).toContain('schools.manage');
     expect(adminPerms).not.toContain('schools.syncDirectory');
     expect(adminPerms).toEqual(ROLE_PERMISSIONS.ADMIN);
+    // Owner decision 2026-11-13: exactly users.manageTeachers was added (ADMIN already held it).
+    expect(adminPerms).toContain('users.manageTeachers');
+    expect(adminPerms).not.toContain('users.manageHeadCoaches');
     await http().get(S).set(bearer(admin)).expect(200);
 
     const superPerms = await perms(superAdmin);

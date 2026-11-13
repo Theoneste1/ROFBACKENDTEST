@@ -226,6 +226,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // here, GET /me/permissions under-reported what the backend allows. schools.syncDirectory is
     // Super-Admin-only and never listed for ADMIN.
     'schools.manage',
+    // Appended (additive, owner decision 2026-11-13): ADMIN already holds it (ADMIN_GRANTS, global) and the
+    // Teacher routes require it; without it here the frontend hid Teacher administration from ADMINs.
+    'users.manageTeachers',
   ],
 };
 

@@ -49,7 +49,18 @@ describe('permissions', () => {
       'mentorAssignments.manage', 'mentorRequests.decide', 'settings.manage', 'email.bulkSend',
       'audit.view', 'activity.view',
       'schools.manage',   // appended 2026-11-12: already granted (ADMIN_GRANTS), now reported too
+      'users.manageTeachers',   // appended 2026-11-13: already granted (ADMIN_GRANTS), now reported too
     ]);
+  });
+
+  it('ADMIN reports users.manageTeachers (which it holds) and nothing it does not hold; no other Teacher/Head Coach/Super Admin permission was added', () => {
+    expect(ROLE_PERMISSIONS.ADMIN).toContain('users.manageTeachers');
+    expect(ROLE_GRANTS.ADMIN['users.manageTeachers']).toBe('global');
+    // The reported list never over-reports: every entry is held by ADMIN.
+    for (const p of ROLE_PERMISSIONS.ADMIN) expect(ROLE_GRANTS.ADMIN[p], p).toBeDefined();
+    for (const p of ['users.manageHeadCoaches', 'users.manageAdmins', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
+      expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
+    }
   });
 
   it('ADMIN reports schools.manage (which it holds) and never schools.syncDirectory (Super Admin only)', () => {
