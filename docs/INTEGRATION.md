@@ -38,7 +38,9 @@ Backend ──► Resend (e-mail) · Neon (database) · R2 (files)
   origin.
 - On a 401 the frontend calls `POST /auth/refresh` once (single-flight across
   tabs) and retries; refresh tokens rotate on every use, and reuse revokes the
-  session. `POST /auth/logout` ends it.
+  session. `POST /auth/logout` ends it; it needs no valid access token (the
+  refresh cookie identifies the session), so call it directly, without a
+  refresh first, and expect 200 even when there was nothing left to revoke.
 - Roles: `STUDENT`, `MENTOR` (shown as "Coach"), `ADMIN`. The backend enforces
   every permission (403 `FORBIDDEN`); the frontend only hides what a role
   cannot use (`GET /me/permissions`).

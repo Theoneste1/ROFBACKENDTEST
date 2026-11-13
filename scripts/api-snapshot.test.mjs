@@ -108,7 +108,8 @@ const SCHOOL_SYNC_STAGING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-scho
 const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-apply.json';
 const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-capabilities.json';
 const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
-const CURRENT_SNAPSHOT = YEAR_ACTIVATION_SNAPSHOT;
+const LOGOUT_SESSION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-logout-session.json';
+const CURRENT_SNAPSHOT = LOGOUT_SESSION_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -752,6 +753,19 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ['POST /api/v1/admin/academic-years/{id}/activate › request application/json.expectedCurrentYearId: new required field']);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, []);
+  });
+
+  test('year activation → logout session (H1): only POST /auth/logout becomes public; nothing else', () => {
+    // Deliberate (H1, 2026-11-13): logout is authenticated by the refresh token (cookie or body), so
+    // signing out also revokes the session after the 15-minute access token has expired. The tool
+    // reports "roles removed" as breaking, but every caller that was allowed before still is (the
+    // route now also admits callers without a valid access token); request and response are unchanged.
+    for (const f of [YEAR_ACTIVATION_SNAPSHOT, LOGOUT_SESSION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(YEAR_ACTIVATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(LOGOUT_SESSION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['POST /api/v1/auth/logout: roles removed: ADMIN, MENTOR, STUDENT']);
+    assert.deepEqual(res.review, ['POST /api/v1/auth/logout: now public (no authentication) — security review']);
+    assert.deepEqual(res.additive, ['POST /api/v1/auth/logout: roles added: PUBLIC']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

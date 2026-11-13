@@ -5466,6 +5466,9 @@
           "name": "POST /auth/logout",
           "request": {
             "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
             "header": [
               {
                 "key": "Content-Type",
@@ -5484,7 +5487,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** Any signed-in user",
+            "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"refreshToken refreshToken refreshToken\"\n}",
