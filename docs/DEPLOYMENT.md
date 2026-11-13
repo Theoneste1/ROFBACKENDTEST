@@ -206,10 +206,11 @@ Then:
 3. **Roll out.** Replace the API containers, one at a time when you have
    several. Check first whether the previous version can run against the
    migrated schema: **the Phase 1 migrations (M1–M14) are not additive for
-   the old code** — M12 drops the unique index on `School.name` (the old
-   registration and invitation upsert on it) and M10's trigger refuses old
-   edits of a student's school. That release needs a freeze window and its
-   own procedure: docs/operations/RELEASE-PHASE1-RUNBOOK.md.
+   the old code** — M10's trigger refuses old edits of a student's school
+   (500), and old registrations / invitations create students without a
+   school claim (after M9's backfill) and schools from free text. That
+   release needs a freeze window and its own procedure:
+   docs/operations/RELEASE-PHASE1-RUNBOOK.md.
 4. **Verify.** Check `GET /health`, log in, and open one page of each main area.
 
 **If a migration fails**, `migrate deploy` stops, records the migration as

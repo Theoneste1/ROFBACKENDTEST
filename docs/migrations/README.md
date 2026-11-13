@@ -43,6 +43,14 @@ So after rolling back any of M9 to M14, `prisma migrate status` still lists them
 their history rows are removed. Do not run `prisma migrate deploy` in between: it would treat
 them as applied and skip them.
 
+## Audit rows written by the migrations
+
+M3, M8, M9 and M11 each write one system audit row (`PROGRAMME_MEMBERSHIP_BACKFILL`,
+`OFFICIAL_SCHOOL_LIST_LOADED`, `SCHOOL_AFFILIATION_BACKFILL`, `SCHOOL_SOURCE_BACKFILL`; no actor).
+The rollbacks **keep** them — audit history is never deleted — so after a full rollback every table
+matches the pre-release database except `AuditLog`, which has these extra rows (verified on the local
+rehearsal, docs/operations/REHEARSAL-LOCAL-2026-11-13.md).
+
 ## Academic-year rollover and M10
 
 A rollover copies each student's previous-year enrolment school to `User.schoolId`. That

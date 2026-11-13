@@ -8,13 +8,13 @@ written approval** (docs/AI_COLLABORATION_PROTOCOL.md). Nothing here is automati
 
 The migrations are **not** compatible with the code running in production today (`main`), and the new
 code is not compatible with the old schema. There is no order without a gap, so the gap is made
-short and harmless by freezing the writes that break:
+short and harmless by freezing the writes that fail or leave bad data:
 
 | Old code path (production `main`) | Breaks after | Why |
 |---|---|---|
-| Student self-registration, invitation and CSV import with a school name (`auth.service.ts` `school.upsert({ where: { name } })`, `user-provisioning.service.ts`) | **M12** `20261121001100_school_directory_model` | M12 drops `School_name_key`; the upsert needs a unique index on `name` (PostgreSQL 42P10 → 500) |
-| An administrator changing a student's school, or a student's role (which clears the school) (`users.service.ts`) | **M10** `20261121000900_school_affiliation_integrity` | after M9 every student with a school has a PENDING claim; M10's trigger refuses a `User.schoolId` change that the claim does not follow (`AFFILIATION_SCHOOL_MISMATCH`) |
+| An administrator changing a student's school, or a student's role (which clears the school) (`users.service.ts`) | **M10** `20261121000900_school_affiliation_integrity` | **Fails (500).** After M9 every student with a school has a PENDING claim; M10's trigger refuses a `User.schoolId` change the claim does not follow (`23514 AFFILIATION_SCHOOL_MISMATCH`). Reproduced on the local rehearsal (old `main` API on the migrated schema). |
 | Academic-year rollover writing `User.schoolId` | **M10** | same trigger |
+| Student self-registration, invitation and CSV import with a school name (`auth.service.ts` `school.upsert({ where: { name } })`, `user-provisioning.service.ts`) | M9 / M12 | **Still answers 201, but leaves bad data.** The student gets a school and **no claim** (M9's backfill has already run), so they never appear under School verification and a Teacher never sees them; the school is created from free text (the new code never does). M12 drops `School_name_key`; the old upsert keeps working only while no two schools share a name — true right after M8, not once the new code creates repeated names. Reproduced on the local rehearsal. |
 
 The reverse (new code on the old schema) fails on every request that touches the new tables, and the
 API does not check migrations at start-up. Render deploys `main` automatically (`render.yaml`), so
