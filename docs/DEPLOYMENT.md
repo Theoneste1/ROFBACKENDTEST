@@ -202,11 +202,14 @@ Then:
 1. **Back up first.** Take an on-demand database snapshot (§9).
 2. **Migrate.** Run the migrate image of the new version, as in §7 step 2. It
    applies only the new migrations; the seed step is idempotent and leaves
-   existing data alone. Each migration's header says what it changes. All of
-   them so far are additive: new tables, columns, indexes and triggers.
+   existing data alone. Each migration's header says what it changes.
 3. **Roll out.** Replace the API containers, one at a time when you have
-   several. The previous version keeps working against the migrated schema
-   during the rollout, because migrations only add.
+   several. Check first whether the previous version can run against the
+   migrated schema: **the Phase 1 migrations (M1–M14) are not additive for
+   the old code** — M12 drops the unique index on `School.name` (the old
+   registration and invitation upsert on it) and M10's trigger refuses old
+   edits of a student's school. That release needs a freeze window and its
+   own procedure: docs/operations/RELEASE-PHASE1-RUNBOOK.md.
 4. **Verify.** Check `GET /health`, log in, and open one page of each main area.
 
 **If a migration fails**, `migrate deploy` stops, records the migration as
@@ -224,9 +227,10 @@ that is resolved. To recover:
 Do not edit a migration that has already been applied anywhere. Restoring the
 pre-release snapshot (step 1) is always a fallback.
 
-**Rolling back the code** is safe while the schema only gained additions. Run
-the previous image against the new schema. Restoring a backup is only needed
-if data was damaged.
+**Rolling back the code** is safe only while the previous image works against
+the new schema (check each migration; it is **not** the case across M1–M14,
+see the Phase 1 runbook). Otherwise roll the schema back with it
+(docs/migrations/) or restore the pre-release backup.
 
 Adding indexes takes a short write lock on each table. On large tables,
 schedule upgrades that add indexes outside teaching hours.
