@@ -76,10 +76,15 @@ Three layers, all enforced server-side:
 bytes, stored as SHA-256, rotated on every use, grouped in a family; replaying
 a used token revokes the family (`REFRESH_TOKEN_REUSED`). Browsers get it as an
 `httpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`; other
-clients use the response body. Logout blacklists the access `jti` and revokes
-the refresh family. Password change/reset, "sign out everywhere", suspension
-and role changes end every session: refresh tokens are revoked and
-`User.tokensValidAfter` makes earlier access tokens invalid at once.
+clients use the response body. Logout is public and authenticated by the
+refresh token (cookie or body), so it works after the access token has expired:
+it revokes that refresh family (also from an already-rotated token), blacklists
+the access `jti` if a still-valid access token is sent, always clears the
+cookie and answers 200. Password change/reset, "sign out everywhere",
+suspension and role changes end every session: refresh tokens are revoked and
+`User.tokensValidAfter` makes earlier access tokens invalid at once. Access
+tokens issued in the signed-out session (other than the one sent with the
+logout) stay valid until they expire (at most 15 minutes).
 
 The full role-by-route table is [AUTHORIZATION.md](AUTHORIZATION.md),
 generated from the same metadata the guards enforce.

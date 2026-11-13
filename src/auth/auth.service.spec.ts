@@ -35,6 +35,7 @@ function makeMocks() {
     revoke:               vi.fn(),
     revokeAllForUser:     vi.fn(),
     blacklistAccessToken: vi.fn(),
+    verifyAccessToken:    vi.fn().mockResolvedValue(null),
   };
   const audit         = { log: vi.fn() };
   const settings      = { get: vi.fn() };
@@ -280,12 +281,66 @@ describe('AuthService', () => {
     });
   });
 
-  describe('logout', () => {
-    it('blacklists the access token and revokes the refresh token', async () => {
+  describe('logout (H1: works without a valid access token)', () => {
+    it('with only the refresh token (access token expired or absent): revokes that session and audits its owner', async () => {
+      const { service, prisma, tokens, audit } = makeMocks();
+      tokens.revoke.mockResolvedValue({ userId: 'u1' });
+      prisma.user.findUnique.mockResolvedValue({ role: 'STUDENT' });
+      await service.logout({ refreshToken: 'refresh' });
+      expect(tokens.revoke).toHaveBeenCalledWith('refresh');
+      expect(tokens.verifyAccessToken).not.toHaveBeenCalled();
+      expect(tokens.blacklistAccessToken).not.toHaveBeenCalled();
+      expect(audit.log).toHaveBeenCalledTimes(1);
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+        actorId: 'u1', actorRole: 'STUDENT', action: 'LOGOUT', entity: 'User', entityId: 'u1',
+        metadata: { sessionRevoked: true, accessTokenRevoked: false },
+      }));
+    });
+
+    it('an expired or forged access token is ignored; the session is still revoked', async () => {
       const { service, tokens } = makeMocks();
-      await service.logout({ id: 'u1', role: 'STUDENT', jti: 'j1', exp: 123 }, 'refresh');
+      tokens.verifyAccessToken.mockResolvedValue(null);
+      tokens.revoke.mockResolvedValue({ userId: 'u1' });
+      await service.logout({ refreshToken: 'refresh', accessToken: 'expired.jwt' });
+      expect(tokens.verifyAccessToken).toHaveBeenCalledWith('expired.jwt');
+      expect(tokens.blacklistAccessToken).not.toHaveBeenCalled();
+      expect(tokens.revoke).toHaveBeenCalledWith('refresh');
+    });
+
+    it('a still-valid access token is blacklisted as well', async () => {
+      const { service, prisma, tokens, audit } = makeMocks();
+      tokens.verifyAccessToken.mockResolvedValue({ sub: 'u1', jti: 'j1', exp: 123 });
+      tokens.revoke.mockResolvedValue({ userId: 'u1' });
+      prisma.user.findUnique.mockResolvedValue({ role: 'STUDENT' });
+      await service.logout({ refreshToken: 'refresh', accessToken: 'valid.jwt' });
       expect(tokens.blacklistAccessToken).toHaveBeenCalledWith('j1', 123);
       expect(tokens.revoke).toHaveBeenCalledWith('refresh');
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: { sessionRevoked: true, accessTokenRevoked: true },
+      }));
+    });
+
+    it('a valid access token without a refresh token: blacklisted and audited for its subject', async () => {
+      const { service, prisma, tokens, audit } = makeMocks();
+      tokens.verifyAccessToken.mockResolvedValue({ sub: 'u2', jti: 'j2', exp: 456 });
+      prisma.user.findUnique.mockResolvedValue({ role: 'MENTOR' });
+      await service.logout({ accessToken: 'valid.jwt' });
+      expect(tokens.revoke).not.toHaveBeenCalled();
+      expect(tokens.blacklistAccessToken).toHaveBeenCalledWith('j2', 456);
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+        actorId: 'u2', actorRole: 'MENTOR', action: 'LOGOUT', entityId: 'u2',
+        metadata: { sessionRevoked: false, accessTokenRevoked: true },
+      }));
+    });
+
+    it('nothing to revoke (no cookie, unknown token): succeeds silently, revokes nothing, writes no audit entry', async () => {
+      const { service, tokens, audit } = makeMocks();
+      tokens.revoke.mockResolvedValue(null);
+      await expect(service.logout({})).resolves.toBeUndefined();
+      await expect(service.logout({ refreshToken: 'unknown' })).resolves.toBeUndefined();
+      await expect(service.logout({ refreshToken: 'unknown', accessToken: 'garbage' })).resolves.toBeUndefined();
+      expect(tokens.blacklistAccessToken).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
     });
   });
 });

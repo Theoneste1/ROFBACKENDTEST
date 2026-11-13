@@ -32,6 +32,13 @@ export interface ClientInfo {
 
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
+/** The claims of a valid access token (signature and expiry checked). */
+export interface AccessClaims {
+  sub: string;
+  jti?: string;
+  exp?: number;
+}
+
 @Injectable()
 export class TokenService {
   constructor(
@@ -93,13 +100,34 @@ export class TokenService {
     };
   }
 
-  /** Revoke the session that owns this refresh token (logout). */
-  async revoke(rawRefreshToken: string): Promise<void> {
+  /**
+   * Revoke the session (token family) that owns this refresh token (logout).
+   * Works for any state of the token — current, already rotated, revoked or
+   * expired — so a stale cookie still ends its session. Returns the owner, or
+   * null when the token is unknown.
+   */
+  async revoke(rawRefreshToken: string): Promise<{ userId: string } | null> {
     const token = await this.prisma.refreshToken.findUnique({
       where:  { tokenHash: hashToken(rawRefreshToken) },
-      select: { familyId: true },
+      select: { userId: true, familyId: true },
     });
-    if (token) await this.revokeFamily(token.familyId);
+    if (!token) return null;
+    await this.revokeFamily(token.familyId);
+    return { userId: token.userId };
+  }
+
+  /**
+   * Verify an access token (signature, algorithm, expiry) without the request
+   * guard: used by logout, which is public so that it also works once the
+   * access token has expired. Null for any invalid or expired token.
+   */
+  async verifyAccessToken(token: string): Promise<AccessClaims | null> {
+    try {
+      const claims = await this.jwt.verifyAsync<AccessClaims>(token, { algorithms: ['HS256'] });
+      return typeof claims?.sub === 'string' ? claims : null;
+    } catch {
+      return null;
+    }
   }
 
   /** Revoke every session of a user (password change, suspension, logout-all). */
