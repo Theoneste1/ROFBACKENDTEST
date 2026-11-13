@@ -40,9 +40,12 @@ Keep a **release record** (§7) while you go: every SHA, time, command and resul
    frontend `develop` already on `main` and live (it works against the current backend and switches the
    new features on by itself when the new backend answers `GET /api/v1` with capabilities).
 2. **Approve the release SHA.** The release owner writes down `APPROVED_RELEASE_SHA`: the full 40-character
-   backend `develop` commit that is released (candidate today: `c3a4bd3015fe9de915a6da83fe60227b0a41f733`,
-   the PR #38 merge — **needs the owner's approval**; any later merge into `develop`, for example a fix,
-   gives a new candidate and a new rehearsal). It must:
+   backend `develop` commit that is released — **needs the owner's approval**. The candidate is the
+   `develop` head once every change meant for this release is merged; any later merge into `develop`, for
+   example a fix, gives a new candidate and a new rehearsal. (On 2026-11-14 `develop` is
+   `fe919356b05dfea3f96898d1961b1709583bdb48`, the merge of #40 after the logout fix #39; the session
+   lock-order, review-queue, CSV-export, leaderboard and ADMIN-permission fixes were prepared on separate
+   branches and none adds a migration, so the checks below stay the same.) It must:
    - contain the PR #38 migration guard (`git merge-base --is-ancestor 52537ad15d6507000ab94d9832e23e8266127670 <SHA>`
      exits 0);
    - have exactly 31 migrations, the last one M14 `20261121001300_school_directory_sync_approval`, and none
