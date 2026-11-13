@@ -108,7 +108,21 @@ const SCHOOL_SYNC_STAGING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-scho
 const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-apply.json';
 const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-capabilities.json';
 const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
-const CURRENT_SNAPSHOT = YEAR_ACTIVATION_SNAPSHOT;
+const TEACHER_REGISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-teacher-registration.json';
+const CURRENT_SNAPSHOT = TEACHER_REGISTRATION_SNAPSHOT;
+/** Teacher self-registration (owner-approved): additive only. */
+const TEACHER_REGISTRATION_ADDITIONS = [
+  'GET /api/v1/admin/teacher-applications/{id}: operation added',
+  'GET /api/v1/admin/teacher-applications: operation added',
+  'GET /api/v1/auth/register/teacher/availability: operation added',
+  'GET /api/v1/schools/search › response 200 application/json[].province: new field',
+  'POST /api/v1/admin/teacher-applications/{id}/approve: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/reject: operation added',
+  'POST /api/v1/auth/register/teacher: operation added',
+  'schema ApproveTeacherApplicationDto: added',
+  'schema RegisterTeacherDto: added',
+  'schema RejectTeacherApplicationDto: added',
+];
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -752,6 +766,15 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ['POST /api/v1/admin/academic-years/{id}/activate › request application/json.expectedCurrentYearId: new required field']);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, []);
+  });
+
+  test('year activation → teacher self-registration: the public application, the Administrator review and province in the school search; nothing else', () => {
+    for (const f of [YEAR_ACTIVATION_SNAPSHOT, TEACHER_REGISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(YEAR_ACTIVATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_REGISTRATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, TEACHER_REGISTRATION_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

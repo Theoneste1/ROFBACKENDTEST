@@ -26,6 +26,7 @@ function makeMocks() {
       update:     vi.fn().mockResolvedValue({ id: 'mr1' }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
+    teacherApplication:  { findFirst: vi.fn().mockResolvedValue(null) },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
@@ -49,6 +50,14 @@ describe('MentorRequestsService', () => {
       const { service, prisma } = makeMocks();
       prisma.user.findFirst.mockResolvedValue({ id: 'u1' });
       await expect(service.create(dto)).rejects.toMatchObject({ code: 'IDENTITY_TAKEN', status: 409 });
+      expect(prisma.mentorRequest.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects an identity held by a pending teacher application', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.teacherApplication.findFirst.mockResolvedValue({ id: 'ta1' });
+      await expect(service.create(dto)).rejects.toMatchObject({ code: 'IDENTITY_TAKEN', status: 409 });
+      expect(prisma.teacherApplication.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'PENDING' }) }));
       expect(prisma.mentorRequest.create).not.toHaveBeenCalled();
     });
 

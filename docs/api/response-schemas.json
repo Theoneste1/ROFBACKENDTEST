@@ -5735,6 +5735,330 @@
     },
     "type": "array"
   },
+  "GET /api/v1/admin/teacher-applications 200": {
+    "properties": {
+      "data": {
+        "items": {
+          "properties": {
+            "assignedSchool": {
+              "nullable": true
+            },
+            "country": {
+              "type": "string"
+            },
+            "createdAt": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "decidedAt": {
+              "format": "date-time",
+              "nullable": true,
+              "type": "string"
+            },
+            "decidedBy": {
+              "nullable": true,
+              "properties": {
+                "firstName": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "lastName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "firstName",
+                "id",
+                "lastName"
+              ],
+              "type": "object"
+            },
+            "decisionNote": {
+              "nullable": true
+            },
+            "email": {
+              "type": "string"
+            },
+            "firstName": {
+              "type": "string"
+            },
+            "homeDistrict": {
+              "type": "string"
+            },
+            "homeSector": {
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "lastName": {
+              "type": "string"
+            },
+            "olympiadInterests": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "proposedSchoolName": {
+              "nullable": true,
+              "type": "string"
+            },
+            "rejectionReason": {
+              "nullable": true,
+              "type": "string"
+            },
+            "school": {
+              "nullable": true,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "district": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "province": {
+                  "type": "string"
+                },
+                "sector": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "district",
+                "id",
+                "name",
+                "province",
+                "sector"
+              ],
+              "type": "object"
+            },
+            "schoolDistrict": {
+              "type": "string"
+            },
+            "schoolProvince": {
+              "type": "string"
+            },
+            "schoolSector": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "userId": {
+              "nullable": true
+            },
+            "username": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "assignedSchool",
+            "country",
+            "createdAt",
+            "decidedAt",
+            "decidedBy",
+            "decisionNote",
+            "email",
+            "firstName",
+            "homeDistrict",
+            "homeSector",
+            "id",
+            "lastName",
+            "olympiadInterests",
+            "phone",
+            "proposedSchoolName",
+            "rejectionReason",
+            "school",
+            "schoolDistrict",
+            "schoolProvince",
+            "schoolSector",
+            "status",
+            "userId",
+            "username"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "meta": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "page",
+          "total",
+          "totalPages"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "data",
+      "meta"
+    ],
+    "type": "object"
+  },
+  "GET /api/v1/admin/teacher-applications/:id 200": {
+    "properties": {
+      "assignedSchool": {
+        "nullable": true
+      },
+      "country": {
+        "type": "string"
+      },
+      "createdAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "decidedAt": {
+        "nullable": true
+      },
+      "decidedBy": {
+        "nullable": true
+      },
+      "decisionNote": {
+        "nullable": true
+      },
+      "email": {
+        "type": "string"
+      },
+      "firstName": {
+        "type": "string"
+      },
+      "homeDistrict": {
+        "type": "string"
+      },
+      "homeSector": {
+        "type": "string"
+      },
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "lastName": {
+        "type": "string"
+      },
+      "olympiadInterests": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "phone": {
+        "type": "string"
+      },
+      "proposedSchoolName": {
+        "nullable": true
+      },
+      "rejectionReason": {
+        "nullable": true
+      },
+      "school": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "district": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "district",
+          "id",
+          "name",
+          "province",
+          "sector"
+        ],
+        "type": "object"
+      },
+      "schoolDistrict": {
+        "type": "string"
+      },
+      "schoolProvince": {
+        "type": "string"
+      },
+      "schoolSector": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "userId": {
+        "nullable": true
+      },
+      "username": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "assignedSchool",
+      "country",
+      "createdAt",
+      "decidedAt",
+      "decidedBy",
+      "decisionNote",
+      "email",
+      "firstName",
+      "homeDistrict",
+      "homeSector",
+      "id",
+      "lastName",
+      "olympiadInterests",
+      "phone",
+      "proposedSchoolName",
+      "rejectionReason",
+      "school",
+      "schoolDistrict",
+      "schoolProvince",
+      "schoolSector",
+      "status",
+      "userId",
+      "username"
+    ],
+    "type": "object"
+  },
   "GET /api/v1/admin/users 200": {
     "properties": {
       "data": {
@@ -7257,6 +7581,17 @@
       "type": "object"
     },
     "type": "array"
+  },
+  "GET /api/v1/auth/register/teacher/availability 200": {
+    "properties": {
+      "open": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "open"
+    ],
+    "type": "object"
   },
   "GET /api/v1/comments/:id/replies 200": {
     "properties": {
@@ -10723,6 +11058,10 @@
         "name": {
           "type": "string"
         },
+        "province": {
+          "nullable": true,
+          "type": "string"
+        },
         "sector": {
           "nullable": true,
           "type": "string"
@@ -10734,6 +11073,7 @@
         "id",
         "location",
         "name",
+        "province",
         "sector"
       ],
       "type": "object"
@@ -22184,6 +22524,374 @@
     ],
     "type": "object"
   },
+  "POST /api/v1/admin/teacher-applications/:id/approve 200": {
+    "properties": {
+      "application": {
+        "properties": {
+          "assignedSchool": {
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "country": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "decidedBy": {
+            "properties": {
+              "firstName": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "firstName",
+              "id",
+              "lastName"
+            ],
+            "type": "object"
+          },
+          "decisionNote": {
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "homeDistrict": {
+            "type": "string"
+          },
+          "homeSector": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "olympiadInterests": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "proposedSchoolName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "rejectionReason": {
+            "nullable": true
+          },
+          "school": {
+            "nullable": true,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "district": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "province": {
+                "type": "string"
+              },
+              "sector": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "district",
+              "id",
+              "name",
+              "province",
+              "sector"
+            ],
+            "type": "object"
+          },
+          "schoolDistrict": {
+            "type": "string"
+          },
+          "schoolProvince": {
+            "type": "string"
+          },
+          "schoolSector": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignedSchool",
+          "country",
+          "createdAt",
+          "decidedAt",
+          "decidedBy",
+          "decisionNote",
+          "email",
+          "firstName",
+          "homeDistrict",
+          "homeSector",
+          "id",
+          "lastName",
+          "olympiadInterests",
+          "phone",
+          "proposedSchoolName",
+          "rejectionReason",
+          "school",
+          "schoolDistrict",
+          "schoolProvince",
+          "schoolSector",
+          "status",
+          "userId",
+          "username"
+        ],
+        "type": "object"
+      },
+      "emailVerificationRequired": {
+        "type": "boolean"
+      },
+      "teacher": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "firstName",
+          "id",
+          "lastName",
+          "role",
+          "username"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "application",
+      "emailVerificationRequired",
+      "teacher"
+    ],
+    "type": "object"
+  },
+  "POST /api/v1/admin/teacher-applications/:id/reject 200": {
+    "properties": {
+      "assignedSchool": {
+        "nullable": true
+      },
+      "country": {
+        "type": "string"
+      },
+      "createdAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "decidedAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "decidedBy": {
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "firstName",
+          "id",
+          "lastName"
+        ],
+        "type": "object"
+      },
+      "decisionNote": {
+        "nullable": true
+      },
+      "email": {
+        "type": "string"
+      },
+      "firstName": {
+        "type": "string"
+      },
+      "homeDistrict": {
+        "type": "string"
+      },
+      "homeSector": {
+        "type": "string"
+      },
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "lastName": {
+        "type": "string"
+      },
+      "olympiadInterests": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "phone": {
+        "type": "string"
+      },
+      "proposedSchoolName": {
+        "nullable": true
+      },
+      "rejectionReason": {
+        "type": "string"
+      },
+      "school": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "district": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "district",
+          "id",
+          "name",
+          "province",
+          "sector"
+        ],
+        "type": "object"
+      },
+      "schoolDistrict": {
+        "type": "string"
+      },
+      "schoolProvince": {
+        "type": "string"
+      },
+      "schoolSector": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "userId": {
+        "nullable": true
+      },
+      "username": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "assignedSchool",
+      "country",
+      "createdAt",
+      "decidedAt",
+      "decidedBy",
+      "decisionNote",
+      "email",
+      "firstName",
+      "homeDistrict",
+      "homeSector",
+      "id",
+      "lastName",
+      "olympiadInterests",
+      "phone",
+      "proposedSchoolName",
+      "rejectionReason",
+      "school",
+      "schoolDistrict",
+      "schoolProvince",
+      "schoolSector",
+      "status",
+      "userId",
+      "username"
+    ],
+    "type": "object"
+  },
   "POST /api/v1/admin/users 201": {
     "properties": {
       "activatedAt": {
@@ -23599,6 +24307,65 @@
       "school",
       "schoolVerification",
       "username"
+    ],
+    "type": "object"
+  },
+  "POST /api/v1/auth/register/teacher 201": {
+    "properties": {
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "proposedSchoolName": {
+        "nullable": true,
+        "type": "string"
+      },
+      "requiresApproval": {
+        "type": "boolean"
+      },
+      "school": {
+        "nullable": true,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "district": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string"
+          },
+          "sector": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "district",
+          "id",
+          "name",
+          "province",
+          "sector"
+        ],
+        "type": "object"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "proposedSchoolName",
+      "requiresApproval",
+      "school",
+      "status"
     ],
     "type": "object"
   },

@@ -38,7 +38,7 @@ export class MentorRequestsService {
   // A previously REJECTED applicant may apply again with the same details;
   // the old request is reused.
   async create(data: CreateMentorRequestDto) {
-    const [existingUser, existingRequest] = await Promise.all([
+    const [existingUser, existingRequest, pendingTeacherApplication] = await Promise.all([
       this.prisma.user.findFirst({
         where:  { OR: [{ username: data.username }, { email: data.email }] },
         select: { id: true },
@@ -46,13 +46,18 @@ export class MentorRequestsService {
       this.prisma.mentorRequest.findFirst({
         where: { OR: [{ username: data.username }, { email: data.email }] },
       }),
+      // A pending Teacher application holds its username and e-mail too (teacher self-registration).
+      this.prisma.teacherApplication.findFirst({
+        where:  { OR: [{ username: data.username }, { email: data.email }], status: 'PENDING' },
+        select: { id: true },
+      }),
     ]);
 
     // One generic message: the endpoint must not reveal which part is taken.
     const taken = () =>
       new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
 
-    if (existingUser) throw taken();
+    if (existingUser || pendingTeacherApplication) throw taken();
     if (existingRequest && existingRequest.status !== 'REJECTED') throw taken();
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);

@@ -216,6 +216,20 @@ enum MentorRequestStatus {
   REJECTED
 }
 
+/// Teacher self-registration: an application reviewed by an Administrator.
+enum TeacherApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// The olympiads a Teacher applicant is interested in (an interest only: no Discipline row).
+enum OlympiadSubject {
+  MATHEMATICS
+  COMPUTING
+  PHYSICS
+}
+
 /**
  * CommentStatus — moderation state of a discussion comment.
  * ACTIVE  – visible to all eligible users
@@ -383,6 +397,11 @@ model User {
   school       School?     @relation(fields: [schoolId], references: [id])
   homeLocation String?
 
+  /// Contact phone (E.164) and country (ISO 3166-1 alpha-2) — set when a Teacher application is
+  /// approved (teacher self-registration); NULL for every other account.
+  phone   String?
+  country String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -448,6 +467,8 @@ model User {
   reportsResolved            ContentReport[]            @relation("ReportResolver")
   moderationActions          ModerationAction[]
   activityLogs               ActivityLog[]
+  teacherApplicationsDecided TeacherApplication[]       @relation("TeacherApplicationDecidedBy")
+  teacherApplication         TeacherApplication?        @relation("TeacherApplicationUser")
 
   @@index([points])
   @@index([role])
@@ -855,6 +876,55 @@ model MentorRequest {
   @@index([status])
 }
 
+/// Teacher self-registration (owner-approved): a public application, reviewed by an Administrator.
+/// No User, school assignment or student access exists until approval; approval creates the TEACHER
+/// account and its TeacherSchoolAssignment. No school is ever created from an application.
+/// At most one PENDING application per username and per e-mail: partial unique indexes
+/// (TeacherApplication_pending_username_key / _pending_email_key, WHERE status = 'PENDING').
+model TeacherApplication {
+  id                 String                   @id @default(uuid())
+  firstName          String
+  lastName           String
+  username           String
+  email              String
+  /// Cleared once the application is decided.
+  passwordHash       String?
+  /// E.164.
+  phone              String
+  /// ISO 3166-1 alpha-2.
+  country            String
+  olympiadInterests  OlympiadSubject[]
+  status             TeacherApplicationStatus @default(PENDING)
+  /// A listed school (official directory) — or NULL with proposedSchoolName ("my school is missing").
+  schoolId           String?
+  school             School?                  @relation("TeacherApplicationSchool", fields: [schoolId], references: [id], onDelete: Restrict)
+  proposedSchoolName String?
+  /// The place the applicant entered (for a listed school: checked against the school's own place).
+  schoolProvince     String
+  schoolDistrict     String
+  schoolSector       String?
+  homeDistrict       String
+  homeSector         String
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  decidedAt          DateTime?
+  decidedById        String?
+  decidedBy          User?                    @relation("TeacherApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  rejectionReason    String?
+  decisionNote       String?
+  /// The TEACHER account created on approval.
+  userId             String?                  @unique
+  user               User?                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: SetNull)
+  /// The school the approval assigned (TeacherSchoolAssignment).
+  assignedSchoolId   String?
+  assignedSchool     School?                  @relation("TeacherApplicationAssignedSchool", fields: [assignedSchoolId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@index([schoolId])
+  @@index([assignedSchoolId])
+  @@index([decidedById])
+}
+
 model School {
   id               String               @id @default(uuid())
   /// Exactly as published (M12: not unique — several schools share a name; identified by code,
@@ -903,6 +973,8 @@ model School {
   sourceRecords SchoolSourceRecord[]
   syncItems     SchoolSyncItem[]
   syncChanges   SchoolSyncChange[]
+  teacherApplications         TeacherApplication[] @relation("TeacherApplicationSchool")
+  teacherApplicationsAssigned TeacherApplication[] @relation("TeacherApplicationAssignedSchool")
 
   @@index([name])
   @@index([nameKey])

@@ -168,13 +168,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 17 @Public + 29 @Roles + 174 @RequirePermission + 54 @Authenticated = 274, none undeclared', () => {
+  it('declarations add up: 19 @Public + 29 @Roles + 178 @RequirePermission + 54 @Authenticated = 280, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 17, '@Roles': 29, '@RequirePermission': 174, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 19, '@Roles': 29, '@RequirePermission': 178, '@Authenticated': 54 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -199,7 +199,8 @@ describe('route declarations (P1-02 §5)', () => {
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
       // P1-11: teacher school assignments, delegations and the teacher's school-scoped views (new routes)
-      'users.manageTeachers': 6, 'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
+      'users.manageTeachers': 10,   // + 4 teacher-application review routes (teacher self-registration)
+      'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
       // School administration PR A: student–school verification (new routes);
       // PR B: school records (list, get, students, create, update, activate / deactivate);
       // PR C: claim match, reopen, candidates; PR D: import template, import;
@@ -321,7 +322,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 63 added since: 265 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 69 added since: 271 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -352,7 +353,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(17);   // P1-11: + GET /schools/locations
+      expect(handlers.filter(isPublic)).toHaveLength(19);   // P1-11: + GET /schools/locations; teacher self-registration: + availability, register
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {

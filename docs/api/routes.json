@@ -1330,6 +1330,22 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/auth/register/teacher",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/register/teacher/availability",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/auth/resend-activation",
     "roles": [
       "PUBLIC"
@@ -2432,5 +2448,41 @@
       "TEACHER"
     ],
     "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teacher-applications",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teacher-applications/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/approve",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
   }
 ]

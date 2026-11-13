@@ -34,7 +34,7 @@ describe('App basics (e2e)', () => {
       'academicYearActivation',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
       'permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired',
-      ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts'] : []),
+      ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts', 'teacherSelfRegistration'] : []),
     ]);
     expect(res.body.capabilities.features).not.toContain('schoolDirectorySync');
     const again = await ctx.http().get('/api/v1').expect(200);
