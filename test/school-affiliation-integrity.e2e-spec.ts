@@ -15,7 +15,7 @@ import pg from 'pg';
 
 import { RoleAssignmentPolicy } from '../src/auth/role-assignment.policy.js';
 import { SchoolAffiliationService } from '../src/schools/affiliations/school-affiliation.service.js';
-import { createTestApp, login, bearer, PASSWORD, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, PASSWORD, type TestContext, currentYearId } from './helpers.js';
 
 const ROOT = join(__dirname, '..');
 /** A migration or rollback file without its BEGIN/COMMIT, to run inside a test's own transaction. */
@@ -529,14 +529,14 @@ describe('Student–school affiliation hardening (school administration PR A.1)'
     // A student whose enrolment school differs from their verified school would have their school
     // changed without a claim: M10 refuses the whole rollover, and nothing changes.
     expect(divergent).toBeDefined();
-    const refused = await http().post(`/api/v1/admin/academic-years/${next.body.id}/activate`).set(bearer(admin)).send({ promoteStudents: true });
+    const refused = await http().post(`/api/v1/admin/academic-years/${next.body.id}/activate`).set(bearer(admin)).send({ promoteStudents: true, expectedCurrentYearId: await currentYearId(ctx) });
     expect([refused.status, refused.body.code]).toEqual([409, 'AFFILIATION_SCHOOL_MISMATCH']);
     expect(await p().academicYear.findUniqueOrThrow({ where: { id: next.body.id } })).toMatchObject({ isCurrent: null, status: 'PLANNED' });
     expect(await p().academicYear.findUniqueOrThrow({ where: { id: ctx.ids.year } })).toMatchObject({ isCurrent: true, status: 'ACTIVE' });
     expect(await snapshot()).toEqual(before);
     await p().studentEnrollment.updateMany({ where: { studentId: divergent, academicYearId: ctx.ids.year }, data: { schoolId: schoolA } });
 
-    const res = await http().post(`/api/v1/admin/academic-years/${next.body.id}/activate`).set(bearer(admin)).send({ promoteStudents: true }).expect(200);
+    const res = await http().post(`/api/v1/admin/academic-years/${next.body.id}/activate`).set(bearer(admin)).send({ promoteStudents: true, expectedCurrentYearId: await currentYearId(ctx) }).expect(200);
     expect(res.body.promoted).toBeGreaterThanOrEqual(3);
 
     expect(await snapshot()).toEqual(before);

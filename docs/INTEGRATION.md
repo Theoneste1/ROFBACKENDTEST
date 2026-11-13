@@ -117,6 +117,7 @@ those, use `GET /me/permissions`, and the API still refuses anything not permitt
 | `schoolReferenceRequired` | Invitations and CSV imports name an **existing** school by `schoolId` or `schoolCode`. A name alone is refused (`SCHOOL_REFERENCE_REQUIRED`) and never creates a school. A name sent with a reference must match it (`SCHOOL_NAME_MISMATCH`). Creating and editing users also accepts `schoolCode` |
 | `schoolAdministration` | `/admin/schools`: create, edit, activate/deactivate, import, contacts, offerings, history |
 | `schoolAffiliations` | Students claim a school (`/me/school-affiliation`); staff review claims (`/admin/school-affiliations`) |
+| `academicYearActivation` | `POST /admin/academic-years/:id/activate` is single-flight and safe to retry. `expectedCurrentYearId` (the current year's id, or `null`) is **required**. While a start runs, another is refused (409 `ACTIVATION_IN_PROGRESS`); a repeat of a recorded start with the same choices returns its outcome with `replayed: true`; other choices → 409 `ACTIVATION_OPTIONS_DIFFER`; a changed current year → 409 `CURRENT_YEAR_CHANGED`. Without this feature (the original backend) a start is not safe to repeat: clients must not offer it |
 | `teacherAccounts` | The `TEACHER` role can currently be **assigned** to an account (create, invite, import, role change). The caller also needs `users.manageTeachers` in `/me/permissions` |
 | `headCoachAccounts` | The `HEAD_COACH` role can currently be **assigned** to an account. The caller also needs `users.manageHeadCoaches` in `/me/permissions` |
 

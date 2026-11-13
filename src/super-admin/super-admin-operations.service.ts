@@ -1,6 +1,6 @@
 /**
  * Super Admin operator commands (plan §8.2; P1-08). Used ONLY by the CLI
- * (scripts/super-admin.ts) — there is no HTTP endpoint, and neither command is
+ * (src/super-admin/cli.ts → dist/super-admin/cli.js) — there is no HTTP endpoint, and neither command is
  * run by any deployment. Production use needs separate, recorded approval
  * (docs/operations/super-admin.md).
  *

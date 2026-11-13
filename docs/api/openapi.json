@@ -40336,10 +40336,17 @@
           "deactivateGraduates": {
             "type": "boolean",
             "description": "When promoting, deactivate S6 students who graduate (default true)."
+          },
+          "expectedCurrentYearId": {
+            "type": "string",
+            "nullable": true,
+            "description": "REQUIRED: the academic year the caller saw as current (null: none). When the current year is\nnow another one (another start went through meanwhile), the start is refused with\n409 CURRENT_YEAR_CHANGED instead of closing a year the caller never saw and rolling students\nover a second time. Required so that no client can start a year blind.",
+            "format": "uuid"
           }
         },
         "required": [
-          "promoteStudents"
+          "promoteStudents",
+          "expectedCurrentYearId"
         ]
       },
       "UpdateEnrollmentDto": {

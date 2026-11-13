@@ -148,7 +148,9 @@ independent layers enforce this:
 ```
 
 - **`permissions`:**
-  - `STUDENT`, `MENTOR` and `ADMIN` get today's list, unchanged;
+  - `STUDENT`, `MENTOR` and `ADMIN` get today's list, unchanged, except that the `ADMIN` list
+    also ends with `schools.manage` (2026-11-12). Administrators already held it; the list now
+    reports it. Other granular names Administrators hold are not listed yet;
   - `TEACHER`, `HEAD_COACH` and `SUPER_ADMIN` have no legacy list, so they get their effective
     catalogue permissions, in catalogue order (reachable only after M1);
   - an unsupported role gets `[]`.

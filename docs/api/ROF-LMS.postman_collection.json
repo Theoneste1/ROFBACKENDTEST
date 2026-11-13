@@ -219,7 +219,7 @@
             "description": "**Access:** permission `academicYears.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"promoteStudents\": true\n}",
+              "raw": "{\n  \"promoteStudents\": true,\n  \"expectedCurrentYearId\": \"00000000-0000-4000-8000-000000000000\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

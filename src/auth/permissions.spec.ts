@@ -48,7 +48,20 @@ describe('permissions', () => {
       'users.manage', 'academicYears.manage', 'enrollments.manage', 'divisions.manage', 'courses.manage',
       'mentorAssignments.manage', 'mentorRequests.decide', 'settings.manage', 'email.bulkSend',
       'audit.view', 'activity.view',
+      'schools.manage',   // appended 2026-11-12: already granted (ADMIN_GRANTS), now reported too
     ]);
+  });
+
+  it('ADMIN reports schools.manage (which it holds) and never schools.syncDirectory (Super Admin only)', () => {
+    expect(ROLE_PERMISSIONS.ADMIN).toContain('schools.manage');
+    expect(ROLE_GRANTS.ADMIN['schools.manage']).toBe('global');
+    expect(ROLE_PERMISSIONS.ADMIN).not.toContain('schools.syncDirectory');
+    expect(ROLE_GRANTS.ADMIN['schools.syncDirectory']).toBeUndefined();
+  });
+
+  it.each(ROLES)('every permission in the %s list is actually granted to that role (the list never over-reports)', (role) => {
+    const grants = ROLE_GRANTS[role];
+    for (const p of ROLE_PERMISSIONS[role]) expect([role, p, Object.hasOwn(grants, p)]).toEqual([role, p, true]);
   });
 
   it.each(ROLES)('every %s permission is a known permission, listed once', (role) => {

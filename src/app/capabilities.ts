@@ -38,6 +38,14 @@ export const FEATURES = {
   schoolAdministration: 'always',
   /** Students claim a school (/api/v1/me/school-affiliation); staff review claims (/api/v1/admin/school-affiliations). */
   schoolAffiliations: 'always',
+  /**
+   * POST /api/v1/admin/academic-years/:id/activate is single-flight and safe to retry: while a start
+   * runs, another is refused (409 ACTIVATION_IN_PROGRESS); a repeated start of a year already started
+   * with the same choices returns the recorded outcome (`replayed: true`) without doing anything again;
+   * other choices → 409 ACTIVATION_OPTIONS_DIFFER; and `expectedCurrentYearId` refuses a start whose
+   * current year changed meanwhile (409 CURRENT_YEAR_CHANGED).
+   */
+  academicYearActivation: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
   // (owner decision 2026-11-12): its production use is not yet approved.
   /**
