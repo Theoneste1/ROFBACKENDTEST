@@ -46,6 +46,13 @@ export const FEATURES = {
    * current year changed meanwhile (409 CURRENT_YEAR_CHANGED).
    */
   academicYearActivation: 'always',
+  /**
+   * GET /api/v1/mentor/reviews accepts `q` (student name or username), `group` (open | done | all),
+   * `sort` (submitted | recent | name | score) and applies `courseId` / `divisionId`; its answer adds
+   * `counts` ({ open, done, all } of the same scope without search or status). Without this feature
+   * those parameters are refused (400) and the scope filter is ignored.
+   */
+  reviewQueueFilters: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
   // (owner decision 2026-11-12): its production use is not yet approved.
   /**

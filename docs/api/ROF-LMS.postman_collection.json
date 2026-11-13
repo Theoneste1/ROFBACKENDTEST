@@ -7989,6 +7989,24 @@
                   "value": "PUBLISHED",
                   "disabled": true,
                   "description": ""
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Student first name, last name or username (contains, case-insensitive)."
+                },
+                {
+                  "key": "group",
+                  "value": "open",
+                  "disabled": true,
+                  "description": "open: still with the coach (ASSIGNED, IN_REVIEW, MARKED, REJECTED, RESUBMISSION_REQUESTED);\ndone: the coach's part is finished (SUBMITTED_TO_ADMIN, APPROVED, PUBLISHED); all: every status.\nIgnored when `status` is given."
+                },
+                {
+                  "key": "sort",
+                  "value": "submitted",
+                  "disabled": true,
+                  "description": "submitted: oldest first (default) · recent: newest first · name: student A–Z · score: highest first."
                 }
               ]
             },

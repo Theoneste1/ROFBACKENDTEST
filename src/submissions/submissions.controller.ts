@@ -26,7 +26,7 @@ import { AssignSubmissionDto, DistributeSubmissionsDto } from './dto/assign-subm
 import { MarkSubmissionDto } from './dto/mark-submission.dto.js';
 import { ApproveResultDto, RejectResultDto } from './dto/review-result.dto.js';
 import { ReopenResultDto } from './dto/correct-result.dto.js';
-import { ListSubmissionsDto } from './dto/list-submissions.dto.js';
+import { ListSubmissionsDto, ReviewQueueQueryDto } from './dto/list-submissions.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -350,10 +350,10 @@ export class MySubmissionsController {
 export class MentorReviewsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
-  /** Submissions assigned to me (open reviews by default; filter with ?status=). */
+  /** Submissions assigned to me (open reviews by default). Filters: status | group, q, courseId, divisionId, assignmentId, sort; `counts` totals (capability reviewQueueFilters). */
   @Get()
   @RequirePermission('reviews.grade')
-  queue(@CurrentUser() user: AuthUser, @Query() query: ListSubmissionsDto) {
+  queue(@CurrentUser() user: AuthUser, @Query() query: ReviewQueueQueryDto) {
     return this.submissionsService.getReviewQueue(user, query);
   }
 }

@@ -40,7 +40,8 @@ import { AssignSubmissionDto, DistributeSubmissionsDto } from './dto/assign-subm
 import { MarkSubmissionDto } from './dto/mark-submission.dto.js';
 import { ApproveResultDto, RejectResultDto } from './dto/review-result.dto.js';
 import { ReopenResultDto } from './dto/correct-result.dto.js';
-import { ListSubmissionsDto } from './dto/list-submissions.dto.js';
+import { ListSubmissionsDto, type ReviewQueueQueryDto } from './dto/list-submissions.dto.js';
+import { reviewQueueCounts, reviewQueueOrder, reviewQueueStatus } from './review-queue.js';
 import { RequestResubmissionDto } from './dto/request-resubmission.dto.js';
 import { deriveStudentDisplayStatus } from './student-display-status.js';
 
@@ -421,21 +422,50 @@ export class SubmissionsService {
     };
   }
 
-  /** MENTOR: submissions whose current review is mine (including ones awaiting a requested resubmission). */
-  async getReviewQueue(user: AuthUser, q: ListSubmissionsDto) {
+  /**
+   * MENTOR: submissions whose current review is mine (including ones awaiting a requested resubmission).
+   *
+   * Scope: only the caller's own reviews (`currentReview.mentorId`); every filter below can only
+   * narrow that. `courseId` / `divisionId` select one of the coach's course × division scopes (M3:
+   * they used to be ignored). Search, status group, sort and pagination run in the database (M2: the
+   * frontend loaded 100 rows and filtered in the browser). `counts` (open / done / all) cover the same
+   * scope without the search or status filter, for the page's totals.
+   */
+  async getReviewQueue(user: AuthUser, q: ReviewQueueQueryDto) {
     const { page, limit, skip, take } = pageArgs(q);
-    const where: Prisma.SubmissionWhereInput = {
+    const scope: Prisma.SubmissionWhereInput = {
       currentReview: { mentorId: user.id },
       ...(q.assignmentId && { assignmentId: q.assignmentId }),
-      status: q.status ?? {
-        in: ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED', 'SUBMITTED_TO_ADMIN', 'RESUBMISSION_REQUESTED'],
-      },
+      ...((q.courseId || q.divisionId) && {
+        assignment: {
+          ...(q.courseId   && { courseId: q.courseId }),
+          ...(q.divisionId && { divisionId: q.divisionId }),
+        },
+      }),
     };
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.submission.findMany({ where, include: SUBMISSION_INCLUDE, orderBy: { submittedAt: 'asc' }, skip, take }),
+    const status = reviewQueueStatus(q);
+    const where: Prisma.SubmissionWhereInput = {
+      ...scope,
+      ...(status && { status }),
+      ...(q.q && {
+        student: {
+          OR: [
+            { firstName: { contains: q.q, mode: 'insensitive' } },
+            { lastName:  { contains: q.q, mode: 'insensitive' } },
+            { username:  { contains: q.q, mode: 'insensitive' } },
+          ],
+        },
+      }),
+    };
+    const [rows, total, byStatus] = await this.prisma.$transaction([
+      this.prisma.submission.findMany({ where, include: SUBMISSION_INCLUDE, orderBy: reviewQueueOrder(q.sort), skip, take }),
       this.prisma.submission.count({ where }),
+      this.prisma.submission.groupBy({ by: ['status'], where: scope, orderBy: { status: 'asc' }, _count: { _all: true } }),
     ]);
-    return paginated(rows.map((s) => mentorView(s as unknown as SubmissionWithRelations)), total, page, limit);
+    return {
+      ...paginated(rows.map((s) => mentorView(s as unknown as SubmissionWithRelations)), total, page, limit),
+      counts: reviewQueueCounts(byStatus.map((g) => ({ status: g.status, count: (g._count as { _all: number })._all }))),
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
