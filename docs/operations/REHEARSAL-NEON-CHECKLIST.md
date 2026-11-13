@@ -7,10 +7,23 @@ owner's approval (docs/AI_COLLABORATION_PROTOCOL.md). Connection strings are nev
 issues, commits, logs **or a command line** (shell history and the process list keep them); they live
 only in git-ignored `.env.*.local` files.
 
-**One checkout, one working directory.** Run every command below from the root of the **reviewed
-checkout** (backend `develop` once the commit that adds this file is merged) — the runner refuses any
-other working directory. The verifier and the runner read migrations, schema and SQL from the checkout
-they belong to; no other branch or checkout (in particular not `main`) is used for any step. Each tool
+**One checkout, one working directory.** Run every command below from the root of a clean checkout of
+the **release SHA** the owner approved (`APPROVED_RELEASE_SHA`, RELEASE-PHASE1-RUNBOOK.md §0.2; candidate
+today: backend `develop` `c3a4bd3015fe9de915a6da83fe60227b0a41f733`, the PR #38 merge) — the runner refuses
+any other working directory. The rehearsal must use the same SHA as the production release; a later
+merge into `develop` means a new rehearsal. Before step R0, from that checkout (PowerShell):
+
+```powershell
+git rev-parse HEAD                     # MUST print APPROVED_RELEASE_SHA
+git status --porcelain                 # MUST print nothing
+git merge-base --is-ancestor 52537ad15d6507000ab94d9832e23e8266127670 HEAD; $LASTEXITCODE   # MUST print 0
+```
+
+The last check proves the checkout contains the PR #38 guard (commit `52537ad`, "kit refuses migrations
+after M14"). The verifier line below does **not** prove it: `rev 2` is printed by checkouts from before
+PR #38 too (for example `293e08d`), so do not rely on it for this.
+
+The verifier and the runner read migrations, schema and SQL from the checkout they belong to; no other branch or checkout (in particular not `main`) is used for any step. Each tool
 prints its verifier line first; it must read exactly
 `verifier: db-drill-verify rev 2 (hardened target guard)` (the runner: `verifier guard: …`). Any other
 line, or none: **stop** — an older copy is running.
@@ -24,8 +37,11 @@ line, or none: **stop** — an older copy is running.
 
 **Phase 1 only (exit 5):** the runner refuses every command when the checkout contains a migration after
 M14 (`20261121001300_…`), and every command that connects when the target database already records one —
-`deploy` would otherwise apply it too and `rollback` would leave it behind. Run the kit from a checkout
-whose last migration is M14 (backend `develop` 293e08d). Exit 5: **stop**, do not work around it.
+`deploy` would otherwise apply it too and `rollback` would leave it behind. Run the kit from the
+checkout of `APPROVED_RELEASE_SHA` (above): it contains the guard and its last migration is M14. A
+checkout without the guard (for example `293e08d`, from before PR #38) would **not** refuse later
+migrations — the `merge-base --is-ancestor` check above rules it out. Exit 5: **stop**, do not work
+around it (never edit or delete a migration folder to get past it).
 
 The runner reads `DRILL_DATABASE_URL` from `.env.drill.local` and uses the fail-closed guard of
 `db-drill-verify.mjs`: it refuses to run unless `.env.production.local` names the production host and
