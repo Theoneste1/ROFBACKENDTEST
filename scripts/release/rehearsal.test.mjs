@@ -1,8 +1,25 @@
 // node --test scripts/release/rehearsal.test.mjs — pure helpers of the rehearsal runner (no database).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
-import { endpointId, segments, rollbackFiles, PHASE1 } from './rehearsal.mjs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { endpointId, segments, rollbackFiles, childEnv, PHASE1, M9_M14_TABLES, M9_M14_ENUMS } from './rehearsal.mjs';
+
+const created = (kind, prefixes) => readdirSync('prisma/migrations')
+  .filter((d) => prefixes.some((p) => d.startsWith(p)))
+  .flatMap((d) => [...readFileSync(`prisma/migrations/${d}/migration.sql`, 'utf8').matchAll(new RegExp(`CREATE ${kind} "([A-Za-z]+)"`, 'g'))].map((m) => m[1]))
+  .sort();
+const M9_M14 = ['20261121000800_', '20261121000900_', '20261121001000_', '20261121001100_', '20261121001200_', '20261121001300_'];
+
+test('rollback-history checks every table and enum that M9–M14 create', () => {
+  assert.deepEqual([...M9_M14_TABLES].sort(), created('TABLE', M9_M14));
+  assert.deepEqual([...M9_M14_ENUMS].sort(), created('TYPE', M9_M14));
+});
+
+test('childEnv: DATABASE_URL is the target; DOTENV_* switches (which could make dotenv replace it) are removed', () => {
+  const env = childEnv({ PATH: 'x', DATABASE_URL: 'postgresql://app', DOTENV_OVERRIDE: 'true', DOTENV_PATH: '.env.production.local',
+    DOTENV_CONFIG_OVERRIDE: 'true', dotenv_config_path: 'y' }, 'postgresql://target');
+  assert.deepEqual(env, { PATH: 'x', DATABASE_URL: 'postgresql://target' });
+});
 
 test('endpointId: the first host label, pooled and direct forms alike', () => {
   assert.equal(endpointId('postgresql://u:p@ep-cool-band-123-pooler.c-8.us-east-2.aws.neon.tech/neondb?sslmode=require'), 'ep-cool-band-123');

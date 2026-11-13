@@ -98,6 +98,28 @@ describe('resolveDrillTarget — production guard fails closed', () => {
       assert.doesNotMatch(r.reason, /postgres|secret|example\.tech/);
     }
   });
+  // node-postgres resolves the host differently from `new URL().hostname` in these cases; each one
+  // used to pass the guard while connecting to production (review of 4d21ed5).
+  test('refuses a drill URL whose query parameters could redirect the connection (host, hostaddr, port, service, options)', () => {
+    for (const p of ['host=ep-prod-aaa111.c-1.us-east-2.aws.example.tech', 'hostaddr=10.0.0.1', 'port=6543', 'service=prod', 'options=-c%20x%3Dy']) {
+      const r = resolveWith({ drillUrls: [`${DRILL_DIRECT}&${p}`] });
+      assert.equal(r.code, 3, p);
+      assert.doesNotMatch(r.reason, /secret|example\.tech/);
+    }
+  });
+  test('refuses the production host when it is percent-encoded or has a trailing dot', () => {
+    assert.equal(resolveWith({ drillUrls: [PROD_DIRECT.replace('@ep-prod', '@%65p-prod')] }).code, 3);
+    assert.equal(resolveWith({ drillUrls: [PROD_DIRECT.replace('example.tech/', 'example.tech./')] }).code, 3);
+  });
+  test('refuses a host that shares the production endpoint id (first label), whatever the rest', () => {
+    assert.equal(resolveWith({ drillUrls: [PROD_DIRECT.replace('c-1.us-east-2', 'c-9.eu-west-1')] }).code, 3);
+  });
+  test('the accepted URL carries exactly the checked host (decoded, no trailing dot, direct endpoint)', () => {
+    const r = resolveWith({ drillUrls: [DRILL_POOLED.replace('example.tech/', 'example.tech./').replace('@ep-drill', '@%65p-drill')] });
+    assert.equal(r.ok, true);
+    assert.equal(new URL(r.url).hostname, 'ep-drill-bbb222.c-1.us-east-2.aws.example.tech');
+    assert.equal(r.pooled, true);
+  });
 });
 
 describe('checkTables', () => {

@@ -3,9 +3,10 @@
 Executable version of RELEASE-PHASE1-RUNBOOK.md §0.2–0.3. **Nothing here touches production** except
 step B1 (a read-only `pg_dump`, only if the owner chooses it over B1-alt). Every step needs the owner's
 approval (docs/AI_COLLABORATION_PROTOCOL.md). Connection strings are never pasted into chat, issues,
-commits or logs; they live only in git-ignored `.env.*.local` files.
+commits, logs **or a command line** (shell history and the process list keep them); they live only in
+git-ignored `.env.*.local` files and, for the PostgreSQL client tools, in a `pgpass` file (Part B).
 
-Tools in the repository (backend `develop` ≥ 8dfe666):
+Tools in the repository (backend `develop` once the commit that adds this file is merged):
 
 | Tool | Does | Writes? |
 |---|---|---|
@@ -16,9 +17,13 @@ Tools in the repository (backend `develop` ≥ 8dfe666):
 
 The runner reads `DRILL_DATABASE_URL` from `.env.drill.local` and uses the fail-closed guard of
 `db-drill-verify.mjs`: it refuses to run unless `.env.production.local` names the production host and
-the target differs from it (pooled and direct forms count as the same host) and from every database
-in `.env`, `.env.local` and the environment. It always connects to the branch's **direct** endpoint.
-No `psql` is needed for the rehearsal. Verified end to end on a local PostgreSQL 17 copy of the `main`
+the target differs from it — by host and by endpoint id; pooled/direct, letter case, percent-encoding
+and a trailing dot do not matter — and from every database in `.env`, `.env.local` and the
+environment. A target URL with `host`, `hostaddr`, `port`, `service` or `options` query parameters is
+refused (they could redirect the connection): use the string exactly as the Neon console shows it. It
+always connects to the branch's **direct** endpoint, and Prisma gets that URL with every `DOTENV_*`
+switch removed (so `.env` can never replace it). No `psql` is needed for the rehearsal. Prisma prints
+the branch host (never a password). Verified end to end on a local PostgreSQL 17 copy of the `main`
 schema (2026-11-13): refusals, pre-check, deploy (5.5 s), post-check, diff, rollback M14→M1,
 history clean-up, then `main` schema identical and 46/47 tables identical (AuditLog +4 rows, by design).
 
@@ -55,7 +60,7 @@ string (pooling off) into `.env.drill.local` as `DRILL_DATABASE_URL=…`.
 
 | § | MUST | If not |
 |---|---|---|
-| 1 | `failed_or_running = 0`, `phase1_already_applied = 0`, latest row `20261120000000_email_html_body` | stop: history is not the `main` baseline |
+| 1 | `failed_or_running = 0`, `rolled_back = 0`, `phase1_already_applied = 0`, latest row `20261120000000_email_html_body` | stop: history is not the `main` baseline |
 | 2 | `disciplines = 1` and `mathematics = 1` (when `students_and_coaches > 0`) | stop: **M3 aborts** |
 | 5 | `diverged = 0` | stop: M10 applies, but every later rollover would be refused for those students; fix enrolments first (owner decision) |
 | 6 | roles only `ADMIN`, `MENTOR`, `STUDENT` | stop: unexpected data |
@@ -63,8 +68,12 @@ string (pooling off) into `.env.drill.local` as `DRILL_DATABASE_URL=…`.
 
 Record the information lines (§3 schools, §4 students with/without school, §8 sizes).
 
-**R3 — Migrate.** `node scripts/release/rehearsal.mjs status` → "14 migrations have not yet been applied"
-(31 found). Then `node scripts/release/rehearsal.mjs deploy --confirm <ep-id>` → "All migrations have been
+**Part B before R3:** if the backup drill uses the rehearsal branch (B1-alt), do B-fp and B1 **now** —
+R3 changes the branch.
+
+**R3 — Migrate.** `node scripts/release/rehearsal.mjs status` → "31 migrations found in
+prisma/migrations", "Following migrations have not yet been applied:" and the 14 names `20261121000000_…`
+to `20261121001300_…`; exit code **1** is expected here (Prisma's code for pending migrations). Then `node scripts/release/rehearsal.mjs deploy --confirm <ep-id>` → "All migrations have been
 successfully applied." Record `elapsed`. **Never run `db seed`.**
 
 Abort conditions inside the migrations (each rolls back its own migration; the earlier ones stay applied):
@@ -83,7 +92,7 @@ On failure: copy the error, run `status`, **stop**. Do not retry or `migrate res
 | § | Expected |
 |---|---|
 | 1 | `phase1_applied = 14`, `failed_or_rolled_back = 0`, `total_rows = 31` |
-| 2 | four audit rows: `PROGRAMME_MEMBERSHIP_BACKFILL` (student + coach memberships = pre-check `students_and_coaches`), `OFFICIAL_SCHOOL_LIST_LOADED` (`adopted + inserted = 1974`), `SCHOOL_AFFILIATION_BACKFILL` (`withSchool` = pre-check `students_with_school`, `nameOnly` = `name_only_claims_from_register_audit`), `SCHOOL_SOURCE_BACKFILL` (`officialList = 1974`) |
+| 2 | four audit rows: `PROGRAMME_MEMBERSHIP_BACKFILL` (student + coach memberships = pre-check `students_and_coaches`), `OFFICIAL_SCHOOL_LIST_LOADED` (`adopted + inserted = 1974`), `SCHOOL_AFFILIATION_BACKFILL` (`withSchool` = pre-check `students_with_school`; `nameOnly` ≤ `name_only_claims_from_register_audit` — M9 reads only each student's latest REGISTER entry), `SCHOOL_SOURCE_BACKFILL` (`officialList = 1974`) |
 | 3 | users per role identical to pre-check §6 |
 | 4 | one row `BACKFILL / true` = `students_and_coaches` |
 | 5 | `OFFICIAL_LIST 1974/1974 coded`; `LEGACY` = pre-check schools − adopted, 0 coded |
@@ -103,18 +112,23 @@ branch: all checks pass (31/31 migrations, every model has its table, 0 orphaned
 `SchoolProgramme`, `SchoolSourceRecord` (M12), sync tables `SchoolSyncRun`, `SchoolSyncItem`,
 `SchoolSyncChange` (M13, columns M14); new `School` columns — `code`, `nameKey`, `ownership`,
 `province`, `district`, `sector` (M7, nullable) and `countryCode`, `createdById`, `isActive`, `source`,
-`updatedAt` (M11, with defaults); 1,973–1,974 official schools (M8); triggers on `User` (M4, M10). **M12 drops the unique
+`updatedAt` (M11, with defaults); exactly 1,974 official schools after M8 (`adopted` existing rows +
+`inserted` new ones); triggers on `User` (M4, M10). **M12 drops the unique
 index `School_name_key`** (names may repeat).
 
 **R5 — Application on the branch** (local, never Render).
 
-1. API from `develop` (`npm run build`), environment in the shell only:
-   `DATABASE_URL` = the branch (pooled is fine for the API), `NODE_ENV=development` (production mode
-   refuses to start without a real `RESEND_API_KEY`), **`WORKERS_ENABLED=false`** (the copy contains the
-   real e-mail outbox — workers would e-mail real people), **`RESEND_API_KEY=` empty** (dry run: nothing
-   is sent), `STORAGE_DRIVER=local`, `JWT_SECRET` throwaway, `APP_URL=http://localhost:3000`,
-   `CORS_ORIGINS=http://localhost:3000`, `TEACHERS_ENABLED`/`HEAD_COACHES_ENABLED` **unset**. Start
-   `node dist/main.js`; `GET /health` = 200.
+1. API from `develop` (`npm run build`). The API fills every variable missing from the environment from
+   `.env` **in its working directory** — so start it from an **empty directory outside the repository**
+   (no `.env` is loaded at all): `cd <empty dir>; node <repo>\dist\main.js`. Set, in that shell only,
+   with **non-empty** values (in PowerShell `$env:X = ''` deletes a variable instead of emptying it):
+   `DATABASE_URL` = the branch (pooled is fine for the API; enter it without echoing, e.g. read it
+   from `.env.drill.local`), `NODE_ENV=development` (production mode refuses to start without a real
+   e-mail key), **`WORKERS_ENABLED=false`** (the copy contains the real e-mail outbox — workers would
+   e-mail real people), **`RESEND_API_KEY=re_rehearsal_invalid`** (a key Resend rejects: nothing can be
+   delivered), `STORAGE_DRIVER=local`, `JWT_SECRET` throwaway (≥ 32 chars), `APP_URL` and
+   `CORS_ORIGINS` = `http://localhost:3000`, `TEACHERS_ENABLED=false`, `HEAD_COACHES_ENABLED=false`.
+   `GET /health` = 200.
 2. `GET /api/v1` → `capabilities.features` contains `schoolAdministration`, `schoolAffiliations`,
    `schoolReferenceRequired`, `academicYearActivation`; **no** `teacherAccounts`, `headCoachAccounts`.
 3. Frontend `develop`: `API_PROXY_TARGET=http://127.0.0.1:<api port>` `npm run build && npm start`.
@@ -131,9 +145,12 @@ index `School_name_key`** (names may repeat).
 **R6 — Rollback rehearsal on a second branch.** Neon: new branch `rollback-phase1-<yyyymmdd>` from
 `production`, current data; put its direct string in `.env.drill.local`; then:
 `check-target` → `deploy --confirm <ep2>` → `postcheck` →
-`rollback --confirm <ep2>` (14 files, M14→M1; M12–M14 need no acknowledgement because no directory or
-sync data exists yet) → `rollback-history --confirm <ep2>` (refused while any M9–M14 object remains) →
-`status` = "14 migrations have not yet been applied". Prove the `main` baseline from a `main` checkout:
+`rollback --confirm <ep2>` (exactly 14 files, M14→M1, each in its own transaction; the runner stops at
+the first error and that file changes nothing; M12–M14 need no acknowledgement because no directory or
+sync data exists yet) → `rollback-history --confirm <ep2>` (refused unless M9–M14's tables, enums, the
+M10 trigger and `School.source` are gone and `School_name_key` is back; then deletes exactly the six
+M9–M14 history rows) → `status` = the 14 names under "Following migrations have not yet been applied:"
+(exit 1). Prove the `main` baseline from a `main` checkout:
 `prisma migrate status` up to date and `prisma migrate diff … --exit-code` no difference (with
 `DATABASE_URL` = branch, in the shell only). Expected data difference from the original: `AuditLog` +4
 system rows (kept by design).
@@ -146,14 +163,21 @@ empty `.env.drill.local`. Owner approves before any release step.
 
 Goal: a backup that survives outside Neon and beyond the 6-hour history, proven restorable.
 
+Passwords: put each password in the PostgreSQL password file (`%APPDATA%\postgresql\pgpass.conf`,
+lines `host:5432:neondb:user:password`, readable only by you) and give the tools a connection string
+**without** a password, e.g. `"host=ep-… dbname=neondb user=… sslmode=require"` (host and user are not
+secret). Delete those lines after the drill. After every command check the exit code
+(PowerShell: `if ($LASTEXITCODE -ne 0) { throw "failed" }`); a non-zero code means stop.
+
 | Step | Action | Expected |
 |---|---|---|
-| B0 | install PostgreSQL **18** client tools; `pg_dump --version` = 18.x | 18.x |
-| B1 | `pg_dump --format=custom --no-owner --no-acl --file=<encrypted-location>\pre-phase1-<date>.dump "<DIRECT production URL>"` — reads production, **needs explicit approval** | file size ≈ database size (~12 MB at P0-04) |
-| B1-alt | same command against the **rehearsal branch** before R3 (identical data, no production access) — proves the tooling; production's own dump is then taken on release day (runbook §2.2) | as above |
-| B2 | create an **empty** target: either a new database `restore_drill` on a drill branch (Neon → Databases → New) or a local PostgreSQL 18 server; `pg_restore --no-owner --no-acl --exit-on-error -d "<target URL>" <dump>` | exit 0 |
-| B3 | point `DRILL_DATABASE_URL` at the restore target; `node scripts/db-drill-verify.mjs --trigger-test` from a **`main`** checkout (17 migrations) | all checks pass; id fingerprints equal those of the dump's source taken at the same moment |
-| B4 | encrypt the dump, record its SHA-256, store outside OneDrive; delete the restore target | recorded in the report |
+| B0 | install PostgreSQL **18** client tools; `pg_dump --version` | 18.x (a `pg_dump` older than the server's major version refuses to dump) |
+| B-fp | fingerprints of the source **before** dumping it: `DRILL_DATABASE_URL` = the source; `node scripts/db-drill-verify.mjs --json <file outside the repo>` from a **`main`** checkout (it compares against `main`'s 17 migrations; its guard predates the query-parameter/encoding hardening, so use the console string unchanged) | all checks pass; keep the JSON (id fingerprints) |
+| B1 | `pg_dump --format=custom --no-owner --no-acl --file=<encrypted folder>\pre-phase1-<date>.dump "<conninfo without password>"` against **production** — reads production, **needs explicit approval** | exit 0; `pg_restore --list <dump>` lists the 47 tables' data entries (custom format is compressed: the file is much smaller than the database) |
+| B1-alt | same against the **rehearsal branch**, after B-fp and before R3 (identical data, no production access) — proves the tooling; production's own dump is then taken on release day (runbook §2.2) | as B1 |
+| B2 | an **empty** target: a new database `restore_drill` on a drill branch (Neon → Databases → New) or a local PostgreSQL 18 server; `pg_restore --no-owner --no-acl --exit-on-error -d "<conninfo without password>" <dump>` | exit 0 (`--exit-on-error` stops at the first error; a non-empty target fails at once) |
+| B3 | `DRILL_DATABASE_URL` = the restore target; `node scripts/db-drill-verify.mjs --trigger-test --json <file>` from the **`main`** checkout | all checks pass; every id fingerprint equals B-fp's |
+| B4 | record the dump's SHA-256 (`Get-FileHash`); keep it only in the encrypted folder **outside OneDrive** (an EFS-encrypted folder, `cipher /e`, or a BitLocker/VeraCrypt volume — the dump is never written unencrypted); drop `restore_drill` | recorded in the report |
 
 Files in R2 are not in the dump; a full recovery also needs an R2 copy taken at the same time
 (docs/DEPLOYMENT.md §9) — not part of this drill.

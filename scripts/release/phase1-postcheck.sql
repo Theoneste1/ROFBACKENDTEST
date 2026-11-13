@@ -52,7 +52,7 @@ SELECT c.relname AS table, t.tgname AS trigger, t.tgenabled AS enabled
  WHERE NOT t.tgisinternal AND c.relnamespace = 'public'::regnamespace
  ORDER BY 1, 2;
 
-\echo '== 10. Directory and sync tables — MUST be empty right after the migration (nothing was created yet)'
+\echo '== 10. MUST be 0 right after the migration: sync runs, teacher school assignments, permission overrides'
 SELECT (SELECT count(*) FROM "SchoolSyncRun") AS sync_runs,
        (SELECT count(*) FROM "TeacherSchoolAssignment") AS teacher_assignments,
        (SELECT count(*) FROM "UserPermissionOverride") AS permission_overrides;

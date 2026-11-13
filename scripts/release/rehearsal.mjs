@@ -19,7 +19,9 @@
  * string is switched to the branch's direct endpoint (Prisma's migration lock needs it).
  * Writing commands also need --confirm with the target's endpoint id (the first part of its host,
  * "ep-…", read from the Neon console), so a wrong file cannot be written to by accident.
- * Never prints the connection string; prints only the endpoint id the operator already typed.
+ * Prisma's child process gets DATABASE_URL = the checked target and no DOTENV_* switches (childEnv).
+ * Never prints the connection string or a password. Prisma's own output and pg/Prisma connection
+ * errors may show the branch host and user name (not secret).
  */
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -34,8 +36,22 @@ export const PHASE1 = /^2026112100[01]\d00_/;
 const PHASE1_COUNT = 14;
 const HISTORY_ONLY = ['20261121000800', '20261121000900', '20261121001000', '20261121001100', '20261121001200', '20261121001300'];
 /** Objects M9–M14 create. Their history rows may only be removed once every one of them is gone. */
-const M9_M14_TABLES = ['StudentSchoolAffiliation', 'EducationLevel', 'Programme', 'SchoolContact', 'SchoolDataSource',
+export const M9_M14_TABLES = ['StudentSchoolAffiliation', 'EducationLevel', 'Programme', 'SchoolContact', 'SchoolDataSource',
   'SchoolEducationLevel', 'SchoolExternalId', 'SchoolProgramme', 'SchoolSourceRecord', 'SchoolSyncChange', 'SchoolSyncItem', 'SchoolSyncRun'];
+export const M9_M14_ENUMS = ['ProgrammeCategory', 'SchoolAccommodation', 'SchoolAffiliationSource', 'SchoolAffiliationStatus', 'SchoolContactType',
+  'SchoolContactVisibility', 'SchoolExternalIdKind', 'SchoolSource', 'SchoolSyncChangeKind', 'SchoolSyncConflictState', 'SchoolSyncDecision',
+  'SchoolSyncItemOutcome', 'SchoolSyncRunStatus'];
+
+/**
+ * The environment of the Prisma child process: DATABASE_URL is the checked target, and every DOTENV_*
+ * switch is removed — prisma7.config.ts loads `.env` with dotenv, and DOTENV_OVERRIDE / DOTENV_PATH /
+ * DOTENV_CONFIG_* in the shell would let `.env` (or another file) replace the target.
+ */
+export function childEnv(env, url) {
+  const out = Object.fromEntries(Object.entries(env).filter(([k]) => !/^DOTENV_/i.test(k)));
+  out.DATABASE_URL = url;
+  return out;
+}
 
 /** The Phase 1 rollback files, newest first; exactly 14 or an error. */
 export function rollbackFiles(names) {
@@ -81,7 +97,7 @@ async function runSqlFile(url, file, { readOnly }) {
 
 function prisma(url, args) {
   const cli = createRequire(import.meta.url).resolve('prisma/build/index.js');
-  const r = spawnSync(process.execPath, [cli, ...args], { stdio: 'inherit', env: { ...process.env, DATABASE_URL: url } });
+  const r = spawnSync(process.execPath, [cli, ...args], { stdio: 'inherit', env: childEnv(process.env, url) });
   return r.status ?? 1;
 }
 
@@ -113,7 +129,7 @@ async function main() {
         console.log(`=== ${f}`);
         await runSqlFile(target.url, `docs/migrations/${f}`, { readOnly: false });
       }
-      console.log('Next: rollback-history (M9–M14 rows), then `status` (expect 14 not yet applied).');
+      console.log('Next: rollback-history (M9–M14 rows), then `status` ("Following migrations have not yet been applied:" + the 14 names; exit 1).');
       break;
     }
     case 'rollback-history': {
@@ -122,15 +138,21 @@ async function main() {
       try {
         const left = (await client.query(
           `SELECT (SELECT array_agg(table_name::text) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)) AS tables,
+                  (SELECT array_agg(typname::text) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = ANY($2)) AS enums,
                   EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'user_school_affiliation_integrity') AS m10_trigger,
-                  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'School' AND column_name = 'source') AS m11_column`,
-          [M9_M14_TABLES])).rows[0];
-        if (left.tables?.length || left.m10_trigger || left.m11_column) {
-          console.error(`✗ refused: M9–M14 objects still exist (${[...(left.tables ?? []), left.m10_trigger && 'trigger user_school_affiliation_integrity', left.m11_column && 'column School.source'].filter(Boolean).join(', ')}). Run \`rollback\` first.`);
+                  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'School' AND column_name = 'source') AS m11_column,
+                  NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'School_name_key') AS m12_name_key_missing`,
+          [M9_M14_TABLES, M9_M14_ENUMS])).rows[0];
+        const remaining = [...(left.tables ?? []), ...(left.enums ?? []).map((e) => `enum ${e}`),
+          left.m10_trigger && 'trigger user_school_affiliation_integrity', left.m11_column && 'column School.source',
+          left.m12_name_key_missing && 'School_name_key not restored'].filter(Boolean);
+        if (remaining.length) {
+          console.error(`✗ refused: the M9–M14 rollback is not complete (${remaining.join(', ')}). Run \`rollback\` first.`);
           return 1;
         }
-        const names =(await client.query(`SELECT migration_name FROM "_prisma_migrations" WHERE ${HISTORY_ONLY.map((_, i) => `migration_name LIKE $${i + 1}`).join(' OR ')}`,
-          HISTORY_ONLY.map((p) => `${p}_%`))).rows.map((r) => r.migration_name);
+        const exact = readdirSync('prisma/migrations').filter((d) => HISTORY_ONLY.some((p) => d.startsWith(`${p}_`)));
+        if (exact.length !== HISTORY_ONLY.length) throw new Error(`expected ${HISTORY_ONLY.length} M9–M14 migration directories, found ${exact.length}`);
+        const names = (await client.query('SELECT migration_name FROM "_prisma_migrations" WHERE migration_name = ANY($1) ORDER BY 1', [exact])).rows.map((r) => r.migration_name);
         const del = await client.query('DELETE FROM "_prisma_migrations" WHERE migration_name = ANY($1)', [names]);
         console.log(`deleted ${del.rowCount} history row(s): ${names.join(', ') || 'none'}`);
       } finally {

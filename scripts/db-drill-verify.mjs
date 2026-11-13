@@ -43,13 +43,26 @@ export function envValues(text, key) {
     .map((m) => m[1].trim().replace(/^(["'])(.*)\1$/, '$2').trim());
 }
 
-/** Normalised host of a database URL (lower case, "-pooler" removed), or null when it is not a valid URL with a host. */
+/**
+ * Normalised host of a database URL, as node-postgres will resolve it: percent-decoded, lower case,
+ * trailing dots and "-pooler" removed. Null when it is not a valid URL with a host.
+ */
 export function hostOf(url) {
   try {
-    const h = new URL(url).hostname.replace('-pooler', '').toLowerCase();
+    const h = decodeURIComponent(new URL(url).hostname).toLowerCase().replace(/\.+$/, '').replace('-pooler', '');
     return h || null;
   } catch { return null; }
 }
+
+/** The first label of a normalised host (a Neon endpoint id, "ep-…"). */
+const firstLabel = (host) => host.split('.')[0];
+
+/**
+ * Query parameters with which node-postgres (pg-connection-string) or libpq would connect somewhere
+ * other than the URL's host. A drill URL carrying any of them is refused: the guard could not vouch
+ * for the host actually used.
+ */
+export const REDIRECTING_PARAMS = ['host', 'hostaddr', 'port', 'service', 'options'];
 
 /**
  * Decide whether the drill target may be used. Pure: no I/O.
@@ -63,6 +76,11 @@ export function resolveDrillTarget({ drillUrls, productionUrls, appUrls }) {
   if (drillUrls.length > 1) return { ok: false, code: 2, reason: 'DRILL_DATABASE_URL is defined more than once in .env.drill.local' };
   const drillHost = hostOf(drillUrls[0]);
   if (!drillHost) return { ok: false, code: 2, reason: 'DRILL_DATABASE_URL is not a valid database URL' };
+  const params = new URL(drillUrls[0]).searchParams;
+  const redirecting = REDIRECTING_PARAMS.filter((p) => params.has(p));
+  if (redirecting.length) {
+    return { ok: false, code: 3, reason: `REFUSED: DRILL_DATABASE_URL carries ${redirecting.join(', ')} query parameter(s), which could connect elsewhere than its host. Use the connection string exactly as the Neon console shows it.` };
+  }
 
   if (productionUrls.length === 0) {
     return { ok: false, code: 4, reason: 'production host unknown: DATABASE_URL not found in .env.production.local — refusing to run against an unverified target' };
@@ -71,7 +89,8 @@ export function resolveDrillTarget({ drillUrls, productionUrls, appUrls }) {
   if (prodHosts.some((h) => !h)) {
     return { ok: false, code: 4, reason: 'production host unknown: DATABASE_URL in .env.production.local is not a valid URL — refusing to run against an unverified target' };
   }
-  if (prodHosts.includes(drillHost)) {
+  // Compared by full host AND by endpoint id (first label): a Neon branch has its own endpoint id.
+  if (prodHosts.includes(drillHost) || prodHosts.map(firstLabel).includes(firstLabel(drillHost))) {
     return { ok: false, code: 3, reason: 'REFUSED: the drill host is the production host. Point DRILL_DATABASE_URL at the recovery branch.' };
   }
   if (appUrls.map(hostOf).filter(Boolean).includes(drillHost)) {
@@ -81,9 +100,10 @@ export function resolveDrillTarget({ drillUrls, productionUrls, appUrls }) {
   // A pooled (PgBouncer, transaction mode) connection does not keep session
   // settings such as READ ONLY between transactions. Use the same branch's
   // direct endpoint (Neon: the host without "-pooler"), in memory only.
+  // The URL handed on carries exactly the host the guard checked (decoded, no trailing dot).
   const u = new URL(drillUrls[0]);
-  const pooled = u.hostname.includes('-pooler');
-  u.hostname = u.hostname.replace('-pooler', '');
+  const pooled = u.hostname.toLowerCase().includes('-pooler');
+  u.hostname = drillHost;
   return { ok: true, url: u.toString(), pooled };
 }
 
