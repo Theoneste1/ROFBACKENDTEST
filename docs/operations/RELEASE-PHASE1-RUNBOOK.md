@@ -25,18 +25,16 @@ API does not check migrations at start-up. Render deploys `main` automatically (
 1. **Code ready**: backend and frontend release branches merged into `develop` through PRs with green CI;
    frontend `develop` already on `main` and live (it works against the current backend and switches the
    new features on by itself when the new backend answers `GET /api/v1` with capabilities).
-2. **Independent backup drill (Part B)**: `pg_dump` of production restored into a scratch database and
-   verified (docs/operations/BACKUP-RESTORE-DRILL-2026-11-09.md — Part B has not been done yet).
-3. **Rehearsal on a Neon branch of production** (point-in-time copy; never production itself). Step by
-   step, with the guarded runner `scripts/release/rehearsal.mjs` and expected values:
-   docs/operations/REHEARSAL-NEON-CHECKLIST.md.
-   1. `psql "$BRANCH_URL" -f scripts/release/phase1-precheck.sql` — every MUST holds.
-   2. `DATABASE_URL="$BRANCH_URL" npx prisma migrate deploy` — record the NOTICE lines (M3 counts,
-      M8 adopted / inserted / uncoded, M9 with-school / name-only, M10 "0 violations; N diverged").
-   3. Run the new API against the branch (local or a Render preview with `DATABASE_URL` = branch) and do
-      §4 below. Run the frontend against it (`API_PROXY_TARGET`).
-   4. Rehearse the rollback (§5) on a second branch, then re-apply.
-   5. Write the rehearsal report (counts, timings, issues) and get the owner's approval.
+2. **Rehearsal and backup/restore drill (Part B) on Neon branches of production** (point-in-time
+   copies; never production itself): docs/operations/REHEARSAL-NEON-CHECKLIST.md, step by step, with
+   expected values. Everything runs from the reviewed checkout with its own tools — the guarded runner
+   `scripts/release/rehearsal.mjs` (pre-check, migrate, post-check, rollback, `dump`, `restore`) and the
+   hardened verifier `scripts/db-drill-verify.mjs` (`--baseline pre-phase1` for a copy before M1–M14);
+   both print `db-drill-verify rev 2 (hardened target guard)` first. No other checkout (not `main`) is
+   used. Part B dumps the rehearsal branch into an EFS-encrypted folder outside the repository and
+   OneDrive, restores it into an empty database and compares id fingerprints
+   (docs/operations/BACKUP-RESTORE-DRILL-2026-11-09.md — Part B has not been done yet).
+3. Write the rehearsal report (counts, timings, issues) and get the owner's approval.
 
 ## 1. Freeze (start of the window)
 
@@ -52,10 +50,16 @@ API does not check migrations at start-up. Render deploys `main` automatically (
 
 1. Neon: note the restore point (timestamp) and create a branch `pre-phase1-<date>` (instant copy).
    Neon Free keeps only 6 h of history: the branch is the fallback, not the history window.
-2. `pg_dump --format=custom "$DIRECT_DATABASE_URL" > pre-phase1.dump` and check its size.
+2. Production dump (the rehearsal kit refuses production, so this is done by hand, with approval): the
+   password only in the PostgreSQL password file (`%APPDATA%\postgresql\pgpass.conf`, removed
+   afterwards), never on the command line;
+   `pg_dump --format=custom --no-owner --no-acl --file=<EFS-encrypted folder outside the repository and OneDrive>\pre-phase1-<date>.dump "host=<direct host> dbname=neondb user=<user> sslmode=require"`
+   with PostgreSQL 18 client tools (as rehearsed in Part B). Exit code 0, then `pg_restore --list` on
+   the file succeeds (47 TABLE DATA entries); record its SHA-256 (`Get-FileHash`). Any failure: stop.
 3. `psql "$DIRECT_DATABASE_URL" -f scripts/release/phase1-precheck.sql` — every MUST holds; the counts match
    the rehearsal (within the changes since).
-4. `DATABASE_URL="$DIRECT_DATABASE_URL" npx prisma migrate status` → 14 pending.
+4. `DATABASE_URL="$DIRECT_DATABASE_URL" npx prisma migrate status` → "Following migrations have not yet
+   been applied:" with the 14 Phase 1 names (exit code 1 is expected).
 5. `DATABASE_URL="$DIRECT_DATABASE_URL" npx prisma migrate deploy` → "All migrations have been successfully applied."
    **Do not run the seed** (`db seed`) — nothing in it is needed and it adds MANUAL memberships.
    If a migration fails: stop; do not deploy; see §5.
