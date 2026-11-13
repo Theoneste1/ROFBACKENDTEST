@@ -2,30 +2,24 @@
  * Super Admin operator commands (P1-08). CLI only; never run by a deployment.
  * Production use needs separate, recorded approval — see docs/operations/super-admin.md.
  *
- *   npx tsx scripts/super-admin.ts bootstrap --username <admin> --confirm-username <admin> --reason "<why>"
- *   npx tsx scripts/super-admin.ts break-glass reset-credentials --username <super-admin> --reason "<why>" --approval-ref <ref> [--note "<text>"]
- *   npx tsx scripts/super-admin.ts break-glass promote-admin     --username <admin>       --reason "<why>" --approval-ref <ref> [--note "<text>"]
+ * Built with the application (`npm run build`) and run with Node — in a checkout or inside the
+ * runtime image, where it is dist/super-admin/cli.js:
+ *
+ *   node dist/super-admin/cli.js bootstrap --username <admin> --confirm-username <admin> --reason "<why>"
+ *   node dist/super-admin/cli.js break-glass reset-credentials --username <super-admin> --reason "<why>" --approval-ref <ref> [--note "<text>"]
+ *   node dist/super-admin/cli.js break-glass promote-admin     --username <admin>       --reason "<why>" --approval-ref <ref> [--note "<text>"]
+ *   (npm run super-admin -- <same arguments>)
+ *
+ * It must be COMPILED: it boots the Nest application, whose dependency injection needs the
+ * decorator metadata that tsc emits and tsx/esbuild do not (run through tsx, the injected services
+ * are undefined and the command crashes before doing anything).
  *
  * Exit codes: 0 done · 2 usage error · 3 refused (nothing changed).
  * Uses DATABASE_URL like the application; prints no connection details.
  */
 import 'dotenv/config';
 import 'reflect-metadata';
-
-export function parseArgs(argv: string[]) {
-  const [command, maybeMode, ...rest] = argv;
-  const flags: Record<string, string> = {};
-  const list = command === 'break-glass' ? rest : [maybeMode, ...rest].filter((x) => x !== undefined);
-  for (let i = 0; i < list.length; i++) {
-    const k = list[i];
-    if (!k?.startsWith('--')) throw new Error(`unexpected argument: ${k}`);
-    const v = list[i + 1];
-    if (v === undefined || v.startsWith('--')) throw new Error(`missing value for ${k}`);
-    flags[k.slice(2)] = v; i++;
-  }
-  return { command, mode: command === 'break-glass' ? maybeMode : undefined, flags };
-}
-
+import { isEntryPoint, parseArgs } from './cli-args.js';
 async function main() {
   let args: ReturnType<typeof parseArgs>;
   try {
@@ -35,15 +29,15 @@ async function main() {
       throw new Error('break-glass mode must be reset-credentials or promote-admin');
     }
   } catch (err) {
-    console.error(`Usage error: ${(err as Error).message}. See the header of scripts/super-admin.ts.`);
+    console.error(`Usage error: ${(err as Error).message}. See the header of src/super-admin/cli.ts.`);
     process.exit(2);
   }
 
   process.env.WORKERS_ENABLED = 'false';   // no background jobs in a one-off command
   const { NestFactory } = await import('@nestjs/core');
-  const { AppModule } = await import('../src/app/app.module.js');
-  const { SuperAdminModule } = await import('../src/super-admin/super-admin.module.js');
-  const { SuperAdminOperationsService } = await import('../src/super-admin/super-admin-operations.service.js');
+  const { AppModule } = await import('../app/app.module.js');
+  const { SuperAdminModule } = await import('./super-admin.module.js');
+  const { SuperAdminOperationsService } = await import('./super-admin-operations.service.js');
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error'] });
   try {
     const ops = app.select(SuperAdminModule).get(SuperAdminOperationsService);
@@ -64,4 +58,4 @@ async function main() {
   }
 }
 
-if (process.argv[1] && /super-admin\.ts$/.test(process.argv[1])) void main();
+if (isEntryPoint(import.meta.url, process.argv[1])) void main();

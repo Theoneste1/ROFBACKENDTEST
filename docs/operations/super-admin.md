@@ -1,6 +1,8 @@
 # Super Admin operator commands (runbook)
 
-`scripts/super-admin.ts` (P1-08). CLI only: there is no HTTP endpoint, and no deployment runs it.
+`src/super-admin/cli.ts` (P1-08), compiled to `dist/super-admin/cli.js` by `npm run build` (it is also in the runtime image). CLI only: there is no HTTP endpoint, and no deployment runs it.
+
+> Run the **compiled** command (`node dist/super-admin/cli.js …` or `npm run super-admin -- …`). It boots the Nest application, which needs the decorator metadata that `tsc` emits; through `tsx` the services are not injected and the command crashes before doing anything.
 
 ## Before any production run
 - Get a **separate, recorded approval** from the owner, with an approval reference.
@@ -9,7 +11,7 @@
 
 ## Bootstrap — the first Super Admin
 ```
-npx tsx scripts/super-admin.ts bootstrap --username <admin> --confirm-username <admin> --reason "<why>"
+node dist/super-admin/cli.js bootstrap --username <admin> --confirm-username <admin> --reason "<why>"
 ```
 - **Refuses** while any active Super Admin exists, if the target is not an existing, active, activated ADMIN, or if `--confirm-username` differs.
 - **Effect** (one transaction):
@@ -27,13 +29,13 @@ Only for a lost or compromised Super Admin account, with `--reason` **and** `--a
 
 - **(a) Reset the credentials of an existing Super Admin:**
   ```
-  npx tsx scripts/super-admin.ts break-glass reset-credentials --username <super-admin> --reason "<why>" --approval-ref <ref>
+  node dist/super-admin/cli.js break-glass reset-credentials --username <super-admin> --reason "<why>" --approval-ref <ref>
   ```
   - Sets a new one-time password, printed **once**. Hand it over securely and change it at first sign-in.
   - Ends all of that account's sessions.
 - **(b) Promote one existing, active ADMIN, only when no active Super Admin exists:**
   ```
-  npx tsx scripts/super-admin.ts break-glass promote-admin --username <admin> --reason "<why>" --approval-ref <ref>
+  node dist/super-admin/cli.js break-glass promote-admin --username <admin> --reason "<why>" --approval-ref <ref>
   ```
 
 Each command writes one `SUPER_ADMIN_BREAK_GLASS` audit row in the same transaction: reason, approval reference, note, before/after, never secrets. Every active Super Admin is e-mailed.
