@@ -17,6 +17,9 @@
  *
  * UR-01…UR-52 cover every REGISTERED @Authenticated route (the two dormant
  * Study Groups handlers are covered by the P1-02 declaration test only).
+ * UR-37 (POST /auth/logout) is retired: logout became @Public in H1 (it is
+ * authenticated by the refresh token; covered by test/auth.e2e-spec.ts). The
+ * other ids keep their numbers.
  */
 import { HttpException } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
@@ -197,7 +200,7 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     }
   });
 
-  // ── The 52 registered @Authenticated routes ──────────────────────────────
+  // ── The 51 registered @Authenticated routes (UR-37 retired) ──────────────
 
   type Kind = '403' | '404' | 'same';
   interface Case { id: string; route: string; kind: Kind; run: (u: AuthUser, res: ReturnType<typeof fakeResponse>['res']) => unknown }
@@ -254,8 +257,7 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     // intentionally role-independent → same outcome as the same user with their real role
     { id: 'UR-35', route: 'GET /api/v1/academic-years', kind: 'same', run: () => c.years.list() },
     { id: 'UR-36', route: 'GET /api/v1/academic-years/current', kind: 'same', run: () => c.years.current() },
-    // Public since H1 (authenticated by the refresh token); with no token it changes nothing for anyone.
-    { id: 'UR-37', route: 'POST /api/v1/auth/logout', kind: 'same', run: (_u, res) => c.auth.logout({} as never, { cookies: {}, get: () => undefined } as never, res) },
+    // UR-37 (POST /api/v1/auth/logout) retired: @Public since H1, so not an @Authenticated route.
     { id: 'UR-38', route: 'POST /api/v1/auth/logout-all', kind: 'same', run: (u, res) => c.auth.logoutAll(u, res) },
     { id: 'UR-39', route: 'PATCH /api/v1/auth/password', kind: 'same', run: (u) => c.auth.changePassword(u, { currentPassword: 'not-the-password', newPassword: 'An0ther-Strong-Pass!' } as never) },
     { id: 'UR-40', route: 'GET /api/v1/disciplines', kind: 'same', run: () => c.disciplines.list() },
@@ -275,8 +277,14 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
   /** Read-only role-independent cases: the unsupported caller must get exactly the same value. */
   const READ_ONLY = new Set(['UR-35', 'UR-36', 'UR-40', 'UR-41', 'UR-43', 'UR-46', 'UR-47', 'UR-52']);
 
-  it('the UR cases cover exactly the registered @Authenticated routes (52), numbered UR-01…UR-52', async () => {
-    expect(CASES.map((x) => x.id)).toEqual(Array.from({ length: 52 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`));
+  /** Ids of cases whose route is no longer @Authenticated; never reused. */
+  const RETIRED = new Set(['UR-37']);   // POST /auth/logout → @Public (H1)
+
+  it('the UR cases cover exactly the registered @Authenticated routes (51), numbered UR-01…UR-52 without the retired UR-37', async () => {
+    expect(CASES.map((x) => x.id)).toEqual(
+      Array.from({ length: 52 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
+    );
+    expect(CASES).toHaveLength(51);
     expect(CASES.map((x) => x.route).sort()).toEqual(await registeredAuthenticatedRoutes());
   });
 
