@@ -219,6 +219,25 @@ describe('Authentication (e2e)', () => {
     });
   });
 
+  it('an administrator\'s password reset racing the user\'s own refresh never fails (lock order: sessions → User row)', async () => {
+    // Before the fix the edit locked the User row and then waited for the session lock, while the
+    // refresh held the session lock and waited for KEY SHARE on that row: PostgreSQL aborted one of
+    // them (40P01 → 500). Now the edit takes the session lock first and simply waits.
+    const admin = await login(ctx, 'admin');
+    for (let i = 0; i < 8; i++) {
+      const s = await ctx.http().post('/api/v1/auth/login').send({ username: 'student.j2', password: PASSWORD }).expect(200);
+      const [edit, refresh] = await Promise.all([
+        ctx.http().patch(`/api/v1/admin/users/${ctx.ids.studentJunior2}`).set(bearer(admin)).send({ password: PASSWORD }),
+        ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: s.body.refresh_token }),
+      ]);
+      expect(edit.status).toBe(200);
+      expect([200, 401]).toContain(refresh.status);   // 401 when the edit ended the session first
+      // Whatever the order, the session is over: the edit ended every session of the user.
+      const token = refresh.status === 200 ? refresh.body.refresh_token : s.body.refresh_token;
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: token }).expect(401);
+    }
+  });
+
   it('suspending an account cuts off existing tokens', async () => {
     const admin = await login(ctx, 'admin');
     const token = await login(ctx, 'student.j2');

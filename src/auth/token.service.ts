@@ -16,6 +16,15 @@
  * refresh racing a logout could create its new token after the revocation had
  * already run, and that token would survive the logout (PostgreSQL's UPDATE
  * only sees rows committed before the statement started).
+ *
+ * LOCK ORDER (deadlock rule): the session lock comes BEFORE any lock on the
+ * user's "User" row. Rotation holds the session lock while it inserts the new
+ * RefreshToken, whose foreign key takes a KEY SHARE lock on that User row; a
+ * transaction that first locks the row FOR UPDATE and then asks for the session
+ * lock (e.g. an administrator's role or password change) would deadlock with it.
+ * Such a transaction calls `lockSessions` first (users.service.ts `update`).
+ * Plain UPDATEs of non-key User columns (FOR NO KEY UPDATE) do not conflict with
+ * KEY SHARE and need nothing.
  */
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -161,6 +170,15 @@ export class TokenService {
       await revokeFamily(tx, token.familyId);
     });
     return { userId: token.userId };
+  }
+
+  /**
+   * Take the user's session lock inside the caller's transaction (held until it
+   * ends; re-entrant, so a later revokeAllForUser in the same transaction does
+   * not block). Call it before locking the user's row FOR UPDATE — see LOCK ORDER.
+   */
+  async lockSessions(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    await lockUserSessions(tx, userId);
   }
 
   /**

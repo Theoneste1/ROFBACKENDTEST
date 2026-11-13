@@ -199,12 +199,17 @@ export class UsersService {
       role !== existing.role || (grade && grade !== existing.gradeLevel) || data.schoolId !== undefined;
 
     const actor = { actorId: caller.id, actorRole: caller.role };
+    const endsSessions = Boolean(data.password || data.role);
     const user = await this.prisma.$transaction(async (tx) => {
       // Lock the user row, then re-read it. Everything above — authorization, the role rules,
       // step-up, and the update itself (role, grade, division, school) — was prepared from
       // `existing`, read before this transaction. If another edit committed in between, writing
       // this one would silently restore stale values (e.g. a demoted Administrator's role), so it
       // is refused instead; the caller reloads and retries. Concurrent edits of this user wait here.
+      // A role or password change ends the user's sessions below: take the session lock FIRST
+      // (lock order sessions → User row, token.service.ts), or a refresh of this user — which holds
+      // the session lock and needs a KEY SHARE lock on this row — would deadlock with this edit.
+      if (endsSessions) await this.tokens.lockSessions(tx, id);
       await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${id} FOR UPDATE`;
       const locked = await tx.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
       if (!locked) throw new NotFoundException(`User ${id} not found.`);
@@ -313,7 +318,7 @@ export class UsersService {
       // Sessions end in the same transaction as the role / password change (last
       // statement before commit): the new role and the revocation become visible
       // together, so an old token can never authenticate with the new role.
-      if (data.password || data.role) await this.tokens.revokeAllForUser(id, tx);
+      if (endsSessions) await this.tokens.revokeAllForUser(id, tx);
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
     }).catch(lastSuperAdminConflict);
 
