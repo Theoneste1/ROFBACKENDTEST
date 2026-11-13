@@ -237,6 +237,32 @@ describe('Remaining endpoints (e2e)', () => {
       });
     });
 
+    it('leaderboard recompute (M6): one set-based statement corrects drifted caches and is idempotent', async () => {
+      const id = ctx.ids.studentJunior;
+      const truth = await ctx.prisma.submission.aggregate({
+        where: { studentId: id, status: 'PUBLISHED' }, _sum: { pointsAwarded: true }, _count: { _all: true },
+      });
+      // Corrupt the cache of one student (and leave every other student as it is).
+      await ctx.prisma.user.update({ where: { id }, data: { points: 987_654, problemsSolved: 321 } });
+
+      const first = await http().post('/api/v1/admin/leaderboard/recompute').set(bearer(admin)).expect(200);
+      expect(first.body.recomputed).toBe(await ctx.prisma.user.count({ where: { role: 'STUDENT' } }));
+      expect(first.body.changed).toBeGreaterThanOrEqual(1);
+      expect(await ctx.prisma.user.findUniqueOrThrow({ where: { id }, select: { points: true, problemsSolved: true } }))
+        .toEqual({ points: truth._sum.pointsAwarded ?? 0, problemsSolved: truth._count._all });
+
+      // Nothing left to correct: a second run changes no row (also what a double click does).
+      const second = await http().post('/api/v1/admin/leaderboard/recompute').set(bearer(admin)).expect(200);
+      expect(second.body).toMatchObject({ changed: 0 });
+      // Every student's cache now equals the published results.
+      const drift = await ctx.prisma.$queryRaw<Array<{ n: bigint }>>`
+        SELECT count(*) AS n FROM "User" u
+          LEFT JOIN (SELECT "studentId", COALESCE(SUM("pointsAwarded"),0)::int p, COUNT(*)::int c
+                       FROM "Submission" WHERE "status" = 'PUBLISHED' GROUP BY "studentId") t ON t."studentId" = u."id"
+         WHERE u."role" = 'STUDENT' AND (u."points" <> COALESCE(t.p,0) OR u."problemsSolved" <> COALESCE(t.c,0))`;
+      expect(Number(drift[0].n)).toBe(0);
+    });
+
     it('academic years are listed for everyone signed in', async () => {
       const years = await http().get('/api/v1/academic-years').set(bearer(studentJ)).expect(200);
       expect((years.body.data ?? years.body).some((y: any) => y.id === ctx.ids.year)).toBe(true);
