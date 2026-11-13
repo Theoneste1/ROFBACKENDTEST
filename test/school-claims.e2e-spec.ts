@@ -18,7 +18,7 @@ import pg from 'pg';
 
 import { AuditService } from '../src/audit/audit.service.js';
 import { SchoolAffiliationService } from '../src/schools/affiliations/school-affiliation.service.js';
-import { createTestApp, login, bearer, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, type TestContext, currentYearId } from './helpers.js';
 
 /** True when the database serves another connection while a transaction is open (PostgreSQL yes; `prisma dev` no). */
 async function servesConcurrentConnections(): Promise<boolean> {
@@ -530,7 +530,7 @@ describe('School claims (PR C)', () => {
     const school = (await http().post('/api/v1/admin/schools').set(bearer(admin)).send({ name: 'Rollover School', province: 'Southern Province', district: 'Huye', sector: 'Ngoma' }).expect(201)).body.id;
     const matched = (await http().post(`${A}/${(await claimOf(s.id)).id}/match`).set(bearer(admin)).send({ schoolId: school }).expect(200)).body;
     const next = await http().post('/api/v1/admin/academic-years').set(bearer(admin)).send({ name: '2033-2034', startsOn: '2033-09-01', endsOn: '2034-07-31' }).expect(201);
-    await http().post(`/api/v1/admin/academic-years/${next.body.id}/activate`).set(bearer(admin)).send({ promoteStudents: true }).expect(200);
+    await http().post(`/api/v1/admin/academic-years/${next.body.id}/activate`).set(bearer(admin)).send({ promoteStudents: true, expectedCurrentYearId: await currentYearId(ctx) }).expect(200);
     expect(await claimOf(s.id)).toMatchObject({ id: matched.id, schoolId: school, status: 'PENDING' });
     expect((await p().user.findUniqueOrThrow({ where: { id: s.id } })).schoolId).toBe(school);
   });

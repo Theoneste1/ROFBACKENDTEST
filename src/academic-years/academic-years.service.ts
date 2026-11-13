@@ -29,6 +29,9 @@ import {
 
 type Tx = Prisma.TransactionClient;
 
+/** pg advisory lock key of academic-year starts (any constant unique in this database). */
+const ACTIVATION_LOCK_KEY = 7_302_026_001n;
+
 @Injectable()
 export class AcademicYearsService {
   constructor(
@@ -113,8 +116,7 @@ export class AcademicYearsService {
    *   3. Active students without an enrolment are enrolled at their current grade.
    */
   async activate(id: string, dto: ActivateAcademicYearDto, caller: CallerCtx) {
-    const target = await this.findOne(id);
-    if (target.status !== 'PLANNED') throw invalidState('Only a PLANNED academic year can be activated.');
+    await this.findOne(id);   // 404 before anything else
 
     // Resolve outside the transaction: only `tx` may be used inside it.
     const divisionFor = {
@@ -123,8 +125,32 @@ export class AcademicYearsService {
     };
     const counts = { promoted: 0, carriedOver: 0, graduated: 0, newlyEnrolled: 0, assignmentsArchived: 0 };
 
-    await this.prisma.$transaction(async (tx) => {
+    // A start rewrites every student's enrolment, so starts are single-flight, platform-wide:
+    // the transaction-scoped advisory lock is held until this start commits or rolls back. A
+    // concurrent start (a retry after the proxy's ~26 s timeout, a double click, another
+    // administrator) does not wait behind it — it is refused at once, and a retry after the
+    // first one committed is answered from its audit record (no second rollover).
+    const replay = await this.prisma.$transaction(async (tx) => {
+      const [{ locked }] = await tx.$queryRaw<Array<{ locked: boolean }>>`SELECT pg_try_advisory_xact_lock(${ACTIVATION_LOCK_KEY}::bigint) AS locked`;
+      if (!locked) {
+        throw new AppError(HttpStatus.CONFLICT, 'ACTIVATION_IN_PROGRESS',
+          'An academic year is being started right now. Wait for it to finish, then reload the list.');
+      }
+      // Re-read under the lock: the state seen before it may be stale.
+      const target = await tx.academicYear.findUnique({ where: { id } });
+      if (!target) throw new NotFoundException('Academic year not found.');
       const previous = await tx.academicYear.findFirst({ where: { isCurrent: true } });
+
+      if (target.status !== 'PLANNED') {
+        const recorded = await this.recordedActivation(tx, id, dto);
+        if (recorded) return recorded;
+        throw invalidState('Only a PLANNED academic year can be activated.', { currentStatus: target.status });
+      }
+      if ((previous?.id ?? null) !== dto.expectedCurrentYearId) {
+        throw new AppError(HttpStatus.CONFLICT, 'CURRENT_YEAR_CHANGED',
+          'The current academic year changed since this request was prepared; nothing was changed.',
+          { expectedCurrentYearId: dto.expectedCurrentYearId, currentYearId: previous?.id ?? null });
+      }
       const now = new Date();
 
       if (previous) {
@@ -193,11 +219,49 @@ export class AcademicYearsService {
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'ACTIVATE_ACADEMIC_YEAR', entity: 'AcademicYear', entityId: id,
-        metadata: { previousYearId: previous?.id ?? null, ...dto, counts },
+        metadata: {
+          previousYearId: previous?.id ?? null,
+          promoteStudents: dto.promoteStudents,
+          deactivateGraduates: dto.deactivateGraduates ?? true,
+          counts,
+        },
       }, tx);
+      return null;
     }, { timeout: 120_000 });
 
+    if (replay) return { academicYear: await this.findOne(id), ...replay.counts, replayed: true };
     return { academicYear: await this.findOne(id), ...counts };
+  }
+
+  /**
+   * A year that is no longer PLANNED: the outcome recorded by the start that made it current, when
+   * this request repeats it (same choices; same expected current year, when given). A different
+   * request for an already started year is refused with what differs.
+   */
+  private async recordedActivation(tx: Tx, id: string, dto: ActivateAcademicYearDto) {
+    const year = await tx.academicYear.findUniqueOrThrow({ where: { id }, select: { status: true, isCurrent: true } });
+    if (year.status !== 'ACTIVE' || !year.isCurrent) return null;   // CLOSED since: not a repeat any more
+    const entry = await tx.auditLog.findFirst({
+      where: { action: 'ACTIVATE_ACADEMIC_YEAR', entity: 'AcademicYear', entityId: id },
+      orderBy: { createdAt: 'desc' }, select: { metadata: true },
+    });
+    const m = (entry?.metadata ?? null) as {
+      previousYearId?: string | null; promoteStudents?: boolean; deactivateGraduates?: boolean;
+      counts?: { promoted: number; carriedOver: number; graduated: number; newlyEnrolled: number; assignmentsArchived: number };
+    } | null;
+    if (!m || typeof m.promoteStudents !== 'boolean' || !m.counts) return null;
+    const recorded = { promoteStudents: m.promoteStudents, deactivateGraduates: m.deactivateGraduates ?? true };
+    const asked = { promoteStudents: dto.promoteStudents, deactivateGraduates: dto.deactivateGraduates ?? true };
+    if (recorded.promoteStudents !== asked.promoteStudents || (asked.promoteStudents && recorded.deactivateGraduates !== asked.deactivateGraduates)) {
+      throw new AppError(HttpStatus.CONFLICT, 'ACTIVATION_OPTIONS_DIFFER',
+        'This academic year was already started with different choices; nothing was changed.', { recorded, requested: asked });
+    }
+    if ((m.previousYearId ?? null) !== dto.expectedCurrentYearId) {
+      throw new AppError(HttpStatus.CONFLICT, 'CURRENT_YEAR_CHANGED',
+        'This academic year was started from a different current year than this request expected; nothing was changed.',
+        { expectedCurrentYearId: dto.expectedCurrentYearId, currentYearId: m.previousYearId ?? null });
+    }
+    return { counts: m.counts };
   }
 
   // ─── Enrolments ───────────────────────────────────────────────────────────

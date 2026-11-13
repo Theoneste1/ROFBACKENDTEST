@@ -3,7 +3,7 @@
  */
 import { EmailWorker } from '../src/email/email.worker.js';
 import { ROLE_PERMISSIONS } from '../src/auth/permissions.js';
-import { createTestApp, login, bearer, inDays, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, inDays, type TestContext, currentYearId } from './helpers.js';
 
 describe('Features (e2e)', () => {
   let ctx: TestContext;
@@ -172,7 +172,7 @@ describe('Features (e2e)', () => {
       expect(next.body.status).toBe('PLANNED');
 
       const res = await ctx.http().post(`/api/v1/admin/academic-years/${next.body.id}/activate`).set(bearer(admin))
-        .send({ promoteStudents: true }).expect(200);
+        .send({ promoteStudents: true, expectedCurrentYearId: await currentYearId(ctx) }).expect(200);
       expect(res.body).toMatchObject({ promoted: 3, assignmentsArchived: 1 });
       expect(res.body.academicYear).toMatchObject({ status: 'ACTIVE', isCurrent: true });
 

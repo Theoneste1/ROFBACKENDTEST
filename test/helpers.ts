@@ -240,3 +240,8 @@ export const EXE = Buffer.concat([Buffer.from('MZ'), Buffer.alloc(200, 0x90)]);
 
 /** An ISO date `days` from now. */
 export const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+
+/** The current academic year's id (null: none) — `expectedCurrentYearId` of a year start. */
+export async function currentYearId(ctx: TestContext): Promise<string | null> {
+  return (await ctx.prisma.academicYear.findFirst({ where: { isCurrent: true }, select: { id: true } }))?.id ?? null;
+}

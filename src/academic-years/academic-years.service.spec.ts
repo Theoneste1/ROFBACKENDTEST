@@ -15,7 +15,9 @@ function makeMocks() {
       findMany:   vi.fn().mockResolvedValue([]),
       create:     vi.fn().mockResolvedValue(year()),
       update:     vi.fn().mockResolvedValue({}),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(year()),
     },
+    auditLog: { findFirst: vi.fn().mockResolvedValue(null) },
     assignment:        {
       findMany:   vi.fn().mockResolvedValue([{ id: 'as1', status: 'PUBLISHED' }, { id: 'as2', status: 'CLOSED' }]),
       updateMany: vi.fn().mockResolvedValue({ count: 2 }),
@@ -32,6 +34,8 @@ function makeMocks() {
     },
     division: { findUniqueOrThrow: vi.fn() },
     $transaction: vi.fn(),
+    // pg_try_advisory_xact_lock: acquired unless a test says otherwise.
+    $queryRaw: vi.fn().mockResolvedValue([{ locked: true }]),
   };
   prisma.$transaction.mockImplementation((arg: unknown) =>
     typeof arg === 'function' ? (arg as (t: unknown) => unknown)(prisma) : Promise.all(arg as unknown[]));
@@ -81,12 +85,48 @@ describe('AcademicYearsService', () => {
   });
 
   describe('activate', () => {
-    it.each(['ACTIVE', 'CLOSED'])('refuses a %s year with INVALID_STATE_TRANSITION', async (status) => {
+    it.each(['ACTIVE', 'CLOSED'])('refuses a %s year without a matching recorded start (INVALID_STATE_TRANSITION), changing nothing', async (status) => {
       const { service, prisma } = makeMocks();
       prisma.academicYear.findUnique.mockResolvedValue(year({ status }));
-      const err = await service.activate('y2', { promoteStudents: true } as any, ADMIN).catch((e) => e);
+      prisma.academicYear.findUniqueOrThrow.mockResolvedValue(year({ status }));
+      const err = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: null } as any, ADMIN).catch((e) => e);
       expect(err.getResponse().code).toBe('INVALID_STATE_TRANSITION');
-      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.academicYear.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses at once while another start holds the lock (ACTIVATION_IN_PROGRESS), reading nothing else', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.$queryRaw.mockResolvedValue([{ locked: false }]);
+      const err = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: null } as any, ADMIN).catch((e) => e);
+      expect(err.getResponse().code).toBe('ACTIVATION_IN_PROGRESS');
+      expect(prisma.academicYear.findFirst).not.toHaveBeenCalled();
+      expect(prisma.academicYear.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses when the current year is not the one the caller saw (CURRENT_YEAR_CHANGED)', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.academicYear.findFirst.mockResolvedValue(year({ id: 'y1', status: 'ACTIVE', isCurrent: true }));
+      const err = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: 'y0' } as any, ADMIN).catch((e) => e);
+      expect(err.getResponse()).toMatchObject({ code: 'CURRENT_YEAR_CHANGED', details: { currentYearId: 'y1' } });
+      expect(prisma.academicYear.update).not.toHaveBeenCalled();
+    });
+
+    it('answers a repeat of a recorded start from its audit entry (replayed) and refuses other choices', async () => {
+      const { service, prisma, audit } = makeMocks();
+      prisma.academicYear.findUnique.mockResolvedValue(year({ status: 'ACTIVE', isCurrent: true }));
+      prisma.academicYear.findUniqueOrThrow.mockResolvedValue(year({ status: 'ACTIVE', isCurrent: true }));
+      const counts = { promoted: 5, carriedOver: 0, graduated: 1, newlyEnrolled: 0, assignmentsArchived: 2 };
+      prisma.auditLog.findFirst.mockResolvedValue({ metadata: { previousYearId: 'y1', promoteStudents: true, deactivateGraduates: true, counts } });
+
+      const r = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: 'y1' } as any, ADMIN);
+      expect(r).toMatchObject({ replayed: true, ...counts });
+      expect(prisma.academicYear.update).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+
+      const other = await service.activate('y2', { promoteStudents: false, expectedCurrentYearId: 'y1' } as any, ADMIN).catch((e) => e);
+      expect(other.getResponse().code).toBe('ACTIVATION_OPTIONS_DIFFER');
+      const from = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: 'y0' } as any, ADMIN).catch((e) => e);
+      expect(from.getResponse().code).toBe('CURRENT_YEAR_CHANGED');
     });
 
     it('closes the previous year, archives its assignments and promotes / graduates students', async () => {
@@ -98,7 +138,7 @@ describe('AcademicYearsService', () => {
         { id: 'e-s6', studentId: 'st-s6', gradeLevel: 'S6', schoolId: 'sch1' },
       ]);
 
-      const result = await service.activate('y2', { promoteStudents: true } as any, ADMIN);
+      const result = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: 'y1' } as any, ADMIN);
 
       expect(divisions.idForCode).toHaveBeenCalledWith('JUNIOR');
       expect(divisions.idForCode).toHaveBeenCalledWith('SENIOR');
@@ -155,7 +195,7 @@ describe('AcademicYearsService', () => {
       prisma.studentEnrollment.findMany.mockResolvedValue([
         { id: 'e-s6', studentId: 'st-s6', gradeLevel: 'S6', schoolId: null },
       ]);
-      await service.activate('y2', { promoteStudents: true, deactivateGraduates: false } as any, ADMIN);
+      await service.activate('y2', { promoteStudents: true, deactivateGraduates: false, expectedCurrentYearId: 'y1' } as any, ADMIN);
       expect(prisma.user.update).not.toHaveBeenCalledWith({ where: { id: 'st-s6' }, data: { isActive: false } });
     });
 
@@ -165,7 +205,7 @@ describe('AcademicYearsService', () => {
       prisma.studentEnrollment.findMany.mockResolvedValue([
         { id: 'e-s6', studentId: 'st-s6', gradeLevel: 'S6', schoolId: null },
       ]);
-      const result = await service.activate('y2', { promoteStudents: false } as any, ADMIN);
+      const result = await service.activate('y2', { promoteStudents: false, expectedCurrentYearId: 'y1' } as any, ADMIN);
       expect(prisma.studentEnrollment.update.mock.calls[0][0].data).toMatchObject({ status: 'ACTIVE' });
       expect(prisma.studentEnrollment.upsert.mock.calls[0][0].create).toMatchObject({ gradeLevel: 'S6', divisionId: 'div-senior' });
       expect(result).toMatchObject({ carriedOver: 1, promoted: 0, graduated: 0 });

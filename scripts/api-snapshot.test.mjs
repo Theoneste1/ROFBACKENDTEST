@@ -107,7 +107,8 @@ const SCHOOL_DIRECTORY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-
 const SCHOOL_SYNC_STAGING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-staging.json';
 const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school-sync-apply.json';
 const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-capabilities.json';
-const CURRENT_SNAPSHOT = API_CAPABILITIES_SNAPSHOT;
+const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
+const CURRENT_SNAPSHOT = YEAR_ACTIVATION_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -737,6 +738,20 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, ['GET /api/v1 › response 200 application/json.capabilities: new field']);
+  });
+
+  test('API capabilities → year activation: exactly the deliberate required expectedCurrentYearId on the start; nothing else', () => {
+    // Deliberately BREAKING for callers of POST /admin/academic-years/:id/activate: a start must say
+    // which year it expects to be current, so no client can start a year blind (a second start of
+    // another planned year would otherwise close the year just started and promote every student
+    // again). No released frontend calls this route (frontend main has no academic-year pages); the
+    // frontend that does sends it, and offers the start only with the academicYearActivation feature.
+    for (const f of [API_CAPABILITIES_SNAPSHOT, YEAR_ACTIVATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(API_CAPABILITIES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(YEAR_ACTIVATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['POST /api/v1/admin/academic-years/{id}/activate › request application/json.expectedCurrentYearId: new required field']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, []);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

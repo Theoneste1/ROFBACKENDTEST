@@ -138,6 +138,7 @@ Body (JSON):
 |---|---|:-:|---|
 | `promoteStudents` | boolean | ✓ | Move every active student up one grade (true at the start of a new school year). |
 | `deactivateGraduates` | boolean |  | When promoting, deactivate S6 students who graduate (default true). |
+| `expectedCurrentYearId` | string (uuid) | ✓ | REQUIRED: the academic year the caller saw as current (null: none). When the current year is now another one (another start went through meanwhile), the start is refused with 409 CURRENT_YEAR_CHANGED instead of closing a year the caller never saw and rolling students over a second time. Required so that no client can start a year blind. |
 
 Returns `200` JSON with:
 
