@@ -37,6 +37,7 @@ function makeMocks() {
     revoke:               vi.fn(),
     revokeAllForUser:     vi.fn(),
     blacklistAccessToken: vi.fn(),
+    verifyAccessToken:    vi.fn().mockResolvedValue(null),
   };
   const audit         = { log: vi.fn() };
   const settings      = { get: vi.fn() };
@@ -284,12 +285,74 @@ describe('AuthService', () => {
     });
   });
 
-  describe('logout', () => {
-    it('blacklists the access token and revokes the refresh token', async () => {
+  describe('changePassword: the new password and the end of every session commit together', () => {
+    it('revokes all sessions inside the same transaction as the password update', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ passwordHash: HASH, role: 'STUDENT' });
+      await service.changePassword('u1', PASSWORD, 'NewPassw0rd!');
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { passwordHash: expect.any(String) } });
+      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u1', prisma);   // the transaction client
+    });
+
+    it('if ending the sessions fails, the call fails (the password change is rolled back with it)', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ passwordHash: HASH, role: 'STUDENT' });
+      tokens.revokeAllForUser.mockRejectedValue(new Error('db down'));
+      await expect(service.changePassword('u1', PASSWORD, 'NewPassw0rd!')).rejects.toThrow('db down');
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('ends every session inside the transaction that sets the new password', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.passwordResetToken.findUnique.mockResolvedValue({ id: 'r1', userId: 'u1', usedAt: null, expiresAt: new Date(Date.now() + 60_000) });
+      prisma.passwordResetToken.updateMany.mockResolvedValue({ count: 1 });
+      await service.resetPassword('token', 'NewPassw0rd!');
+      expect(tokens.revokeAllForUser).toHaveBeenCalledTimes(1);
+      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u1', prisma);
+    });
+  });
+
+  describe('logout (H1: works without a valid access token)', () => {
+    it('with only the refresh token (access token expired): revokes that session and audits its owner', async () => {
+      const { service, prisma, tokens, audit } = makeMocks();
+      tokens.revoke.mockResolvedValue({ userId: 'u1' });
+      prisma.user.findUnique.mockResolvedValue({ role: 'STUDENT' });
+      await service.logout({ refreshToken: 'refresh' });
+      expect(tokens.revoke).toHaveBeenCalledWith('refresh');
+      expect(tokens.blacklistAccessToken).not.toHaveBeenCalled();
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+        actorId: 'u1', actorRole: 'STUDENT', action: 'LOGOUT', entityId: 'u1',
+        metadata: { sessionRevoked: true, accessTokenRevoked: false },
+      }));
+    });
+
+    it('an expired or forged access token is ignored, the session is still revoked', async () => {
       const { service, tokens } = makeMocks();
-      await service.logout({ id: 'u1', role: 'STUDENT', jti: 'j1', exp: 123 }, 'refresh');
+      tokens.verifyAccessToken = vi.fn().mockResolvedValue(null);
+      tokens.revoke.mockResolvedValue({ userId: 'u1' });
+      await service.logout({ refreshToken: 'refresh', accessToken: 'expired.jwt' });
+      expect(tokens.verifyAccessToken).toHaveBeenCalledWith('expired.jwt');
+      expect(tokens.blacklistAccessToken).not.toHaveBeenCalled();
+      expect(tokens.revoke).toHaveBeenCalledWith('refresh');
+    });
+
+    it('a still-valid access token is blacklisted as well', async () => {
+      const { service, tokens } = makeMocks();
+      tokens.verifyAccessToken = vi.fn().mockResolvedValue({ sub: 'u1', jti: 'j1', exp: 123 });
+      tokens.revoke.mockResolvedValue({ userId: 'u1' });
+      await service.logout({ refreshToken: 'refresh', accessToken: 'valid.jwt' });
       expect(tokens.blacklistAccessToken).toHaveBeenCalledWith('j1', 123);
       expect(tokens.revoke).toHaveBeenCalledWith('refresh');
+    });
+
+    it('nothing to revoke (no cookie, unknown token): succeeds silently, writes no audit entry', async () => {
+      const { service, tokens, audit } = makeMocks();
+      tokens.revoke.mockResolvedValue(null);
+      await expect(service.logout({})).resolves.toBeUndefined();
+      await expect(service.logout({ refreshToken: 'unknown' })).resolves.toBeUndefined();
+      expect(audit.log).not.toHaveBeenCalled();
     });
   });
 });

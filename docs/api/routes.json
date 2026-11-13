@@ -1277,9 +1277,7 @@
     "method": "POST",
     "path": "/api/v1/auth/logout",
     "roles": [
-      "STUDENT",
-      "MENTOR",
-      "ADMIN"
+      "PUBLIC"
     ],
     "tag": "Auth"
   },

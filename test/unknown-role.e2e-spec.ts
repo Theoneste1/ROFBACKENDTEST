@@ -254,7 +254,8 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     // intentionally role-independent → same outcome as the same user with their real role
     { id: 'UR-35', route: 'GET /api/v1/academic-years', kind: 'same', run: () => c.years.list() },
     { id: 'UR-36', route: 'GET /api/v1/academic-years/current', kind: 'same', run: () => c.years.current() },
-    { id: 'UR-37', route: 'POST /api/v1/auth/logout', kind: 'same', run: (u, res) => c.auth.logout(u, {} as never, { cookies: {} } as never, res) },
+    // Public since H1 (authenticated by the refresh token); with no token it changes nothing for anyone.
+    { id: 'UR-37', route: 'POST /api/v1/auth/logout', kind: 'same', run: (_u, res) => c.auth.logout({} as never, { cookies: {}, get: () => undefined } as never, res) },
     { id: 'UR-38', route: 'POST /api/v1/auth/logout-all', kind: 'same', run: (u, res) => c.auth.logoutAll(u, res) },
     { id: 'UR-39', route: 'PATCH /api/v1/auth/password', kind: 'same', run: (u) => c.auth.changePassword(u, { currentPassword: 'not-the-password', newPassword: 'An0ther-Strong-Pass!' } as never) },
     { id: 'UR-40', route: 'GET /api/v1/disciplines', kind: 'same', run: () => c.disciplines.list() },

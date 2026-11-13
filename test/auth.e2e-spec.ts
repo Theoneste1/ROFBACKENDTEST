@@ -145,6 +145,80 @@ describe('Authentication (e2e)', () => {
     await ctx.http().get('/api/v1/me').set(bearer(token)).expect(401);
   });
 
+  describe('session end (H1/M1): logout works without a valid access token; reuse is refused', () => {
+    const cookieOf = (res: { headers: Record<string, unknown> }) =>
+      ((res.headers['set-cookie'] as string[] | undefined) ?? []).find((c) => c.startsWith('rof_refresh='))!.split(';')[0];
+
+    it('logout with only the refresh cookie (expired access token) revokes the session; the cookie cannot be reused', async () => {
+      const session = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      const cookie = cookieOf(session);
+
+      // No Authorization header, or an expired / garbage one: still a real logout.
+      const out = await ctx.http().post('/api/v1/auth/logout').set('Cookie', cookie).set('Authorization', 'Bearer expired.or.garbage').send({}).expect(200);
+      expect((out.headers['set-cookie'] as unknown as string[]).join(';')).toMatch(/rof_refresh=;.*Expires=Thu, 01 Jan 1970/);
+
+      // Shared device: the next person reloads → the old cookie is refused.
+      const reuse = await ctx.http().post('/api/v1/auth/refresh').set('Cookie', cookie).expect(401);
+      expect(reuse.body.code).toBe('REFRESH_TOKEN_REUSED');
+      expect(await ctx.prisma.refreshToken.count({ where: { tokenHash: createHash('sha256').update(session.body.refresh_token).digest('hex'), revokedAt: null } })).toBe(0);
+    });
+
+    it('logout with an already-rotated cookie still ends the whole session (the newer token too)', async () => {
+      const first = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      const second = await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: first.body.refresh_token }).expect(200);
+      await ctx.http().post('/api/v1/auth/logout').send({ refreshToken: first.body.refresh_token }).expect(200);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: second.body.refresh_token }).expect(401);
+    });
+
+    it('logout ends only its own session; other devices stay signed in', async () => {
+      const here = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      const there = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      await ctx.http().post('/api/v1/auth/logout').send({ refreshToken: here.body.refresh_token }).expect(200);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: there.body.refresh_token }).expect(200);
+    });
+
+    it('logout with nothing to revoke answers 200 (idempotent) and writes no audit entry', async () => {
+      const before = await ctx.prisma.auditLog.count({ where: { action: 'LOGOUT' } });
+      await ctx.http().post('/api/v1/auth/logout').send({}).expect(200);
+      await ctx.http().post('/api/v1/auth/logout').send({ refreshToken: 'x'.repeat(64) }).expect(200);
+      expect(await ctx.prisma.auditLog.count({ where: { action: 'LOGOUT' } })).toBe(before);
+    });
+
+    it('changing the password ends every session, refresh tokens included', async () => {
+      const a = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      const b = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      await ctx.http().patch('/api/v1/auth/password').set(bearer(a.body.access_token))
+        .send({ currentPassword: 'Secret123', newPassword: 'Changed123' }).expect(200);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: a.body.refresh_token }).expect(401);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: b.body.refresh_token }).expect(401);
+      await ctx.http().get('/api/v1/me').set(bearer(b.body.access_token)).expect(401);
+      // Restore for the following tests.
+      const c = await login(ctx, 'ada', 'Changed123');
+      await ctx.http().patch('/api/v1/auth/password').set(bearer(c)).send({ currentPassword: 'Changed123', newPassword: 'Secret123' }).expect(200);
+    });
+
+    it('logout-all ends every session, refresh tokens included', async () => {
+      const a = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      const b = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      await ctx.http().post('/api/v1/auth/logout-all').set(bearer(a.body.access_token)).expect(200);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: b.body.refresh_token }).expect(401);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: a.body.refresh_token }).expect(401);
+    });
+
+    it('a refresh racing a logout of the same session never leaves a usable token', async () => {
+      for (let i = 0; i < 5; i++) {
+        const s = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+        const [refreshed] = await Promise.all([
+          ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: s.body.refresh_token }),
+          ctx.http().post('/api/v1/auth/logout').send({ refreshToken: s.body.refresh_token }).expect(200),
+        ]);
+        if (refreshed.status === 200) {
+          await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: refreshed.body.refresh_token }).expect(401);
+        }
+      }
+    });
+  });
+
   it('suspending an account cuts off existing tokens', async () => {
     const admin = await login(ctx, 'admin');
     const token = await login(ctx, 'student.j2');

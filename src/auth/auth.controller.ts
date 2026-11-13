@@ -98,18 +98,27 @@ export class AuthController {
     return tokens;
   }
 
-  // ─── Logout (current session) ──────────────────────────────────────────────
-  @ApiBearerAuth()
+  // ─── Logout (current session; public — authenticated by the refresh token) ─
+  /**
+   * Public so that signing out also works after the access token has expired
+   * (H1): the refresh token (cookie or body) identifies the session to revoke;
+   * a still-valid access token in the Authorization header is blacklisted too.
+   * Always clears the cookie and answers 200, also when there was nothing to
+   * revoke (a repeated or stale sign-out), so a client can always finish.
+   */
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(200)
   @Post('logout')
-  @Authenticated()
   async logout(
-    @CurrentUser() user: AuthUser,
     @Body() body: RefreshTokenDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    await this.authService.logout(user, body.refreshToken ?? req.cookies?.[REFRESH_COOKIE]);
+    await this.authService.logout({
+      refreshToken: body.refreshToken ?? req.cookies?.[REFRESH_COOKIE],
+      accessToken:  bearerToken(req),
+    });
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
     return { message: 'Logged out successfully.' };
   }
@@ -200,4 +209,11 @@ export class AuthController {
 
 function clientInfo(req: Request): ClientInfo {
   return { userAgent: req.get('user-agent') ?? undefined, ip: req.ip };
+}
+
+/** The bearer token of the Authorization header, if any (not verified here). */
+export function bearerToken(req: Pick<Request, 'get'>): string | undefined {
+  const header = req.get('authorization');
+  const match = header ? /^Bearer\s+(\S+)$/i.exec(header.trim()) : null;
+  return match?.[1];
 }

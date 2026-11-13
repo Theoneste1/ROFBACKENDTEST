@@ -2277,7 +2277,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/auth/logout`
 
-**Access:** STUDENT, MENTOR, ADMIN
+**Access:** Public
 
 Body (JSON):
 

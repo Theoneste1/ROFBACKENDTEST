@@ -18,6 +18,11 @@
  *
  * Re-capture the baseline only deliberately, when an access change has been
  * approved: CAPTURE_ROUTE_ACCESS_BASELINE=1 npx vitest run src/common/decorators/route-declarations.spec.ts
+ *
+ * Deliberate changes since the capture (each one reviewed):
+ *   - POST /api/v1/auth/logout — anonymous 401 → allow (H1, 2026-11-13): logout is
+ *     authenticated by the refresh token, so it also works after the access token
+ *     has expired. Only this one decision of the baseline was edited.
  */
 import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -168,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 17 @Public + 29 @Roles + 174 @RequirePermission + 54 @Authenticated = 274, none undeclared', () => {
+  it('declarations add up: 18 @Public + 29 @Roles + 174 @RequirePermission + 53 @Authenticated = 274, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 17, '@Roles': 29, '@RequirePermission': 174, '@Authenticated': 54 });
+    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 174, '@Authenticated': 53 });
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -352,7 +357,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(17);   // P1-11: + GET /schools/locations
+      expect(handlers.filter(isPublic)).toHaveLength(18);   // P1-11: + GET /schools/locations; H1: + POST /auth/logout
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {
@@ -363,7 +368,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
       // Added routes that refuse anonymous callers (the added @Public ones are not restricted).
       const addedRestricted = Object.values(ADDED_SINCE_BASELINE).filter((d) => d.anonymous !== 'allow').length;
       expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141 + addedRestricted);
-      expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(54);
+      expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(53);
     });
 
     it.each(['STUDENT', 'MENTOR', 'ADMIN'] as const)('%s is admitted exactly where its role is listed, it holds the required permission, or nothing is required', (role) => {

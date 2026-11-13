@@ -4066,20 +4066,14 @@
             }
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "tags": [
           "Auth"
         ],
         "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
+          "PUBLIC"
         ],
-        "description": "**Access:** Any signed-in user"
+        "description": "**Access:** Public (no token)",
+        "security": []
       }
     },
     "/api/v1/auth/logout-all": {
