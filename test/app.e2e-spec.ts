@@ -31,6 +31,7 @@ describe('App basics (e2e)', () => {
     expect(res.body.capabilities).toEqual(capabilitiesOf(config));
     // Exactly the approved V1 features for this configuration — never the directory sync.
     expect(res.body.capabilities.features).toEqual([
+      'academicYearActivation',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
       'permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts'] : []),

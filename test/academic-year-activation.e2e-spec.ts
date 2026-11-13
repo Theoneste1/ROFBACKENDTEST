@@ -6,6 +6,8 @@
  * check and ran the rollover again; a start of another planned year could close the year just
  * started and promote everyone a second time. Real PostgreSQL, real HTTP.
  */
+import pg from 'pg';
+
 import { createTestApp, login, bearer, currentYearId, type TestContext } from './helpers.js';
 
 /** Same key as AcademicYearsService (ACTIVATION_LOCK_KEY). */
@@ -44,22 +46,20 @@ describe('Academic-year start: single-flight and retry-safe', () => {
   });
 
   it('while another start holds the lock, a start is refused at once (409 ACTIVATION_IN_PROGRESS) and changes nothing', async () => {
-    let release!: () => void;
-    const held = new Promise<void>((r) => (release = r));
-    let locked!: () => void;
-    const isLocked = new Promise<void>((r) => (locked = r));
-    const holder = ctx.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${LOCK_KEY}::bigint)`;
-      locked();
-      await held;
-    }, { timeout: 60_000 });
+    // Another start in progress = another database session holding the lock in its transaction.
+    // A connection of its own (not the application's pool, which may hold a single connection).
+    const url = new URL(process.env.DATABASE_URL!);
+    url.search = '';
+    const other = new pg.Client({ connectionString: url.toString() });
+    await other.connect();
     try {
-      await isLocked;
+      await other.query('BEGIN');
+      await other.query('SELECT pg_advisory_xact_lock($1::bigint)', [LOCK_KEY.toString()]);
       const res = await start(next, { promoteStudents: true, expectedCurrentYearId: ctx.ids.year }).expect(409);
       expect(res.body.code).toBe('ACTIVATION_IN_PROGRESS');
     } finally {
-      release();
-      await holder;
+      await other.query('ROLLBACK').catch(() => undefined);
+      await other.end();
     }
     expect(await ctx.prisma.academicYear.findUniqueOrThrow({ where: { id: next } })).toMatchObject({ status: 'PLANNED', isCurrent: null });
     expect(await audits(next)).toBe(0);
