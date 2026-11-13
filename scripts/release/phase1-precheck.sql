@@ -16,6 +16,7 @@ BEGIN TRANSACTION READ ONLY;
 SELECT migration_name, finished_at IS NOT NULL AS finished, rolled_back_at IS NOT NULL AS rolled_back
   FROM "_prisma_migrations" ORDER BY started_at DESC LIMIT 5;
 SELECT count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS failed_or_running,
+       count(*) FILTER (WHERE rolled_back_at IS NOT NULL)                       AS rolled_back,
        count(*) FILTER (WHERE migration_name LIKE '2026112100%')             AS phase1_already_applied
   FROM "_prisma_migrations";
 
@@ -30,7 +31,7 @@ SELECT count(*) AS schools,
        count(*) FILTER (WHERE "name" <> btrim(regexp_replace("name", '\s+', ' ', 'g'))) AS names_with_extra_spaces
   FROM "School";
 
-\echo '== 4. M9 (claims backfill) — information: PENDING claims M9 will create'
+\echo '== 4. M9 (claims backfill) — information: PENDING claims M9 will create (name-only: an upper bound; M9 reads only the latest REGISTER entry of each student)'
 SELECT count(*) FILTER (WHERE "schoolId" IS NOT NULL) AS students_with_school,
        count(*) FILTER (WHERE "schoolId" IS NULL)     AS students_without_school,
        count(*)                                       AS students

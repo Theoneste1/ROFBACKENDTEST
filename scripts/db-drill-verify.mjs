@@ -3,8 +3,15 @@
  * Backup/restore drill verification (P0-04) — read-only checks of a RESTORED
  * database (e.g. a Neon branch created from production "Past data").
  *
- *   node scripts/db-drill-verify.mjs [--trigger-test] [--json <file>]
+ *   node scripts/db-drill-verify.mjs [--baseline pre-phase1] [--trigger-test] [--json <file>]
  *   node scripts/db-drill-verify.mjs --check-target   (target guard only; no connection)
+ *
+ * Expected state: by default, every migration and model of THIS checkout (a database already migrated
+ * to it). With --baseline pre-phase1: the state before M1–M14 (production `main` today), derived from
+ * this checkout (scripts/release/phase1.mjs) — never from another branch or checkout. Migrations and
+ * the schema are read from the checkout this script belongs to, whatever the working directory; the
+ * `.env*` files are read from the working directory. Every run prints VERIFIER (also in --json), so a
+ * procedure can confirm the hardened verifier ran.
  *
  * Connection: DRILL_DATABASE_URL from `.env.drill.local` (git-ignored). A pooled
  * Neon string ("-pooler" host) is switched to the same branch's direct
@@ -32,9 +39,25 @@
  * invalid · 3 refused (target is production or an app database) · 4 production
  * host could not be established.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import pg from 'pg';
+import { migrationDirs, prePhase1Baseline, readPhase1Sql } from './release/phase1.mjs';
+
+/** Identifies this verifier in its output: rev 2 = guard hardened against redirecting URLs (query parameters, encoding, trailing dot). */
+export const VERIFIER = 'db-drill-verify rev 2 (hardened target guard)';
+/** The repository root of the checkout this script belongs to. */
+export const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
+export const BASELINES = ['pre-phase1'];
+
+/** The migrations and models the database must have: this checkout's, or the pre-Phase-1 baseline. */
+export function expectedState(root, baseline) {
+  const migDirs = migrationDirs(root);
+  const models = [...readFileSync(join(root, 'prisma/schema.prisma'), 'utf8').matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]).sort();
+  if (!baseline) return { migrations: migDirs, models };
+  return prePhase1Baseline({ migDirs, models, phase1Sql: readPhase1Sql(root, migDirs) });
+}
 
 /** Every value of `key` in a dotenv-style text (supports `export KEY=`, spaces around `=`, quotes). */
 export function envValues(text, key) {
@@ -43,13 +66,26 @@ export function envValues(text, key) {
     .map((m) => m[1].trim().replace(/^(["'])(.*)\1$/, '$2').trim());
 }
 
-/** Normalised host of a database URL (lower case, "-pooler" removed), or null when it is not a valid URL with a host. */
+/**
+ * Normalised host of a database URL, as node-postgres will resolve it: percent-decoded, lower case,
+ * trailing dots and "-pooler" removed. Null when it is not a valid URL with a host.
+ */
 export function hostOf(url) {
   try {
-    const h = new URL(url).hostname.replace('-pooler', '').toLowerCase();
+    const h = decodeURIComponent(new URL(url).hostname).toLowerCase().replace(/\.+$/, '').replace('-pooler', '');
     return h || null;
   } catch { return null; }
 }
+
+/** The first label of a normalised host (a Neon endpoint id, "ep-…"). */
+const firstLabel = (host) => host.split('.')[0];
+
+/**
+ * Query parameters with which node-postgres (pg-connection-string) or libpq would connect somewhere
+ * other than the URL's host. A drill URL carrying any of them is refused: the guard could not vouch
+ * for the host actually used.
+ */
+export const REDIRECTING_PARAMS = ['host', 'hostaddr', 'port', 'service', 'options'];
 
 /**
  * Decide whether the drill target may be used. Pure: no I/O.
@@ -63,6 +99,11 @@ export function resolveDrillTarget({ drillUrls, productionUrls, appUrls }) {
   if (drillUrls.length > 1) return { ok: false, code: 2, reason: 'DRILL_DATABASE_URL is defined more than once in .env.drill.local' };
   const drillHost = hostOf(drillUrls[0]);
   if (!drillHost) return { ok: false, code: 2, reason: 'DRILL_DATABASE_URL is not a valid database URL' };
+  const params = new URL(drillUrls[0]).searchParams;
+  const redirecting = REDIRECTING_PARAMS.filter((p) => params.has(p));
+  if (redirecting.length) {
+    return { ok: false, code: 3, reason: `REFUSED: DRILL_DATABASE_URL carries ${redirecting.join(', ')} query parameter(s), which could connect elsewhere than its host. Use the connection string exactly as the Neon console shows it.` };
+  }
 
   if (productionUrls.length === 0) {
     return { ok: false, code: 4, reason: 'production host unknown: DATABASE_URL not found in .env.production.local — refusing to run against an unverified target' };
@@ -71,7 +112,8 @@ export function resolveDrillTarget({ drillUrls, productionUrls, appUrls }) {
   if (prodHosts.some((h) => !h)) {
     return { ok: false, code: 4, reason: 'production host unknown: DATABASE_URL in .env.production.local is not a valid URL — refusing to run against an unverified target' };
   }
-  if (prodHosts.includes(drillHost)) {
+  // Compared by full host AND by endpoint id (first label): a Neon branch has its own endpoint id.
+  if (prodHosts.includes(drillHost) || prodHosts.map(firstLabel).includes(firstLabel(drillHost))) {
     return { ok: false, code: 3, reason: 'REFUSED: the drill host is the production host. Point DRILL_DATABASE_URL at the recovery branch.' };
   }
   if (appUrls.map(hostOf).filter(Boolean).includes(drillHost)) {
@@ -81,9 +123,10 @@ export function resolveDrillTarget({ drillUrls, productionUrls, appUrls }) {
   // A pooled (PgBouncer, transaction mode) connection does not keep session
   // settings such as READ ONLY between transactions. Use the same branch's
   // direct endpoint (Neon: the host without "-pooler"), in memory only.
+  // The URL handed on carries exactly the host the guard checked (decoded, no trailing dot).
   const u = new URL(drillUrls[0]);
-  const pooled = u.hostname.includes('-pooler');
-  u.hostname = u.hostname.replace('-pooler', '');
+  const pooled = u.hostname.toLowerCase().includes('-pooler');
+  u.hostname = drillHost;
   return { ok: true, url: u.toString(), pooled };
 }
 
@@ -108,6 +151,12 @@ async function main() {
   const args = process.argv.slice(2);
   const TRIGGER_TEST = args.includes('--trigger-test');
   const jsonOut = args.includes('--json') ? args[args.indexOf('--json') + 1] : null;
+  const baseline = args.includes('--baseline') ? args[args.indexOf('--baseline') + 1] : null;
+  console.log(`verifier: ${VERIFIER}`);
+  if (args.includes('--baseline') && !BASELINES.includes(baseline)) {
+    console.error(`✗ --baseline must be one of: ${BASELINES.join(', ')}`);
+    process.exit(2);
+  }
 
   const target = resolveDrillTarget(readTargetInputs());
   if (!target.ok) { console.error(`✗ ${target.reason}`); process.exit(target.code); }
@@ -116,8 +165,9 @@ async function main() {
     process.exit(0);
   }
   const { url: drillUrl, pooled } = target;
+  const expected = expectedState(REPO_ROOT, baseline);
 
-  const results = { startedAt: new Date().toISOString(), target: { configuredAsPooled: pooled, connectedVia: 'direct endpoint' }, checks: [] };
+  const results = { verifier: VERIFIER, baseline: baseline ?? 'this checkout', startedAt: new Date().toISOString(), target: { configuredAsPooled: pooled, connectedVia: 'direct endpoint' }, checks: [] };
   const record = (name, ok, detail) => { results.checks.push({ name, ok, detail }); console.log(`${ok ? '✔' : '✗'} ${name}${detail !== undefined ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`); };
   const q = async (c, sql, params) => (await c.query(sql, params)).rows;
 
@@ -136,7 +186,7 @@ async function main() {
     record('connected (read-only session)', info.ro === 'on', `database ${info.db}, ${info.v.split(' on ')[0]}, size ${info.size}, connect ${connectMs} ms${pooled ? ' (configured string was pooled; connected to the direct endpoint)' : ''}`);
 
     // 2. Migrations
-    const migDirs = readdirSync('prisma/migrations', { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
+    const migDirs = expected.migrations;
     const migs = await q(client, `select migration_name, finished_at is not null finished, rolled_back_at is not null rolled_back from "_prisma_migrations" order by migration_name`);
     const applied = migs.filter((m) => m.finished && !m.rolled_back).map((m) => m.migration_name);
     const failed = migs.filter((m) => !m.finished || m.rolled_back).map((m) => m.migration_name);
@@ -146,7 +196,7 @@ async function main() {
       { repository: migDirs.length, applied: applied.length, failed, missing, unknown });
 
     // 3. Tables expected from the Prisma schema — none missing, none unexpected
-    const models = [...readFileSync('prisma/schema.prisma', 'utf8').matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]).sort();
+    const models = expected.models;
     const tables = (await q(client, `select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE' order by 1`)).map((r) => r.table_name);
     const tableCheck = checkTables(models, tables);
     record('tables: every Prisma model has its table, no unexpected tables', tableCheck.ok,
