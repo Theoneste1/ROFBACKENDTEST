@@ -14,9 +14,10 @@ import { Prisma } from '../../generated/prisma/client.js';
 function makeHost(headersSent = false) {
   const res = {
     headersSent,
-    status: vi.fn(),
-    json:   vi.fn(),
-    end:    vi.fn(),
+    status:    vi.fn(),
+    json:      vi.fn(),
+    end:       vi.fn(),
+    setHeader: vi.fn(),
   };
   res.status.mockReturnValue(res);
   const req = { id: 'req-1', method: 'GET', originalUrl: '/api/v1/things' };
@@ -29,7 +30,7 @@ function makeHost(headersSent = false) {
 function run(exception: unknown) {
   const { host, res } = makeHost();
   new AllExceptionsFilter().catch(exception, host);
-  return { status: res.status.mock.calls[0]?.[0], body: res.json.mock.calls[0]?.[0] };
+  return { status: res.status.mock.calls[0]?.[0], body: res.json.mock.calls[0]?.[0], res };
 }
 
 const prismaError = (code: string, meta?: Record<string, unknown>) =>
@@ -105,6 +106,14 @@ describe('AllExceptionsFilter', () => {
 
   it('maps Prisma P2003 to 409 REFERENCE_CONSTRAINT', () => {
     expect(run(prismaError('P2003')).body).toMatchObject({ statusCode: 409, code: 'REFERENCE_CONSTRAINT' });
+  });
+
+  it('maps Prisma P2028 (no connection within the transaction wait) to 503 DATABASE_BUSY with Retry-After', () => {
+    const { status, body, res } = run(prismaError('P2028'));
+    expect(status).toBe(503);
+    expect(body).toMatchObject({ statusCode: 503, code: 'DATABASE_BUSY' });
+    expect(body.message).toMatch(/Nothing was changed/);
+    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '2');
   });
 
   it('maps unknown Prisma codes to a generic 500', () => {

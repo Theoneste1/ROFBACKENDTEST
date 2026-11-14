@@ -173,3 +173,10 @@ as `/assignments/:id`. The frontend serves each of these routes.
 - **Frontend: `https://roflms.netlify.app` serves Netlify's "Page not found" on every path.** A clean build of frontend `main` stops with "API_PROXY_TARGET must be set…" (reproduced); the `feature/production-readiness` branch sets it in `netlify.toml` and builds cleanly from a fresh clone.
 
 Not yet possible: browser tests on the live site (needs the fixed frontend deployed), and a live upload to R2 (needs a production coach or admin login).
+
+## Busy database: 503 DATABASE_BUSY
+
+When every pooled database connection stays busy for longer than a transaction may wait
+(`DATABASE_TX_MAX_WAIT_MS`, default 10 s), the API answers **503** with code `DATABASE_BUSY` and
+`Retry-After: 2`. Nothing was changed; the request can be repeated. (Before 2026-11-14 this case
+answered 500 `INTERNAL_ERROR`.) The frontend retries reads that fail with a 5xx automatically.
