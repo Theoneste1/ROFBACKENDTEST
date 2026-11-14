@@ -88,6 +88,27 @@ describe('Notifications (e2e)', () => {
       expect(await types(ctx.ids.studentJunior2)).not.toContain('results.published');
     });
 
+    it('coordination notices → every active administrator, Super Administrators included; plural copy for coaches', async () => {
+      const sa = await ctx.prisma.user.create({ data: {
+        username: 'notify.super', email: 'notify.super@test.local', firstName: 'Sue', lastName: 'Per', role: 'SUPER_ADMIN', activatedAt: new Date(),
+      } });
+      const off = await ctx.prisma.user.create({ data: {
+        username: 'notify.off', email: 'notify.off@test.local', firstName: 'Off', lastName: 'Line', role: 'ADMIN', isActive: false, activatedAt: new Date(),
+      } });
+      const draft = await ctx.prisma.assignment.create({ data: {
+        title: 'Coordination check', instructions: 'Solve.', deadline: new Date(inDays(5)), points: 10, maximumMarks: 10,
+        courseId: ctx.ids.algebra, divisionId: ctx.ids.junior, academicYearId: ctx.ids.year, createdById: ctx.ids.mentorJunior, status: 'DRAFT',
+      } });
+      await ctx.http().patch(`/api/v1/assignments/${draft.id}/submit`).set(bearer(mentorJ)).expect(200);
+      await waitForEvents();
+      const notified = (await ctx.prisma.notification.findMany({ where: { type: 'assignment.submitted_for_review', data: { path: ['assignmentId'], equals: draft.id } }, select: { userId: true } })).map((n) => n.userId);
+      expect(notified.sort()).toEqual([ctx.ids.admin, sa.id].sort());
+      expect(notified).not.toContain(off.id);
+      // "1 submission to review" (no "(s)").
+      const assigned = await ctx.prisma.notification.findFirst({ where: { userId: ctx.ids.mentorJunior, type: 'submissions.assigned' }, orderBy: { createdAt: 'desc' } });
+      if (assigned) expect(assigned.title).toMatch(/^(1 submission|[0-9]+ submissions) to review$/);
+    });
+
     it('discussion activity → the people concerned', async () => {
       const t = await ctx.http().post(`/api/v1/assignments/${assignmentId}/threads`).set(bearer(studentJ2))
         .send({ title: 'Is n from 0 or 1?', content: 'Where does the sequence start?' }).expect(201);

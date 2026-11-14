@@ -121,8 +121,8 @@ export class NotificationListener {
         await this.notifications.notify([mentorId], {
           category: 'REVIEWS',
           type:     Events.SubmissionsAssigned,
-          title:    `${count} submission(s) to review`,
-          body:     `You have been assigned ${count} submission(s) for "${a.title}".`,
+          title:    `${count} ${count === 1 ? 'submission' : 'submissions'} to review`,
+          body:     `You have been assigned ${count} ${count === 1 ? 'submission' : 'submissions'} for "${a.title}".`,
           data:     { assignmentId: a.id },
           link:     `/mentor/reviews?assignmentId=${a.id}`,
         });
