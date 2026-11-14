@@ -121,7 +121,12 @@ invited, and `?dryRun=true` validates without creating anything.
 account state (suspended/pending) is only revealed after a correct password;
 credential endpoints are rate-limited per IP. Five wrong passwords in a row
 lock the account for 15 minutes whatever the source address (answered exactly
-like a wrong password; audited as `LOCK_ACCOUNT`). Issuing a password-reset
+like a wrong password; audited as `LOCK_ACCOUNT`). Each attempt is reserved
+under the user's row lock *before* the password is checked, so concurrent
+guesses cannot all be evaluated against a stale "not locked" read: at most five
+guesses are ever checked before the lock, however many arrive at once. The row
+lock is held only for that short transaction, not during bcrypt. A correct
+password never counts towards the lockout. Issuing a password-reset
 link retires earlier unused ones, and one-time links are not kept in the
 e-mail outbox once sent.
 
