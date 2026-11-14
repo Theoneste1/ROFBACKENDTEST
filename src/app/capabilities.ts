@@ -74,6 +74,13 @@ export const FEATURES = {
    * always there); teacher-registration notices are only sent while teacher self-registration is on.
    */
   notificationDeliveries: 'always',
+  /**
+   * Olympiad interests of students (owner decision 8): POST /api/v1/auth/register/student and PATCH /api/v1/me
+   * accept `olympiadInterests` (one or more of MATHEMATICS, COMPUTING, PHYSICS; optional at registration),
+   * and the profile (GET /api/v1/me, admin user detail), the students report and students.csv return them.
+   * Without this feature the field is refused (400): the sign-up form must not send it.
+   */
+  studentOlympiadInterests: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
   // (owner decision 2026-11-12): its production use is not yet approved.
   /**

@@ -7781,7 +7781,7 @@
             "description": "**Access:** Any signed-in user",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"homeLocation\": \"homeLocation\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"homeLocation\": \"homeLocation\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

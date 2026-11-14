@@ -42278,6 +42278,20 @@
             "description": "Student's home city / region.",
             "minLength": 2,
             "maxLength": 200
+          },
+          "olympiadInterests": {
+            "type": "array",
+            "description": "Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and\nPHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then\nhas none); the sign-up form requires at least one. Information only: no programme membership, no permissions.",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
           }
         },
         "required": [
@@ -42807,6 +42821,20 @@
             "type": "string",
             "minLength": 2,
             "maxLength": 200
+          },
+          "olympiadInterests": {
+            "type": "array",
+            "description": "The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of\nMATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests).",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
           }
         }
       },

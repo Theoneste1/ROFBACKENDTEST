@@ -3,6 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { canonicalInterests } from '../users/olympiad-interests.js';
 import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
@@ -37,7 +38,7 @@ const getDummyHash = () => (dummyHash ??= bcrypt.hash('timing-equaliser-not-a-pa
 /** Profile fields returned on login and from GET /me. */
 export const PROFILE_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
-  role: true, avatarUrl: true, gradeLevel: true, homeLocation: true,
+  role: true, avatarUrl: true, gradeLevel: true, homeLocation: true, olympiadInterests: true,
   points: true, problemsSolved: true, createdAt: true, lastLoginAt: true,
   division: { select: { id: true, code: true, name: true } },
   school:   { select: { id: true, name: true, location: true } },
@@ -140,6 +141,8 @@ export class AuthService {
           divisionId,
           schoolId:     school?.id ?? null,
           homeLocation: data.homeLocation,
+          // Owner decision 8: information only (no programme membership, no permissions).
+          olympiadInterests: canonicalInterests(data.olympiadInterests),
         },
         select: PROFILE_SELECT,
       });
@@ -175,6 +178,7 @@ export class AuthService {
           }),
           // Linked to a canonical School or not; membership is verified separately by an Administrator.
           schoolLinked: !!school,
+          olympiadInterests: canonicalInterests(data.olympiadInterests),
         },
       }, tx);
 

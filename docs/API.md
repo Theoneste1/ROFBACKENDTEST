@@ -2427,6 +2427,7 @@ Body (JSON):
 | `schoolSector` | string |  |  |
 | `schoolLocation` | string |  | Legacy, with schoolName: city / region of the school (not stored). |
 | `homeLocation` | string | ✓ | Student's home city / region. |
+| `olympiadInterests` | string[] |  | Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then has none); the sign-up form requires at least one. Information only: no programme membership, no permissions. |
 
 Returns `201` JSON with:
 
@@ -3290,6 +3291,7 @@ Body (JSON):
 | `firstName` | string |  |  |
 | `lastName` | string |  |  |
 | `homeLocation` | string |  |  |
+| `olympiadInterests` | string[] |  | The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests). |
 
 Returns `200` JSON with:
 

@@ -223,7 +223,7 @@ enum TeacherApplicationStatus {
   REJECTED
 }
 
-/// The olympiads a Teacher applicant is interested in (an interest only: no Discipline row).
+/// The olympiads a Teacher applicant or a student is interested in (an interest only: no Discipline row).
 enum OlympiadSubject {
   MATHEMATICS
   COMPUTING
@@ -409,6 +409,11 @@ model User {
   /// approved (teacher self-registration); NULL for every other account.
   phone   String?
   country String?
+
+  /// Olympiad subjects the student is interested in (owner decision 8): any of MATHEMATICS, COMPUTING and
+  /// PHYSICS, chosen at registration and editable on the profile. Information only: never grants
+  /// programme membership or permissions. Empty for accounts that never chose (older clients, staff).
+  olympiadInterests OlympiadSubject[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
