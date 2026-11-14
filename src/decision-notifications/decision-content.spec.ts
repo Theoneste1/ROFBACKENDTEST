@@ -1,21 +1,51 @@
 import { renderEmail } from '../email/templates.js';
 import { DecisionEvents, SCHOOL_VERIFIED_SUBJECT, decisionEmail, decisionInApp, sanitiseError } from './decision-content.js';
 
+const text = (mail: ReturnType<typeof decisionEmail>, brand = { organization: 'Rwanda Olympiad Foundation', contactEmail: 'info@rof.rw', appUrl: 'https://app.example.org/' }) =>
+  renderEmail({ greeting: mail.greeting, heading: mail.heading, body: mail.body, action: mail.action }, brand).text;
+const A_FIRST = 'We are pleased to inform you that your school, GS Remera, has been successfully verified and added to the Rwanda Olympiad Foundation\'s official school directory.';
+const B_FIRST = 'We are pleased to inform you that your school, GS New Hill, has been successfully verified by the Rwanda Olympiad Foundation.';
+const COMMON = 'Your school is now recognised as part of our growing Olympiad community.\n\nThank you for helping us expand opportunities for students across Rwanda!';
+const SIGN_IN = 'You can sign in to your ROF LMS account to continue your Olympiad journey:';
+
 const APP = 'https://app.example.org/';
 const BRAND = { organization: 'Rwanda Olympiad Foundation', contactEmail: null, appUrl: APP };
 
 describe('decision notification content', () => {
-  it('school.request.verified: the owner text, word for word, with the stored first name and the official name', () => {
-    const mail = decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', { schoolName: 'GS Remera' }, APP);
+  it('school.request.verified, version A (official code) × teacher applicant: owner text, same subject, no signature line, no sign-in link', () => {
+    const mail = decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', { schoolName: 'GS Remera', officialDirectory: true, audience: 'TEACHER_APPLICANT' }, APP);
     expect(mail.subject).toBe('Your school is now part of the ROF Olympiad Community!');
     expect(mail.subject).toBe(SCHOOL_VERIFIED_SUBJECT);
-    const text = renderEmail({ greeting: mail.greeting, heading: mail.heading, body: mail.body, action: mail.action }, BRAND).text;
-    expect(text).toContain(
-      'Dear Aline,\n\nWe are pleased to inform you that your school, GS Remera, has been successfully verified and added to the ' +
-      'Rwanda Olympiad Foundation\'s official school directory.\n\nYour school is now recognised as part of our growing Olympiad ' +
-      'community.\n\nThank you for helping us expand opportunities for students across Rwanda!\n\nRwanda Olympiad Foundation');
-    expect(text).not.toMatch(/Hello|Applicant|approved/i);
+    expect(mail.body).toBe(`${A_FIRST}\n\n${COMMON}`);
     expect(mail.action).toBeUndefined();
+    const t = text(mail);
+    expect(t).toContain(`Dear Aline,\n\n${A_FIRST}\n\n${COMMON}\n\n—\nRwanda Olympiad Foundation`);
+    expect(t.match(/Rwanda Olympiad Foundation$/gm)).toHaveLength(1);       // the organisation once, in the footer
+    expect(t).not.toMatch(/sign in|Sign in|\/login/);
+  });
+
+  it('school.request.verified, version A × student: the sign-in sentence and a "Sign in to ROF LMS" button to APP_URL/login', () => {
+    const mail = decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', { schoolName: 'GS Remera', officialDirectory: true, audience: 'STUDENT' }, APP);
+    expect(mail.subject).toBe(SCHOOL_VERIFIED_SUBJECT);
+    expect(mail.body).toBe(`${A_FIRST}\n\n${COMMON}\n\n${SIGN_IN}`);
+    expect(mail.action).toEqual({ label: 'Sign in to ROF LMS', url: 'https://app.example.org/login' });
+    expect(text(mail)).toContain(`${SIGN_IN}\n\nSign in to ROF LMS: https://app.example.org/login`);
+    // Without a public APP_URL there is no link and no dangling sentence.
+    const noUrl = decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', { schoolName: 'GS Remera', audience: 'STUDENT' }, null);
+    expect([noUrl.body.includes(SIGN_IN), noUrl.action]).toEqual([false, undefined]);
+  });
+
+  it('school.request.verified, version B (no official code) × student and × teacher applicant: only "verified by the Foundation", never the directory', () => {
+    const student = decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', { schoolName: 'GS New Hill', officialDirectory: false, audience: 'STUDENT' }, APP);
+    expect(student.subject).toBe(SCHOOL_VERIFIED_SUBJECT);
+    expect(student.body).toBe(`${B_FIRST}\n\n${COMMON}\n\n${SIGN_IN}`);
+    expect(student.action).toEqual({ label: 'Sign in to ROF LMS', url: 'https://app.example.org/login' });
+    const teacher = decisionEmail(DecisionEvents.SchoolRequestVerified, 'Eric', { schoolName: 'GS New Hill', officialDirectory: false, audience: 'TEACHER_APPLICANT' }, APP);
+    expect(teacher.body).toBe(`${B_FIRST}\n\n${COMMON}`);
+    expect(teacher.action).toBeUndefined();
+    for (const m of [student, teacher]) expect(m.body).not.toMatch(/official school directory|added to/);
+    // A row queued before the audience field existed: no link (treated as a teacher applicant).
+    expect(decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', { schoolName: 'GS New Hill', officialDirectory: false }, APP).action).toBeUndefined();
   });
 
   it('teacher / coach approved: "ready to use" and the login link only when the account is activated', () => {

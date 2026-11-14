@@ -115,6 +115,10 @@ describe('Decision notifications', () => {
       expect(mails[0].text).not.toMatch(/approved|Applicant|Secret123|\$2[aby]\$/);
       expect(mails[0].text).not.toContain(id);
       expect(mails[0].html).toContain('Dear Aline,');
+      // Owner decisions 2026-11-14: teacher applicants get no sign-in link; the organisation is named once (footer).
+      expect(mails[0].text).not.toMatch(/sign in|Sign in to ROF LMS|\/login/i);
+      expect(mails[0].text.match(/^Rwanda Olympiad Foundation$/gm)).toHaveLength(1);
+      expect(rows[0].payload).toMatchObject({ audience: 'TEACHER_APPLICANT' });
 
       expect(await p().notification.count({ where: { type: 'school.request.verified' } })).toBe(0);
       expect((await p().teacherApplication.findUniqueOrThrow({ where: { id } })).status).toBe('PENDING');
@@ -138,11 +142,12 @@ describe('Decision notifications', () => {
       await settle();
       const rows = await outbox({ entityId: id });
       expect(rows).toHaveLength(1);
-      expect(rows[0].payload).toEqual({ schoolName: 'GS Nina Hill', officialDirectory: false });
+      expect(rows[0].payload).toEqual({ schoolName: 'GS Nina Hill', officialDirectory: false, audience: 'TEACHER_APPLICANT' });
       const mails = mailsTo('nina.applicant@test.local');
       expect(mails).toHaveLength(1);
       expect(mails[0].text).toContain('your school, GS Nina Hill, has been successfully verified by the Rwanda Olympiad Foundation.');
       expect(mails[0].text).not.toContain('official school directory');
+      expect(mails[0].text).not.toMatch(/Sign in to ROF LMS|\/login/);
     });
 
     it('a listed-school application has nothing to verify (409); refused or unauthorised calls queue nothing', async () => {
@@ -439,6 +444,31 @@ describe('Decision notifications', () => {
     const currentClaim = async (studentId: string) => p().studentSchoolAffiliation.findFirstOrThrow({ where: { studentId, supersededAt: null } });
     const notListed = { schoolName: 'Ecole Secondaire Rugero', country: 'RW', schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolSector: 'Tumba' };
 
+    it('version B for a student: a school WITHOUT an official code → "verified by the Foundation" (never the directory), the sign-in link, and the matching in-app text', async () => {
+      const s = await mkStudent('Bella');
+      await http().post(ME).set(bearer(s.token)).send({ ...notListed, schoolName: 'Ecole Bella Hill' }).expect(201);
+      const nameOnly = await currentClaim(s.id);
+      const school = (await http().post('/api/v1/admin/schools').set(bearer(admin)).send({
+        name: 'Ecole Bella Hill', province: 'Southern Province', district: 'Huye', sector: 'Tumba', location: 'Huye',
+      }).expect(201)).body.id as string;
+      await http().post(`${AFFILIATIONS}/${nameOnly.id}/match`).set(bearer(admin)).send({ schoolId: school }).expect(200);
+      const matched = await currentClaim(s.id);
+      await http().post(`${AFFILIATIONS}/${matched.id}/verify`).set(bearer(admin)).send({}).expect(200);
+      await settle();
+      const rows = await outbox({ recipientUserId: s.id });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].payload).toEqual({ schoolName: 'Ecole Bella Hill', officialDirectory: false, audience: 'STUDENT' });
+      const mails = mailsTo(s.email);
+      expect(mails).toHaveLength(1);
+      expect(mails[0].subject).toBe(SCHOOL_SUBJECT);
+      expect(mails[0].text).toContain('We are pleased to inform you that your school, Ecole Bella Hill, has been successfully verified by the Rwanda Olympiad Foundation.');
+      expect(mails[0].text).not.toMatch(/official school directory|added to/);
+      expect(mails[0].text).toContain('You can sign in to your ROF LMS account to continue your Olympiad journey:\n\nSign in to ROF LMS: http://localhost:5173/login');
+      expect(mails[0].text.match(/^Rwanda Olympiad Foundation$/gm)).toHaveLength(1);
+      const inApp = await p().notification.findFirstOrThrow({ where: { userId: s.id, type: 'school.request.verified' } });
+      expect(inApp.body).toBe('Your school, Ecole Bella Hill, has been verified by the Rwanda Olympiad Foundation.');
+    });
+
     it('"not listed" claim → match → verify: exactly one e-mail (first name, official name, owner text) and one in-app notification; repeats add nothing', async () => {
       const s = await mkStudent('Diane');
       await http().post(ME).set(bearer(s.token)).send(notListed).expect(201);
@@ -468,6 +498,16 @@ describe('Decision notifications', () => {
       expect(mails[0].subject).toBe(SCHOOL_SUBJECT);
       expect(mails[0].text).toContain('Dear Diane,');
       expect(mails[0].text).toContain('your school, ES Rugero Official, has been successfully verified');
+      // Owner decisions 2026-11-14: students get the sign-in sentence and a link to APP_URL/login; no duplicate signature.
+      expect(mails[0].text).toContain('You can sign in to your ROF LMS account to continue your Olympiad journey:');
+      expect(mails[0].text).toContain('Sign in to ROF LMS: http://localhost:5173/login');
+      expect(mails[0].html).toContain('Sign in to ROF LMS');
+      expect(mails[0].text.match(/^Rwanda Olympiad Foundation$/gm)).toHaveLength(1);
+      expect(rows[0].payload).toMatchObject({ audience: 'STUDENT' });
+      // In-app matches the e-mail version (A for a coded school, B without a code).
+      const coded = (await p().school.findUniqueOrThrow({ where: { id: school } })).code !== null;
+      expect(inApp[0].body).toContain(coded ? "added to the Rwanda Olympiad Foundation's official school directory" : 'has been verified by the Rwanda Olympiad Foundation.');
+      expect(mails[0].text.includes('official school directory')).toBe(coded);
 
       // Re-verify (409), re-dispatch and a repeated enqueue: still one row, one in-app notification, one e-mail.
       expect(await status(http().post(`${AFFILIATIONS}/${matched.id}/verify`).set(bearer(admin)).send({}))).toEqual([409, 'AFFILIATION_STATUS_CONFLICT']);

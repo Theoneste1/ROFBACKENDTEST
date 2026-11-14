@@ -304,7 +304,7 @@ export class TeacherApplicationsService {
         type: DecisionEvents.SchoolRequestVerified, dedupeKey: `${DecisionEvents.SchoolRequestVerified}:teacher-application:${id}`,
         // No account yet: e-mail only, to the address given in the application.
         recipient: { userId: null, email: application.email, firstName: application.firstName },
-        entity: { type: 'TeacherApplication', id }, payload: { schoolName: school.name, officialDirectory: school.code !== null },
+        entity: { type: 'TeacherApplication', id }, payload: { schoolName: school.name, officialDirectory: school.code !== null, audience: 'TEACHER_APPLICANT' },
       });
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
