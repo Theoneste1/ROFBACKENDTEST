@@ -186,6 +186,24 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await status(register(missing({ schoolSector: undefined })))).toEqual([400, 'VALIDATION_FAILED']);
     });
 
+    it('a school without an official code: refused until an administrator who created it verifies it; then chosen by id, no code invented', async () => {
+      const created = await http().post('/api/v1/admin/schools').set(bearer(admin))
+        .send({ name: 'Ecole Teacher Hill', countryCode: 'RW', province: 'Southern Province', district: 'Huye', sector: 'Ngoma', location: 'Ngoma hill' }).expect(201);
+      const hill = created.body.id as string;
+      expect(created.body).toMatchObject({ code: null, source: 'ADMIN', lastVerifiedAt: null });
+      const apply = (username: string) => register(listed({ schoolId: hill, username, email: `${username}@example.org` }));
+      expect(await status(apply('t.hill.early'))).toEqual([400, 'UNKNOWN_SCHOOL']);
+      expect((await http().get('/api/v1/schools/search').query({ q: 'Teacher Hill', teacherEligible: 'true' }).expect(200)).body).toEqual([]);
+
+      await http().post(`/api/v1/admin/schools/${hill}/verify`).set(bearer(admin)).send({}).expect(200);
+      expect((await http().get('/api/v1/schools/search').query({ q: 'Teacher Hill', teacherEligible: 'true' }).expect(200)).body.map((s: any) => [s.id, s.code]))
+        .toEqual([[hill, null]]);
+      expect(await status(apply('t.hill.ok'))).toEqual([201, null]);
+      const app = await p().teacherApplication.findFirstOrThrow({ where: { username: 't.hill.ok' } });
+      expect(app).toMatchObject({ schoolId: hill, status: 'PENDING' });
+      expect((await p().school.findUniqueOrThrow({ where: { id: hill } })).code).toBeNull();
+    });
+
     it('invalid or fabricated schools: unknown id, inactive, without a code; a school elsewhere is a location mismatch', async () => {
       for (const schoolId of [randomUUID(), inactive, uncoded]) {
         expect(await status(register(listed({ schoolId })))).toEqual([400, 'UNKNOWN_SCHOOL']);

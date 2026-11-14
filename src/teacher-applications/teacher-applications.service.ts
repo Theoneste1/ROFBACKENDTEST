@@ -21,7 +21,7 @@ import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { normalisePhone } from '../schools/directory/school-contacts.js';
-import { PUBLIC_DIRECTORY, directoryPlaceProblem, publicDirectoryHasPlace } from '../schools/school-directory.js';
+import { TEACHER_SCHOOL_WHERE, directoryPlaceProblem, publicDirectoryHasPlace } from '../schools/school-directory.js';
 import { RWANDA } from '../schools/school-rules.js';
 import { lockSchoolsForUse } from '../schools/school-usage.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -101,7 +101,9 @@ export class TeacherApplicationsService {
 
     let school: { id: string; name: string; code: string | null; province: string | null; district: string | null; sector: string | null } | null = null;
     if (choice.kind === 'LISTED') {
-      school = await this.prisma.school.findFirst({ where: { id: choice.schoolId, ...PUBLIC_DIRECTORY }, select: SCHOOL_SELECT });
+      // An official-code school, or one without a code that an administrator created AND verified
+      // (owner decision 2026-11-14); chosen by id, a code is never invented.
+      school = await this.prisma.school.findFirst({ where: { id: choice.schoolId, ...TEACHER_SCHOOL_WHERE }, select: SCHOOL_SELECT });
       if (!school) throw unknownSchool(choice.schoolId);
       if (school.province !== dto.schoolProvince || school.district !== dto.schoolDistrict) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_LOCATION_MISMATCH',

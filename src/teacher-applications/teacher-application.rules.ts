@@ -71,7 +71,7 @@ export const identityTaken = () =>
   new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
 
 export const unknownSchool = (schoolId: string) =>
-  new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL', 'This school is not an active school of the official directory.', { schoolId });
+  new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL', 'This school cannot be chosen: choose an active school with an official code, or one an administrator has added and verified.', { schoolId });
 
 /** A missing-school application is approved only once an Administrator verified its school. */
 export const schoolNotVerified = () =>
