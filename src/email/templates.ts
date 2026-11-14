@@ -17,6 +17,8 @@ export interface EmailAction {
 export interface EmailContent {
   /** First name for "Hello Jeanne,"; omitted → "Hello,". */
   firstName?:  string | null;
+  /** The whole greeting line instead, e.g. "Dear Jeanne," (decision notifications). */
+  greeting?:   string;
   /** Large title at the top of the card; also used as the preview text. */
   heading?:    string;
   /** Main text. Blank lines separate paragraphs. */
@@ -55,7 +57,7 @@ export function renderEmail(content: EmailContent, brand: EmailBrand): RenderedE
 // ─── Plain text ──────────────────────────────────────────────────────────────
 
 function renderText(c: EmailContent, b: EmailBrand): string {
-  const lines = [c.firstName ? `Hello ${c.firstName},` : 'Hello,', '', c.body.trim()];
+  const lines = [greetingOf(c), '', c.body.trim()];
   if (c.action) lines.push('', `${c.action.label}: ${c.action.url}`);
   if (c.note) lines.push('', c.note);
   lines.push('', '—', b.organization);
@@ -114,7 +116,7 @@ function renderHtml(c: EmailContent, b: EmailBrand): string {
       <tr><td style="background:${NAVY};padding:20px 28px;border-radius:12px 12px 0 0">${header}</td></tr>
       <tr><td style="background:#ffffff;padding:32px 28px 24px">
         ${c.heading ? `<h1 style="margin:0 0 20px;font-size:22px;line-height:1.3;color:${NAVY};${font}">${esc(c.heading)}</h1>` : ''}
-        <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#1F2937;${font}">${c.firstName ? `Hello ${esc(c.firstName)},` : 'Hello,'}</p>
+        <p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#1F2937;${font}">${esc(greetingOf(c))}</p>
         ${paragraphs}
         ${action}
         ${note}
@@ -127,6 +129,11 @@ function renderHtml(c: EmailContent, b: EmailBrand): string {
 </table>
 </body>
 </html>`;
+}
+
+function greetingOf(c: EmailContent): string {
+  if (c.greeting) return c.greeting;
+  return c.firstName ? `Hello ${c.firstName},` : 'Hello,';
 }
 
 function esc(value: string): string {

@@ -101,4 +101,16 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/school-sync/runs/:id/approve  SchoolSyncReviewController.approve':                       SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/school-sync/runs/:id/apply  SchoolSyncReviewController.apply':                           SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/school-sync/runs/:id/items/:itemId/resolve  SchoolSyncReviewController.resolve':         SUPER_ADMIN_ONLY,
+  // Teacher self-registration (owner-approved): public application, Administrator review (users.manageTeachers)
+  'GET /api/v1/auth/register/teacher/availability  TeacherRegistrationController.availability':                PUBLIC,
+  'POST /api/v1/auth/register/teacher  TeacherRegistrationController.register':                               PUBLIC,
+  'GET /api/v1/admin/teacher-applications  AdminTeacherApplicationsController.list':                          ADMINISTRATORS,
+  'GET /api/v1/admin/teacher-applications/:id  AdminTeacherApplicationsController.get':                       ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-applications/:id/approve  AdminTeacherApplicationsController.approve':          ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-applications/:id/reject  AdminTeacherApplicationsController.reject':            ADMINISTRATORS,
+  // Decision notifications (owner-approved): school verification of a missing-school application
+  // (users.manageTeachers) and the delivery log (email.bulkSend: Administrators, Super Admins)
+  'POST /api/v1/admin/teacher-applications/:id/school  AdminTeacherApplicationsController.verifySchool':      ADMINISTRATORS,
+  'GET /api/v1/admin/notification-deliveries  DecisionNotificationsController.list':                          ADMINISTRATORS,
+  'POST /api/v1/admin/notification-deliveries/:id/retry  DecisionNotificationsController.retry':              ADMINISTRATORS,
 };

@@ -110,7 +110,25 @@ const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-cap
 const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
 const LOGOUT_SESSION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-logout-session.json';
 const REVIEW_QUEUE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-review-queue.json';
-const CURRENT_SNAPSHOT = REVIEW_QUEUE_SNAPSHOT;
+const TEACHER_REGISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-teacher-registration.json';
+const CURRENT_SNAPSHOT = TEACHER_REGISTRATION_SNAPSHOT;
+/** Teacher self-registration and decision notifications, on top of the review queue (owner approval pending): additive only. */
+const TEACHER_REGISTRATION_ADDITIONS = [
+  'GET /api/v1/admin/notification-deliveries: operation added',
+  'GET /api/v1/admin/teacher-applications/{id}: operation added',
+  'GET /api/v1/admin/teacher-applications: operation added',
+  'GET /api/v1/auth/register/teacher/availability: operation added',
+  'GET /api/v1/schools/search › response 200 application/json[].province: new field',
+  'POST /api/v1/admin/notification-deliveries/{id}/retry: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/approve: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/reject: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/school: operation added',
+  'POST /api/v1/auth/register/teacher: operation added',
+  'schema ApproveTeacherApplicationDto: added',
+  'schema RegisterTeacherDto: added',
+  'schema RejectTeacherApplicationDto: added',
+  'schema VerifyTeacherApplicationSchoolDto: added',
+];
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -783,6 +801,18 @@ describe('approved API contract history', () => {
       'GET /api/v1/mentor/reviews: new optional query parameter "q"',
       'GET /api/v1/mentor/reviews: new optional query parameter "sort"',
     ]);
+  });
+
+  test('review queue → teacher registration: the public application, the Administrator review, school verification, the delivery log and province in the school search; nothing else', () => {
+    // One step for both feature commits (teacher self-registration, decision notifications), generated on
+    // the tree that already contains H1 and the review queue. The two branch snapshots generated before H1
+    // (2026-11-13-teacher-registration / -decision-notifications) are not part of this chain.
+    for (const f of [REVIEW_QUEUE_SNAPSHOT, TEACHER_REGISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REVIEW_QUEUE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_REGISTRATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, TEACHER_REGISTRATION_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

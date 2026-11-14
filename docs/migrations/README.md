@@ -58,3 +58,10 @@ normally equals `User.schoolId` already. If it does not, the school would change
 new claim, and M10 refuses the rollover statement (and so the whole rollover transaction) (`AFFILIATION_SCHOOL_MISMATCH`).
 Nothing is changed. M10's pre-check reports how many current-year enrolments differ from
 `User.schoolId`. That count must be 0 on the production rehearsal.
+
+## After Phase 1
+
+| Migration | Rollback | Notes |
+|---|---|---|
+| `20261201000000_teacher_applications` (Teacher self-registration) | `20261201000000_teacher_applications.rollback.sql` | roll it back **before** any Phase 1 migration; deploy the previous release first. **Refused** while any Teacher application exists or any account has a phone or country, unless the loss is explicitly acknowledged after a backup. Like M9–M14 it does not edit `_prisma_migrations` (see the file). Not part of the Phase 1 release kit (`scripts/release/`), which handles M1–M14 only |
+| `20261202000000_notification_outbox` (decision notifications) | `20261202000000_notification_outbox.rollback.sql` | roll it back **before** `20261201000000_teacher_applications`; deploy the previous release first. **Refused** while any notification outbox row exists or any Teacher application has a verified school, unless the loss is explicitly acknowledged after a backup. Does not edit `_prisma_migrations` (see the file). Not part of the Phase 1 release kit |

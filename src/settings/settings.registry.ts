@@ -48,6 +48,12 @@ export const SETTINGS = {
     productionDefault: true,
     description:       'People who sign up themselves (students, and coach applicants once approved) must confirm their e-mail address before they can log in. On by default in production.',
   },
+  'registration.teacherSelfSignup': {
+    category:    'REGISTRATION',
+    type:        'boolean',
+    default:     false,
+    description: 'Allow teachers to apply for an account (POST /auth/register/teacher); an Administrator approves each application. Open only while the Teacher role is enabled (TEACHERS_ENABLED).',
+  },
 
   // ── Assignments and submissions ────────────────────────────────────────────
   'assignments.defaultAllowResubmission': {

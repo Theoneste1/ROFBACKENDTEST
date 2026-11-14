@@ -12,6 +12,32 @@ import { RWANDA } from './school-rules.js';
 type Tx = Prisma.TransactionClient;
 export interface DirectoryPlace { province: string | null; district: string | null; sector: string | null }
 
+/**
+ * What the public directory shows (PR B): active, official (coded), Rwandan schools only — the schools of
+ * GET /schools/search and the places of GET /schools/locations.
+ */
+export const PUBLIC_DIRECTORY = { code: { not: null }, countryCode: RWANDA, isActive: true } as const;
+
+/**
+ * The place (any prefix of province → district → sector, or district → sector) is in the public
+ * directory, exactly as GET /schools/locations lists it: some active official school is there.
+ * Used by Teacher self-registration for the school's and the home's place.
+ */
+export async function publicDirectoryHasPlace(
+  db: Pick<Tx, 'school'>, p: { province?: string; district?: string; sector?: string },
+): Promise<boolean> {
+  const known = await db.school.findFirst({
+    where: {
+      ...PUBLIC_DIRECTORY,
+      ...(p.province !== undefined && { province: p.province }),
+      ...(p.district !== undefined && { district: p.district }),
+      ...(p.sector !== undefined && { sector: p.sector }),
+    },
+    select: { id: true },
+  });
+  return !!known;
+}
+
 /** The same normalisation as schoolKey(), in SQL (as in M8), for legacy rows without a nameKey. */
 export const SQL_NAME_KEY = Prisma.sql`trim(regexp_replace(translate(lower("name"), 'àáâäãåçèéêëìíîïñòóôöõùúûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy'), '[^a-z0-9]+', ' ', 'g'))`;
 

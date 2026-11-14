@@ -207,10 +207,14 @@ describe('expected state — derived from this checkout only', () => {
   const base = expectedState(REPO_ROOT, 'pre-phase1');
   const phase1Sql = readdirSync(join(REPO_ROOT, 'prisma/migrations')).filter((d) => PHASE1.test(d))
     .map((d) => readFileSync(join(REPO_ROOT, 'prisma/migrations', d, 'migration.sql'), 'utf8'));
+  // Migrations after M14 (post-Phase-1 work, e.g. 20261201000000_teacher_applications): never in the baseline.
+  const later = readdirSync(join(REPO_ROOT, 'prisma/migrations')).filter((d) => d > '20261121001300_' && !PHASE1.test(d) && d !== 'migration_lock.toml').sort();
+  const laterSql = later.map((d) => readFileSync(join(REPO_ROOT, 'prisma/migrations', d, 'migration.sql'), 'utf8'));
 
   test('default: every migration and model of this checkout', () => {
     assert.equal(full.migrations.filter((m) => PHASE1.test(m)).length, 14);
-    assert.equal(full.migrations.length, base.migrations.length + 14);
+    assert.equal(full.migrations.length, base.migrations.length + 14 + later.length);
+    assert.ok(later.includes('20261201000000_teacher_applications'));
   });
   test('pre-phase1 = production main: 17 migrations ending with 20261120000000_email_html_body, 46 models', () => {
     assert.equal(base.migrations.length, 17);
@@ -220,8 +224,8 @@ describe('expected state — derived from this checkout only', () => {
   });
   test('the subtraction is exact: Phase 1 never drops or renames a table, and every table it creates is a model', () => {
     // Schema tables are always quoted in the migrations; M8's unquoted temporary table does not count.
-    for (const sql of phase1Sql) assert.doesNotMatch(sql, /DROP TABLE (IF EXISTS )?(public\.)?"|ALTER TABLE (public\.)?"\w+" RENAME TO/);
-    const created = [...new Set(phase1Sql.flatMap((s) => [...s.matchAll(/CREATE TABLE "(\w+)"/g)].map((m) => m[1])))].sort();
+    for (const sql of [...phase1Sql, ...laterSql]) assert.doesNotMatch(sql, /DROP TABLE (IF EXISTS )?(public\.)?"|ALTER TABLE (public\.)?"\w+" RENAME TO/);
+    const created = [...new Set([...phase1Sql, ...laterSql].flatMap((s) => [...s.matchAll(/CREATE TABLE "(\w+)"/g)].map((m) => m[1])))].sort();
     assert.deepEqual(full.models.filter((m) => !base.models.includes(m)).sort(), created);
   });
   test('the checkout is the one the script belongs to, not the working directory', () => {

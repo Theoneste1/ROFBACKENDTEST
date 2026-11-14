@@ -27,6 +27,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   schoolAffiliations:      'always',
   schoolReferenceRequired: 'always',
   teacherAccounts:         'TEACHER',
+  teacherSelfRegistration: 'TEACHER',  // appended 2026-11-13: teacher applications (owner-approved)
 };
 
 describe('GET /api/v1 capabilities', () => {
@@ -46,10 +47,10 @@ describe('GET /api/v1 capabilities', () => {
     });
 
     it('a role-gated feature is listed only while its flag is exactly "true"', () => {
-      expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: 'true' })).features).toEqual([...ALWAYS, 'teacherAccounts'].sort());
+      expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: 'true' })).features).toEqual([...ALWAYS, 'teacherAccounts', 'teacherSelfRegistration'].sort());
       expect(capabilitiesOf(configOf({ HEAD_COACHES_ENABLED: 'true' })).features).toEqual([...ALWAYS, 'headCoachAccounts'].sort());
       expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: 'true', HEAD_COACHES_ENABLED: 'true' })).features)
-        .toEqual([...ALWAYS, 'headCoachAccounts', 'teacherAccounts'].sort());
+        .toEqual([...ALWAYS, 'headCoachAccounts', 'teacherAccounts', 'teacherSelfRegistration'].sort());
       for (const v of ['false', 'TRUE', 'True', '1', 'yes', '', ' true']) {
         expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: v, HEAD_COACHES_ENABLED: v })).features).toEqual(ALWAYS);
       }
@@ -58,8 +59,9 @@ describe('GET /api/v1 capabilities', () => {
     it('a flag-gated feature agrees with what the API enforces (the same check)', async () => {
       const permissions = new PermissionService({ mentorScopes: async () => [] } as never);
       const prisma = { user: { count: vi.fn().mockResolvedValue(0) } };
-      const cases: Array<[Record<string, string>, string, 'teacherAccounts' | 'headCoachAccounts']> = [
+      const cases: Array<[Record<string, string>, string, 'teacherAccounts' | 'teacherSelfRegistration' | 'headCoachAccounts']> = [
         [{}, 'TEACHER', 'teacherAccounts'], [{ TEACHERS_ENABLED: 'true' }, 'TEACHER', 'teacherAccounts'],
+        [{}, 'TEACHER', 'teacherSelfRegistration'], [{ TEACHERS_ENABLED: 'true' }, 'TEACHER', 'teacherSelfRegistration'],
         [{}, 'HEAD_COACH', 'headCoachAccounts'], [{ HEAD_COACHES_ENABLED: 'true' }, 'HEAD_COACH', 'headCoachAccounts'],
       ];
       for (const [env, role, feature] of cases) {

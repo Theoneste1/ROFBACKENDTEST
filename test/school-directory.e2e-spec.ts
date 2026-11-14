@@ -507,7 +507,7 @@ describe('School directory S1 (M12)', () => {
     it('public search by level: only schools offering it; the response is unchanged (no programmes, no contacts)', async () => {
       const found = (await http().get('/api/v1/schools/search').query({ district: 'Huye', sector: 'Ngoma', level: 'ol' }).expect(200)).body;
       expect(found.map((s: any) => s.code)).toEqual(['220902']);
-      expect(Object.keys(found[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'sector']);
+      expect(Object.keys(found[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'province', 'sector']);
       expect((await http().get('/api/v1/schools/search').query({ district: 'Huye', sector: 'Ngoma', level: 'AL' }).expect(200)).body).toEqual([]);
     });
 

@@ -61,6 +61,13 @@ export const FEATURES = {
    * TEACHER accounts may still exist and use their portal.
    */
   teacherAccounts: 'TEACHER',
+  /**
+   * Teacher self-registration is implemented: GET /api/v1/auth/register/teacher/availability says whether
+   * it is open right now (also the registration.teacherSelfSignup setting); POST /api/v1/auth/register/teacher
+   * submits an application; Administrators (users.manageTeachers) review it at
+   * /api/v1/admin/teacher-applications. Gated like teacherAccounts (TEACHERS_ENABLED).
+   */
+  teacherSelfRegistration: 'TEACHER',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;
