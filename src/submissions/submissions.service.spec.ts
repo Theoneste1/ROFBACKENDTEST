@@ -381,10 +381,15 @@ describe('SubmissionsService', () => {
       expect(err.getResponse().details).toEqual({ mentorIds: ['m9'] });
     });
 
+    /** SQL text and parameters of a tagged-template $queryRaw / $executeRaw call. */
+    const sqlOf = (c: unknown[]) => ({ text: (c[0] as TemplateStringsArray).join('?'), values: c.slice(1) });
+
     it('distribute deals submissions round-robin and records the batch', async () => {
       const { service, prisma } = makeMocks();
       prisma.mentorAssignment.findMany.mockResolvedValue([{ mentorId: 'm1' }, { mentorId: 'm2' }]);
-      prisma.submission.findMany.mockResolvedValue([{ id: 'x1' }, { id: 'x2' }, { id: 'x3' }]);
+      prisma.$queryRaw
+        .mockResolvedValueOnce([{ id: 'x1' }, { id: 'x2' }, { id: 'x3' }])   // pending, locked, oldest first
+        .mockResolvedValueOnce([{ assigned: 3 }]);
 
       const result = await service.distribute('as1', { strategy: 'ROUND_ROBIN' } as any, ADMIN);
 
@@ -392,16 +397,21 @@ describe('SubmissionsService', () => {
       expect(prisma.distributionBatch.create).toHaveBeenCalledWith({
         data: { assignmentId: 'as1', strategy: 'ROUND_ROBIN', createdById: 'a1' },
       });
-      const cycles = prisma.mentorReview.create.mock.calls.map((c) => c[0].data);
-      expect(cycles.map((d) => [d.submissionId, d.mentorId])).toEqual([['x1', 'm1'], ['x2', 'm2'], ['x3', 'm1']]);
-      expect(cycles.every((d) => d.distributionBatchId === 'b1')).toBe(true);
+      const pending = sqlOf(prisma.$queryRaw.mock.calls[0]);
+      expect(pending.text).toMatch(/"status" = 'SUBMITTED'[\s\S]*ORDER BY "submittedAt" ASC[\s\S]*FOR UPDATE/);
+      // One statement creates the cycles (in the batch), assigns the submissions and records the events.
+      const cycles = sqlOf(prisma.$queryRaw.mock.calls[1]);
+      expect(cycles.text).toMatch(/INSERT INTO "MentorReview"[\s\S]*UPDATE "Submission"[\s\S]*"status" = 'SUBMITTED'[\s\S]*INSERT INTO "ReviewEvent"/);
+      expect(cycles.values.slice(0, 2)).toEqual([['x1', 'x2', 'x3'], ['m1', 'm2', 'm1']]);
+      expect(cycles.values).toContain('b1');
+      expect(prisma.mentorReview.create).not.toHaveBeenCalled();
       expect(prisma.distributionBatch.update).toHaveBeenCalledWith({ where: { id: 'b1' }, data: { assignedCount: 3 } });
     });
 
     it('distribute (balanced) prefers the mentor with the lightest open review workload', async () => {
       const { service, prisma, settings } = makeMocks();
       prisma.mentorAssignment.findMany.mockResolvedValue([{ mentorId: 'm1' }, { mentorId: 'm2' }]);
-      prisma.submission.findMany.mockResolvedValue([{ id: 'x1' }, { id: 'x2' }]);
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: 'x1' }, { id: 'x2' }]).mockResolvedValueOnce([{ assigned: 2 }]);
       prisma.mentorReview.groupBy.mockResolvedValue([{ mentorId: 'm1', _count: { _all: 5 } }]);
 
       const result = await service.distribute('as1', {} as any, ADMIN);
@@ -413,28 +423,44 @@ describe('SubmissionsService', () => {
       expect(result).toMatchObject({ batchId: 'b1', strategy: 'BALANCED', distributed: 2, byMentor: { m2: 2 } });
     });
 
+    it('distribute is refused (nothing kept) when a planned submission could not be assigned', async () => {
+      const { service, prisma, audit } = makeMocks();
+      prisma.mentorAssignment.findMany.mockResolvedValue([{ mentorId: 'm1' }]);
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: 'x1' }, { id: 'x2' }]).mockResolvedValueOnce([{ assigned: 1 }]);
+      await expect(service.distribute('as1', {} as any, ADMIN)).rejects.toMatchObject({ code: 'INVALID_STATE_TRANSITION' });
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
     it('publish awards points scaled by score (15/20 of 40 → 30), records a release and recomputes the student total', async () => {
       const { service, prisma, events } = makeMocks();
       prisma.submission.findUnique.mockResolvedValue(reviewRow({ status: 'APPROVED' }, { status: 'APPROVED' }));
       prisma.submission.findMany.mockResolvedValue([
         { id: 'sub1', studentId: 's1', currentReviewId: 'r1', currentReview: { score: 15 }, assignment: { points: 40, maximumMarks: 20 } },
       ]);
+      // lock points, lock submissions, update submissions, move reviews, lock students
+      prisma.$queryRaw.mockImplementation(async (strings: TemplateStringsArray) => {
+        const text = strings.join('?');
+        if (text.includes('UPDATE "Submission"')) return [{ id: 'sub1', reviewId: 'r1' }];
+        if (text.includes('UPDATE "MentorReview"')) return [{ id: 'r1' }];
+        return [];
+      });
+      (prisma as any).$executeRaw = vi.fn().mockResolvedValue(1);
 
       await service.publish('sub1', ADMIN);
 
       expect(prisma.resultRelease.create.mock.calls[0][0].data).toMatchObject({ assignmentId: 'as1', publishedById: 'a1' });
-      expect(prisma.submission.updateMany.mock.calls[0][0]).toMatchObject({
-        where: { id: 'sub1', status: 'APPROVED' },
-        data:  { status: 'PUBLISHED', pointsAwarded: 30, publishedReviewId: 'r1', resultReleaseId: 'rel1' },
-      });
-      expect(prisma.mentorReview.updateMany.mock.calls[0][0]).toMatchObject({
-        where: { id: 'r1', status: { in: ['APPROVED'] } }, data: { status: 'PUBLISHED' },
-      });
+      const calls = prisma.$queryRaw.mock.calls.map(sqlOf);
+      const update = calls.find((c) => c.text.includes('UPDATE "Submission"'))!;
+      expect(update.text).toMatch(/SET "status" = 'PUBLISHED'[\s\S]*WHERE s."id" = v."id" AND s."status" = 'APPROVED'/);
+      expect(update.values).toEqual(expect.arrayContaining(['rel1', ['sub1'], ['r1'], [30]]));   // 15/20 of 40 → 30
+      const reviews = calls.find((c) => c.text.includes('UPDATE "MentorReview"'))!;
+      expect(reviews.text).toMatch(/"status" = 'PUBLISHED'[\s\S]*"status" = 'APPROVED'[\s\S]*INSERT INTO "ReviewEvent"/);
+      expect(reviews.values).toContainEqual(['r1']);
       expect(prisma.resultRelease.update).toHaveBeenCalledWith({ where: { id: 'rel1' }, data: { resultCount: 1 } });
-      expect(prisma.submission.aggregate.mock.calls[0][0].where).toEqual({ studentId: 's1', status: 'PUBLISHED' });
-      expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 's1' }, data: { points: 30, problemsSolved: 1 },
-      });
+      // The student's total is recomputed from their PUBLISHED results.
+      const recompute = sqlOf((prisma as any).$executeRaw.mock.calls[0]);
+      expect(recompute.text).toMatch(/UPDATE "User"[\s\S]*"status" = 'PUBLISHED'/);
+      expect(recompute.values).toContainEqual(['s1']);
       expect(events.emit).toHaveBeenCalledWith(Events.ResultsPublished, { submissionIds: ['sub1'] });
     });
 
@@ -444,24 +470,34 @@ describe('SubmissionsService', () => {
         { id: 'sub1', studentId: 's9', currentReviewId: 'r1', currentReview: { score: 20 }, assignment: { points: 40, maximumMarks: 20 } },
         { id: 'sub2', studentId: 's1', currentReviewId: 'r2', currentReview: { score: 10 }, assignment: { points: 40, maximumMarks: 20 } },
       ]);
-      prisma.submission.aggregate.mockResolvedValue({ _sum: { pointsAwarded: 0 }, _count: { _all: 0 } });
+      prisma.$queryRaw.mockImplementation(async (strings: TemplateStringsArray) => {
+        const text = strings.join('?');
+        if (text.includes('UPDATE "Submission"')) return [{ id: 'sub1', reviewId: 'r1' }, { id: 'sub2', reviewId: 'r2' }];
+        if (text.includes('UPDATE "MentorReview"')) return [{ id: 'r1' }, { id: 'r2' }];
+        return [];
+      });
+      (prisma as any).$executeRaw = vi.fn().mockResolvedValue(2);
 
       await service.publishAssignmentResults('as1', ADMIN);
 
-      const sql = (c: unknown[]) => (c[0] as TemplateStringsArray).join('?');
-      const raw = prisma.$queryRaw.mock.calls;
-      expect(sql(raw[0])).toContain('pg_advisory_xact_lock_shared');
-      expect(raw[0].slice(1)).toEqual([4217]);
-      expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.submission.findMany.mock.invocationCallOrder.at(-1)!);
+      const raw = prisma.$queryRaw.mock.calls.map(sqlOf);
+      const order = prisma.$queryRaw.mock.invocationCallOrder;
+      expect(raw[0].text).toContain('pg_advisory_xact_lock_shared');
+      expect(raw[0].values).toEqual([4217]);
+      expect(order[0]).toBeLessThan(prisma.submission.findMany.mock.invocationCallOrder.at(-1)!);
       expect(prisma.submission.findMany.mock.calls.at(-1)![0].orderBy).toEqual({ id: 'asc' });
-      // Students locked FOR UPDATE in id order (s1 before s9), each lock before its sum.
-      const rowLocks = raw.map((c, i) => ({ c, order: prisma.$queryRaw.mock.invocationCallOrder[i] })).filter(({ c }) => sql(c).includes('FOR UPDATE'));
-      expect(rowLocks.map(({ c }) => c[1])).toEqual(['s1', 's9']);
-      const sums = prisma.submission.aggregate.mock.invocationCallOrder;
-      expect(prisma.submission.aggregate.mock.calls.map((c) => c[0].where.studentId)).toEqual(['s1', 's9']);
-      expect(rowLocks[0].order).toBeLessThan(sums[0]);
-      expect(rowLocks[1].order).toBeGreaterThan(sums[0]);
-      expect(rowLocks[1].order).toBeLessThan(sums[1]);
+      // (2) submissions locked in id order before they are updated.
+      const subLock = raw.findIndex((c) => /FROM "Submission"[\s\S]*ORDER BY "id" FOR UPDATE/.test(c.text));
+      const subUpdate = raw.findIndex((c) => c.text.includes('UPDATE "Submission"'));
+      expect(raw[subLock].values).toEqual([['sub1', 'sub2']]);
+      expect(subLock).toBeLessThan(subUpdate);
+      // (3) students locked FOR UPDATE in id order (s1 before s9), before their results are summed.
+      const userLock = raw.findIndex((c) => /FROM "User"[\s\S]*ORDER BY "id" FOR UPDATE/.test(c.text));
+      expect(raw[userLock].values).toEqual([['s1', 's9']]);
+      expect(userLock).toBeGreaterThan(subUpdate);
+      const sum = (prisma as any).$executeRaw.mock;
+      expect(sqlOf(sum.calls[0]).values).toContainEqual(['s1', 's9']);
+      expect(order[userLock]).toBeLessThan(sum.invocationCallOrder[0]);
     });
 
     it('publish of a non-APPROVED result fails with INVALID_STATE_TRANSITION', async () => {

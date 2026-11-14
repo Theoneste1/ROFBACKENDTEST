@@ -26,6 +26,7 @@ import {
 import { Events } from '../notifications/events.js';
 import { validateScore, computePercentage, computePointsAwarded } from './score.utils.js';
 import { DistributionStrategy, OPEN_REVIEW_STATUSES, RESUBMITTABLE } from './submissions.constants.js';
+import { planDistribution } from './distribution-plan.js';
 import {
   adminView,
   mentorView,
@@ -570,9 +571,13 @@ export class SubmissionsService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const pending = await tx.submission.findMany({
-        where: { assignmentId, status: 'SUBMITTED' }, orderBy: { submittedAt: 'asc' }, select: { id: true },
-      });
+      // The unassigned submissions, oldest first, locked: a concurrent assignment or withdrawal
+      // either committed before (the row is re-checked and left out) or waits for this run.
+      const pending = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "Submission"
+         WHERE "assignmentId" = ${assignmentId} AND "status" = 'SUBMITTED'
+         ORDER BY "submittedAt" ASC NULLS LAST, "id" ASC
+           FOR UPDATE`;
 
       // Current open workload per mentor (across all assignments).
       const loads = new Map<string, number>(mentorIds.map((id) => [id, 0]));
@@ -586,23 +591,16 @@ export class SubmissionsService {
         data: { assignmentId, strategy, createdById: user.id },
       });
 
-      const byMentor: Record<string, number> = {};
-      let turn = 0;
-      for (const s of pending) {
-        const mentorId = strategy === DistributionStrategy.ROUND_ROBIN
-          ? mentorIds[turn++ % mentorIds.length]
-          : [...loads.entries()].sort((a, b) => a[1] - b[1])[0][0];
-
-        const { count } = await tx.submission.updateMany({
-          where: { id: s.id, status: 'SUBMITTED' }, data: { status: 'ASSIGNED' },
-        });
-        if (count === 0) continue;
-        await this.startCycle(tx, s.id, mentorId, user.id, 'ASSIGNED', batch.id);
-        loads.set(mentorId, (loads.get(mentorId) ?? 0) + 1);
-        byMentor[mentorId] = (byMentor[mentorId] ?? 0) + 1;
+      const plan = planDistribution(pending.map((p) => p.id), mentorIds, loads, strategy);
+      // Set-based (PERF-03): one statement creates every review cycle, points each submission at it
+      // and records the ASSIGNED events — instead of 5 statements per submission.
+      const distributed = await this.assignCycles(tx, plan, user.id, batch.id);
+      if (distributed !== plan.length) {
+        throw invalidState('Some submissions changed while they were being distributed; nothing was distributed. Try again.');
       }
+      const byMentor: Record<string, number> = {};
+      for (const { mentorId } of plan) byMentor[mentorId] = (byMentor[mentorId] ?? 0) + 1;
 
-      const distributed = Object.values(byMentor).reduce((a, b) => a + b, 0);
       await tx.distributionBatch.update({ where: { id: batch.id }, data: { assignedCount: distributed } });
       await this.audit.log({
         actorId: user.id, actorRole: user.role,
@@ -1009,7 +1007,18 @@ export class SubmissionsService {
   // Private helpers
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Publish the given APPROVED submissions of one assignment as a ResultRelease. */
+  /**
+   * Publish the given APPROVED submissions of one assignment as a ResultRelease.
+   *
+   * Set-based (PERF-02): a fixed number of statements whatever the size of the release, instead of
+   * ~6 per result (a large release outlived the 60 s transaction). Same guarantees:
+   *   - points lock order (POINTS_LOCK_NAMESPACE): shared advisory lock, then the release's
+   *     Submission rows locked in id order, then the students' User rows locked in id order
+   *     before their published results are summed;
+   *   - conditional transitions: only submissions still APPROVED are published, and each one's
+   *     current review must still be APPROVED (otherwise the whole release is refused, as before);
+   *   - a PUBLISHED review event per result, the release record with its count, the audit entry.
+   */
   private async release(assignmentId: string, ids: string[], user: AuthUser, note?: string) {
     if (ids.length === 0) return { published: [] as string[], releaseId: null };
 
@@ -1017,7 +1026,7 @@ export class SubmissionsService {
       await this.lockPointsShared(tx);
       const subs = await tx.submission.findMany({
         where:  { id: { in: ids }, assignmentId, status: 'APPROVED' },
-        orderBy: { id: 'asc' },   // rows are then updated in a consistent order
+        orderBy: { id: 'asc' },   // rows are then locked and updated in a consistent order
         select: {
           id: true, studentId: true, currentReviewId: true,
           currentReview: { select: { score: true } },
@@ -1030,29 +1039,56 @@ export class SubmissionsService {
         data: { assignmentId, publishedById: user.id, resultCount: 0, note: note ?? null },
       });
 
-      const done: string[] = [];
       const now = new Date();
-      for (const s of subs) {
-        if (!s.currentReviewId) continue;
-        const pointsAwarded = computePointsAwarded(s.currentReview?.score ?? 0, s.assignment.maximumMarks, s.assignment.points);
-        const { count } = await tx.submission.updateMany({
-          where: { id: s.id, status: 'APPROVED' },
-          data:  {
-            status: 'PUBLISHED', publishedAt: now, pointsAwarded,
-            publishedReviewId: s.currentReviewId, resultReleaseId: releaseRow.id,
-          },
-        });
-        if (count === 0) continue;
-        await this.moveReview(tx, s.currentReviewId, ['APPROVED'], { status: 'PUBLISHED', publishedAt: now },
-          'PUBLISHED', user.id, null);
-        done.push(s.id);
+      const ready = subs.filter((s) => !!s.currentReviewId);
+      const rowIds  = ready.map((s) => s.id);
+      const reviews = ready.map((s) => s.currentReviewId!);
+      const points  = ready.map((s) => computePointsAwarded(s.currentReview?.score ?? 0, s.assignment.maximumMarks, s.assignment.points));
+
+      let done: string[] = [];
+      if (ready.length) {
+        // (2) The release's submissions, locked in id order; then one conditional update.
+        await tx.$queryRaw`SELECT 1 FROM "Submission" WHERE "id" = ANY(${rowIds}::text[]) ORDER BY "id" FOR UPDATE`;
+        const published = await tx.$queryRaw<Array<{ id: string; reviewId: string }>>`
+          UPDATE "Submission" AS s
+             SET "status" = 'PUBLISHED', "publishedAt" = ${now}::timestamp(3), "pointsAwarded" = v."points",
+                 "publishedReviewId" = v."reviewId", "resultReleaseId" = ${releaseRow.id}, "updatedAt" = ${now}::timestamp(3)
+            FROM unnest(${rowIds}::text[], ${reviews}::text[], ${points}::int[]) AS v("id", "reviewId", "points")
+           WHERE s."id" = v."id" AND s."status" = 'APPROVED'
+          RETURNING s."id", v."reviewId"`;
+        const publishedIds = new Set(published.map((p) => p.id));
+        done = rowIds.filter((id) => publishedIds.has(id));   // id order
+        const doneReviews = published.map((p) => p.reviewId);
+
+        // Each published result's review: APPROVED → PUBLISHED, with its history event.
+        const moved = await tx.$queryRaw<Array<{ id: string }>>`
+          WITH moved AS (
+            UPDATE "MentorReview" SET "status" = 'PUBLISHED', "publishedAt" = ${now}::timestamp(3), "updatedAt" = ${now}::timestamp(3)
+             WHERE "id" = ANY(${doneReviews}::text[]) AND "status" = 'APPROVED'
+            RETURNING "id"
+          ), events AS (
+            INSERT INTO "ReviewEvent" ("id", "reviewId", "type", "actorId", "note", "score", "createdAt")
+            SELECT gen_random_uuid()::text, m."id", 'PUBLISHED'::"ReviewEventType", ${user.id}, NULL, NULL, ${now}::timestamp(3) FROM moved AS m
+            RETURNING 1
+          )
+          SELECT "id" FROM moved`;
+        if (moved.length !== doneReviews.length) {
+          const movedIds = new Set(moved.map((m) => m.id));
+          const stuck = doneReviews.find((r) => !movedIds.has(r));
+          const current = await tx.mentorReview.findUnique({ where: { id: stuck }, select: { status: true } });
+          throw invalidState(
+            `This action requires review status APPROVED; the review is "${current?.status}".`,
+            { currentReviewStatus: current?.status, allowedFrom: ['APPROVED'] },
+          );
+        }
       }
 
       await tx.resultRelease.update({ where: { id: releaseRow.id }, data: { resultCount: done.length } });
 
-      // Students in id order: two releases sharing students lock them in the same order (no deadlock).
-      const students = [...new Set(subs.filter((s) => done.includes(s.id)).map((s) => s.studentId))].sort();
-      for (const studentId of students) await this.recomputeStudentPoints(tx, studentId);
+      // (3) Students in id order: two releases sharing students lock them in the same order (no deadlock).
+      const doneSet = new Set(done);
+      const students = [...new Set(subs.filter((s) => doneSet.has(s.id)).map((s) => s.studentId))].sort();
+      await this.recomputePointsOf(tx, students);
 
       await this.audit.log({
         actorId: user.id, actorRole: user.role,
@@ -1064,6 +1100,58 @@ export class SubmissionsService {
 
     if (out.published.length) this.events.emit(Events.ResultsPublished, { submissionIds: out.published });
     return out;
+  }
+
+  /**
+   * recomputeStudentPoints for many students in two statements: their User rows are locked in id
+   * order (FOR UPDATE), THEN their published results are summed — a new statement, so it sees every
+   * publication that committed while this one waited for a lock — and written.
+   */
+  private async recomputePointsOf(tx: Tx, studentIds: string[]) {
+    if (studentIds.length === 0) return;
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ANY(${studentIds}::text[]) ORDER BY "id" FOR UPDATE`;
+    await tx.$executeRaw`
+      UPDATE "User" AS u
+         SET "points" = t."points", "problemsSolved" = t."solved", "updatedAt" = ${new Date()}::timestamp(3)
+        FROM (SELECT ids."id", COALESCE(SUM(s."pointsAwarded"), 0)::int AS "points", COUNT(s."id")::int AS "solved"
+                FROM unnest(${studentIds}::text[]) AS ids("id")
+                LEFT JOIN "Submission" AS s ON s."studentId" = ids."id" AND s."status" = 'PUBLISHED'
+               GROUP BY ids."id") AS t
+       WHERE u."id" = t."id"`;
+  }
+
+  /**
+   * Distribution in one statement: for each planned (submission, coach) a new review cycle
+   * (ASSIGNED, cycle = previous + 1, in the batch), the submission ASSIGNED with it as its current
+   * review (only while still SUBMITTED), and an ASSIGNED event. Returns the submissions assigned.
+   */
+  private async assignCycles(tx: Tx, plan: Array<{ submissionId: string; mentorId: string }>, actorId: string, batchId: string) {
+    if (plan.length === 0) return 0;
+    const now = new Date();
+    const [row] = await tx.$queryRaw<Array<{ assigned: number }>>`
+      WITH v AS (
+        SELECT * FROM unnest(${plan.map((p) => p.submissionId)}::text[], ${plan.map((p) => p.mentorId)}::text[]) AS v("submissionId", "mentorId")
+      ), cycles AS (
+        INSERT INTO "MentorReview" ("id", "submissionId", "cycle", "mentorId", "status", "assignedById", "distributionBatchId",
+                                    "assignedAt", "createdAt", "updatedAt")
+        SELECT gen_random_uuid()::text, v."submissionId",
+               COALESCE((SELECT max(r."cycle") FROM "MentorReview" AS r WHERE r."submissionId" = v."submissionId"), 0) + 1,
+               v."mentorId", 'ASSIGNED'::"ReviewStatus", ${actorId}, ${batchId},
+               ${now}::timestamp(3), ${now}::timestamp(3), ${now}::timestamp(3)
+          FROM v
+        RETURNING "id", "submissionId"
+      ), assigned AS (
+        UPDATE "Submission" AS s SET "status" = 'ASSIGNED', "currentReviewId" = c."id", "updatedAt" = ${now}::timestamp(3)
+          FROM cycles AS c
+         WHERE s."id" = c."submissionId" AND s."status" = 'SUBMITTED'
+        RETURNING s."id"
+      ), events AS (
+        INSERT INTO "ReviewEvent" ("id", "reviewId", "type", "actorId", "note", "score", "createdAt")
+        SELECT gen_random_uuid()::text, c."id", 'ASSIGNED'::"ReviewEventType", ${actorId}, NULL, NULL, ${now}::timestamp(3) FROM cycles AS c
+        RETURNING 1
+      )
+      SELECT (SELECT count(*) FROM assigned)::int AS "assigned"`;
+    return row.assigned;
   }
 
   /** Shared side of the points lock (see POINTS_LOCK_NAMESPACE); the full recompute takes it exclusively. */
