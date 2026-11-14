@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 18 @Public + 29 @Roles + 177 @RequirePermission + 53 @Authenticated = 277, none undeclared', () => {
+  it('declarations add up: 18 @Public + 29 @Roles + 178 @RequirePermission + 53 @Authenticated = 278, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 177, '@Authenticated': 53 });  // +2: e-mail deliveries list + retry; +1: programme student candidates
+    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 178, '@Authenticated': 53 });  // +2: e-mail deliveries list + retry; +1: programme student candidates; +1: school verification
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -212,7 +212,7 @@ describe('route declarations (P1-02 §5)', () => {
       // directory S1: reference data, contacts (get, replace, verify), offerings (get, replace), history;
       // directory S2a: sync dry run, runs, run, items, changes, report.csv;
       // directory S2b: review summary, categories, decisions, proposal, recompare
-      'schools.manage': 35,
+      'schools.manage': 36,
       // directory S2b: approve, apply, resolve after apply (Super Admins only)
       'schools.syncDirectory': 3,
     });
@@ -327,7 +327,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 66 added since: 268 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 67 added since: 269 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

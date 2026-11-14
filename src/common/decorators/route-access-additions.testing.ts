@@ -107,4 +107,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // E-mail deliveries across transactional and bulk e-mail (email.bulkSend, as the existing e-mail job routes)
   'GET /api/v1/admin/email/deliveries  EmailController.listAllDeliveries':                                    ADMINISTRATORS,
   'POST /api/v1/admin/email/deliveries/:id/retry  EmailController.retryDelivery':                             ADMINISTRATORS,
+  // Owner decision 2026-11-14: an administrator verifies a school (schools.manage, like every school edit).
+  'POST /api/v1/admin/schools/:id/verify  AdminSchoolsController.verify':                                     ADMINISTRATORS,
 };

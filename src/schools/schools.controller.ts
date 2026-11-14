@@ -2,7 +2,7 @@ import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, Length, ValidateIf } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length, ValidateIf } from 'class-validator';
 
 import { SchoolsService } from './schools.service.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -27,6 +27,12 @@ class SearchSchoolsDto {
   @IsOptional() @IsString() @Length(1, 100) district?: string;
   @IsOptional() @IsString() @Length(1, 100) sector?: string;
 
+  /**
+   * Only schools a Teacher may name: an official code, or created AND verified by an administrator
+   * (owner decision 2026-11-14). Default false (the student list).
+   */
+  @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() teacherEligible?: boolean;
+
   /** Only schools offering this education level (PPR, PR, OL, AL, PE). */
   @IsOptional() @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value)) @IsString() @Length(1, 10) level?: string;
 }
@@ -46,7 +52,7 @@ export class SchoolsController {
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get('search')
   search(@Query() query: SearchSchoolsDto) {
-    return this.schoolsService.search(query.q, { province: query.province, district: query.district, sector: query.sector, level: query.level });
+    return this.schoolsService.search(query.q, { province: query.province, district: query.district, sector: query.sector, level: query.level, teacherEligible: query.teacherEligible });
   }
 
   /** Public: Rwanda's provinces → districts → sectors that have official schools. */

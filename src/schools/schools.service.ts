@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
-import { PUBLIC_SCHOOL_WHERE } from './school-directory.js';
+import { PUBLIC_SCHOOL_WHERE, TEACHER_SCHOOL_WHERE } from './school-directory.js';
 import { RWANDA } from './school-rules.js';
 
 /** The public search result: unchanged fields (code null for a school without an official code). */
@@ -50,13 +50,15 @@ export class SchoolsService {
    * `level` (school directory S1): only schools offering that education level. The response never
    * contains contacts, and programmes (reviewed or not) are not part of it.
    */
-  async search(term: string | undefined, place: { province?: string; district?: string; sector?: string; level?: string } = {}) {
+  async search(term: string | undefined, place: { province?: string; district?: string; sector?: string; level?: string; teacherEligible?: boolean } = {}) {
     const q = term?.trim();
     const byPlace = !!(place.district || place.sector);
     if (!byPlace && (!q || q.length < 2)) return [];
     const take = byPlace ? 200 : 10;
-    const scope = {
+    const scope: Prisma.SchoolWhereInput = {
       ...PUBLIC_SCHOOL_WHERE,
+      // AND keeps the teacher rule's OR separate from the name / code OR added below.
+      ...(place.teacherEligible && { AND: [TEACHER_SCHOOL_WHERE] }),
       ...(place.province && { province: place.province }),
       ...(place.district && { district: place.district }),
       ...(place.sector && { sector: place.sector }),
@@ -72,14 +74,14 @@ export class SchoolsService {
     const more = await find({
       ...scope,
       id: { notIn: first.map((s) => s.id) },
-      AND: words.map((w) => ({ OR: [
+      AND: [...(place.teacherEligible ? [TEACHER_SCHOOL_WHERE] : []), ...words.map((w) => ({ OR: [
         { name: { contains: w, mode: 'insensitive' as const } },
         { code: { startsWith: w } },
         { location: { contains: w, mode: 'insensitive' as const } },
         { province: { contains: w, mode: 'insensitive' as const } },
         { district: { contains: w, mode: 'insensitive' as const } },
         { sector: { contains: w, mode: 'insensitive' as const } },
-      ] })),
+      ] }))],
     }, take - first.length);
     return [...first, ...more];
   }
