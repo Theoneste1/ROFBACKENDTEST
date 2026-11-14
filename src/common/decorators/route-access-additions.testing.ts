@@ -37,6 +37,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/programmes/:id/members  AdminProgrammesController.members':                              ADMINISTRATORS,
   'POST /api/v1/admin/programmes/:id/members  AdminProgrammesController.addMember':                           ADMINISTRATORS,
   'DELETE /api/v1/admin/programmes/:id/members/:userId  AdminProgrammesController.endMember':                ADMINISTRATORS,
+  // 2026-11-14 — students who can be added to a programme (programmes.manageMembers; Head Coaches too, own
+  // programmes only and only students in no programme — HEAD_COACH is not a baseline caller)
+  'GET /api/v1/admin/programmes/:id/student-candidates  AdminProgrammesController.studentCandidates':        ADMINISTRATORS,
   // P1-10 part 3 — coach invitation into a programme (users.manageCoaches; Head Coaches too, pending approval)
   'POST /api/v1/admin/programmes/:id/coach-invitations  AdminProgrammesController.inviteCoach':              ADMINISTRATORS,
   // P1-11 — teacher school assignments and delegations (users.manageTeachers)

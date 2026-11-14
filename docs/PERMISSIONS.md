@@ -14,10 +14,10 @@ The permission layer added in P1-04 ([Phase 1 plan](PHASE-1-PLAN.md) v5.2 §4–
 | Stored value | Label | Today | Intended permissions (summary) |
 |---|---|---|---|
 | `STUDENT` | Student | in use | Own division's courses, resources and assignments; completes courses, submits and sees **own** work; takes part in and reports division discussions; leaderboard. |
-| `TEACHER` | Teacher | after M1 (P1-05) | Students of the teacher's assigned schools (P1-11, school scope): list by default; profile, assignment progress (no grades) and submitting on a student's behalf only by an individual delegation from an Administrator or Super Admin. No grading, no student account or password changes. |
+| `TEACHER` | Teacher | after M1 (P1-05) | Students of the teacher's assigned schools (P1-11, school scope): list by default; profile, assignment progress (no grades) and submitting on a student's behalf only by an individual delegation from an Administrator or Super Admin. No grading, no student account or password changes. No course, resource, assignment or discussion access (the unused course × division grants were removed on 2026-11-14). |
 | `MENTOR` | Coach | in use | Assigned course × division: manage resources, prepare assignments, **grade**, course analytics, discussions; leaderboard. |
 | `HEAD_COACH` | Head Coach | after M1 (P1-05) | Own programme(s): view, analytics, reports, scoped student and user info, manage student membership and coaches (invite → approval), assign coaches, monitor coaches, activity. Grades and prepares **only** through a course × division assignment an Administrator created (H4). No discussion moderation (H7). |
-| `ADMIN` | Administrator | in use | Everything administrative: today's 25 permissions plus the new granular administrative names. **Never grades or prepares assignments** (RS1). Keeps `users.manageAdmins` until the Super Admin boundary (P1-08, A7). |
+| `ADMIN` | Administrator | in use | Everything administrative: today's 25 permissions plus the new granular administrative names, including managing Head Coaches (accounts, programme heads and members, coach monitoring — owner decision D-5, 2026-11-14). **Never grades or prepares assignments** (RS1). Never gives or manages `SUPER_ADMIN`. Keeps `users.manageAdmins` until the Super Admin boundary (P1-08, A7). |
 | `SUPER_ADMIN` | Super Administrator | after M1 (P1-05) | Everything an Administrator holds, written out separately (no inheritance), plus `permissions.manageOverrides` and `settings.manageSystem`. **Never grades or prepares assignments** (RS1). |
 
 Any other stored value is an unsupported role. It has no permissions, gets `roleLabel: null`
@@ -34,11 +34,11 @@ permission guard.
 
 | Permission | Student (`STUDENT`) | Teacher (`TEACHER`) | Coach (`MENTOR`) | Head Coach (`HEAD_COACH`) | Administrator (`ADMIN`) | Super Administrator (`SUPER_ADMIN`) |
 |---|---|---|---|---|---|---|
-| `courses.view` | division | course × division | course × division | programme | all | all |
+| `courses.view` | division | — | course × division | programme | all | all |
 | `courses.complete` | own | — | — | — | — | — |
-| `resources.view` | division | course × division | course × division | programme | all | all |
+| `resources.view` | division | — | course × division | programme | all | all |
 | `resources.manage` | — | — | course × division | — | all | all |
-| `assignments.view` | division | course × division | course × division | programme | all | all |
+| `assignments.view` | division | — | course × division | programme | all | all |
 | `assignments.prepare` | — | — | course × division | course × division | — | — |
 | `assignments.publish` | — | — | — | — | all | all |
 | `submissions.submit` | own | — | — | — | — | — |
@@ -47,8 +47,8 @@ permission guard.
 | `reviews.grade` | — | — | course × division | course × division | — | — |
 | `results.approve` | — | — | — | — | all | all |
 | `results.publish` | — | — | — | — | all | all |
-| `discussions.participate` | division | course × division | course × division | programme | all | all |
-| `discussions.report` | division | course × division | course × division | programme | all | all |
+| `discussions.participate` | division | — | course × division | programme | all | all |
+| `discussions.report` | division | — | course × division | programme | all | all |
 | `discussions.moderate` | — | — | — | — | all | all |
 | `analytics.course` | — | — | course × division | programme | all | all |
 | `leaderboard.view` | all | all | all | all | all | all |
@@ -83,6 +83,40 @@ permission guard.
 | `submissions.submitOnBehalf` | — | — | — | — | — | — |
 | `schools.manage` | — | — | — | — | all | all |
 | `schools.syncDirectory` | — | — | — | — | — | all |
+
+## Administrators and Head Coaches (D-5, 2026-11-14)
+
+Administrators manage Head Coaches within their administrative responsibilities — nothing here is a new
+power; `ADMIN_GRANTS` already held each permission, and `/me/permissions` now reports them:
+
+| What | Route(s) | Permission |
+|---|---|---|
+| Create, invite, import, edit and change the role of accounts to and from `HEAD_COACH` (only while `HEAD_COACHES_ENABLED` = `true`, capability `headCoachAccounts`) | `/admin/users`, `/admin/users/invite`, `/admin/users/import`, `PATCH /admin/users/:id` | `users.manageHeadCoaches` (role allow-list) |
+| Set the Head Coaches heading a programme | `GET/PUT /admin/programmes/:id/heads` | `programmes.manageHeads` |
+| Manage programme members (students and coaches) | `/admin/programmes/:id/members`, `/admin/programmes/:id/student-candidates` | `programmes.manageMembers` |
+| Monitor coaches | `/admin/reports/mentors`, `/admin/reports/mentor-activity` | `coaches.monitor` |
+| Scoped dashboards and reports | `/admin/dashboard`, `/admin/reports/students`, `/admin/reports/course-participation` | `reports.view` |
+
+Unchanged limits: an Administrator never gives `SUPER_ADMIN` (never on creation; a role change to it
+is a Super Admin's, with step-up), never manages a `SUPER_ADMIN` account, cannot remove the last
+Super Admin, never sets overrides (`permissions.manageOverrides`) and, with
+`SUPER_ADMIN_BOUNDARY_ENABLED` on, no longer manages `ADMIN` accounts.
+
+## Head Coaches adding students (2026-11-14)
+
+`GET /admin/programmes/:id/student-candidates?search=` (`programmes.manageMembers`) finds students to add
+to a programme by first name, last name or username (2–100 characters; e-mail addresses are never searched).
+It returns active `STUDENT` accounts that are not active members of that programme, with name, username,
+grade, division and school only — never contact details, grades or feedback (D7). For a Head Coach:
+
+- only programmes they head (any other programme → 404);
+- only students who are **not active members of any programme** — a student in another programme is never
+  returned; moving a student between programmes stays an Administrator responsibility;
+- `POST /admin/programmes/:id/members` refuses such a student with 409 `STUDENT_IN_OTHER_PROGRAMME`
+  (checked under a per-student lock, so two Head Coaches cannot both add the same student).
+
+Administrators may use the same route (students not in this programme, whatever their other memberships)
+and keep their wider account search (`GET /admin/users`).
 
 ## Grading restriction for administrators (RS1)
 
@@ -149,11 +183,22 @@ independent layers enforce this:
 
 - **`permissions`:**
   - `STUDENT`, `MENTOR` and `ADMIN` get today's list, unchanged, except that the `ADMIN` list
-    also ends with `schools.manage` (2026-11-12) and `users.manageTeachers` (2026-11-13). Administrators
-    already held both; the list now reports them. Other granular names Administrators hold are not
-    listed yet;
+    also ends with `schools.manage` (2026-11-12), `users.manageTeachers` (2026-11-13) and, in this
+    order, `users.manageHeadCoaches`, `programmes.manageHeads`, `programmes.manageMembers`,
+    `coaches.monitor`, `reports.view` (2026-11-14, owner decision D-5: Administrators manage Head
+    Coaches within their administrative responsibilities). Administrators already held all of them
+    (global) and the routes already admitted them; the list now reports them. Changes to the ADMIN
+    list are **additive only**. Still not listed for `ADMIN`: `users.manageAdmins`,
+    `users.manageStudents`, `users.manageCoaches`, `users.view`, `students.viewScoped`,
+    `permissions.view` (held, not reported) and never `permissions.manageOverrides`,
+    `settings.manageSystem`, `schools.syncDirectory` (not held);
   - `TEACHER`, `HEAD_COACH` and `SUPER_ADMIN` have no legacy list, so they get their effective
-    catalogue permissions, in catalogue order (reachable only after M1);
+    catalogue permissions, in catalogue order (reachable only after M1). **Contract change
+    (2026-11-14):** a `TEACHER` no longer gets `courses.view`, `resources.view`, `assignments.view`,
+    `discussions.participate` or `discussions.report` — the list is now `leaderboard.view`,
+    `students.viewScoped` plus any delegation granted to that teacher. Those grants were course × division
+    scoped, and no teacher course × division assignment exists, so no service ever let a Teacher through
+    on them. `TEACHERS_ENABLED` is off in production; no live client depended on them;
   - an unsupported role gets `[]`.
 - **`scopes.courseDivisions`:** a Coach's active course × division assignments; every other role gets `[]`.
 - **Deferred:** `scopes.programmes` (P1-07) and `overrides` (P1-09).

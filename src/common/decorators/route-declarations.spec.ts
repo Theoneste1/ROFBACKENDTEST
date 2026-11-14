@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 18 @Public + 29 @Roles + 176 @RequirePermission + 53 @Authenticated = 276, none undeclared', () => {
+  it('declarations add up: 18 @Public + 29 @Roles + 177 @RequirePermission + 53 @Authenticated = 277, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 176, '@Authenticated': 53 });  // +2: e-mail deliveries list + retry
+    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 177, '@Authenticated': 53 });  // +2: e-mail deliveries list + retry; +1: programme student candidates
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -199,7 +199,8 @@ describe('route declarations (P1-02 §5)', () => {
       'permissions.manageOverrides': 3, 'permissions.view': 2,
       // P1-10: coach assignments converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions for every
       // baseline caller); programmes, heads and members are new routes (route-access-additions.testing.ts)
-      'mentorAssignments.manage': 3, 'courses.view': 1, 'programmes.manageHeads': 2, 'programmes.manageMembers': 3,
+      // 2026-11-14: + GET /admin/programmes/:id/student-candidates (new route, programmes.manageMembers)
+      'mentorAssignments.manage': 3, 'courses.view': 1, 'programmes.manageHeads': 2, 'programmes.manageMembers': 4,
       // P1-10 part 3: dashboard, reports and activity converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
@@ -326,7 +327,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 65 added since: 267 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 66 added since: 268 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

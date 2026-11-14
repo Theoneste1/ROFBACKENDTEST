@@ -125,7 +125,24 @@ those, use `GET /me/permissions`, and the API still refuses anything not permitt
 | `studentAssignmentFilters` | Assignment lists filter and sort in the database. `GET /me/assignments` accepts `progress` (`NOT_STARTED`, `SUBMITTED`, `PENDING_REVIEW`, `RESUBMISSION_REQUESTED`, `REVIEWED` — the `displayStatus` labels — and `OVERDUE`: not started and no longer submittable, i.e. closed or past the deadline without late work) and `sort` (`deadline` soonest first, the default; `-deadline`; `title`). `GET /assignments` accepts `statuses` (comma-separated, e.g. `DRAFT,REJECTED`; not together with `status`). Paging and `meta.total` count only the matches. Without this feature these parameters are refused (400 `VALIDATION_FAILED`): filter the loaded page in the browser |
 | `schoolDirectorySync` | The official-directory sync, `/admin/school-sync`. With `schools.manage`: upload a source export as a dry run (`POST /runs?dataset=NESA:ACCREDITED_SCHOOLS`, multipart `file`, .xlsx or .csv; nothing is written to the directory), list runs, a run's items, proposed changes and `report.csv` (contact values masked or absent), the review summary (`/review`: counts and what still blocks an apply), `/categories` (with the `listDigest` a category approval sends back), `/decisions`, item `/proposal` and `/recompare`. Only with `schools.syncDirectory` (Super Admins; never grantable): `/approve` (returns the apply token), `/apply` and item `/resolve`; deciding a `RESOLVE_CONFLICT` change also needs it. Show approve / apply only when `/me/permissions` lists `schools.syncDirectory` |
 | `teacherAccounts` | The `TEACHER` role can currently be **assigned** to an account (create, invite, import, role change). The caller also needs `users.manageTeachers` in `/me/permissions` |
-| `headCoachAccounts` | The `HEAD_COACH` role can currently be **assigned** to an account. The caller also needs `users.manageHeadCoaches` in `/me/permissions` |
+| `headCoachAccounts` | The `HEAD_COACH` role can currently be **assigned** to an account. The caller also needs `users.manageHeadCoaches` in `/me/permissions` (an `ADMIN`'s list reports it since 2026-11-14) |
+
+### `/me/permissions` contract changes (2026-11-14)
+
+- **`ADMIN` (additive):** the list now also ends with `users.manageHeadCoaches`, `programmes.manageHeads`,
+  `programmes.manageMembers`, `coaches.monitor`, `reports.view` (owner decision D-5: Administrators manage
+  Head Coaches, programme heads and members, and monitor coaches). Administrators already held them and the
+  routes already admitted them. Nothing was removed or reordered; `SUPER_ADMIN`-only permissions are still
+  never listed.
+- **`TEACHER` (removal):** `courses.view`, `resources.view`, `assignments.view`, `discussions.participate`
+  and `discussions.report` are no longer listed or granted, and `assignments.prepare` is no longer on the
+  override catalogue's `grantable.TEACHER` list. They were course × division grants with no teacher course
+  assignment behind them (always refused by the services). A Teacher's list is `leaderboard.view`,
+  `students.viewScoped` plus the delegations granted to them. `TEACHERS_ENABLED` is off in production.
+- **New route:** `GET /admin/programmes/:id/student-candidates?search=` (`programmes.manageMembers`): students
+  who can be added to the programme; for a Head Coach only students in no programme. `POST
+  /admin/programmes/:id/members` by a Head Coach refuses a student in another programme (409
+  `STUDENT_IN_OTHER_PROGRAMME`). See [PERMISSIONS.md](PERMISSIONS.md).
 
 When `teacherAccounts` or `headCoachAccounts` is **absent**, the role can't be
 newly assigned. Existing `TEACHER` or `HEAD_COACH` accounts may still exist and

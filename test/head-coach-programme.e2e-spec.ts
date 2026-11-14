@@ -6,18 +6,20 @@
  * only; a Physics-only student; the seed's Maths students and coaches.
  */
 import { AuditService } from '../src/audit/audit.service.js';
-import { createTestApp, login, bearer, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, PASSWORD, type TestContext } from './helpers.js';
 
 describe('Head Coach programme scope (P1-10)', () => {
   let ctx: TestContext;
   let admin: string, hm: string, hp: string, coachJ: string, studentJ: string;
   let maths: string, physics: string, mechanics: string;
   let hmId: string, hpId: string, coachB: string, coachP: string, studentP: string;
+  let studentFree: string, freeTwo: string, freeRace: string, freeSuspended: string;
   const http = () => ctx.http();
   const p = () => ctx.prisma;
   const status = async (req: any) => { const r = await req; return [r.status, r.body?.code ?? null]; };
   const heads = (id: string) => `/api/v1/admin/programmes/${id}/heads`;
   const members = (id: string) => `/api/v1/admin/programmes/${id}/members`;
+  const candidates = (id: string) => `/api/v1/admin/programmes/${id}/student-candidates`;
   const ASSIGN = '/api/v1/admin/mentor-assignments';
 
   beforeAll(async () => {
@@ -46,6 +48,12 @@ describe('Head Coach programme scope (P1-10)', () => {
     coachB = await mk('coach.b', 'MENTOR', [maths, physics]);
     coachP = await mk('coach.p', 'MENTOR', [physics]);
     studentP = await mk('student.p', 'STUDENT', [physics]);
+    // Students in no programme (2026-11-14: the only students a Head Coach may find and add).
+    studentFree = await mk('student.free', 'STUDENT', []);
+    freeTwo = await mk('free.two', 'STUDENT', []);
+    freeRace = await mk('free.race', 'STUDENT', []);
+    freeSuspended = await mk('free.suspended', 'STUDENT', []);
+    await p().user.update({ where: { id: freeSuspended }, data: { isActive: false } });
     await p().mentorAssignment.create({ data: { mentorId: coachP, courseId: mechanics, divisionId: ctx.ids.junior } });
     hm = await login(ctx, 'hc.maths');
     hp = await login(ctx, 'hc.phys');
@@ -117,19 +125,23 @@ describe('Head Coach programme scope (P1-10)', () => {
   });
 
   it('membership changes: a Head Coach adds/ends STUDENTS in their own programme only (audited); coaches 403; staff and others not revealed (404)', async () => {
-    // Add the Physics student to Maths.
-    const added = await http().post(members(maths)).set(bearer(hm)).send({ userId: studentP }).expect(201);
-    expect(added.body).toMatchObject({ id: studentP, membership: { isActive: true, source: 'MANUAL' } });
+    // 2026-11-14: a student who is an active member of another programme is refused (an Administrator moves them).
+    expect(await status(http().post(members(maths)).set(bearer(hm)).send({ userId: studentP }))).toEqual([409, 'STUDENT_IN_OTHER_PROGRAMME']);
+    expect(await p().programmeMembership.count({ where: { userId: studentP, disciplineId: maths } })).toBe(0);
+
+    // Add a student who is in no programme.
+    const added = await http().post(members(maths)).set(bearer(hm)).send({ userId: studentFree }).expect(201);
+    expect(added.body).toMatchObject({ id: studentFree, membership: { isActive: true, source: 'MANUAL' } });
     expect('email' in added.body).toBe(false);
-    expect(await status(http().post(members(maths)).set(bearer(hm)).send({ userId: studentP }))).toEqual([409, 'ALREADY_MEMBER']);
+    expect(await status(http().post(members(maths)).set(bearer(hm)).send({ userId: studentFree }))).toEqual([409, 'ALREADY_MEMBER']);
     const addAudit = await p().auditLog.findFirstOrThrow({ where: { action: 'PROGRAMME_MEMBER_ADD', actorId: hmId } });
-    expect(addAudit).toMatchObject({ actorRole: 'HEAD_COACH', metadata: { disciplineId: maths, userId: studentP, role: 'STUDENT', reactivated: false } });
+    expect(addAudit).toMatchObject({ actorRole: 'HEAD_COACH', metadata: { disciplineId: maths, userId: studentFree, role: 'STUDENT', reactivated: false } });
 
     // End, end again (409), re-add (the same row is re-activated).
-    await http().delete(`${members(maths)}/${studentP}`).set(bearer(hm)).expect(200);
-    expect(await status(http().delete(`${members(maths)}/${studentP}`).set(bearer(hm)))).toEqual([409, 'MEMBERSHIP_ENDED']);
-    await http().post(members(maths)).set(bearer(hm)).send({ userId: studentP }).expect(201);
-    expect(await p().programmeMembership.count({ where: { userId: studentP, disciplineId: maths } })).toBe(1);
+    await http().delete(`${members(maths)}/${studentFree}`).set(bearer(hm)).expect(200);
+    expect(await status(http().delete(`${members(maths)}/${studentFree}`).set(bearer(hm)))).toEqual([409, 'MEMBERSHIP_ENDED']);
+    await http().post(members(maths)).set(bearer(hm)).send({ userId: studentFree }).expect(201);
+    expect(await p().programmeMembership.count({ where: { userId: studentFree, disciplineId: maths } })).toBe(1);
     expect(await p().auditLog.count({ where: { action: 'PROGRAMME_MEMBER_END', actorId: hmId } })).toBe(1);
 
     // Coaches: Administrator only (403); staff / Head Coaches / unknown users: not revealed (404).
@@ -144,10 +156,91 @@ describe('Head Coach programme scope (P1-10)', () => {
     expect(await p().programmeMembership.count({ where: { userId: ctx.ids.studentJunior, disciplineId: physics } })).toBe(0);
     expect((await p().programmeMembership.findUniqueOrThrow({ where: { userId_disciplineId: { userId: studentP, disciplineId: physics } } })).isActive).toBe(true);
 
-    // Administrators: students and coaches; Head Coaches only through the heads endpoint.
+    // Administrators: students and coaches — including a student of another programme (cross-programme
+    // moves are theirs); Head Coaches only through the heads endpoint.
+    await http().post(members(maths)).set(bearer(admin)).send({ userId: studentP }).expect(201);
+    await http().delete(`${members(maths)}/${studentP}`).set(bearer(admin)).expect(200);
     await http().post(members(maths)).set(bearer(admin)).send({ userId: coachP }).expect(201);
     expect(await status(http().post(members(maths)).set(bearer(admin)).send({ userId: hpId }))).toEqual([400, 'ROLE_NOT_MEMBER']);
     await http().delete(`${members(maths)}/${coachP}`).set(bearer(admin)).expect(200);
+  });
+
+  it('student candidates (2026-11-14): a Head Coach finds only students in no programme, in programmes they head; no contact details; Administrators see every student not in the programme', async () => {
+    const find = (token: string, id: string, search: string) => http().get(candidates(id)).set(bearer(token)).query({ search, limit: 100 });
+    const ids = (r: any) => r.body.data.map((u: any) => u.id);
+
+    // Head Coach, own programme: only active students in no programme match.
+    const hmRes = await find(hm, maths, 'free').expect(200);
+    expect(ids(hmRes)).toEqual(expect.arrayContaining([freeTwo, freeRace]));
+    for (const hidden of [studentFree /* in Maths */, freeSuspended /* suspended */]) expect(ids(hmRes)).not.toContain(hidden);
+    const all = await find(hm, maths, 'st').expect(200);
+    for (const hidden of [studentP, ctx.ids.studentJunior, studentFree, coachP, coachB, hmId, hpId, ctx.ids.admin]) {
+      expect([hidden, ids(all).includes(hidden)]).toEqual([hidden, false]);
+    }
+    expect(new Set(all.body.data.map((u: any) => u.role))).toEqual(new Set(['STUDENT']));
+    // D7: name, username, grade, division, school — never contact details.
+    for (const u of [...hmRes.body.data, ...all.body.data]) {
+      for (const key of ['email', 'phone', 'homeLocation', 'passwordHash', 'membership']) expect([u.id, key in u]).toEqual([u.id, false]);
+    }
+    expect(hmRes.body.data.find((u: any) => u.id === freeTwo)).toMatchObject({ username: 'free.two', gradeLevel: 'S2', division: { id: ctx.ids.junior } });
+    expect(hmRes.body.meta).toMatchObject({ page: 1, limit: 100 });
+    // Matching by name or username, case-insensitive; e-mail addresses are not searched.
+    expect(ids(await find(hm, maths, 'FREE.TWO').expect(200))).toEqual([freeTwo]);
+    expect(ids(await find(hm, maths, 'free.two@test').expect(200))).toEqual([]);
+
+    // Another programme: 404 for a Head Coach; coaches and students: 403; validation: 400.
+    expect((await find(hm, physics, 'free')).status).toBe(404);
+    expect((await find(hp, maths, 'free')).status).toBe(404);
+    for (const token of [coachJ, studentJ]) expect(await status(find(token, maths, 'free'))).toEqual([403, 'PERMISSION_REQUIRED']);
+    for (const search of ['a', ' a ', 'x'.repeat(101)]) expect([search.length, (await find(hm, maths, search)).status]).toEqual([search.length, 400]);
+    expect((await http().get(candidates(maths)).set(bearer(hm))).status).toBe(400);
+    expect((await find(admin, '00000000-0000-4000-8000-000000000000', 'free')).status).toBe(404);
+
+    // Administrator: every active student not in THIS programme, whatever their other memberships.
+    const adminPhys = await find(admin, physics, 'st').expect(200);
+    expect(ids(adminPhys)).toEqual(expect.arrayContaining([ctx.ids.studentJunior, studentFree]));
+    expect(ids(adminPhys)).not.toContain(studentP);
+
+    // Add from the search; the student then disappears from every Head Coach's search, and the other
+    // programme's Head Coach cannot add them (409).
+    await http().post(members(maths)).set(bearer(hm)).send({ userId: freeTwo }).expect(201);
+    expect(ids(await find(hm, maths, 'free').expect(200))).not.toContain(freeTwo);
+    expect(ids(await find(hp, physics, 'free').expect(200))).not.toContain(freeTwo);
+    expect(await status(http().post(members(physics)).set(bearer(hp)).send({ userId: freeTwo }))).toEqual([409, 'STUDENT_IN_OTHER_PROGRAMME']);
+    expect(await p().programmeMembership.count({ where: { userId: freeTwo, disciplineId: physics } })).toBe(0);
+  });
+
+  it('student candidates (2026-11-14): two Head Coaches adding the same free student at once — exactly one programme gets them', async () => {
+    const results = await Promise.all([
+      http().post(members(maths)).set(bearer(hm)).send({ userId: freeRace }),
+      http().post(members(physics)).set(bearer(hp)).send({ userId: freeRace }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(results.find((r) => r.status === 409)!.body.code).toBe('STUDENT_IN_OTHER_PROGRAMME');
+    expect(await p().programmeMembership.count({ where: { userId: freeRace, isActive: true } })).toBe(1);
+  });
+
+  it('D-5 (2026-11-14): an Administrator\'s /me/permissions reports the Head Coach administration it holds — never Super Admin powers', async () => {
+    const perms: string[] = (await http().get('/api/v1/me/permissions').set(bearer(admin)).expect(200)).body.permissions;
+    for (const p of ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view']) {
+      expect([p, perms.includes(p)]).toEqual([p, true]);
+    }
+    for (const p of ['users.manageAdmins', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory']) {
+      expect([p, perms.includes(p)]).toEqual([p, false]);
+    }
+    // What the list reports, the API allows: a Head Coach account, then programme head.
+    const hc = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+      firstName: 'Dfive', lastName: 'Head', username: 'd5.head', email: 'd5.head@test.local', password: 'Str0ng!Passw0rd', role: 'HEAD_COACH',
+    }).expect(201);
+    await http().put(heads(physics)).set(bearer(admin)).send({ userIds: [hpId, hc.body.id] }).expect(200);
+    await http().get('/api/v1/admin/reports/mentors').set(bearer(admin)).expect(200);
+    // Never SUPER_ADMIN: not on creation, not by a role change.
+    expect((await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+      firstName: 'Dfive', lastName: 'Super', username: 'd5.super', email: 'd5.super@test.local', password: 'Str0ng!Passw0rd', role: 'SUPER_ADMIN',
+    })).status).toBe(403);
+    expect((await http().patch(`/api/v1/admin/users/${hc.body.id}`).set(bearer(admin)).send({ role: 'SUPER_ADMIN', currentPassword: PASSWORD })).status).toBe(403);
+    expect((await p().user.findUniqueOrThrow({ where: { id: hc.body.id } })).role).toBe('HEAD_COACH');
+    await http().put(heads(physics)).set(bearer(admin)).send({ userIds: [hpId] }).expect(200);
   });
 
   it('coach assignments: a Head Coach assigns member Coaches to their programme\'s courses — never themselves, another Head Coach or an Administrator; other programmes 404', async () => {

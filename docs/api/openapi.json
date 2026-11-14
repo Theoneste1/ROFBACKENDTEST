@@ -5789,14 +5789,13 @@
         ],
         "x-roles": [
           "STUDENT",
-          "TEACHER",
           "MENTOR",
           "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
         "x-permission": "courses.view",
-        "description": "**Access:** permission `courses.view` (STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+        "description": "**Access:** permission `courses.view` (STUDENT, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/programmes/{id}/heads": {
@@ -6327,7 +6326,64 @@
             "bearer": []
           }
         ],
-        "summary": "Add (or re-activate) a membership. Head Coaches: students only.",
+        "summary": "Add (or re-activate) a membership. Head Coaches: students only, and only a student who is not an\nactive member of another programme (409 STUDENT_IN_OTHER_PROGRAMME — an Administrator moves them).",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "programmes.manageMembers",
+        "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/programmes/{id}/student-candidates": {
+      "get": {
+        "operationId": "AdminProgrammesController_studentCandidates",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "description": "First name, last name or username (2–100 characters; surrounding spaces ignored). E-mail addresses are never searched.",
+            "schema": {
+              "minLength": 2,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Students who can be added to the programme, by name or username: active STUDENT accounts\nthat are not active members of it. For a Head Coach (programmes they head only; other\nprogrammes → 404) only students who are not active members of ANY programme — moving a\nstudent from another programme stays an Administrator action. Name, username, grade,\ndivision and school only (no contact details, grades or feedback, D7).",
         "tags": [
           "Admin · Programmes"
         ],

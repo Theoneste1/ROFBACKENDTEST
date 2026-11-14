@@ -137,13 +137,14 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'leaderboard.view': 'global',
   },
   TEACHER: {
-    'courses.view': 'courseDivision', 'resources.view': 'courseDivision', 'assignments.view': 'courseDivision',
-    'discussions.participate': 'courseDivision', 'discussions.report': 'courseDivision',
+    // No course access (owner decision 2026-11-14): teachers are scoped by school (P1-11) and no
+    // course × division teacher assignment exists, so the course × division grants courses.view,
+    // resources.view, assignments.view, discussions.participate and discussions.report were removed
+    // (dead grants: no service ever let a Teacher through on them).
     // P1-11 (owner decision 2026-11-10): students of the teacher's assigned schools only
     // (TeacherSchoolAssignment): name, school, grade, division — never grades or contact details.
     'students.viewScoped': 'school',
     'leaderboard.view': 'global',
-    // assignments.prepare: only by individual override (D2, P1-09)
     // students.viewProfile, students.viewProgress, submissions.submitOnBehalf: only by
     // an individual GRANT (Administrator or Super Admin), school scope (P1-11)
   },
@@ -229,6 +230,12 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, owner decision 2026-11-13): ADMIN already holds it (ADMIN_GRANTS, global) and the
     // Teacher routes require it; without it here the frontend hid Teacher administration from ADMINs.
     'users.manageTeachers',
+    // Appended (additive, owner decision D-5, 2026-11-14): Administrators manage Head Coaches within their
+    // administrative responsibilities. ADMIN already holds all five (ADMIN_GRANTS, global) and the routes
+    // require them (Head Coach accounts, programme heads and members, coach monitoring, scoped reports);
+    // without them here the frontend hid those screens from ADMINs. users.manageAdmins, permissions.*,
+    // settings.manageSystem and schools.syncDirectory are still never listed for ADMIN.
+    'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
   ],
 };
 

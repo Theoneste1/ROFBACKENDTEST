@@ -1554,6 +1554,41 @@
             },
             "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
+        },
+        {
+          "name": "GET /admin/programmes/{id}/student-candidates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/student-candidates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "student-candidates"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "search",
+                  "disabled": false,
+                  "description": "First name, last name or username (2–100 characters; surrounding spaces ignored). E-mail addresses are never searched."
+                }
+              ]
+            },
+            "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
         }
       ]
     },
@@ -8567,7 +8602,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** permission `courses.view` (STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+            "description": "**Access:** permission `courses.view` (STUDENT, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]

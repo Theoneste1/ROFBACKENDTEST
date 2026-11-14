@@ -155,6 +155,21 @@ describe('Teachers (P1-11)', () => {
     expect(await p().submission.count({ where: { assignmentId: workId } })).toBe(0);
   });
 
+  it('2026-11-14: a Teacher holds no course access — /me/permissions lists only the school-scoped student list and the leaderboard; course routes stay refused', async () => {
+    expect((await http().get('/api/v1/me/permissions').set(bearer(t1)).expect(200)).body.permissions).toEqual(['leaderboard.view', 'students.viewScoped']);
+    // The one route gated by courses.view (the programme list) now refuses at the permission check; the
+    // signed-in course and discussion routes were already refused by their services (the grants were dead).
+    expect(await status(http().get('/api/v1/programmes').set(bearer(t1)))).toEqual([403, 'PERMISSION_REQUIRED']);
+    for (const [path, refused] of [['/api/v1/courses', 403], [`/api/v1/courses/${ctx.ids.algebra}/resources`, 403], [`/api/v1/courses/${ctx.ids.algebra}/threads`, 404]] as const) {
+      expect([path, (await http().get(path).set(bearer(t1))).status]).toEqual([path, refused]);
+    }
+    // The teacher portal itself still works.
+    await http().get('/api/v1/teacher/students').set(bearer(t1)).expect(200);
+    // assignments.prepare can no longer be granted to a Teacher (removed from the approved list).
+    expect(await status(http().post(`/api/v1/admin/users/${t1Id}/permission-overrides`).set(bearer(superAdmin))
+      .send({ permission: 'assignments.prepare', effect: 'GRANT', reason: 'draft help', courseId: ctx.ids.algebra, divisionId: ctx.ids.junior }))).toEqual([400, 'OVERRIDE_NOT_ALLOWED']);
+  });
+
   it('delegations: Administrators and Super Admins grant only the three teacher delegations, only to Teachers with a school; nobody grants themselves', async () => {
     // Teachers (and other non-administrators) cannot grant anything — not even to themselves.
     expect(await status(grant(t1, t1Id, 'students.viewProfile'))).toEqual([403, 'PERMISSION_REQUIRED']);
