@@ -68,8 +68,14 @@ export const FEATURES = {
    * and totals count the matches. Without this feature those parameters are refused (400).
    */
   studentAssignmentFilters: 'always',
-  // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
-  // (owner decision 2026-11-12): its production use is not yet approved.
+  /**
+   * The official-directory sync (/api/v1/admin/school-sync): dry-run runs from a source export,
+   * items, changes, report.csv, review summary, categories, decisions, proposals and recompare
+   * (schools.manage); approve, apply and resolve after apply (schools.syncDirectory: Super Admins
+   * only). Appended 2026-11-14 (owner decision: released with school import and contacts; before
+   * that it was deliberately not advertised, owner decision 2026-11-12).
+   */
+  schoolDirectorySync: 'always',
   /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing

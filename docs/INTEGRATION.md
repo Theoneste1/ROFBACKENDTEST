@@ -123,6 +123,7 @@ those, use `GET /me/permissions`, and the API still refuses anything not permitt
 | `reviewQueueFilters` | `GET /mentor/reviews` (the coach's own reviews) accepts `q` (student name or username), `group` (`open`, `done` or `all`; ignored when `status` is given), `sort` (`submitted` oldest first, the default; `recent`; `name`; `score`) and applies `courseId` / `divisionId`; the answer adds `counts: { open, done, all }` (same scope, without search or status). Without this feature these parameters are refused (400 `VALIDATION_FAILED`) and the scope filter is ignored: load the default queue and filter in the browser |
 | `reportExportFilters` | The Reports CSV exports apply the Reports page filters. `results.csv` accepts `academicYearId` (default: the current year; with `assignmentId` only when given), `from`/`to` (**submitted** between), `courseId` and `divisionId` besides `assignmentId`; it still needs `assignmentId`, or `courseId` **and** `divisionId` (400 `FILTER_REQUIRED`). `GET /admin/reports/enrollment` and `enrollment.csv` accept `courseId` (students taking part in that course, as in the Students report). Without this feature `results.csv` refuses `from`/`to`/`academicYearId` (400) and enrolment refuses `courseId` (400 `FILTER_NOT_SUPPORTED`): clients must not send them |
 | `studentAssignmentFilters` | Assignment lists filter and sort in the database. `GET /me/assignments` accepts `progress` (`NOT_STARTED`, `SUBMITTED`, `PENDING_REVIEW`, `RESUBMISSION_REQUESTED`, `REVIEWED` — the `displayStatus` labels — and `OVERDUE`: not started and no longer submittable, i.e. closed or past the deadline without late work) and `sort` (`deadline` soonest first, the default; `-deadline`; `title`). `GET /assignments` accepts `statuses` (comma-separated, e.g. `DRAFT,REJECTED`; not together with `status`). Paging and `meta.total` count only the matches. Without this feature these parameters are refused (400 `VALIDATION_FAILED`): filter the loaded page in the browser |
+| `schoolDirectorySync` | The official-directory sync, `/admin/school-sync`. With `schools.manage`: upload a source export as a dry run (`POST /runs?dataset=NESA:ACCREDITED_SCHOOLS`, multipart `file`, .xlsx or .csv; nothing is written to the directory), list runs, a run's items, proposed changes and `report.csv` (contact values masked or absent), the review summary (`/review`: counts and what still blocks an apply), `/categories` (with the `listDigest` a category approval sends back), `/decisions`, item `/proposal` and `/recompare`. Only with `schools.syncDirectory` (Super Admins; never grantable): `/approve` (returns the apply token), `/apply` and item `/resolve`; deciding a `RESOLVE_CONFLICT` change also needs it. Show approve / apply only when `/me/permissions` lists `schools.syncDirectory` |
 | `teacherAccounts` | The `TEACHER` role can currently be **assigned** to an account (create, invite, import, role change). The caller also needs `users.manageTeachers` in `/me/permissions` |
 | `headCoachAccounts` | The `HEAD_COACH` role can currently be **assigned** to an account. The caller also needs `users.manageHeadCoaches` in `/me/permissions` |
 
@@ -131,9 +132,9 @@ newly assigned. Existing `TEACHER` or `HEAD_COACH` accounts may still exist and
 use their portals. Show a portal by the signed-in user's `role`, never by these
 features.
 
-The official-directory sync (`/admin/school-sync`) is not advertised in
-`schemaVersion` 1. Its routes are unchanged, but clients must not build on it
-until it is approved for production.
+The official-directory sync (`/admin/school-sync`) was not advertised before
+2026-11-14; it is now (`schoolDirectorySync`, owner decision). Its routes and
+permissions did not change.
 
 - **`schemaVersion`:** adding a feature does not change it. Renaming or
   removing a feature, or changing what `roles` or a feature means, raises it.
