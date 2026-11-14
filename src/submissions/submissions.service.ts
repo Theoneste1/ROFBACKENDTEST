@@ -45,6 +45,9 @@ import { reviewQueueCounts, reviewQueueOrder, reviewQueueStatus } from './review
 import { RequestResubmissionDto } from './dto/request-resubmission.dto.js';
 import { deriveStudentDisplayStatus } from './student-display-status.js';
 
+/** Advisory-lock namespace of the leaderboard recompute (others: 4209–4216). */
+const POINTS_LOCK_NAMESPACE = 4217;
+
 /** @deprecated Import from common/auth-user instead. Kept for compatibility. */
 export type { CallerCtx } from '../common/auth-user.js';
 
@@ -956,17 +959,40 @@ export class SubmissionsService {
   // Points
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Rebuild every student's cached points from published results (maintenance). */
+  /**
+   * Rebuild every student's cached points from published results (maintenance).
+   *
+   * One set-based statement (M6): the published results are summed per student in a single grouped
+   * scan and only students whose cached values differ are written — seconds for 100,000 students
+   * instead of one transaction per student inside the request (which outlived the proxy timeout).
+   * Runs under an advisory lock, so a second click waits and then finds nothing left to change.
+   * `recomputed` = students checked; `changed` = students whose points or count were corrected.
+   */
   async recomputeAllPoints(user: AuthUser) {
-    const students = await this.prisma.user.findMany({ where: { role: 'STUDENT' }, select: { id: true } });
-    for (const s of students) {
-      await this.prisma.$transaction((tx) => this.recomputeStudentPoints(tx, s.id));
-    }
+    const { students, changed } = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${POINTS_LOCK_NAMESPACE}::int, 0)::text`;
+      const students = await tx.user.count({ where: { role: 'STUDENT' } });
+      const changed = await tx.$executeRaw`
+        WITH totals AS (
+          SELECT "studentId", COALESCE(SUM("pointsAwarded"), 0)::int AS points, COUNT(*)::int AS solved
+            FROM "Submission"
+           WHERE "status" = 'PUBLISHED'
+           GROUP BY "studentId"
+        )
+        UPDATE "User" AS u
+           SET "points" = COALESCE(t.points, 0), "problemsSolved" = COALESCE(t.solved, 0)
+          FROM "User" AS s
+          LEFT JOIN totals AS t ON t."studentId" = s."id"
+         WHERE u."id" = s."id"
+           AND s."role" = 'STUDENT'
+           AND (u."points" <> COALESCE(t.points, 0) OR u."problemsSolved" <> COALESCE(t.solved, 0))`;
+      return { students, changed };
+    }, { maxWait: 10_000, timeout: 120_000 });
     await this.audit.log({
       actorId: user.id, actorRole: user.role,
-      action: 'RECOMPUTE_POINTS', entity: 'User', metadata: { students: students.length },
+      action: 'RECOMPUTE_POINTS', entity: 'User', metadata: { students, changed },
     });
-    return { recomputed: students.length };
+    return { recomputed: students, changed };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
