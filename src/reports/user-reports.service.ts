@@ -106,8 +106,11 @@ export class UserReportsService {
         })
       : [];
     const restricted = this.scope.restricted(s);
+    // Grouped by student once: filtering the whole batch's counts per row was quadratic per batch.
+    const countsOf = new Map<string, typeof counts>();
+    for (const c of counts) countsOf.set(c.studentId, [...(countsOf.get(c.studentId) ?? []), c]);
     return rows.map((u) => {
-      const mine = counts.filter((c) => c.studentId === u.id);
+      const mine = countsOf.get(u.id) ?? [];
       const enrol = u.studentEnrollments[0];
       return {
         id: u.id, name: fullName(u), username: u.username,

@@ -129,4 +129,21 @@ describe('Bulk distribution and publication', () => {
     expect((await ctx.prisma.submission.findUniqueOrThrow({ where: { id: s.id } })).status).toBe('APPROVED');
     expect(await ctx.prisma.resultRelease.count({ where: { assignmentId } })).toBe(1);
   });
+
+  it('results.csv lists every row once, in the same order as before (deadline, last name, id) across batches', async () => {
+    // A few last names that sort differently from the ids.
+    for (const [i, id] of students.entries()) {
+      await ctx.prisma.user.update({ where: { id }, data: { lastName: ['Uwase', 'Habimana', 'Mugisha'][i % 3] } });
+    }
+    const expected = await ctx.prisma.submission.findMany({
+      where: { assignment: { courseId: ctx.ids.algebra, divisionId: ctx.ids.junior } },
+      orderBy: [{ assignment: { deadline: 'asc' } }, { student: { lastName: 'asc' } }, { id: 'asc' }],
+      select: { student: { select: { username: true } }, assignment: { select: { title: true } } },
+    });
+    const res = await ctx.http().get('/api/v1/admin/reports/results.csv').query({ courseId: ctx.ids.algebra, divisionId: ctx.ids.junior })
+      .set(bearer(admin)).expect(200);
+    const rows = res.text.replace(/^﻿/, '').trim().split('\r\n').slice(1).map((l) => l.split(','));
+    expect(rows.map((r) => `${r[2]}/${r[4]}`)).toEqual(expected.map((e) => `${e.assignment.title}/${e.student.username}`));
+    expect(rows.length).toBeGreaterThan(STUDENTS);   // crosses many 2-row batches (REPORT_CSV_BATCH_SIZE=2)
+  });
 });

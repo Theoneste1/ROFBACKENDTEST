@@ -83,6 +83,22 @@ export async function* offsetBatches<T>(fetch: (page: BatchPage) => Promise<T[]>
   }
 }
 
+/**
+ * Rows in a precomputed order (PERF-09): `ids` is the export's whole order, computed once by one
+ * query; each batch then reads its rows by primary key and returns them in that order. For orders
+ * through relations, where keyset paging cannot use an index either and OFFSET paging re-sorted the
+ * whole result for every page (quadratic: 62 s for 98,000 rows locally). Rows deleted during the
+ * export are skipped; rows added after the order was taken are not included.
+ */
+export async function* idBatches<T extends { id: string }>(ids: string[], fetch: (ids: string[]) => Promise<T[]>, size = csvBatchSize()): AsyncGenerator<T[]> {
+  for (let i = 0; i < ids.length; i += size) {
+    const chunk = ids.slice(i, i + size);
+    const byId = new Map((await fetch(chunk)).map((r) => [r.id, r]));
+    const rows = chunk.map((id) => byId.get(id)).filter((r): r is T => r !== undefined);
+    if (rows.length) yield rows;
+  }
+}
+
 /** Turn each batch of records into CSV rows (may query per batch, e.g. grouped counts for those ids). */
 export async function* mapBatches<T>(source: AsyncIterable<T[]>, toRows: (batch: T[]) => Promise<CsvValue[][]> | CsvValue[][]): AsyncGenerator<CsvValue[][]> {
   for await (const batch of source) yield await toRows(batch);
