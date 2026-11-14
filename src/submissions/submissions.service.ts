@@ -45,7 +45,16 @@ import { reviewQueueCounts, reviewQueueOrder, reviewQueueStatus } from './review
 import { RequestResubmissionDto } from './dto/request-resubmission.dto.js';
 import { deriveStudentDisplayStatus } from './student-display-status.js';
 
-/** Advisory-lock namespace of the leaderboard recompute (others: 4209–4216). */
+/**
+ * Advisory-lock namespace of the points cache (others: 4209–4216). Key 0: the
+ * maintenance recompute takes it EXCLUSIVE; every per-student points update
+ * (publish, reopen) takes it SHARED, so they run in parallel with each other but
+ * never interleave with a full recompute.
+ *
+ * Lock order for points writers: (1) this advisory lock, (2) the affected
+ * Submission rows, in id order, (3) the affected students' User rows, in id
+ * order (FOR UPDATE, before their published results are summed).
+ */
 const POINTS_LOCK_NAMESPACE = 4217;
 
 /** @deprecated Import from common/auth-user instead. Kept for compatibility. */
@@ -885,6 +894,7 @@ export class SubmissionsService {
     const previous = sub.publishedReview;
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      await this.lockPointsShared(tx);
       const { count } = await tx.submission.updateMany({
         where: { id: submissionId, status: 'PUBLISHED' },
         data:  { status: 'REJECTED', publishedReviewId: null, pointsAwarded: 0, publishedAt: null, resultReleaseId: null },
@@ -1004,8 +1014,10 @@ export class SubmissionsService {
     if (ids.length === 0) return { published: [] as string[], releaseId: null };
 
     const out = await this.prisma.$transaction(async (tx) => {
+      await this.lockPointsShared(tx);
       const subs = await tx.submission.findMany({
         where:  { id: { in: ids }, assignmentId, status: 'APPROVED' },
+        orderBy: { id: 'asc' },   // rows are then updated in a consistent order
         select: {
           id: true, studentId: true, currentReviewId: true,
           currentReview: { select: { score: true } },
@@ -1038,7 +1050,8 @@ export class SubmissionsService {
 
       await tx.resultRelease.update({ where: { id: releaseRow.id }, data: { resultCount: done.length } });
 
-      const students = [...new Set(subs.filter((s) => done.includes(s.id)).map((s) => s.studentId))];
+      // Students in id order: two releases sharing students lock them in the same order (no deadlock).
+      const students = [...new Set(subs.filter((s) => done.includes(s.id)).map((s) => s.studentId))].sort();
       for (const studentId of students) await this.recomputeStudentPoints(tx, studentId);
 
       await this.audit.log({
@@ -1053,8 +1066,21 @@ export class SubmissionsService {
     return out;
   }
 
-  /** User.points / problemsSolved are a cache of published results. */
+  /** Shared side of the points lock (see POINTS_LOCK_NAMESPACE); the full recompute takes it exclusively. */
+  private async lockPointsShared(tx: Tx) {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock_shared(${POINTS_LOCK_NAMESPACE}::int, 0)::text`;
+  }
+
+  /**
+   * User.points / problemsSolved are a cache of published results. The student's
+   * row is locked first: a concurrent transaction that changes the same student's
+   * published results then commits before this one sums them (READ COMMITTED: the
+   * aggregate below is a new statement, so it sees that commit). Without the lock
+   * the sum could miss the other transaction's results and overwrite its total.
+   * Callers lock several students in id order.
+   */
   private async recomputeStudentPoints(tx: Tx, studentId: string) {
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${studentId} FOR UPDATE`;
     const agg = await tx.submission.aggregate({
       where:  { studentId, status: 'PUBLISHED' },
       _sum:   { pointsAwarded: true },
