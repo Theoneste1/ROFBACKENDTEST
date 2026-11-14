@@ -8,8 +8,9 @@ issues, commits, logs **or a command line** (shell history and the process list 
 only in git-ignored `.env.*.local` files.
 
 **One checkout, one working directory.** Run every command below from the root of a clean checkout of
-the **release SHA** the owner approved (`APPROVED_RELEASE_SHA`, RELEASE-PHASE1-RUNBOOK.md §0.2; candidate
-today: backend `develop` `c3a4bd3015fe9de915a6da83fe60227b0a41f733`, the PR #38 merge) — the runner refuses
+the **release SHA** the owner approved (`APPROVED_RELEASE_SHA`, RELEASE-PHASE1-RUNBOOK.md §0.2: the backend
+`develop` head once every change for this release is merged — on 2026-11-14 `fe919356b05dfea3f96898d1961b1709583bdb48`,
+with further fixes pending) — the runner refuses
 any other working directory. The rehearsal must use the same SHA as the production release; a later
 merge into `develop` means a new rehearsal. Before step R0, from that checkout (PowerShell):
 

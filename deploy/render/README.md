@@ -115,12 +115,20 @@ Frontend and API are therefore the same site for the browser, and the
    contact-form messages); optionally turn off e-mail copies of notifications.
 3. Invite yourself as a coach to check that e-mail arrives; upload a file
    to check storage.
-4. **Rate-limit check (`TRUST_PROXY`):** sign-in attempts and contact messages are
-   limited per visitor address. Because requests pass Netlify before Render, the API
-   may see Netlify's address instead of the visitor's. Test: enter a wrong password
-   10 times on one device (the 11th is refused), then sign in from a **different
-   network** (e.g. a phone on mobile data). If that is refused too, everyone shares one
-   limit: set `TRUST_PROXY` to `2` in Render and repeat the test.
+4. **Rate-limit check (`TRUST_PROXY`):** sign-in, refresh, logout and contact messages
+   are limited per visitor address. Because requests pass Netlify before Render, the API
+   may see a proxy's address instead of the visitor's, so visitors could share one limit.
+   - Look for **HTTP 429 "Too many requests"** — not for a refused password: after 5 wrong
+     passwords an account is **locked** and keeps answering like a wrong password, which
+     looks the same as a shared limit. Use a different, non-existent username for each
+     attempt: 11 quick attempts from one device give a 429; then one attempt from a
+     **different network** (e.g. a phone on mobile data). A 429 there means the limit is shared.
+   - **Do not simply set `TRUST_PROXY` to `2`.** The Render address must stay public
+     (uploads go to it directly), and with `2` anyone calling it directly could choose the
+     address the limit uses (X-Forwarded-For). The owner first approves a short diagnostic
+     (log `req.ip`, `req.ips`, the socket address and the forwarding headers for a few
+     requests, plus Render's request logs and instance count); the fix is then decided
+     from that evidence.
 
 ## Custom domain (optional)
 
