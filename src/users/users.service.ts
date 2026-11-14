@@ -289,9 +289,15 @@ export class UsersService {
 
       // The audit entries commit with the change: what changed, from what, to what.
       const changes = diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
+
+      // A new e-mail address: links already e-mailed to the old address (invitation, e-mail
+      // verification, password reset) stop working, in this transaction. Otherwise whoever holds
+      // the old (e.g. mistyped) address could still activate the account or set its password.
+      // The administrator re-sends an invitation or reset, which goes to the new address.
+      const linksRevoked = changes.email ? await revokeEmailedLinks(tx, id) : undefined;
       await this.audit.log({
         ...actor, action: 'UPDATE_USER', entity: 'User', entityId: id,
-        metadata: { changes, passwordChanged: !!data.password },
+        metadata: { changes, passwordChanged: !!data.password, ...(linksRevoked && { linksRevoked }) },
       }, tx);
       if (existing.role !== updated.role) {
         await this.audit.log({
@@ -522,4 +528,25 @@ const isLastSuperAdminError = (err: unknown) => String((err as Error)?.message ?
 function lastSuperAdminConflict(err: unknown): never {
   if (isLastSuperAdminError(err)) throw lastSuperAdmin();
   throw err;
+}
+
+/**
+ * Retire every unused link e-mailed to a user: activation (invitation / e-mail verification)
+ * tokens are revoked, password-reset tokens marked used (as a newer reset link does). Returns how
+ * many of each were still usable, for the audit entry.
+ */
+export async function revokeEmailedLinks(tx: Prisma.TransactionClient, userId: string) {
+  const now = new Date();
+  const activation = await tx.accountActivationToken.updateMany({
+    where: { userId, usedAt: null, revokedAt: null, expiresAt: { gt: now } },
+    data:  { revokedAt: now },
+  });
+  // Expired ones cannot be used anyway; retire them too so nothing stays open, without counting them.
+  await tx.accountActivationToken.updateMany({ where: { userId, usedAt: null, revokedAt: null }, data: { revokedAt: now } });
+  const passwordReset = await tx.passwordResetToken.updateMany({
+    where: { userId, usedAt: null, expiresAt: { gt: now } },
+    data:  { usedAt: now },
+  });
+  await tx.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: now } });
+  return { activation: activation.count, passwordReset: passwordReset.count };
 }

@@ -283,6 +283,48 @@ describe('User management (e2e)', () => {
     });
   });
 
+  describe('an administrator changes a user\'s e-mail address', () => {
+    it('pending invitation links sent to the old address stop working; a new invitation goes to the new address', async () => {
+      const res = await ctx.http().post('/api/v1/admin/users/invite').set(bearer(admin))
+        .send({ firstName: 'Typo', lastName: 'Address', email: 'typo@exampel.com', gradeLevel: 'S2' }).expect(201);
+      const id = res.body.user.id;
+      const oldLink = await lastLinkToken('typo@exampel.com');
+      await ctx.http().post('/api/v1/auth/activation/inspect').send({ token: oldLink }).expect(200);
+
+      await ctx.http().patch(`/api/v1/admin/users/${id}`).set(bearer(admin)).send({ email: 'typo@example.com' }).expect(200);
+
+      // Whoever received the mistyped address can no longer take over the account.
+      const stale = await ctx.http().post('/api/v1/auth/activation/inspect').send({ token: oldLink }).expect(400);
+      expect(stale.body.code).toBe('INVALID_ACTIVATION_TOKEN');
+      await ctx.http().post('/api/v1/auth/activate').send({ token: oldLink, password: NEW_PASSWORD }).expect(400);
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'UPDATE_USER', entityId: id }, orderBy: { createdAt: 'desc' } });
+      expect(audit.metadata).toMatchObject({ changes: { email: { from: 'typo@exampel.com', to: 'typo@example.com' } }, linksRevoked: { activation: 1, passwordReset: 0 } });
+
+      // The administrator re-sends the invitation: it goes to the corrected address and works.
+      await ctx.http().post(`/api/v1/admin/users/${id}/resend-invitation`).set(bearer(admin)).expect(200);
+      const fresh = await lastLinkToken('typo@example.com');
+      await ctx.http().post('/api/v1/auth/activate').send({ token: fresh, password: NEW_PASSWORD }).expect(200);
+    });
+
+    it('unused password-reset links sent to the old address stop working; other edits keep them', async () => {
+      const res = await ctx.http().post('/api/v1/admin/users/invite').set(bearer(admin))
+        .send({ firstName: 'Reset', lastName: 'Mover', email: 'mover.old@example.com', role: 'MENTOR' }).expect(201);
+      const id = res.body.user.id;
+      await ctx.http().post('/api/v1/auth/activate').send({ token: await lastLinkToken('mover.old@example.com'), password: NEW_PASSWORD }).expect(200);
+
+      await ctx.http().post(`/api/v1/admin/users/${id}/send-password-reset`).set(bearer(admin)).expect(200);
+      const kept = await lastLinkToken('mover.old@example.com', 'reset-password');
+      // A change that is not the e-mail address leaves the link alone.
+      await ctx.http().patch(`/api/v1/admin/users/${id}`).set(bearer(admin)).send({ firstName: 'Renamed' }).expect(200);
+      expect((await ctx.prisma.passwordResetToken.findFirstOrThrow({ where: { userId: id }, orderBy: { createdAt: 'desc' } })).usedAt).toBeNull();
+
+      await ctx.http().patch(`/api/v1/admin/users/${id}`).set(bearer(admin)).send({ email: 'mover.new@example.com' }).expect(200);
+      const stale = await ctx.http().post('/api/v1/auth/reset-password').send({ token: kept, newPassword: 'Changed123' }).expect(400);
+      expect(stale.body.code).toBe('INVALID_RESET_TOKEN');
+      await login(ctx, res.body.user.username, NEW_PASSWORD);
+    });
+  });
+
   describe('deactivation and reactivation', () => {
     it('a deactivated account loses access at once and its activation links stop working', async () => {
       const token = await login(ctx, 'student.j2');
