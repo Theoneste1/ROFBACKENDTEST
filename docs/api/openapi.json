@@ -20827,6 +20827,61 @@
         "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/schools/{id}/verify": {
+      "post": {
+        "operationId": "AdminSchoolsController_verify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifySchoolDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record that an administrator checked this school's name and place (lastVerifiedAt / By; audited).\nA school without an official code becomes available to Teachers only once created by an\nadministrator and verified. Editing the name or place clears the verification.",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/schools/{id}/active": {
       "patch": {
         "operationId": "AdminSchoolsController_setActive",
@@ -41818,6 +41873,16 @@
           },
           "confirmPossibleDuplicate": {
             "type": "boolean"
+          }
+        }
+      },
+      "VerifySchoolDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
           }
         }
       },

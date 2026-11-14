@@ -167,7 +167,13 @@ Owner decision 2026-11-14. `GET /api/v1/schools/search` returns **active Rwandan
 schools with an official code and those without one that an administrator entered
 (official name and place), by name, code prefix or place (province, district, sector
 or location text). Free-text schools typed in before the directory existed (source
-`LEGACY`, no code) are never offered publicly; administrators still match claims to them. The response shape is unchanged;
+`LEGACY`, no code) are never offered publicly; administrators still match claims to them.
+
+**Schools for Teachers** (owner decision 2026-11-14): `teacherEligible=true` limits the
+search to schools a Teacher may name: an official code, or created by an administrator
+**and verified** (`POST /api/v1/admin/schools/{id}/verify`, `schools.manage`, audited
+`VERIFY_SCHOOL`; the admin school detail returns `lastVerifiedAt` and `lastVerifiedBy`).
+Editing a verified school's name or place clears the verification. The response shape is unchanged;
 a school without a code has `code: null` (a code is never invented).
 
 Registration (`POST /auth/register/student`) and the student's claim
