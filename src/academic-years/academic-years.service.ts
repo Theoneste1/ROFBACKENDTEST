@@ -194,7 +194,7 @@ export class AcademicYearsService {
       await tx.academicYear.update({ where: { id }, data: { isCurrent: true, status: 'ACTIVE' } });
 
       // Set-based (PERF-01): one statement rolls every student over and one enrols the rest, instead
-      // of 3–4 statements per student (which outlived the 120 s transaction from ~14,000 students).
+      // of 3–4 statements per student (49 s for 10,000 students locally; the 120 s transaction expired at 50,000).
       if (previous) {
         const rolled = await this.rollOver(tx, {
           previousYearId: previous.id, yearId: id, now, divisionFor,
