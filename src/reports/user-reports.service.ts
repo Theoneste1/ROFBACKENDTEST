@@ -15,6 +15,7 @@ import { ReportScopeService, teachingIn, type ReportScope } from './report-scope
 import type { ReportListDto, UserReportDto, UserStatusFilter } from './dto/report-filters.dto.js';
 import { csvFromRows, keysetBatches, mapBatches, type CsvExport } from './csv.js';
 import { CURRENT_CLAIM_SELECT, withVerification } from '../schools/affiliations/school-verification.js';
+import { canonicalInterests, interestLabels } from '../users/olympiad-interests.js';
 
 
 const PERSON = { id: true, firstName: true, lastName: true, username: true } as const;
@@ -62,10 +63,11 @@ export class UserReportsService {
     }));
     return {
       headers: ['Student', 'Username', 'Email', 'Status', 'Division', 'Grade', 'School', 'Enrolment status',
-        'Submissions', 'Results published', 'Points', 'Registered', 'Activated', 'Last login'],
+        'Submissions', 'Results published', 'Points', 'Registered', 'Activated', 'Last login', 'Olympiad interests'],
       batches: mapBatches(pages, async (rows) => (await this.studentViews(s, rows)).map((v) => [
         v.name, v.username, v.email, v.status, v.division?.name, v.gradeLevel, v.school?.name, v.enrollmentStatus,
         v.submissions, v.resultsPublished, v.points, v.registeredAt, v.activatedAt, v.lastLoginAt,
+        interestLabels(v.olympiadInterests),
       ])),
     };
   }
@@ -84,7 +86,7 @@ export class UserReportsService {
   private studentSelect(s: ReportScope) {
     return {
       ...PERSON, email: true, gradeLevel: true, isActive: true, activatedAt: true,
-      createdAt: true, lastLoginAt: true, points: true,
+      createdAt: true, lastLoginAt: true, points: true, olympiadInterests: true,
       division: { select: { id: true, code: true, name: true } },
       school:   { select: { id: true, name: true } },
       schoolAffiliations: CURRENT_CLAIM_SELECT,
@@ -128,6 +130,7 @@ export class UserReportsService {
         registeredAt:     u.createdAt,
         activatedAt:      u.activatedAt,
         lastLoginAt:      u.lastLoginAt,
+        olympiadInterests: canonicalInterests(u.olympiadInterests),
       };
     });
   }

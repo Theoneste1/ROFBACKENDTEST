@@ -17,6 +17,8 @@ import { SettingsService } from '../settings/settings.service.js';
 import { Events } from '../notifications/events.js';
 import { CreateMentorRequestDto, ListMentorRequestsDto } from './dto/create-mentor-request.dto.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
+import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
+import { DecisionEvents } from '../decision-notifications/decision-content.js';
 
 const PUBLIC_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
@@ -31,6 +33,7 @@ export class MentorRequestsService {
     private readonly events:  EventEmitter2,
     private readonly activation: ActivationService,
     private readonly settings:   SettingsService,
+    private readonly notices:    DecisionNotificationsService,
   ) {}
 
   // ─── Submit a mentor application (public) ─────────────────────────────────
@@ -38,7 +41,7 @@ export class MentorRequestsService {
   // A previously REJECTED applicant may apply again with the same details;
   // the old request is reused.
   async create(data: CreateMentorRequestDto) {
-    const [existingUser, existingRequest] = await Promise.all([
+    const [existingUser, existingRequest, pendingTeacherApplication] = await Promise.all([
       this.prisma.user.findFirst({
         where:  { OR: [{ username: data.username }, { email: data.email }] },
         select: { id: true },
@@ -46,13 +49,18 @@ export class MentorRequestsService {
       this.prisma.mentorRequest.findFirst({
         where: { OR: [{ username: data.username }, { email: data.email }] },
       }),
+      // A pending Teacher application holds its username and e-mail too (teacher self-registration).
+      this.prisma.teacherApplication.findFirst({
+        where:  { OR: [{ username: data.username }, { email: data.email }], status: 'PENDING' },
+        select: { id: true },
+      }),
     ]);
 
     // One generic message: the endpoint must not reveal which part is taken.
     const taken = () =>
       new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
 
-    if (existingUser) throw taken();
+    if (existingUser || pendingTeacherApplication) throw taken();
     if (existingRequest && existingRequest.status !== 'REJECTED') throw taken();
 
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
@@ -102,6 +110,7 @@ export class MentorRequestsService {
     const verify = await this.settings.get('registration.requireEmailVerification');
 
     let issued: IssuedActivation | null = null;
+    let notice: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
       // Claim the request: only one concurrent approval can succeed.
       const { count } = await tx.mentorRequest.updateMany({
@@ -139,18 +148,20 @@ export class MentorRequestsService {
         action: 'APPROVE_MENTOR_REQUEST', entity: 'MentorRequest', entityId: requestId,
         metadata: { newUserId: mentor.id },
       }, tx);
+      // The one approval notice (e-mail + in-app), written with the approval (decision notifications).
+      notice = await this.notices.enqueue(tx, {
+        type: DecisionEvents.CoachApplicationApproved, dedupeKey: `${DecisionEvents.CoachApplicationApproved}:${requestId}`,
+        recipient: { userId: mentor.id, email: mentor.email, firstName: request.firstName },
+        entity: { type: 'MentorRequest', id: requestId }, payload: { activated: !verify },
+      });
 
       return mentor;
     });
 
-    if (issued) {
-      // The confirmation e-mail doubles as the approval notice.
-      await this.activation.send(issued);
-    } else {
-      this.events.emit(Events.MentorRequestDecided, {
-        email: request.email, firstName: request.firstName, approved: true,
-      });
-    }
+    // With e-mail verification on, the confirmation e-mail is still sent; the approval notice (which replaces
+    // the former MentorRequestDecided approval e-mail) tells the coach to use it before logging in.
+    this.notices.dispatchAfterCommit([notice]);
+    if (issued) await this.activation.send(issued);
 
     return {
       mentor:  result,

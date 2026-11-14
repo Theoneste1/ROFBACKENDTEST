@@ -212,7 +212,7 @@ describe('Remaining endpoints (e2e)', () => {
         expect.objectContaining({ name: 'TEST OFFICIAL SCHOOL', code: '120999' }),
         expect.objectContaining({ name: 'Test School', code: null, location: 'Kigali' }),
       ]);
-      expect(Object.keys(found.body[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'sector']);
+      expect(Object.keys(found.body[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'province', 'sector']);
       expect((await http().get('/api/v1/schools/search').query({ q: '1209' }).expect(200)).body.map((s: any) => s.code)).toEqual(['120999']);
       // Rwanda cascade: Province → District → Sector, then every official school of the sector.
       await ctx.prisma.school.update({ where: { code: '120999' }, data: { province: 'Kigali City' } });

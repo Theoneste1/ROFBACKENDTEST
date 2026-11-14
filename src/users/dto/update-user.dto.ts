@@ -1,4 +1,7 @@
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsEmail,
   IsEnum,
@@ -10,7 +13,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel, Role } from '../../generated/prisma/client.js';
+import { GradeLevel, OlympiadSubject, Role } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 
@@ -115,6 +118,17 @@ export class UpdateMeDto {
   @Length(2, 200)
   @Transform(trim)
   homeLocation?: string;
+
+  /**
+   * The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of
+   * MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests).
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @ArrayUnique()
+  @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
+  olympiadInterests?: OlympiadSubject[];
 }
 
 export class ListUsersQueryDto extends PaginationQueryDto {

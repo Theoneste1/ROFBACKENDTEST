@@ -2,16 +2,15 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
-import { PUBLIC_SCHOOL_WHERE } from './school-directory.js';
-import { RWANDA } from './school-rules.js';
+import { PUBLIC_DIRECTORY, PUBLIC_SCHOOL_WHERE } from './school-directory.js';
 
-/** The public search result: unchanged fields (code null for a school without an official code). */
-const SEARCH_SELECT = { id: true, code: true, name: true, location: true, district: true, sector: true } as const;
+/**
+ * The public search result (code null for a school without an official code); `province` was added
+ * for Teacher self-registration (the school's place).
+ */
+const SEARCH_SELECT = { id: true, code: true, name: true, location: true, province: true, district: true, sector: true } as const;
 /** At most this many words of a search term are matched (each must be found). */
 const MAX_SEARCH_WORDS = 6;
-
-/** Places offered by GET /schools/locations (PR B): those of active, official, Rwandan schools. */
-const PUBLIC_DIRECTORY = { code: { not: null }, countryCode: RWANDA, isActive: true } as const;
 
 @Injectable()
 export class SchoolsService {

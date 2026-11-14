@@ -35,6 +35,7 @@ import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateOverrideDto } from './dto/create-override.dto.js';
+import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 
 const SELECT = {
   id: true, permission: true, effect: true, courseId: true, divisionId: true, reason: true, expiresAt: true,
@@ -67,6 +68,7 @@ export class PermissionOverridesService {
     private readonly audit: AuditService,
     private readonly permissions: PermissionService,
     private readonly config: ConfigService,
+    private readonly notices: DecisionNotificationsService,
   ) {}
 
   async list(userId: string, opts: DelegationMode = {}) {
@@ -114,7 +116,8 @@ export class PermissionOverridesService {
       throw notAllowed('a DENY applies to the whole permission; omit courseId and divisionId');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    let notice: string | null = null;
+    const saved = await this.prisma.$transaction(async (tx) => {
       // Concurrency (multi-instance safe): creations for the same user are serialised by a
       // PostgreSQL transaction-scoped advisory lock, released at commit/rollback. The duplicate
       // check runs INSIDE the lock (after any concurrent creation has committed), so two
@@ -142,8 +145,12 @@ export class PermissionOverridesService {
           ...(opts.delegation && { via: 'TEACHER_DELEGATION' }),
         },
       }, tx);
+      // permissions.granted (Teachers, Coaches, Head Coaches; GRANT only), written with the grant.
+      notice = await this.notices.enqueuePermissionsGranted(tx, target, [{ id: created.id, permission: created.permission, effect: created.effect }]);
       return { ...created, active: true };
     });
+    this.notices.dispatchAfterCommit([notice]);
+    return saved;
   }
 
   async revoke(userId: string, overrideId: string, actor: CallerCtx, opts: DelegationMode = {}) {
@@ -232,7 +239,9 @@ export class PermissionOverridesService {
   }
 
   private async requireUser(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id }, select: { id: true, role: true, email: true, firstName: true, isActive: true, activatedAt: true },
+    });
     if (!user) throw new NotFoundException('User not found.');
     return user;
   }

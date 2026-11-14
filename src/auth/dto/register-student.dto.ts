@@ -1,4 +1,7 @@
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsEmail,
   IsEnum,
   IsISO31661Alpha2,
@@ -10,7 +13,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel } from '../../generated/prisma/client.js';
+import { GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from './password.rules.js';
 
 /** Normalise a string to Title Case, trim whitespace. */
@@ -126,4 +129,16 @@ export class RegisterStudentDto {
   @Length(2, 200)
   @Transform(titleCase)
   homeLocation: string;
+
+  /**
+   * Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and
+   * PHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then
+   * has none); the sign-up form requires at least one. Information only: no programme membership, no permissions.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @ArrayUnique()
+  @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
+  olympiadInterests?: OlympiadSubject[];
 }

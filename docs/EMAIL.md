@@ -51,10 +51,34 @@ mailbox).
 | Welcome | Account activated, or registered without e-mail confirmation | `/login` | — |
 | Your account has been approved | An administrator approves a pending registration | `/login` | — |
 | Your password was changed | After a password reset or change (security notice) | `/forgot-password` | — |
-| Coach application decided | Administrator approves or declines | `/login` | — |
+| Coach application declined | Administrator declines a coach application | — | — |
+| Your coach / teacher application has been approved | Administrator approves (decision notification, also in-app); "ready to use" and the login link only when the account is already activated — otherwise it points to the separate confirmation e-mail | `/login` (activated only) | — |
+| Your school is now part of the ROF Olympiad Community! | Administrator verifies a missing school: a teacher applicant's (e-mail only, to the application address) or a student's "not listed" claim (also in-app) | — | — |
+| You have been given new permission(s) | A Teacher, Coach or Head Coach is granted permissions (each listed in plain language; also in-app) | `/login` (activated only) | — |
 | Notifications | Assignments, results, … (users can turn categories off) | the related page | — |
 | Bulk e-mail | Administrators, `POST /admin/email/send` | — | — |
 | Contact form | To the support address in the platform settings | `/admin/messages` | — |
+
+**Decision notifications** (`src/decision-notifications/`) are queued in the `NotificationOutbox`
+table in the same transaction as the Administrator's action and sent right after it commits; a failed
+send only marks the row `FAILED` (sanitised error, backoff 1, 2, 4, 8 … minutes, at most 5 automatic
+attempts by the worker when `WORKERS_ENABLED` is not `false`, which also recovers rows stuck in
+`SENDING` for 5 minutes). Each event has a `dedupeKey`, so a repeated action or delivery never sends
+twice. Administrators see and retry them at `/admin/notification-deliveries` (`email.bulkSend`). They are
+account-status notices (category `ACCOUNT`): like activation, approval and password e-mails they
+cannot be switched off and ignore the per-category e-mail preferences and `notifications.emailEnabled`.
+
+**Teacher-registration notices follow teacher self-registration** (owner decision 10): the notices about
+a teacher application (the teacher approval, and "Your school is now part of …" for a teacher applicant's
+missing school) are sent only while teacher self-registration is enabled — `TEACHERS_ENABLED=true` and the
+`registration.teacherSelfSignup` setting on. While it is off an Administrator's decision still applies but
+queues no notice (no outbox row, no in-app notification; the audit entry records
+`NOT_SENT_SELF_REGISTRATION_OFF`), and a notice queued earlier is not e-mailed (it is marked `FAILED`,
+"Not sent: teacher self-registration is turned off.", no automatic retry). Teacher rejections send no
+notice at all. Coach approval, student school verification and permission grants are not
+teacher-registration notices and are sent as before. The account confirmation e-mail of an approved
+teacher (when e-mail confirmation is required) is an account e-mail, not a decision notice, and is still
+sent so the account can be used.
 
 Requesting a new reset or activation link makes the earlier one invalid.
 Expired, used and unknown links are refused with `INVALID_RESET_TOKEN` /

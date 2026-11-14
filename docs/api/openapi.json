@@ -3597,6 +3597,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -3655,6 +3661,7 @@
                     "id",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "requiresApproval",
@@ -3863,6 +3870,12 @@
                         "lastName": {
                           "type": "string"
                         },
+                        "olympiadInterests": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
                         "points": {
                           "type": "integer"
                         },
@@ -3908,6 +3921,7 @@
                         "id",
                         "lastLoginAt",
                         "lastName",
+                        "olympiadInterests",
                         "points",
                         "problemsSolved",
                         "role",
@@ -6763,6 +6777,9 @@
                           "lastName": {
                             "type": "string"
                           },
+                          "olympiadInterests": {
+                            "type": "array"
+                          },
                           "points": {
                             "type": "integer"
                           },
@@ -6818,6 +6835,7 @@
                           "isApproved",
                           "lastLoginAt",
                           "lastName",
+                          "olympiadInterests",
                           "points",
                           "problemsSolved",
                           "provider",
@@ -6966,6 +6984,9 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -7003,6 +7024,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -7138,6 +7160,9 @@
                         "lastName": {
                           "type": "string"
                         },
+                        "olympiadInterests": {
+                          "type": "array"
+                        },
                         "points": {
                           "type": "integer"
                         },
@@ -7186,6 +7211,7 @@
                         "isApproved",
                         "lastLoginAt",
                         "lastName",
+                        "olympiadInterests",
                         "points",
                         "problemsSolved",
                         "role",
@@ -7437,6 +7463,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -7491,6 +7523,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -7617,6 +7650,9 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -7654,6 +7690,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -7951,6 +7988,9 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -8006,6 +8046,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -8106,6 +8147,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -8151,6 +8198,7 @@
                     "id",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "role",
@@ -8254,6 +8302,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -8298,6 +8352,7 @@
                     "id",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "role",
@@ -19666,6 +19721,10 @@
                       "name": {
                         "type": "string"
                       },
+                      "province": {
+                        "nullable": true,
+                        "type": "string"
+                      },
                       "sector": {
                         "nullable": true,
                         "type": "string"
@@ -19677,6 +19736,7 @@
                       "id",
                       "location",
                       "name",
+                      "province",
                       "sector"
                     ],
                     "type": "object"
@@ -31481,16 +31541,24 @@
         "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
       }
     },
-    "/api/v1/public/statistics": {
+    "/api/v1/auth/register/teacher/availability": {
       "get": {
-        "operationId": "PublicSiteController_statistics",
+        "operationId": "TeacherRegistrationController_availability",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Success. Shape recorded from the end-to-end tests.",
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "open": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "open"
+                  ],
                   "type": "object"
                 }
               }
@@ -31507,9 +31575,9 @@
             }
           }
         },
-        "summary": "Aggregate community counts (no personal data). Cached for 5 minutes.",
+        "summary": "`{ open }`: true only while TEACHERS_ENABLED and registration.teacherSelfSignup are both on.",
         "tags": [
-          "Public site"
+          "Auth"
         ],
         "x-roles": [
           "PUBLIC"
@@ -31518,26 +31586,82 @@
         "security": []
       }
     },
-    "/api/v1/public/contact": {
+    "/api/v1/auth/register/teacher": {
       "post": {
-        "operationId": "PublicSiteController_contact",
+        "operationId": "TeacherRegistrationController_register",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateContactMessageDto"
+                "$ref": "#/components/schemas/RegisterTeacherDto"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "Success. Shape recorded from the end-to-end tests.",
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "proposedSchoolName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "requiresApproval": {
+                      "type": "boolean"
+                    },
+                    "school": {
+                      "nullable": true,
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "district": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "province": {
+                          "type": "string"
+                        },
+                        "sector": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "district",
+                        "id",
+                        "name",
+                        "province",
+                        "sector"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "proposedSchoolName",
+                    "requiresApproval",
+                    "school",
+                    "status"
+                  ],
                   "type": "object"
                 }
               }
@@ -31554,9 +31678,9 @@
             }
           }
         },
-        "summary": "Contact form. At most 5 per hour per IP (plus per-e-mail and duplicate limits).",
+        "summary": "Submit a Teacher application (no account until an Administrator approves it).",
         "tags": [
-          "Public site"
+          "Auth"
         ],
         "x-roles": [
           "PUBLIC"
@@ -31565,9 +31689,9 @@
         "security": []
       }
     },
-    "/api/v1/admin/contact-messages": {
+    "/api/v1/admin/teacher-applications": {
       "get": {
-        "operationId": "ContactMessagesController_list",
+        "operationId": "AdminTeacherApplicationsController_list",
         "parameters": [
           {
             "name": "status",
@@ -31576,15 +31700,219 @@
             "schema": {
               "type": "string",
               "enum": [
-                "NEW",
-                "HANDLED"
+                "REJECTED",
+                "APPROVED",
+                "PENDING"
               ]
             }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "assignedSchool": {
+                            "nullable": true
+                          },
+                          "country": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "decidedAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "decidedBy": {
+                            "nullable": true,
+                            "properties": {
+                              "firstName": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "firstName",
+                              "id",
+                              "lastName"
+                            ],
+                            "type": "object"
+                          },
+                          "decisionNote": {
+                            "nullable": true
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "homeDistrict": {
+                            "type": "string"
+                          },
+                          "homeSector": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "type": "string"
+                          },
+                          "olympiadInterests": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "phone": {
+                            "type": "string"
+                          },
+                          "proposedSchoolName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "rejectionReason": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "school": {
+                            "nullable": true,
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "district": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "province": {
+                                "type": "string"
+                              },
+                              "sector": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "district",
+                              "id",
+                              "name",
+                              "province",
+                              "sector"
+                            ],
+                            "type": "object"
+                          },
+                          "schoolDistrict": {
+                            "type": "string"
+                          },
+                          "schoolProvince": {
+                            "type": "string"
+                          },
+                          "schoolSector": {
+                            "type": "string"
+                          },
+                          "schoolVerifiedAt": {
+                            "nullable": true
+                          },
+                          "schoolVerifiedBy": {
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "userId": {
+                            "nullable": true
+                          },
+                          "username": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "assignedSchool",
+                          "country",
+                          "createdAt",
+                          "decidedAt",
+                          "decidedBy",
+                          "decisionNote",
+                          "email",
+                          "firstName",
+                          "homeDistrict",
+                          "homeSector",
+                          "id",
+                          "lastName",
+                          "olympiadInterests",
+                          "phone",
+                          "proposedSchoolName",
+                          "rejectionReason",
+                          "school",
+                          "schoolDistrict",
+                          "schoolProvince",
+                          "schoolSector",
+                          "schoolVerifiedAt",
+                          "schoolVerifiedBy",
+                          "status",
+                          "userId",
+                          "username"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -31597,19 +31925,214 @@
             }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
-          "Admin · Contact messages"
+          "Teacher applications"
         ],
         "x-roles": [
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
       }
     },
-    "/api/v1/admin/contact-messages/{id}": {
-      "patch": {
-        "operationId": "ContactMessagesController_update",
+    "/api/v1/admin/teacher-applications/{id}": {
+      "get": {
+        "operationId": "AdminTeacherApplicationsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "assignedSchool": {
+                      "nullable": true
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "decidedAt": {
+                      "nullable": true
+                    },
+                    "decidedBy": {
+                      "nullable": true
+                    },
+                    "decisionNote": {
+                      "nullable": true
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "homeDistrict": {
+                      "type": "string"
+                    },
+                    "homeSector": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "proposedSchoolName": {
+                      "nullable": true
+                    },
+                    "rejectionReason": {
+                      "nullable": true
+                    },
+                    "school": {
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "district": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "province": {
+                          "type": "string"
+                        },
+                        "sector": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "district",
+                        "id",
+                        "name",
+                        "province",
+                        "sector"
+                      ],
+                      "type": "object"
+                    },
+                    "schoolDistrict": {
+                      "type": "string"
+                    },
+                    "schoolProvince": {
+                      "type": "string"
+                    },
+                    "schoolSector": {
+                      "type": "string"
+                    },
+                    "schoolVerifiedAt": {
+                      "nullable": true
+                    },
+                    "schoolVerifiedBy": {
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "nullable": true
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "assignedSchool",
+                    "country",
+                    "createdAt",
+                    "decidedAt",
+                    "decidedBy",
+                    "decisionNote",
+                    "email",
+                    "firstName",
+                    "homeDistrict",
+                    "homeSector",
+                    "id",
+                    "lastName",
+                    "olympiadInterests",
+                    "phone",
+                    "proposedSchoolName",
+                    "rejectionReason",
+                    "school",
+                    "schoolDistrict",
+                    "schoolProvince",
+                    "schoolSector",
+                    "schoolVerifiedAt",
+                    "schoolVerifiedBy",
+                    "status",
+                    "userId",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Teacher applications"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-applications/{id}/school": {
+      "post": {
+        "operationId": "AdminTeacherApplicationsController_verifySchool",
         "parameters": [
           {
             "name": "id",
@@ -31625,14 +32148,177 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateContactMessageDto"
+                "$ref": "#/components/schemas/VerifyTeacherApplicationSchoolDto"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "assignedSchool": {
+                      "nullable": true
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "decidedAt": {
+                      "nullable": true
+                    },
+                    "decidedBy": {
+                      "nullable": true
+                    },
+                    "decisionNote": {
+                      "nullable": true
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "homeDistrict": {
+                      "type": "string"
+                    },
+                    "homeSector": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "proposedSchoolName": {
+                      "type": "string"
+                    },
+                    "rejectionReason": {
+                      "nullable": true
+                    },
+                    "school": {
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "district": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "province": {
+                          "type": "string"
+                        },
+                        "sector": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "district",
+                        "id",
+                        "name",
+                        "province",
+                        "sector"
+                      ],
+                      "type": "object"
+                    },
+                    "schoolDistrict": {
+                      "type": "string"
+                    },
+                    "schoolProvince": {
+                      "type": "string"
+                    },
+                    "schoolSector": {
+                      "type": "string"
+                    },
+                    "schoolVerifiedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "schoolVerifiedBy": {
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName"
+                      ],
+                      "type": "object"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "nullable": true
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "assignedSchool",
+                    "country",
+                    "createdAt",
+                    "decidedAt",
+                    "decidedBy",
+                    "decisionNote",
+                    "email",
+                    "firstName",
+                    "homeDistrict",
+                    "homeSector",
+                    "id",
+                    "lastName",
+                    "olympiadInterests",
+                    "phone",
+                    "proposedSchoolName",
+                    "rejectionReason",
+                    "school",
+                    "schoolDistrict",
+                    "schoolProvince",
+                    "schoolSector",
+                    "schoolVerifiedAt",
+                    "schoolVerifiedBy",
+                    "status",
+                    "userId",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -31645,15 +32331,814 @@
             }
           }
         },
-        "summary": "Mark a message handled, or back to new.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Missing-school application: link it to an existing official school (records the verification and\ne-mails the applicant that the school was verified). The application stays PENDING.",
         "tags": [
-          "Admin · Contact messages"
+          "Teacher applications"
         ],
         "x-roles": [
           "ADMIN",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, SUPER_ADMIN"
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-applications/{id}/approve": {
+      "post": {
+        "operationId": "AdminTeacherApplicationsController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveTeacherApplicationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "application": {
+                      "properties": {
+                        "assignedSchool": {
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "id",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        "country": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "decidedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "decidedBy": {
+                          "properties": {
+                            "firstName": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "firstName",
+                            "id",
+                            "lastName"
+                          ],
+                          "type": "object"
+                        },
+                        "decisionNote": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "homeDistrict": {
+                          "type": "string"
+                        },
+                        "homeSector": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "olympiadInterests": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "phone": {
+                          "type": "string"
+                        },
+                        "proposedSchoolName": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "rejectionReason": {
+                          "nullable": true
+                        },
+                        "school": {
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "district": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "province": {
+                              "type": "string"
+                            },
+                            "sector": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "district",
+                            "id",
+                            "name",
+                            "province",
+                            "sector"
+                          ],
+                          "type": "object"
+                        },
+                        "schoolDistrict": {
+                          "type": "string"
+                        },
+                        "schoolProvince": {
+                          "type": "string"
+                        },
+                        "schoolSector": {
+                          "type": "string"
+                        },
+                        "schoolVerifiedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "schoolVerifiedBy": {
+                          "nullable": true,
+                          "properties": {
+                            "firstName": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "firstName",
+                            "id",
+                            "lastName"
+                          ],
+                          "type": "object"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "userId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "assignedSchool",
+                        "country",
+                        "createdAt",
+                        "decidedAt",
+                        "decidedBy",
+                        "decisionNote",
+                        "email",
+                        "firstName",
+                        "homeDistrict",
+                        "homeSector",
+                        "id",
+                        "lastName",
+                        "olympiadInterests",
+                        "phone",
+                        "proposedSchoolName",
+                        "rejectionReason",
+                        "school",
+                        "schoolDistrict",
+                        "schoolProvince",
+                        "schoolSector",
+                        "schoolVerifiedAt",
+                        "schoolVerifiedBy",
+                        "status",
+                        "userId",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "emailVerificationRequired": {
+                      "type": "boolean"
+                    },
+                    "teacher": {
+                      "properties": {
+                        "email": {
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "email",
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "role",
+                        "username"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "application",
+                    "emailVerificationRequired",
+                    "teacher"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Creates the TEACHER account and its school assignment (a missing-school application: after its school is verified).",
+        "tags": [
+          "Teacher applications"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-applications/{id}/reject": {
+      "post": {
+        "operationId": "AdminTeacherApplicationsController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectTeacherApplicationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "assignedSchool": {
+                      "nullable": true
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "decidedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "decidedBy": {
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName"
+                      ],
+                      "type": "object"
+                    },
+                    "decisionNote": {
+                      "nullable": true
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "homeDistrict": {
+                      "type": "string"
+                    },
+                    "homeSector": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "proposedSchoolName": {
+                      "nullable": true
+                    },
+                    "rejectionReason": {
+                      "type": "string"
+                    },
+                    "school": {
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "district": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "province": {
+                          "type": "string"
+                        },
+                        "sector": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "district",
+                        "id",
+                        "name",
+                        "province",
+                        "sector"
+                      ],
+                      "type": "object"
+                    },
+                    "schoolDistrict": {
+                      "type": "string"
+                    },
+                    "schoolProvince": {
+                      "type": "string"
+                    },
+                    "schoolSector": {
+                      "type": "string"
+                    },
+                    "schoolVerifiedAt": {
+                      "nullable": true
+                    },
+                    "schoolVerifiedBy": {
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "nullable": true
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "assignedSchool",
+                    "country",
+                    "createdAt",
+                    "decidedAt",
+                    "decidedBy",
+                    "decisionNote",
+                    "email",
+                    "firstName",
+                    "homeDistrict",
+                    "homeSector",
+                    "id",
+                    "lastName",
+                    "olympiadInterests",
+                    "phone",
+                    "proposedSchoolName",
+                    "rejectionReason",
+                    "school",
+                    "schoolDistrict",
+                    "schoolProvince",
+                    "schoolSector",
+                    "schoolVerifiedAt",
+                    "schoolVerifiedBy",
+                    "status",
+                    "userId",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Teacher applications"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/notification-deliveries": {
+      "get": {
+        "operationId": "DecisionNotificationsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "FAILED",
+                "SENDING",
+                "SENT"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Event type, e.g. \"teacher.application.approved\".",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "attempts": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "entityId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "entityType": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "lastError": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "nextAttemptAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "recipientEmail": {
+                            "type": "string"
+                          },
+                          "recipientUserId": {
+                            "format": "uuid",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "sentAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "attempts",
+                          "createdAt",
+                          "entityId",
+                          "entityType",
+                          "id",
+                          "lastError",
+                          "nextAttemptAt",
+                          "recipientEmail",
+                          "recipientUserId",
+                          "sentAt",
+                          "status",
+                          "type"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/notification-deliveries/{id}/retry": {
+      "post": {
+        "operationId": "DecisionNotificationsController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "attempts": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "entityId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "entityType": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "lastError": {
+                      "type": "string"
+                    },
+                    "nextAttemptAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "recipientEmail": {
+                      "type": "string"
+                    },
+                    "recipientUserId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "sentAt": {
+                      "nullable": true
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "attempts",
+                    "createdAt",
+                    "entityId",
+                    "entityType",
+                    "id",
+                    "lastError",
+                    "nextAttemptAt",
+                    "recipientEmail",
+                    "recipientUserId",
+                    "sentAt",
+                    "status",
+                    "type"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Re-queue a FAILED delivery and send it again (409 NOTIFICATION_ALREADY_SENT / NOTIFICATION_SENDING).",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/email/users": {
@@ -32490,6 +33975,181 @@
         ],
         "x-permission": "email.bulkSend",
         "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/public/statistics": {
+      "get": {
+        "operationId": "PublicSiteController_statistics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Aggregate community counts (no personal data). Cached for 5 minutes.",
+        "tags": [
+          "Public site"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/public/contact": {
+      "post": {
+        "operationId": "PublicSiteController_contact",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Contact form. At most 5 per hour per IP (plus per-e-mail and duplicate limits).",
+        "tags": [
+          "Public site"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/admin/contact-messages": {
+      "get": {
+        "operationId": "ContactMessagesController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NEW",
+                "HANDLED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Contact messages"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
+      }
+    },
+    "/api/v1/admin/contact-messages/{id}": {
+      "patch": {
+        "operationId": "ContactMessagesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateContactMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark a message handled, or back to new.",
+        "tags": [
+          "Admin · Contact messages"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
     "/api/v1/courses/{courseId}/threads": {
@@ -37282,6 +38942,12 @@
                           "name": {
                             "type": "string"
                           },
+                          "olympiadInterests": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
                           "points": {
                             "type": "integer"
                           },
@@ -37327,6 +38993,7 @@
                           "id",
                           "lastLoginAt",
                           "name",
+                          "olympiadInterests",
                           "points",
                           "registeredAt",
                           "resultsPublished",
@@ -40734,6 +42401,20 @@
             "description": "Student's home city / region.",
             "minLength": 2,
             "maxLength": 200
+          },
+          "olympiadInterests": {
+            "type": "array",
+            "description": "Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and\nPHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then\nhas none); the sign-up form requires at least one. Information only: no programme membership, no permissions.",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
           }
         },
         "required": [
@@ -41263,6 +42944,20 @@
             "type": "string",
             "minLength": 2,
             "maxLength": 200
+          },
+          "olympiadInterests": {
+            "type": "array",
+            "description": "The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of\nMATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests).",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
           }
         }
       },
@@ -42340,55 +44035,156 @@
           "password"
         ]
       },
-      "CreateContactMessageDto": {
+      "RegisterTeacherDto": {
         "type": "object",
         "properties": {
-          "fullName": {
+          "firstName": {
             "type": "string",
-            "minLength": 2,
+            "minLength": 1,
             "maxLength": 100
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 30,
+            "pattern": "^[a-z0-9._-]+$"
           },
           "email": {
             "type": "string",
-            "maxLength": 254,
             "format": "email"
           },
-          "subject": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 150
+          "password": {
+            "type": "string"
           },
-          "message": {
+          "confirmPassword": {
             "type": "string",
-            "minLength": 10,
-            "maxLength": 5000
+            "description": "Must equal password (400 PASSWORD_MISMATCH); never stored."
           },
-          "website": {
+          "country": {
             "type": "string",
-            "description": "Honeypot: a field hidden from people. Bots fill it in; when it is not\nempty the message is accepted silently and discarded.",
+            "description": "ISO 3166-1 alpha-2 (e.g. RW)."
+          },
+          "phone": {
+            "type": "string",
+            "description": "Stored in E.164 (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere +country number) — else 400 INVALID_PHONE.",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "olympiadInterests": {
+            "type": "array",
+            "description": "One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates).",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
+          },
+          "schoolProvince": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "schoolDistrict": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "schoolId": {
+            "type": "string",
+            "description": "A listed school (GET /schools/search). Exactly one of schoolId / proposedSchoolName.",
+            "format": "uuid"
+          },
+          "proposedSchoolName": {
+            "type": "string",
+            "description": "\"My school is missing\": its name, with schoolSector. Exactly one of schoolId / proposedSchoolName.",
+            "minLength": 2,
             "maxLength": 200
+          },
+          "schoolSector": {
+            "type": "string",
+            "description": "Required with proposedSchoolName; refused with schoolId (a listed school's sector comes from the\ndirectory — 400 SCHOOL_CHOICE_REQUIRED).",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "homeDistrict": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "homeSector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
           }
         },
         "required": [
-          "fullName",
+          "firstName",
+          "lastName",
+          "username",
           "email",
-          "subject",
-          "message"
+          "password",
+          "confirmPassword",
+          "country",
+          "phone",
+          "olympiadInterests",
+          "schoolProvince",
+          "schoolDistrict",
+          "homeDistrict",
+          "homeSector"
         ]
       },
-      "UpdateContactMessageDto": {
+      "VerifyTeacherApplicationSchoolDto": {
         "type": "object",
         "properties": {
-          "status": {
+          "schoolId": {
             "type": "string",
-            "enum": [
-              "NEW",
-              "HANDLED"
-            ]
+            "description": "An existing, active school in Rwanda (create it first through POST /admin/schools when needed).",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
           }
         },
         "required": [
-          "status"
+          "schoolId"
+        ]
+      },
+      "ApproveTeacherApplicationDto": {
+        "type": "object",
+        "properties": {
+          "schoolId": {
+            "type": "string",
+            "description": "Required for a missing-school application (the school the Administrator created or chose); otherwise omit it or send the application's school.",
+            "format": "uuid"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "RejectTeacherApplicationDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "SendEmailDto": {
@@ -42451,6 +44247,57 @@
           "recipientMode",
           "subject",
           "body"
+        ]
+      },
+      "CreateContactMessageDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 150
+          },
+          "message": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 5000
+          },
+          "website": {
+            "type": "string",
+            "description": "Honeypot: a field hidden from people. Bots fill it in; when it is not\nempty the message is accepted silently and discarded.",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "fullName",
+          "email",
+          "subject",
+          "message"
+        ]
+      },
+      "UpdateContactMessageDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "HANDLED"
+            ]
+          }
+        },
+        "required": [
+          "status"
         ]
       },
       "CreateThreadDto": {
