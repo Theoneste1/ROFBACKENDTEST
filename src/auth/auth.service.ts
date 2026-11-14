@@ -22,7 +22,7 @@ import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { schoolKey } from '../schools/school-key.js';
 import { RWANDA } from '../schools/school-rules.js';
-import { assertDirectoryPlace, uniqueOfficialSchoolInPlace } from '../schools/school-directory.js';
+import { assertDirectoryPlace, directorySchoolById, uniqueOfficialSchoolInPlace } from '../schools/school-directory.js';
 import { schoolInactive } from '../schools/school-usage.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -71,13 +71,20 @@ export class AuthService {
   // ─── Student Registration ──────────────────────────────────────────────────
 
   /**
-   * The official school a registration names. Rwanda (default): by code (unknown → 400),
-   * or a unique legacy name match. Another country: none — the name stays unverified and
+   * The official school a registration names. Rwanda (default): by code (unknown → 400), by
+   * internal id (schoolId — e.g. a school without an official code; unknown → 400), or a unique
+   * legacy name match. Another country: none — the name stays unverified and
    * is never matched to a Rwandan school; a Rwandan school code is refused.
    */
   private async registrationSchool(tx: Prisma.TransactionClient, data: RegisterStudentDto) {
     const placeGiven = data.schoolProvince !== undefined;   // all three, or none (DTO)
+    if (data.schoolId !== undefined && data.schoolCode !== undefined) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Send either schoolId or schoolCode, not both.');
+    }
     if ((data.country ?? 'RW') !== 'RW') {
+      if (data.schoolId !== undefined) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY', "The school list is Rwanda's directory; for another country enter the school's name.");
+      }
       if (data.schoolCode !== undefined) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda. Enter your school\'s name.');
       }
@@ -86,6 +93,9 @@ export class AuthService {
       }
       return null;
     }
+    // A school of the list by its internal id (owner decision 2026-11-14: schools without an
+    // official code are chosen this way; no code is ever invented for them).
+    if (data.schoolId !== undefined) return directorySchoolById(tx, data.schoolId);
     // "My school is not listed" (PR C): a place from the official directory; only an exact unique
     // active official school with this name IN THAT SECTOR is linked (still PENDING).
     if (data.schoolCode === undefined && placeGiven) {
@@ -128,6 +138,8 @@ export class AuthService {
       // official school with that normalised name — none when it matches no school or several.
       // Registration never creates a school.
       const school = await this.registrationSchool(tx, data);
+      // The school was chosen from the list (by code or by id), not entered by name.
+      const byReference = data.schoolCode !== undefined || data.schoolId !== undefined;
 
       const created = await tx.user.create({
         data: {
@@ -157,7 +169,7 @@ export class AuthService {
             studentId: created.id, schoolId: school?.id ?? null, source: 'REGISTRATION', reason: 'NEW_CLAIM',
             actor: { actorId: created.id, actorRole: 'STUDENT' },
             // What the student entered — kept with the place on a "not listed" claim, linked or not.
-            ...((!school || (data.schoolCode === undefined && data.schoolProvince !== undefined)) && { claimed: {
+            ...((!school || (!byReference && data.schoolProvince !== undefined)) && { claimed: {
               name: data.schoolName ?? null, country: data.country ?? 'RW',
               ...(data.schoolProvince !== undefined && { province: data.schoolProvince, district: data.schoolDistrict, sector: data.schoolSector }),
             } }),
@@ -172,8 +184,9 @@ export class AuthService {
         entityId:  created.id,
         metadata:  {
           gradeLevel: data.gradeLevel, country: data.country ?? 'RW', schoolCode: school?.code ?? null, schoolName: school?.name ?? null,
-          ...(data.schoolCode === undefined && { schoolNameEntered: data.schoolName, schoolMatched: !!school }),
-          ...(data.schoolCode === undefined && data.schoolProvince !== undefined && {
+          ...(data.schoolId !== undefined && { schoolId: school?.id ?? null }),
+          ...(!byReference && { schoolNameEntered: data.schoolName, schoolMatched: !!school }),
+          ...(!byReference && data.schoolProvince !== undefined && {
             schoolPlaceEntered: { province: data.schoolProvince, district: data.schoolDistrict, sector: data.schoolSector },
           }),
           // Linked to a canonical School or not; membership is verified separately by an Administrator.

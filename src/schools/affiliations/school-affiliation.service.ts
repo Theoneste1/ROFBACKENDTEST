@@ -49,7 +49,7 @@ import { AppError } from '../../common/errors/app-error.js';
 import { pageArgs, paginated } from '../../common/pagination.js';
 import { Prisma, type GradeLevel, type SchoolAffiliationSource, type SchoolAffiliationStatus } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { assertDirectoryPlace, SQL_NAME_KEY, uniqueOfficialSchoolInPlace } from '../school-directory.js';
+import { assertDirectoryPlace, directorySchoolById, SQL_NAME_KEY, uniqueOfficialSchoolInPlace } from '../school-directory.js';
 import { schoolKey } from '../school-key.js';
 import { resolveSchoolReference } from '../school-reference.js';
 import { RWANDA } from '../school-rules.js';
@@ -281,10 +281,14 @@ export class SchoolAffiliationService {
     return this.mine(user);
   }
 
-  /** The school a request names: by code (active, Rwandan), "not listed" (official place; an exact unique official match is linked), or another country (never matched). */
+  /** The school a request names: by code or by id (active, Rwandan), "not listed" (official place; an exact unique official match is linked), or another country (never matched). */
   private async requestTarget(tx: Prisma.TransactionClient, req: ClaimRequest): Promise<{ identity: ClaimIdentity; claimed: ClaimInput['claimed'] }> {
     if (req.kind === 'CODE') {
       const school = (await resolveSchoolReference(tx, { schoolCode: req.schoolCode }, { requireActive: true }))!;
+      return { identity: { schoolId: school.id, name: null, country: RWANDA, province: null, district: null, sector: null }, claimed: undefined };
+    }
+    if (req.kind === 'SCHOOL_ID') {
+      const school = await directorySchoolById(tx, req.schoolId);
       return { identity: { schoolId: school.id, name: null, country: RWANDA, province: null, district: null, sector: null }, claimed: undefined };
     }
     if (req.kind === 'NOT_LISTED') {

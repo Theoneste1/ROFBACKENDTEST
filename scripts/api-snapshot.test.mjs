@@ -113,7 +113,8 @@ const REVIEW_QUEUE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-review-queu
 const REPORT_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-report-export-filters.json';
 const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-list-filters.json';
 const EMAIL_DELIVERIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-email-deliveries.json';
-const CURRENT_SNAPSHOT = EMAIL_DELIVERIES_SNAPSHOT;
+const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeless-schools.json';
+const CURRENT_SNAPSHOT = CODELESS_SCHOOLS_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -833,6 +834,19 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, [
       'GET /api/v1/admin/email/deliveries: operation added',
       'POST /api/v1/admin/email/deliveries/{id}/retry: operation added',
+    ]);
+  });
+
+  test('e-mail deliveries → codeless schools: registration and claims accept schoolId; nothing else', () => {
+    // Additive (owner decision 2026-11-14): a school without an official code is chosen by its internal id.
+    for (const f of [EMAIL_DELIVERIES_SNAPSHOT, CODELESS_SCHOOLS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(EMAIL_DELIVERIES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(CODELESS_SCHOOLS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'POST /api/v1/auth/register/student › request application/json.schoolId: new optional field',
+      'POST /api/v1/me/school-affiliation › request application/json.schoolId: new optional field',
     ]);
   });
 

@@ -7952,7 +7952,7 @@
             "description": "**Access:** STUDENT",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"schoolCode\": \"schoolCode\",\n  \"schoolName\": \"schoolName\",\n  \"country\": \"country\",\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"schoolSector\": \"schoolSector\"\n}",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"schoolCode\": \"schoolCode\",\n  \"schoolName\": \"schoolName\",\n  \"country\": \"country\",\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"schoolSector\": \"schoolSector\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -8,6 +8,7 @@ import { HttpStatus } from '@nestjs/common';
 import { AppError } from '../common/errors/app-error.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { RWANDA } from './school-rules.js';
+import { schoolInactive } from './school-usage.js';
 
 type Tx = Prisma.TransactionClient;
 export interface DirectoryPlace { province: string | null; district: string | null; sector: string | null }
@@ -45,4 +46,28 @@ export async function uniqueOfficialSchoolInPlace(db: Pick<Tx, 'school'>, nameKe
     select: { id: true }, take: 2,
   });
   return matches.length === 1 ? matches[0].id : null;
+}
+
+/**
+ * Owner decision 2026-11-14: schools without an official code are offered by the public search
+ * (name and place) and chosen by their internal id; no official code is ever invented for them.
+ * The public directory is every ACTIVE Rwandan school, with or without a code.
+ */
+export const PUBLIC_SCHOOL_WHERE = { countryCode: RWANDA, isActive: true } as const;
+
+/**
+ * The school a registration or a student claim names by its internal id (`schoolId`, from
+ * GET /schools/search) — any Rwandan school, with or without an official code. Unknown, or not a
+ * school of the Rwandan directory: 400 UNKNOWN_SCHOOL; inactive: 409 SCHOOL_INACTIVE. The claim
+ * re-checks the school under a row lock (school-usage.ts).
+ */
+export async function directorySchoolById(db: Pick<Tx, 'school'>, schoolId: string) {
+  const school = await db.school.findUnique({
+    where: { id: schoolId }, select: { id: true, code: true, name: true, isActive: true, countryCode: true },
+  });
+  if (!school || school.countryCode !== RWANDA) {
+    throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL', 'No school in the list has this id. Choose your school from the list.', { schoolId });
+  }
+  if (!school.isActive) throw schoolInactive(school.id);
+  return { id: school.id, code: school.code, name: school.name };
 }
