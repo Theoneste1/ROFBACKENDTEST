@@ -114,7 +114,8 @@ const REPORT_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-report-ex
 const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-list-filters.json';
 const EMAIL_DELIVERIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-email-deliveries.json';
 const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeless-schools.json';
-const CURRENT_SNAPSHOT = CODELESS_SCHOOLS_SNAPSHOT;
+const RELEASE_PERMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-release-permissions.json';
+const CURRENT_SNAPSHOT = RELEASE_PERMISSIONS_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -848,6 +849,18 @@ describe('approved API contract history', () => {
       'POST /api/v1/auth/register/student › request application/json.schoolId: new optional field',
       'POST /api/v1/me/school-affiliation › request application/json.schoolId: new optional field',
     ]);
+  });
+
+  test('codeless schools → release permissions: Head Coach student search added; Teachers lose the programme list (owner decision)', () => {
+    // Owner decisions 2026-11-14: Head Coaches search students to add (additive); the unused TEACHER course
+    // grants were removed, so GET /programmes (courses.view) no longer lists TEACHER. TEACHERS_ENABLED is
+    // off in production and the teacher portal never called it — the one deliberate narrowing.
+    for (const f of [CODELESS_SCHOOLS_SNAPSHOT, RELEASE_PERMISSIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(CODELESS_SCHOOLS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(RELEASE_PERMISSIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['GET /api/v1/programmes: roles removed: TEACHER']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['GET /api/v1/admin/programmes/{id}/student-candidates: operation added']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {
