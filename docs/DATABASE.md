@@ -227,7 +227,7 @@ erDiagram
 | Copy | Source of truth | Kept in sync by |
 |---|---|---|
 | `User.gradeLevel / divisionId / schoolId` | the ACTIVE `StudentEnrollment` of the current year | written in the same transaction by `AcademicYearsService` |
-| `User.points / problemsSolved` | `Submission.pointsAwarded` of PUBLISHED submissions | recomputed in the publish/reopen transaction; `POST /admin/leaderboard/recompute` |
+| `User.points / problemsSolved` | `Submission.pointsAwarded` of PUBLISHED submissions | recomputed in the publish/reopen transaction under the student's row lock (shared advisory lock 4217, students in id order); `POST /admin/leaderboard/recompute` (exclusive 4217) |
 | `Submission.status` | the current `MentorReview.status` | both updated in the same transaction (used for fast filtering) |
 
 ## 4. Integrity rules

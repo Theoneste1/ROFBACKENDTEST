@@ -187,6 +187,19 @@ SUBMITTED ─assign/distribute─► ASSIGNED ─start─► IN_REVIEW ─mark�
 transaction, so they cannot drift; `POST /admin/leaderboard/recompute` rebuilds
 them. Leaderboards are per division and use SQL `RANK()`.
 
+Concurrent publications and corrections cannot overwrite each other's totals.
+Every points writer follows one lock order:
+1. advisory lock 4217 (key 0): **shared** for publish/reopen, **exclusive** for
+   the full recompute, so a recompute never interleaves with a publication;
+2. the affected `Submission` rows, in id order;
+3. the affected students' `User` rows, in id order, locked `FOR UPDATE`
+   *before* their published results are summed. Under READ COMMITTED the sum
+   then sees any concurrent publication for the same student, which has
+   committed by the time the lock is granted.
+
+The fixed order also means two releases over the same students cannot
+deadlock. `test/points-concurrency.e2e-spec.ts` forces these interleavings.
+
 ## 5. Data model
 
 **See [DATABASE.md](DATABASE.md)** for the ERD, every table, integrity rules,

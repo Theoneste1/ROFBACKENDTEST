@@ -90,6 +90,7 @@ function makeMocks() {
     mentorAssignment:  { findMany: vi.fn().mockResolvedValue([]) },
     user:              { findUnique: vi.fn(), update: vi.fn() },
     $transaction:      vi.fn(),
+    $queryRaw:         vi.fn().mockResolvedValue([]),
   };
   // Interactive transactions receive the same mock as their `tx` client.
   const tx = prisma;
@@ -435,6 +436,32 @@ describe('SubmissionsService', () => {
         where: { id: 's1' }, data: { points: 30, problemsSolved: 1 },
       });
       expect(events.emit).toHaveBeenCalledWith(Events.ResultsPublished, { submissionIds: ['sub1'] });
+    });
+
+    it('publication follows the points lock order: shared 4217, submissions by id, students by id locked before summing', async () => {
+      const { service, prisma } = makeMocks();
+      prisma.submission.findMany.mockResolvedValue([
+        { id: 'sub1', studentId: 's9', currentReviewId: 'r1', currentReview: { score: 20 }, assignment: { points: 40, maximumMarks: 20 } },
+        { id: 'sub2', studentId: 's1', currentReviewId: 'r2', currentReview: { score: 10 }, assignment: { points: 40, maximumMarks: 20 } },
+      ]);
+      prisma.submission.aggregate.mockResolvedValue({ _sum: { pointsAwarded: 0 }, _count: { _all: 0 } });
+
+      await service.publishAssignmentResults('as1', ADMIN);
+
+      const sql = (c: unknown[]) => (c[0] as TemplateStringsArray).join('?');
+      const raw = prisma.$queryRaw.mock.calls;
+      expect(sql(raw[0])).toContain('pg_advisory_xact_lock_shared');
+      expect(raw[0].slice(1)).toEqual([4217]);
+      expect(prisma.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(prisma.submission.findMany.mock.invocationCallOrder.at(-1)!);
+      expect(prisma.submission.findMany.mock.calls.at(-1)![0].orderBy).toEqual({ id: 'asc' });
+      // Students locked FOR UPDATE in id order (s1 before s9), each lock before its sum.
+      const rowLocks = raw.map((c, i) => ({ c, order: prisma.$queryRaw.mock.invocationCallOrder[i] })).filter(({ c }) => sql(c).includes('FOR UPDATE'));
+      expect(rowLocks.map(({ c }) => c[1])).toEqual(['s1', 's9']);
+      const sums = prisma.submission.aggregate.mock.invocationCallOrder;
+      expect(prisma.submission.aggregate.mock.calls.map((c) => c[0].where.studentId)).toEqual(['s1', 's9']);
+      expect(rowLocks[0].order).toBeLessThan(sums[0]);
+      expect(rowLocks[1].order).toBeGreaterThan(sums[0]);
+      expect(rowLocks[1].order).toBeLessThan(sums[1]);
     });
 
     it('publish of a non-APPROVED result fails with INVALID_STATE_TRANSITION', async () => {
