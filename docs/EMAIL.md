@@ -68,6 +68,18 @@ twice. Administrators see and retry them at `/admin/notification-deliveries` (`e
 account-status notices (category `ACCOUNT`): like activation, approval and password e-mails they
 cannot be switched off and ignore the per-category e-mail preferences and `notifications.emailEnabled`.
 
+**Teacher-registration notices follow teacher self-registration** (owner decision 10): the notices about
+a teacher application (the teacher approval, and "Your school is now part of …" for a teacher applicant's
+missing school) are sent only while teacher self-registration is enabled — `TEACHERS_ENABLED=true` and the
+`registration.teacherSelfSignup` setting on. While it is off an Administrator's decision still applies but
+queues no notice (no outbox row, no in-app notification; the audit entry records
+`NOT_SENT_SELF_REGISTRATION_OFF`), and a notice queued earlier is not e-mailed (it is marked `FAILED`,
+"Not sent: teacher self-registration is turned off.", no automatic retry). Teacher rejections send no
+notice at all. Coach approval, student school verification and permission grants are not
+teacher-registration notices and are sent as before. The account confirmation e-mail of an approved
+teacher (when e-mail confirmation is required) is an account e-mail, not a decision notice, and is still
+sent so the account can be used.
+
 Requesting a new reset or activation link makes the earlier one invalid.
 Expired, used and unknown links are refused with `INVALID_RESET_TOKEN` /
 `INVALID_ACTIVATION_TOKEN`.

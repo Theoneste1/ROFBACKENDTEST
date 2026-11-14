@@ -230,6 +230,66 @@ describe('Decision notifications', () => {
     });
   });
 
+  // ─── Decision 10: teacher-registration notices follow self-registration ────
+
+  describe('teacher self-registration turned off (decision 10)', () => {
+    // TEACHERS_ENABLED stays on (the review routes answer 403 TEACHERS_DISABLED without it); the
+    // registration.teacherSelfSignup setting is turned off after the applications were submitted.
+    it('approval, school verification and rejection of pending applications send no notice; the decisions still apply', async () => {
+      const listed = await register(application({ firstName: 'Odile', username: 'dn.off1', email: 'dn.off1@test.local' }));
+      const missing = await register(missingApplication({ firstName: 'Omar', username: 'dn.off2', email: 'dn.off2@test.local' }));
+      const rejected = await register(application({ firstName: 'Olga', username: 'dn.off3', email: 'dn.off3@test.local' }));
+      await setting('registration.teacherSelfSignup', false);
+      try {
+        const res = await approve(listed).expect(200);
+        await verifySchool(missing, await createSchool('GS Omar Official')).expect(200);
+        await approve(missing).expect(200);
+        await http().post(`${ADMIN_APPS}/${rejected}/reject`).set(bearer(admin)).send({ reason: 'Could not confirm' }).expect(200);
+        await settle();
+
+        expect((await p().teacherApplication.findMany({ where: { id: { in: [listed, missing, rejected] } }, orderBy: { username: 'asc' } }))
+          .map((a) => a.status)).toEqual(['APPROVED', 'APPROVED', 'REJECTED']);
+        expect(await outbox({ entityId: { in: [listed, missing, rejected] } })).toHaveLength(0);
+        expect(await p().notification.count({ where: { userId: res.body.teacher.id } })).toBe(0);
+        for (const to of ['dn.off1@test.local', 'dn.off2@test.local', 'dn.off3@test.local']) expect(mailsTo(to)).toHaveLength(0);
+        const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'APPROVE_TEACHER_APPLICATION', entityId: listed } });
+        expect(audit.metadata).toMatchObject({ approvalNotice: 'NOT_SENT_SELF_REGISTRATION_OFF' });
+        const verifiedAudit = await p().auditLog.findFirstOrThrow({ where: { action: 'VERIFY_TEACHER_APPLICATION_SCHOOL', entityId: missing } });
+        expect(verifiedAudit.metadata).toMatchObject({ schoolVerifiedNotice: 'NOT_SENT_SELF_REGISTRATION_OFF' });
+      } finally {
+        await setting('registration.teacherSelfSignup', true);
+      }
+    });
+
+    it('a notice queued while on is not e-mailed after self-registration is turned off (retry → FAILED, no automatic retry); on again it is sent', async () => {
+      const id = await register(application({ firstName: 'Ines', username: 'dn.off4', email: 'dn.off4@test.local' }));
+      send.mockRejectedValueOnce(new Error('provider down'));
+      await approve(id).expect(200);
+      await settle();
+      const [row] = await outbox({ entityId: id });
+      expect(row).toMatchObject({ type: 'teacher.application.approved', status: 'FAILED' });
+      expect(await p().auditLog.findFirstOrThrow({ where: { action: 'APPROVE_TEACHER_APPLICATION', entityId: id } }))
+        .toMatchObject({ metadata: expect.objectContaining({ approvalNotice: 'QUEUED' }) });
+
+      await setting('registration.teacherSelfSignup', false);
+      try {
+        send.mockClear();
+        await http().post(`${DELIVERIES}/${row.id}/retry`).set(bearer(admin)).expect(200);
+        await settle();
+        await notices.sweep(new Date(Date.now() + 3_600_000));
+        expect(mailsTo('dn.off4@test.local')).toHaveLength(0);
+        expect(await p().notificationOutbox.findUniqueOrThrow({ where: { id: row.id } }))
+          .toMatchObject({ status: 'FAILED', lastError: 'Not sent: teacher self-registration is turned off.', nextAttemptAt: null });
+      } finally {
+        await setting('registration.teacherSelfSignup', true);
+      }
+      await http().post(`${DELIVERIES}/${row.id}/retry`).set(bearer(admin)).expect(200);
+      await settle();
+      expect(mailsTo('dn.off4@test.local')).toHaveLength(1);
+      expect(await p().notificationOutbox.findUniqueOrThrow({ where: { id: row.id } })).toMatchObject({ status: 'SENT' });
+    });
+  });
+
   // ─── coach.application.approved ────────────────────────────────────────────
 
   describe('coach approval', () => {

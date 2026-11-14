@@ -1,11 +1,13 @@
-import { DecisionNotificationsService, MAX_ATTEMPTS, backoffMs } from './decision-notifications.service.js';
+import { DecisionNotificationsService, MAX_ATTEMPTS, SELF_REGISTRATION_OFF, backoffMs } from './decision-notifications.service.js';
 
 const ROW = {
   id: 'o1', type: 'teacher.application.approved', firstName: 'Eric', recipientEmail: 'eric@x.rw',
   payload: { activated: true }, attempts: 1, status: 'SENDING',
 };
 
-function make() {
+/** Teacher self-registration (decision 10): TEACHERS_ENABLED and registration.teacherSelfSignup, both on by default here. */
+function make(selfRegistration: { teachers?: boolean; selfSignup?: boolean } = {}) {
+  const { teachers = true, selfSignup = true } = selfRegistration;
   const prisma = {
     notificationOutbox: {
       createManyAndReturn: vi.fn().mockResolvedValue([{ id: 'o1' }]),
@@ -17,8 +19,8 @@ function make() {
   };
   const notifications = { createInApp: vi.fn().mockResolvedValue({ id: 'n1' }) };
   const mailer = { sendOne: vi.fn().mockResolvedValue({ accepted: true, messageId: 'm', error: null, permanent: false }) };
-  const settings = { get: vi.fn().mockResolvedValue('') };
-  const config = { get: vi.fn((k: string) => (k === 'APP_URL' ? 'https://app.example.org' : undefined)) };
+  const settings = { get: vi.fn(async (k: string) => (k === 'registration.teacherSelfSignup' ? selfSignup : '')) };
+  const config = { get: vi.fn((k: string) => (k === 'APP_URL' ? 'https://app.example.org' : k === 'TEACHERS_ENABLED' ? String(teachers) : undefined)) };
   const events = { emit: vi.fn() };
   const audit = { log: vi.fn() };
   const service = new DecisionNotificationsService(prisma as any, notifications as any, mailer as any, settings as any, config as any, events as any, audit as any);
@@ -54,6 +56,68 @@ describe('DecisionNotificationsService', () => {
       const { service, prisma, notifications } = make();
       await service.enqueue(prisma as any, { ...EVENT, type: 'school.request.verified', recipient: { userId: null, email: 'a@x.rw', firstName: 'A' }, payload: { schoolName: 'S' } });
       expect(notifications.createInApp).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('teacher-registration notices follow teacher self-registration (decision 10)', () => {
+    const OFF = [{ teachers: false, selfSignup: true }, { teachers: true, selfSignup: false }, { teachers: false, selfSignup: false }];
+    const SCHOOL_VERIFIED_APPLICANT = {
+      ...EVENT, type: 'school.request.verified' as const, dedupeKey: 'school.request.verified:teacher-application:a1',
+      recipient: { userId: null, email: 'eric@x.rw', firstName: 'Eric' }, payload: { schoolName: 'S', officialDirectory: true },
+    };
+
+    it('on (TEACHERS_ENABLED and teacherSelfSignup): the approval and the applicant school-verified notices are queued', async () => {
+      for (const event of [EVENT, SCHOOL_VERIFIED_APPLICANT]) {
+        const { service, prisma } = make();
+        await expect(service.enqueue(prisma as any, event)).resolves.toBe('o1');
+        expect(prisma.notificationOutbox.createManyAndReturn).toHaveBeenCalledOnce();
+      }
+    });
+
+    it('off (either switch): nothing is queued for a TeacherApplication (no outbox row, no in-app notification)', async () => {
+      for (const flags of OFF) {
+        for (const event of [EVENT, SCHOOL_VERIFIED_APPLICANT]) {
+          const { service, prisma, notifications } = make(flags);
+          await expect(service.enqueue(prisma as any, event)).resolves.toBeNull();
+          expect(prisma.notificationOutbox.createManyAndReturn).not.toHaveBeenCalled();
+          expect(notifications.createInApp).not.toHaveBeenCalled();
+        }
+      }
+    });
+
+    it('off: coach approval, student school verification and permission grants are not teacher-registration notices', async () => {
+      const others = [
+        { ...EVENT, type: 'coach.application.approved' as const, dedupeKey: 'coach.application.approved:m1', entity: { type: 'MentorRequest', id: 'm1' } },
+        { ...EVENT, type: 'school.request.verified' as const, dedupeKey: 'school.request.verified:student:s1:school:x', entity: { type: 'StudentSchoolAffiliation', id: 'c1' }, payload: { schoolName: 'S' } },
+        { ...EVENT, type: 'permissions.granted' as const, dedupeKey: 'permissions.granted:ov1', entity: { type: 'UserPermissionOverride', id: 'ov1' }, payload: { activated: true, permissions: [] } },
+      ];
+      for (const flags of OFF) {
+        for (const event of others) {
+          const { service, prisma } = make(flags);
+          await expect(service.enqueue(prisma as any, event)).resolves.toBe('o1');
+        }
+      }
+    });
+
+    it('a teacher-registration row queued earlier is not e-mailed once self-registration is off: FAILED, no automatic retry', async () => {
+      const { service, prisma, mailer } = make({ selfSignup: false });
+      prisma.notificationOutbox.findUniqueOrThrow.mockResolvedValue({ ...ROW, entityType: 'TeacherApplication', entityId: 'a1' });
+      await expect(service.dispatch('o1')).resolves.toBe('FAILED');
+      expect(mailer.sendOne).not.toHaveBeenCalled();
+      expect(prisma.notificationOutbox.updateMany.mock.calls[1][0]).toEqual({
+        where: { id: 'o1', status: 'SENDING', attempts: 1 },
+        data:  { status: 'FAILED', lastError: SELF_REGISTRATION_OFF, nextAttemptAt: null },
+      });
+    });
+
+    it('on: the same row is e-mailed; off: other rows are e-mailed as before', async () => {
+      const on = make();
+      on.prisma.notificationOutbox.findUniqueOrThrow.mockResolvedValue({ ...ROW, entityType: 'TeacherApplication', entityId: 'a1' });
+      await expect(on.service.dispatch('o1')).resolves.toBe('SENT');
+      const off = make({ teachers: false });
+      off.prisma.notificationOutbox.findUniqueOrThrow.mockResolvedValue({ ...ROW, type: 'coach.application.approved', entityType: 'MentorRequest', entityId: 'm1' });
+      await expect(off.service.dispatch('o1')).resolves.toBe('SENT');
+      expect(off.mailer.sendOne).toHaveBeenCalledOnce();
     });
   });
 

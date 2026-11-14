@@ -70,8 +70,8 @@ export const FEATURES = {
   studentAssignmentFilters: 'always',
   /**
    * The decision-notification delivery log: GET /api/v1/admin/notification-deliveries and
-   * POST /api/v1/admin/notification-deliveries/:id/retry (email.bulkSend). Not behind a flag: decision
-   * notifications are sent whether or not the Teacher role is enabled.
+   * POST /api/v1/admin/notification-deliveries/:id/retry (email.bulkSend). Not behind a flag (the log is
+   * always there); teacher-registration notices are only sent while teacher self-registration is on.
    */
   notificationDeliveries: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1

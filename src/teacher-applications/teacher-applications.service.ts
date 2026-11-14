@@ -228,16 +228,20 @@ export class TeacherApplicationsService {
       await tx.teacherApplication.update({ where: { id }, data: { userId: user.id } });
       if (verify) issued = await this.activation.issue(user.id, 'EMAIL_VERIFICATION', caller.id, tx);
 
-      await this.audit.log({
-        actorId: caller.id, actorRole: caller.role,
-        action: 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
-        metadata: { newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null },
-      }, tx);
+      // Decision 10: null while teacher self-registration is off (no approval notice).
       notice = await this.notices.enqueue(tx, {
         type: DecisionEvents.TeacherApplicationApproved, dedupeKey: `${DecisionEvents.TeacherApplicationApproved}:${id}`,
         recipient: { userId: user.id, email: user.email, firstName: application.firstName },
         entity: { type: 'TeacherApplication', id }, payload: { activated: !verify },
       });
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
+        metadata: {
+          newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null,
+          approvalNotice: notice ? 'QUEUED' : 'NOT_SENT_SELF_REGISTRATION_OFF',
+        },
+      }, tx);
       return user;
     }).catch((e: unknown) => {
       throw isUniqueViolation(e) ? identityTaken() : e;
@@ -287,24 +291,31 @@ export class TeacherApplicationsService {
       }
       // The school must still be active, and stays so until commit.
       await lockSchoolsForUse(tx, [school.id]);
-      await this.audit.log({
-        actorId: caller.id, actorRole: caller.role,
-        action: 'VERIFY_TEACHER_APPLICATION_SCHOOL', entity: 'TeacherApplication', entityId: id,
-        metadata: { schoolId: school.id, proposedSchoolName: application.proposedSchoolName, note: dto.note ?? null },
-      }, tx);
+      // Decision 10: null while teacher self-registration is off (no school-verified notice to the applicant).
       notice = await this.notices.enqueue(tx, {
         type: DecisionEvents.SchoolRequestVerified, dedupeKey: `${DecisionEvents.SchoolRequestVerified}:teacher-application:${id}`,
         // No account yet: e-mail only, to the address given in the application.
         recipient: { userId: null, email: application.email, firstName: application.firstName },
         entity: { type: 'TeacherApplication', id }, payload: { schoolName: school.name, officialDirectory: school.code !== null },
       });
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'VERIFY_TEACHER_APPLICATION_SCHOOL', entity: 'TeacherApplication', entityId: id,
+        metadata: {
+          schoolId: school.id, proposedSchoolName: application.proposedSchoolName, note: dto.note ?? null,
+          schoolVerifiedNotice: notice ? 'QUEUED' : 'NOT_SENT_SELF_REGISTRATION_OFF',
+        },
+      }, tx);
       return tx.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
     });
     this.notices.dispatchAfterCommit([notice]);
     return result;
   }
 
-  /** Reject: no account and no assignment; the reason and decider are recorded, the password hash cleared. */
+  /**
+   * Reject: no account and no assignment; the reason and decider are recorded, the password hash cleared.
+   * No rejection notice exists (decision 10 would suppress one while self-registration is off).
+   */
   async reject(id: string, dto: RejectTeacherApplicationDto, caller: CallerCtx) {
     await this.roles.assertCanAssign(caller, 'TEACHER');
     return this.prisma.$transaction(async (tx) => {
