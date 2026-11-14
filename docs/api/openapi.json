@@ -26043,6 +26043,26 @@
             }
           },
           {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PUBLISHED",
+                  "ARCHIVED",
+                  "CLOSED",
+                  "PENDING_APPROVAL",
+                  "REJECTED"
+                ]
+              }
+            }
+          },
+          {
             "name": "academicYearId",
             "required": false,
             "in": "query",
@@ -30302,6 +30322,26 @@
             }
           },
           {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PUBLISHED",
+                  "ARCHIVED",
+                  "CLOSED",
+                  "PENDING_APPROVAL",
+                  "REJECTED"
+                ]
+              }
+            }
+          },
+          {
             "name": "academicYearId",
             "required": false,
             "in": "query",
@@ -30347,6 +30387,37 @@
             "description": "Deadline on or before this instant.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "progress",
+            "required": false,
+            "in": "query",
+            "description": "Only assignments where my progress is this (paging and totals count the matches).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_STARTED",
+                "SUBMITTED",
+                "PENDING_REVIEW",
+                "RESUBMISSION_REQUESTED",
+                "REVIEWED",
+                "OVERDUE"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "deadline (soonest first, the default), -deadline (latest first) or title (A–Z).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "deadline",
+                "-deadline",
+                "title"
+              ]
             }
           }
         ],
@@ -30668,7 +30739,7 @@
             }
           }
         },
-        "summary": "Every assignment for the student's division with New / Opened / Submitted / In Review / Marked.",
+        "summary": "Every assignment for the student's division with my display status. Filters: q, courseId,\nacademicYearId, deadlineFrom/To, progress (my status, incl. OVERDUE); sort: deadline | -deadline\n| title (capability studentAssignmentFilters).",
         "tags": [
           "Me"
         ],

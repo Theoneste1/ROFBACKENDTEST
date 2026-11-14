@@ -61,6 +61,13 @@ export const FEATURES = {
    * FILTER_NOT_SUPPORTED).
    */
   reportExportFilters: 'always',
+  /**
+   * Assignment lists filter and sort in the database: GET /me/assignments accepts `progress`
+   * (NOT_STARTED | SUBMITTED | PENDING_REVIEW | RESUBMISSION_REQUESTED | REVIEWED | OVERDUE) and `sort`
+   * (deadline | -deadline | title); GET /assignments accepts `statuses` (comma-separated). Paging
+   * and totals count the matches. Without this feature those parameters are refused (400).
+   */
+  studentAssignmentFilters: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
   // (owner decision 2026-11-12): its production use is not yet approved.
   /**

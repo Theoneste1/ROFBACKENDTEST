@@ -111,7 +111,8 @@ const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-act
 const LOGOUT_SESSION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-logout-session.json';
 const REVIEW_QUEUE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-review-queue.json';
 const REPORT_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-report-export-filters.json';
-const CURRENT_SNAPSHOT = REPORT_FILTERS_SNAPSHOT;
+const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-list-filters.json';
+const CURRENT_SNAPSHOT = LIST_FILTERS_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -801,6 +802,22 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/reports/results.csv: new optional query parameter "divisionId"',
       'GET /api/v1/admin/reports/results.csv: new optional query parameter "from"',
       'GET /api/v1/admin/reports/results.csv: new optional query parameter "to"',
+    ]);
+  });
+
+  test('report export filters → assignment list filters: progress/sort on My Assignments, statuses on the lists; nothing else', () => {
+    // Additive: My Assignments filtered 50 loaded rows in the browser and the coach's grouped tabs
+    // 100; the lists now filter and sort in the database (capability studentAssignmentFilters).
+    for (const f of [REPORT_FILTERS_SNAPSHOT, LIST_FILTERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REPORT_FILTERS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(LIST_FILTERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/assignments: new optional query parameter "statuses"',
+      'GET /api/v1/me/assignments: new optional query parameter "progress"',
+      'GET /api/v1/me/assignments: new optional query parameter "sort"',
+      'GET /api/v1/me/assignments: new optional query parameter "statuses"',
     ]);
   });
 

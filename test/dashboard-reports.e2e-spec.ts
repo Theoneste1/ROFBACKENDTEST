@@ -293,6 +293,11 @@ describe('Admin dashboard and reports (e2e)', () => {
         submissionRate: 100, averageScore: 80, byStage: { published: 1, inReview: 1, awaitingDistribution: 0 },
       });
       expect(body.data.find((a: any) => a.id === a2)).toMatchObject({ expectedStudents: 1, submitted: 1, byStage: { awaitingDistribution: 1 } });
+      // The summary covers every matching assignment, not only the page (the Reports page totals).
+      expect(body.summary.expectedStudents).toBe(3);
+      const onePage = (await get('/admin/reports/assignments', { limit: 1 }).expect(200)).body;
+      expect(onePage.data).toHaveLength(1);
+      expect(onePage.summary).toMatchObject({ assignments: 2, expectedStudents: 3, submissions: 3 });
 
       const drafts = (await get('/admin/reports/assignments', { status: 'DRAFT' }).expect(200)).body;
       expect(drafts.data.map((a: any) => a.id)).toEqual([a3]);

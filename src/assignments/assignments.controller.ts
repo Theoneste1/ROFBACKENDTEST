@@ -17,7 +17,7 @@ import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { AssignmentsService } from './assignments.service.js';
-import { CreateAssignmentDto, ListAssignmentsDto } from './dto/create-assignment.dto.js';
+import { CreateAssignmentDto, ListAssignmentsDto, MyAssignmentsQueryDto } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { CloseAssignmentDto, RejectAssignmentDto, ReopenAssignmentDto } from './dto/reject-assignment.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
@@ -216,9 +216,13 @@ export class AssignmentsController {
 export class MyAssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
-  /** Every assignment for the student's division with New / Opened / Submitted / In Review / Marked. */
+  /**
+   * Every assignment for the student's division with my display status. Filters: q, courseId,
+   * academicYearId, deadlineFrom/To, progress (my status, incl. OVERDUE); sort: deadline | -deadline
+   * | title (capability studentAssignmentFilters).
+   */
   @Get()
-  findMine(@CurrentUser() user: AuthUser, @Query() query: ListAssignmentsDto) {
+  findMine(@CurrentUser() user: AuthUser, @Query() query: MyAssignmentsQueryDto) {
     return this.assignmentsService.getStudentAssignments(user, query);
   }
 }

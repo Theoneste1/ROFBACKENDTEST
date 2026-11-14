@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsISO8601,
   IsOptional,
@@ -90,6 +91,14 @@ export class ListAssignmentsDto extends PaginationQueryDto {
   /** Mentors/admins only. */
   /** Students: PUBLISHED or CLOSED only. */
   @IsOptional() @IsEnum(AssignmentStatus) status?: AssignmentStatus;
+  /**
+   * Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups
+   * statuses pages in the database. Not together with `status`.
+   */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.split(',').map((s) => s.trim()).filter(Boolean) : value))
+  @IsEnum(AssignmentStatus, { each: true })
+  statuses?: AssignmentStatus[];
   @IsOptional() @IsUUID() academicYearId?: string;
   /** Mentors/admins only: assignments prepared by this mentor. */
   @IsOptional() @IsUUID() createdById?: string;
@@ -101,4 +110,21 @@ export class ListAssignmentsDto extends PaginationQueryDto {
   @IsOptional() @IsISO8601() deadlineFrom?: string;
   /** Deadline on or before this instant. */
   @IsOptional() @IsISO8601() deadlineTo?: string;
+}
+
+/**
+ * The student's progress on an assignment, as shown in My Assignments. The labels match
+ * `displayStatus` (NOT_STARTED = "Not Started", …); OVERDUE = not started and no longer
+ * submittable (closed, or past the deadline without late work).
+ */
+export const MY_ASSIGNMENT_PROGRESS = ['NOT_STARTED', 'SUBMITTED', 'PENDING_REVIEW', 'RESUBMISSION_REQUESTED', 'REVIEWED', 'OVERDUE'] as const;
+export type MyAssignmentProgress = (typeof MY_ASSIGNMENT_PROGRESS)[number];
+export const MY_ASSIGNMENT_SORTS = ['deadline', '-deadline', 'title'] as const;
+
+/** GET /me/assignments: the list filters plus the student's progress and a sort, applied in the database. */
+export class MyAssignmentsQueryDto extends ListAssignmentsDto {
+  /** Only assignments where my progress is this (paging and totals count the matches). */
+  @IsOptional() @IsIn(MY_ASSIGNMENT_PROGRESS) progress?: MyAssignmentProgress;
+  /** deadline (soonest first, the default), -deadline (latest first) or title (A–Z). */
+  @IsOptional() @IsIn(MY_ASSIGNMENT_SORTS) sort?: (typeof MY_ASSIGNMENT_SORTS)[number];
 }

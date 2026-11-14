@@ -4692,6 +4692,12 @@
                   "description": "Mentors/admins only."
                 },
                 {
+                  "key": "statuses",
+                  "value": "DRAFT",
+                  "disabled": true,
+                  "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
+                },
+                {
                   "key": "academicYearId",
                   "value": "00000000-0000-4000-8000-000000000000",
                   "disabled": true,
@@ -7645,6 +7651,12 @@
                   "description": "Mentors/admins only."
                 },
                 {
+                  "key": "statuses",
+                  "value": "DRAFT",
+                  "disabled": true,
+                  "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
+                },
+                {
                   "key": "academicYearId",
                   "value": "00000000-0000-4000-8000-000000000000",
                   "disabled": true,
@@ -7673,6 +7685,18 @@
                   "value": "deadlineTo",
                   "disabled": true,
                   "description": "Deadline on or before this instant."
+                },
+                {
+                  "key": "progress",
+                  "value": "NOT_STARTED",
+                  "disabled": true,
+                  "description": "Only assignments where my progress is this (paging and totals count the matches)."
+                },
+                {
+                  "key": "sort",
+                  "value": "deadline",
+                  "disabled": true,
+                  "description": "deadline (soonest first, the default), -deadline (latest first) or title (A–Z)."
                 }
               ]
             },

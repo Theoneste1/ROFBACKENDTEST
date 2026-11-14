@@ -1953,6 +1953,7 @@ Returns `200` JSON with:
 | `courseId` | query | string |  |  |
 | `divisionId` | query | string |  | Mentors/admins only. |
 | `status` | query | DRAFT \| PUBLISHED \| ARCHIVED \| CLOSED \| PENDING_APPROVAL \| REJECTED |  | Mentors/admins only. |
+| `statuses` | query | array |  | Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups statuses pages in the database. Not together with `status`. |
 | `academicYearId` | query | string |  |  |
 | `createdById` | query | string |  | Mentors/admins only: assignments prepared by this mentor. |
 | `q` | query | string |  | Search title, description and instructions. |
@@ -3208,18 +3209,23 @@ Returns `200` JSON with:
 
 **Access:** STUDENT
 
-Every assignment for the student's division with New / Opened / Submitted / In Review / Marked.
+Every assignment for the student's division with my display status. Filters: q, courseId,
+academicYearId, deadlineFrom/To, progress (my status, incl. OVERDUE); sort: deadline | -deadline
+| title (capability studentAssignmentFilters).
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `courseId` | query | string |  |  |
 | `divisionId` | query | string |  | Mentors/admins only. |
 | `status` | query | DRAFT \| PUBLISHED \| ARCHIVED \| CLOSED \| PENDING_APPROVAL \| REJECTED |  | Mentors/admins only. |
+| `statuses` | query | array |  | Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups statuses pages in the database. Not together with `status`. |
 | `academicYearId` | query | string |  |  |
 | `createdById` | query | string |  | Mentors/admins only: assignments prepared by this mentor. |
 | `q` | query | string |  | Search title, description and instructions. |
 | `deadlineFrom` | query | string |  | Deadline on or after this instant. |
 | `deadlineTo` | query | string |  | Deadline on or before this instant. |
+| `progress` | query | NOT_STARTED \| SUBMITTED \| PENDING_REVIEW \| RESUBMISSION_REQUESTED \| REVIEWED \| OVERDUE |  | Only assignments where my progress is this (paging and totals count the matches). |
+| `sort` | query | deadline \| -deadline \| title |  | deadline (soonest first, the default), -deadline (latest first) or title (A–Z). |
 
 Returns `200` JSON with:
 

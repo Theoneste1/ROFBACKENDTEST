@@ -308,7 +308,9 @@ submitted, reviewed, reported). The enrolment report applies `courseId` as
 "students taking part in that course" (as the Students report does), and the
 older `results.csv` export (one row per submission, for an assignment or a
 course × division) takes the same filters, its period meaning *submitted
-between* (capability `reportExportFilters`).
+between* (capability `reportExportFilters`). Report `summary` figures (e.g. the
+assignment report's `expectedStudents` and `submissions`) always cover every
+matching row, not only the requested page.
 
 **Queries.** Counts and group-bys run in the database; per-row figures are
 fetched for the current page with one grouped query per figure; averages and
