@@ -5,7 +5,7 @@
  * seed-scale.mjs, and records wall time, rows, memory and the slowest SQL statements of each one.
  *
  *   node test/perf/scale-harness.mjs --dist <dist dir> --db <url> --label <name> --out <file.jsonl>
- *        [--ops dashboard,overview,...] [--explain]
+ *        [--ops dashboard,overview,...] [--explain] [--no-capture]
  *
  * Writes one JSON line per operation. Destructive operations (distribute, publish, recompute,
  * rollover) change the database: run them last, on a copy of the seeded database.
@@ -188,7 +188,7 @@ for (const op of ops) {
     const m = process.memoryUsage();
     peakRss = Math.max(peakRss, m.rss); peakHeap = Math.max(peakHeap, m.heapUsed);
   }, 25);
-  capture = [];
+  capture = args['no-capture'] ? null : [];   // --no-capture: memory runs (the capture keeps every statement)
   const started = performance.now();
   let result, error;
   try { result = await OPS[op](); } catch (e) { error = `${e?.code ?? e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}`; }
@@ -196,7 +196,7 @@ for (const op of ops) {
   let tailMs = null;
   if (EVENTFUL.has(op) && !error) { const t = performance.now(); await drainEvents(); tailMs = Math.round(performance.now() - t); }
   clearInterval(sampler);
-  const statements = capture; capture = null;
+  const statements = capture ?? []; capture = null;
   const sqlMs = statements.reduce((s, q) => s + q.ms, 0);
   const slowest = [...statements].sort((a, b) => b.ms - a.ms).slice(0, 3);
   let explain;
