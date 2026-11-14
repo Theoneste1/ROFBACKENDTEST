@@ -11,6 +11,11 @@
  *   EMAIL_MAX_PER_SECOND – Sending rate (default 2, Resend's default limit).
  *   EMAIL_BATCH_SIZE     – Deliveries the worker claims per batch (default 50).
  *
+ * Provider limits: a 429 answer (rate limit, daily or monthly quota) is reported
+ * as deferMs, not as a failure — the worker re-queues the delivery without
+ * spending an attempt and pauses sending (QUOTA_PAUSE_MS for a quota,
+ * RATE_PAUSE_MS for the per-second limit).
+ *
  * Never logs message bodies (they can carry one-time links); recipients are
  * masked in logs.
  */
@@ -36,7 +41,15 @@ export interface SendResult {
   error:     string | null;
   /** The request itself is wrong (bad address…): retrying cannot help. */
   permanent: boolean;
+  /** The provider refused for a limit (429): send again after this many ms; not a failed attempt. */
+  deferMs?:  number;
 }
+
+/** Pause after a daily or monthly quota answer. */
+export const QUOTA_PAUSE_MS = 60 * 60_000;
+/** Pause after a per-second rate-limit answer. */
+export const RATE_PAUSE_MS  = 60_000;
+const QUOTA_ERRORS = new Set(['daily_quota_exceeded', 'monthly_quota_exceeded']);
 
 /** Resend errors caused by the message itself, not by the configuration or the service. */
 const PERMANENT_ERRORS = new Set(['validation_error', 'invalid_parameter', 'missing_required_field', 'invalid_idempotent_request']);
@@ -119,6 +132,11 @@ export class MailerService implements OnModuleInit {
       if (error || !data) {
         const permanent = !!error && PERMANENT_ERRORS.has(error.name) && error.statusCode !== 403;
         const message   = error ? `Resend ${error.statusCode ?? 'network'} ${error.name}: ${error.message}` : 'Resend returned no data.';
+        if (error && (error.statusCode === 429 || QUOTA_ERRORS.has(error.name))) {
+          const deferMs = QUOTA_ERRORS.has(error.name) ? QUOTA_PAUSE_MS : RATE_PAUSE_MS;
+          this.logger.warn(`E-mail to ${maskEmail(to)} deferred by a provider limit (${error.name}); sending pauses for ${deferMs / 1000} s.`);
+          return { messageId: null, accepted: false, error: message, permanent: false, deferMs };
+        }
         this.logger.error(`E-mail to ${maskEmail(to)} failed (${permanent ? 'permanent' : 'will retry'}): ${message}`);
         return { messageId: null, accepted: false, error: message, permanent };
       }

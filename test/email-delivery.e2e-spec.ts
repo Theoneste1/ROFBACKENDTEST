@@ -37,6 +37,8 @@ describe('E-mail delivery through Resend (e2e)', () => {
   /** Idempotency keys already accepted → their e-mail id. */
   const accepted = new Map<string, string>();
   let unauthorized = 0;
+  /** While set, the fake API answers every send with this 429 error name. */
+  let limit: string | null = null;
 
   const drain = async () => { while ((await worker.processBatch()) > 0) { /* keep sending */ } };
   const to = (address: string) => inbox.filter((m) => m.to.includes(address));
@@ -55,6 +57,7 @@ describe('E-mail delivery through Resend (e2e)', () => {
         }
         if (req.method !== 'POST' || req.url !== '/emails') return reply(404, { statusCode: 404, name: 'not_found', message: 'Not found' });
 
+        if (limit) return reply(429, { statusCode: 429, name: limit, message: 'Limit reached' });
         const mail = JSON.parse(raw) as { to: string | string[]; subject: string; text: string; html?: string; from: string; reply_to?: string };
         const recipients = [mail.to].flat();
         if (recipients.some((r) => invalid.has(r))) {
@@ -255,6 +258,29 @@ describe('E-mail delivery through Resend (e2e)', () => {
     expect(done.body).toMatchObject({ status: 'COMPLETED', sentCount: 2, failedCount: 0 });
     expect(to('mentor.j@test.local').filter((m) => m.subject.endsWith('Partly failing'))).toHaveLength(1); // not sent twice
     expect(to('mentor.j2@test.local').filter((m) => m.subject.endsWith('Partly failing'))).toHaveLength(1);
+  });
+
+  it('a provider quota defers the queue without spending attempts; one-time links survive and are sent later', async () => {
+    limit = 'daily_quota_exceeded';
+    await ctx.http().post('/api/v1/auth/forgot-password').send({ email: 'mentor.j2@test.local' }).expect(200);
+    const sentBefore = to('mentor.j2@test.local').length;
+    await drain();
+    const held = await ctx.prisma.emailDelivery.findFirstOrThrow({ where: { recipientEmail: 'mentor.j2@test.local', jobId: null }, orderBy: { createdAt: 'desc' } });
+    expect(held).toMatchObject({ status: 'PENDING', attempts: 0, lockedAt: null });
+    expect(held.body).toContain('reset-password?token=');       // the one-time link is kept until it is sent
+    expect(held.errorMessage).toMatch(/429 daily_quota_exceeded/);
+    expect(held.nextAttemptAt.getTime()).toBeGreaterThan(Date.now() + 50 * 60_000);
+    expect(worker.paused).toBe(true);
+    expect(await worker.processBatch()).toBe(0);                 // nothing is claimed while paused
+
+    // The quota resets: the pause ends and the queue drains normally, once.
+    limit = null;
+    (worker as unknown as { pausedUntil: number }).pausedUntil = 0;
+    await ctx.prisma.emailDelivery.update({ where: { id: held.id }, data: { nextAttemptAt: new Date(0) } });
+    await drain();
+    const sent = await ctx.prisma.emailDelivery.findUniqueOrThrow({ where: { id: held.id } });
+    expect(sent).toMatchObject({ status: 'SENT', attempts: 1, body: null });
+    expect(to('mentor.j2@test.local').length).toBe(sentBefore + 1);
   });
 
   it('the scheduled tick does nothing when workers are disabled on this instance', async () => {

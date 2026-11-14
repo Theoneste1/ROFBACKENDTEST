@@ -6,6 +6,11 @@
  * without sending anything twice. Each claim sets `lockedAt`; a claim older
  * than 5 minutes (crashed worker) is picked up again.
  *
+ * A provider limit (429: per-second rate, daily or monthly quota) is not a
+ * failure: the delivery goes back to the queue without spending an attempt and
+ * the worker stops sending until the pause ends, so a quota never makes mail
+ * FAILED (nor wipes a one-time link that was never sent).
+ *
  * Failures are retried with exponential backoff (1, 2, 4, 8 minutes) and
  * marked FAILED after MAX_ATTEMPTS; errors that retrying cannot fix (an
  * invalid address) fail at once. Each delivery's id is sent to Resend as an
@@ -38,6 +43,13 @@ interface ClaimedDelivery {
 export class EmailWorker {
   private readonly logger = new Logger(EmailWorker.name);
   private running = false;
+  /** Sending is paused until this time after a provider-limit answer (per instance). */
+  private pausedUntil = 0;
+
+  /** Whether a provider limit currently pauses sending on this instance. */
+  get paused(): boolean {
+    return Date.now() < this.pausedUntil;
+  }
 
   constructor(
     private readonly prisma:  PrismaService,
@@ -65,6 +77,7 @@ export class EmailWorker {
 
   /** Claim and send one batch. Returns the number of deliveries processed. */
   async processBatch(): Promise<number> {
+    if (this.paused) return 0;
     const claimed = await this.prisma.$queryRaw<ClaimedDelivery[]>`
       UPDATE "EmailDelivery" d
       SET "lockedAt" = NOW(), "attempts" = d."attempts" + 1
@@ -116,9 +129,17 @@ export class EmailWorker {
       return;
     }
 
+    // Paused by a limit met earlier in this batch: back to the queue, attempt not spent.
+    if (this.paused) return this.defer(d, this.pausedUntil, null);
+
     const result = await this.mailer.sendOne({
       to: d.recipientEmail, subject, text: body, html, idempotencyKey: `email-delivery/${d.id}`,
     });
+
+    if (result.deferMs) {
+      this.pausedUntil = Math.max(this.pausedUntil, Date.now() + result.deferMs);
+      return this.defer(d, this.pausedUntil, result.error);
+    }
 
     if (result.accepted) {
       await this.prisma.emailDelivery.update({
@@ -141,6 +162,17 @@ export class EmailWorker {
         lockedAt:      null,
         attemptedAt:   new Date(),
         nextAttemptAt: new Date(Date.now() + backoffMs),
+      },
+    });
+  }
+
+  /** Re-queue a claimed delivery without counting the attempt. */
+  private async defer(d: ClaimedDelivery, until: number, error: string | null) {
+    await this.prisma.emailDelivery.update({
+      where: { id: d.id },
+      data:  {
+        status: 'PENDING', attempts: Math.max(d.attempts - 1, 0), lockedAt: null, nextAttemptAt: new Date(until),
+        ...(error && { errorMessage: error.slice(0, 1000) }),
       },
     });
   }
