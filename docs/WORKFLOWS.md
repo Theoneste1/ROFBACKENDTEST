@@ -33,6 +33,11 @@ flowchart LR
   can edit any account: details, role, password, status. Mentors are normally
   added by an administrator; anyone signing up as a mentor needs an
   administrator's approval.
+- When an administrator changes a user's e-mail address, every unused link
+  already e-mailed to the old address (invitation, e-mail verification,
+  password reset) stops working, and the audit entry records how many were
+  revoked. To give an invited user a working link, re-send the invitation:
+  it goes to the new address.
 - E-mail verification (`registration.requireEmailVerification`) is on by
   default in production: self-registered students and approved mentor
   applicants confirm their address before their first login.

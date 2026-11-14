@@ -126,7 +126,9 @@ under the user's row lock *before* the password is checked, so concurrent
 guesses cannot all be evaluated against a stale "not locked" read: at most five
 guesses are ever checked before the lock, however many arrive at once. The row
 lock is held only for that short transaction, not during bcrypt. A correct
-password never counts towards the lockout. Issuing a password-reset
+password never counts towards the lockout. An administrator's change of a user's
+e-mail address revokes the activation and reset links still open for the old
+address (`UPDATE_USER` audit: `linksRevoked`). Issuing a password-reset
 link retires earlier unused ones, and one-time links are not kept in the
 e-mail outbox once sent.
 
