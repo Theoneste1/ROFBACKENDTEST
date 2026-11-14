@@ -137,6 +137,26 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * notify(), at most once per event key: a replayed or duplicated event never notifies twice.
+   * The key is stored in the notification's data (eventKey); concurrent deliveries of the same
+   * event are serialised by a transaction-scoped advisory lock on the key, so the check and the
+   * insert cannot interleave. Returns false when the event was already notified.
+   */
+  async notifyOnce(eventKey: string, userIds: string[], payload: NotificationPayload, opts: { email?: boolean } = {}) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${eventKey})::bigint)`;
+      const seen = await tx.notification.findFirst({
+        where:  { type: payload.type, data: { path: ['eventKey'], equals: eventKey } },
+        select: { id: true },
+      });
+      if (seen) return false;
+      // Written while the lock is held: a concurrent duplicate waits, then sees these rows.
+      await this.notify(userIds, { ...payload, data: { ...payload.data, eventKey } }, opts);
+      return true;
+    }, { timeout: 30_000 });
+  }
+
   /** Queue a transactional e-mail to an address that may not belong to a user. */
   async queueEmail(to: string, title: string, body: string, opts: QueueEmailOptions = {}) {
     const mail = this.compose(await this.brand(), { heading: title, ...opts }, body);

@@ -77,6 +77,7 @@ function makeMocks() {
   const activity      = { record: vi.fn() };
   const issued        = { token: 't', expiresAt: new Date(), purpose: 'EMAIL_VERIFICATION', userId: 'u-new', email: 'a@x.rw', firstName: 'A' };
   const accountEmails = { welcome: vi.fn(), passwordChanged: vi.fn() };
+  const events        = { emit: vi.fn() };
   const activation    = {
     issue:        vi.fn().mockResolvedValue(issued),
     send:         vi.fn().mockResolvedValue({}),
@@ -88,8 +89,9 @@ function makeMocks() {
     academicYears as any, activity as any, activation as any, accountEmails as any,
     { assertCanAssign: vi.fn(), assertCanManage: vi.fn() } as any,
     { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() } as any,   // school affiliation (claims are tested end to end)
+    events as any,
   );
-  return { service, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails };
+  return { service, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails, events };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({

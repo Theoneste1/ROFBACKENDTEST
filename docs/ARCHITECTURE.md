@@ -286,6 +286,7 @@ reminders: every notification is triggered by an action.
 | Resubmission requested / request withdrawn | The student |
 | Review returned | Admins (in-app) |
 | Review sent back / result reopened | The mentor |
+| Result withdrawn for correction (reopened) | The student, once per withdrawal (the administrator's note to the coach is not shown) |
 | Results published | Each student |
 | Resource published | Students of the division (in-app) |
 | New discussion thread | Mentors of that course × division (in-app) |
@@ -294,6 +295,15 @@ reminders: every notification is triggered by an action.
 | Content hidden, removed, restored or locked | Its author |
 | Report reviewed | The reporters (in-app) |
 | Mentor application decided, password reset | The person |
+| New student registration | Admins (in-app, switchable), once per account |
+| Coach application submitted | Admins (in-app, switchable), once per submission |
+
+Notices that must never repeat use `notifyOnce(eventKey, …)`: the key
+(for example `registration.student:<userId>` or `result.reopened:<reviewId>`)
+is stored in the notification's `data.eventKey`, and a transaction-scoped
+advisory lock on the key serialises concurrent deliveries of the same event,
+so a replayed or duplicated event notifies nobody twice. No schema change is
+involved.
 
 ## 7a. Dashboard and reports (administrators)
 

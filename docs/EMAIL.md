@@ -249,8 +249,8 @@ e2e test `email-delivery` runs the real SDK against a fake Resend API.
 | `Resend 403 validation_error: … domain is not verified` | Finish §3; the `EMAIL_FROM` domain must match the verified domain exactly |
 | `Resend 403 … You can only send testing emails to your own email address` | The domain is not verified yet; until then Resend only delivers to the account owner's address |
 | `Resend 422 validation_error` (delivery FAILED after 1 attempt) | The recipient address is invalid. Correct the user's e-mail |
-| `Resend 429 rate_limit_exceeded` | Lower `EMAIL_MAX_PER_SECOND`; the worker retries automatically |
-| `daily_quota_exceeded` / `monthly_quota_exceeded` | Free plan: 100/day, 3,000/month. The worker retries for ~15 min, then FAILED; administrators can retry bulk jobs. Upgrade the plan if this recurs |
+| `Resend 429 rate_limit_exceeded` | Not a failure: the delivery is re-queued without spending an attempt and this instance pauses sending for 60 s. If it recurs, lower `EMAIL_MAX_PER_SECOND` to the plan's limit |
+| `daily_quota_exceeded` / `monthly_quota_exceeded` | Not a failure: queued e-mails stay PENDING (attempts not spent, one-time links kept) and sending pauses for 1 h at a time until the quota resets, then drains by itself. Free plan: 100/day, 3,000/month; a paid plan sized to the volume is required in production |
 | Accepted by Resend but not received | Resend → Emails → the message: *Bounced* (address does not exist), *Complained*, or *Delivered* (then look in spam/quarantine; in Google Workspace check the admin quarantine) |
 | Lands in spam | DKIM/SPF/DMARC not all PASS (§8); avoid link shorteners; set the support e-mail setting so the footer has a real contact |
 | Links point to the wrong site | `APP_URL` is wrong (it must be the frontend, not the API) |

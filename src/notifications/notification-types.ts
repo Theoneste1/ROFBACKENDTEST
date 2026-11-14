@@ -35,6 +35,16 @@ export const CONFIGURABLE_NOTIFICATION_TYPES: readonly NotificationTypeInfo[] = 
     description: 'A coach finished reviewing a submission and it is ready for your approval.',
   },
   {
+    type: Events.StudentRegistered, category: 'ACCOUNT', roles: ['ADMIN'], email: false,
+    label: 'New student registrations',
+    description: 'A student created an account (and, when approval is required, is waiting for it).',
+  },
+  {
+    type: Events.MentorRequestSubmitted, category: 'ACCOUNT', roles: ['ADMIN'], email: false,
+    label: 'New coach applications',
+    description: 'Someone applied to become a coach and is waiting for a decision.',
+  },
+  {
     type: Events.ContentReported, category: 'DISCUSSIONS', roles: ['ADMIN'], email: false,
     label: 'Reported discussion content',
     description: 'Someone reported a discussion thread or comment for moderation.',

@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
@@ -7,6 +8,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { Events } from '../notifications/events.js';
 import { AccountEmailsService } from '../notifications/account-emails.service.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { ActivityService } from '../activity/activity.service.js';
@@ -63,6 +65,7 @@ export class AuthService {
     private readonly accountEmails: AccountEmailsService,
     private readonly roles:         RoleAssignmentPolicy,
     private readonly affiliations:  SchoolAffiliationService,
+    private readonly events:        EventEmitter2,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -187,6 +190,7 @@ export class AuthService {
 
     if (student.verification) await this.activation.send(student.verification);
     else await this.accountEmails.welcome(student.created.id);
+    this.events.emit(Events.StudentRegistered, { userId: student.created.id, requiresApproval });
 
     return {
       ...student.created,

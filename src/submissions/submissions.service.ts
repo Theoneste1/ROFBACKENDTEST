@@ -915,7 +915,7 @@ export class SubmissionsService {
       return this.load(tx, submissionId);
     });
 
-    this.events.emit(Events.ResultReopened, { submissionId, reason: body.reopenNote });
+    this.events.emit(Events.ResultReopened, { submissionId, reason: body.reopenNote, previousReviewId: previous.id });
     return { ...adminView(updated), previousScore: previous.score };
   }
 
