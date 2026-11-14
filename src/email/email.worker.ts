@@ -78,14 +78,17 @@ export class EmailWorker {
   /** Claim and send one batch. Returns the number of deliveries processed. */
   async processBatch(): Promise<number> {
     if (this.paused) return 0;
+    // The timestamps are TIMESTAMP WITHOUT TIME ZONE written in UTC by Prisma, so "now" is taken in
+    // UTC explicitly: comparing with NOW() would shift every back-off, pause and lock expiry by the
+    // database's TimeZone offset (on a UTC+2 server a delivery deferred by 1 h would count as due).
     const claimed = await this.prisma.$queryRaw<ClaimedDelivery[]>`
       UPDATE "EmailDelivery" d
-      SET "lockedAt" = NOW(), "attempts" = d."attempts" + 1
+      SET "lockedAt" = (NOW() AT TIME ZONE 'UTC'), "attempts" = d."attempts" + 1
       WHERE d."id" IN (
         SELECT "id" FROM "EmailDelivery"
         WHERE "status" = 'PENDING'
-          AND "nextAttemptAt" <= NOW()
-          AND ("lockedAt" IS NULL OR "lockedAt" < NOW() - INTERVAL '5 minutes')
+          AND "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC')
+          AND ("lockedAt" IS NULL OR "lockedAt" < (NOW() AT TIME ZONE 'UTC') - INTERVAL '5 minutes')
         ORDER BY "createdAt" ASC
         LIMIT ${this.mailer.batchSize}
         FOR UPDATE SKIP LOCKED
