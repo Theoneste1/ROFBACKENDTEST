@@ -97,6 +97,13 @@ describe('PermissionService', () => {
       expect(svc.has(user('ADMIN'), 'schools.syncDirectory')).toBe(false);
     });
 
+    it('ADMIN: the list reports users.manageTeachers, which the guard grants', async () => {
+      const { service: svc } = make();
+      const { permissions } = await svc.describe(user('ADMIN'));
+      expect(permissions).toContain('users.manageTeachers');
+      expect(svc.has(user('ADMIN'), 'users.manageTeachers')).toBe(true);
+    });
+
     it('SUPER_ADMIN keeps its full effective list, including schools.manage and schools.syncDirectory', async () => {
       const { service: svc } = make();
       const { permissions } = await svc.describe(user('SUPER_ADMIN'));

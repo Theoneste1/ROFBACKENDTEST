@@ -101,8 +101,11 @@ describe('permission equivalence — catalogue (A4)', () => {
     expect(admin.filter((p) => !ROLE_PERMISSIONS.ADMIN.includes(p as Permission)).sort()).toEqual([
       'coaches.monitor', 'permissions.view', 'programmes.manageHeads', 'programmes.manageMembers',
       'reports.view', 'students.viewScoped', 'users.manageAdmins', 'users.manageCoaches',
-      'users.manageHeadCoaches', 'users.manageStudents', 'users.manageTeachers', 'users.view',
+      'users.manageHeadCoaches', 'users.manageStudents', 'users.view',
+      // users.manageTeachers is no longer in this list: the ADMIN list reports it since 2026-11-13.
     ]);
+    // What ADMIN holds is unchanged; only what the list reports changed.
+    expect(admin).toContain('users.manageTeachers');
   });
 
   it('SUPER_ADMIN holds everything ADMIN holds plus the three Super-Admin-only permissions (S2b: schools.syncDirectory), and nothing prohibited', () => {
