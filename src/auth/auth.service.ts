@@ -216,13 +216,26 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(user: { id: string; role: string; jti?: string; exp?: number }, refreshToken?: string) {
-    if (user.jti) await this.tokens.blacklistAccessToken(user.jti, user.exp);
-    if (refreshToken) await this.tokens.revoke(refreshToken);
+  /**
+   * End one session. Needs no valid access token (H1): the refresh token (the
+   * httpOnly cookie, or the body for non-browser clients) identifies the
+   * session, so signing out after the 15-minute access token has expired still
+   * revokes it on the server. An access token, if presented and still valid, is
+   * blacklisted as well. Idempotent: with nothing to revoke it does nothing (and
+   * writes no audit entry); the caller always clears the cookie.
+   */
+  async logout(input: { refreshToken?: string; accessToken?: string }) {
+    const claims = input.accessToken ? await this.tokens.verifyAccessToken(input.accessToken) : null;
+    if (claims?.jti) await this.tokens.blacklistAccessToken(claims.jti, claims.exp);
+    const session = input.refreshToken ? await this.tokens.revoke(input.refreshToken) : null;
 
+    const userId = session?.userId ?? claims?.sub;
+    if (!userId) return;
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
     await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'LOGOUT', entity: 'User', entityId: user.id,
+      actorId: userId, actorRole: user?.role ?? null,
+      action: 'LOGOUT', entity: 'User', entityId: userId,
+      metadata: { sessionRevoked: session !== null, accessTokenRevoked: Boolean(claims?.jti) },
     });
   }
 
