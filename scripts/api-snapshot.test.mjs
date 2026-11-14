@@ -115,7 +115,8 @@ const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-
 const EMAIL_DELIVERIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-email-deliveries.json';
 const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeless-schools.json';
 const RELEASE_PERMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-release-permissions.json';
-const CURRENT_SNAPSHOT = RELEASE_PERMISSIONS_SNAPSHOT;
+const SCHOOL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-school-verification.json';
+const CURRENT_SNAPSHOT = SCHOOL_VERIFICATION_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -861,6 +862,18 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ['GET /api/v1/programmes: roles removed: TEACHER']);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, ['GET /api/v1/admin/programmes/{id}/student-candidates: operation added']);
+  });
+
+  test('release permissions → school verification: administrators verify a school; nothing else', () => {
+    // Owner decision 2026-11-14: Teachers may name a school without an official code once an administrator
+    // created and verified it. (GET /schools/search?teacherEligible is not visible here: that endpoint's
+    // query parameters are not part of the generated OpenAPI; documented in docs/INTEGRATION.md.)
+    for (const f of [RELEASE_PERMISSIONS_SNAPSHOT, SCHOOL_VERIFICATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(RELEASE_PERMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_VERIFICATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['POST /api/v1/admin/schools/{id}/verify: operation added', 'schema VerifySchoolDto: added']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {
