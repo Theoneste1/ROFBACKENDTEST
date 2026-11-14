@@ -83,8 +83,8 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   },
   // ── Discussions ────────────────────────────────────────────────────────────
   {
-    file: 'src/discussions/discussions.service.ts', rule: 'U6', code: 'asModerator = isAdmin(user) && !isAuthor',
-    reason: 'Positive test: only administrators act as moderators; every other role must be the author (checked right after).',
+    file: 'src/discussions/discussions.service.ts', rule: 'U6', code: "return isAdmin(user) && this.permissions.has(user, 'discussions.moderate');",
+    reason: 'Positive test (canModerate): only administrators who still hold discussions.moderate (a DENY override removes it) act as moderators; every other caller must be the author (checked by the callers).',
   },
   {
     file: 'src/discussions/discussions.service.ts', rule: 'U2',
