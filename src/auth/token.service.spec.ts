@@ -20,8 +20,37 @@ const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 function makeDb({ useLocks = true } = {}) {
   const tokens = new Map<string, Row>();
   const users = new Map<string, UserRow>();
-  const locks = new Map<string, Promise<void>>();
   const events: string[] = [];
+
+  /**
+   * A small lock manager, modelled on PostgreSQL: exclusive ('X': advisory locks, SELECT … FOR UPDATE)
+   * and shared ('S': the KEY SHARE lock a RefreshToken insert takes on its User row through the
+   * foreign key). A transaction re-acquiring a lock it holds does not wait (advisory xact locks are
+   * re-entrant). Locks are held until the transaction ends; outside a transaction, until the statement ends.
+   */
+  const owners = new Map<string, { mode: 'X' | 'S'; holders: Set<object> }>();
+  let waiters: Array<() => void> = [];
+  const wake = () => { const w = waiters; waiters = []; w.forEach((r) => r()); };
+  const acquire = async (name: string, mode: 'X' | 'S', holder: object, held: Array<() => void>) => {
+    for (;;) {
+      const cur = owners.get(name);
+      const mine = !!cur && cur.holders.has(holder);
+      const free = !cur || (mine && cur.holders.size === 1) || (mode === 'S' && cur.mode === 'S');
+      if (mine && (mode === 'S' || cur!.mode === 'X')) return;   // already held strongly enough
+      if (free) {
+        if (!cur) owners.set(name, { mode, holders: new Set([holder]) });
+        else { cur.holders.add(holder); if (mode === 'X') cur.mode = 'X'; }
+        held.push(() => {
+          const c = owners.get(name);
+          c?.holders.delete(holder);
+          if (c && c.holders.size === 0) owners.delete(name);
+          wake();
+        });
+        return;
+      }
+      await new Promise<void>((r) => waiters.push(r));
+    }
+  };
   /** Hold the next refreshToken.create until released (deterministic interleaving). */
   let createGate: { reached: () => void; wait: Promise<void> } | null = null;
   const holdNextCreate = () => {
@@ -35,17 +64,26 @@ function makeDb({ useLocks = true } = {}) {
   const matches = (row: Row, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) => (row as unknown as Record<string, unknown>)[k] === v);
 
-  const client = (held: Array<() => void>) => ({
-    $queryRaw: async (_s: TemplateStringsArray, ns: number, key: string) => {
+  /** `held` collects the releases of one transaction; `autocommit` releases after each statement. */
+  const client = (held: Array<() => void>, autocommit = false) => {
+    const holder = {};
+    const statement = async <T>(fn: () => Promise<T>): Promise<T> => {
+      if (!autocommit) return fn();
+      try { return await fn(); } finally { held.splice(0).forEach((release) => release()); }
+    };
+    return {
+    $queryRaw: async (s: TemplateStringsArray, ...values: unknown[]) => statement(async () => {
+      const sql = s.join('?');
+      if (sql.includes('FOR UPDATE')) {                       // SELECT 1 FROM "User" WHERE "id" = ? FOR UPDATE
+        events.push(`row-lock:${String(values[0])}`);
+        await acquire(`row:User:${String(values[0])}`, 'X', holder, held);
+        return [];
+      }
+      const [ns, key] = values as [number, string];          // pg_advisory_xact_lock(ns, hashtext(key))
       events.push(`lock:${ns}:${key}`);
-      if (!useLocks) return [];
-      const name = `${ns}:${key}`;
-      while (locks.has(name)) await locks.get(name);
-      let release!: () => void;
-      locks.set(name, new Promise<void>((r) => { release = r; }));
-      held.push(() => { locks.delete(name); release(); });
+      if (useLocks) await acquire(`adv:${ns}:${key}`, 'X', holder, held);
       return [];
-    },
+    }),
     refreshToken: {
       findUnique: async ({ where }: { where: { id?: string; tokenHash?: string } }) => {
         await tick();
@@ -60,15 +98,17 @@ function makeDb({ useLocks = true } = {}) {
         events.push(`token:update(${count})`);
         return { count };
       },
-      create: async ({ data }: { data: Omit<Row, 'id' | 'rotatedAt' | 'revokedAt'> }) => {
+      create: async ({ data }: { data: Omit<Row, 'id' | 'rotatedAt' | 'revokedAt'> }) => statement(async () => {
         const gate = createGate;
         if (gate) { createGate = null; gate.reached(); await gate.wait; }
         await tick();
+        // The foreign key RefreshToken.userId → User.id: the insert takes KEY SHARE on the User row.
+        await acquire(`row:User:${data.userId}`, 'S', holder, held);
         const row: Row = { id: randomUUID(), rotatedAt: null, revokedAt: null, ...data };
         tokens.set(row.id, row);
         events.push('token:create');
         return row;
-      },
+      }),
     },
     user: {
       findUnique: async ({ where }: { where: { id: string } }) => { await tick(); return users.get(where.id) ?? null; },
@@ -79,10 +119,11 @@ function makeDb({ useLocks = true } = {}) {
         return users.get(where.id);
       },
     },
-  });
+    };
+  };
 
   const prisma = {
-    ...client([]),
+    ...client([], true),
     $transaction: async <T>(fn: (tx: ReturnType<typeof client>) => Promise<T>): Promise<T> => {
       const held: Array<() => void> = [];
       try {
@@ -223,6 +264,55 @@ describe('TokenService', () => {
 
     it('control: without the lock a refresh token survives "end every session"', async () => {
       expect((await raceRevokeAll(false)).live).toHaveLength(1);
+    });
+  });
+
+  describe('lock order (deadlock regression): session lock before the User row lock', () => {
+    /**
+     * An administrator's role / password change (users.service.ts `update`): row lock FOR UPDATE,
+     * the change, then revokeAllForUser — with `fixed`, the session lock is taken first.
+     */
+    const adminEdit = (db: ReturnType<typeof setup>, fixed: boolean) =>
+      db.prisma.$transaction(async (tx) => {
+        if (fixed) await db.service.lockSessions(tx as never, 'u1');
+        await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${'u1'} FOR UPDATE`;
+        await tx.user.update({ where: { id: 'u1' }, data: {} });
+        await db.service.revokeAllForUser('u1', tx as never);
+      });
+
+    /** The refresh holds the session lock and is about to insert its token when the edit starts. */
+    const race = async (fixed: boolean) => {
+      const db = setup();
+      const first = await db.service.issue('u1', CLIENT);
+      const gate = db.holdNextCreate();
+      const rotating = db.service.rotate(first.refresh_token, CLIENT);
+      await gate.reached;
+      const editing = adminEdit(db, fixed);
+      await new Promise((r) => setTimeout(r, 30));
+      gate.release();
+      const both = Promise.allSettled([rotating, editing]).then(() => 'finished' as const);
+      const outcome = await Promise.race([both, new Promise<'deadlock'>((r) => setTimeout(() => r('deadlock'), 500))]);
+      return { outcome, db };
+    };
+
+    it('control: the old order (row lock, then session lock) deadlocks with a concurrent refresh', async () => {
+      expect((await race(false)).outcome).toBe('deadlock');
+    });
+
+    it('session lock first: the edit waits for the refresh, then ends every session — no deadlock, no surviving token', async () => {
+      const { outcome, db } = await race(true);
+      expect(outcome).toBe('finished');
+      expect(liveTokens(db.tokens)).toEqual([]);
+    });
+
+    it('lockSessions is re-entrant inside one transaction (revokeAllForUser after it does not block)', async () => {
+      const db = setup();
+      await db.service.issue('u1', CLIENT);
+      const done = db.prisma.$transaction(async (tx) => {
+        await db.service.lockSessions(tx as never, 'u1');
+        await db.service.revokeAllForUser('u1', tx as never);
+      }).then(() => 'done');
+      expect(await Promise.race([done, new Promise((r) => setTimeout(() => r('blocked'), 300))])).toBe('done');
     });
   });
 

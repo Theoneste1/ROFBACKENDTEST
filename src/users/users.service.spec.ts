@@ -41,7 +41,7 @@ function makeMocks() {
     idForGrade: vi.fn().mockResolvedValue('div-x'),
     idForCode:  vi.fn((code: string) => Promise.resolve(`div-${code.toLowerCase()}`)),
   };
-  const tokens    = { revokeAllForUser: vi.fn() };
+  const tokens    = { revokeAllForUser: vi.fn(), lockSessions: vi.fn() };
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
 
   const accountEmails = { approved: vi.fn() };
@@ -187,6 +187,27 @@ describe('UsersService', () => {
       prisma.user.findUnique.mockResolvedValue(existing);
       await service.update('u2', { firstName: 'New' } as any, ADMIN);
       expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+      expect(tokens.lockSessions).not.toHaveBeenCalled();
+    });
+
+    // Deadlock regression (lock order sessions → User row, token.service.ts): a refresh of this user
+    // holds the session lock and needs KEY SHARE on the User row; locking the row first would deadlock.
+    it.each([
+      ['a role change', { role: 'ADMIN', currentPassword: STEP_UP }],
+      ['a password change', { password: 'N3w!Passw0rd' }],
+    ])('%s takes the session lock BEFORE the User row lock, in the same transaction', async (_, data) => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockImplementation(withCaller({ ...existing, role: 'MENTOR', gradeLevel: null }));
+      const tx = { ...prisma, marker: 'tx' };
+      prisma.$transaction.mockImplementation(async (fn: (c: unknown) => unknown) => fn(tx));
+
+      await service.update('u2', data as any, ADMIN);
+
+      expect(tokens.lockSessions).toHaveBeenCalledWith(tx, 'u2');
+      const rowLock = prisma.$queryRaw.mock.calls.findIndex((call: unknown[]) => (call[0] as TemplateStringsArray).join('?').includes('FOR UPDATE'));
+      expect(rowLock).toBeGreaterThanOrEqual(0);
+      expect(tokens.lockSessions.mock.invocationCallOrder[0]).toBeLessThan(prisma.$queryRaw.mock.invocationCallOrder[rowLock]);
+      expect(tokens.lockSessions.mock.invocationCallOrder[0]).toBeLessThan(tokens.revokeAllForUser.mock.invocationCallOrder[0]);
     });
 
     it('withdraws the active enrolment when a student becomes a mentor', async () => {
