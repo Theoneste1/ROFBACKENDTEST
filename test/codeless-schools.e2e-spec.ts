@@ -21,7 +21,7 @@ const UNKNOWN_ID = '6f1d3c1e-2b1a-4c3d-9e8f-0a1b2c3d4e5f';
 describe('Schools without an official code (owner decision 2026-11-14)', () => {
   let ctx: TestContext;
   let admin: string;
-  let official: string, codeless: string, closed: string, kenya: string;
+  let official: string, codeless: string, closed: string, kenya: string, legacy: string;
   const http = () => ctx.http();
   const p = () => ctx.prisma;
   const ME = '/api/v1/me/school-affiliation';
@@ -47,6 +47,10 @@ describe('Schools without an official code (owner decision 2026-11-14)', () => {
     codeless = created.body.id;
     closed = (await http().post('/api/v1/admin/schools').set(bearer(admin)).send({ name: 'Closed Hill Academy', ...NGOMA }).expect(201)).body.id;
     await http().patch(`/api/v1/admin/schools/${closed}/active`).set(bearer(admin)).send({ isActive: false, reason: 'Closed down' }).expect(200);
+    // A free-text school entered before the directory (LEGACY, no code, unvetted name).
+    legacy = (await p().school.create({ data: {
+      name: 'Gabriel Ngoma Typed By A Student', nameKey: 'gabriel ngoma typed by a student', location: 'Ngoma', source: 'LEGACY', ...NGOMA,
+    } })).id;
     kenya = (await http().post('/api/v1/admin/schools').set(bearer(admin)).send({ name: 'Gabriel Nairobi School', countryCode: 'KE', location: 'Nairobi' }).expect(201)).body.id;
   });
   afterAll(async () => { await ctx?.app.close(); });
@@ -70,6 +74,9 @@ describe('Schools without an official code (owner decision 2026-11-14)', () => {
     expect((await search({ q: 'Ngoma' })).map((s) => s.name)).toEqual(['GS Ngoma Official', 'Ecole Saint Gabriel']);
     // Never offered: an inactive school, a school of another country.
     expect(await search({ q: 'Closed Hill' })).toEqual([]);
+    // Never offered: a LEGACY free-text school without a code (entered before the directory).
+    expect(await search({ q: 'Typed By A Student' })).toEqual([]);
+    expect((await search({ district: 'Huye', sector: 'Ngoma' })).map((s) => s.id)).not.toContain(legacy);
     expect((await search({ q: 'Gabriel' })).map((s) => s.id)).toEqual([codeless]);
     // Official schools: by code prefix and by name, unchanged.
     expect((await search({ q: '2200' })).map((s) => s.code)).toEqual(['220001']);
@@ -102,6 +109,8 @@ describe('Schools without an official code (owner decision 2026-11-14)', () => {
   it('registration by schoolId refused: unknown id, a foreign school, an inactive school, another country, with schoolCode, not a uuid — nothing is created', async () => {
     expect(await status(reg('cl.bad.unknown', { schoolId: UNKNOWN_ID }))).toEqual([400, 'UNKNOWN_SCHOOL']);
     expect(await status(reg('cl.bad.kenya', { schoolId: kenya }))).toEqual([400, 'UNKNOWN_SCHOOL']);
+    // A LEGACY free-text school is not in the public list, so it cannot be claimed by id either.
+    expect(await status(reg('cl.bad.legacy', { schoolId: legacy }))).toEqual([400, 'UNKNOWN_SCHOOL']);
     expect(await status(reg('cl.bad.closed', { schoolId: closed }))).toEqual([409, 'SCHOOL_INACTIVE']);
     expect(await status(reg('cl.bad.country', { schoolId: codeless, country: 'KE' }))).toEqual([400, 'SCHOOL_DIRECTORY_RWANDA_ONLY']);
     expect(await status(reg('cl.bad.both', { schoolId: codeless, schoolCode: '220001' }))).toEqual([400, 'VALIDATION_FAILED']);
