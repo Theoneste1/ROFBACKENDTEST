@@ -15,6 +15,7 @@ function makeMocks() {
       findUniqueOrThrow: vi.fn(),
       create:     vi.fn(),
       update:     vi.fn(),
+      updateMany: vi.fn(),
     },
     mentorRequest:      { findFirst: vi.fn().mockResolvedValue(null) },
     passwordResetToken: {
@@ -27,9 +28,38 @@ function makeMocks() {
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
   };
-  // Interactive transactions run the callback against the same mock; batches resolve each operation.
+  // The login lockout state of the user under test (read and written by the
+  // attempt reservation under its row lock, and by the conditional lock).
+  const lockState = { failedLoginCount: 0, lockedUntil: null as Date | null };
+  const applyLock = (data: { failedLoginCount?: unknown; lockedUntil?: Date | null }) => {
+    if (typeof data.failedLoginCount === 'number') lockState.failedLoginCount = data.failedLoginCount;
+    if (data.lockedUntil !== undefined) lockState.lockedUntil = data.lockedUntil;
+  };
+  // Default behaviour of the user mock for the lockout fields; tests that stub
+  // update/findUnique for other purposes keep this via withLockout().
+  const lockoutFindUnique = (a: any) => (a?.select?.failedLoginCount ? { ...lockState } : null);
+  const lockoutUpdate = (a: any) => {
+    if (a?.data?.failedLoginCount?.increment) return { failedLoginCount: ++lockState.failedLoginCount };
+    if (a?.data) applyLock(a.data);
+    return undefined;
+  };
+  prisma.user.findUnique.mockImplementation(async (a: any) => lockoutFindUnique(a));
+  prisma.user.update.mockImplementation(async (a: any) => lockoutUpdate(a));
+  /** Make user.update answer `value` for everything except the lockout writes. */
+  const withLockout = (value: unknown) =>
+    prisma.user.update.mockImplementation(async (a: any) => lockoutUpdate(a) ?? value);
+  const $queryRaw = vi.fn().mockResolvedValue([]);
+  Object.assign(prisma, { $queryRaw });
+  const tx = prisma as typeof prisma & { $queryRaw: typeof $queryRaw };
+  prisma.user.updateMany.mockImplementation(async (a: any) => {
+    if (!('lockedUntil' in (a?.data ?? {}))) return { count: 1 };
+    if (lockState.lockedUntil && lockState.lockedUntil > new Date()) return { count: 0 };   // already locked
+    applyLock(a.data);
+    return { count: 1 };
+  });
+  // Interactive transactions run the callback against the mock; batches resolve each operation.
   prisma.$transaction.mockImplementation((arg: unknown) =>
-    typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as unknown[]));
+    typeof arg === 'function' ? (arg as (t: unknown) => unknown)(tx) : Promise.all(arg as unknown[]));
 
   const tokens = {
     issue:                vi.fn().mockResolvedValue({ access_token: 'a', refresh_token: 'r' }),
@@ -59,7 +89,7 @@ function makeMocks() {
     { assertCanAssign: vi.fn(), assertCanManage: vi.fn() } as any,
     { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() } as any,   // school affiliation (claims are tested end to end)
   );
-  return { service, prisma, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails };
+  return { service, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({
@@ -119,25 +149,99 @@ describe('AuthService', () => {
     });
 
     it('issues tokens and returns the profile on success', async () => {
-      const { service, prisma, tokens, audit } = makeMocks();
+      const { service, prisma, tokens, audit, withLockout } = makeMocks();
       prisma.user.findFirst.mockResolvedValue(activeUser());
-      prisma.user.update.mockResolvedValue({ id: 'u1', username: 'alice' });
+      withLockout({ id: 'u1', username: 'alice' });
 
       const result = await service.login({ username: 'alice', password: PASSWORD }, CLIENT);
 
       expect(tokens.issue).toHaveBeenCalledWith('u1', CLIENT);
-      expect(prisma.user.update.mock.calls[0][0].data.lastLoginAt).toBeInstanceOf(Date);
+      // The attempt reservation increments first; the success write sets lastLoginAt and resets the lockout.
+      const success = prisma.user.update.mock.calls.find((c) => c[0].data.lastLoginAt);
+      expect(success![0].data).toMatchObject({ lastLoginAt: expect.any(Date), failedLoginCount: 0, lockedUntil: null });
       expect(result).toEqual({ access_token: 'a', refresh_token: 'r', user: { id: 'u1', username: 'alice' } });
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'LOGIN', actorId: 'u1' }));
     });
 
+    describe('lockout (attempts are reserved before the password is checked)', () => {
+      const locks = (audit: { log: ReturnType<typeof vi.fn> }) => audit.log.mock.calls.filter((c) => c[0].action === 'LOCK_ACCOUNT');
+
+      it('the fifth wrong password locks the account once, under the user row lock', async () => {
+        const { service, prisma, tx, lockState, audit } = makeMocks();
+        prisma.user.findFirst.mockResolvedValue(activeUser());
+        for (let i = 0; i < 4; i++) {
+          await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        }
+        expect(lockState).toEqual({ failedLoginCount: 4, lockedUntil: null });
+        await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        expect(lockState.failedLoginCount).toBe(0);
+        expect(lockState.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
+        expect(locks(audit)).toHaveLength(1);
+        expect(locks(audit)[0][0].metadata).toEqual({ attempts: 5 });
+        // Every reservation locked the row first.
+        expect(tx.$queryRaw).toHaveBeenCalledTimes(5);
+      });
+
+      it('a locked account refuses the right password and counts nothing', async () => {
+        const { service, prisma, lockState, tokens } = makeMocks();
+        prisma.user.findFirst.mockResolvedValue(activeUser());
+        lockState.lockedUntil = new Date(Date.now() + 60_000);
+        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        expect(lockState.failedLoginCount).toBe(0);
+        expect(tokens.issue).not.toHaveBeenCalled();
+      });
+
+      it('with every attempt already reserved, a further attempt is refused and locks the account (no permanent stall)', async () => {
+        const { service, prisma, lockState, audit, tokens } = makeMocks();
+        prisma.user.findFirst.mockResolvedValue(activeUser());
+        lockState.failedLoginCount = 5;   // e.g. a request died between reserving and settling
+        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        expect(tokens.issue).not.toHaveBeenCalled();
+        expect(lockState.failedLoginCount).toBe(0);
+        expect(lockState.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
+        expect(locks(audit)).toHaveLength(1);
+      });
+
+      it('the deciding wrong attempt does not lock or audit twice when a concurrent request already locked', async () => {
+        const { service, prisma, lockState, audit } = makeMocks();
+        prisma.user.findFirst.mockResolvedValue(activeUser());
+        lockState.failedLoginCount = 4;
+        // This (fifth) attempt is reserved; a concurrent request then locks the
+        // account while this one's password is still being checked.
+        prisma.user.update.mockImplementationOnce(async () => {
+          const reserved = { failedLoginCount: ++lockState.failedLoginCount };
+          lockState.lockedUntil = new Date(Date.now() + 60_000);
+          return reserved;
+        });
+        await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        expect(lockState.failedLoginCount).toBe(5);              // the attempt was reserved
+        expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);   // it tried to lock, conditionally
+        expect(locks(audit)).toHaveLength(0);                      // but the account was already locked
+      });
+
+      it('a correct password on an account that cannot sign in yet does not count towards the lockout', async () => {
+        const { service, prisma } = makeMocks();
+        prisma.user.findFirst.mockResolvedValue(activeUser({ isActive: false }));
+        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toMatchObject({ code: 'ACCOUNT_SUSPENDED' });
+        expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { failedLoginCount: 0 } });
+      });
+
+      it('an unknown user or an account without a password reserves nothing', async () => {
+        const { service, prisma, tx } = makeMocks();
+        await expect(service.login({ username: 'ghost', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        prisma.user.findFirst.mockResolvedValue(activeUser({ passwordHash: null }));
+        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        expect(tx.$queryRaw).not.toHaveBeenCalled();
+      });
+    });
+
     it('records a LOGIN activity on success only', async () => {
-      const { service, prisma, activity } = makeMocks();
+      const { service, prisma, activity, withLockout } = makeMocks();
       prisma.user.findFirst.mockResolvedValue(activeUser());
       await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toThrow();
       expect(activity.record).not.toHaveBeenCalled();
 
-      prisma.user.update.mockResolvedValue({ id: 'u1' });
+      withLockout({ id: 'u1' });
       await service.login({ username: 'alice', password: PASSWORD }, CLIENT);
       expect(activity.record).toHaveBeenCalledWith('u1', 'LOGIN');
     });

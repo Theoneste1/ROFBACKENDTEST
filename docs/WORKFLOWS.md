@@ -42,7 +42,8 @@ flowchart LR
   every session immediately: refresh tokens are revoked and earlier access
   tokens are refused.
 - Five wrong passwords in a row lock an account for 15 minutes from every
-  address. The response never reveals the lock.
+  address, also when they arrive at the same moment (each attempt is counted
+  before its password is checked). The response never reveals the lock.
 
 ## 2. Academic year
 

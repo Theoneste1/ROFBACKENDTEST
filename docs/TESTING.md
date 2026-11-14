@@ -71,7 +71,8 @@ Every one of the API routes is called by at least one e2e test, checked by
   - forged, unsigned (`alg: none`), wrong-secret and expired tokens are rejected;
   - logout and "sign out everywhere" work;
   - password change and suspension end sessions;
-  - the account lockout works and reveals nothing;
+  - the account lockout works and reveals nothing, also against 20 parallel
+    wrong guesses (no lost counts);
   - password-reset requests don't reveal whether an account exists, and only
     the newest reset link works;
   - one-time links are not kept in the e-mail outbox after sending.

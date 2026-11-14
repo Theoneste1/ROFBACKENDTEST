@@ -237,20 +237,28 @@ export class AuthService {
       where: identifier.includes('@') ? { email: identifier } : { username: identifier },
       select: {
         id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true,
-        failedLoginCount: true, lockedUntil: true,
       },
     });
 
+    // Reserve this attempt BEFORE the password is checked (under the user's row
+    // lock), so concurrent guesses cannot all be evaluated against a stale
+    // "not locked" read: at most MAX_FAILED_LOGINS guesses are ever checked
+    // before the account locks, however many arrive at once.
+    const attempt = user?.passwordHash ? await this.reserveLoginAttempt(user.id) : null;
     const passwordMatches = await bcrypt.compare(data.password, user?.passwordHash ?? (await getDummyHash()));
     // A locked account answers exactly like a wrong password, so the lock
     // reveals nothing; the password is still checked to keep timing equal.
-    const locked = !!user?.lockedUntil && user.lockedUntil > new Date();
-    if (!user || !user.passwordHash || !passwordMatches || locked) {
-      if (user && !locked && user.passwordHash && !passwordMatches) await this.recordFailedLogin(user.id, user.failedLoginCount);
+    if (!user || !user.passwordHash || attempt === null || !passwordMatches) {
+      if (attempt !== null && !passwordMatches) await this.recordFailedLogin(user!.id, attempt);
       throw new UnauthorizedException('Invalid username or password.');
     }
 
-    // Account state is only revealed after a correct password.
+    // Account state is only revealed after a correct password. A correct
+    // password never counts towards the lockout, also when the account cannot
+    // sign in yet (the success path below resets the counter itself).
+    if (!user.isActive || !user.activatedAt || !user.isApproved) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0 } });
+    }
     if (!user.isActive) {
       throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_SUSPENDED', 'This account has been suspended.');
     }
@@ -331,20 +339,58 @@ export class AuthService {
    * used to discover which e-mail addresses have accounts.
    */
   /**
-   * Count a wrong password. After MAX_FAILED_LOGINS in a row the account is
-   * locked for LOCKOUT_MS, whichever addresses the attempts came from (the IP
-   * throttle alone can be spread across many addresses).
+   * Reserve one login attempt for a user, atomically: under the User row lock,
+   * refuse (null) while the account is locked or MAX_FAILED_LOGINS attempts are
+   * already counted (pending or failed); otherwise count this attempt and return
+   * its number. A correct password resets the counter (login success); a wrong
+   * one is settled by recordFailedLogin. The row lock is held only for this
+   * short transaction, never during the bcrypt comparison.
    */
-  private async recordFailedLogin(userId: string, previous: number) {
-    const count = previous + 1;
-    const lock = count >= MAX_FAILED_LOGINS;
-    await this.prisma.user.update({
-      where: { id: userId },
-      data:  lock ? { failedLoginCount: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } : { failedLoginCount: count },
+  private async reserveLoginAttempt(userId: string): Promise<number | null> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      const u = await tx.user.findUnique({ where: { id: userId }, select: { failedLoginCount: true, lockedUntil: true } });
+      if (!u) return { attempt: null, lockedNow: false };
+      if (u.lockedUntil && u.lockedUntil > new Date()) return { attempt: null, lockedNow: false };
+      if (u.failedLoginCount >= MAX_FAILED_LOGINS) {
+        // The limit is reached but nothing has locked the account yet: either the
+        // deciding attempt is still being checked, or its request died before it
+        // could settle. Lock now, so the account can never be stuck refusing
+        // every attempt with no expiry.
+        await tx.user.update({ where: { id: userId }, data: { failedLoginCount: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } });
+        return { attempt: null, lockedNow: true };
+      }
+      const updated = await tx.user.update({
+        where:  { id: userId },
+        data:   { failedLoginCount: { increment: 1 } },
+        select: { failedLoginCount: true },
+      });
+      return { attempt: updated.failedLoginCount, lockedNow: false };
     });
-    if (lock) {
-      await this.audit.log({ actorId: null, action: 'LOCK_ACCOUNT', entity: 'User', entityId: userId, metadata: { attempts: count } });
-    }
+    if (result.lockedNow) await this.auditLock(userId, MAX_FAILED_LOGINS);
+    return result.attempt;
+  }
+
+  /**
+   * Settle a reserved attempt whose password was wrong. The attempt that
+   * reaches MAX_FAILED_LOGINS locks the account for LOCKOUT_MS, whichever
+   * addresses the attempts came from (the IP throttle alone can be spread across
+   * many addresses). Earlier wrong attempts are already counted by the
+   * reservation, so there is nothing else to write.
+   */
+  private async recordFailedLogin(userId: string, attempt: number) {
+    if (attempt < MAX_FAILED_LOGINS) return;
+    const now = new Date();
+    // Conditional: a concurrent reservation may already have locked the account.
+    const { count } = await this.prisma.user.updateMany({
+      where: { id: userId, OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] },
+      data:  { failedLoginCount: 0, lockedUntil: new Date(now.getTime() + LOCKOUT_MS) },
+    });
+    if (count > 0) await this.auditLock(userId, attempt);
+  }
+
+  private auditLock(userId: string, attempts: number) {
+    return this.audit.log({ actorId: null, action: 'LOCK_ACCOUNT', entity: 'User', entityId: userId, metadata: { attempts } });
   }
 
   async forgotPassword(email: string) {
