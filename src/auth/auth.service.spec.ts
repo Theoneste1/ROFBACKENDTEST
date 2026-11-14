@@ -18,6 +18,7 @@ function makeMocks() {
       updateMany: vi.fn(),
     },
     mentorRequest:      { findFirst: vi.fn().mockResolvedValue(null) },
+    teacherApplication: { findFirst: vi.fn().mockResolvedValue(null) },
     passwordResetToken: {
       create:     vi.fn(),
       findUnique: vi.fn().mockResolvedValue(null),
@@ -266,6 +267,15 @@ describe('AuthService', () => {
       settings.get.mockResolvedValue(true);
       prisma.mentorRequest.findFirst.mockResolvedValue({ id: 'mr1' });
       await expect(service.registerStudent(dto)).rejects.toMatchObject({ code: 'IDENTITY_TAKEN', status: 409 });
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('fails with IDENTITY_TAKEN when a pending teacher application uses the username or e-mail', async () => {
+      const { service, prisma, settings } = makeMocks();
+      settings.get.mockResolvedValue(true);
+      prisma.teacherApplication.findFirst.mockResolvedValue({ id: 'ta1' });
+      await expect(service.registerStudent(dto)).rejects.toMatchObject({ code: 'IDENTITY_TAKEN', status: 409 });
+      expect(prisma.teacherApplication.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'PENDING' }) }));
       expect(prisma.user.create).not.toHaveBeenCalled();
     });
 

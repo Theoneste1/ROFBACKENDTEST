@@ -509,14 +509,19 @@ export class AuthService {
 
   /** One message for both cases, so the endpoint can't confirm which one is taken. */
   private async assertIdentityFree(username: string, email: string) {
-    const [user, request] = await Promise.all([
+    const [user, request, teacherApplication] = await Promise.all([
       this.prisma.user.findFirst({ where: { OR: [{ username }, { email }] }, select: { id: true } }),
       this.prisma.mentorRequest.findFirst({
         where:  { OR: [{ username }, { email }], status: 'PENDING' },
         select: { id: true },
       }),
+      // A pending Teacher application holds its username and e-mail too (teacher self-registration).
+      this.prisma.teacherApplication.findFirst({
+        where:  { OR: [{ username }, { email }], status: 'PENDING' },
+        select: { id: true },
+      }),
     ]);
-    if (user || request) {
+    if (user || request || teacherApplication) {
       throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
     }
   }

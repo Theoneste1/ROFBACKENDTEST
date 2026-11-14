@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 18 @Public + 29 @Roles + 176 @RequirePermission + 53 @Authenticated = 276, none undeclared', () => {
+  it('declarations add up: 20 @Public + 29 @Roles + 183 @RequirePermission + 53 @Authenticated = 285, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 176, '@Authenticated': 53 });  // +2: e-mail deliveries list + retry
+    expect(counts).toEqual({ '@Public': 20, '@Roles': 29, '@RequirePermission': 183, '@Authenticated': 53 });  // +2 e-mail deliveries; +2 public, +7 teacher registration / decision notifications
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -192,7 +192,7 @@ describe('route declarations (P1-02 §5)', () => {
     expect(byPermission).toEqual({
       'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
       'audit.view': 4, 'users.manage': 11, 'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
-      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 8, 'mentorRequests.decide': 3,
+      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 10, 'mentorRequests.decide': 3,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
       'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
       // P1-09: individual overrides (new routes, listed in route-access-additions.testing.ts)
@@ -204,7 +204,8 @@ describe('route declarations (P1-02 §5)', () => {
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
       // P1-11: teacher school assignments, delegations and the teacher's school-scoped views (new routes)
-      'users.manageTeachers': 6, 'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
+      'users.manageTeachers': 11,   // + 4 teacher-application review routes (teacher self-registration) + school verification (decision notifications)
+      'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
       // School administration PR A: student–school verification (new routes);
       // PR B: school records (list, get, students, create, update, activate / deactivate);
       // PR C: claim match, reopen, candidates; PR D: import template, import;
@@ -326,7 +327,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 65 added since: 267 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 74 added since: 276 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -357,7 +358,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(18);   // P1-11: + GET /schools/locations; H1: + POST /auth/logout
+      expect(handlers.filter(isPublic)).toHaveLength(20);   // P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {

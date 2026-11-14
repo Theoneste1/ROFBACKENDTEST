@@ -68,6 +68,12 @@ export const FEATURES = {
    * and totals count the matches. Without this feature those parameters are refused (400).
    */
   studentAssignmentFilters: 'always',
+  /**
+   * The decision-notification delivery log: GET /api/v1/admin/notification-deliveries and
+   * POST /api/v1/admin/notification-deliveries/:id/retry (email.bulkSend). Not behind a flag: decision
+   * notifications are sent whether or not the Teacher role is enabled.
+   */
+  notificationDeliveries: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
   // (owner decision 2026-11-12): its production use is not yet approved.
   /**
@@ -76,6 +82,13 @@ export const FEATURES = {
    * TEACHER accounts may still exist and use their portal.
    */
   teacherAccounts: 'TEACHER',
+  /**
+   * Teacher self-registration is implemented: GET /api/v1/auth/register/teacher/availability says whether
+   * it is open right now (also the registration.teacherSelfSignup setting); POST /api/v1/auth/register/teacher
+   * submits an application; Administrators (users.manageTeachers) review it at
+   * /api/v1/admin/teacher-applications. Gated like teacherAccounts (TEACHERS_ENABLED).
+   */
+  teacherSelfRegistration: 'TEACHER',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

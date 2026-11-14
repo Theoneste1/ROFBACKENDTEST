@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 267 endpoints — 18 public, 146 administrator-only.
+Totals: 276 endpoints — 20 public, 153 administrator-only.
 
 ## Academic years
 
@@ -85,6 +85,8 @@ Totals: 267 endpoints — 18 public, 146 administrator-only.
 | POST | `/api/v1/admin/email/jobs/{id}/retry` |  |  |  | ✓ |
 | POST | `/api/v1/admin/email/send` |  |  |  | ✓ |
 | GET | `/api/v1/admin/email/users` |  |  |  | ✓ |
+| GET | `/api/v1/admin/notification-deliveries` |  |  |  | ✓ |
+| POST | `/api/v1/admin/notification-deliveries/{id}/retry` |  |  |  | ✓ |
 
 ## Admin · Leaderboard
 
@@ -274,6 +276,8 @@ Totals: 267 endpoints — 18 public, 146 administrator-only.
 | POST | `/api/v1/auth/refresh` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/register/admin` |  |  |  | ✓ |
 | POST | `/api/v1/auth/register/student` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/register/teacher` | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/auth/register/teacher/availability` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/resend-activation` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/reset-password` | ✓ | ✓ | ✓ | ✓ |
 
@@ -468,3 +472,13 @@ Totals: 267 endpoints — 18 public, 146 administrator-only.
 | GET | `/api/v1/teacher/students/{id}` |  |  |  |  |
 | GET | `/api/v1/teacher/students/{id}/progress` |  |  |  |  |
 | POST | `/api/v1/teacher/students/{id}/submissions` |  |  |  |  |
+
+## Teacher applications
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/teacher-applications` |  |  |  | ✓ |
+| GET | `/api/v1/admin/teacher-applications/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/approve` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
