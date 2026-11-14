@@ -106,7 +106,8 @@ export class MySchoolAffiliationController {
   }
 
   /**
-   * Claim a school: by code, "my school is not listed" (name + province / district / sector), or
+   * Claim a school: by code, by id (schoolId: a school of the list — how a school without an
+   * official code is chosen), "my school is not listed" (name + province / district / sector), or
    * another country (country + name). Always PENDING until an Administrator verifies it. At most 3
    * requests in 24 hours; 7 days after a rejection or revocation of the same school.
    */

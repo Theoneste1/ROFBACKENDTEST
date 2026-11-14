@@ -143,6 +143,25 @@ The definitions live in `src/app/capabilities.ts`. The frozen V1 feature list is
 in `src/app/capabilities.spec.ts`. The response lists only role and feature
 names, never configuration values or other internal details.
 
+## Schools without an official code
+
+Owner decision 2026-11-14. `GET /api/v1/schools/search` returns every **active
+Rwandan** school, with or without an official code, by name, code prefix or place
+(province, district, sector or location text). The response shape is unchanged;
+a school without a code has `code: null` (a code is never invented).
+
+Registration (`POST /auth/register/student`) and the student's claim
+(`POST /me/school-affiliation`) accept `schoolId` (the result's `id`) as well as
+`schoolCode`. The claim is PENDING until an Administrator verifies it, exactly as
+with a code. Refused: an unknown id or one outside the Rwandan list (400
+`UNKNOWN_SCHOOL`), an inactive school (409 `SCHOOL_INACTIVE`), `schoolId` with
+`schoolCode`, a name or a place (400 `VALIDATION_FAILED`), `schoolId` with another
+country (400 `SCHOOL_DIRECTORY_RWANDA_ONLY`).
+
+No capability is needed: the frontend sends `schoolCode` whenever the chosen
+school has one, and `schoolId` only for a result with `code: null` — which older
+backends never return.
+
 ## E-mail links
 
 The backend builds links from its `APP_URL` (the frontend's address):

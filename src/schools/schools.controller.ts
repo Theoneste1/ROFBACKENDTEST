@@ -16,7 +16,7 @@ class ListSchoolsDto extends PaginationQueryDto {
   search?: string;
 }
 
-/** Name or code (2+ characters), and/or a Province → District → Sector (official schools only). */
+/** Name, code or place (2+ characters), and/or a Province → District → Sector (active Rwandan schools, with or without an official code). */
 class SearchSchoolsDto {
   @ValidateIf((o: SearchSchoolsDto) => o.q !== undefined || (!o.district && !o.sector))
   @IsString()
@@ -37,8 +37,10 @@ export class SchoolsController {
   constructor(private readonly schoolsService: SchoolsService) {}
 
   /**
-   * Public, for the sign-up form: official schools by name or code (max 10), or every
-   * official school of a district / sector (Rwanda: Province → District → Sector → School).
+   * Public, for the sign-up form: active Rwandan schools by name, code or place (max 10), or every
+   * active school of a district / sector (Rwanda: Province → District → Sector → School). Schools
+   * without an official code are included with `code: null` (owner decision 2026-11-14): choose
+   * them by `id` (schoolId) at registration and in a school claim.
    */
   @Public()
   @Throttle({ default: { limit: 30, ttl: 60_000 } })

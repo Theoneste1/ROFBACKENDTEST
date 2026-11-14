@@ -2392,8 +2392,9 @@ Body (JSON):
 | `password` | string | ✓ |  |
 | `gradeLevel` | S1 \| S2 \| S3 \| S4 \| S5 \| S6 | ✓ | S1–S3 places the student in the Junior division, S4–S6 in Senior. |
 | `country` | string |  | Country of the school (ISO 3166-1 alpha-2). Default RW (Rwanda). Rwanda: the school comes from the official directory (schoolCode). Any other country: the school name is recorded as entered, unverified — never matched to a Rwandan school. |
-| `schoolCode` | string |  | Rwanda: official code of the school attended (6 digits, from GET /schools/search or the Province → District → Sector listing). The student is linked to exactly that school. Required unless schoolName is sent. |
-| `schoolName` | string |  | Another country: the school's name as entered (unverified; no school is linked). Rwanda, legacy (until the sign-up form sends schoolCode): it never creates a school and links the student only when it matches exactly one school of the official list — otherwise no school until an Administrator sets it. Ignored when schoolCode is sent. |
+| `schoolCode` | string |  | Rwanda: official code of the school attended (6 digits, from GET /schools/search or the Province → District → Sector listing). The student is linked to exactly that school. Required unless schoolId or schoolName is sent. |
+| `schoolId` | string (uuid) |  | Rwanda (owner decision 2026-11-14): the internal id of the school attended, from GET /schools/search — how a school WITHOUT an official code is chosen (any school of the list may be chosen this way). It must be an active Rwandan school (400 UNKNOWN_SCHOOL, 409 SCHOOL_INACTIVE); the claim is PENDING exactly as with schoolCode. Not with schoolCode (400). schoolName and the place fields are ignored when it is sent. |
+| `schoolName` | string |  | Another country: the school's name as entered (unverified; no school is linked). Rwanda, legacy (until the sign-up form sends schoolCode): it never creates a school and links the student only when it matches exactly one school of the official list — otherwise no school until an Administrator sets it. Ignored when schoolCode or schoolId is sent. |
 | `schoolProvince` | string |  | Rwanda, "My school is not listed" (PR C): the school's place in the official directory, sent with schoolName — all three together (from GET /schools/locations). The claim keeps the name and place, PENDING until an Administrator matches and verifies it; an exact unique match with an active official school in that sector links that school (still PENDING). |
 | `schoolDistrict` | string |  |  |
 | `schoolSector` | string |  |  |
@@ -3336,7 +3337,8 @@ Returns `200` JSON.
 
 **Access:** STUDENT
 
-Claim a school: by code, "my school is not listed" (name + province / district / sector), or
+Claim a school: by code, by id (schoolId: a school of the list — how a school without an
+official code is chosen), "my school is not listed" (name + province / district / sector), or
 another country (country + name). Always PENDING until an Administrator verifies it. At most 3
 requests in 24 hours; 7 days after a rejection or revocation of the same school.
 
@@ -3344,6 +3346,7 @@ Body (JSON):
 
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
+| `schoolId` | string (uuid) |  | The internal id of a school from GET /schools/search — how a school without an official code is chosen. |
 | `schoolCode` | string |  |  |
 | `schoolName` | string |  |  |
 | `country` | string |  | Default RW. |
@@ -3656,8 +3659,10 @@ Returns `200` with no body.
 
 **Access:** Public
 
-Public, for the sign-up form: official schools by name or code (max 10), or every
-official school of a district / sector (Rwanda: Province → District → Sector → School).
+Public, for the sign-up form: active Rwandan schools by name, code or place (max 10), or every
+active school of a district / sector (Rwanda: Province → District → Sector → School). Schools
+without an official code are included with `code: null` (owner decision 2026-11-14): choose
+them by `id` (schoolId) at registration and in a school claim.
 
 Returns `200` JSON, an array of objects with:
 

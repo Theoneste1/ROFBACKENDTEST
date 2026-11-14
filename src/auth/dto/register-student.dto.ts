@@ -4,6 +4,7 @@ import {
   IsISO31661Alpha2,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Matches,
   ValidateIf,
@@ -63,22 +64,33 @@ export class RegisterStudentDto {
   /**
    * Rwanda: official code of the school attended (6 digits, from GET /schools/search or
    * the Province → District → Sector listing). The student is linked to exactly that
-   * school. Required unless schoolName is sent.
+   * school. Required unless schoolId or schoolName is sent.
    */
-  @ValidateIf((o: RegisterStudentDto) => o.schoolCode !== undefined || o.schoolName === undefined)
+  @ValidateIf((o: RegisterStudentDto) => o.schoolCode !== undefined || (o.schoolName === undefined && o.schoolId === undefined))
   @IsString()
   @Matches(/^\d{6}$/, { message: 'schoolCode must be the 6-digit official school code.' })
   @Transform(trim)
   schoolCode?: string;
 
   /**
+   * Rwanda (owner decision 2026-11-14): the internal id of the school attended, from
+   * GET /schools/search — how a school WITHOUT an official code is chosen (any school of the
+   * list may be chosen this way). It must be an active Rwandan school (400 UNKNOWN_SCHOOL,
+   * 409 SCHOOL_INACTIVE); the claim is PENDING exactly as with schoolCode. Not with schoolCode
+   * (400). schoolName and the place fields are ignored when it is sent.
+   */
+  @IsOptional()
+  @IsUUID('all', { message: 'schoolId must be the id of a school from the list.' })
+  schoolId?: string;
+
+  /**
    * Another country: the school's name as entered (unverified; no school is linked).
    * Rwanda, legacy (until the sign-up form sends schoolCode): it never creates a
    * school and links the student only when it matches exactly one school of the
    * official list — otherwise no school until an Administrator sets it.
-   * Ignored when schoolCode is sent.
+   * Ignored when schoolCode or schoolId is sent.
    */
-  @ValidateIf((o: RegisterStudentDto) => o.schoolCode === undefined)
+  @ValidateIf((o: RegisterStudentDto) => o.schoolCode === undefined && o.schoolId === undefined)
   @IsString()
   @Length(2, 200)
   @Transform(titleCase)

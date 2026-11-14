@@ -7,6 +7,16 @@ const code = (b: object) => { try { classifyClaimRequest(b); return null; } catc
 
 describe('school claim rules (PR C)', () => {
   describe('classifyClaimRequest — exactly one kind, checked in order', () => {
+    it('0. schoolId (a school of the list, with or without a code): alone; with schoolCode / a name / a place → VALIDATION_FAILED; another country → SCHOOL_DIRECTORY_RWANDA_ONLY', () => {
+      const ID = '6f1d3c1e-2b1a-4c3d-9e8f-0a1b2c3d4e5f';
+      expect(classifyClaimRequest({ schoolId: ID })).toEqual({ kind: 'SCHOOL_ID', schoolId: ID });
+      expect(classifyClaimRequest({ schoolId: ID, country: 'RW' })).toEqual({ kind: 'SCHOOL_ID', schoolId: ID });
+      expect(code({ schoolId: ID, schoolCode: '220001' })).toBe('VALIDATION_FAILED');
+      expect(code({ schoolId: ID, schoolName: 'X' })).toBe('VALIDATION_FAILED');
+      expect(code({ schoolId: ID, ...PLACE })).toBe('VALIDATION_FAILED');
+      expect(code({ schoolId: ID, country: 'KE' })).toBe('SCHOOL_DIRECTORY_RWANDA_ONLY');
+    });
+
     it('1. schoolCode: a code request; another country → SCHOOL_CODE_RWANDA_ONLY first; any name / place field too → VALIDATION_FAILED', () => {
       expect(classifyClaimRequest({ schoolCode: '220001' })).toEqual({ kind: 'CODE', schoolCode: '220001' });
       expect(classifyClaimRequest({ schoolCode: '220001', country: 'RW' })).toEqual({ kind: 'CODE', schoolCode: '220001' });
