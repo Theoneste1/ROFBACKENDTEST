@@ -115,7 +115,42 @@ const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-
 const EMAIL_DELIVERIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-email-deliveries.json';
 const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeless-schools.json';
 const RELEASE_PERMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-release-permissions.json';
-const CURRENT_SNAPSHOT = RELEASE_PERMISSIONS_SNAPSHOT;
+const POST_PHASE1_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-post-phase1.json';
+const CURRENT_SNAPSHOT = POST_PHASE1_SNAPSHOT;
+/**
+ * Post-Phase-1 bundle (owner approval as a baseline pending): Teacher Registration (self-registration, Administrator
+ * review, school verification, the decision-notification delivery log, province in the school search) and students'
+ * Olympiad interests (decision 8). Additive only; chained after the release candidate's last step (release permissions).
+ */
+const POST_PHASE1_ADDITIONS = [
+  'GET /api/v1/admin/notification-deliveries: operation added',
+  'GET /api/v1/admin/reports/students › response 200 application/json.data[].olympiadInterests: new field',
+  'GET /api/v1/admin/teacher-applications/{id}: operation added',
+  'GET /api/v1/admin/teacher-applications: operation added',
+  'GET /api/v1/admin/users › response 200 application/json.data[].olympiadInterests: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.olympiadInterests: new field',
+  'GET /api/v1/auth/register/teacher/availability: operation added',
+  'GET /api/v1/me › response 200 application/json.olympiadInterests: new field',
+  'GET /api/v1/schools/search › response 200 application/json[].province: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.olympiadInterests: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.olympiadInterests: new field',
+  'PATCH /api/v1/me › request application/json.olympiadInterests: new optional field',
+  'PATCH /api/v1/me › response 200 application/json.olympiadInterests: new field',
+  'POST /api/v1/admin/notification-deliveries/{id}/retry: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/approve: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/reject: operation added',
+  'POST /api/v1/admin/teacher-applications/{id}/school: operation added',
+  'POST /api/v1/admin/users › response 201 application/json.olympiadInterests: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.olympiadInterests: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.olympiadInterests: new field',
+  'POST /api/v1/auth/register/student › request application/json.olympiadInterests: new optional field',
+  'POST /api/v1/auth/register/student › response 201 application/json.olympiadInterests: new field',
+  'POST /api/v1/auth/register/teacher: operation added',
+  'schema ApproveTeacherApplicationDto: added',
+  'schema RegisterTeacherDto: added',
+  'schema RejectTeacherApplicationDto: added',
+  'schema VerifyTeacherApplicationSchoolDto: added',
+];
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -861,6 +896,19 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ['GET /api/v1/programmes: roles removed: TEACHER']);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, ['GET /api/v1/admin/programmes/{id}/student-candidates: operation added']);
+  });
+
+  test('release permissions → post-Phase-1 bundle (teacher registration + Olympiad interests): exactly the listed additions; nothing breaking or for review', () => {
+    // One step for the bundle on top of the Phase 1 release candidate: teacher self-registration, decision
+    // notifications (school verification, delivery log), province in the school search, and students' Olympiad
+    // interests (registration, profile, admin views, report). The bundle's earlier step (e-mail deliveries →
+    // 2026-11-14-teacher-registration-interests) is not part of this chain.
+    for (const f of [RELEASE_PERMISSIONS_SNAPSHOT, POST_PHASE1_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(RELEASE_PERMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(POST_PHASE1_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, POST_PHASE1_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {
