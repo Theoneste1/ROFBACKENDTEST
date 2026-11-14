@@ -53,8 +53,29 @@ export const FEATURES = {
    * those parameters are refused (400) and the scope filter is ignored.
    */
   reviewQueueFilters: 'always',
-  // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
-  // (owner decision 2026-11-12): its production use is not yet approved.
+  /**
+   * The Reports CSV exports apply the Reports page filters: results.csv accepts academicYearId,
+   * from/to (submitted between), courseId and divisionId besides assignmentId; enrollment.csv and
+   * GET /admin/reports/enrollment accept courseId (students taking part in that course). Without this
+   * feature results.csv refuses those parameters (400) and enrolment refuses courseId (400
+   * FILTER_NOT_SUPPORTED).
+   */
+  reportExportFilters: 'always',
+  /**
+   * Assignment lists filter and sort in the database: GET /me/assignments accepts `progress`
+   * (NOT_STARTED | SUBMITTED | PENDING_REVIEW | RESUBMISSION_REQUESTED | REVIEWED | OVERDUE) and `sort`
+   * (deadline | -deadline | title); GET /assignments accepts `statuses` (comma-separated). Paging
+   * and totals count the matches. Without this feature those parameters are refused (400).
+   */
+  studentAssignmentFilters: 'always',
+  /**
+   * The official-directory sync (/api/v1/admin/school-sync): dry-run runs from a source export,
+   * items, changes, report.csv, review summary, categories, decisions, proposals and recompare
+   * (schools.manage); approve, apply and resolve after apply (schools.syncDirectory: Super Admins
+   * only). Appended 2026-11-14 (owner decision: released with school import and contacts; before
+   * that it was deliberately not advertised, owner decision 2026-11-12).
+   */
+  schoolDirectorySync: 'always',
   /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing

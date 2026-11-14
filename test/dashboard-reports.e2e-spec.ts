@@ -255,8 +255,14 @@ describe('Admin dashboard and reports (e2e)', () => {
       const all = (await get('/admin/reports/enrollment', { academicYearId: 'all' }).expect(200)).body;
       expect(all.totals).toMatchObject({ promoted: 1, total: 6 });
 
-      const res = await get('/admin/reports/enrollment', { courseId: ctx.ids.algebra }).expect(400);
-      expect(res.body.code).toBe('FILTER_NOT_SUPPORTED');
+      // A course: only students taking part in it (opened or completed), as in the Students report.
+      const algebra = (await get('/admin/reports/enrollment', { courseId: ctx.ids.algebra }).expect(200)).body;
+      expect(algebra.filters.courseId).toBe(ctx.ids.algebra);
+      expect(algebra.totals).toEqual({ active: 3, promoted: 0, graduated: 0, withdrawn: 0, total: 3 }); // j, j2, s
+      const geometry = (await get('/admin/reports/enrollment', { courseId: ctx.ids.geometry, divisionId: ctx.ids.junior }).expect(200)).body;
+      expect(geometry.totals.total).toBe(1); // student.j completed it
+      const csv = await get('/admin/reports/enrollment.csv', { courseId: ctx.ids.algebra }).expect(200);
+      expect(csv.headers['content-type']).toContain('text/csv');
     });
 
     it('course participation per course and division', async () => {
@@ -287,6 +293,11 @@ describe('Admin dashboard and reports (e2e)', () => {
         submissionRate: 100, averageScore: 80, byStage: { published: 1, inReview: 1, awaitingDistribution: 0 },
       });
       expect(body.data.find((a: any) => a.id === a2)).toMatchObject({ expectedStudents: 1, submitted: 1, byStage: { awaitingDistribution: 1 } });
+      // The summary covers every matching assignment, not only the page (the Reports page totals).
+      expect(body.summary.expectedStudents).toBe(3);
+      const onePage = (await get('/admin/reports/assignments', { limit: 1 }).expect(200)).body;
+      expect(onePage.data).toHaveLength(1);
+      expect(onePage.summary).toMatchObject({ assignments: 2, expectedStudents: 3, submissions: 3 });
 
       const drafts = (await get('/admin/reports/assignments', { status: 'DRAFT' }).expect(200)).body;
       expect(drafts.data.map((a: any) => a.id)).toEqual([a3]);
@@ -358,6 +369,23 @@ describe('Admin dashboard and reports (e2e)', () => {
 
       const missing = await get('/admin/reports/results.csv', { courseId: ctx.ids.algebra }).expect(400);
       expect(missing.body.code).toBe('FILTER_REQUIRED');
+    });
+
+    it('results.csv honours the report filters: period = submitted between, academic year', async () => {
+      const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+      const scope = { courseId: ctx.ids.algebra, divisionId: ctx.ids.junior };
+      // Everything was submitted today.
+      expect((await csv('/admin/reports/results.csv', { ...scope, from: day(-30) })).slice(1).map((r) => r[4]).sort()).toEqual(['student.j', 'student.j2']);
+      expect(await csv('/admin/reports/results.csv', { ...scope, from: day(2) })).toHaveLength(1);           // header only
+      expect(await csv('/admin/reports/results.csv', { assignmentId: a1, to: day(-2) })).toHaveLength(1);
+      expect(await csv('/admin/reports/results.csv', { assignmentId: a1, from: day(-1), to: day(1) })).toHaveLength(3);
+      // The year: the course × division default is the current year; an explicit other year has none of it.
+      expect(await csv('/admin/reports/results.csv', { ...scope, academicYearId: pastYear })).toHaveLength(1);
+      expect(await csv('/admin/reports/results.csv', { assignmentId: a1, academicYearId: pastYear })).toHaveLength(1);
+      expect(await csv('/admin/reports/results.csv', { ...scope, academicYearId: 'all' })).toHaveLength(3);
+      // Filters are validated, never ignored.
+      expect((await get('/admin/reports/results.csv', { ...scope, from: day(1), to: day(-1) }).expect(400)).body.code).toBe('INVALID_DATE_RANGE');
+      await get('/admin/reports/results.csv', { ...scope, unknown: 'x' }).expect(400);
     });
 
     it('student-progress.csv: one row per student of a division with course status and results', async () => {

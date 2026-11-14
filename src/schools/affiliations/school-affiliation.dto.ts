@@ -54,10 +54,17 @@ const PRINTABLE = /^\P{Cc}+$/u;
 /**
  * POST /me/school-affiliation — exactly one of (rules in school-claim-rules.ts):
  *   { schoolCode }                                                      a Rwandan school by its official code
+ *   { schoolId }                                                        a Rwandan school of the list by its internal id
+ *                                                                       (with or without an official code; owner decision 2026-11-14)
  *   { schoolName, schoolProvince, schoolDistrict, schoolSector }        Rwanda, "my school is not listed"
  *   { country, schoolName }                                             another country (ISO 3166-1 alpha-2)
  */
 export class StudentClaimDto {
+  /** The internal id of a school from GET /schools/search — how a school without an official code is chosen. */
+  @IsOptional()
+  @IsUUID('all', { message: 'schoolId must be the id of a school from the list.' })
+  schoolId?: string;
+
   @IsOptional()
   @Transform(trim)
   @Matches(/^\d{6}$/, { message: 'schoolCode must be the 6-digit official school code.' })

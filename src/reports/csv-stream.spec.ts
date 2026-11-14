@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import {
-  csvBatchSize, csvFromRows, csvText, keysetBatches, mapBatches, offsetBatches, toCsv, type BatchPage, type CsvExport,
+  csvBatchSize, csvFromRows, csvText, idBatches, keysetBatches, mapBatches, offsetBatches, toCsv, type BatchPage, type CsvExport,
 } from './csv.js';
 import { sendCsvExport } from './csv-stream.js';
 
@@ -45,6 +45,20 @@ describe('streamed CSV exports (M5: no 50,000-row limit)', () => {
     const { find, calls } = fakeFind(rows);
     expect((await collect(offsetBatches(find, 3))).flat()).toEqual(rows);
     expect(calls.map((c) => c.skip)).toEqual([0, 3, 6]);
+  });
+
+  it('id batches return rows in the precomputed order, skip deleted rows and read each id once', async () => {
+    const rows = ids(7);
+    const order = ['id-000004', 'id-000000', 'id-000006', 'id-000002', 'id-000005', 'id-000001', 'id-000003'];
+    const asked: string[][] = [];
+    const fetch = async (chunk: string[]) => {
+      asked.push(chunk);
+      return rows.filter((r) => chunk.includes(r.id) && r.id !== 'id-000002').reverse();   // any order; one deleted
+    };
+    const out = (await collect(idBatches(order, fetch, 3))).flat().map((r) => r.id);
+    expect(out).toEqual(order.filter((id) => id !== 'id-000002'));
+    expect(asked).toEqual([order.slice(0, 3), order.slice(3, 6), order.slice(6)]);
+    expect(await collect(idBatches([], fetch, 3))).toEqual([]);
   });
 
   it('the batch size defaults to 2,000 and only a positive integer overrides it', () => {

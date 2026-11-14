@@ -74,6 +74,9 @@ export class MentorRequestsService {
       action: 'SUBMIT_MENTOR_REQUEST', entity: 'MentorRequest', entityId: request.id,
       metadata: { reapplication: !!existingRequest },
     });
+    this.events.emit(Events.MentorRequestSubmitted, {
+      requestId: request.id, submittedAt: request.updatedAt.toISOString(), reapplication: !!existingRequest,
+    });
 
     return request;
   }

@@ -53,13 +53,23 @@ describe('MailerService', () => {
     [{ statusCode: 422, name: 'validation_error', message: 'Invalid `to` field.' }, true],
     [{ statusCode: 403, name: 'validation_error', message: 'The domain is not verified.' }, false],
     [{ statusCode: 401, name: 'invalid_api_key', message: 'API key is invalid' }, false],
-    [{ statusCode: 429, name: 'rate_limit_exceeded', message: 'Too many requests' }, false],
     [{ statusCode: 500, name: 'internal_server_error', message: 'Oops' }, false],
   ])('reports Resend error %o (permanent: %s)', async (error, permanent) => {
     send.mockResolvedValue({ data: null, error });
     const result = await mailer({ RESEND_API_KEY: 're_x' }).sendOne(mail);
     expect(result).toMatchObject({ accepted: false, messageId: null, permanent });
     expect(result.error).toContain(`${error.statusCode} ${error.name}`);
+  });
+
+  it.each([
+    [{ statusCode: 429, name: 'rate_limit_exceeded', message: 'Too many requests' }, 60_000],
+    [{ statusCode: 429, name: 'daily_quota_exceeded', message: 'Daily quota reached' }, 3_600_000],
+    [{ statusCode: 429, name: 'monthly_quota_exceeded', message: 'Monthly quota reached' }, 3_600_000],
+  ])('reports a provider limit %o as deferred (%s ms), not as a failure', async (error, deferMs) => {
+    send.mockResolvedValue({ data: null, error });
+    const result = await mailer({ RESEND_API_KEY: 're_x' }).sendOne(mail);
+    expect(result).toMatchObject({ accepted: false, permanent: false, deferMs });
+    expect(result.error).toContain(`429 ${error.name}`);
   });
 
   it('never throws on a network failure', async () => {

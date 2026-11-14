@@ -95,6 +95,14 @@ Findings from the code that drive the order of work:
 | **AS1** | Emergency (break-glass) recovery is **restricted, documented and audited** | §8.2 |
 | **AS2** | Super Admin transfer is **atomic** and can **never** leave the system without an active Super Admin | §8.2 |
 
+### 2.4b Owner decisions of 2026-11-14 (amend §5, §6.3)
+
+| ID | Decision |
+|---|---|
+| **D-5** | Ordinary Administrators manage Head Coaches within their administrative responsibilities: Head Coach accounts (create, invite, role change to and from `HEAD_COACH` while `HEAD_COACHES_ENABLED`), programme heads, programme membership, coach monitoring. ADMIN already held these grants (§5); `GET /me/permissions` now reports `users.manageHeadCoaches`, `programmes.manageHeads`, `programmes.manageMembers`, `coaches.monitor`, `reports.view` for ADMIN (additive change to the frozen list, A1). No change to the Super Admin boundary, step-up, last-Super-Admin protection or the never-grantable list. |
+| **HC-S** | A Head Coach finds and adds students only within the programmes they head, and only students who are not active members of another programme (`GET /admin/programmes/:id/student-candidates`; 409 `STUDENT_IN_OTHER_PROGRAMME` on add). Cross-programme moves stay an Administrator responsibility. Name, username, grade, division, school only (D7). |
+| **T-C** | Teachers get no course access: the TEACHER course × division grants in §5 (`courses.view`, `resources.view`, `assignments.view`, `discussions.participate`, `discussions.report`) and the `assignments.prepare` GRANT in §6.3 are removed. Teachers are scoped by school (P1-11) and no `TeacherAssignment` (M6) was built, so they were dead. D2's "assignment preparation only by override" is withdrawn with it. |
+
 ### 2.5 Deliberately deferred
 
 | Item | To |
@@ -182,16 +190,16 @@ Actor must be allowed to manage both the current and the new role; nobody change
 
 | Permission | STUDENT | TEACHER | COACH | HEAD_COACH | ADMIN | SUPER_ADMIN |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
-| `courses.view`, `resources.view`, `assignments.view` | ◐ D | ◐ A | ◐ A | ◐ P | ● | ● |
+| `courses.view`, `resources.view`, `assignments.view` | ◐ D | — (removed 2026-11-14, T-C) | ◐ A | ◐ P | ● | ● |
 | `courses.complete` | ◐ O | — | — | — | — | — |
 | `resources.manage` (incl. today's direct publish) | — | — | ◐ A | — | ● | ● |
-| `assignments.prepare` | — | override only | ◐ A | ◐ A only via an **Administrator-created** assignment (H4) | — | — |
+| `assignments.prepare` | — | — (override removed 2026-11-14, T-C) | ◐ A | ◐ A only via an **Administrator-created** assignment (H4) | — | — |
 | `assignments.publish` | — | — | — | — | ● | ● |
 | `submissions.submit`, `submissions.viewOwn` | ◐ O | — | — | — | — | — |
 | `submissions.distribute` | — | — | — | — | ● | ● |
 | `reviews.grade` | — | — | ◐ A | ◐ A only via an **Administrator-created** assignment **and** the normal distribution (H4) | — | — |
 | `results.approve`, `results.publish` | — | — | — | — | ● | ● |
-| `discussions.participate`, `discussions.report` | ◐ D | ◐ A | ◐ A | ◐ P | ● | ● |
+| `discussions.participate`, `discussions.report` | ◐ D | — (removed 2026-11-14, T-C) | ◐ A | ◐ P | ● | ● |
 | `discussions.moderate` | — | — | — | — (deferred, H7) | ● | ● |
 | `analytics.course` | — | — | ◐ A | ◐ P | ● | ● |
 | `leaderboard.view` | ● | ● | ● | ● | ● | ● |
@@ -241,7 +249,7 @@ Proven by: unit tests (STUDENT/MENTOR sets equal today's; ADMIN ⊇ today's); ge
 ### 6.3 Approved override list (OV — approved 2026-11-09)
 | Target role | GRANT allowed | DENY allowed |
 |---|---|---|
-| TEACHER | `assignments.prepare`, only for a course × division where the teacher already has an active `TeacherAssignment` | any default permission |
+| TEACHER | ~~`assignments.prepare`, only for a course × division where the teacher already has an active `TeacherAssignment`~~ (removed 2026-11-14, T-C); the P1-11 teacher delegations `students.viewProfile`, `students.viewProgress`, `submissions.submitOnBehalf` (school scope) | any default permission |
 | STUDENT, COACH, HEAD_COACH | none | any default permission |
 | ADMIN | none | any default permission |
 | SUPER_ADMIN | none | none |

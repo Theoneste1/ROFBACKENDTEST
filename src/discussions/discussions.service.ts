@@ -35,6 +35,7 @@ import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { isAdmin, isStaff, isStudent } from '../common/access/roles.js';
+import { PermissionService } from '../auth/permission.service.js';
 import { Events, type ContentModeratedEvent } from '../notifications/events.js';
 import { Prisma, type ModerationActionType, type ThreadStatus } from '../generated/prisma/client.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
@@ -108,7 +109,16 @@ export class DiscussionsService {
     private readonly access:    AccessService,
     private readonly activity:  ActivityService,
     private readonly events:    EventEmitter2,
+    private readonly permissions: PermissionService,
   ) {}
+
+  /**
+   * Removing other people's content is moderation: an administrator who still holds
+   * discussions.moderate (a DENY override takes it away). Never broader than before (admins only).
+   */
+  private canModerate(user: AuthUser): boolean {
+    return isAdmin(user) && this.permissions.has(user, 'discussions.moderate');
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Threads
@@ -162,7 +172,7 @@ export class DiscussionsService {
     const thread = await this.requireVisibleThread(threadId, user);
     if (thread.status === 'DELETED') throw invalidState('Thread is already deleted.');
     const isAuthor = thread.createdById === user.id;
-    const asModerator = isAdmin(user) && !isAuthor;
+    const asModerator = this.canModerate(user) && !isAuthor;
 
     if (!asModerator) {
       if (!isAuthor) throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'Only the author can delete this thread.');
@@ -268,7 +278,7 @@ export class DiscussionsService {
   async removeComment(commentId: string, user: AuthUser, reason?: string) {
     const comment = await this.requireVisibleComment(commentId, user);
     const isAuthor = comment.authorId === user.id;
-    if (!isAuthor && !isAdmin(user)) {
+    if (!isAuthor && !this.canModerate(user)) {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_AUTHOR', 'You can only delete your own comments.');
     }
     if (comment.status === 'DELETED') throw invalidState('Comment is already deleted.');

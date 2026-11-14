@@ -178,6 +178,17 @@ describe('Discussions and moderation (e2e)', () => {
       await ctx.http().get(`/api/v1/admin/moderation/reports/${reportId}`).set(bearer(mentorJ)).expect(403);
     });
 
+    it('an administrator with a DENY override on discussions.moderate cannot remove content written by others', async () => {
+      const deny = await ctx.prisma.userPermissionOverride.create({ data: {
+        userId: ctx.ids.admin, permission: 'discussions.moderate', effect: 'DENY', reason: 'Test restriction', createdById: ctx.ids.admin,
+      } });
+      const c = await ctx.http().delete(`/api/v1/comments/${answerId}`).set(bearer(admin)).send({ reason: 'x' }).expect(403);
+      expect(c.body.code).toBe('NOT_AUTHOR');
+      await ctx.http().delete(`/api/v1/threads/${threadId}`).set(bearer(admin)).send({ reason: 'x' }).expect(403);
+      expect((await ctx.prisma.comment.findUniqueOrThrow({ where: { id: answerId } })).status).toBe('ACTIVE');
+      await ctx.prisma.userPermissionOverride.update({ where: { id: deny.id }, data: { revokedAt: new Date() } });
+    });
+
     it('removing the content keeps it on record, closes every report, and tells the author and reporters', async () => {
       await ctx.http().delete(`/api/v1/comments/${answerId}`).set(bearer(admin)).send({ reason: 'Disrespectful' }).expect(200);
 

@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'permissionScopes', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired'];
+const ALWAYS = ['academicYearActivation', 'permissionScopes', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -22,10 +22,13 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   academicYearActivation:  'always',   // appended 2026-11-13: single-flight, retry-safe year start
   headCoachAccounts:       'HEAD_COACH',
   permissionScopes:        'always',
+  reportExportFilters:     'always',   // appended 2026-11-14: results.csv period/year/course/division, enrolment by course
   reviewQueueFilters:      'always',   // appended 2026-11-14: coach review queue search, groups, sort, scope, counts
   schoolAdministration:    'always',
   schoolAffiliations:      'always',
+  schoolDirectorySync:     'always',   // appended 2026-11-14: official-directory sync released (owner decision)
   schoolReferenceRequired: 'always',
+  studentAssignmentFilters: 'always',  // appended 2026-11-14: My Assignments progress/sort, staff list statuses
   teacherAccounts:         'TEACHER',
 };
 
@@ -96,13 +99,13 @@ describe('GET /api/v1 capabilities', () => {
       expect(Object.keys(FEATURES).sort()).toEqual(Object.keys(V1_FEATURES).sort());
     });
 
-    it('the official-directory sync is never advertised, under any flag combination (owner decision 2026-11-12)', () => {
+    it('the official-directory sync is advertised under every flag combination (owner decision 2026-11-14; not before)', () => {
       for (const env of [{}, { TEACHERS_ENABLED: 'true' }, { HEAD_COACHES_ENABLED: 'true' }, { TEACHERS_ENABLED: 'true', HEAD_COACHES_ENABLED: 'true' }]) {
         const { features } = capabilitiesOf(configOf(env));
-        expect(features).not.toContain('schoolDirectorySync');
+        expect(features).toContain('schoolDirectorySync');
         expect(features.every((f) => Object.hasOwn(V1_FEATURES, f))).toBe(true);
       }
-      expect(Object.hasOwn(FEATURES, 'schoolDirectorySync')).toBe(false);
+      expect(FEATURES.schoolDirectorySync).toBe('always');
     });
   });
 

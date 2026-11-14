@@ -121,7 +121,14 @@ invited, and `?dryRun=true` validates without creating anything.
 account state (suspended/pending) is only revealed after a correct password;
 credential endpoints are rate-limited per IP. Five wrong passwords in a row
 lock the account for 15 minutes whatever the source address (answered exactly
-like a wrong password; audited as `LOCK_ACCOUNT`). Issuing a password-reset
+like a wrong password; audited as `LOCK_ACCOUNT`). Each attempt is reserved
+under the user's row lock *before* the password is checked, so concurrent
+guesses cannot all be evaluated against a stale "not locked" read: at most five
+guesses are ever checked before the lock, however many arrive at once. The row
+lock is held only for that short transaction, not during bcrypt. A correct
+password never counts towards the lockout. An administrator's change of a user's
+e-mail address revokes the activation and reset links still open for the old
+address (`UPDATE_USER` audit: `linksRevoked`). Issuing a password-reset
 link retires earlier unused ones, and one-time links are not kept in the
 e-mail outbox once sent.
 
@@ -181,6 +188,19 @@ SUBMITTED ─assign/distribute─► ASSIGNED ─start─► IN_REVIEW ─mark�
 `problemsSolved` are a cache recomputed from published results inside the same
 transaction, so they cannot drift; `POST /admin/leaderboard/recompute` rebuilds
 them. Leaderboards are per division and use SQL `RANK()`.
+
+Concurrent publications and corrections cannot overwrite each other's totals.
+Every points writer follows one lock order:
+1. advisory lock 4217 (key 0): **shared** for publish/reopen, **exclusive** for
+   the full recompute, so a recompute never interleaves with a publication;
+2. the affected `Submission` rows, in id order;
+3. the affected students' `User` rows, in id order, locked `FOR UPDATE`
+   *before* their published results are summed. Under READ COMMITTED the sum
+   then sees any concurrent publication for the same student, which has
+   committed by the time the lock is granted.
+
+The fixed order also means two releases over the same students cannot
+deadlock. `test/points-concurrency.e2e-spec.ts` forces these interleavings.
 
 ## 5. Data model
 
@@ -266,6 +286,7 @@ reminders: every notification is triggered by an action.
 | Resubmission requested / request withdrawn | The student |
 | Review returned | Admins (in-app) |
 | Review sent back / result reopened | The mentor |
+| Result withdrawn for correction (reopened) | The student, once per withdrawal (the administrator's note to the coach is not shown) |
 | Results published | Each student |
 | Resource published | Students of the division (in-app) |
 | New discussion thread | Mentors of that course × division (in-app) |
@@ -274,6 +295,15 @@ reminders: every notification is triggered by an action.
 | Content hidden, removed, restored or locked | Its author |
 | Report reviewed | The reporters (in-app) |
 | Mentor application decided, password reset | The person |
+| New student registration | Admins (in-app, switchable), once per account |
+| Coach application submitted | Admins (in-app, switchable), once per submission |
+
+Notices that must never repeat use `notifyOnce(eventKey, …)`: the key
+(for example `registration.student:<userId>` or `result.reopened:<reviewId>`)
+is stored in the notification's `data.eventKey`, and a transaction-scoped
+advisory lock on the key serialises concurrent deliveries of the same event,
+so a replayed or duplicated event notifies nobody twice. No schema change is
+involved.
 
 ## 7a. Dashboard and reports (administrators)
 
@@ -304,7 +334,13 @@ current year, `all` for every year), `divisionId`, `courseId`, `from`/`to`
 cannot apply is rejected (`FILTER_NOT_SUPPORTED`) rather than ignored.
 Snapshot figures (pending reviews, open reports, account states) describe the
 present; the date range limits activity figures (registered, published,
-submitted, reviewed, reported).
+submitted, reviewed, reported). The enrolment report applies `courseId` as
+"students taking part in that course" (as the Students report does), and the
+older `results.csv` export (one row per submission, for an assignment or a
+course × division) takes the same filters, its period meaning *submitted
+between* (capability `reportExportFilters`). Report `summary` figures (e.g. the
+assignment report's `expectedStudents` and `submissions`) always cover every
+matching row, not only the requested page.
 
 **Queries.** Counts and group-bys run in the database; per-row figures are
 fetched for the current page with one grouped query per figure; averages and

@@ -5,7 +5,7 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import type { AuthUser } from '../common/auth-user.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { UserProvisioningService } from '../users/user-provisioning.service.js';
-import { AddProgrammeMemberDto, InviteCoachDto, ListProgrammeMembersDto, SetProgrammeHeadsDto } from './dto/programme.dto.js';
+import { AddProgrammeMemberDto, InviteCoachDto, ListProgrammeMembersDto, SearchProgrammeStudentsDto, SetProgrammeHeadsDto } from './dto/programme.dto.js';
 import { ProgrammesService } from './programmes.service.js';
 
 /** Programme list (read-only): anyone who may view courses. */
@@ -56,7 +56,23 @@ export class AdminProgrammesController {
     return this.service.members(id, query, user);
   }
 
-  /** Add (or re-activate) a membership. Head Coaches: students only. */
+  /**
+   * Students who can be added to the programme, by name or username: active STUDENT accounts
+   * that are not active members of it. For a Head Coach (programmes they head only; other
+   * programmes → 404) only students who are not active members of ANY programme — moving a
+   * student from another programme stays an Administrator action. Name, username, grade,
+   * division and school only (no contact details, grades or feedback, D7).
+   */
+  @Get(':id/student-candidates')
+  @RequirePermission('programmes.manageMembers')
+  studentCandidates(@Param('id', ParseUUIDPipe) id: string, @Query() query: SearchProgrammeStudentsDto, @CurrentUser() user: AuthUser) {
+    return this.service.studentCandidates(id, query, user);
+  }
+
+  /**
+   * Add (or re-activate) a membership. Head Coaches: students only, and only a student who is not an
+   * active member of another programme (409 STUDENT_IN_OTHER_PROGRAMME — an Administrator moves them).
+   */
   @Post(':id/members')
   @RequirePermission('programmes.manageMembers')
   addMember(@Param('id', ParseUUIDPipe) id: string, @Body() body: AddProgrammeMemberDto, @CurrentUser() user: AuthUser) {

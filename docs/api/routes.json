@@ -195,6 +195,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/email/deliveries",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/email/deliveries/{id}/retry",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/email/jobs",
     "roles": [
       "ADMIN",
@@ -379,6 +397,16 @@
   {
     "method": "DELETE",
     "path": "/api/v1/admin/programmes/{id}/members/{userId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/programmes/{id}/student-candidates",
     "roles": [
       "HEAD_COACH",
       "ADMIN",
@@ -876,6 +904,15 @@
   {
     "method": "GET",
     "path": "/api/v1/admin/schools/{id}/students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/schools/{id}/verify",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -2082,7 +2119,6 @@
     "path": "/api/v1/programmes",
     "roles": [
       "STUDENT",
-      "TEACHER",
       "MENTOR",
       "HEAD_COACH",
       "ADMIN",

@@ -152,6 +152,33 @@ describe('Security (e2e)', () => {
       expect(unknown.body.message).toBe('Invalid username or password.');
     });
 
+    it('parallel wrong passwords lock the account just like sequential ones (no lost counts)', async () => {
+      const id = ctx.ids.mentorJunior2;
+      await ctx.prisma.user.update({ where: { id }, data: { failedLoginCount: 0, lockedUntil: null } });
+      const since = new Date();
+      const attempt = (password: string) => ctx.http().post('/api/v1/auth/login').send({ username: 'mentor.j2', password });
+
+      // Test harness: supertest starts a server that is not listening for the request that needs it and
+      // closes it when that request ends, resetting the other requests still in flight (ECONNRESET on a
+      // fast runner). Listening first means supertest only connects and never closes the shared server.
+      const server = ctx.app.getHttpServer();
+      if (!server.listening) await new Promise<void>((resolve) => server.listen(0, resolve));
+
+      // 20 wrong guesses at once (e.g. from 20 addresses, so no IP throttle applies).
+      const burst = await Promise.all(Array.from({ length: 20 }, (_, i) => attempt(`parallel-wrong-${i}`)));
+      expect(burst.map((r) => r.status)).toEqual(Array(20).fill(401));
+      expect(new Set(burst.map((r) => r.body.message))).toEqual(new Set(['Invalid username or password.']));
+
+      const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id } });
+      expect(user.lockedUntil?.getTime() ?? 0).toBeGreaterThan(Date.now());
+      expect(await ctx.prisma.auditLog.count({ where: { action: 'LOCK_ACCOUNT', entityId: id, createdAt: { gte: since } } })).toBe(1);
+      // Locked: the right password is refused too.
+      await attempt(PASSWORD).expect(401);
+
+      await ctx.prisma.user.update({ where: { id }, data: { failedLoginCount: 0, lockedUntil: null } });
+      await attempt(PASSWORD).expect(200);
+    });
+
     it('password-reset requests do not reveal whether an account exists; only the newest link works', async () => {
       const known = await ctx.http().post('/api/v1/auth/forgot-password').send({ email: 'student.j@test.local' });
       const unknown = await ctx.http().post('/api/v1/auth/forgot-password').send({ email: 'nobody@test.local' });

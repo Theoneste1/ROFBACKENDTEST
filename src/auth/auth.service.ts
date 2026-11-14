@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
@@ -7,6 +8,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { Events } from '../notifications/events.js';
 import { AccountEmailsService } from '../notifications/account-emails.service.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { ActivityService } from '../activity/activity.service.js';
@@ -20,7 +22,7 @@ import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { schoolKey } from '../schools/school-key.js';
 import { RWANDA } from '../schools/school-rules.js';
-import { assertDirectoryPlace, uniqueOfficialSchoolInPlace } from '../schools/school-directory.js';
+import { assertDirectoryPlace, directorySchoolById, uniqueOfficialSchoolInPlace } from '../schools/school-directory.js';
 import { schoolInactive } from '../schools/school-usage.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -63,18 +65,26 @@ export class AuthService {
     private readonly accountEmails: AccountEmailsService,
     private readonly roles:         RoleAssignmentPolicy,
     private readonly affiliations:  SchoolAffiliationService,
+    private readonly events:        EventEmitter2,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
 
   /**
-   * The official school a registration names. Rwanda (default): by code (unknown → 400),
-   * or a unique legacy name match. Another country: none — the name stays unverified and
+   * The official school a registration names. Rwanda (default): by code (unknown → 400), by
+   * internal id (schoolId — e.g. a school without an official code; unknown → 400), or a unique
+   * legacy name match. Another country: none — the name stays unverified and
    * is never matched to a Rwandan school; a Rwandan school code is refused.
    */
   private async registrationSchool(tx: Prisma.TransactionClient, data: RegisterStudentDto) {
     const placeGiven = data.schoolProvince !== undefined;   // all three, or none (DTO)
+    if (data.schoolId !== undefined && data.schoolCode !== undefined) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Send either schoolId or schoolCode, not both.');
+    }
     if ((data.country ?? 'RW') !== 'RW') {
+      if (data.schoolId !== undefined) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY', "The school list is Rwanda's directory; for another country enter the school's name.");
+      }
       if (data.schoolCode !== undefined) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda. Enter your school\'s name.');
       }
@@ -83,6 +93,9 @@ export class AuthService {
       }
       return null;
     }
+    // A school of the list by its internal id (owner decision 2026-11-14: schools without an
+    // official code are chosen this way; no code is ever invented for them).
+    if (data.schoolId !== undefined) return directorySchoolById(tx, data.schoolId);
     // "My school is not listed" (PR C): a place from the official directory; only an exact unique
     // active official school with this name IN THAT SECTOR is linked (still PENDING).
     if (data.schoolCode === undefined && placeGiven) {
@@ -125,6 +138,8 @@ export class AuthService {
       // official school with that normalised name — none when it matches no school or several.
       // Registration never creates a school.
       const school = await this.registrationSchool(tx, data);
+      // The school was chosen from the list (by code or by id), not entered by name.
+      const byReference = data.schoolCode !== undefined || data.schoolId !== undefined;
 
       const created = await tx.user.create({
         data: {
@@ -154,7 +169,7 @@ export class AuthService {
             studentId: created.id, schoolId: school?.id ?? null, source: 'REGISTRATION', reason: 'NEW_CLAIM',
             actor: { actorId: created.id, actorRole: 'STUDENT' },
             // What the student entered — kept with the place on a "not listed" claim, linked or not.
-            ...((!school || (data.schoolCode === undefined && data.schoolProvince !== undefined)) && { claimed: {
+            ...((!school || (!byReference && data.schoolProvince !== undefined)) && { claimed: {
               name: data.schoolName ?? null, country: data.country ?? 'RW',
               ...(data.schoolProvince !== undefined && { province: data.schoolProvince, district: data.schoolDistrict, sector: data.schoolSector }),
             } }),
@@ -169,8 +184,9 @@ export class AuthService {
         entityId:  created.id,
         metadata:  {
           gradeLevel: data.gradeLevel, country: data.country ?? 'RW', schoolCode: school?.code ?? null, schoolName: school?.name ?? null,
-          ...(data.schoolCode === undefined && { schoolNameEntered: data.schoolName, schoolMatched: !!school }),
-          ...(data.schoolCode === undefined && data.schoolProvince !== undefined && {
+          ...(data.schoolId !== undefined && { schoolId: school?.id ?? null }),
+          ...(!byReference && { schoolNameEntered: data.schoolName, schoolMatched: !!school }),
+          ...(!byReference && data.schoolProvince !== undefined && {
             schoolPlaceEntered: { province: data.schoolProvince, district: data.schoolDistrict, sector: data.schoolSector },
           }),
           // Linked to a canonical School or not; membership is verified separately by an Administrator.
@@ -187,6 +203,7 @@ export class AuthService {
 
     if (student.verification) await this.activation.send(student.verification);
     else await this.accountEmails.welcome(student.created.id);
+    this.events.emit(Events.StudentRegistered, { userId: student.created.id, requiresApproval });
 
     return {
       ...student.created,
@@ -237,20 +254,28 @@ export class AuthService {
       where: identifier.includes('@') ? { email: identifier } : { username: identifier },
       select: {
         id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true,
-        failedLoginCount: true, lockedUntil: true,
       },
     });
 
+    // Reserve this attempt BEFORE the password is checked (under the user's row
+    // lock), so concurrent guesses cannot all be evaluated against a stale
+    // "not locked" read: at most MAX_FAILED_LOGINS guesses are ever checked
+    // before the account locks, however many arrive at once.
+    const attempt = user?.passwordHash ? await this.reserveLoginAttempt(user.id) : null;
     const passwordMatches = await bcrypt.compare(data.password, user?.passwordHash ?? (await getDummyHash()));
     // A locked account answers exactly like a wrong password, so the lock
     // reveals nothing; the password is still checked to keep timing equal.
-    const locked = !!user?.lockedUntil && user.lockedUntil > new Date();
-    if (!user || !user.passwordHash || !passwordMatches || locked) {
-      if (user && !locked && user.passwordHash && !passwordMatches) await this.recordFailedLogin(user.id, user.failedLoginCount);
+    if (!user || !user.passwordHash || attempt === null || !passwordMatches) {
+      if (attempt !== null && !passwordMatches) await this.recordFailedLogin(user!.id, attempt);
       throw new UnauthorizedException('Invalid username or password.');
     }
 
-    // Account state is only revealed after a correct password.
+    // Account state is only revealed after a correct password. A correct
+    // password never counts towards the lockout, also when the account cannot
+    // sign in yet (the success path below resets the counter itself).
+    if (!user.isActive || !user.activatedAt || !user.isApproved) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0 } });
+    }
     if (!user.isActive) {
       throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_SUSPENDED', 'This account has been suspended.');
     }
@@ -331,20 +356,58 @@ export class AuthService {
    * used to discover which e-mail addresses have accounts.
    */
   /**
-   * Count a wrong password. After MAX_FAILED_LOGINS in a row the account is
-   * locked for LOCKOUT_MS, whichever addresses the attempts came from (the IP
-   * throttle alone can be spread across many addresses).
+   * Reserve one login attempt for a user, atomically: under the User row lock,
+   * refuse (null) while the account is locked or MAX_FAILED_LOGINS attempts are
+   * already counted (pending or failed); otherwise count this attempt and return
+   * its number. A correct password resets the counter (login success); a wrong
+   * one is settled by recordFailedLogin. The row lock is held only for this
+   * short transaction, never during the bcrypt comparison.
    */
-  private async recordFailedLogin(userId: string, previous: number) {
-    const count = previous + 1;
-    const lock = count >= MAX_FAILED_LOGINS;
-    await this.prisma.user.update({
-      where: { id: userId },
-      data:  lock ? { failedLoginCount: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } : { failedLoginCount: count },
+  private async reserveLoginAttempt(userId: string): Promise<number | null> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      const u = await tx.user.findUnique({ where: { id: userId }, select: { failedLoginCount: true, lockedUntil: true } });
+      if (!u) return { attempt: null, lockedNow: false };
+      if (u.lockedUntil && u.lockedUntil > new Date()) return { attempt: null, lockedNow: false };
+      if (u.failedLoginCount >= MAX_FAILED_LOGINS) {
+        // The limit is reached but nothing has locked the account yet: either the
+        // deciding attempt is still being checked, or its request died before it
+        // could settle. Lock now, so the account can never be stuck refusing
+        // every attempt with no expiry.
+        await tx.user.update({ where: { id: userId }, data: { failedLoginCount: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } });
+        return { attempt: null, lockedNow: true };
+      }
+      const updated = await tx.user.update({
+        where:  { id: userId },
+        data:   { failedLoginCount: { increment: 1 } },
+        select: { failedLoginCount: true },
+      });
+      return { attempt: updated.failedLoginCount, lockedNow: false };
     });
-    if (lock) {
-      await this.audit.log({ actorId: null, action: 'LOCK_ACCOUNT', entity: 'User', entityId: userId, metadata: { attempts: count } });
-    }
+    if (result.lockedNow) await this.auditLock(userId, MAX_FAILED_LOGINS);
+    return result.attempt;
+  }
+
+  /**
+   * Settle a reserved attempt whose password was wrong. The attempt that
+   * reaches MAX_FAILED_LOGINS locks the account for LOCKOUT_MS, whichever
+   * addresses the attempts came from (the IP throttle alone can be spread across
+   * many addresses). Earlier wrong attempts are already counted by the
+   * reservation, so there is nothing else to write.
+   */
+  private async recordFailedLogin(userId: string, attempt: number) {
+    if (attempt < MAX_FAILED_LOGINS) return;
+    const now = new Date();
+    // Conditional: a concurrent reservation may already have locked the account.
+    const { count } = await this.prisma.user.updateMany({
+      where: { id: userId, OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] },
+      data:  { failedLoginCount: 0, lockedUntil: new Date(now.getTime() + LOCKOUT_MS) },
+    });
+    if (count > 0) await this.auditLock(userId, attempt);
+  }
+
+  private auditLock(userId: string, attempts: number) {
+    return this.audit.log({ actorId: null, action: 'LOCK_ACCOUNT', entity: 'User', entityId: userId, metadata: { attempts } });
   }
 
   async forgotPassword(email: string) {

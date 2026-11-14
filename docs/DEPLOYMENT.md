@@ -46,6 +46,7 @@ message when something is wrong. In production it additionally requires
 | `NODE_ENV` | `production` (JSON logs, secure cookies, Swagger off, e-mail verification on by default) |
 | `DATABASE_URL` | Managed PostgreSQL URL, with `sslmode=require` |
 | `DATABASE_POOL_MAX` | `10` per instance (see §11) |
+| `DATABASE_TX_MAX_WAIT_MS` | Optional. How long a transaction may wait for a pooled connection (default `10000`, 2 000–20 000). When it runs out the API answers `503 DATABASE_BUSY` with `Retry-After: 2`, never a 500 |
 | `JWT_SECRET` | 48+ random characters (§4) |
 | `CORS_ORIGINS` | The frontend origin(s), comma-separated, e.g. `https://lms.rof.rw` |
 | `APP_URL` | The frontend URL used in e-mail links |

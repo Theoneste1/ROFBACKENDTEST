@@ -37,6 +37,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/programmes/:id/members  AdminProgrammesController.members':                              ADMINISTRATORS,
   'POST /api/v1/admin/programmes/:id/members  AdminProgrammesController.addMember':                           ADMINISTRATORS,
   'DELETE /api/v1/admin/programmes/:id/members/:userId  AdminProgrammesController.endMember':                ADMINISTRATORS,
+  // 2026-11-14 — students who can be added to a programme (programmes.manageMembers; Head Coaches too, own
+  // programmes only and only students in no programme — HEAD_COACH is not a baseline caller)
+  'GET /api/v1/admin/programmes/:id/student-candidates  AdminProgrammesController.studentCandidates':        ADMINISTRATORS,
   // P1-10 part 3 — coach invitation into a programme (users.manageCoaches; Head Coaches too, pending approval)
   'POST /api/v1/admin/programmes/:id/coach-invitations  AdminProgrammesController.inviteCoach':              ADMINISTRATORS,
   // P1-11 — teacher school assignments and delegations (users.manageTeachers)
@@ -101,4 +104,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/school-sync/runs/:id/approve  SchoolSyncReviewController.approve':                       SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/school-sync/runs/:id/apply  SchoolSyncReviewController.apply':                           SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/school-sync/runs/:id/items/:itemId/resolve  SchoolSyncReviewController.resolve':         SUPER_ADMIN_ONLY,
+  // E-mail deliveries across transactional and bulk e-mail (email.bulkSend, as the existing e-mail job routes)
+  'GET /api/v1/admin/email/deliveries  EmailController.listAllDeliveries':                                    ADMINISTRATORS,
+  'POST /api/v1/admin/email/deliveries/:id/retry  EmailController.retryDelivery':                             ADMINISTRATORS,
+  // Owner decision 2026-11-14: an administrator verifies a school (schools.manage, like every school edit).
+  'POST /api/v1/admin/schools/:id/verify  AdminSchoolsController.verify':                                     ADMINISTRATORS,
 };

@@ -5789,14 +5789,13 @@
         ],
         "x-roles": [
           "STUDENT",
-          "TEACHER",
           "MENTOR",
           "HEAD_COACH",
           "ADMIN",
           "SUPER_ADMIN"
         ],
         "x-permission": "courses.view",
-        "description": "**Access:** permission `courses.view` (STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+        "description": "**Access:** permission `courses.view` (STUDENT, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/programmes/{id}/heads": {
@@ -6327,7 +6326,64 @@
             "bearer": []
           }
         ],
-        "summary": "Add (or re-activate) a membership. Head Coaches: students only.",
+        "summary": "Add (or re-activate) a membership. Head Coaches: students only, and only a student who is not an\nactive member of another programme (409 STUDENT_IN_OTHER_PROGRAMME — an Administrator moves them).",
+        "tags": [
+          "Admin · Programmes"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "programmes.manageMembers",
+        "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/programmes/{id}/student-candidates": {
+      "get": {
+        "operationId": "AdminProgrammesController_studentCandidates",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": true,
+            "in": "query",
+            "description": "First name, last name or username (2–100 characters; surrounding spaces ignored). E-mail addresses are never searched.",
+            "schema": {
+              "minLength": 2,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Students who can be added to the programme, by name or username: active STUDENT accounts\nthat are not active members of it. For a Head Coach (programmes they head only; other\nprogrammes → 404) only students who are not active members of ANY programme — moving a\nstudent from another programme stays an Administrator action. Name, username, grade,\ndivision and school only (no contact details, grades or feedback, D7).",
         "tags": [
           "Admin · Programmes"
         ],
@@ -19571,7 +19627,7 @@
             "bearer": []
           }
         ],
-        "summary": "Claim a school: by code, \"my school is not listed\" (name + province / district / sector), or\nanother country (country + name). Always PENDING until an Administrator verifies it. At most 3\nrequests in 24 hours; 7 days after a rejection or revocation of the same school.",
+        "summary": "Claim a school: by code, by id (schoolId: a school of the list — how a school without an\nofficial code is chosen), \"my school is not listed\" (name + province / district / sector), or\nanother country (country + name). Always PENDING until an Administrator verifies it. At most 3\nrequests in 24 hours; 7 days after a rejection or revocation of the same school.",
         "tags": [
           "Me"
         ],
@@ -19641,7 +19697,7 @@
             }
           }
         },
-        "summary": "Public, for the sign-up form: official schools by name or code (max 10), or every\nofficial school of a district / sector (Rwanda: Province → District → Sector → School).",
+        "summary": "Public, for the sign-up form: active Rwandan schools by name, code or place (max 10), or every\nactive school of a district / sector (Rwanda: Province → District → Sector → School). Schools\nwithout an official code are included with `code: null` (owner decision 2026-11-14): choose\nthem by `id` (schoolId) at registration and in a school claim.",
         "tags": [
           "Schools"
         ],
@@ -20760,6 +20816,61 @@
           }
         ],
         "summary": "The source records the school was matched with and — only with audit.view — its audit entries (newest first).",
+        "tags": [
+          "Admin · Schools"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "schools.manage",
+        "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/verify": {
+      "post": {
+        "operationId": "AdminSchoolsController_verify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifySchoolDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Record that an administrator checked this school's name and place (lastVerifiedAt / By; audited).\nA school without an official code becomes available to Teachers only once created by an\nadministrator and verified. Editing the name or place clears the verification.",
         "tags": [
           "Admin · Schools"
         ],
@@ -26043,6 +26154,26 @@
             }
           },
           {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PUBLISHED",
+                  "ARCHIVED",
+                  "CLOSED",
+                  "PENDING_APPROVAL",
+                  "REJECTED"
+                ]
+              }
+            }
+          },
+          {
             "name": "academicYearId",
             "required": false,
             "in": "query",
@@ -30302,6 +30433,26 @@
             }
           },
           {
+            "name": "statuses",
+            "required": false,
+            "in": "query",
+            "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PUBLISHED",
+                  "ARCHIVED",
+                  "CLOSED",
+                  "PENDING_APPROVAL",
+                  "REJECTED"
+                ]
+              }
+            }
+          },
+          {
             "name": "academicYearId",
             "required": false,
             "in": "query",
@@ -30347,6 +30498,37 @@
             "description": "Deadline on or before this instant.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "progress",
+            "required": false,
+            "in": "query",
+            "description": "Only assignments where my progress is this (paging and totals count the matches).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_STARTED",
+                "SUBMITTED",
+                "PENDING_REVIEW",
+                "RESUBMISSION_REQUESTED",
+                "REVIEWED",
+                "OVERDUE"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "deadline (soonest first, the default), -deadline (latest first) or title (A–Z).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "deadline",
+                "-deadline",
+                "title"
+              ]
             }
           }
         ],
@@ -30668,7 +30850,7 @@
             }
           }
         },
-        "summary": "Every assignment for the student's division with New / Opened / Submitted / In Review / Marked.",
+        "summary": "Every assignment for the student's division with my display status. Filters: q, courseId,\nacademicYearId, deadlineFrom/To, progress (my status, incl. OVERDUE); sort: deadline | -deadline\n| title (capability studentAssignmentFilters).",
         "tags": [
           "Me"
         ],
@@ -32219,6 +32401,77 @@
           }
         },
         "summary": "Per-recipient delivery status (filter with ?status=FAILED).",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/deliveries": {
+      "get": {
+        "operationId": "EmailController_listAllDeliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every e-mail delivery, newest first (e.g. ?status=FAILED&kind=TRANSACTIONAL for failed\ninvitations, activation and reset e-mails). Never returns message bodies (one-time links).",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/deliveries/{id}/retry": {
+      "post": {
+        "operationId": "EmailController_retryDelivery",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Re-queue one FAILED delivery (transactional or bulk). Anything else: 409.",
         "tags": [
           "Admin · Email"
         ],
@@ -38025,6 +38278,7 @@
             }
           }
         },
+        "summary": "Enrolments per year × division × school × grade. Period = enrolled between;\ncourseId = students taking part in that course (opened or completed).",
         "tags": [
           "Admin · Reports"
         ],
@@ -40164,7 +40418,50 @@
     "/api/v1/admin/reports/results.csv": {
       "get": {
         "operationId": "ReportsController_results",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "academicYearId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "divisionId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "courseId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "CSV file (UTF-8 with BOM), sent as an attachment.",
@@ -40451,12 +40748,17 @@
           },
           "schoolCode": {
             "type": "string",
-            "description": "Rwanda: official code of the school attended (6 digits, from GET /schools/search or\nthe Province → District → Sector listing). The student is linked to exactly that\nschool. Required unless schoolName is sent.",
+            "description": "Rwanda: official code of the school attended (6 digits, from GET /schools/search or\nthe Province → District → Sector listing). The student is linked to exactly that\nschool. Required unless schoolId or schoolName is sent.",
             "pattern": "^\\d{6}$"
+          },
+          "schoolId": {
+            "type": "string",
+            "description": "Rwanda (owner decision 2026-11-14): the internal id of the school attended, from\nGET /schools/search — how a school WITHOUT an official code is chosen (any school of the\nlist may be chosen this way). It must be an active Rwandan school (400 UNKNOWN_SCHOOL,\n409 SCHOOL_INACTIVE); the claim is PENDING exactly as with schoolCode. Not with schoolCode\n(400). schoolName and the place fields are ignored when it is sent.",
+            "format": "uuid"
           },
           "schoolName": {
             "type": "string",
-            "description": "Another country: the school's name as entered (unverified; no school is linked).\nRwanda, legacy (until the sign-up form sends schoolCode): it never creates a\nschool and links the student only when it matches exactly one school of the\nofficial list — otherwise no school until an Administrator sets it.\nIgnored when schoolCode is sent.",
+            "description": "Another country: the school's name as entered (unverified; no school is linked).\nRwanda, legacy (until the sign-up form sends schoolCode): it never creates a\nschool and links the student only when it matches exactly one school of the\nofficial list — otherwise no school until an Administrator sets it.\nIgnored when schoolCode or schoolId is sent.",
             "minLength": 2,
             "maxLength": 200
           },
@@ -41249,6 +41551,11 @@
       "StudentClaimDto": {
         "type": "object",
         "properties": {
+          "schoolId": {
+            "type": "string",
+            "description": "The internal id of a school from GET /schools/search — how a school without an official code is chosen.",
+            "format": "uuid"
+          },
           "schoolCode": {
             "type": "string",
             "pattern": "^\\d{6}$"
@@ -41566,6 +41873,16 @@
           },
           "confirmPossibleDuplicate": {
             "type": "boolean"
+          }
+        }
+      },
+      "VerifySchoolDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
           }
         }
       },

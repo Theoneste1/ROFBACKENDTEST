@@ -29,14 +29,13 @@ describe('App basics (e2e)', () => {
     expect(res.body).toMatchObject({ name: 'ROF LMS API', version: '1.0.0', docs: '/api/docs', health: '/health' });
     const config = ctx.app.get(ConfigService);
     expect(res.body.capabilities).toEqual(capabilitiesOf(config));
-    // Exactly the approved V1 features for this configuration — never the directory sync.
+    // Exactly the approved V1 features for this configuration (the directory sync since 2026-11-14).
     expect(res.body.capabilities.features).toEqual([
       'academicYearActivation',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
-      'permissionScopes', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired',
+      'permissionScopes', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts'] : []),
     ]);
-    expect(res.body.capabilities.features).not.toContain('schoolDirectorySync');
     const again = await ctx.http().get('/api/v1').expect(200);
     expect(again.body).toEqual(res.body);
   });
@@ -64,10 +63,18 @@ describe('App basics (e2e)', () => {
     }
   });
 
-  it('the directory sync is not advertised but its routes are unchanged (still registered and protected)', async () => {
-    expect((await ctx.http().get('/api/v1').expect(200)).body.capabilities.features).not.toContain('schoolDirectorySync');
-    expect((await ctx.http().get('/api/v1/admin/school-sync/runs')).status).toBe(401);
-    expect((await ctx.http().post('/api/v1/admin/school-sync/runs/x/apply').send({})).status).toBe(401);
+  it('the directory sync is advertised and its routes are registered and protected (401 without a token, never 404)', async () => {
+    expect((await ctx.http().get('/api/v1').expect(200)).body.capabilities.features).toContain('schoolDirectorySync');
+    const fake = '00000000-0000-4000-8000-000000000000';
+    const routes: Array<[string, string]> = [
+      ['post', '/api/v1/admin/school-sync/runs'], ['get', '/api/v1/admin/school-sync/runs'],
+      ['get', `/api/v1/admin/school-sync/runs/${fake}/review`], ['post', `/api/v1/admin/school-sync/runs/${fake}/decisions`],
+      ['post', `/api/v1/admin/school-sync/runs/${fake}/approve`], ['post', `/api/v1/admin/school-sync/runs/${fake}/apply`],
+    ];
+    for (const [method, path] of routes) {
+      const res = method === 'get' ? await ctx.http().get(path) : await ctx.http().post(path).send({});
+      expect([path, res.status]).toEqual([path, 401]);
+    }
   });
 
   it('protected routes require a token, with the standard error shape', async () => {

@@ -22,8 +22,8 @@ function makeMocks() {
     mentorRequest: {
       findFirst:  vi.fn().mockResolvedValue(null),
       findUnique: vi.fn().mockResolvedValue(pending()),
-      create:     vi.fn().mockResolvedValue({ id: 'mr-new' }),
-      update:     vi.fn().mockResolvedValue({ id: 'mr1' }),
+      create:     vi.fn().mockResolvedValue({ id: 'mr-new', updatedAt: new Date('2026-11-14T10:00:00.000Z') }),
+      update:     vi.fn().mockResolvedValue({ id: 'mr-old', updatedAt: new Date('2026-11-14T10:00:00.000Z') }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
@@ -68,8 +68,16 @@ describe('MentorRequestsService', () => {
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ metadata: { reapplication: false } }));
     });
 
+    it('tells administrators about the application (one event per submission)', async () => {
+      const { service, events } = makeMocks();
+      await service.create(dto);
+      expect(events.emit).toHaveBeenCalledWith(Events.MentorRequestSubmitted, {
+        requestId: 'mr-new', submittedAt: '2026-11-14T10:00:00.000Z', reapplication: false,
+      });
+    });
+
     it('reuses a previously REJECTED request instead of creating a new one', async () => {
-      const { service, prisma, audit } = makeMocks();
+      const { service, prisma, audit, events } = makeMocks();
       prisma.mentorRequest.findFirst.mockResolvedValue(pending({ id: 'mr-old', status: 'REJECTED' }));
 
       await service.create(dto);
@@ -80,6 +88,7 @@ describe('MentorRequestsService', () => {
       expect(call.where).toEqual({ id: 'mr-old' });
       expect(call.data.status).toBe('PENDING');
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ metadata: { reapplication: true } }));
+      expect(events.emit).toHaveBeenCalledWith(Events.MentorRequestSubmitted, expect.objectContaining({ requestId: 'mr-old', reapplication: true }));
     });
   });
 

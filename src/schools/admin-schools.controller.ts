@@ -11,7 +11,7 @@ import { PaginationQueryDto } from '../common/pagination.js';
 import { AdminSchoolsService } from './admin-schools.service.js';
 import { SchoolDirectoryDataService } from './directory/school-directory-data.service.js';
 import { PutSchoolContactsDto, PutSchoolOfferingsDto, SchoolContactsQueryDto, VerifySchoolContactDto } from './directory/school-directory.dto.js';
-import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
+import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto, VerifySchoolDto } from './dto/admin-school.dto.js';
 import { ImportSchoolsQueryDto, ImportTemplateQueryDto } from './import/school-import.dto.js';
 import { IMPORT_MAX_BYTES } from './import/school-import.parser.js';
 import { SchoolImportService } from './import/school-import.service.js';
@@ -157,6 +157,18 @@ export class AdminSchoolsController {
   @RequirePermission('schools.manage')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateSchoolDto, @CurrentUser() user: AuthUser) {
     return this.service.update(id, dto, user);
+  }
+
+  /**
+   * Record that an administrator checked this school's name and place (lastVerifiedAt / By; audited).
+   * A school without an official code becomes available to Teachers only once created by an
+   * administrator and verified. Editing the name or place clears the verification.
+   */
+  @Post(':id/verify')
+  @HttpCode(200)
+  @RequirePermission('schools.manage')
+  verify(@Param('id', ParseUUIDPipe) id: string, @Body() dto: VerifySchoolDto, @CurrentUser() user: AuthUser) {
+    return this.service.verify(id, dto, user);
   }
 
   /** Deactivate or reactivate (reason required); the response lists what refers to the school. */

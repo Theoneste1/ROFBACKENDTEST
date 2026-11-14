@@ -771,6 +771,56 @@
       "name": "Admin · Email",
       "item": [
         {
+          "name": "GET /admin/email/deliveries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/email/deliveries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "email",
+                "deliveries"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/email/deliveries/{id}/retry",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/email/deliveries/:id/retry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "email",
+                "deliveries",
+                ":id",
+                "retry"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "GET /admin/email/jobs",
           "request": {
             "method": "GET",
@@ -1501,6 +1551,41 @@
                 }
               ],
               "query": []
+            },
+            "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/programmes/{id}/student-candidates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/programmes/:id/student-candidates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "programmes",
+                ":id",
+                "student-candidates"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "search",
+                  "disabled": false,
+                  "description": "First name, last name or username (2–100 characters; surrounding spaces ignored). E-mail addresses are never searched."
+                }
+              ]
             },
             "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
@@ -2252,7 +2337,38 @@
                 "results.csv"
               ],
               "variable": [],
-              "query": []
+              "query": [
+                {
+                  "key": "academicYearId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "divisionId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "courseId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "from",
+                  "value": "from",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "to",
+                  "value": "to",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
             },
             "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }
@@ -3870,6 +3986,48 @@
           }
         },
         {
+          "name": "POST /admin/schools/{id}/verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "verify"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `schools.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"note\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "POST /admin/schools/import",
           "request": {
             "method": "POST",
@@ -4659,6 +4817,12 @@
                   "value": "DRAFT",
                   "disabled": true,
                   "description": "Mentors/admins only."
+                },
+                {
+                  "key": "statuses",
+                  "value": "DRAFT",
+                  "disabled": true,
+                  "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
                 },
                 {
                   "key": "academicYearId",
@@ -7614,6 +7778,12 @@
                   "description": "Mentors/admins only."
                 },
                 {
+                  "key": "statuses",
+                  "value": "DRAFT",
+                  "disabled": true,
+                  "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
+                },
+                {
                   "key": "academicYearId",
                   "value": "00000000-0000-4000-8000-000000000000",
                   "disabled": true,
@@ -7642,6 +7812,18 @@
                   "value": "deadlineTo",
                   "disabled": true,
                   "description": "Deadline on or before this instant."
+                },
+                {
+                  "key": "progress",
+                  "value": "NOT_STARTED",
+                  "disabled": true,
+                  "description": "Only assignments where my progress is this (paging and totals count the matches)."
+                },
+                {
+                  "key": "sort",
+                  "value": "deadline",
+                  "disabled": true,
+                  "description": "deadline (soonest first, the default), -deadline (latest first) or title (A–Z)."
                 }
               ]
             },
@@ -7847,7 +8029,7 @@
             "description": "**Access:** STUDENT",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"schoolCode\": \"schoolCode\",\n  \"schoolName\": \"schoolName\",\n  \"country\": \"country\",\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"schoolSector\": \"schoolSector\"\n}",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"schoolCode\": \"schoolCode\",\n  \"schoolName\": \"schoolName\",\n  \"country\": \"country\",\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"schoolSector\": \"schoolSector\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8462,7 +8644,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** permission `courses.view` (STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+            "description": "**Access:** permission `courses.view` (STUDENT, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]

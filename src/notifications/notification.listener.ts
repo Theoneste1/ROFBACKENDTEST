@@ -18,6 +18,9 @@ import {
   type DiscussionThreadEvent,
   type ReportsResolvedEvent,
   type MentorRequestDecidedEvent,
+  type MentorRequestSubmittedEvent,
+  type ResultReopenedEvent,
+  type StudentRegisteredEvent,
   type ResourceEvent,
   type ResultsPublishedEvent,
   type SubmissionEvent,
@@ -121,8 +124,8 @@ export class NotificationListener {
         await this.notifications.notify([mentorId], {
           category: 'REVIEWS',
           type:     Events.SubmissionsAssigned,
-          title:    `${count} submission(s) to review`,
-          body:     `You have been assigned ${count} submission(s) for "${a.title}".`,
+          title:    `${count} ${count === 1 ? 'submission' : 'submissions'} to review`,
+          body:     `You have been assigned ${count} ${count === 1 ? 'submission' : 'submissions'} for "${a.title}".`,
           data:     { assignmentId: a.id },
           link:     `/mentor/reviews?assignmentId=${a.id}`,
         });
@@ -160,6 +163,27 @@ export class NotificationListener {
         body:     `Your review for "${s.assignment.title}" needs another look. Reason: ${e.reason ?? '—'}`,
         data:     { submissionId: s.id },
         link:     `/mentor/reviews/${s.id}`,
+      });
+    });
+  }
+
+  /**
+   * A published result withdrawn for correction → the student (decision Q-14). The administrator's
+   * note is addressed to the coach and is not shown to the student. One notice per withdrawal.
+   */
+  @OnEvent(Events.ResultReopened, ASYNC)
+  async onResultWithdrawn(e: ResultReopenedEvent) {
+    await this.safe('result withdrawn', async () => {
+      const s = await this.submission(e.submissionId);
+      if (!s) return;
+      await this.notifications.notifyOnce(`result.reopened:${e.previousReviewId}`, [s.studentId], {
+        category: 'RESULTS',
+        type:     Events.ResultReopened,
+        title:    'Your result was withdrawn for correction',
+        body:     `Your result for "${s.assignment.title}" has been withdrawn while it is checked again. `
+                + 'Points from it are removed until the corrected result is published; you will be notified then.',
+        data:     { submissionId: s.id, assignmentId: s.assignmentId },
+        link:     `/assignments/${s.assignmentId}`,
       });
     });
   }
@@ -402,6 +426,48 @@ export class NotificationListener {
           : 'Thank you for applying to be a coach. Your application was not approved at this time.',
         { firstName: e.firstName, link: e.approved ? '/login' : undefined },
       );
+    });
+  }
+
+  /** New student account → administrators (in-app; decision Q-18). One notice per account. */
+  @OnEvent(Events.StudentRegistered, ASYNC)
+  async onStudentRegistered(e: StudentRegisteredEvent) {
+    await this.safe('student registered', async () => {
+      const u = await this.prisma.user.findUnique({
+        where:  { id: e.userId },
+        select: { id: true, firstName: true, lastName: true, gradeLevel: true },
+      });
+      if (!u) return;
+      const name = `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || 'A student';
+      await this.notifications.notifyOnce(`registration.student:${u.id}`, await this.notifications.adminIds(), {
+        category: 'ACCOUNT',
+        type:     Events.StudentRegistered,
+        title:    e.requiresApproval ? 'New student waiting for approval' : 'New student registration',
+        body:     `${name}${u.gradeLevel ? ` (${u.gradeLevel})` : ''} registered${e.requiresApproval ? ' and is waiting for approval' : ''}.`,
+        data:     { userId: u.id },
+        link:     `/admin/users/${u.id}`,
+      }, { email: false });
+    });
+  }
+
+  /** Coach application submitted → administrators (in-app; decision Q-18). One notice per submission. */
+  @OnEvent(Events.MentorRequestSubmitted, ASYNC)
+  async onMentorRequestSubmitted(e: MentorRequestSubmittedEvent) {
+    await this.safe('coach application submitted', async () => {
+      const r = await this.prisma.mentorRequest.findUnique({
+        where:  { id: e.requestId },
+        select: { id: true, firstName: true, lastName: true, status: true },
+      });
+      if (!r || r.status !== 'PENDING') return;
+      const name = `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || 'Someone';
+      await this.notifications.notifyOnce(`registration.mentor_request:${r.id}:${e.submittedAt}`, await this.notifications.adminIds(), {
+        category: 'ACCOUNT',
+        type:     Events.MentorRequestSubmitted,
+        title:    'New coach application',
+        body:     `${name} ${e.reapplication ? 'applied again' : 'applied'} to become a coach and is waiting for a decision.`,
+        data:     { mentorRequestId: r.id },
+        link:     '/admin/mentors',
+      }, { email: false });
     });
   }
 

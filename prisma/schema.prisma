@@ -1272,7 +1272,7 @@ model Assignment {
   publishedAt        DateTime?
   rejectedAt         DateTime?
   rejectionNote      String?
-  /// Set when the admin publishes results for the whole assignment.
+  /// When results of this assignment were last released to students (any release).
   resultsPublishedAt DateTime?
   /// Set when archived (status ARCHIVED).
   archivedAt         DateTime?

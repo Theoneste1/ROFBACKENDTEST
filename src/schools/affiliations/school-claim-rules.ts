@@ -4,6 +4,10 @@
  *
  *   classifyClaimRequest  the body of POST /me/school-affiliation is exactly one kind, checked in
  *                         this order (the first rule that applies decides the response):
+ *                           0. schoolId (owner decision 2026-11-14; a school of the list, with or
+ *                              without an official code) → that school by its internal id (with
+ *                              schoolCode too, or any name / place field: 400 VALIDATION_FAILED;
+ *                              country other than RW: 400 SCHOOL_DIRECTORY_RWANDA_ONLY)
  *                           1. schoolCode → a Rwandan school by code (country other than RW: 400
  *                              SCHOOL_CODE_RWANDA_ONLY; any name / place field too: 400 VALIDATION_FAILED)
  *                           2. country absent or RW → "not listed": schoolName + province + district +
@@ -30,6 +34,7 @@ export const CLAIM_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const CLAIM_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface ClaimRequestBody {
+  schoolId?:       string;
   schoolCode?:     string;
   schoolName?:     string;
   country?:        string;
@@ -40,6 +45,7 @@ export interface ClaimRequestBody {
 
 export type ClaimRequest =
   | { kind: 'CODE'; schoolCode: string }
+  | { kind: 'SCHOOL_ID'; schoolId: string }
   | { kind: 'NOT_LISTED'; schoolName: string; province: string; district: string; sector: string }
   | { kind: 'INTERNATIONAL'; schoolName: string; country: string };
 
@@ -49,6 +55,15 @@ export function classifyClaimRequest(b: ClaimRequestBody): ClaimRequest {
   const country = b.country ?? RWANDA;
   const place = [b.schoolProvince, b.schoolDistrict, b.schoolSector];
   const anyPlace = place.some((x) => x !== undefined);
+  if (b.schoolId !== undefined) {
+    if (b.schoolCode !== undefined || b.schoolName !== undefined || anyPlace) {
+      throw bad('VALIDATION_FAILED', 'Send either schoolId, or schoolCode, or schoolName with its place (Rwanda) or country — only one.');
+    }
+    if (country !== RWANDA) {
+      throw bad('SCHOOL_DIRECTORY_RWANDA_ONLY', "The school list is Rwanda's directory; for another country send schoolName only.");
+    }
+    return { kind: 'SCHOOL_ID', schoolId: b.schoolId };
+  }
   if (b.schoolCode !== undefined) {
     if (country !== RWANDA) throw bad('SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda.');
     if (b.schoolName !== undefined || anyPlace) {

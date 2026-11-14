@@ -244,7 +244,8 @@ describe('School directory S1 (M12)', () => {
       expect(third.body).toMatchObject({ name: 'EP KARAMA', district: 'Musanze', code: null });
       expect(await p().school.count({ where: { name: 'EP KARAMA' } })).toBe(3);
       const found = (await http().get('/api/v1/schools/search').query({ q: 'EP KARAMA' }).expect(200)).body;
-      expect(found.map((s: any) => [s.code, s.district]).sort()).toEqual([['110010', 'Gasabo'], ['220010', 'Huye']]);   // the public directory: coded schools
+      // The public directory: every active Rwandan school; the one without a code keeps code null (owner decision 2026-11-14).
+      expect(found.map((s: any) => [s.code, s.district]).sort()).toEqual([[null, 'Musanze'], ['110010', 'Gasabo'], ['220010', 'Huye']]);
       expect((await http().get(S).query({ q: 'EP KARAMA' }).set(bearer(admin)).expect(200)).body.data).toHaveLength(3);
     });
 
@@ -409,7 +410,7 @@ describe('School directory S1 (M12)', () => {
         await http().get(S).query({ q: 'Contact School' }).set(bearer(superAdmin)).expect(200),
         await http().get(`${S}/${school}`).set(bearer(admin)).expect(200),
       ];
-      expect(responses[0].body.map((s: any) => s.code)).toEqual(['220901']);
+      expect(responses[0].body.map((s: any) => s.code)).toEqual(['220901', null]);
       expect(responses[3].status).toBeLessThan(300);
       responses.forEach((r, i) => { for (const secret of secrets) expect([i, JSON.stringify(r.body).includes(secret)]).toEqual([i, false]); });
     });

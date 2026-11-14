@@ -91,12 +91,15 @@ describe('Authentication (e2e)', () => {
     });
   });
 
-  it('a student cannot choose a school record directly: a supplied schoolId is rejected and nothing is created (P1-11)', async () => {
-    const other = await ctx.prisma.school.create({ data: { name: 'Another Official School', location: 'Huye' } });
-    const res = await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: other.id }).expect(400);
-    expect(res.body.code).toBe('VALIDATION_FAILED');
+  it('a schoolId must name an active school of the Rwandan list (owner decision 2026-11-14 replaces the P1-11 "no schoolId" rule): unknown, foreign or inactive are refused and nothing is created', async () => {
+    const closed = await ctx.prisma.school.create({ data: { name: 'Another Official School', location: 'Huye', isActive: false, source: 'ADMIN' } });
+    const abroad = await ctx.prisma.school.create({ data: { name: 'Abroad School', location: 'Nairobi', countryCode: 'KE' } });
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: closed.id }).expect(409)).body.code).toBe('SCHOOL_INACTIVE');
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: abroad.id }).expect(400)).body.code).toBe('UNKNOWN_SCHOOL');
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: '6f1d3c1e-2b1a-4c3d-9e8f-0a1b2c3d4e5f' }).expect(400)).body.code).toBe('UNKNOWN_SCHOOL');
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: 'x' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
     expect(await ctx.prisma.user.count({ where: { username: 'sid.probe' } })).toBe(0);
-    expect(await ctx.prisma.user.count({ where: { schoolId: other.id } })).toBe(0);
+    expect(await ctx.prisma.user.count({ where: { schoolId: { in: [closed.id, abroad.id] } } })).toBe(0);
   });
 
   it('refuses a taken username or email with one generic message', async () => {

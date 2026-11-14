@@ -110,7 +110,13 @@ const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-cap
 const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
 const LOGOUT_SESSION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-logout-session.json';
 const REVIEW_QUEUE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-review-queue.json';
-const CURRENT_SNAPSHOT = REVIEW_QUEUE_SNAPSHOT;
+const REPORT_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-report-export-filters.json';
+const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-list-filters.json';
+const EMAIL_DELIVERIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-email-deliveries.json';
+const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeless-schools.json';
+const RELEASE_PERMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-release-permissions.json';
+const SCHOOL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-school-verification.json';
+const CURRENT_SNAPSHOT = SCHOOL_VERIFICATION_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -783,6 +789,91 @@ describe('approved API contract history', () => {
       'GET /api/v1/mentor/reviews: new optional query parameter "q"',
       'GET /api/v1/mentor/reviews: new optional query parameter "sort"',
     ]);
+  });
+
+  test('review queue → report export filters: the shared report filters on results.csv; nothing else', () => {
+    // Additive: the Reports page sends its period, course and division to every export; results.csv
+    // refused them (400). Enrolment already declared courseId (it answered FILTER_NOT_SUPPORTED); it now
+    // applies it, which changes no schema.
+    for (const f of [REVIEW_QUEUE_SNAPSHOT, REPORT_FILTERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REVIEW_QUEUE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REPORT_FILTERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "academicYearId"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "courseId"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "divisionId"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "from"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "to"',
+    ]);
+  });
+
+  test('report export filters → assignment list filters: progress/sort on My Assignments, statuses on the lists; nothing else', () => {
+    // Additive: My Assignments filtered 50 loaded rows in the browser and the coach's grouped tabs
+    // 100; the lists now filter and sort in the database (capability studentAssignmentFilters).
+    for (const f of [REPORT_FILTERS_SNAPSHOT, LIST_FILTERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REPORT_FILTERS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(LIST_FILTERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/assignments: new optional query parameter "statuses"',
+      'GET /api/v1/me/assignments: new optional query parameter "progress"',
+      'GET /api/v1/me/assignments: new optional query parameter "sort"',
+      'GET /api/v1/me/assignments: new optional query parameter "statuses"',
+    ]);
+  });
+
+  test('assignment list filters → e-mail deliveries: list every delivery and retry one; nothing else', () => {
+    // Additive: failed account e-mails (invitations, resets, notices) were counted on the dashboard
+    // but could not be listed or retried; only bulk-job deliveries could.
+    for (const f of [LIST_FILTERS_SNAPSHOT, EMAIL_DELIVERIES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(LIST_FILTERS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(EMAIL_DELIVERIES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/email/deliveries: operation added',
+      'POST /api/v1/admin/email/deliveries/{id}/retry: operation added',
+    ]);
+  });
+
+  test('e-mail deliveries → codeless schools: registration and claims accept schoolId; nothing else', () => {
+    // Additive (owner decision 2026-11-14): a school without an official code is chosen by its internal id.
+    for (const f of [EMAIL_DELIVERIES_SNAPSHOT, CODELESS_SCHOOLS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(EMAIL_DELIVERIES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(CODELESS_SCHOOLS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'POST /api/v1/auth/register/student › request application/json.schoolId: new optional field',
+      'POST /api/v1/me/school-affiliation › request application/json.schoolId: new optional field',
+    ]);
+  });
+
+  test('codeless schools → release permissions: Head Coach student search added; Teachers lose the programme list (owner decision)', () => {
+    // Owner decisions 2026-11-14: Head Coaches search students to add (additive); the unused TEACHER course
+    // grants were removed, so GET /programmes (courses.view) no longer lists TEACHER. TEACHERS_ENABLED is
+    // off in production and the teacher portal never called it — the one deliberate narrowing.
+    for (const f of [CODELESS_SCHOOLS_SNAPSHOT, RELEASE_PERMISSIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(CODELESS_SCHOOLS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(RELEASE_PERMISSIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['GET /api/v1/programmes: roles removed: TEACHER']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['GET /api/v1/admin/programmes/{id}/student-candidates: operation added']);
+  });
+
+  test('release permissions → school verification: administrators verify a school; nothing else', () => {
+    // Owner decision 2026-11-14: Teachers may name a school without an official code once an administrator
+    // created and verified it. (GET /schools/search?teacherEligible is not visible here: that endpoint's
+    // query parameters are not part of the generated OpenAPI; documented in docs/INTEGRATION.md.)
+    for (const f of [RELEASE_PERMISSIONS_SNAPSHOT, SCHOOL_VERIFICATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(RELEASE_PERMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_VERIFICATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['POST /api/v1/admin/schools/{id}/verify: operation added', 'schema VerifySchoolDto: added']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

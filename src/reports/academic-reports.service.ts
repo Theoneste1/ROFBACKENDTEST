@@ -72,6 +72,8 @@ export class AcademicReportsService {
       filters: { ...this.scope.describe(s), status: q.status ?? null },
       summary: {
         assignments: total,
+        // Over ALL matching assignments (not only this page): Σ students expected per assignment.
+        expectedStudents: await this.expectedStudentsTotal(where),
         submissions,
         late,
         byStage: stages(byStatus.map((r) => ({ status: r.status, n: (r._count as { _all: number })._all }))),
@@ -96,6 +98,25 @@ export class AcademicReportsService {
         v.byStage.resubmissionRequested, v.byStage.awaitingApproval, v.byStage.approved, v.byStage.published, v.averageScore,
       ])),
     };
+  }
+
+  /** Σ over the matching assignments of the students expected for each (active enrolments of its year and division). */
+  private async expectedStudentsTotal(where: Prisma.AssignmentWhereInput): Promise<number> {
+    const groups = await this.prisma.assignment.groupBy({ by: ['academicYearId', 'divisionId'], where, _count: { _all: true }, orderBy: { academicYearId: 'asc' } });
+    if (groups.length === 0) return 0;
+    const expected = await this.prisma.studentEnrollment.groupBy({
+      by:    ['academicYearId', 'divisionId'],
+      where: {
+        status: 'ACTIVE', student: this.scope.userStatusWhere('ACTIVE'),
+        academicYearId: { in: [...new Set(groups.map((g) => g.academicYearId))] },
+        divisionId:     { in: [...new Set(groups.map((g) => g.divisionId))] },
+      },
+      _count: { _all: true },
+    });
+    return groups.reduce((n, g) => {
+      const e = expected.find((x) => x.academicYearId === g.academicYearId && x.divisionId === g.divisionId)?._count._all ?? 0;
+      return n + (g._count as { _all: number })._all * e;
+    }, 0);
   }
 
   private assignmentListWhere(s: ReportScope, q: AssignmentReportDto): Prisma.AssignmentWhereInput {

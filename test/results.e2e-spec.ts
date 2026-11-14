@@ -79,6 +79,9 @@ describe('Results and feedback (e2e)', () => {
       const release = await ctx.prisma.resultRelease.findUniqueOrThrow({ where: { id: res.body.releaseId } });
       expect(release).toMatchObject({ publishedById: ctx.ids.admin, resultCount: 2, note: 'Week 3 results' });
       expect(release.publishedAt).toBeInstanceOf(Date);
+      // The assignment records when its results were released.
+      const a = await ctx.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId } });
+      expect(Math.abs((a.resultsPublishedAt?.getTime() ?? 0) - release.publishedAt.getTime())).toBeLessThan(5_000);
 
       await waitForEvents();
       const notes = await ctx.prisma.notification.findMany({ where: { type: 'results.published' } });

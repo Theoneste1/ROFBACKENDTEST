@@ -2,13 +2,14 @@
  * The approved individual-override list (plan §6.3, approved 2026-11-09).
  * Lives in code and changes only by reviewed PR.
  *
- *   TEACHER                       GRANT assignments.prepare (only inside an active
- *                                 TeacherAssignment for that course × division);
- *                                 GRANT students.viewProfile, students.viewProgress,
+ *   TEACHER                       GRANT students.viewProfile, students.viewProgress,
  *                                 submissions.submitOnBehalf (P1-11, school scope:
  *                                 only with an active school assignment; also
  *                                 manageable by Administrators — TEACHER_DELEGATIONS);
  *                                 DENY any default permission
+ *                                 (GRANT assignments.prepare was removed on 2026-11-14:
+ *                                 it needed a course × division TeacherAssignment,
+ *                                 which does not exist, so it was always refused)
  *   STUDENT, MENTOR, HEAD_COACH   DENY any default permission
  *   ADMIN                         DENY any default permission
  *   SUPER_ADMIN                   nothing
@@ -22,7 +23,7 @@ import { NEVER_GRANTABLE, ROLE_GRANTS, grantsForRole, type AppRole, type Permiss
 export type OverrideEffectValue = 'GRANT' | 'DENY';
 
 export const GRANTABLE: Readonly<Partial<Record<AppRole, readonly Permission[]>>> = {
-  TEACHER: ['assignments.prepare', 'students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'],
+  TEACHER: ['students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'],
 };
 
 /**

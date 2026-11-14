@@ -81,10 +81,15 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     code: 'allowed = s && (isAdmin(user) || (isStudent(user) && s.studentId === user.id) || (isCourseWorker(user) && s.currentReview?.mentor.id === user.id))',
     reason: 'loadForCaller(): positive membership test per role; anything else leaves allowed false, which throws 404.',
   },
+  // ── Coach assignments ──────────────────────────────────────────────────────
+  {
+    file: 'src/mentor-assignments/mentor-assignments.service.ts', rule: 'U1', code: '!isHeadCoach(caller)',
+    reason: 'Output shaping only (withoutContact): other callers get the row unchanged; a Head Coach gets it without the coach e-mail (D7, no contact details). Grants nothing.',
+  },
   // ── Discussions ────────────────────────────────────────────────────────────
   {
-    file: 'src/discussions/discussions.service.ts', rule: 'U6', code: 'asModerator = isAdmin(user) && !isAuthor',
-    reason: 'Positive test: only administrators act as moderators; every other role must be the author (checked right after).',
+    file: 'src/discussions/discussions.service.ts', rule: 'U6', code: "return isAdmin(user) && this.permissions.has(user, 'discussions.moderate');",
+    reason: 'Positive test (canModerate): only administrators who still hold discussions.moderate (a DENY override removes it) act as moderators; every other caller must be the author (checked by the callers).',
   },
   {
     file: 'src/discussions/discussions.service.ts', rule: 'U2',

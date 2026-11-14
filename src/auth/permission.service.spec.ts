@@ -104,6 +104,23 @@ describe('PermissionService', () => {
       expect(svc.has(user('ADMIN'), 'users.manageTeachers')).toBe(true);
     });
 
+    it('ADMIN (D-5): the list reports the Head Coach administration the guard grants; never Admin or Super Admin management', async () => {
+      const { service: svc } = make();
+      const { permissions } = await svc.describe(user('ADMIN'));
+      for (const p of ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view'] as const) {
+        expect([p, permissions.includes(p), svc.has(user('ADMIN'), p)]).toEqual([p, true, true]);
+      }
+      for (const p of ['users.manageAdmins', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
+        expect(permissions).not.toContain(p);
+      }
+    });
+
+    it('TEACHER: no course grants are listed (2026-11-14) — only the school-scoped student list and the leaderboard', async () => {
+      const { service: svc } = make();
+      const { permissions } = await svc.describe(user('TEACHER'));
+      expect(permissions).toEqual(['leaderboard.view', 'students.viewScoped']);
+    });
+
     it('SUPER_ADMIN keeps its full effective list, including schools.manage and schools.syncDirectory', async () => {
       const { service: svc } = make();
       const { permissions } = await svc.describe(user('SUPER_ADMIN'));

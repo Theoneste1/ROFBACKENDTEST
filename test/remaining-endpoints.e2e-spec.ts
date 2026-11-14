@@ -203,8 +203,9 @@ describe('Remaining endpoints (e2e)', () => {
       await http().patch(`/api/v1/admin/divisions/${ctx.ids.junior}`).set(bearer(studentJ)).send({ name: 'x' }).expect(403);
     });
 
-    it('schools: a public search for sign-up exposes official schools only (name, code, place); administrators see details', async () => {
-      // P1-11: only schools of the official list (with a code) are offered; 'Test School' has none.
+    it('schools: a public search for sign-up exposes official and administrator-entered schools (name, code, place); administrators see details', async () => {
+      // P1-11; owner decision 2026-11-14: schools without an official code are offered when an administrator
+      // entered them (codeless-schools e2e). 'Test School' is a LEGACY free-text school without a code: never offered.
       await ctx.prisma.school.create({ data: { name: 'TEST OFFICIAL SCHOOL', location: 'Kigali, Gasabo', code: '120999', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'test official school' } });
       const found = await http().get('/api/v1/schools/search').query({ q: 'Test' }).expect(200);
       expect(found.body).toEqual([expect.objectContaining({ name: 'TEST OFFICIAL SCHOOL', code: '120999' })]);

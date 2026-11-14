@@ -3,7 +3,11 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
-import { csvBatchSize, keysetBatches, mapBatches, offsetBatches, type CsvExport } from './csv.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { csvBatchSize, idBatches, keysetBatches, mapBatches, type CsvExport } from './csv.js';
+import { ReportScopeService } from './report-scope.js';
+import type { ReportFiltersDto } from './dto/report-filters.dto.js';
+import type { AuthUser } from '../common/auth-user.js';
 
 /** Coaches per batch for the workload export: each row loads that coach's reviews. */
 const WORKLOAD_BATCH = 200;
@@ -15,7 +19,10 @@ const WORKLOAD_BATCH = 200;
  */
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scope:  ReportScopeService,
+  ) {}
 
   /** Headline numbers for the admin dashboard. */
   async overview() {
@@ -55,21 +62,34 @@ export class ReportsService {
     };
   }
 
-  /** One row per submission with its result. Filter by assignment or by course × division. */
-  async resultsCsv(q: { assignmentId?: string; courseId?: string; divisionId?: string }): Promise<CsvExport> {
+  /**
+   * One row per submission with its result, for one assignment or one course ×
+   * division. The shared report filters apply: the academic year (default: the
+   * current year; with assignmentId only when given explicitly, since the
+   * assignment already fixes it), and from/to = submitted between.
+   */
+  async resultsCsv(q: ReportFiltersDto & { assignmentId?: string }, user: AuthUser): Promise<CsvExport> {
     if (!q.assignmentId && !(q.courseId && q.divisionId)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'FILTER_REQUIRED', 'Provide assignmentId, or courseId and divisionId.');
     }
-    const where = q.assignmentId
-      ? { assignmentId: q.assignmentId }
-      : { assignment: { courseId: q.courseId, divisionId: q.divisionId } };
-    // Ordered through relations: offset paging (keyset needs the model's own columns); id makes it total.
-    const pages = offsetBatches((page) => this.prisma.submission.findMany({
+    const s = await this.scope.resolve(q.assignmentId && !q.academicYearId ? { ...q, academicYearId: 'all' } : q, user);
+    const range = this.scope.range(s);
+    const where: Prisma.SubmissionWhereInput = {
+      ...(q.assignmentId && { assignmentId: q.assignmentId }),
+      assignment: this.scope.assignmentWhere(s),
+      ...(range && { submittedAt: range }),
+    };
+    // Ordered through relations (deadline, the student's last name, id): the order is taken once,
+    // then rows are read by id a batch at a time (idBatches) — not OFFSET pages re-sorting everything.
+    const order = await this.prisma.submission.findMany({
       where,
       orderBy: [{ assignment: { deadline: 'asc' } }, { student: { lastName: 'asc' } }, { id: 'asc' }],
-      ...page,
+      select: { id: true },
+    });
+    const pages = idBatches(order.map((o) => o.id), (ids) => this.prisma.submission.findMany({
+      where: { id: { in: ids } },
       select: {
-        status: true, pointsAwarded: true, isLate: true,
+        id: true, status: true, pointsAwarded: true, isLate: true,
         revisionCount: true, submittedAt: true, publishedAt: true,
         publishedReview: { select: { score: true, percentage: true } },
         currentReview:   { select: { mentor: { select: { firstName: true, lastName: true } } } },

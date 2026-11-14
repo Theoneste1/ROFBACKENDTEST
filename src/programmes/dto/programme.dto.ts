@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsUUID } from 'class-validator';
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 import { PickType } from '@nestjs/swagger';
 
@@ -27,6 +27,16 @@ export class AddProgrammeMemberDto {
 export class InviteCoachDto extends PickType(InviteUserDto, ['firstName', 'lastName', 'email', 'username'] as const) {}
 
 export const MEMBER_ROLES = ['STUDENT', 'MENTOR'] as const;
+
+/** GET /admin/programmes/:id/student-candidates — students who can be added to the programme. */
+export class SearchProgrammeStudentsDto extends PaginationQueryDto {
+  /** First name, last name or username (2–100 characters; surrounding spaces ignored). E-mail addresses are never searched. */
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  search: string;
+}
 
 /** GET /admin/programmes/:id/members */
 export class ListProgrammeMembersDto extends PaginationQueryDto {

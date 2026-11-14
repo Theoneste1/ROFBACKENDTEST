@@ -125,6 +125,15 @@ export class UpdateSchoolDto {
 }
 
 /** PATCH /admin/schools/:id/active */
+/** POST /admin/schools/:id/verify: an optional note for the audit log. */
+export class VerifySchoolDto {
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @Length(1, 500)
+  note?: string;
+}
+
 export class SetSchoolActiveDto {
   @IsBoolean()
   isActive: boolean;
