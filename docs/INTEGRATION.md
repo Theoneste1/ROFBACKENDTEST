@@ -163,16 +163,18 @@ names, never configuration values or other internal details.
 
 ## Schools without an official code
 
-Owner decision 2026-11-14. `GET /api/v1/schools/search` returns every **active
-Rwandan** school, with or without an official code, by name, code prefix or place
-(province, district, sector or location text). The response shape is unchanged;
+Owner decision 2026-11-14. `GET /api/v1/schools/search` returns **active Rwandan**
+schools with an official code and those without one that an administrator entered
+(official name and place), by name, code prefix or place (province, district, sector
+or location text). Free-text schools typed in before the directory existed (source
+`LEGACY`, no code) are never offered publicly; administrators still match claims to them. The response shape is unchanged;
 a school without a code has `code: null` (a code is never invented).
 
 Registration (`POST /auth/register/student`) and the student's claim
 (`POST /me/school-affiliation`) accept `schoolId` (the result's `id`) as well as
 `schoolCode`. The claim is PENDING until an Administrator verifies it, exactly as
-with a code. Refused: an unknown id or one outside the Rwandan list (400
-`UNKNOWN_SCHOOL`), an inactive school (409 `SCHOOL_INACTIVE`), `schoolId` with
+with a code. Refused: an unknown id, one outside the Rwandan list or a `LEGACY` school without a
+code (400 `UNKNOWN_SCHOOL`), an inactive school (409 `SCHOOL_INACTIVE`), `schoolId` with
 `schoolCode`, a name or a place (400 `VALIDATION_FAILED`), `schoolId` with another
 country (400 `SCHOOL_DIRECTORY_RWANDA_ONLY`).
 

@@ -92,7 +92,7 @@ describe('Authentication (e2e)', () => {
   });
 
   it('a schoolId must name an active school of the Rwandan list (owner decision 2026-11-14 replaces the P1-11 "no schoolId" rule): unknown, foreign or inactive are refused and nothing is created', async () => {
-    const closed = await ctx.prisma.school.create({ data: { name: 'Another Official School', location: 'Huye', isActive: false } });
+    const closed = await ctx.prisma.school.create({ data: { name: 'Another Official School', location: 'Huye', isActive: false, source: 'ADMIN' } });
     const abroad = await ctx.prisma.school.create({ data: { name: 'Abroad School', location: 'Nairobi', countryCode: 'KE' } });
     expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: closed.id }).expect(409)).body.code).toBe('SCHOOL_INACTIVE');
     expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: abroad.id }).expect(400)).body.code).toBe('UNKNOWN_SCHOOL');
