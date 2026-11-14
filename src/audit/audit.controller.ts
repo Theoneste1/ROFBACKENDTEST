@@ -11,6 +11,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { Role } from '../generated/prisma/client.js';
+import { sendCsvExport } from '../reports/csv-stream.js';
 
 class AuditQueryDto extends PaginationQueryDto {
   /** USERS, ENROLLMENT, MENTOR_ASSIGNMENTS, ASSIGNMENTS, DISTRIBUTION, REVIEWS, RESULTS, MODERATION, SETTINGS, … */
@@ -60,7 +61,7 @@ export class AuditController {
     return this.query.actions();
   }
 
-  /** The filtered trail as CSV (up to 50 000 rows). The export itself is audited. */
+  /** The filtered trail as CSV, streamed (no row limit; was 50 000). The export itself is audited. */
   @Get('export.csv')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
@@ -71,9 +72,7 @@ export class AuditController {
       actorId: user.id, actorRole: user.role, action: 'EXPORT_AUDIT_LOG', entity: 'AuditLog', metadata: { filters: { ...q } },
     });
     const date = new Date().toISOString().slice(0, 10);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="audit-log-${date}.csv"`);
-    res.send(csv);
+    await sendCsvExport(res, `audit-log-${date}.csv`, csv);
   }
 
   @Get(':id')

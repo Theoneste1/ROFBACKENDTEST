@@ -16,9 +16,9 @@ import { Prisma, type SubmissionStatus } from '../generated/prisma/client.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { ReportScopeService, teachingIn, type ReportScope } from './report-scope.js';
 import { toCounts } from './dashboard.service.js';
-import { accountStatus, MAX_ROWS, searchWhere } from './user-reports.service.js';
+import { accountStatus, searchWhere } from './user-reports.service.js';
 import type { AssignmentReportDto, ReportFiltersDto, ReportListDto, UserReportDto } from './dto/report-filters.dto.js';
-import { toCsv } from './csv.js';
+import { keysetBatches, mapBatches, type CsvExport } from './csv.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const PERSON = { id: true, firstName: true, lastName: true, username: true } as const;
@@ -80,22 +80,22 @@ export class AcademicReportsService {
     };
   }
 
-  async assignmentsCsv(q: AssignmentReportDto, user: AuthUser) {
+  async assignmentsCsv(q: AssignmentReportDto, user: AuthUser): Promise<CsvExport> {
     const s = await this.scope.resolve(q, user);
-    const rows = await this.prisma.assignment.findMany({
-      where: this.assignmentListWhere(s, q), take: MAX_ROWS, orderBy: [{ deadline: 'desc' }, { id: 'asc' }], select: ASSIGNMENT_SELECT,
-    });
-    const views = await this.assignmentRows(rows);
-    return toCsv(
-      ['Assignment', 'Course', 'Division', 'Academic year', 'Status', 'Published', 'Deadline', 'Expected students',
+    const where = this.assignmentListWhere(s, q);
+    const pages = keysetBatches((page) => this.prisma.assignment.findMany({
+      where, orderBy: [{ deadline: 'desc' }, { id: 'asc' }], select: ASSIGNMENT_SELECT, ...page,
+    }));
+    return {
+      headers: ['Assignment', 'Course', 'Division', 'Academic year', 'Status', 'Published', 'Deadline', 'Expected students',
        'Submitted', 'On time', 'Late', 'Not submitted', 'Submission %', 'Awaiting distribution', 'In review',
        'Resubmission requested', 'Awaiting approval', 'Approved', 'Published results', 'Average score %'],
-      views.map((v) => [
+      batches: mapBatches(pages, async (rows) => (await this.assignmentRows(rows)).map((v) => [
         v.title, v.course.title, v.division.name, v.academicYear.name, v.status, v.publishedAt, v.deadline, v.expectedStudents,
         v.submitted, v.onTime, v.late, v.notSubmitted, v.submissionRate, v.byStage.awaitingDistribution, v.byStage.inReview,
         v.byStage.resubmissionRequested, v.byStage.awaitingApproval, v.byStage.approved, v.byStage.published, v.averageScore,
-      ]),
-    );
+      ])),
+    };
   }
 
   private assignmentListWhere(s: ReportScope, q: AssignmentReportDto): Prisma.AssignmentWhereInput {
@@ -227,15 +227,15 @@ export class AcademicReportsService {
   }
 
   /** One row per review cycle (assigned in the date range, if given). */
-  async reviewsCsv(q: ReportFiltersDto, user: AuthUser) {
+  async reviewsCsv(q: ReportFiltersDto, user: AuthUser): Promise<CsvExport> {
     const s = await this.scope.resolve(q, user);
     const range = this.scope.range(s);
-    const rows = await this.prisma.mentorReview.findMany({
+    const pages = keysetBatches((page) => this.prisma.mentorReview.findMany({
       where:   { submission: { assignment: this.scope.assignmentWhere(s) }, ...(range && { assignedAt: range }) },
       orderBy: [{ assignedAt: 'desc' }, { id: 'asc' }],
-      take:    MAX_ROWS,
+      ...page,
       select:  {
-        cycle: true, status: true, score: true, percentage: true,
+        id: true, cycle: true, status: true, score: true, percentage: true,
         assignedAt: true, startedAt: true, markedAt: true, returnedAt: true, decidedAt: true, publishedAt: true,
         mentor:     { select: PERSON },
         submission: {
@@ -245,19 +245,19 @@ export class AcademicReportsService {
           },
         },
       },
-    });
+    }));
     const now = Date.now();
-    return toCsv(
-      ['Assignment', 'Course', 'Division', 'Student', 'Coach', 'Cycle', 'Status', 'Score', 'Percentage',
+    return {
+      headers: ['Assignment', 'Course', 'Division', 'Student', 'Coach', 'Cycle', 'Status', 'Score', 'Percentage',
        'Assigned', 'Started', 'Marked', 'Completed', 'Decided', 'Published', 'Hours to complete', 'Days open'],
-      rows.map((r) => [
+      batches: mapBatches(pages, (rows) => rows.map((r) => [
         r.submission.assignment.title, r.submission.assignment.course.title, r.submission.assignment.division.name,
         fullName(r.submission.student), fullName(r.mentor), r.cycle, r.status, r.score, r.percentage,
         r.assignedAt, r.startedAt, r.markedAt, r.returnedAt, r.decidedAt, r.publishedAt,
         r.returnedAt ? round1((r.returnedAt.getTime() - r.assignedAt.getTime()) / 3_600_000) : null,
         OPEN_REVIEW_STATUSES.includes(r.status) ? round1((now - r.assignedAt.getTime()) / DAY_MS) : null,
-      ]),
-    );
+      ])),
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -311,21 +311,21 @@ export class AcademicReportsService {
     };
   }
 
-  async resultsPublicationCsv(q: ReportListDto, user: AuthUser) {
+  async resultsPublicationCsv(q: ReportListDto, user: AuthUser): Promise<CsvExport> {
     const s = await this.scope.resolve(q, user);
-    const rows = await this.prisma.assignment.findMany({
-      where: this.resultsListWhere(s), take: MAX_ROWS, orderBy: [{ deadline: 'desc' }, { id: 'asc' }], select: ASSIGNMENT_SELECT,
-    });
-    const views = await this.resultRows(rows, s);
-    return toCsv(
-      ['Assignment', 'Course', 'Division', 'Academic year', 'Deadline', 'Submissions', 'Awaiting approval',
+    const where = this.resultsListWhere(s);
+    const pages = keysetBatches((page) => this.prisma.assignment.findMany({
+      where, orderBy: [{ deadline: 'desc' }, { id: 'asc' }], select: ASSIGNMENT_SELECT, ...page,
+    }));
+    return {
+      headers: ['Assignment', 'Course', 'Division', 'Academic year', 'Deadline', 'Submissions', 'Awaiting approval',
        'Approved, not published', 'Published', 'Releases', 'Last published', 'Last published by', 'Average score %'],
-      views.map((v) => [
+      batches: mapBatches(pages, async (rows) => (await this.resultRows(rows, s)).map((v) => [
         v.title, v.course.title, v.division.name, v.academicYear.name, v.deadline, v.submissions, v.awaitingApproval,
         v.awaitingPublication, v.published, v.releases, v.lastPublishedAt,
         v.lastPublishedBy ? fullName(v.lastPublishedBy) : null, v.averageScore,
-      ]),
-    );
+      ])),
+    };
   }
 
   /** Assignments with work submitted; with a date range, those with a release in it. */
@@ -404,23 +404,22 @@ export class AcademicReportsService {
     };
   }
 
-  async mentorActivityCsv(q: UserReportDto, user: AuthUser) {
+  async mentorActivityCsv(q: UserReportDto, user: AuthUser): Promise<CsvExport> {
     const s = await this.scope.resolve(q, user);
-    const rows = await this.prisma.user.findMany({
-      where: this.mentorActivityWhere(s, q), take: MAX_ROWS,
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: MENTOR_SELECT,
-    });
-    const views = await this.mentorRows(s, rows);
-    return toCsv(
-      ['Coach', 'Username', 'Email', 'Status', 'Teaching', 'Reviews assigned', 'Reviews completed', 'Open reviews',
+    const where = this.mentorActivityWhere(s, q);
+    const pages = keysetBatches((page) => this.prisma.user.findMany({
+      where, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }], select: MENTOR_SELECT, ...page,
+    }));
+    return {
+      headers: ['Coach', 'Username', 'Email', 'Status', 'Teaching', 'Reviews assigned', 'Reviews completed', 'Open reviews',
        'Sent back by admin', 'Average review hours', 'Assignments prepared', 'Discussion comments', 'Last login'],
-      views.map((v) => [
+      batches: mapBatches(pages, async (rows) => (await this.mentorRows(s, rows)).map((v) => [
         fullName(v), v.username, v.email, v.status,
         v.teaching.map((t) => `${t.course.title} (${t.division.name})`).join('; '),
         v.reviewsAssigned, v.reviewsCompleted, v.openReviews, v.sentBackByAdmin, v.averageReviewHours,
         v.assignmentsPrepared, v.discussionComments, v.lastLoginAt,
-      ]),
-    );
+      ])),
+    };
   }
 
   private mentorActivityWhere(s: ReportScope, q: UserReportDto): Prisma.UserWhereInput {

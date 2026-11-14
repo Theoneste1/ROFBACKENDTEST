@@ -12,7 +12,7 @@ import { pageArgs, paginated, type PaginationQueryDto } from '../common/paginati
 import { DATE_PATTERN, DEFAULT_TIME_ZONE, fromZoned } from '../common/time/zoned-time.js';
 import type { Prisma, Role } from '../generated/prisma/client.js';
 import { AUDIT_CATEGORIES, categoryOf, KNOWN_ACTIONS, type AuditCategory } from './audit-categories.js';
-import { toCsv } from '../reports/csv.js';
+import { keysetBatches, mapBatches, type CsvExport } from '../reports/csv.js';
 
 export interface AuditQuery extends PaginationQueryDto {
   category?:  AuditCategory;
@@ -25,7 +25,6 @@ export interface AuditQuery extends PaginationQueryDto {
   to?:        string;
 }
 
-const MAX_EXPORT_ROWS = 50_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const SELECT = {
@@ -67,17 +66,19 @@ export class AuditQueryService {
     return all.map((action) => ({ action, category: categoryOf(action), count: byAction.get(action) ?? 0 }));
   }
 
-  async csv(q: AuditQuery) {
-    const rows = await this.prisma.auditLog.findMany({
-      where: this.where(q), orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: MAX_EXPORT_ROWS, select: SELECT,
-    });
-    return toCsv(
-      ['Time', 'Category', 'Action', 'Actor', 'Actor role', 'Record type', 'Record id', 'Details'],
-      rows.map(present).map((r) => [
+  /** Every matching entry, newest first, streamed in batches (no row limit; was 50,000). */
+  async csv(q: AuditQuery): Promise<CsvExport> {
+    const where = this.where(q);   // validates the date range before anything is sent
+    const pages = keysetBatches((page) => this.prisma.auditLog.findMany({
+      where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: SELECT, ...page,
+    }));
+    return {
+      headers: ['Time', 'Category', 'Action', 'Actor', 'Actor role', 'Record type', 'Record id', 'Details'],
+      batches: mapBatches(pages, (rows) => rows.map(present).map((r) => [
         r.createdAt, r.category, r.action, r.actorUsername, r.actorRole, r.entity, r.entityId,
         r.metadata === null ? null : JSON.stringify(r.metadata),
-      ]),
-    );
+      ])),
+    };
   }
 
   private where(q: AuditQuery): Prisma.AuditLogWhereInput {
