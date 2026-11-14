@@ -1825,7 +1825,7 @@ Body (JSON):
 
 Returns `201` JSON with:
 
-`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` any or null · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` any or null · `lastName` string · `olympiadInterests` any[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
 
 ### GET `/api/v1/admin/users/{id}`
 
@@ -1837,7 +1837,7 @@ Returns `201` JSON with:
 
 Returns `200` JSON with:
 
-`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object · `updatedAt` string (date-time) · `username` string
 
 ### PATCH `/api/v1/admin/users/{id}`
 
@@ -1865,7 +1865,7 @@ Body (JSON):
 
 Returns `200` JSON with:
 
-`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `olympiadInterests` any[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
 
 ### DELETE `/api/v1/admin/users/{id}`
 
@@ -1928,7 +1928,7 @@ Body (JSON):
 
 Returns `200` JSON with:
 
-`activatedAt` string (date-time) or null · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object or null · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) or null · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `olympiadInterests` any[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object or null · `updatedAt` string (date-time) · `username` string
 
 ### POST `/api/v1/admin/users/import`
 
@@ -2431,7 +2431,7 @@ Body (JSON):
 
 Returns `201` JSON with:
 
-`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` any or null · `lastName` string · `points` integer · `problemsSolved` integer · `requiresApproval` boolean · `requiresEmailVerification` boolean · `role` string · `school` object or null · `schoolVerification` string or null · `username` string
+`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` any or null · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `requiresApproval` boolean · `requiresEmailVerification` boolean · `role` string · `school` object or null · `schoolVerification` string or null · `username` string
 
 ### POST `/api/v1/auth/register/teacher`
 
@@ -3278,7 +3278,7 @@ The current user's profile, division and school.
 
 Returns `200` JSON with:
 
-`avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` string or null · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `points` integer · `problemsSolved` integer · `role` string · `school` object or null · `username` string
+`avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` string or null · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `role` string · `school` object or null · `username` string
 
 ### PATCH `/api/v1/me`
 
@@ -3295,7 +3295,7 @@ Body (JSON):
 
 Returns `200` JSON with:
 
-`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `points` integer · `problemsSolved` integer · `role` string · `school` object · `username` string
+`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `role` string · `school` object · `username` string
 
 ### GET `/api/v1/me/assignments`
 

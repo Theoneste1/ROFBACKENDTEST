@@ -3597,6 +3597,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -3655,6 +3661,7 @@
                     "id",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "requiresApproval",
@@ -3863,6 +3870,12 @@
                         "lastName": {
                           "type": "string"
                         },
+                        "olympiadInterests": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
                         "points": {
                           "type": "integer"
                         },
@@ -3908,6 +3921,7 @@
                         "id",
                         "lastLoginAt",
                         "lastName",
+                        "olympiadInterests",
                         "points",
                         "problemsSolved",
                         "role",
@@ -6707,6 +6721,9 @@
                           "lastName": {
                             "type": "string"
                           },
+                          "olympiadInterests": {
+                            "type": "array"
+                          },
                           "points": {
                             "type": "integer"
                           },
@@ -6762,6 +6779,7 @@
                           "isApproved",
                           "lastLoginAt",
                           "lastName",
+                          "olympiadInterests",
                           "points",
                           "problemsSolved",
                           "provider",
@@ -6910,6 +6928,9 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -6947,6 +6968,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -7082,6 +7104,9 @@
                         "lastName": {
                           "type": "string"
                         },
+                        "olympiadInterests": {
+                          "type": "array"
+                        },
                         "points": {
                           "type": "integer"
                         },
@@ -7130,6 +7155,7 @@
                         "isApproved",
                         "lastLoginAt",
                         "lastName",
+                        "olympiadInterests",
                         "points",
                         "problemsSolved",
                         "role",
@@ -7381,6 +7407,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -7435,6 +7467,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -7561,6 +7594,9 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -7598,6 +7634,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -7895,6 +7932,9 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -7950,6 +7990,7 @@
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -8050,6 +8091,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -8095,6 +8142,7 @@
                     "id",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "role",
@@ -8198,6 +8246,12 @@
                     "lastName": {
                       "type": "string"
                     },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "points": {
                       "type": "integer"
                     },
@@ -8242,6 +8296,7 @@
                     "id",
                     "lastLoginAt",
                     "lastName",
+                    "olympiadInterests",
                     "points",
                     "problemsSolved",
                     "role",
@@ -38831,6 +38886,12 @@
                           "name": {
                             "type": "string"
                           },
+                          "olympiadInterests": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
                           "points": {
                             "type": "integer"
                           },
@@ -38876,6 +38937,7 @@
                           "id",
                           "lastLoginAt",
                           "name",
+                          "olympiadInterests",
                           "points",
                           "registeredAt",
                           "resultsPublished",
