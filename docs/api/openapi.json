@@ -18424,6 +18424,46 @@
                 "SUBMITTED_TO_ADMIN"
               ]
             }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Student first name, last name or username (contains, case-insensitive).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "description": "open: still with the coach (ASSIGNED, IN_REVIEW, MARKED, REJECTED, RESUBMISSION_REQUESTED);\ndone: the coach's part is finished (SUBMITTED_TO_ADMIN, APPROVED, PUBLISHED); all: every status.\nIgnored when `status` is given.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "done",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "submitted: oldest first (default) · recent: newest first · name: student A–Z · score: highest first.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "submitted",
+                "recent",
+                "name",
+                "score"
+              ]
+            }
           }
         ],
         "responses": {
@@ -18881,7 +18921,7 @@
             }
           }
         },
-        "summary": "Submissions assigned to me (open reviews by default; filter with ?status=).",
+        "summary": "Submissions assigned to me (open reviews by default). Filters: status | group, q, courseId, divisionId, assignmentId, sort; `counts` totals (capability reviewQueueFilters).",
         "tags": [
           "Mentor"
         ],

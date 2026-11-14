@@ -109,7 +109,8 @@ const SCHOOL_SYNC_APPLY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-11-school
 const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-capabilities.json';
 const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
 const LOGOUT_SESSION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-logout-session.json';
-const CURRENT_SNAPSHOT = LOGOUT_SESSION_SNAPSHOT;
+const REVIEW_QUEUE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-review-queue.json';
+const CURRENT_SNAPSHOT = REVIEW_QUEUE_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -766,6 +767,22 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ['POST /api/v1/auth/logout: roles removed: ADMIN, MENTOR, STUDENT']);
     assert.deepEqual(res.review, ['POST /api/v1/auth/logout: now public (no authentication) — security review']);
     assert.deepEqual(res.additive, ['POST /api/v1/auth/logout: roles added: PUBLIC']);
+  });
+
+  test('logout session → review queue (M2/M3): three new optional query parameters on GET /mentor/reviews; nothing else', () => {
+    // Additive: q, group and sort are optional, the default queue is unchanged, and the backend
+    // advertises them with the reviewQueueFilters capability. (The answer's new `counts` field is not
+    // part of the OpenAPI document: responses are recorded by the e2e suite.)
+    for (const f of [LOGOUT_SESSION_SNAPSHOT, REVIEW_QUEUE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(LOGOUT_SESSION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REVIEW_QUEUE_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/mentor/reviews: new optional query parameter "group"',
+      'GET /api/v1/mentor/reviews: new optional query parameter "q"',
+      'GET /api/v1/mentor/reviews: new optional query parameter "sort"',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

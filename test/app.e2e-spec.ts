@@ -33,7 +33,7 @@ describe('App basics (e2e)', () => {
     expect(res.body.capabilities.features).toEqual([
       'academicYearActivation',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
-      'permissionScopes', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired',
+      'permissionScopes', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts'] : []),
     ]);
     expect(res.body.capabilities.features).not.toContain('schoolDirectorySync');

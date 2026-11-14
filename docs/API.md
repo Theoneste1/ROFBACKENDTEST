@@ -3350,7 +3350,7 @@ Returns `200` JSON, an array of objects with:
 
 **Access:** MENTOR, HEAD_COACH
 
-Submissions assigned to me (open reviews by default; filter with ?status=).
+Submissions assigned to me (open reviews by default). Filters: status | group, q, courseId, divisionId, assignmentId, sort; `counts` totals (capability reviewQueueFilters).
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -3360,6 +3360,9 @@ Submissions assigned to me (open reviews by default; filter with ?status=).
 | `mentorId` | query | string |  |  |
 | `studentId` | query | string |  |  |
 | `status` | query | PUBLISHED \| REJECTED \| ASSIGNED \| MARKED \| APPROVED \| RESUBMISSION_REQUESTED \| SUBMITTED \| IN_REVIEW \| SUBMITTED_TO_ADMIN |  |  |
+| `q` | query | string |  | Student first name, last name or username (contains, case-insensitive). |
+| `group` | query | open \| done \| all |  | open: still with the coach (ASSIGNED, IN_REVIEW, MARKED, REJECTED, RESUBMISSION_REQUESTED); done: the coach's part is finished (SUBMITTED_TO_ADMIN, APPROVED, PUBLISHED); all: every status. Ignored when `status` is given. |
+| `sort` | query | submitted \| recent \| name \| score |  | submitted: oldest first (default) · recent: newest first · name: student A–Z · score: highest first. |
 
 Returns `200` JSON with:
 

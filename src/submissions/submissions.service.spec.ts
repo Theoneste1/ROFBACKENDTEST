@@ -565,4 +565,52 @@ describe('SubmissionsService', () => {
       expect(events.emit).toHaveBeenCalledWith(Events.ResubmissionRequestWithdrawn, { submissionId: 'sub1' });
     });
   });
+describe("getReviewQueue (M2/M3: scope, search, groups, sort and counts in the database)", () => {
+    const run = async (query: Record<string, unknown>) => {
+      const { service, prisma } = makeMocks();
+      (prisma.submission as any).count = vi.fn().mockResolvedValue(0);
+      prisma.submission.groupBy.mockResolvedValue([
+        { status: "ASSIGNED", _count: { _all: 3 } }, { status: "RESUBMISSION_REQUESTED", _count: { _all: 1 } },
+        { status: "SUBMITTED_TO_ADMIN", _count: { _all: 2 } }, { status: "PUBLISHED", _count: { _all: 4 } },
+      ]);
+      const res = await service.getReviewQueue(MENTOR, query as any);
+      return { res, prisma, where: prisma.submission.findMany.mock.calls[0][0].where, args: prisma.submission.findMany.mock.calls[0][0] };
+    };
+
+    it("is always limited to the caller's own reviews; course and division narrow it (M3)", async () => {
+      const { where, prisma } = await run({ courseId: "c1", divisionId: "d1" });
+      expect(where).toMatchObject({ currentReview: { mentorId: "m1" }, assignment: { courseId: "c1", divisionId: "d1" } });
+      // The totals use the same scope (own reviews, same course and division).
+      expect(prisma.submission.groupBy.mock.calls[0][0].where).toMatchObject({ currentReview: { mentorId: "m1" }, assignment: { courseId: "c1", divisionId: "d1" } });
+      expect((prisma.submission as any).count.mock.calls[0][0].where).toEqual(where);
+    });
+
+    it("without the new parameters the queue is unchanged: default statuses, oldest first", async () => {
+      const { where, args } = await run({});
+      expect(where.status).toEqual({ in: ["ASSIGNED", "IN_REVIEW", "MARKED", "REJECTED", "SUBMITTED_TO_ADMIN", "RESUBMISSION_REQUESTED"] });
+      expect(where.assignment).toBeUndefined();
+      expect(args.orderBy).toEqual([{ submittedAt: "asc" }, { id: "asc" }]);
+    });
+
+    it("search matches the student name or username inside the caller's scope only; paging is done by the database", async () => {
+      const { where, args } = await run({ q: "ada", page: 3, limit: 25, sort: "recent" });
+      expect(where.currentReview).toEqual({ mentorId: "m1" });
+      expect(where.student.OR).toEqual([
+        { firstName: { contains: "ada", mode: "insensitive" } },
+        { lastName:  { contains: "ada", mode: "insensitive" } },
+        { username:  { contains: "ada", mode: "insensitive" } },
+      ]);
+      expect(args).toMatchObject({ skip: 50, take: 25 });
+      expect(args.orderBy).toEqual([{ submittedAt: { sort: "desc", nulls: "last" } }, { id: "asc" }]);
+    });
+
+    it("returns counts by group from the scope, independent of search and status", async () => {
+      const { res, prisma } = await run({ q: "x", group: "done" });
+      expect(prisma.submission.groupBy.mock.calls[0][0].where.student).toBeUndefined();
+      expect(prisma.submission.groupBy.mock.calls[0][0].where.status).toBeUndefined();
+      expect(res.counts).toEqual({ open: 4, done: 6, all: 10 });
+      expect(res.meta).toBeDefined();
+    });
+  });
 });
+
