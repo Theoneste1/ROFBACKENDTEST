@@ -16,10 +16,13 @@ import type { AuthUser } from '../common/auth-user.js';
 import type { CsvExport } from './csv.js';
 import { sendCsvExport } from './csv-stream.js';
 
-class ResultsReportDto {
+/**
+ * Results export: the shared report filters (academicYearId — default the
+ * current year, "all" for every year; divisionId; courseId; from/to = submitted
+ * between) plus assignmentId. Needs assignmentId, or courseId and divisionId.
+ */
+class ResultsReportDto extends ReportFiltersDto {
   @IsOptional() @IsUUID() assignmentId?: string;
-  @IsOptional() @IsUUID() courseId?: string;
-  @IsOptional() @IsUUID() divisionId?: string;
 }
 
 class DivisionReportDto {
@@ -100,6 +103,10 @@ export class ReportsController {
     await this.sendCsv(res, 'mentors', await this.users.mentorsCsv(q, user), user, q);
   }
 
+  /**
+   * Enrolments per year × division × school × grade. Period = enrolled between;
+   * courseId = students taking part in that course (opened or completed).
+   */
   @Get('enrollment')
   @Roles('ADMIN', 'SUPER_ADMIN')
   enrollment(@Query() q: ReportListDto, @CurrentUser() user: AuthUser) {
@@ -186,15 +193,19 @@ export class ReportsController {
     await this.sendCsv(res, 'mentor-activity', await this.academic.mentorActivityCsv(q, user), user, q);
   }
 
-  // ─── Earlier exports (unchanged) ──────────────────────────────────────────
+  // ─── Earlier exports ──────────────────────────────────────────────────────
 
-  /** One row per submission with its result (by assignment, or course × division). */
+  /**
+   * One row per submission with its result, by assignment or by course ×
+   * division (one of the two is required). Also: academicYearId (default the
+   * current year; with assignmentId only when given), from/to = submitted between.
+   */
   @Get('results.csv')
   @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async results(@Query() q: ResultsReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'results', await this.reports.resultsCsv(q), user, q);
+    await this.sendCsv(res, 'results', await this.reports.resultsCsv(q, user), user, q);
   }
 
   @Get('student-progress.csv')

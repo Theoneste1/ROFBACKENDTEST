@@ -304,7 +304,11 @@ current year, `all` for every year), `divisionId`, `courseId`, `from`/`to`
 cannot apply is rejected (`FILTER_NOT_SUPPORTED`) rather than ignored.
 Snapshot figures (pending reviews, open reports, account states) describe the
 present; the date range limits activity figures (registered, published,
-submitted, reviewed, reported).
+submitted, reviewed, reported). The enrolment report applies `courseId` as
+"students taking part in that course" (as the Students report does), and the
+older `results.csv` export (one row per submission, for an assignment or a
+course × division) takes the same filters, its period meaning *submitted
+between* (capability `reportExportFilters`).
 
 **Queries.** Counts and group-bys run in the database; per-row figures are
 fetched for the current page with one grouped query per figure; averages and

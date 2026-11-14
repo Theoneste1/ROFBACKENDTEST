@@ -198,10 +198,12 @@ export class UserReportsService {
 
   /**
    * Student enrolments per academic year × division × school × grade, by
-   * enrolment status. Date range = enrolled between. Not filterable by course.
+   * enrolment status. Date range = enrolled between. A course limits it to
+   * students taking part in that course (opened or completed), as in the
+   * Students report.
    */
   async enrollment(q: ReportListDto, user: AuthUser) {
-    const s = await this.scope.resolve(q, user, { unsupported: ['courseId'] });
+    const s = await this.scope.resolve(q, user);
     const range = this.scope.range(s);
     const groups = await this.prisma.studentEnrollment.groupBy({
       by:    ['academicYearId', 'divisionId', 'schoolId', 'gradeLevel', 'status'],
@@ -209,6 +211,8 @@ export class UserReportsService {
         ...(s.year && { academicYearId: s.year.id }),
         ...(s.divisionId && { divisionId: s.divisionId }),
         ...(range && { enrolledAt: range }),
+        // A course: students taking part in it (opened or completed), as in the Students report.
+        ...(s.courseId && { student: { courseEnrollments: { some: { courseId: s.courseId, status: { in: ['ROLLED', 'COMPLETED'] } } } } }),
       },
       _count: { _all: true },
     });

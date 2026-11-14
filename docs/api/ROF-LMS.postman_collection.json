@@ -2252,7 +2252,38 @@
                 "results.csv"
               ],
               "variable": [],
-              "query": []
+              "query": [
+                {
+                  "key": "academicYearId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "divisionId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "courseId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "from",
+                  "value": "from",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "to",
+                  "value": "to",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
             },
             "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
           }

@@ -787,6 +787,9 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 **Access:** ADMIN, SUPER_ADMIN
 
+Enrolments per year × division × school × grade. Period = enrolled between;
+courseId = students taking part in that course (opened or completed).
+
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `academicYearId` | query | string |  |  |
@@ -930,6 +933,14 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 ### GET `/api/v1/admin/reports/results.csv`
 
 **Access:** ADMIN, SUPER_ADMIN
+
+| Parameter | In | Type | Required | Notes |
+|---|---|---|:-:|---|
+| `academicYearId` | query | string |  |  |
+| `divisionId` | query | string |  |  |
+| `courseId` | query | string |  |  |
+| `from` | query | string |  |  |
+| `to` | query | string |  |  |
 
 Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 

@@ -53,6 +53,14 @@ export const FEATURES = {
    * those parameters are refused (400) and the scope filter is ignored.
    */
   reviewQueueFilters: 'always',
+  /**
+   * The Reports CSV exports apply the Reports page filters: results.csv accepts academicYearId,
+   * from/to (submitted between), courseId and divisionId besides assignmentId; enrollment.csv and
+   * GET /admin/reports/enrollment accept courseId (students taking part in that course). Without this
+   * feature results.csv refuses those parameters (400) and enrolment refuses courseId (400
+   * FILTER_NOT_SUPPORTED).
+   */
+  reportExportFilters: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
   // (owner decision 2026-11-12): its production use is not yet approved.
   /**

@@ -38025,6 +38025,7 @@
             }
           }
         },
+        "summary": "Enrolments per year × division × school × grade. Period = enrolled between;\ncourseId = students taking part in that course (opened or completed).",
         "tags": [
           "Admin · Reports"
         ],
@@ -40164,7 +40165,50 @@
     "/api/v1/admin/reports/results.csv": {
       "get": {
         "operationId": "ReportsController_results",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "academicYearId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "divisionId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "courseId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "CSV file (UTF-8 with BOM), sent as an attachment.",

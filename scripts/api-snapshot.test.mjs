@@ -110,7 +110,8 @@ const API_CAPABILITIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-12-api-cap
 const YEAR_ACTIVATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-year-activation.json';
 const LOGOUT_SESSION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-logout-session.json';
 const REVIEW_QUEUE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-review-queue.json';
-const CURRENT_SNAPSHOT = REVIEW_QUEUE_SNAPSHOT;
+const REPORT_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-report-export-filters.json';
+const CURRENT_SNAPSHOT = REPORT_FILTERS_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -782,6 +783,24 @@ describe('approved API contract history', () => {
       'GET /api/v1/mentor/reviews: new optional query parameter "group"',
       'GET /api/v1/mentor/reviews: new optional query parameter "q"',
       'GET /api/v1/mentor/reviews: new optional query parameter "sort"',
+    ]);
+  });
+
+  test('review queue → report export filters: the shared report filters on results.csv; nothing else', () => {
+    // Additive: the Reports page sends its period, course and division to every export; results.csv
+    // refused them (400). Enrolment already declared courseId (it answered FILTER_NOT_SUPPORTED); it now
+    // applies it, which changes no schema.
+    for (const f of [REVIEW_QUEUE_SNAPSHOT, REPORT_FILTERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REVIEW_QUEUE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REPORT_FILTERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "academicYearId"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "courseId"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "divisionId"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "from"',
+      'GET /api/v1/admin/reports/results.csv: new optional query parameter "to"',
     ]);
   });
 
