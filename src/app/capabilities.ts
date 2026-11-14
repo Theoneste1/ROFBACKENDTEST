@@ -53,6 +53,12 @@ export const FEATURES = {
    * those parameters are refused (400) and the scope filter is ignored.
    */
   reviewQueueFilters: 'always',
+  /**
+   * The decision-notification delivery log: GET /api/v1/admin/notification-deliveries and
+   * POST /api/v1/admin/notification-deliveries/:id/retry (email.bulkSend). Not behind a flag: decision
+   * notifications are sent whether or not the Teacher role is enabled.
+   */
+  notificationDeliveries: 'always',
   // The official-directory sync (/api/v1/admin/school-sync) is deliberately NOT advertised in V1
   // (owner decision 2026-11-12): its production use is not yet approved.
   /**

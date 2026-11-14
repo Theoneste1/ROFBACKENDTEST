@@ -207,7 +207,7 @@ export class SchoolAffiliationService {
       where:  { id: row.id },
       select: {
         claimedName: true,
-        school:  { select: { name: true } },
+        school:  { select: { name: true, code: true } },
         student: { select: { id: true, email: true, firstName: true, isActive: true } },
       },
     });
@@ -218,7 +218,7 @@ export class SchoolAffiliationService {
       type: DecisionEvents.SchoolRequestVerified,
       dedupeKey: `${DecisionEvents.SchoolRequestVerified}:student:${claim.student.id}:school:${row.schoolId}`,
       recipient: { userId: claim.student.id, email: claim.student.email, firstName: claim.student.firstName },
-      entity: { type: 'StudentSchoolAffiliation', id: row.id }, payload: { schoolName: claim.school.name },
+      entity: { type: 'StudentSchoolAffiliation', id: row.id }, payload: { schoolName: claim.school.name, officialDirectory: claim.school.code !== null },
     });
   }
 

@@ -174,16 +174,20 @@ export class DecisionNotificationsService {
         result = { accepted: false, messageId: null, error: (err as Error)?.message ?? String(err), permanent: false };
       }
 
+      // The outcome is recorded only while this claim is still the current one (L3): a sender slower than
+      // SENDING_LEASE_MS may have been recovered by the sweep and claimed again (attempts incremented), and
+      // must not overwrite that newer attempt's state. A duplicate e-mail is prevented by the idempotency key.
+      const ours = { id, status: 'SENDING' as const, attempts: row.attempts };
       if (result.accepted) {
         await this.prisma.notificationOutbox.updateMany({
-          where: { id, status: 'SENDING' },
+          where: ours,
           data:  { status: 'SENT', sentAt: new Date(), lastError: null, nextAttemptAt: null },
         });
         return 'SENT';
       }
       const giveUp = result.permanent || row.attempts >= MAX_ATTEMPTS;
       await this.prisma.notificationOutbox.updateMany({
-        where: { id, status: 'SENDING' },
+        where: ours,
         data:  {
           status: 'FAILED', lastError: sanitiseError(result.error ?? 'The e-mail was not accepted.'),
           nextAttemptAt: giveUp ? null : new Date(Date.now() + backoffMs(row.attempts)),

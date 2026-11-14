@@ -103,6 +103,13 @@ describe('DecisionNotificationsService', () => {
       expect(prisma.notificationOutbox.updateMany.mock.calls[1][0]).toMatchObject({ where: { id: 'o1', status: 'SENDING' }, data: { status: 'SENT' } });
     });
 
+    it('records the outcome only for its own claim (L3): a claim recovered by the sweep and claimed again is not overwritten', async () => {
+      const { service, prisma } = make();
+      prisma.notificationOutbox.findUniqueOrThrow.mockResolvedValueOnce({ ...ROW, attempts: 2 });
+      await service.dispatch('o1');
+      expect(prisma.notificationOutbox.updateMany.mock.calls[1][0].where).toEqual({ id: 'o1', status: 'SENDING', attempts: 2 });
+    });
+
     it('a lost claim (another dispatcher, or already SENT) sends nothing', async () => {
       const { service, prisma, mailer } = make();
       prisma.notificationOutbox.updateMany.mockResolvedValueOnce({ count: 0 });

@@ -58,6 +58,21 @@ describe('decision notification content', () => {
     expect(inApp.body).toContain('View student progress');
   });
 
+  it('school.request.verified for a school without an official code: no claim that it was added to the official directory (L4)', () => {
+    const mail = decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', { schoolName: 'GS New Hill', officialDirectory: false }, APP);
+    expect(mail.subject).toBe(SCHOOL_VERIFIED_SUBJECT);
+    expect(mail.body).toContain('your school, GS New Hill, has been successfully verified by the Rwanda Olympiad Foundation.');
+    expect(mail.body).not.toMatch(/official school directory/);
+    expect(mail.body).toContain('Your school is now recognised as part of our growing Olympiad community.');
+    const inApp = decisionInApp(DecisionEvents.SchoolRequestVerified, { schoolName: 'GS New Hill', officialDirectory: false });
+    expect(inApp.body).toBe('Your school, GS New Hill, has been verified by the Rwanda Olympiad Foundation.');
+    // A coded school (and rows queued before the field existed) keep the owner's text.
+    for (const p of [{ schoolName: 'GS Remera', officialDirectory: true }, { schoolName: 'GS Remera' }]) {
+      expect(decisionEmail(DecisionEvents.SchoolRequestVerified, 'Aline', p, APP).body).toContain('added to the Rwanda Olympiad Foundation');
+      expect(decisionInApp(DecisionEvents.SchoolRequestVerified, p).body).toContain('official school directory');
+    }
+  });
+
   it('in-app texts exist for the account recipients', () => {
     expect(decisionInApp(DecisionEvents.SchoolRequestVerified, { schoolName: 'GS Remera' }).body).toContain('GS Remera');
     expect(decisionInApp(DecisionEvents.TeacherApplicationApproved, { activated: true }).title).toMatch(/approved/);

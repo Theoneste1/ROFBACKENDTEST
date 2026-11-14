@@ -243,10 +243,12 @@ export class TeacherApplicationsService {
       throw isUniqueViolation(e) ? identityTaken() : e;
     });
 
+    // The approval is committed: hand the notice to the dispatcher first, so a failure while queuing the
+    // confirmation e-mail below can no longer hold it back until the next sweep (L1).
+    this.notices.dispatchAfterCommit([notice]);
     // With e-mail verification on, the confirmation e-mail is sent as before; the approval notice tells
     // the teacher to use it (no login link until the account is activated).
     if (issued) await this.activation.send(issued);
-    this.notices.dispatchAfterCommit([notice]);
 
     return {
       application: await this.prisma.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT }),
@@ -270,7 +272,7 @@ export class TeacherApplicationsService {
     if (application.status !== 'PENDING') throw applicationAlreadyDecided();
     if (application.proposedSchoolName === null || application.schoolVerifiedAt) throw schoolAlreadyVerified();
 
-    const school = await this.prisma.school.findUnique({ where: { id: dto.schoolId }, select: { id: true, name: true, isActive: true, countryCode: true } });
+    const school = await this.prisma.school.findUnique({ where: { id: dto.schoolId }, select: { id: true, name: true, code: true, isActive: true, countryCode: true } });
     if (!school || !school.isActive || school.countryCode !== RWANDA) throw unknownSchool(dto.schoolId);
 
     let notice: string | null = null;
@@ -294,7 +296,7 @@ export class TeacherApplicationsService {
         type: DecisionEvents.SchoolRequestVerified, dedupeKey: `${DecisionEvents.SchoolRequestVerified}:teacher-application:${id}`,
         // No account yet: e-mail only, to the address given in the application.
         recipient: { userId: null, email: application.email, firstName: application.firstName },
-        entity: { type: 'TeacherApplication', id }, payload: { schoolName: school.name },
+        entity: { type: 'TeacherApplication', id }, payload: { schoolName: school.name, officialDirectory: school.code !== null },
       });
       return tx.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
     });
@@ -316,6 +318,8 @@ export class TeacherApplicationsService {
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'REJECT_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
+        // The append-only record of the decision (L2): who decided and why, as stored on the application.
+        metadata: { reason: dto.reason, decidedById: caller.id },
       }, tx);
       return tx.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
     });

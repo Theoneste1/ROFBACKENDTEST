@@ -157,8 +157,8 @@ export class MentorRequestsService {
 
     // With e-mail verification on, the confirmation e-mail is still sent; the approval notice (which replaces
     // the former MentorRequestDecided approval e-mail) tells the coach to use it before logging in.
-    if (issued) await this.activation.send(issued);
     this.notices.dispatchAfterCommit([notice]);
+    if (issued) await this.activation.send(issued);
 
     return {
       mentor:  result,

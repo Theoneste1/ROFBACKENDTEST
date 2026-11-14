@@ -393,6 +393,10 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await p().teacherApplication.findUniqueOrThrow({ where: { id } })).toMatchObject({ passwordHash: null, status: 'REJECTED' });
       expect(await p().user.count({ where: { username: 'tr.reject' } })).toBe(0);
       expect(await p().auditLog.count({ where: { action: 'REJECT_TEACHER_APPLICATION', entityId: id } })).toBe(1);
+      // The audit row keeps the reason and the decider (L2).
+      const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'REJECT_TEACHER_APPLICATION', entityId: id } });
+      expect(audit.metadata).toEqual({ reason: 'Could not confirm the school', decidedById: audit.actorId });
+      expect(audit.actorId).toBe(res.body.decidedBy.id);
       expect(await status(reject(id))).toEqual([409, 'APPLICATION_ALREADY_DECIDED']);
       expect(await status(approve(id))).toEqual([409, 'APPLICATION_ALREADY_DECIDED']);
       expect(await status(reject(randomUUID()))).toEqual([404, 'NOT_FOUND']);

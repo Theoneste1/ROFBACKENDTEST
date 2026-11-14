@@ -128,6 +128,23 @@ describe('Decision notifications', () => {
       expect(mailsTo('aline.applicant@test.local')).toHaveLength(1);
     });
 
+    it('a school without an official code (not in the public directory): the notice does not say it was added to the directory (L4)', async () => {
+      const id = await register(missingApplication({ firstName: 'Nina', email: 'nina.applicant@test.local', username: 'nina.applicant' }));
+      const school = (await http().post('/api/v1/admin/schools').set(bearer(admin)).send({
+        name: 'GS Nina Hill', province: 'Southern Province', district: 'Huye', sector: 'Tumba', location: 'Huye',
+      }).expect(201)).body.id as string;
+      expect((await p().school.findUniqueOrThrow({ where: { id: school } })).code).toBeNull();
+      await verifySchool(id, school).expect(200);
+      await settle();
+      const rows = await outbox({ entityId: id });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].payload).toEqual({ schoolName: 'GS Nina Hill', officialDirectory: false });
+      const mails = mailsTo('nina.applicant@test.local');
+      expect(mails).toHaveLength(1);
+      expect(mails[0].text).toContain('your school, GS Nina Hill, has been successfully verified by the Rwanda Olympiad Foundation.');
+      expect(mails[0].text).not.toContain('official school directory');
+    });
+
     it('a listed-school application has nothing to verify (409); refused or unauthorised calls queue nothing', async () => {
       const listedId = await register(application());
       expect(await status(verifySchool(listedId, tumba))).toEqual([409, 'SCHOOL_ALREADY_VERIFIED']);

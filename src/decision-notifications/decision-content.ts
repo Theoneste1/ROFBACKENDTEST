@@ -16,7 +16,11 @@ export type DecisionEventType = (typeof DecisionEvents)[keyof typeof DecisionEve
 
 export const DECISION_EVENT_TYPES: readonly DecisionEventType[] = Object.values(DecisionEvents);
 
-export interface SchoolVerifiedPayload { schoolName: string }
+/**
+ * `officialDirectory`: the linked school has an official code, so it is in the public directory
+ * (PUBLIC_DIRECTORY). Absent (rows queued before this field existed) counts as true.
+ */
+export interface SchoolVerifiedPayload { schoolName: string; officialDirectory?: boolean }
 /** activated: the account could log in when the notice was queued (activatedAt set). */
 export interface ApprovedPayload { activated: boolean }
 export interface PermissionsGrantedPayload {
@@ -54,12 +58,18 @@ export function decisionEmail(type: string, firstName: string, payload: unknown,
   switch (type) {
     case DecisionEvents.SchoolRequestVerified: {
       const p = payload as SchoolVerifiedPayload;
-      // The owner's text, word for word ("Dear {firstName}," is the greeting line).
+      // The owner's text, word for word ("Dear {firstName}," is the greeting line). A school without an
+      // official code is not in the public directory, so the first sentence then does not claim it (L4;
+      // the alternative wording needs the owner's approval).
+      const verified = p.officialDirectory === false
+        ? `We are pleased to inform you that your school, ${p.schoolName}, has been successfully verified by the ` +
+          'Rwanda Olympiad Foundation.\n\n'
+        : `We are pleased to inform you that your school, ${p.schoolName}, has been successfully verified and added to the ` +
+          'Rwanda Olympiad Foundation\'s official school directory.\n\n';
       return {
         subject: SCHOOL_VERIFIED_SUBJECT, heading: SCHOOL_VERIFIED_SUBJECT, greeting,
         body:
-          `We are pleased to inform you that your school, ${p.schoolName}, has been successfully verified and added to the ` +
-          'Rwanda Olympiad Foundation\'s official school directory.\n\n' +
+          verified +
           'Your school is now recognised as part of our growing Olympiad community.\n\n' +
           'Thank you for helping us expand opportunities for students across Rwanda!\n\n' +
           ORG,
@@ -110,7 +120,9 @@ export function decisionInApp(type: string, payload: unknown): DecisionInApp {
       const p = payload as SchoolVerifiedPayload;
       return {
         title: 'Your school has been verified',
-        body:  `Your school, ${p.schoolName}, has been verified and added to the ${ORG}'s official school directory.`,
+        body:  p.officialDirectory === false
+          ? `Your school, ${p.schoolName}, has been verified by the ${ORG}.`
+          : `Your school, ${p.schoolName}, has been verified and added to the ${ORG}'s official school directory.`,
       };
     }
     case DecisionEvents.TeacherApplicationApproved:

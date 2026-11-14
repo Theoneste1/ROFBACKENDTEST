@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'permissionScopes', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired'];
+const ALWAYS = ['academicYearActivation', 'notificationDeliveries', 'permissionScopes', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolReferenceRequired'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -21,6 +21,7 @@ const ALWAYS = ['academicYearActivation', 'permissionScopes', 'reviewQueueFilter
 const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>> = {
   academicYearActivation:  'always',   // appended 2026-11-13: single-flight, retry-safe year start
   headCoachAccounts:       'HEAD_COACH',
+  notificationDeliveries:  'always',   // appended 2026-11-14: decision-notification delivery log (owner approval pending)
   permissionScopes:        'always',
   reviewQueueFilters:      'always',   // appended 2026-11-14: coach review queue search, groups, sort, scope, counts
   schoolAdministration:    'always',
