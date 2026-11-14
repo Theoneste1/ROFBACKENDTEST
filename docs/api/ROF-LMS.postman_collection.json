@@ -771,6 +771,56 @@
       "name": "Admin · Email",
       "item": [
         {
+          "name": "GET /admin/email/deliveries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/email/deliveries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "email",
+                "deliveries"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/email/deliveries/{id}/retry",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/email/deliveries/:id/retry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "email",
+                "deliveries",
+                ":id",
+                "retry"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "GET /admin/email/jobs",
           "request": {
             "method": "GET",

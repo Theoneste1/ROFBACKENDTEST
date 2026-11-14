@@ -195,6 +195,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/email/deliveries",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/email/deliveries/{id}/retry",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/email/jobs",
     "roles": [
       "ADMIN",

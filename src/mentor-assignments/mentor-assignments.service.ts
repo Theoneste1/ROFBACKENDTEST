@@ -57,7 +57,7 @@ export class MentorAssignmentsService {
       }),
       this.prisma.mentorAssignment.count({ where }),
     ]);
-    return paginated(rows, total, page, limit);
+    return paginated(rows.map((r) => withoutContact(r, user)), total, page, limit);
   }
 
   /** Assign (or re-activate) a mentor for a course × division. Idempotent. */
@@ -101,7 +101,7 @@ export class MentorAssignmentsService {
         actorId: caller.id, actorRole: caller.role,
         action: 'ASSIGN_MENTOR', entity: 'MentorAssignment', entityId: assignment.id, metadata: { ...dto },
       }, tx);
-      return assignment;
+      return withoutContact(assignment, caller);
     });
   }
 
@@ -136,7 +136,7 @@ export class MentorAssignmentsService {
         action: 'UNASSIGN_MENTOR', entity: 'MentorAssignment', entityId: id,
         metadata: { openReviewsToReassign: openReviews },
       }, tx);
-      return { ...updated, openReviewsToReassign: openReviews };
+      return { ...withoutContact(updated, caller), openReviewsToReassign: openReviews };
     });
   }
 
@@ -176,4 +176,14 @@ export class MentorAssignmentsService {
       orderBy: { course: { sortOrder: 'asc' } },
     });
   }
+}
+
+/**
+ * Head Coaches see coaches without contact details (D7): the coach's e-mail is only for
+ * administrators. Everything else in the row is unchanged.
+ */
+export function withoutContact<T extends { mentor: { email?: string } }>(row: T, caller: AuthUser): T {
+  if (!isHeadCoach(caller)) return row;
+  const { email: _email, ...mentor } = row.mentor;
+  return { ...row, mentor } as T;
 }

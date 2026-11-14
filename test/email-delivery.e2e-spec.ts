@@ -172,6 +172,31 @@ describe('E-mail delivery through Resend (e2e)', () => {
     invalid.clear();
   });
 
+  it('administrators list failed deliveries of every kind; one-time-link e-mails are not re-sent, others are', async () => {
+    const all = await ctx.http().get('/api/v1/admin/email/deliveries').query({ status: 'FAILED', kind: 'TRANSACTIONAL' }).set(bearer(admin)).expect(200);
+    const resetFailure = all.body.data.find((d: any) => d.recipientEmail === 'mentor.s@test.local');
+    expect(resetFailure).toMatchObject({ status: 'FAILED', kind: 'TRANSACTIONAL', jobId: null, attempts: 1 });
+    for (const d of all.body.data) for (const key of ['body', 'html']) expect(key in d).toBe(false);
+    // The reset link was not kept: refused with guidance, nothing re-queued.
+    const refused = await ctx.http().post(`/api/v1/admin/email/deliveries/${resetFailure.id}/retry`).set(bearer(admin)).expect(409);
+    expect(refused.body.code).toBe('CONTENT_NOT_KEPT');
+    expect((await ctx.prisma.emailDelivery.findUniqueOrThrow({ where: { id: resetFailure.id } })).status).toBe('FAILED');
+
+    // A failed e-mail whose content is kept (no one-time link) is re-queued once and then sent.
+    const kept = await ctx.prisma.emailDelivery.create({ data: {
+      recipientEmail: 'student.j@test.local', subject: 'Kept notice', body: 'Hello', status: 'FAILED', attempts: 5, errorMessage: 'gave up',
+    } });
+    await ctx.http().post(`/api/v1/admin/email/deliveries/${kept.id}/retry`).set(bearer(admin)).expect(201);
+    await ctx.http().post(`/api/v1/admin/email/deliveries/${kept.id}/retry`).set(bearer(admin)).expect(409); // already queued
+    await drain();
+    expect((await ctx.prisma.emailDelivery.findUniqueOrThrow({ where: { id: kept.id } })).status).toBe('SENT');
+    expect(await ctx.prisma.auditLog.count({ where: { action: 'RETRY_EMAIL_DELIVERY', entityId: kept.id } })).toBe(1);
+
+    await ctx.http().get('/api/v1/admin/email/deliveries').query({ kind: 'OTHER' }).set(bearer(admin)).expect(400);
+    const student = await login(ctx, 'student.j2');
+    await ctx.http().get('/api/v1/admin/email/deliveries').set(bearer(student)).expect(403);
+  });
+
   it('sends bulk e-mail to every recipient mode', async () => {
     const send = (key: string, body: Record<string, unknown>) => ctx.http().post('/api/v1/admin/email/send').set(bearer(admin))
       .send({ idempotencyKey: `resend-${key}`, subject: `Bulk ${key}`, body: 'Hello from the test.', ...body });

@@ -112,7 +112,8 @@ const LOGOUT_SESSION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-13-logout-se
 const REVIEW_QUEUE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-review-queue.json';
 const REPORT_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-report-export-filters.json';
 const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-list-filters.json';
-const CURRENT_SNAPSHOT = LIST_FILTERS_SNAPSHOT;
+const EMAIL_DELIVERIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-email-deliveries.json';
+const CURRENT_SNAPSHOT = EMAIL_DELIVERIES_SNAPSHOT;
 
 describe('identity', () => {
   test('identical documents produce no changes', () => {
@@ -818,6 +819,20 @@ describe('approved API contract history', () => {
       'GET /api/v1/me/assignments: new optional query parameter "progress"',
       'GET /api/v1/me/assignments: new optional query parameter "sort"',
       'GET /api/v1/me/assignments: new optional query parameter "statuses"',
+    ]);
+  });
+
+  test('assignment list filters → e-mail deliveries: list every delivery and retry one; nothing else', () => {
+    // Additive: failed account e-mails (invitations, resets, notices) were counted on the dashboard
+    // but could not be listed or retried; only bulk-job deliveries could.
+    for (const f of [LIST_FILTERS_SNAPSHOT, EMAIL_DELIVERIES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(LIST_FILTERS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(EMAIL_DELIVERIES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/email/deliveries: operation added',
+      'POST /api/v1/admin/email/deliveries/{id}/retry: operation added',
     ]);
   });
 

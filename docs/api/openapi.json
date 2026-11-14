@@ -32301,6 +32301,77 @@
         "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/email/deliveries": {
+      "get": {
+        "operationId": "EmailController_listAllDeliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every e-mail delivery, newest first (e.g. ?status=FAILED&kind=TRANSACTIONAL for failed\ninvitations, activation and reset e-mails). Never returns message bodies (one-time links).",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/deliveries/{id}/retry": {
+      "post": {
+        "operationId": "EmailController_retryDelivery",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Re-queue one FAILED delivery (transactional or bulk). Anything else: 409.",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/email/jobs/{id}/retry": {
       "post": {
         "operationId": "EmailController_retryJob",

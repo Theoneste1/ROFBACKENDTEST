@@ -101,4 +101,7 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/school-sync/runs/:id/approve  SchoolSyncReviewController.approve':                       SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/school-sync/runs/:id/apply  SchoolSyncReviewController.apply':                           SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/school-sync/runs/:id/items/:itemId/resolve  SchoolSyncReviewController.resolve':         SUPER_ADMIN_ONLY,
+  // E-mail deliveries across transactional and bulk e-mail (email.bulkSend, as the existing e-mail job routes)
+  'GET /api/v1/admin/email/deliveries  EmailController.listAllDeliveries':                                    ADMINISTRATORS,
+  'POST /api/v1/admin/email/deliveries/:id/retry  EmailController.retryDelivery':                             ADMINISTRATORS,
 };

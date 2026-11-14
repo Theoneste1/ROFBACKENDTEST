@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 18 @Public + 29 @Roles + 174 @RequirePermission + 53 @Authenticated = 274, none undeclared', () => {
+  it('declarations add up: 18 @Public + 29 @Roles + 176 @RequirePermission + 53 @Authenticated = 276, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 174, '@Authenticated': 53 });
+    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 176, '@Authenticated': 53 });  // +2: e-mail deliveries list + retry
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -192,7 +192,7 @@ describe('route declarations (P1-02 §5)', () => {
     expect(byPermission).toEqual({
       'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
       'audit.view': 4, 'users.manage': 11, 'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
-      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 6, 'mentorRequests.decide': 3,
+      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 8, 'mentorRequests.decide': 3,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
       'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
       // P1-09: individual overrides (new routes, listed in route-access-additions.testing.ts)
@@ -326,7 +326,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 63 added since: 265 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 65 added since: 267 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

@@ -157,6 +157,9 @@ describe('Head Coach programme scope (P1-10)', () => {
     const list = await http().get(ASSIGN).set(bearer(hm)).query({ limit: 100 }).expect(200);
     expect(list.body.data.length).toBeGreaterThan(0);
     for (const a of list.body.data) expect(a.course.id).not.toBe(mechanics);
+    // No contact details for a Head Coach (D7): coaches are listed without their e-mail.
+    for (const a of list.body.data) expect('email' in a.mentor).toBe(false);
+    expect((await http().get(ASSIGN).set(bearer(admin)).query({ limit: 1 }).expect(200)).body.data[0].mentor.email).toBeTruthy();
     expect((await http().get(ASSIGN).set(bearer(hp)).query({ limit: 100 }).expect(200)).body.data.map((a: any) => a.mentor.id)).toEqual([coachP]);
 
     // Forbidden assignees: 403, nothing written.
@@ -171,6 +174,7 @@ describe('Head Coach programme scope (P1-10)', () => {
     // A member Coach on a programme course: assigned, audited as the Head Coach; the coach then has that scope.
     const created = await http().post(ASSIGN).set(bearer(hm)).send(body(coachB)).expect(201);
     expect(created.body).toMatchObject({ isActive: true, assignedBy: { id: hmId }, course: { id: ctx.ids.geometry } });
+    expect('email' in created.body.mentor).toBe(false);
     expect(await p().auditLog.count({ where: { action: 'ASSIGN_MENTOR', actorId: hmId, entityId: created.body.id } })).toBe(1);
     const coachBToken = await login(ctx, 'coach.b');
     const teaching = (await http().get('/api/v1/me/teaching').set(bearer(coachBToken)).expect(200)).body;
