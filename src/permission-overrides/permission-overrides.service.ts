@@ -6,15 +6,16 @@
  *   - never for the actor themselves, never on a SUPER_ADMIN;
  *   - DENY: any default permission of the target's role (TEACHER, STUDENT,
  *     COACH, HEAD_COACH, ADMIN);
- *   - GRANT: assignments.prepare for a TEACHER, only for a course × division
- *     where the teacher already has an active TeacherAssignment — none exists
- *     under the school-based teacher design (P1-11), so it is refused (400);
- *   - GRANT: a teacher delegation (P1-11 — students.viewProfile,
+ *   - GRANT: only a teacher delegation (P1-11 — students.viewProfile,
  *     students.viewProgress, submissions.submitOnBehalf) for a TEACHER with at
  *     least one active school assignment; school scope, no course × division.
  *     Administrators may give and revoke these too (delegation mode, used by
  *     /admin/teachers/:id/delegations with users.manageTeachers) — nothing else;
  *   - never grantable permissions are refused even if the list were edited.
+ *   (A course × division GRANT of assignments.prepare to a TEACHER was removed from the
+ *   approved list on 2026-11-14: it needed a TeacherAssignment, which does not exist under
+ *   the school-based teacher design, so it was always refused. It is now refused by the
+ *   policy itself — 400 OVERRIDE_NOT_ALLOWED, "not on the approved GRANT list for this role".)
  *
  * Create and revoke write their audit row in the SAME transaction as the change
  * (both happen or neither). Revocation is soft and applies on the next request
@@ -97,8 +98,9 @@ export class PermissionOverridesService {
     const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
     if (expiresAt && expiresAt.getTime() <= Date.now()) throw notAllowed('expiresAt must be in the future');
 
-    let courseId: string | null = null;
-    let divisionId: string | null = null;
+    // Every approved GRANT is a teacher delegation (school scope): no override carries a course × division.
+    const courseId: string | null = null;
+    const divisionId: string | null = null;
     if (dto.effect === 'GRANT' && grantScopeOf(dto.permission) === 'school') {
       // Teacher delegation: applies to the teacher's schools (checked on every request), never a course × division.
       if (dto.courseId || dto.divisionId) throw notAllowed('a teacher delegation applies to the teacher\'s schools; omit courseId and divisionId');
@@ -106,13 +108,8 @@ export class PermissionOverridesService {
         throw notAllowed('outside the user’s existing scope (the teacher has no active school assignment)');
       }
     } else if (dto.effect === 'GRANT') {
-      if (!dto.courseId || !dto.divisionId) throw notAllowed('a GRANT needs the course × division it applies to');
-      // Only inside the teacher's existing scope: an active TeacherAssignment for this
-      // course × division. TeacherAssignment (M6) arrives with P1-11; none exists yet.
-      if (!(await this.hasActiveTeacherAssignment(target.id, dto.courseId, dto.divisionId))) {
-        throw notAllowed('outside the user’s existing scope (no active teacher assignment for this course × division)');
-      }
-      courseId = dto.courseId; divisionId = dto.divisionId;
+      // Unreachable with the approved list (every GRANT on it is a school-scoped delegation); fail closed.
+      throw notAllowed('not on the approved GRANT list for this role', { role: target.role, permission: dto.permission, effect: dto.effect });
     } else if (dto.courseId || dto.divisionId) {
       throw notAllowed('a DENY applies to the whole permission; omit courseId and divisionId');
     }
@@ -238,13 +235,5 @@ export class PermissionOverridesService {
     const user = await this.prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
     if (!user) throw new NotFoundException('User not found.');
     return user;
-  }
-
-  /**
-   * Course × division teacher assignments do not exist: P1-11 scopes teachers by school
-   * (owner decision 2026-11-10), so a course × division GRANT (assignments.prepare) stays refused.
-   */
-  private async hasActiveTeacherAssignment(_userId: string, _courseId: string, _divisionId: string): Promise<boolean> {
-    return false;
   }
 }

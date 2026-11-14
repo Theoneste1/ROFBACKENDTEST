@@ -124,7 +124,24 @@ those, use `GET /me/permissions`, and the API still refuses anything not permitt
 | `reportExportFilters` | The Reports CSV exports apply the Reports page filters. `results.csv` accepts `academicYearId` (default: the current year; with `assignmentId` only when given), `from`/`to` (**submitted** between), `courseId` and `divisionId` besides `assignmentId`; it still needs `assignmentId`, or `courseId` **and** `divisionId` (400 `FILTER_REQUIRED`). `GET /admin/reports/enrollment` and `enrollment.csv` accept `courseId` (students taking part in that course, as in the Students report). Without this feature `results.csv` refuses `from`/`to`/`academicYearId` (400) and enrolment refuses `courseId` (400 `FILTER_NOT_SUPPORTED`): clients must not send them |
 | `studentAssignmentFilters` | Assignment lists filter and sort in the database. `GET /me/assignments` accepts `progress` (`NOT_STARTED`, `SUBMITTED`, `PENDING_REVIEW`, `RESUBMISSION_REQUESTED`, `REVIEWED` — the `displayStatus` labels — and `OVERDUE`: not started and no longer submittable, i.e. closed or past the deadline without late work) and `sort` (`deadline` soonest first, the default; `-deadline`; `title`). `GET /assignments` accepts `statuses` (comma-separated, e.g. `DRAFT,REJECTED`; not together with `status`). Paging and `meta.total` count only the matches. Without this feature these parameters are refused (400 `VALIDATION_FAILED`): filter the loaded page in the browser |
 | `teacherAccounts` | The `TEACHER` role can currently be **assigned** to an account (create, invite, import, role change). The caller also needs `users.manageTeachers` in `/me/permissions` |
-| `headCoachAccounts` | The `HEAD_COACH` role can currently be **assigned** to an account. The caller also needs `users.manageHeadCoaches` in `/me/permissions` |
+| `headCoachAccounts` | The `HEAD_COACH` role can currently be **assigned** to an account. The caller also needs `users.manageHeadCoaches` in `/me/permissions` (an `ADMIN`'s list reports it since 2026-11-14) |
+
+### `/me/permissions` contract changes (2026-11-14)
+
+- **`ADMIN` (additive):** the list now also ends with `users.manageHeadCoaches`, `programmes.manageHeads`,
+  `programmes.manageMembers`, `coaches.monitor`, `reports.view` (owner decision D-5: Administrators manage
+  Head Coaches, programme heads and members, and monitor coaches). Administrators already held them and the
+  routes already admitted them. Nothing was removed or reordered; `SUPER_ADMIN`-only permissions are still
+  never listed.
+- **`TEACHER` (removal):** `courses.view`, `resources.view`, `assignments.view`, `discussions.participate`
+  and `discussions.report` are no longer listed or granted, and `assignments.prepare` is no longer on the
+  override catalogue's `grantable.TEACHER` list. They were course × division grants with no teacher course
+  assignment behind them (always refused by the services). A Teacher's list is `leaderboard.view`,
+  `students.viewScoped` plus the delegations granted to them. `TEACHERS_ENABLED` is off in production.
+- **New route:** `GET /admin/programmes/:id/student-candidates?search=` (`programmes.manageMembers`): students
+  who can be added to the programme; for a Head Coach only students in no programme. `POST
+  /admin/programmes/:id/members` by a Head Coach refuses a student in another programme (409
+  `STUDENT_IN_OTHER_PROGRAMME`). See [PERMISSIONS.md](PERMISSIONS.md).
 
 When `teacherAccounts` or `headCoachAccounts` is **absent**, the role can't be
 newly assigned. Existing `TEACHER` or `HEAD_COACH` accounts may still exist and

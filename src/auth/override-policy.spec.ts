@@ -4,8 +4,8 @@ import { PermissionService } from './permission.service.js';
 import { APP_ROLES, NEVER_GRANTABLE, PERMISSIONS, ROLE_GRANTS } from './permissions.js';
 
 describe('approved override list (plan §6.3)', () => {
-  it('GRANT: only for TEACHER — assignments.prepare and the three P1-11 teacher delegations', () => {
-    const TEACHER_GRANTS = ['assignments.prepare', 'students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'];
+  it('GRANT: only for TEACHER — the three P1-11 teacher delegations (assignments.prepare removed 2026-11-14)', () => {
+    const TEACHER_GRANTS = ['students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'];
     expect(GRANTABLE).toEqual({ TEACHER: TEACHER_GRANTS });
     for (const role of APP_ROLES) {
       for (const p of PERMISSIONS) {
@@ -55,8 +55,10 @@ describe('override evaluation in PermissionService.effective (plan §6.4)', () =
     expect(service.effective(user('STUDENT', deny), new Date(NOW.getTime() + 5000)).has('submissions.submit')).toBe(true);
   });
 
-  it('GRANT applies only where the approved list allows it, scoped to course × division', () => {
-    expect(service.scopeOf(user('TEACHER', [o('assignments.prepare', 'GRANT', null, { courseId: 'c', divisionId: 'd' })]), 'assignments.prepare')).toBe('courseDivision');
+  it('GRANT applies only where the approved list allows it (teacher delegations, school scope)', () => {
+    expect(service.scopeOf(user('TEACHER', [o('students.viewProfile', 'GRANT')]), 'students.viewProfile')).toBe('school');
+    // assignments.prepare is no longer grantable to a Teacher (2026-11-14): even a stored row is ignored.
+    expect(service.has(user('TEACHER', [o('assignments.prepare', 'GRANT', null, { courseId: 'c', divisionId: 'd' })]), 'assignments.prepare')).toBe(false);
     // not listed / never grantable / wrong role → ignored even if such a row existed
     expect(service.has(user('MENTOR', [o('users.manage', 'GRANT')]), 'users.manage')).toBe(false);
     expect(service.has(user('TEACHER', [o('reviews.grade', 'GRANT')]), 'reviews.grade')).toBe(false);

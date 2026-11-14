@@ -50,15 +50,29 @@ describe('permissions', () => {
       'audit.view', 'activity.view',
       'schools.manage',   // appended 2026-11-12: already granted (ADMIN_GRANTS), now reported too
       'users.manageTeachers',   // appended 2026-11-13: already granted (ADMIN_GRANTS), now reported too
+      // appended 2026-11-14 (owner decision D-5): already granted (ADMIN_GRANTS), now reported too
+      'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
     ]);
   });
 
-  it('ADMIN reports users.manageTeachers (which it holds) and nothing it does not hold; no other Teacher/Head Coach/Super Admin permission was added', () => {
+  it('ADMIN reports users.manageTeachers (which it holds) and nothing it does not hold; no Admin-management or Super Admin permission was added', () => {
     expect(ROLE_PERMISSIONS.ADMIN).toContain('users.manageTeachers');
     expect(ROLE_GRANTS.ADMIN['users.manageTeachers']).toBe('global');
     // The reported list never over-reports: every entry is held by ADMIN.
     for (const p of ROLE_PERMISSIONS.ADMIN) expect(ROLE_GRANTS.ADMIN[p], p).toBeDefined();
-    for (const p of ['users.manageHeadCoaches', 'users.manageAdmins', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
+    for (const p of ['users.manageAdmins', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
+      expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
+    }
+  });
+
+  it('D-5 (2026-11-14): ADMIN reports the Head Coach administration it holds — exactly five names appended, all global grants', () => {
+    const D5 = ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view'] as const;
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-D5.length)).toEqual([...D5]);
+    for (const p of D5) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
+    // Additive only: the 25 original entries keep their order, and nothing else appeared.
+    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length);
+    // Never reported to ADMIN (and never granted, except users.manageAdmins / permissions.view which stay unreported).
+    for (const p of ['users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
       expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
     }
   });
@@ -158,9 +172,8 @@ describe('permissions', () => {
         'courses.complete': O, 'submissions.submit': O, 'submissions.viewOwn': O,
         'discussions.participate': D, 'discussions.report': D, 'leaderboard.view': G,
       },
+      // 2026-11-14: no course access (the course × division grants were dead — no TeacherAssignment exists).
       TEACHER: {
-        'courses.view': CD, 'resources.view': CD, 'assignments.view': CD,
-        'discussions.participate': CD, 'discussions.report': CD,
         'students.viewScoped': 'school', 'leaderboard.view': G,
       },
       MENTOR: {
@@ -237,6 +250,13 @@ describe('permissions', () => {
     it('D2: Teacher has no assignments.prepare (or grading) by default', () => {
       expect(ROLE_GRANTS.TEACHER).not.toHaveProperty('assignments.prepare');
       expect(ROLE_GRANTS.TEACHER).not.toHaveProperty('reviews.grade');
+    });
+
+    it('2026-11-14: Teacher holds no course × division grant (no course, resource, assignment or discussion access)', () => {
+      for (const p of ['courses.view', 'resources.view', 'assignments.view', 'discussions.participate', 'discussions.report'] as const) {
+        expect(ROLE_GRANTS.TEACHER).not.toHaveProperty(p);
+      }
+      expect(Object.values(ROLE_GRANTS.TEACHER)).not.toContain('courseDivision');
     });
 
     it('only coaches and head coaches grade; only students submit', () => {

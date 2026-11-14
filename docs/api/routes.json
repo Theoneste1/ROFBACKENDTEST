@@ -406,6 +406,16 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/programmes/{id}/student-candidates",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/reports/assignments",
     "roles": [
       "ADMIN",
@@ -2100,7 +2110,6 @@
     "path": "/api/v1/programmes",
     "roles": [
       "STUDENT",
-      "TEACHER",
       "MENTOR",
       "HEAD_COACH",
       "ADMIN",

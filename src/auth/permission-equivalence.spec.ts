@@ -99,13 +99,16 @@ describe('permission equivalence — catalogue (A4)', () => {
     const admin = held('ADMIN');
     expect(ROLE_PERMISSIONS.ADMIN.filter((p) => !admin.includes(p))).toEqual([]);
     expect(admin.filter((p) => !ROLE_PERMISSIONS.ADMIN.includes(p as Permission)).sort()).toEqual([
-      'coaches.monitor', 'permissions.view', 'programmes.manageHeads', 'programmes.manageMembers',
-      'reports.view', 'students.viewScoped', 'users.manageAdmins', 'users.manageCoaches',
-      'users.manageHeadCoaches', 'users.manageStudents', 'users.view',
-      // users.manageTeachers is no longer in this list: the ADMIN list reports it since 2026-11-13.
+      'permissions.view', 'students.viewScoped', 'users.manageAdmins', 'users.manageCoaches',
+      'users.manageStudents', 'users.view',
+      // users.manageTeachers is no longer in this list: the ADMIN list reports it since 2026-11-13;
+      // users.manageHeadCoaches, programmes.manageHeads, programmes.manageMembers, coaches.monitor and
+      // reports.view since 2026-11-14 (owner decision D-5).
     ]);
     // What ADMIN holds is unchanged; only what the list reports changed.
-    expect(admin).toContain('users.manageTeachers');
+    for (const p of ['users.manageTeachers', 'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view']) {
+      expect(admin).toContain(p);
+    }
   });
 
   it('SUPER_ADMIN holds everything ADMIN holds plus the three Super-Admin-only permissions (S2b: schools.syncDirectory), and nothing prohibited', () => {
