@@ -168,10 +168,10 @@ export class NotificationsService {
     return { inApp, email };
   }
 
-  /** Active admins — recipients for coordination events. */
+  /** Active administrators (ADMIN and SUPER_ADMIN) — recipients for coordination events. */
   async adminIds(): Promise<string[]> {
     const admins = await this.prisma.user.findMany({
-      where:  { role: 'ADMIN', isActive: true },
+      where:  { role: { in: ['ADMIN', 'SUPER_ADMIN'] }, isActive: true },
       select: { id: true },
     });
     return admins.map((a) => a.id);

@@ -61,6 +61,7 @@ function makeMocks() {
   const prisma = {
     assignment: {
       findUnique: vi.fn().mockResolvedValue(publishedAssignment()),
+      update:     vi.fn(),
     },
     submission: {
       findUnique:        vi.fn().mockResolvedValue(null),
@@ -435,6 +436,8 @@ describe('SubmissionsService', () => {
         where: { id: 's1' }, data: { points: 30, problemsSolved: 1 },
       });
       expect(events.emit).toHaveBeenCalledWith(Events.ResultsPublished, { submissionIds: ['sub1'] });
+      // The assignment records when its results were released.
+      expect(prisma.assignment.update).toHaveBeenCalledWith({ where: { id: 'as1' }, data: { resultsPublishedAt: expect.any(Date) } });
     });
 
     it('publish of a non-APPROVED result fails with INVALID_STATE_TRANSITION', async () => {

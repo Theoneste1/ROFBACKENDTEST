@@ -1037,6 +1037,8 @@ export class SubmissionsService {
       }
 
       await tx.resultRelease.update({ where: { id: releaseRow.id }, data: { resultCount: done.length } });
+      // The assignment records when its results were (last) released to students.
+      if (done.length) await tx.assignment.update({ where: { id: assignmentId }, data: { resultsPublishedAt: now } });
 
       const students = [...new Set(subs.filter((s) => done.includes(s.id)).map((s) => s.studentId))];
       for (const studentId of students) await this.recomputeStudentPoints(tx, studentId);

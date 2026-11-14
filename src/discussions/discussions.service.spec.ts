@@ -46,9 +46,11 @@ function makeMocks() {
   const access   = { assertCanView: vi.fn().mockResolvedValue(undefined), studentDivision: vi.fn().mockReturnValue('d1') };
   const activity = { record: vi.fn() };
   const events   = { emit: vi.fn() };
+  // discussions.moderate as the permission layer reports it (a DENY override removes it).
+  const permissions = { has: vi.fn().mockReturnValue(true) };
 
-  const service = new DiscussionsService(prisma as any, audit as any, access as any, activity as any, events as any);
-  return { service, prisma, audit, access, activity, events };
+  const service = new DiscussionsService(prisma as any, audit as any, access as any, activity as any, events as any, permissions as any);
+  return { service, prisma, audit, access, activity, events, permissions };
 }
 
 describe('DiscussionsService', () => {
