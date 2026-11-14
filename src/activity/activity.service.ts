@@ -100,14 +100,14 @@ export class ActivityService {
       where:  { AND: [scoped], createdAt: { gte: from, lte: to } },
       _count: { _all: true },
     });
-    const activeUsers = await this.prisma.activityLog.findMany({
-      where:    { AND: [scoped], createdAt: { gte: from, lte: to } },
-      distinct: ['userId'],
-      select:   { userId: true },
+    // Users with at least one matching entry, counted in the database (PERF-06): `distinct` read
+    // every entry of the period (one row per page view) into memory to count the users.
+    const activeUsers = await this.prisma.user.count({
+      where: { activityLogs: { some: { AND: [scoped], createdAt: { gte: from, lte: to } } } },
     });
     return {
       from, to,
-      activeUsers: activeUsers.length,
+      activeUsers,
       byType: Object.fromEntries(rows.map((r) => [r.type, r._count._all])),
     };
   }
