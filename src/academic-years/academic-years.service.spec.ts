@@ -129,14 +129,24 @@ describe('AcademicYearsService', () => {
       expect(from.getResponse().code).toBe('CURRENT_YEAR_CHANGED');
     });
 
-    it('closes the previous year, archives its assignments and promotes / graduates students', async () => {
-      const { service, prisma, divisions } = makeMocks();
+    /** The SQL steps of a start: [lock, rollOver, enrollUnenrolled] answers, and the calls made. */
+    const sqlSteps = (prisma: ReturnType<typeof makeMocks>['prisma'], rolled = { moved: 2, graduated: 1 }, enrolled = 0) => {
+      prisma.$queryRaw.mockReset();
+      prisma.$queryRaw
+        .mockResolvedValueOnce([{ locked: true }])
+        .mockResolvedValueOnce([{ ...rolled, deactivated: rolled.graduated, placed: rolled.moved }])
+        .mockResolvedValueOnce([{ enrolled, placed: enrolled }]);
+      /** The SQL text and parameters of the n-th $queryRaw call (tagged template). */
+      return (n: number) => {
+        const [strings, ...values] = prisma.$queryRaw.mock.calls[n] as [TemplateStringsArray, ...unknown[]];
+        return { text: strings.join('?'), values: JSON.stringify(values) };
+      };
+    };
+
+    it('closes the previous year, archives its assignments, then rolls students over in set-based SQL', async () => {
+      const { service, prisma, divisions, audit } = makeMocks();
       prisma.academicYear.findFirst.mockResolvedValue(year({ id: 'y1', status: 'ACTIVE', isCurrent: true }));
-      prisma.studentEnrollment.findMany.mockResolvedValue([
-        { id: 'e-s2', studentId: 'st-s2', gradeLevel: 'S2', schoolId: 'sch1' },
-        { id: 'e-s3', studentId: 'st-s3', gradeLevel: 'S3', schoolId: null },
-        { id: 'e-s6', studentId: 'st-s6', gradeLevel: 'S6', schoolId: 'sch1' },
-      ]);
+      const call = sqlSteps(prisma, { moved: 2, graduated: 1 }, 3);
 
       const result = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: 'y1' } as any, ADMIN);
 
@@ -160,55 +170,53 @@ describe('AcademicYearsService', () => {
         expect.objectContaining({ assignmentId: 'as2', type: 'ARCHIVED', fromStatus: 'CLOSED', toStatus: 'ARCHIVED' }),
       ]);
 
-      const enrollmentUpdates = prisma.studentEnrollment.update.mock.calls.map((c) => c[0]);
-      const upserts = prisma.studentEnrollment.upsert.mock.calls.map((c) => c[0]);
-      const userUpdates = prisma.user.update.mock.calls.map((c) => c[0]);
+      // No per-student statements: one rollover statement, one statement for the unenrolled.
+      expect(prisma.studentEnrollment.update).not.toHaveBeenCalled();
+      expect(prisma.studentEnrollment.upsert).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(3);
+      const roll = call(1);
+      expect(roll.text).toMatch(/UPDATE "StudentEnrollment"/);
+      expect(roll.text).toMatch(/INSERT INTO "StudentEnrollment"/);
+      expect(roll.values).toContain('"y1"');           // previous year's enrolments
+      expect(roll.values).toContain('"y2"');           // new year's enrolments
+      expect(roll.values).toContain('"div-junior"');
+      expect(roll.values).toContain('"div-senior"');
+      const sweep = call(2);
+      expect(sweep.text).toMatch(/IS DISTINCT FROM 'GRADUATED'/);   // graduates are never swept in again
+      expect(sweep.values).toContain('"y2"');
 
-      // S2 → S3: old enrolment PROMOTED, new ACTIVE enrolment in the junior division.
-      expect(enrollmentUpdates.find((u) => u.where.id === 'e-s2')!.data).toMatchObject({ status: 'PROMOTED' });
-      const s2 = upserts.find((u) => u.create.studentId === 'st-s2')!;
-      expect(s2.where).toEqual({ studentId_academicYearId: { studentId: 'st-s2', academicYearId: 'y2' } });
-      expect(s2.create).toMatchObject({ gradeLevel: 'S3', divisionId: 'div-junior', schoolId: 'sch1', status: 'ACTIVE' });
-      expect(userUpdates).toContainEqual({
-        where: { id: 'st-s2' }, data: { gradeLevel: 'S3', divisionId: 'div-junior', schoolId: 'sch1' },
+      // The counts come from the statements, and are recorded for replays.
+      expect(result).toMatchObject({ promoted: 2, graduated: 1, carriedOver: 0, newlyEnrolled: 3, assignmentsArchived: 2 });
+      expect(audit.log.mock.calls[0][0].metadata).toMatchObject({
+        previousYearId: 'y1', promoteStudents: true, deactivateGraduates: true,
+        counts: { promoted: 2, graduated: 1, carriedOver: 0, newlyEnrolled: 3, assignmentsArchived: 2 },
       });
-
-      // S3 → S4 moves into the senior division.
-      expect(enrollmentUpdates.find((u) => u.where.id === 'e-s3')!.data).toMatchObject({ status: 'PROMOTED' });
-      expect(upserts.find((u) => u.create.studentId === 'st-s3')!.create)
-        .toMatchObject({ gradeLevel: 'S4', divisionId: 'div-senior', status: 'ACTIVE' });
-      expect(userUpdates).toContainEqual({
-        where: { id: 'st-s3' }, data: { gradeLevel: 'S4', divisionId: 'div-senior', schoolId: null },
-      });
-
-      // S6 graduates and is deactivated by default; no new enrolment.
-      expect(enrollmentUpdates.find((u) => u.where.id === 'e-s6')!.data).toMatchObject({ status: 'GRADUATED' });
-      expect(upserts.find((u) => u.create.studentId === 'st-s6')).toBeUndefined();
-      expect(userUpdates).toContainEqual({ where: { id: 'st-s6' }, data: { isActive: false } });
-
-      expect(result).toMatchObject({ promoted: 2, graduated: 1, carriedOver: 0, assignmentsArchived: 2 });
     });
 
-    it('keeps graduates active when deactivateGraduates=false', async () => {
+    it.each([
+      [{ promoteStudents: true }, [true, true]],
+      [{ promoteStudents: true, deactivateGraduates: false }, [true, false]],
+      [{ promoteStudents: false }, [false, true]],
+    ])('passes the choices %j to the rollover statement as [promote, deactivateGraduates] = %j', async (choices, [promote, deactivate]) => {
       const { service, prisma } = makeMocks();
       prisma.academicYear.findFirst.mockResolvedValue(year({ id: 'y1', status: 'ACTIVE', isCurrent: true }));
-      prisma.studentEnrollment.findMany.mockResolvedValue([
-        { id: 'e-s6', studentId: 'st-s6', gradeLevel: 'S6', schoolId: null },
-      ]);
-      await service.activate('y2', { promoteStudents: true, deactivateGraduates: false, expectedCurrentYearId: 'y1' } as any, ADMIN);
-      expect(prisma.user.update).not.toHaveBeenCalledWith({ where: { id: 'st-s6' }, data: { isActive: false } });
+      sqlSteps(prisma, { moved: 1, graduated: 0 });
+      const result = await service.activate('y2', { ...choices, expectedCurrentYearId: 'y1' } as any, ADMIN);
+      const values = (prisma.$queryRaw.mock.calls[1] as unknown[]).slice(1);
+      const flags = values.filter((v) => typeof v === 'boolean');
+      expect(flags).toContain(promote);
+      expect(flags.includes(deactivate) || !promote).toBe(true);
+      expect(result).toMatchObject(promote ? { promoted: 1, carriedOver: 0 } : { promoted: 0, carriedOver: 1 });
     });
 
-    it('carries students over at the same grade when promoteStudents=false', async () => {
+    it('with no previous year, only enrols the unenrolled students', async () => {
       const { service, prisma } = makeMocks();
-      prisma.academicYear.findFirst.mockResolvedValue(year({ id: 'y1', status: 'ACTIVE', isCurrent: true }));
-      prisma.studentEnrollment.findMany.mockResolvedValue([
-        { id: 'e-s6', studentId: 'st-s6', gradeLevel: 'S6', schoolId: null },
-      ]);
-      const result = await service.activate('y2', { promoteStudents: false, expectedCurrentYearId: 'y1' } as any, ADMIN);
-      expect(prisma.studentEnrollment.update.mock.calls[0][0].data).toMatchObject({ status: 'ACTIVE' });
-      expect(prisma.studentEnrollment.upsert.mock.calls[0][0].create).toMatchObject({ gradeLevel: 'S6', divisionId: 'div-senior' });
-      expect(result).toMatchObject({ carriedOver: 1, promoted: 0, graduated: 0 });
+      prisma.$queryRaw.mockReset();
+      prisma.$queryRaw.mockResolvedValueOnce([{ locked: true }]).mockResolvedValueOnce([{ enrolled: 4, placed: 4 }]);
+      const result = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: null } as any, ADMIN);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+      expect(result).toMatchObject({ promoted: 0, graduated: 0, newlyEnrolled: 4, assignmentsArchived: 0 });
     });
   });
 });
