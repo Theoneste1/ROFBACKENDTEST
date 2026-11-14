@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 277,
-    "paths": 244,
-    "schemas": 83
+    "operations": 278,
+    "paths": 245,
+    "schemas": 84
   },
-  "fingerprint": "68e903695388acf5d475c0a77705e51a70c7d55da9e4760fe9045c8f059daae9",
+  "fingerprint": "8dd6301a71792e39bdf126b28be45771fe2ed79b7caf72e3c4202699e10e3263",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -11937,6 +11937,44 @@
         }
       ],
       "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/schools/{id}/verify",
+      "operationId": "AdminSchoolsController_verify",
+      "tags": [
+        "Admin · Schools"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "VerifySchoolDto"
+          }
+        }
+      },
       "responses": {
         "200": null,
         "default": {
@@ -41204,6 +41242,17 @@
             "ADMIN_ONLY",
             "REPRESENTATIVES"
           ]
+        }
+      }
+    },
+    "VerifySchoolDto": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
         }
       }
     },
