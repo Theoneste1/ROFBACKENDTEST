@@ -119,4 +119,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/teacher-applications/:id/school  AdminTeacherApplicationsController.verifySchool':      ADMINISTRATORS,
   'GET /api/v1/admin/notification-deliveries  DecisionNotificationsController.list':                          ADMINISTRATORS,
   'POST /api/v1/admin/notification-deliveries/:id/retry  DecisionNotificationsController.retry':              ADMINISTRATORS,
+  // Owner decision 2026-11-14: an administrator verifies a school (schools.manage, like every school edit).
+  'POST /api/v1/admin/schools/:id/verify  AdminSchoolsController.verify':                                     ADMINISTRATORS,
 };

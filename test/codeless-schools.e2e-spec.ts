@@ -152,4 +152,46 @@ describe('Schools without an official code (owner decision 2026-11-14)', () => {
     await http().post(ME).set(bearer(token)).send({ schoolCode: '220001' }).expect(201);
     expect((await claims(u.id))[0]).toMatchObject({ schoolId: official, status: 'PENDING', source: 'STUDENT_REQUEST' });
   });
+
+  it('an administrator verifies a school (audited; ADMIN may, students may not); teacherEligible search offers coded schools and only VERIFIED administrator-created schools without a code; editing the name or place clears the verification', async () => {
+    const V = (id: string) => `/api/v1/admin/schools/${id}/verify`;
+    const teacherSearch = (q: object) => search({ ...q, teacherEligible: 'true' });
+    // Before verification: students find the codeless school, Teachers do not; coded schools are always eligible.
+    expect((await search({ q: 'Gabriel' })).map((s) => s.id)).toEqual([codeless]);
+    expect(await teacherSearch({ q: 'Gabriel' })).toEqual([]);
+    expect((await teacherSearch({ q: 'GS Ngoma' })).map((s) => s.id)).toEqual([official]);
+
+    // Refusals: not signed in, a student, an unknown id, an inactive school, a school of another country.
+    expect((await http().post(V(codeless)).send({})).status).toBe(401);
+    const student = await login(ctx, 'student.j');
+    expect((await http().post(V(codeless)).set(bearer(student)).send({})).status).toBe(403);
+    expect((await http().post(V('6f1d3c1e-2b1a-4c3d-9e8f-0a1b2c3d4e5f')).set(bearer(admin)).send({})).status).toBe(404);
+    expect((await http().post(V(closed)).set(bearer(admin)).send({})).body.code).toBe('SCHOOL_INACTIVE');
+    expect((await http().post(V(kenya)).set(bearer(admin)).send({})).body.code).toBe('SCHOOL_DIRECTORY_RWANDA_ONLY');
+
+    // An administrator verifies it: recorded, audited, and Teachers now find it (still without a code).
+    const res = await http().post(V(codeless)).set(bearer(admin)).send({ note: 'Called the head teacher' }).expect(200);
+    expect(res.body).toMatchObject({ id: codeless, code: null, source: 'ADMIN', lastVerifiedAt: expect.any(String), lastVerifiedBy: { username: 'admin' } });
+    const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'VERIFY_SCHOOL', entityId: codeless } });
+    expect(audit.metadata).toMatchObject({ note: 'Called the head teacher', code: null, source: 'ADMIN' });
+    expect((await teacherSearch({ q: 'Gabriel' })).map((s) => [s.id, s.code])).toEqual([[codeless, null]]);
+    expect((await teacherSearch({ district: 'Huye', sector: 'Ngoma' })).map((s) => s.id).sort()).toEqual([codeless, official].sort());
+    expect((await teacherSearch({ q: 'saint huye' })).map((s) => s.id)).toEqual([codeless]);           // word match keeps the rule
+    // A LEGACY free-text school is never offered, verified or not.
+    await p().school.update({ where: { id: legacy }, data: { lastVerifiedAt: new Date() } });
+    expect(await teacherSearch({ q: 'Typed By A Student' })).toEqual([]);
+    expect(await search({ q: 'Typed By A Student' })).toEqual([]);
+
+    // Editing the name clears the verification (it was of the old name); a note-only change does not exist.
+    await http().patch(`/api/v1/admin/schools/${codeless}`).set(bearer(admin)).send({ name: 'Ecole Saint Gabriel Ngoma' }).expect(200);
+    const after = await p().school.findUniqueOrThrow({ where: { id: codeless } });
+    expect([after.lastVerifiedAt, after.lastVerifiedById]).toEqual([null, null]);
+    expect((await p().auditLog.findFirstOrThrow({ where: { action: 'UPDATE_SCHOOL', entityId: codeless }, orderBy: { createdAt: 'desc' } })).metadata)
+      .toMatchObject({ verificationCleared: true });
+    expect(await teacherSearch({ q: 'Gabriel' })).toEqual([]);
+    expect((await search({ q: 'Gabriel' })).map((s) => s.id)).toEqual([codeless]);                     // students unaffected
+    // Verified again: eligible again.
+    await http().post(V(codeless)).set(bearer(admin)).send({}).expect(200);
+    expect((await teacherSearch({ q: 'Gabriel' })).map((s) => s.id)).toEqual([codeless]);
+  });
 });

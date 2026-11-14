@@ -115,12 +115,13 @@ const LIST_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-assignment-
 const EMAIL_DELIVERIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-email-deliveries.json';
 const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeless-schools.json';
 const RELEASE_PERMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-release-permissions.json';
+const SCHOOL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-school-verification.json';
 const POST_PHASE1_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-post-phase1.json';
 const CURRENT_SNAPSHOT = POST_PHASE1_SNAPSHOT;
 /**
  * Post-Phase-1 bundle (owner approval as a baseline pending): Teacher Registration (self-registration, Administrator
  * review, school verification, the decision-notification delivery log, province in the school search) and students'
- * Olympiad interests (decision 8). Additive only; chained after the release candidate's last step (release permissions).
+ * Olympiad interests (decision 8). Additive only; chained after the release candidate's last step (school verification).
  */
 const POST_PHASE1_ADDITIONS = [
   'GET /api/v1/admin/notification-deliveries: operation added',
@@ -898,13 +899,25 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, ['GET /api/v1/admin/programmes/{id}/student-candidates: operation added']);
   });
 
-  test('release permissions → post-Phase-1 bundle (teacher registration + Olympiad interests): exactly the listed additions; nothing breaking or for review', () => {
+  test('release permissions → school verification: administrators verify a school; nothing else', () => {
+    // Owner decision 2026-11-14: Teachers may name a school without an official code once an administrator
+    // created and verified it. (GET /schools/search?teacherEligible is not visible here: that endpoint's
+    // query parameters are not part of the generated OpenAPI; documented in docs/INTEGRATION.md.)
+    for (const f of [RELEASE_PERMISSIONS_SNAPSHOT, SCHOOL_VERIFICATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(RELEASE_PERMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_VERIFICATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['POST /api/v1/admin/schools/{id}/verify: operation added', 'schema VerifySchoolDto: added']);
+  });
+
+  test('school verification → post-Phase-1 bundle (teacher registration + Olympiad interests): exactly the listed additions; nothing breaking or for review', () => {
     // One step for the bundle on top of the Phase 1 release candidate: teacher self-registration, decision
     // notifications (school verification, delivery log), province in the school search, and students' Olympiad
     // interests (registration, profile, admin views, report). The bundle's earlier step (e-mail deliveries →
     // 2026-11-14-teacher-registration-interests) is not part of this chain.
-    for (const f of [RELEASE_PERMISSIONS_SNAPSHOT, POST_PHASE1_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
-    const res = compare(JSON.parse(readFileSync(RELEASE_PERMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(POST_PHASE1_SNAPSHOT, 'utf8')));
+    for (const f of [SCHOOL_VERIFICATION_SNAPSHOT, POST_PHASE1_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_VERIFICATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(POST_PHASE1_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);

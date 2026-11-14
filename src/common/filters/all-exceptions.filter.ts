@@ -94,6 +94,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
 
+    // A busy database is temporary: tell clients when to try again.
+    if (body.code === 'DATABASE_BUSY') res.setHeader?.('Retry-After', '2');
+
     res.status(body.statusCode).json({
       ...body,
       requestId: req.id,
@@ -186,6 +189,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
           error:      'Conflict',
           code:       'REFERENCE_CONSTRAINT',
           message:    'The operation conflicts with related records.',
+        };
+      // "Unable to start a transaction in the given time": every pooled connection stayed busy for
+      // longer than the transaction may wait. Temporary, nothing was changed: 503, retry later.
+      case 'P2028':
+        return {
+          statusCode: 503,
+          error:      'Service Unavailable',
+          code:       'DATABASE_BUSY',
+          message:    'The server is busy. Nothing was changed; please try again in a moment.',
         };
       default:
         return {

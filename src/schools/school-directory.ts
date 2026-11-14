@@ -87,6 +87,16 @@ export const PUBLIC_SCHOOL_WHERE = {
 } as const satisfies Prisma.SchoolWhereInput;
 
 /**
+ * Schools a Teacher may name (owner decision 2026-11-14): active Rwandan schools with an official
+ * code, or without one when an administrator created the school (source ADMIN) AND verified it
+ * (lastVerifiedAt, POST /admin/schools/:id/verify). Never an invented code: these are chosen by id.
+ */
+export const TEACHER_SCHOOL_WHERE = {
+  countryCode: RWANDA, isActive: true,
+  OR: [{ code: { not: null } }, { source: 'ADMIN', lastVerifiedAt: { not: null } }],
+} as const satisfies Prisma.SchoolWhereInput;
+
+/**
  * The school a registration or a student claim names by its internal id (`schoolId`, from
  * GET /schools/search) — a Rwandan school the public search offers (official code, or entered by an
  * administrator). Unknown, not in the Rwandan directory, or a LEGACY free-text school without a code:

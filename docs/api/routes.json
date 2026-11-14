@@ -930,6 +930,15 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/admin/schools/{id}/verify",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/admin/schools/import",
     "roles": [
       "ADMIN",

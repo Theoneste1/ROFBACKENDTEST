@@ -9,7 +9,11 @@
  */
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { ConfigService } from '@nestjs/config';
 import { EmailWorker, MAX_ATTEMPTS } from '../src/email/email.worker.js';
+import { MailerService } from '../src/email/mailer.service.js';
+import { PrismaService } from '../src/prisma/prisma.service.js';
+import { SettingsService } from '../src/settings/settings.service.js';
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
 interface Received { to: string[]; subject: string; text: string; html: string; from: string; replyTo: string | null; key: string | null }
@@ -37,8 +41,12 @@ describe('E-mail delivery through Resend (e2e)', () => {
   /** Idempotency keys already accepted → their e-mail id. */
   const accepted = new Map<string, string>();
   let unauthorized = 0;
-  /** While set, the fake API answers every send with this 429 error name. */
+  /** While set, the fake API answers sends with this 429 error name (at most limitBudget times). */
   let limit: string | null = null;
+  let limitBudget = Number.POSITIVE_INFINITY;
+  /** Sends the fake API refused with a 429, and every send request it received. */
+  let limited = 0;
+  let requests = 0;
 
   const drain = async () => { while ((await worker.processBatch()) > 0) { /* keep sending */ } };
   const to = (address: string) => inbox.filter((m) => m.to.includes(address));
@@ -57,7 +65,11 @@ describe('E-mail delivery through Resend (e2e)', () => {
         }
         if (req.method !== 'POST' || req.url !== '/emails') return reply(404, { statusCode: 404, name: 'not_found', message: 'Not found' });
 
-        if (limit) return reply(429, { statusCode: 429, name: limit, message: 'Limit reached' });
+        requests++;
+        if (limit && limitBudget > 0) {
+          limitBudget--; limited++;
+          return reply(429, { statusCode: 429, name: limit, message: 'Limit reached' });
+        }
         const mail = JSON.parse(raw) as { to: string | string[]; subject: string; text: string; html?: string; from: string; reply_to?: string };
         const recipients = [mail.to].flat();
         if (recipients.some((r) => invalid.has(r))) {
@@ -281,6 +293,117 @@ describe('E-mail delivery through Resend (e2e)', () => {
     const sent = await ctx.prisma.emailDelivery.findUniqueOrThrow({ where: { id: held.id } });
     expect(sent).toMatchObject({ status: 'SENT', attempts: 1, body: null });
     expect(to('mentor.j2@test.local').length).toBe(sentBefore + 1);
+  });
+
+  // ── Provider limits under stress ──────────────────────────────────────────────────────────────
+  /** A worker as after a process restart: a fresh instance (no in-memory pause), same services. */
+  const restartedWorker = () => new EmailWorker(
+    ctx.app.get(PrismaService), ctx.app.get(MailerService), ctx.app.get(ConfigService), ctx.app.get(SettingsService),
+  );
+  const pauseOver = async (w: EmailWorker, ids: string[]) => {
+    (w as unknown as { pausedUntil: number }).pausedUntil = 0;
+    await ctx.prisma.emailDelivery.updateMany({ where: { id: { in: ids } }, data: { nextAttemptAt: new Date(0) } });
+  };
+  const drainWith = async (w: EmailWorker) => { while ((await w.processBatch()) > 0) { /* keep sending */ } };
+
+  it('repeated quota answers over several windows and a worker restart: activation and reset links are kept, never FAILED, then each sent exactly once', async () => {
+    limit = 'daily_quota_exceeded'; limitBudget = Number.POSITIVE_INFINITY;
+    const school = (await ctx.prisma.school.create({ data: { name: 'Quota Test School', location: 'Huye', source: 'ADMIN' } })).id;
+    await ctx.http().post('/api/v1/admin/users/invite').set(bearer(admin)).send({
+      firstName: 'Quota', lastName: 'Invitee', email: 'quota.invite@example.org', gradeLevel: 'S3', schoolId: school,
+    }).expect(201);
+    await ctx.http().post('/api/v1/auth/forgot-password').send({ email: 'student.j@test.local' }).expect(200);
+    await ctx.http().post('/api/v1/auth/forgot-password').send({ email: 'student.j2@test.local' }).expect(200);
+    const rows = await ctx.prisma.emailDelivery.findMany({
+      where: { recipientEmail: { in: ['quota.invite@example.org', 'student.j@test.local', 'student.j2@test.local'] }, status: 'PENDING', jobId: null },
+    });
+    expect(rows).toHaveLength(3);
+    const ids = rows.map((r) => r.id);
+    const inboxBefore = inbox.length;
+
+    // Four quota windows in a row: every attempt is answered 429; nothing is spent, lost or sent.
+    for (let window = 1; window <= 4; window++) {
+      await pauseOver(worker, ids);
+      await drainWith(worker);
+      const now = await ctx.prisma.emailDelivery.findMany({ where: { id: { in: ids } } });
+      for (const d of now) {
+        expect(d).toMatchObject({ status: 'PENDING', attempts: 0, lockedAt: null });
+        expect(d.body).toMatch(/activate|reset-password\?token=/);     // one-time links still stored
+        expect(d.nextAttemptAt.getTime()).toBeGreaterThan(Date.now() + 50 * 60_000);
+      }
+      expect(worker.paused).toBe(true);
+    }
+    expect(inbox.length).toBe(inboxBefore);
+
+    // A restart forgets the in-memory pause, but the rows keep their next attempt: nothing is claimed early.
+    const fresh = restartedWorker();
+    expect(fresh.paused).toBe(false);
+    expect(await fresh.processBatch()).toBe(0);
+
+    // The quota resets: the restarted worker delivers each e-mail exactly once.
+    limit = null;
+    await pauseOver(fresh, ids);
+    await drainWith(fresh);
+    const done = await ctx.prisma.emailDelivery.findMany({ where: { id: { in: ids } } });
+    for (const d of done) expect(d).toMatchObject({ status: 'SENT', attempts: 1, body: null, html: null });
+    for (const who of ['quota.invite@example.org', 'student.j@test.local', 'student.j2@test.local']) {
+      expect(inbox.slice(inboxBefore).filter((m) => m.to.includes(who))).toHaveLength(1);
+    }
+    // The activation link that waited through the quota still works.
+    const mail = inbox.slice(inboxBefore).find((m) => m.to.includes('quota.invite@example.org'))!;
+    const token = /token=([A-Za-z0-9_-]{20,})/.exec(mail.text)![1];
+    await ctx.http().post('/api/v1/auth/activation/inspect').send({ token }).expect(200);
+  });
+
+  it('a per-second rate limit (429) pauses sending for 60 s; the rest of the batch is not even tried; then each is sent once', async () => {
+    limit = 'rate_limit_exceeded'; limitBudget = Number.POSITIVE_INFINITY; limited = 0;
+    // More than one in-flight group (the worker sends 5 at a time): 8 queued reset e-mails.
+    for (const email of ['mentor.j@test.local', 'student.s@test.local', 'mentor.j2@test.local', 'student.j@test.local']) {
+      for (let i = 0; i < 2; i++) await ctx.http().post('/api/v1/auth/forgot-password').send({ email }).expect(200);
+    }
+    const rows = await ctx.prisma.emailDelivery.findMany({ where: { status: 'PENDING', jobId: null, subject: { contains: 'password' } } });
+    expect(rows.length).toBeGreaterThanOrEqual(8);
+    const ids = rows.map((r) => r.id);
+    const requestsBefore = requests;
+    await pauseOver(worker, ids);
+    await drainWith(worker);
+    // Only the first in-flight group reached the provider; every later group was released untried.
+    expect(limited).toBeGreaterThanOrEqual(1);
+    expect(limited).toBeLessThanOrEqual(5);
+    const held = await ctx.prisma.emailDelivery.findMany({ where: { id: { in: ids } } });
+    for (const d of held) {
+      expect(d).toMatchObject({ status: 'PENDING', attempts: 0 });
+      expect(d.nextAttemptAt.getTime()).toBeGreaterThan(Date.now() + 30_000);
+      expect(d.nextAttemptAt.getTime()).toBeLessThan(Date.now() + 61_000 + 5_000);
+    }
+    expect(requests - requestsBefore).toBe(limited);
+
+    limit = null;
+    const inboxBefore = inbox.length;
+    await pauseOver(worker, ids);
+    await drainWith(worker);
+    const done = await ctx.prisma.emailDelivery.findMany({ where: { id: { in: ids } } });
+    for (const d of done) expect(d).toMatchObject({ status: 'SENT', attempts: 1 });
+    expect(inbox.length - inboxBefore).toBe(ids.length);
+  });
+
+  it('a crash after the provider accepted an e-mail but before the outbox recorded it does not send it twice', async () => {
+    // Start from an empty queue (earlier tests may have re-queued mail for this address).
+    await ctx.prisma.emailDelivery.updateMany({ where: { status: 'PENDING' }, data: { nextAttemptAt: new Date(0) } });
+    await drain();
+    await ctx.http().post('/api/v1/auth/forgot-password').send({ email: 'mentor.s@test.local' }).expect(200);
+    const d = await ctx.prisma.emailDelivery.findFirstOrThrow({ where: { recipientEmail: 'mentor.s@test.local', status: 'PENDING', jobId: null }, orderBy: { createdAt: 'desc' } });
+    expect(await ctx.prisma.emailDelivery.count({ where: { status: 'PENDING' } })).toBe(1);
+    const before = to('mentor.s@test.local').length;
+    // The crashed worker: it claimed the row, sent it (accepted), and died before recording SENT.
+    await ctx.app.get(MailerService).sendOne({ to: d.recipientEmail, subject: d.subject!, text: d.body!, html: d.html, idempotencyKey: `email-delivery/${d.id}` });
+    await ctx.prisma.emailDelivery.update({ where: { id: d.id }, data: { attempts: 1, lockedAt: new Date(Date.now() - 6 * 60_000) } });
+    expect(to('mentor.s@test.local').length).toBe(before + 1);
+    // After the 5-minute lock expiry a restarted worker takes it again: same idempotency key → not sent again.
+    await drainWith(restartedWorker());
+    const after = await ctx.prisma.emailDelivery.findUniqueOrThrow({ where: { id: d.id } });
+    expect(after).toMatchObject({ status: 'SENT', attempts: 2, body: null });
+    expect(to('mentor.s@test.local').length).toBe(before + 1);
   });
 
   it('the scheduled tick does nothing when workers are disabled on this instance', async () => {

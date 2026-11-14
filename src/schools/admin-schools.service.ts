@@ -35,9 +35,10 @@ import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto } from './dto/admin-school.dto.js';
+import { CreateSchoolDto, ListAdminSchoolsDto, SetSchoolActiveDto, UpdateSchoolDto, VerifySchoolDto } from './dto/admin-school.dto.js';
 import { lockSchoolDirectory, lockSchoolKeys, schoolLockPlan } from './school-locks.js';
 import { RWANDA } from './school-rules.js';
+import { schoolInactive } from './school-usage.js';
 import {
   assertCodeFree, assertSchoolPlace, codeTaken, EDITABLE, findPossibleDuplicates, newSchoolRecord, possibleDuplicateError, schoolNameKey, schoolSnapshot, validateSchoolFields,
   type DuplicateCandidate, type Editable, type SchoolFields,
@@ -51,6 +52,7 @@ const SCHOOL_SELECT = {
   location: true, ownership: true, source: true, isActive: true, createdAt: true, updatedAt: true,
   cell: true, village: true, accommodation: true, lastSourceSyncAt: true, lastVerifiedAt: true,
   createdBy: { select: { id: true, username: true } },
+  lastVerifiedBy: { select: { id: true, username: true } },
 } as const;
 
 @Injectable()
@@ -193,17 +195,43 @@ export class AdminSchoolsService {
         : [];
       this.assertNoDuplicate(candidates, dto.confirmPossibleDuplicate);
 
+      // A verification is of the name and place that were checked: changing them clears it.
+      const clearsVerification = current.lastVerifiedAt !== null && (['name', 'location', 'countryCode', 'province', 'district', 'sector', 'cell', 'village'] as const).some(changed);
       const school = await tx.school.update({
         where: { id },
-        data: { ...(requested as Prisma.SchoolUncheckedUpdateInput), ...(changed('name') && { nameKey: key }) },
+        data: {
+          ...(requested as Prisma.SchoolUncheckedUpdateInput), ...(changed('name') && { nameKey: key }),
+          ...(clearsVerification && { lastVerifiedAt: null, lastVerifiedById: null }),
+        },
         select: SCHOOL_SELECT,
       });
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role, action: 'UPDATE_SCHOOL', entity: 'School', entityId: id,
         metadata: {
-          changes, reason: dto.reason ?? null,
+          changes, reason: dto.reason ?? null, ...(clearsVerification && { verificationCleared: true }),
           ...(candidates.length && { confirmedPossibleDuplicate: true, possibleDuplicates: candidates.map((c) => c.id) }),
         },
+      }, tx);
+      return school;
+    });
+  }
+
+  // ─── Verifying ──────────────────────────────────────────────────────────────
+
+  /** Record an administrator's check of the school (active Rwandan schools only); audited. */
+  async verify(id: string, dto: VerifySchoolDto, caller: CallerCtx) {
+    return this.write(async (tx) => {
+      const current = await this.lockSchool(tx, id);
+      if (!current.isActive) throw schoolInactive(id);
+      if (current.countryCode !== RWANDA) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY', 'Only schools of the Rwandan directory are verified.');
+      }
+      const school = await tx.school.update({
+        where: { id }, data: { lastVerifiedAt: new Date(), lastVerifiedById: caller.id }, select: SCHOOL_SELECT,
+      });
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role, action: 'VERIFY_SCHOOL', entity: 'School', entityId: id,
+        metadata: { note: dto.note ?? null, previousVerifiedAt: current.lastVerifiedAt, code: current.code, source: current.source },
       }, tx);
       return school;
     });
@@ -264,7 +292,7 @@ export class AdminSchoolsService {
       where: { id },
       select: {
         name: true, countryCode: true, code: true, province: true, district: true, sector: true, location: true, ownership: true,
-        cell: true, village: true, accommodation: true, source: true, isActive: true,
+        cell: true, village: true, accommodation: true, source: true, isActive: true, lastVerifiedAt: true,
       },
     });
     if (!school) throw new NotFoundException('School not found.');
