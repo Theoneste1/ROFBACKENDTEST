@@ -5,7 +5,7 @@ import { FormAvailabilityService } from '../forms/form-availability.service.js';
 import type { FormKey } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AppError } from '../common/errors/app-error.js';
-import type { CallerCtx } from '../common/auth-user.js';
+import type { AuthUser } from '../common/auth-user.js';
 import { Prisma } from '../generated/prisma/client.js';
 import {
   defaultValue,
@@ -21,8 +21,11 @@ const CACHE_TTL_MS = 30_000;
 
 /**
  * The old registration switches now live in their forms (FormAvailability, the single source of truth):
- * reading one reports whether the form is open right now; writing true opens the form (no closing date) and false
- * closes it, audited as a form change. Their SystemSetting rows are no longer read or written.
+ * reading one reports whether the form is open right now (settings.manage, unchanged); WRITING one is a form
+ * availability change: it needs forms.manageAvailability (FormAvailabilityService.assertMayManageAvailability —
+ * the same rule and the same 403 PERMISSION_REQUIRED as the forms endpoint), checked before anything in the
+ * request is written, and is audited as FORM_AVAILABILITY_CHANGED. true opens the form (no closing date), false
+ * closes it. Their SystemSetting rows are no longer read or written.
  */
 const FORM_SWITCHES: Readonly<Partial<Record<string, FormKey>>> = {
   'registration.studentSelfSignup': 'STUDENT_REGISTRATION',
@@ -90,7 +93,7 @@ export class SettingsService {
    * Change one or more settings. Every changed setting is recorded in the
    * audit log with its old and new value, in the same transaction.
    */
-  async update(changes: Record<string, unknown>, caller: CallerCtx) {
+  async update(changes: Record<string, unknown>, caller: AuthUser, requestId?: string | null) {
     const entries = Object.entries(changes);
     if (entries.length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Provide at least one setting to change.');
@@ -108,6 +111,8 @@ export class SettingsService {
     if (errors.length) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SETTINGS', 'Some settings are invalid.', errors);
     }
+    // A form switch in the request (changed or not) is a form availability write: one rule for every path.
+    if (entries.some(([key]) => FORM_SWITCHES[key])) this.forms.assertMayManageAvailability(caller);
 
     const current = new Map(Object.keys(SETTINGS).map((k) => [k, undefined as unknown]));
     const values = await this.load(true);
@@ -126,7 +131,7 @@ export class SettingsService {
       await this.prisma.$transaction(async (tx) => {
         // A form switch: open (true) or close (false) the form, audited as FORM_AVAILABILITY_CHANGED.
         for (const [key, value] of formChanges) {
-          await this.forms.setOpenSwitch(FORM_SWITCHES[key]!, value === true, caller, tx as never);
+          await this.forms.setOpenSwitch(FORM_SWITCHES[key]!, value === true, caller, tx as never, requestId);
         }
         for (const [key, value] of settingChanges) {
           await tx.systemSetting.upsert({

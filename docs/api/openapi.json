@@ -1056,7 +1056,7 @@
             }
           }
         },
-        "summary": "Change one or more settings: `{ \"submissions.resubmissionRequestDays\": 14 }`. Every change is audited.",
+        "summary": "Change one or more settings: `{ \"submissions.resubmissionRequestDays\": 14 }`. Every change is audited.\nregistration.studentSelfSignup / registration.teacherSelfSignup are form availability switches: writing one\nalso needs forms.manageAvailability (403 PERMISSION_REQUIRED otherwise, and nothing in the request is saved).",
         "tags": [
           "Admin · Settings"
         ],

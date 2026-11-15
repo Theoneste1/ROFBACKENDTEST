@@ -74,7 +74,11 @@ Sending `null` or an empty text restores the built-in message, or removes the ot
 | `PATCH /api/v1/admin/forms/:key/messages` | `forms.editMessages` | `{ closedMessage?, instructions?, contactEmail?, supportUrl? }`. Partial. |
 
 **The old switches** `registration.studentSelfSignup` and `registration.teacherSelfSignup` (`/admin/settings`) are now **views of their forms**, so there are never two switches that can disagree:
-- Reading one reports whether the form is open now.
+- Reading one reports whether the form is open now. This needs `settings.manage`, as before.
+- Writing one is a form availability change, under **one authorization rule for every path**:
+  - It needs **`forms.manageAvailability`**, checked against the caller's effective permissions, so an individual DENY override applies. This is the same check, with the same refusal (403 `PERMISSION_REQUIRED`, `details: { permission: "forms.manageAvailability" }`), as `PATCH /admin/forms/:key/availability`.
+  - The check runs when either key appears in a `PATCH /admin/settings` request, even with the value it already has, and before anything is written. A refused request saves none of its settings.
+  - A write is audited as `FORM_AVAILABILITY_CHANGED` (`via: "setting"`, with the request id), never as `UPDATE_SETTING`.
 - Writing `true` sets the form to `OPEN` with no closing date; `false` sets it to `CLOSED`. Writing the value it already reports changes nothing.
 - Their `SystemSetting` rows are no longer read or written.
 

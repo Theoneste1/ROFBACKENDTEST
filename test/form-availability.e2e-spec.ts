@@ -216,6 +216,102 @@ describe('Form availability', () => {
     });
   });
 
+  describe('one authorization rule for availability: the forms endpoint AND the old settings switches need forms.manageAvailability', () => {
+    let superAdmin: string;
+    let restricted: string;    // an Administrator whose forms.manageAvailability is DENIED by an individual override
+    let restrictedId: string;
+    const SWITCHES = { 'registration.studentSelfSignup': 'STUDENT_REGISTRATION', 'registration.teacherSelfSignup': 'TEACHER_REGISTRATION' } as const;
+    const settings = (body: Record<string, unknown>, token: string, requestId?: string) => {
+      const req = http().patch('/api/v1/admin/settings').set(bearer(token));
+      if (requestId) req.set('X-Request-Id', requestId);
+      return req.send(body);
+    };
+    /** Everything a refused write could have changed. */
+    const state = async () => ({
+      forms: (await p().formAvailability.findMany({ orderBy: { key: 'asc' }, select: { key: true, mode: true, opensAt: true, closesAt: true, updatedAt: true } })),
+      formAudit: await p().auditLog.count({ where: { entity: 'FormAvailability' } }),
+      settingAudit: await p().auditLog.count({ where: { action: 'UPDATE_SETTING' } }),
+      settings: await p().systemSetting.findMany({ orderBy: { key: 'asc' } }),
+    });
+
+    beforeAll(async () => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      await p().user.create({ data: { username: 'form.super', firstName: 'Super', lastName: 'Admin', email: 'form.super@test.local', role: 'SUPER_ADMIN', passwordHash: hash, activatedAt: new Date() } });
+      restrictedId = (await p().user.create({ data: { username: 'form.restricted', firstName: 'Restricted', lastName: 'Admin', email: 'form.restricted@test.local', role: 'ADMIN', passwordHash: hash, activatedAt: new Date() } })).id;
+      superAdmin = await login(ctx, 'form.super');
+      await http().post(`/api/v1/admin/users/${restrictedId}/permission-overrides`).set(bearer(superAdmin))
+        .send({ permission: 'forms.manageAvailability', effect: 'DENY', reason: 'Form availability is managed by the registration team' }).expect(201);
+      restricted = await login(ctx, 'form.restricted');
+      // A known starting point, set by an authorised Administrator.
+      await availability('STUDENT_REGISTRATION', { mode: 'OPEN', opensAt: null, closesAt: null }).expect(200);
+      await availability('TEACHER_REGISTRATION', { mode: 'CLOSED', opensAt: null, closesAt: null }).expect(200);
+    });
+
+    it('the denied Administrator cannot change student or teacher availability through the forms endpoint — 403 PERMISSION_REQUIRED, nothing changes', async () => {
+      const perms = (await http().get('/api/v1/me/permissions').set(bearer(restricted)).expect(200)).body.permissions;
+      expect(perms).not.toContain('forms.manageAvailability');
+      const before = await state();
+      for (const key of ['STUDENT_REGISTRATION', 'TEACHER_REGISTRATION']) {
+        const res = await availability(key, { mode: key === 'STUDENT_REGISTRATION' ? 'CLOSED' : 'OPEN' }, restricted).expect(403);
+        expect(res.body).toMatchObject({ code: 'PERMISSION_REQUIRED', details: { permission: 'forms.manageAvailability' } });
+      }
+      expect(await state()).toEqual(before);
+    });
+
+    it('…nor through the legacy settings endpoint, for either key, alone or mixed with other settings — the same 403, and nothing in the request is saved', async () => {
+      const before = await state();
+      const viaForms = (await availability('STUDENT_REGISTRATION', { mode: 'CLOSED' }, restricted).expect(403)).body;
+      for (const body of [
+        { 'registration.studentSelfSignup': false },
+        { 'registration.teacherSelfSignup': true },
+        { 'registration.studentSelfSignup': true },        // the value it already reports: still a write, still refused
+        { 'registration.teacherSelfSignup': true, 'support.message': 'Should not be saved' },
+      ]) {
+        const res = await settings(body, restricted).expect(403);
+        expect({ code: res.body.code, message: res.body.message, details: res.body.details })
+          .toEqual({ code: viaForms.code, message: viaForms.message, details: viaForms.details });
+      }
+      expect(await state()).toEqual(before);
+      expect(await p().systemSetting.findUnique({ where: { key: 'support.message' } })).toBeNull();
+      // Settings that are not form switches are unaffected for this Administrator (settings.manage).
+      await settings({ 'support.hours': 'Mon–Fri 08:00–17:00' }, restricted).expect(200);
+    });
+
+    it('the denied Administrator can still READ the switches and the forms (legacy reads unchanged)', async () => {
+      const values = Object.fromEntries((await http().get('/api/v1/admin/settings').set(bearer(restricted)).expect(200)).body
+        .filter((s: { key: string }) => s.key in SWITCHES).map((s: { key: string; value: unknown }) => [s.key, s.value]));
+      expect(values).toEqual({ 'registration.studentSelfSignup': true, 'registration.teacherSelfSignup': false });
+      await http().get('/api/v1/admin/forms').set(bearer(restricted)).expect(200);
+      // Who could not read before still cannot.
+      await http().get('/api/v1/admin/settings').set(bearer(await login(ctx, 'student.j'))).expect(403);
+      await http().get('/api/v1/admin/settings').expect(401);
+    });
+
+    it.each([['an authorised Administrator', 'admin'], ['a Super Administrator', 'form.super']])(
+      '%s can change both forms through both endpoints; a settings write is audited as a form availability change',
+      async (_, username) => {
+        const token = username === 'admin' ? admin : superAdmin;
+        // Legacy settings endpoint, both keys.
+        await settings({ 'registration.studentSelfSignup': false, 'registration.teacherSelfSignup': true }, token, `legacy-${username}`).expect(200);
+        expect(await p().formAvailability.findUnique({ where: { key: 'STUDENT_REGISTRATION' } })).toMatchObject({ mode: 'CLOSED' });
+        expect(await p().formAvailability.findUnique({ where: { key: 'TEACHER_REGISTRATION' } })).toMatchObject({ mode: 'OPEN', closesAt: null });
+        const rows = await p().auditLog.findMany({ where: { action: 'FORM_AVAILABILITY_CHANGED', metadata: { path: ['requestId'], equals: `legacy-${username}` } }, orderBy: { entityId: 'asc' } });
+        expect(rows.map((r) => [r.entityId, (r.metadata as any).via, (r.metadata as any).changes.mode])).toEqual([
+          ['STUDENT_REGISTRATION', 'setting', { from: 'OPEN', to: 'CLOSED' }],
+          ['TEACHER_REGISTRATION', 'setting', { from: 'CLOSED', to: 'OPEN' }],
+        ]);
+        expect(rows.every((r) => r.actorUsername === username)).toBe(true);
+        expect(await p().auditLog.count({ where: { action: 'UPDATE_SETTING', entityId: { in: Object.keys(SWITCHES) } } })).toBe(0);
+        // Forms endpoint, both forms, back to the starting point.
+        await availability('STUDENT_REGISTRATION', { mode: 'OPEN' }, token).expect(200);
+        await availability('TEACHER_REGISTRATION', { mode: 'CLOSED' }, token).expect(200);
+        const values = Object.fromEntries((await http().get('/api/v1/admin/settings').set(bearer(token)).expect(200)).body
+          .filter((s: { key: string }) => s.key in SWITCHES).map((s: { key: string; value: unknown }) => [s.key, s.value]));
+        expect(values).toEqual({ 'registration.studentSelfSignup': true, 'registration.teacherSelfSignup': false });
+      },
+    );
+  });
+
   describe('audit and history', () => {
     it('every change is one audit row (before/after per field, actor, request id); history lists them newest first', async () => {
       const before = await p().auditLog.count({ where: { entityId: 'CONTACT', entity: 'FormAvailability' } });

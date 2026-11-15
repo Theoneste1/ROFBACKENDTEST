@@ -1809,6 +1809,8 @@ Returns `200` JSON, an array of objects with:
 **Access:** ADMIN, SUPER_ADMIN
 
 Change one or more settings: `{ "submissions.resubmissionRequestDays": 14 }`. Every change is audited.
+registration.studentSelfSignup / registration.teacherSelfSignup are form availability switches: writing one
+also needs forms.manageAvailability (403 PERMISSION_REQUIRED otherwise, and nothing in the request is saved).
 
 Returns `200` JSON, an array of objects with:
 

@@ -15,8 +15,9 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { AuditService } from '../audit/audit.service.js';
+import { PermissionService } from '../auth/permission.service.js';
 import { roleFlagOn } from '../auth/role-assignment.policy.js';
-import type { CallerCtx } from '../common/auth-user.js';
+import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
 import type { FormAvailability, FormKey, FormMode } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -57,7 +58,20 @@ export class FormAvailabilityService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
+    private readonly permissions: PermissionService,
   ) {}
+
+  /**
+   * THE authorization rule for changing a form's availability (open, close, schedule), whatever the path: the
+   * forms endpoint (whose route also declares forms.manageAvailability) and the old switches written through
+   * PATCH /admin/settings. Same refusal as the permission guard: 403 PERMISSION_REQUIRED { permission }.
+   * Checked against the caller's effective permissions, so an individual DENY override applies.
+   */
+  assertMayManageAvailability(user: AuthUser): void {
+    if (!this.permissions.has(user, 'forms.manageAvailability')) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this.', { permission: 'forms.manageAvailability' });
+    }
+  }
 
   // ─── Reading ───────────────────────────────────────────────────────────────
 
@@ -150,9 +164,12 @@ export class FormAvailabilityService {
 
   /**
    * Writing the old boolean setting (PATCH /admin/settings): true → OPEN now (no closing date), false → CLOSED.
-   * The opening date and the messages are kept. Audited like any availability change.
+   * The opening date and the messages are kept. Needs forms.manageAvailability (assertMayManageAvailability), and
+   * is audited exactly like the forms endpoint (FORM_AVAILABILITY_CHANGED, with via "setting" and the request id).
    */
-  async setOpenSwitch(key: FormKey, open: boolean, caller: FormCaller, tx = this.prisma as unknown as PrismaTx): Promise<void> {
+  async setOpenSwitch(key: FormKey, open: boolean, user: AuthUser, tx = this.prisma as unknown as PrismaTx, requestId?: string | null): Promise<void> {
+    this.assertMayManageAvailability(user);
+    const caller: FormCaller = Object.assign({}, user, { requestId });
     await this.applyAvailability(key, open ? { mode: 'OPEN', closesAt: null } : { mode: 'CLOSED' }, caller, tx, 'setting');
   }
 
