@@ -13,7 +13,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel, OlympiadSubject, Role } from '../../generated/prisma/client.js';
+import { GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 
@@ -89,7 +89,11 @@ export class UpdateUserDto {
 }
 
 export class UpdateUserStatusDto {
-  /** false suspends the account immediately (all sessions are revoked). */
+  /**
+   * Compatible with the account states (capability accountStates): false suspends the account immediately (SUSPENDED;
+   * all sessions are revoked), true lifts a suspension or reactivates a deactivated account (an archived account is
+   * restored with POST /admin/users/:id/status-changes only). Prefer that route: it records your reason.
+   */
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
@@ -98,6 +102,23 @@ export class UpdateUserStatusDto {
   @IsOptional()
   @IsBoolean()
   isApproved?: boolean;
+}
+
+/** POST /admin/users/:id/status-changes (capability accountStates). */
+export class ChangeAccountStatusDto {
+  @IsEnum(AccountStatus, { message: 'toStatus must be one of ACTIVE, DEACTIVATED, SUSPENDED, ARCHIVED.' })
+  toStatus: AccountStatus;
+
+  /** Required (3–500 characters) to deactivate, suspend or archive, and to restore an archived account. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  reason?: string;
+
+  /** Must be true to restore an archived account (ARCHIVED → ACTIVE); ignored otherwise. */
+  @IsOptional()
+  @IsBoolean()
+  confirm?: boolean;
 }
 
 export class UpdateMeDto {
@@ -133,6 +154,8 @@ export class UpdateMeDto {
 
 export class ListUsersQueryDto extends PaginationQueryDto {
   @IsOptional() @IsEnum(Role) role?: Role;
+  /** ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED (capability accountStates). */
+  @IsOptional() @IsEnum(AccountStatus) accountStatus?: AccountStatus;
   @IsOptional() @IsUUID() divisionId?: string;
   @IsOptional() @IsEnum(GradeLevel) gradeLevel?: GradeLevel;
   @IsOptional() @IsUUID() schoolId?: string;

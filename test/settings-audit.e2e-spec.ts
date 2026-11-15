@@ -170,10 +170,11 @@ describe('System settings and audit logging (e2e)', () => {
 
       await ctx.http().patch(`/api/v1/admin/users/${newUserId}/status`).set(bearer(admin)).send({ isActive: false }).expect(200);
       const statusRows = await newEntries();
-      expect(actions(statusRows)).toEqual(['UPDATE_USER_STATUS']);
+      // Account states: the suspension is also recorded as a state change (with its history row).
+      expect(actions(statusRows)).toEqual(['UPDATE_USER_STATUS', 'USER_STATUS_CHANGED']);
 
       const logged = [...createRows, ...gradeRows, ...roleRows, ...statusRows];
-      expect(await entries({ entityId: newUserId })).toHaveLength(7);   // nothing else was recorded
+      expect(await entries({ entityId: newUserId })).toHaveLength(8);   // nothing else was recorded
       const gradeUpdate = one(gradeRows, 'UPDATE_USER');
       const placed      = one(gradeRows, 'CHANGE_STUDENT_ENROLLMENT');
       const role        = one(roleRows, 'CHANGE_USER_ROLE');
@@ -243,7 +244,7 @@ describe('System settings and audit logging (e2e)', () => {
       expect(reviews.data.every((e: any) => e.category === 'REVIEWS')).toBe(true);
 
       const history = (await get({ entity: 'User', entityId: newUserId })).body;
-      expect(history.meta.total).toBe(7);
+      expect(history.meta.total).toBe(8);
       expect(history.data[0]).toMatchObject({ action: 'UPDATE_USER_STATUS', actorUsername: 'admin', actor: { username: 'admin', role: 'ADMIN' } });
 
       const settingsTrail = (await get({ entity: 'SystemSetting', entityId: 'platform.name' })).body;

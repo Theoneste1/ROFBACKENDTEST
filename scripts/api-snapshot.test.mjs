@@ -213,7 +213,25 @@ const REGISTRATION_DETAILS_ADDITIONS = [
   'POST /api/v1/mentor-requests › response 201 application/json.olympiadInterests: new field',
 ];
 const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile-pictures.json';
-const CURRENT_SNAPSHOT = PROFILE_PICTURES_SNAPSHOT;
+const ACCOUNT_STATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-16-account-states.json';
+const CURRENT_SNAPSHOT = ACCOUNT_STATES_SNAPSHOT;
+/**
+ * Account states (2026-11-16): accountStatus on the admin user records and the list filter, the status-change and
+ * status-history routes. Chained after profile pictures. One approved breaking change: DELETE /admin/users/:id never
+ * deletes any more (always 409 PERMANENT_DELETION_DISABLED — archive instead), so its 200 response is gone.
+ */
+const ACCOUNT_STATES_BREAKING = ['DELETE /api/v1/admin/users/{id}: response 200 body removed'];
+const ACCOUNT_STATES_ADDITIONS = [
+  'GET /api/v1/admin/users › response 200 application/json.data[].accountStatus: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.accountStatus: new field',
+  'GET /api/v1/admin/users/{id}/status-history: operation added',
+  'GET /api/v1/admin/users: new optional query parameter "accountStatus"',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.accountStatus: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.accountStatus: new field',
+  'POST /api/v1/admin/users › response 201 application/json.accountStatus: new field',
+  'POST /api/v1/admin/users/{id}/status-changes: operation added',
+  'schema ChangeAccountStatusDto: added',
+];
 /**
  * Profile pictures (2026-11-15): upload, replace, remove, view; administrators on other accounts. Additive only;
  * chained after registration details.
@@ -1048,6 +1066,16 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, PROFILE_PICTURES_ADDITIONS);
+  });
+
+  test('profile pictures → account states: the listed additions and one approved breaking change (DELETE never deletes)', () => {
+    for (const f of [PROFILE_PICTURES_SNAPSHOT, ACCOUNT_STATES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(PROFILE_PICTURES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(ACCOUNT_STATES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    // Approved (owner, 2026-11-16): accounts are never deleted through the API; archive instead.
+    assert.deepEqual(res.breaking, ACCOUNT_STATES_BREAKING);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ACCOUNT_STATES_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

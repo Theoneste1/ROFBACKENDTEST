@@ -130,4 +130,8 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
   'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
   'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
+  // Account states (2026-11-16): users.manage + the transition's permission and the role policy (AccountStatusService);
+  // the history needs users.viewStatusHistory
+  'POST /api/v1/admin/users/:id/status-changes  UsersController.changeStatus':                                 ADMINISTRATORS,
+  'GET /api/v1/admin/users/:id/status-history  UsersController.statusHistory':                                 ADMINISTRATORS,
 };

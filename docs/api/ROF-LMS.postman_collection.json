@@ -1705,7 +1705,7 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": ""
                 }
@@ -1763,7 +1763,7 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": ""
                 }
@@ -4473,6 +4473,12 @@
                   "description": ""
                 },
                 {
+                  "key": "accountStatus",
+                  "value": "ACTIVE",
+                  "disabled": true,
+                  "description": "ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED (capability accountStates)."
+                },
+                {
                   "key": "divisionId",
                   "value": "00000000-0000-4000-8000-000000000000",
                   "disabled": true,
@@ -4803,6 +4809,76 @@
           }
         },
         {
+          "name": "POST /admin/users/{id}/status-changes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/status-changes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "status-changes"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toStatus\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/users/{id}/status-history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/status-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "status-history"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.viewStatusHistory` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "POST /admin/users/import",
           "request": {
             "method": "POST",
@@ -4931,13 +5007,13 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Mentors/admins only."
                 },
                 {
                   "key": "statuses",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
                 },
@@ -7953,13 +8029,13 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Mentors/admins only."
                 },
                 {
                   "key": "statuses",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
                 },

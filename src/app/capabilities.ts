@@ -125,6 +125,13 @@ export const FEATURES = {
    * versioned link (`?v=`), or null. Without this feature those routes do not exist (404).
    */
   profilePictures: 'always',
+  /**
+   * Account states (2026-11-16): accountStatus (ACTIVE, DEACTIVATED, SUSPENDED, ARCHIVED) on admin user records and
+   * the ?accountStatus= filter of GET /api/v1/admin/users; POST /api/v1/admin/users/:id/status-changes {toStatus,
+   * reason} and GET /api/v1/admin/users/:id/status-history; login refusals ACCOUNT_DEACTIVATED / ACCOUNT_SUSPENDED /
+   * ACCOUNT_ARCHIVED; DELETE /api/v1/admin/users/:id answers 409 PERMANENT_DELETION_DISABLED (archive instead).
+   */
+  accountStates: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

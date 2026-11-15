@@ -15,7 +15,7 @@ describe('AppController', () => {
       capabilities: {
         schemaVersion: 1,
         roles: ['STUDENT', 'TEACHER', 'MENTOR', 'HEAD_COACH', 'ADMIN', 'SUPER_ADMIN'],
-        features: ['academicYearActivation', 'coachApplicationDetails', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails'],
+        features: ['academicYearActivation', 'accountStates', 'coachApplicationDetails', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails'],
       },
     });
   });

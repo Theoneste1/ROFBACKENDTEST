@@ -118,17 +118,6 @@
     ],
     "type": "object"
   },
-  "DELETE /api/v1/admin/users/:id 200": {
-    "properties": {
-      "message": {
-        "type": "string"
-      }
-    },
-    "required": [
-      "message"
-    ],
-    "type": "object"
-  },
   "DELETE /api/v1/assignments/:id/attachments/:attachmentId 200": {
     "properties": {
       "_count": {
@@ -6087,6 +6076,9 @@
       "data": {
         "items": {
           "properties": {
+            "accountStatus": {
+              "type": "string"
+            },
             "activatedAt": {
               "format": "date-time",
               "nullable": true,
@@ -6225,6 +6217,7 @@
             }
           },
           "required": [
+            "accountStatus",
             "activatedAt",
             "avatarUrl",
             "country",
@@ -6290,6 +6283,9 @@
   },
   "GET /api/v1/admin/users/:id 200": {
     "properties": {
+      "accountStatus": {
+        "type": "string"
+      },
       "activatedAt": {
         "format": "date-time",
         "type": "string"
@@ -6426,6 +6422,7 @@
       }
     },
     "required": [
+      "accountStatus",
       "activatedAt",
       "avatarUrl",
       "country",
@@ -6454,6 +6451,113 @@
       "school",
       "updatedAt",
       "username"
+    ],
+    "type": "object"
+  },
+  "GET /api/v1/admin/users/:id/status-history 200": {
+    "properties": {
+      "accountStatus": {
+        "type": "string"
+      },
+      "data": {
+        "items": {
+          "properties": {
+            "actor": {
+              "properties": {
+                "firstName": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "lastName": {
+                  "type": "string"
+                },
+                "username": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "firstName",
+                "id",
+                "lastName",
+                "username"
+              ],
+              "type": "object"
+            },
+            "actorRole": {
+              "type": "string"
+            },
+            "createdAt": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "fromStatus": {
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "operationId": {
+              "nullable": true
+            },
+            "reason": {
+              "nullable": true,
+              "type": "string"
+            },
+            "requestId": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "toStatus": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "actor",
+            "actorRole",
+            "createdAt",
+            "fromStatus",
+            "id",
+            "operationId",
+            "reason",
+            "requestId",
+            "toStatus"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "meta": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "page",
+          "total",
+          "totalPages"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "accountStatus",
+      "data",
+      "meta"
     ],
     "type": "object"
   },
@@ -13625,6 +13729,9 @@
   },
   "PATCH /api/v1/admin/users/:id 200": {
     "properties": {
+      "accountStatus": {
+        "type": "string"
+      },
       "activatedAt": {
         "format": "date-time",
         "type": "string"
@@ -13744,6 +13851,7 @@
       }
     },
     "required": [
+      "accountStatus",
       "activatedAt",
       "avatarUrl",
       "country",
@@ -13777,6 +13885,9 @@
   },
   "PATCH /api/v1/admin/users/:id/status 200": {
     "properties": {
+      "accountStatus": {
+        "type": "string"
+      },
       "activatedAt": {
         "format": "date-time",
         "nullable": true,
@@ -13915,6 +14026,7 @@
       }
     },
     "required": [
+      "accountStatus",
       "activatedAt",
       "avatarUrl",
       "country",
@@ -23201,6 +23313,9 @@
   },
   "POST /api/v1/admin/users 201": {
     "properties": {
+      "accountStatus": {
+        "type": "string"
+      },
       "activatedAt": {
         "format": "date-time",
         "type": "string"
@@ -23318,6 +23433,7 @@
       }
     },
     "required": [
+      "accountStatus",
       "activatedAt",
       "avatarUrl",
       "country",
@@ -23373,6 +23489,141 @@
     },
     "required": [
       "message"
+    ],
+    "type": "object"
+  },
+  "POST /api/v1/admin/users/:id/status-changes 200": {
+    "properties": {
+      "change": {
+        "properties": {
+          "actor": {
+            "properties": {
+              "firstName": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "firstName",
+              "id",
+              "lastName",
+              "username"
+            ],
+            "type": "object"
+          },
+          "actorRole": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fromStatus": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "operationId": {
+            "nullable": true
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "requestId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "toStatus": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor",
+          "actorRole",
+          "createdAt",
+          "fromStatus",
+          "id",
+          "operationId",
+          "reason",
+          "requestId",
+          "toStatus"
+        ],
+        "type": "object"
+      },
+      "stillBlockedBy": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "user": {
+        "properties": {
+          "accountStatus": {
+            "type": "string"
+          },
+          "activatedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isApproved": {
+            "type": "boolean"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountStatus",
+          "activatedAt",
+          "firstName",
+          "id",
+          "isActive",
+          "isApproved",
+          "lastName",
+          "role",
+          "updatedAt",
+          "username"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "change",
+      "stillBlockedBy",
+      "user"
     ],
     "type": "object"
   },

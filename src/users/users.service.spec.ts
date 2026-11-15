@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { UsersService } from './users.service.js';
+import { LEGACY_SUSPEND_REASON, UsersService } from './users.service.js';
 
 /** The acting admin's password and hash, for step-up (P1-08). */
 const STEP_UP = 'Admin-Pass-1';
@@ -47,8 +47,9 @@ function makeMocks() {
   const accountEmails = { approved: vi.fn() };
   const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn(), assertSharedAccountRules: vi.fn() };
   const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn(), beginUserChange: vi.fn().mockResolvedValue(null) };
-  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any);
-  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations };
+  const accountStatus = { change: vi.fn().mockResolvedValue({}) };
+  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any, accountStatus as any);
+  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations, accountStatus };
 }
 
 describe('UsersService', () => {
@@ -60,16 +61,33 @@ describe('UsersService', () => {
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('revokes sessions when suspending another user', async () => {
-      const { service, prisma, tokens, audit } = makeMocks();
-      await service.updateStatus('u2', { isActive: false }, ADMIN);
-      expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({ isActive: false });
-      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2');
-      // Written in the same transaction as the change (second argument).
-      expect(audit.log).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'UPDATE_USER_STATUS' }),
-        prisma,
-      );
+    it('isActive: false suspends through the account states (sessions end there); the status audit row is kept', async () => {
+      const { service, prisma, audit, accountStatus } = makeMocks();
+      await service.updateStatus('u2', { isActive: false }, ADMIN, 'req-1');
+      expect(accountStatus.change).toHaveBeenCalledWith('u2',
+        { toStatus: 'SUSPENDED', reason: LEGACY_SUSPEND_REASON }, ADMIN, { requestId: 'req-1' });
+      // isActive itself is no longer written here (AccountStatusService did, with the history row).
+      expect(prisma.user.update.mock.calls[0][0].data).not.toHaveProperty('isActive');
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'UPDATE_USER_STATUS' }), prisma);
+    });
+
+    it('isActive: true lifts a suspension (ACTIVE, no reason needed); an archived account is refused', async () => {
+      const lifted = makeMocks();
+      lifted.prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'STUDENT', isActive: false, isApproved: true, accountStatus: 'SUSPENDED', username: 'bob' });
+      await lifted.service.updateStatus('u2', { isActive: true }, ADMIN);
+      expect(lifted.accountStatus.change).toHaveBeenCalledWith('u2', { toStatus: 'ACTIVE', reason: null }, ADMIN, { requestId: undefined });
+
+      const archived = makeMocks();
+      archived.prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'STUDENT', isActive: false, isApproved: true, accountStatus: 'ARCHIVED', username: 'bob' });
+      await expect(archived.service.updateStatus('u2', { isActive: true }, ADMIN)).rejects.toMatchObject({ code: 'INVALID_STATUS_TRANSITION', status: 409 });
+      expect(archived.accountStatus.change).not.toHaveBeenCalled();
+    });
+
+    it('an unchanged isActive is not a status change', async () => {
+      const { service, prisma, accountStatus } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'STUDENT', isActive: true, isApproved: true, accountStatus: 'ACTIVE', username: 'bob' });
+      await service.updateStatus('u2', { isActive: true }, ADMIN);
+      expect(accountStatus.change).not.toHaveBeenCalled();
     });
 
     it('does not revoke sessions when only approving', async () => {
@@ -92,27 +110,17 @@ describe('UsersService', () => {
       await expect(service.delete('u404', ADMIN)).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('maps a foreign-key violation (P2003) to USER_HAS_HISTORY', async () => {
+    it('never deletes: 409 PERMANENT_DELETION_DISABLED (archive instead), nothing written', async () => {
       const { service, prisma, audit } = makeMocks();
-      prisma.user.delete.mockRejectedValue({ code: 'P2003' });
-      await expect(service.delete('u2', ADMIN)).rejects.toMatchObject({ code: 'USER_HAS_HISTORY', status: 409 });
+      await expect(service.delete('u2', ADMIN)).rejects.toMatchObject({ code: 'PERMANENT_DELETION_DISABLED', status: 409 });
+      expect(prisma.user.delete).not.toHaveBeenCalled();
       expect(audit.log).not.toHaveBeenCalled();
     });
 
-    it('rethrows unrelated errors', async () => {
-      const { service, prisma } = makeMocks();
-      const boom = new Error('db down');
-      prisma.user.delete.mockRejectedValue(boom);
-      await expect(service.delete('u2', ADMIN)).rejects.toBe(boom);
-    });
-
-    it('deletes and audits a user without history', async () => {
-      const { service, prisma, audit } = makeMocks();
-      await expect(service.delete('u2', ADMIN)).resolves.toEqual({ message: 'User u2 deleted successfully.' });
-      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u2' } });
-      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'DELETE_USER', metadata: { username: 'bob' },
-      }));
+    it('still checks the role first (an account the caller may not manage is refused as before)', async () => {
+      const { service, roles } = makeMocks();
+      roles.assertCanManage.mockImplementation(() => { throw Object.assign(new Error('x'), { code: 'ROLE_NOT_ASSIGNABLE' }); });
+      await expect(service.delete('u2', ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
     });
   });
 

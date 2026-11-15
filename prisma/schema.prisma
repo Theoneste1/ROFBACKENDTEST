@@ -12,6 +12,16 @@ generator client {
 // Enums
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Account states (2026-11-16). isActive is kept equal to (accountStatus = ACTIVE) by the database trigger
+/// user_account_status_sync, so every existing check on isActive (login, refresh, JWT guard, the M4 last-Super-Admin
+/// trigger, the Super Admin boundary) applies to every blocked state. Transitions: docs/operations/account-states.md.
+enum AccountStatus {
+  ACTIVE
+  DEACTIVATED
+  SUSPENDED
+  ARCHIVED
+}
+
 enum Role {
   STUDENT
   MENTOR
@@ -388,6 +398,7 @@ model User {
   isApproved       Boolean   @default(true)
   /// Suspended accounts cannot log in and lose access immediately.
   isActive         Boolean   @default(true)
+  accountStatus    AccountStatus @default(ACTIVE)
   /// Set when the person activates the account (accepts an invitation or
   /// verifies their e-mail). NULL = invited / unverified: cannot log in.
   activatedAt      DateTime?
@@ -509,6 +520,8 @@ model User {
   teacherApplication                TeacherApplication?        @relation("TeacherApplicationUser")
   teacherApplicationSchoolsVerified TeacherApplication[]       @relation("TeacherApplicationSchoolVerifiedBy")
   notificationOutbox                NotificationOutbox[]
+  statusChanges                     UserStatusChange[]         @relation("StatusChangeUser")
+  statusChangesMade                 UserStatusChange[]         @relation("StatusChangeActor")
 
   @@index([points])
   @@index([role])
@@ -516,6 +529,8 @@ model User {
   @@index([divisionId])
   /// Reports and dashboard: users by role and account state.
   @@index([role, isActive])
+  @@index([accountStatus])
+  @@index([role, accountStatus])
 }
 
 model RefreshToken {
@@ -2261,4 +2276,25 @@ model StudentSchoolAffiliation {
   @@index([decidedById])
   @@index([revokedById])
   @@index([supersededById])
+}
+
+/// One change of a user's account state (2026-11-16), with its reason and who made it. Never deleted with the
+/// account's normal administration; the matching AuditLog row (USER_STATUS_CHANGED) is written in the same transaction.
+model UserStatusChange {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation("StatusChangeUser", fields: [userId], references: [id], onDelete: Restrict)
+  fromStatus  AccountStatus
+  toStatus    AccountStatus
+  reason      String?
+  actorId     String?
+  actor       User?          @relation("StatusChangeActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole   String
+  /// The bulk operation that made this change, if any.
+  operationId String?
+  requestId   String?
+  createdAt   DateTime       @default(now())
+
+  @@index([userId, createdAt])
+  @@index([operationId])
 }

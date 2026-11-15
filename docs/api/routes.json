@@ -1128,6 +1128,24 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/admin/users/{id}/status-changes",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/status-history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/admin/users/import",
     "roles": [
       "ADMIN",
