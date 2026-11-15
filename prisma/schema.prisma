@@ -343,6 +343,8 @@ enum FilePurpose {
   SUBMISSION
   FEEDBACK
   RESOURCE
+  /// A user's profile picture (JPEG, PNG or WebP, at most 2 MB).
+  AVATAR
 }
 
 /// Notification categories. Users may opt out of e-mail per category
@@ -389,6 +391,9 @@ model User {
   tokensValidAfter DateTime?
 
   avatarUrl      String?
+  /// The stored profile picture (FilePurpose AVATAR); avatarUrl points to GET /api/v1/users/{id}/avatar?v={this id}.
+  avatarFileId   String?     @unique
+  avatarFile     FileObject? @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
   /// Cached leaderboard total — always recomputable from published submissions.
   points         Int     @default(0)
   problemsSolved Int     @default(0)
@@ -466,7 +471,7 @@ model User {
   passwordResetTokens               PasswordResetToken[]
   activationTokens                  AccountActivationToken[]   @relation("ActivationUser")
   invitationsSent                   AccountActivationToken[]   @relation("ActivationInviter")
-  filesUploaded                     FileObject[]
+  filesUploaded                     FileObject[]               @relation("FileUploader")
   settingsUpdated                   SystemSetting[]
   studentEnrollments                StudentEnrollment[]
   reviews                           MentorReview[]             @relation("ReviewMentor")
@@ -1256,13 +1261,15 @@ model FileObject {
   size         Int
   sha256       String
   uploadedById String?
-  uploadedBy   User?       @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedBy   User?       @relation("FileUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   createdAt    DateTime    @default(now())
 
   resourceAttachments   ResourceAttachment[]
   assignmentAttachments AssignmentAttachment[]
   submissionAttachments SubmissionAttachment[]
   reviewAttachments     ReviewAttachment[]
+  /// The account whose current profile picture this is (FilePurpose AVATAR); keeps it from orphan cleanup.
+  avatarOf              User?                  @relation("UserAvatar")
 
   @@index([purpose])
   @@index([createdAt])

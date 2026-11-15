@@ -8,15 +8,20 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 
 import { UsersService } from './users.service.js';
+import { AvatarService } from './avatar.service.js';
+import { uploadOptions } from '../common/storage/upload-options.js';
 import { IMPORT_MAX_BYTES, UserProvisioningService } from './user-provisioning.service.js';
 import { ImportUsersQueryDto, InviteUserDto } from './dto/invite-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -37,6 +42,7 @@ import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 @Controller('admin/users')
 export class UsersController {
   constructor(
+    private readonly avatars: AvatarService,
     private readonly usersService: UsersService,
     private readonly provisioning: UserProvisioningService,
   ) {}
@@ -132,12 +138,37 @@ export class UsersController {
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.usersService.delete(id, user);
   }
+
+  /**
+   * Set or replace an account's profile picture (multipart field `file`: JPEG, PNG or WebP, at most 2 MB).
+   * Only for an account whose current role the caller may manage (an ADMIN never a SUPER_ADMIN). Returns the
+   * account. 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED.
+   */
+  @Put(':id/avatar')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', uploadOptions('AVATAR', 1)))
+  @RequirePermission('users.manage')
+  setAvatar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.avatars.setFor(id, user, file);
+  }
+
+  /** Remove an account's profile picture (idempotent). Same rule as PUT. Returns the account. */
+  @Delete(':id/avatar')
+  @RequirePermission('users.manage')
+  removeAvatar(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.avatars.removeFor(id, user);
+  }
 }
 
 @ApiTags('Me')
 @Controller('me')
 export class MeController {
   constructor(
+    private readonly avatars: AvatarService,
     private readonly usersService: UsersService,
     private readonly permissionService: PermissionService,
   ) {}
@@ -155,6 +186,26 @@ export class MeController {
     return this.usersService.updateMe(user.id, body);
   }
 
+  /**
+   * Set or replace the current user's profile picture (multipart field `file`: JPEG, PNG or WebP, at most
+   * 2 MB, checked from the file's bytes). Returns the profile, whose avatarUrl is the new versioned link.
+   * 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED.
+   */
+  @Put('avatar')
+  @Authenticated()
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', uploadOptions('AVATAR', 1)))
+  setAvatar(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File | undefined) {
+    return this.avatars.setOwn(user, file);
+  }
+
+  /** Remove the current user's profile picture (idempotent). Returns the profile. */
+  @Delete('avatar')
+  @Authenticated()
+  removeAvatar(@CurrentUser() user: AuthUser) {
+    return this.avatars.removeOwn(user);
+  }
+
   /** What the current user's role may do (for showing/hiding UI). */
   @Get('permissions')
   @Authenticated()
@@ -167,5 +218,22 @@ export class MeController {
   @Roles('STUDENT')
   enrollments(@CurrentUser() user: AuthUser) {
     return this.usersService.getMyEnrollments(user.id);
+  }
+}
+
+/** Profile pictures, viewable by any signed-in user (they appear next to names across the app). */
+@ApiTags('Users')
+@Controller('users')
+export class UserAvatarController {
+  constructor(private readonly avatars: AvatarService) {}
+
+  /**
+   * The account's current profile picture, inline, with Cache-Control: private, max-age=86400 (the link in
+   * avatarUrl is versioned) and X-Content-Type-Options: nosniff. 404 when the account has none.
+   */
+  @Get(':id/avatar')
+  @Authenticated()
+  async avatar(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    await this.avatars.send(id, res);
   }
 }

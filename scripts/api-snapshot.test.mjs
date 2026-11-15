@@ -117,7 +117,16 @@ const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeles
 const RELEASE_PERMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-release-permissions.json';
 const SCHOOL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-school-verification.json';
 const POST_PHASE1_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-post-phase1.json';
-const CURRENT_SNAPSHOT = POST_PHASE1_SNAPSHOT;
+const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile-pictures.json';
+const CURRENT_SNAPSHOT = PROFILE_PICTURES_SNAPSHOT;
+/** Profile pictures (2026-11-15): upload, replace, remove, view; administrators on other accounts. Additive only. */
+const PROFILE_PICTURES_ADDITIONS = [
+  'DELETE /api/v1/admin/users/{id}/avatar: operation added',
+  'DELETE /api/v1/me/avatar: operation added',
+  'GET /api/v1/users/{id}/avatar: operation added',
+  'PUT /api/v1/admin/users/{id}/avatar: operation added',
+  'PUT /api/v1/me/avatar: operation added',
+];
 /**
  * Post-Phase-1 bundle (owner approval as a baseline pending): Teacher Registration (self-registration, Administrator
  * review, school verification, the decision-notification delivery log, province in the school search) and students'
@@ -922,6 +931,16 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, POST_PHASE1_ADDITIONS);
+  });
+
+  test('post-Phase-1 bundle → profile pictures: exactly the five new avatar operations; nothing breaking or for review', () => {
+    // avatarUrl already existed in every profile response; only the routes are new.
+    for (const f of [POST_PHASE1_SNAPSHOT, PROFILE_PICTURES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(POST_PHASE1_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(PROFILE_PICTURES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, PROFILE_PICTURES_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

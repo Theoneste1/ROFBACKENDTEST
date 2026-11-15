@@ -1082,6 +1082,24 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/admin/users/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/users/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/users/{id}/resend-invitation",
     "roles": [
@@ -1902,6 +1920,26 @@
     "tag": "Me"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/me/avatar",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/avatar",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/me/courses",
     "roles": [
@@ -2545,5 +2583,15 @@
       "SUPER_ADMIN"
     ],
     "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/users/{id}/avatar",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Users"
   }
 ]

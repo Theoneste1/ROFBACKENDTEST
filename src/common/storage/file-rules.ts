@@ -59,6 +59,12 @@ export const FILE_RULES: Record<FilePurpose, FileRule> = {
     maxBytes: 50 * MB,
     folder:   'resources',
   },
+  /** A user's profile picture: shown inline in the app, so only the three common web image types. */
+  AVATAR: {
+    allowed:  new Set([MIME.JPEG, MIME.PNG, MIME.WEBP]),
+    maxBytes: 2 * MB,
+    folder:   'avatars',
+  },
 };
 
 /** Types a browser may display inline. Everything else is forced to download. */

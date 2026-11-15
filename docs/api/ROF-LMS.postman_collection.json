@@ -4649,6 +4649,62 @@
           }
         },
         {
+          "name": "PUT /admin/users/{id}/avatar",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "avatar"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "DELETE /admin/users/{id}/avatar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "avatar"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "POST /admin/users/{id}/resend-invitation",
           "request": {
             "method": "POST",
@@ -7955,6 +8011,46 @@
           }
         },
         {
+          "name": "PUT /me/avatar",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "avatar"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "DELETE /me/avatar",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "avatar"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
           "name": "GET /me/courses",
           "request": {
             "method": "GET",
@@ -10218,6 +10314,38 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "GET /users/{id}/avatar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/:id/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                ":id",
+                "avatar"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
           }
         }
       ]

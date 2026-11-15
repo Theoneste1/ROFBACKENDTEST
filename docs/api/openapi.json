@@ -8083,6 +8083,84 @@
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/users/{id}/avatar": {
+      "put": {
+        "operationId": "UsersController_setAvatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set or replace an account's profile picture (multipart field `file`: JPEG, PNG or WebP, at most 2 MB).\nOnly for an account whose current role the caller may manage (an ADMIN never a SUPER_ADMIN). Returns the\naccount. 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "UsersController_removeAvatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove an account's profile picture (idempotent). Same rule as PUT. Returns the account.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/me": {
       "get": {
         "operationId": "MeController_getMe",
@@ -8386,6 +8464,66 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/me/avatar": {
+      "put": {
+        "operationId": "MeController_setAvatar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set or replace the current user's profile picture (multipart field `file`: JPEG, PNG or WebP, at most\n2 MB, checked from the file's bytes). Returns the profile, whose avatarUrl is the new versioned link.\n400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      },
+      "delete": {
+        "operationId": "MeController_removeAvatar",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove the current user's profile picture (idempotent). Returns the profile.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
     "/api/v1/me/permissions": {
       "get": {
         "operationId": "MeController_permissions",
@@ -8647,6 +8785,46 @@
           "STUDENT"
         ],
         "description": "**Access:** STUDENT"
+      }
+    },
+    "/api/v1/users/{id}/avatar": {
+      "get": {
+        "operationId": "UserAvatarController_avatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The account's current profile picture, inline, with Cache-Control: private, max-age=86400 (the link in\navatarUrl is versioned) and X-Content-Type-Options: nosniff. 404 when the account has none.",
+        "tags": [
+          "Users"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
       }
     },
     "/api/v1/admin/teacher-assignments": {
