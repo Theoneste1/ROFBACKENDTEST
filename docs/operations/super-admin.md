@@ -8,6 +8,11 @@
 - Get a **separate, recorded approval** from the owner, with an approval reference.
 - **Rehearse first** on a Neon point-in-time copy of production, never on production directly; delete the copy afterwards.
 - The operator needs the production `DATABASE_URL` (owner-held). Run from a trusted machine; the command prints no connection details.
+- **Run from a clean working directory, with `DATABASE_URL` set explicitly.** The command loads a `.env` file from the directory it is started in, and fills in any variable that is not already set from it. Started inside a checkout, it could therefore read that checkout's `.env` and reach an unintended database. Required:
+  1. Start in an empty directory that contains **no `.env` file** (check with `ls -a`), and call the built command by its full path (e.g. `node /path/to/rof-backend/dist/super-admin/cli.js …`). Or use the runtime image, which contains no `.env`.
+  2. Set `DATABASE_URL` explicitly in that shell, for the target database only, without echoing it.
+  3. Before any bootstrap, run the **dry run**. Confirm the reported account and the active Super Admin count are the ones you expect for that database. The command should print `injected env (0) from .env` or nothing about `.env`. If it reports injected variables, stop.
+  4. Unset `DATABASE_URL` and close the shell afterwards.
 - The target is a **personal** Administrator account, identified by its **username only** (the owner reads it on their profile after signing in, or an Administrator finds it under Users → Administrators). No password, token or connection detail is needed or shared.
 
 ## Dry run — check the target first (changes nothing)
@@ -69,7 +74,7 @@ All refusals change nothing (exit code 3).
 | `OPERATOR_INPUT_REQUIRED` | `--reason` or `--approval-ref` missing or shorter than 3 characters |
 | `CONFIRMATION_MISMATCH` | `--confirm-username` does not repeat `--username` exactly |
 | `NOT_AN_ACTIVE_ADMIN` | the target does not exist, is not an ADMIN, is suspended, or was never activated |
-| `SHARED_ACCOUNT_REFUSED` | the target is the shared seeded account (`admin` or `SEED_ADMIN_USERNAME`) |
+| `SHARED_ACCOUNT_REFUSED` | the target is the shared seeded account (`admin` or `SEED_ADMIN_USERNAME`). The same code, HTTP 403, is returned by the admin API for promoting or renaming it. |
 | `SUPER_ADMIN_EXISTS` | an active Super Admin already exists (bootstrap, promote-admin) |
 | `NOT_A_SUPER_ADMIN` | reset-credentials named an account that is not a Super Admin |
 
@@ -83,5 +88,6 @@ All refusals change nothing (exit code 3).
 ## Safeguards that always apply
 - **The last active Super Admin cannot be removed:** service rule (409 `LAST_SUPER_ADMIN`) plus a database trigger (migration M4), so direct SQL is refused too.
 - **Only a Super Admin manages Super Admins:** an Administrator cannot promote anyone, including themselves, and nobody can change their own role.
+- **The shared seeded account never becomes a Super Admin, by any path:** the bootstrap, break-glass promotion and an in-app promotion by a Super Admin (`PATCH /admin/users/:id`) all refuse `admin` and the `SEED_ADMIN_USERNAME` account with `SHARED_ACCOUNT_REFUSED`. The API returns it as HTTP 403; the operator commands report it with exit code 3. That account also keeps its username: renaming it, which would take it out of the rule, is refused with the same code. Other edits of it work as before.
 - **Super Admins never grade or author assignments.**
 - **`SUPER_ADMIN_BOUNDARY_ENABLED`** is off by default. Switching it on is a separate approval, after the bootstrap is verified.

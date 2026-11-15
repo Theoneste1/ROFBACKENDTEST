@@ -1,8 +1,10 @@
 /**
  * Shared administrator accounts (P1-08 hardening). The seed creates one shared ADMIN account —
  * `admin`, or the username in SEED_ADMIN_USERNAME — whose password is known to more than one
- * person. Such an account must never become a Super Administrator: the bootstrap and break-glass
- * promotion refuse it with SHARED_ACCOUNT_REFUSED. Pure; unit-tested.
+ * person. Such an account must never become a Super Administrator — by an in-app promotion
+ * (RoleAssignmentPolicy.assertSharedAccountRules), the bootstrap or break-glass promotion — and it
+ * keeps its username, so it cannot be renamed out of the rule. Refusal code: SHARED_ACCOUNT_REFUSED.
+ * Pure; unit-tested.
  */
 
 /** The username the seed always uses when SEED_ADMIN_USERNAME is not set (prisma/seed.ts). */

@@ -143,6 +143,8 @@ export class UsersService {
     if (Object.keys(data).filter((k) => k !== 'currentPassword').length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
     }
+    // The shared seeded account is never promoted to Super Admin, nor renamed out of that rule (P1-08 hardening).
+    this.roles.assertSharedAccountRules(existing, { role: data.role, username: data.username });
     // schoolCode → the school's id (PR B). Not required to be active here: re-sending a student's
     // current school creates no claim; a NEW claim for an inactive school is refused by claim().
     if (data.schoolCode !== undefined) {

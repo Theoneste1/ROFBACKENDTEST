@@ -38,7 +38,9 @@ describe('Super Admin bootstrap hardening', () => {
     const [users, audits, tokensCount, emails] = await Promise.all([
       p().user.findMany({ where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } }, orderBy: { id: 'asc' },
         select: { id: true, role: true, isActive: true, activatedAt: true, tokensValidAfter: true, updatedAt: true } }),
-      p().auditLog.count(), p().refreshToken.count(), p().emailDelivery.count(),
+      // ADMIN_REQUEST rows log every administrator API request, refused ones included (written after the
+      // response); they record the attempt, not a change, so they are checked separately.
+      p().auditLog.count({ where: { action: { not: 'ADMIN_REQUEST' } } }), p().refreshToken.count(), p().emailDelivery.count(),
     ]);
     return { users, audits, tokensCount, emails };
   }
@@ -188,6 +190,63 @@ describe('Super Admin bootstrap hardening', () => {
       ]) await expect(p().$executeRawUnsafe(sql)).rejects.toThrow(/LAST_SUPER_ADMIN/);
       expect(await p().user.findUniqueOrThrow({ where: { id: sa.id } })).toMatchObject({ role: 'SUPER_ADMIN', isActive: true });
       expect(await superAdmins()).toBe(1);
+    });
+  });
+
+  describe('in-app promotion by a Super Admin (PATCH /admin/users/:id) — shared-account rule', () => {
+    let saToken: string;
+    const patch = (id: string, body: Record<string, unknown>, token = saToken) => http().patch(`/api/v1/admin/users/${id}`).set(bearer(token)).send(body);
+    const promotions = () => p().auditLog.count({ where: { action: 'SUPER_ADMIN_PROMOTE' } });
+    beforeAll(async () => {
+      const sa = await p().user.findFirstOrThrow({ where: { role: 'SUPER_ADMIN' } });
+      saToken = await login(ctx, sa.username);
+    });
+
+    it('the seeded `admin` account: promotion refused with SHARED_ACCOUNT_REFUSED, even with a valid step-up; nothing changes', async () => {
+      const before = await snapshot();
+      expect(await code(patch(ctx.ids.admin, { role: 'SUPER_ADMIN', currentPassword: PASSWORD }))).toEqual([403, 'SHARED_ACCOUNT_REFUSED']);
+      expect(await snapshot()).toEqual(before);
+      expect((await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).role).toBe('ADMIN');
+      expect(await promotions()).toBe(0);
+      // The refused attempt itself is on the audit trail (administrator request audit, outcome 403).
+      const attempt = async () => (await p().auditLog.findMany({ where: { action: 'ADMIN_REQUEST' } }))
+        .find((r) => (r.metadata as any)?.params?.id === ctx.ids.admin && (r.metadata as any)?.outcome === 403);
+      for (let i = 0; i < 40 && !(await attempt()); i++) await sleep(50);
+      expect(await attempt()).toBeTruthy();
+    });
+
+    it('the account configured through SEED_ADMIN_USERNAME: promotion refused too', async () => {
+      const configured = await makeAdmin('ops.portal');
+      process.env.SEED_ADMIN_USERNAME = 'Ops.Portal';
+      const before = await snapshot();
+      expect(await code(patch(configured.id, { role: 'SUPER_ADMIN', currentPassword: PASSWORD }))).toEqual([403, 'SHARED_ACCOUNT_REFUSED']);
+      expect(await snapshot()).toEqual(before);
+      expect(await promotions()).toBe(0);
+    });
+
+    it('no bypass by renaming: the shared account keeps its username (alone, or renamed and promoted in one request; Super Admin or Administrator)', async () => {
+      const adminToken = await login(ctx, 'admin');
+      const otherAdmin = await makeAdmin('rename.actor');
+      const otherToken = await login(ctx, otherAdmin.username);
+      const before = await snapshot();
+      expect(await code(patch(ctx.ids.admin, { username: 'admin.renamed', currentPassword: PASSWORD }))).toEqual([403, 'SHARED_ACCOUNT_REFUSED']);
+      expect(await code(patch(ctx.ids.admin, { username: 'admin.renamed', role: 'SUPER_ADMIN', currentPassword: PASSWORD }))).toEqual([403, 'SHARED_ACCOUNT_REFUSED']);
+      expect(await code(patch(ctx.ids.admin, { username: 'admin.renamed' }, otherToken))).toEqual([403, 'SHARED_ACCOUNT_REFUSED']);
+      expect(await snapshot()).toEqual(before);
+      expect((await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).username).toBe('admin');
+      // Ordinary edits of the shared account still work (no lockout of the account's normal administration).
+      await patch(ctx.ids.admin, { firstName: 'Shared' }, otherToken).expect(200);
+      expect(adminToken).toBeTruthy();
+    });
+
+    it('a legitimate personal Administrator is still promoted: audited, sessions ended', async () => {
+      const personal = await makeAdmin('personal.promote');
+      const personalToken = await login(ctx, personal.username);
+      await patch(personal.id, { role: 'SUPER_ADMIN', currentPassword: PASSWORD }).expect(200);
+      expect((await p().user.findUniqueOrThrow({ where: { id: personal.id } })).role).toBe('SUPER_ADMIN');
+      expect(await p().auditLog.count({ where: { action: 'SUPER_ADMIN_PROMOTE', entityId: personal.id } })).toBe(1);
+      await http().get('/api/v1/admin/users').set(bearer(personalToken)).expect(401);
+      expect(await superAdmins()).toBe(2);
     });
   });
 });

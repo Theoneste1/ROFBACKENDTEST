@@ -27,18 +27,18 @@
  * active Super Admin is e-mailed afterwards (a failed e-mail never undoes the change).
  */
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
 import { AuditService } from '../audit/audit.service.js';
 import { BCRYPT_COST } from '../auth/auth.service.js';
+import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
+import { SUPER_ADMIN_PROMOTION_LOCK } from '../auth/shared-accounts.js';
 import { TokenService } from '../auth/token.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { AccountEmailsService } from '../notifications/account-emails.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { isSharedAdminAccount, SUPER_ADMIN_PROMOTION_LOCK } from './shared-accounts.js';
 
 export interface BootstrapInput { username: string; confirmUsername: string; reason: string }
 export interface BreakGlassInput {
@@ -81,7 +81,7 @@ export class SuperAdminOperationsService {
     private readonly tokens: TokenService,
     private readonly audit: AuditService,
     private readonly accountEmails: AccountEmailsService,
-    private readonly config: ConfigService,
+    private readonly roles: RoleAssignmentPolicy,
   ) {}
 
   /** `bootstrap --dry-run`: the target and the Super Admin count, and the refusal the bootstrap would give. Reads only. */
@@ -187,7 +187,7 @@ export class SuperAdminOperationsService {
 
   /** An existing, active, activated ADMIN that is not a shared seeded account. */
   private assertPromotable<T extends { role: string; isActive: boolean; activatedAt: Date | null; username: string }>(target: T | null, username: string): T {
-    if (isSharedAdminAccount(target?.username ?? username ?? '', this.config.get<string>('SEED_ADMIN_USERNAME'))) {
+    if (this.roles.isSharedAccount(target?.username ?? username ?? '')) {
       throw refuse('SHARED_ACCOUNT_REFUSED', 'This is the shared seeded administrator account; it can never become a Super Administrator. Name a personal Administrator account.');
     }
     if (!target || target.role !== 'ADMIN' || !target.isActive || !target.activatedAt) {

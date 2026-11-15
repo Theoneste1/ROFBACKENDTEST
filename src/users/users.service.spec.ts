@@ -45,7 +45,7 @@ function makeMocks() {
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
 
   const accountEmails = { approved: vi.fn() };
-  const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn() };
+  const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn(), assertSharedAccountRules: vi.fn() };
   const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn(), beginUserChange: vi.fn().mockResolvedValue(null) };
   const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any);
   return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations };
@@ -302,6 +302,17 @@ describe('UsersService', () => {
 
       await service.update('u2', { role: 'ADMIN', currentPassword: STEP_UP } as any, ADMIN);
       expect(roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'ADMIN', 'roleChange');
+    });
+
+    it('update applies the shared-account rule to the account as it is now; a refusal writes nothing', async () => {
+      const { service, prisma, roles, tokens } = makeMocks();
+      prisma.user.findUnique.mockImplementation(withCaller({ id: 'u3', role: 'ADMIN', gradeLevel: null, username: 'admin', email: 'a@x.rw', isActive: true, activatedAt: new Date() }));
+      roles.assertSharedAccountRules.mockImplementation(() => { throw Object.assign(new Error('shared'), { code: 'SHARED_ACCOUNT_REFUSED' }); });
+      await expect(service.update('u3', { role: 'SUPER_ADMIN', currentPassword: STEP_UP } as any, ADMIN)).rejects.toMatchObject({ code: 'SHARED_ACCOUNT_REFUSED' });
+      expect(roles.assertSharedAccountRules).toHaveBeenCalledWith(expect.objectContaining({ username: 'admin' }), { role: 'SUPER_ADMIN', username: undefined });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
     });
 
     it('a refused role change writes nothing and ends no session', async () => {
