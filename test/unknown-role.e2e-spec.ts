@@ -15,7 +15,7 @@
  *   former student — id of student.j, with a division on the caller.
  *   fresh          — an id that does not exist in the database.
  *
- * UR-01…UR-52 cover every REGISTERED @Authenticated route (the two dormant
+ * UR-01…UR-55 cover every REGISTERED @Authenticated route (the two dormant
  * Study Groups handlers are covered by the P1-02 declaration test only).
  * UR-37 (POST /auth/logout) is retired: logout became @Public in H1 (it is
  * authenticated by the refresh token; covered by test/auth.e2e-spec.ts). The
@@ -39,7 +39,7 @@ import { DiscussionsController } from '../src/discussions/discussions.controller
 import { LeaderboardController } from '../src/leaderboard/leaderboard.controller.js';
 import { NotificationsController } from '../src/notifications/notifications.controller.js';
 import { SubmissionsController } from '../src/submissions/submissions.controller.js';
-import { MeController } from '../src/users/users.controller.js';
+import { MeController, UserAvatarController } from '../src/users/users.controller.js';
 
 // ── Outcomes and fakes ───────────────────────────────────────────────────────
 
@@ -121,6 +121,7 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     years: AcademicYearsController; assignments: AssignmentsController; auth: AuthController; courses: CoursesController;
     disciplines: DisciplinesController; discussions: DiscussionsController; leaderboard: LeaderboardController;
     notifications: NotificationsController; submissions: SubmissionsController; me: MeController;
+    avatars: UserAvatarController;
   };
   const f = {} as {
     assignmentId: string; resourceId: string; resourceAttachmentId: string; courseThreadId: string; courseCommentId: string;
@@ -137,6 +138,7 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
       courses: ctx.app.get(CoursesController), disciplines: ctx.app.get(DisciplinesController), discussions: ctx.app.get(DiscussionsController),
       leaderboard: ctx.app.get(LeaderboardController), notifications: ctx.app.get(NotificationsController),
       submissions: ctx.app.get(SubmissionsController), me: ctx.app.get(MeController),
+      avatars: ctx.app.get(UserAvatarController),
     };
     const [mentorJ, studentJ] = await Promise.all(['mentor.j', 'student.j'].map((u) => login(ctx, u)));
 
@@ -273,18 +275,22 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     { id: 'UR-50', route: 'POST /api/v1/notifications/read', kind: 'same', run: (u) => c.notifications.markManyRead(u, { ids: [f.notificationId] } as never) },
     { id: 'UR-51', route: 'POST /api/v1/notifications/read-all', kind: 'same', run: (u) => c.notifications.markAllRead(u) },
     { id: 'UR-52', route: 'GET /api/v1/notifications/unread-count', kind: 'same', run: (u) => c.notifications.unreadCount(u) },
+    // Profile pictures (2026-11-15): role-independent; the caller's own account, or any account's picture.
+    { id: 'UR-53', route: 'PUT /api/v1/me/avatar', kind: 'same', run: (u) => c.me.setAvatar(u, undefined) },
+    { id: 'UR-54', route: 'DELETE /api/v1/me/avatar', kind: 'same', run: (u) => c.me.removeAvatar(u) },
+    { id: 'UR-55', route: 'GET /api/v1/users/:id/avatar', kind: 'same', run: (_u, res) => c.avatars.avatar(ctx.ids.studentJunior, res) },
   ];
   /** Read-only role-independent cases: the unsupported caller must get exactly the same value. */
-  const READ_ONLY = new Set(['UR-35', 'UR-36', 'UR-40', 'UR-41', 'UR-43', 'UR-46', 'UR-47', 'UR-52']);
+  const READ_ONLY = new Set(['UR-35', 'UR-36', 'UR-40', 'UR-41', 'UR-43', 'UR-46', 'UR-47', 'UR-52', 'UR-55']);
 
   /** Ids of cases whose route is no longer @Authenticated; never reused. */
   const RETIRED = new Set(['UR-37']);   // POST /auth/logout → @Public (H1)
 
-  it('the UR cases cover exactly the registered @Authenticated routes (51), numbered UR-01…UR-52 without the retired UR-37', async () => {
+  it('the UR cases cover exactly the registered @Authenticated routes (54), numbered UR-01…UR-55 without the retired UR-37', async () => {
     expect(CASES.map((x) => x.id)).toEqual(
-      Array.from({ length: 52 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
+      Array.from({ length: 55 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
     );
-    expect(CASES).toHaveLength(51);
+    expect(CASES).toHaveLength(54);
     expect(CASES.map((x) => x.route).sort()).toEqual(await registeredAuthenticatedRoutes());
   });
 

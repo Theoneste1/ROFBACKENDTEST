@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 278 endpoints — 20 public, 155 administrator-only.
+Totals: 283 endpoints — 20 public, 157 administrator-only.
 
 ## Academic years
 
@@ -230,6 +230,8 @@ Totals: 278 endpoints — 20 public, 155 administrator-only.
 | GET | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/resend-invitation` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/send-password-reset` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/users/{id}/status` |  |  |  | ✓ |
@@ -363,6 +365,8 @@ Totals: 278 endpoints — 20 public, 155 administrator-only.
 | GET | `/api/v1/me` |  | ✓ | ✓ | ✓ |
 | PATCH | `/api/v1/me` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/me/assignments` |  | ✓ |  |  |
+| PUT | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/me/courses` |  | ✓ |  |  |
 | GET | `/api/v1/me/enrollments` |  | ✓ |  |  |
 | GET | `/api/v1/me/permissions` |  | ✓ | ✓ | ✓ |
@@ -484,3 +488,9 @@ Totals: 278 endpoints — 20 public, 155 administrator-only.
 | POST | `/api/v1/admin/teacher-applications/{id}/approve` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
+
+## Users
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/users/{id}/avatar` |  | ✓ | ✓ | ✓ |

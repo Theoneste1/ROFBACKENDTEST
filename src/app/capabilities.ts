@@ -117,6 +117,14 @@ export const FEATURES = {
    * /api/v1/admin/teacher-applications. Gated like teacherAccounts (TEACHERS_ENABLED).
    */
   teacherSelfRegistration: 'TEACHER',
+  /**
+   * Profile pictures: PUT / DELETE /api/v1/me/avatar (multipart field `file`: JPEG, PNG or WebP, at most 2 MB;
+   * 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED), PUT / DELETE
+   * /api/v1/admin/users/:id/avatar (users.manage, accounts whose role the caller may manage), and
+   * GET /api/v1/users/:id/avatar (any signed-in user; 404 without a picture). avatarUrl in the profile is that
+   * versioned link (`?v=`), or null. Without this feature those routes do not exist (404).
+   */
+  profilePictures: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;
