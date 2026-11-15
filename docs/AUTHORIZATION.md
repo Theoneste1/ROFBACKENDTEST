@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 283 endpoints — 20 public, 157 administrator-only.
+Totals: 290 endpoints — 22 public, 162 administrator-only.
 
 ## Academic years
 
@@ -87,6 +87,16 @@ Totals: 283 endpoints — 20 public, 157 administrator-only.
 | GET | `/api/v1/admin/email/users` |  |  |  | ✓ |
 | GET | `/api/v1/admin/notification-deliveries` |  |  |  | ✓ |
 | POST | `/api/v1/admin/notification-deliveries/{id}/retry` |  |  |  | ✓ |
+
+## Admin · Forms
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/forms` |  |  |  | ✓ |
+| GET | `/api/v1/admin/forms/{key}` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/forms/{key}/availability` |  |  |  | ✓ |
+| GET | `/api/v1/admin/forms/{key}/history` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/forms/{key}/messages` |  |  |  | ✓ |
 
 ## Admin · Leaderboard
 
@@ -342,6 +352,13 @@ Totals: 283 endpoints — 20 public, 157 administrator-only.
 | GET | `/api/v1/admin/divisions` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/divisions/{id}` |  |  |  | ✓ |
 | GET | `/api/v1/divisions` | ✓ | ✓ | ✓ | ✓ |
+
+## Forms
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/forms` | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/forms/{key}` | ✓ | ✓ | ✓ | ✓ |
 
 ## Health
 

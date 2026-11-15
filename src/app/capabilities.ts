@@ -125,6 +125,14 @@ export const FEATURES = {
    * versioned link (`?v=`), or null. Without this feature those routes do not exist (404).
    */
   profilePictures: 'always',
+  /**
+   * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
+   * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
+   * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with
+   * forms.editMessages; GET :key/history). Submissions to a closed form are refused with 403: REGISTRATION_CLOSED
+   * (student and teacher registration) or FORM_CLOSED (coach applications, contact form), with the form details.
+   */
+  formAvailability: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

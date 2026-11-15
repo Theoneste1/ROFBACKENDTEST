@@ -213,7 +213,8 @@ const REGISTRATION_DETAILS_ADDITIONS = [
   'POST /api/v1/mentor-requests › response 201 application/json.olympiadInterests: new field',
 ];
 const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile-pictures.json';
-const CURRENT_SNAPSHOT = PROFILE_PICTURES_SNAPSHOT;
+const FORM_AVAILABILITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-form-availability.json';
+const CURRENT_SNAPSHOT = FORM_AVAILABILITY_SNAPSHOT;
 /**
  * Profile pictures (2026-11-15): upload, replace, remove, view; administrators on other accounts. Additive only;
  * chained after registration details.
@@ -224,6 +225,21 @@ const PROFILE_PICTURES_ADDITIONS = [
   'GET /api/v1/users/{id}/avatar: operation added',
   'PUT /api/v1/admin/users/{id}/avatar: operation added',
   'PUT /api/v1/me/avatar: operation added',
+];
+/**
+ * Form availability (2026-11-15): the public view of each form and the administrators' management (forms.view,
+ * forms.manageAvailability, forms.editMessages). Additive only; chained after profile pictures.
+ */
+const FORM_AVAILABILITY_ADDITIONS = [
+  'GET /api/v1/admin/forms/{key}/history: operation added',
+  'GET /api/v1/admin/forms/{key}: operation added',
+  'GET /api/v1/admin/forms: operation added',
+  'GET /api/v1/forms/{key}: operation added',
+  'GET /api/v1/forms: operation added',
+  'PATCH /api/v1/admin/forms/{key}/availability: operation added',
+  'PATCH /api/v1/admin/forms/{key}/messages: operation added',
+  'schema UpdateFormAvailabilityDto: added',
+  'schema UpdateFormMessagesDto: added',
 ];
 /**
  * Post-Phase-1 bundle (owner approval as a baseline pending): Teacher Registration (self-registration, Administrator
@@ -1048,6 +1064,15 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, PROFILE_PICTURES_ADDITIONS);
+  });
+
+  test('profile pictures → form availability: exactly the seven form operations and their two request schemas; nothing breaking or for review', () => {
+    for (const f of [PROFILE_PICTURES_SNAPSHOT, FORM_AVAILABILITY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(PROFILE_PICTURES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FORM_AVAILABILITY_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, FORM_AVAILABILITY_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

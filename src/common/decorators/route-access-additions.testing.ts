@@ -130,4 +130,13 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
   'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
   'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
+  // Form availability (2026-11-15): the public view of every form (no sign-in), and the administrators' management
+  // (forms.view, forms.manageAvailability, forms.editMessages: Administrators and Super Admins)
+  'GET /api/v1/forms  FormsController.list':                                                                  PUBLIC,
+  'GET /api/v1/forms/:key  FormsController.one':                                                              PUBLIC,
+  'GET /api/v1/admin/forms  AdminFormsController.list':                                                       ADMINISTRATORS,
+  'GET /api/v1/admin/forms/:key  AdminFormsController.one':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/forms/:key/history  AdminFormsController.history':                                       ADMINISTRATORS,
+  'PATCH /api/v1/admin/forms/:key/availability  AdminFormsController.availability':                           ADMINISTRATORS,
+  'PATCH /api/v1/admin/forms/:key/messages  AdminFormsController.messages':                                   ADMINISTRATORS,
 };

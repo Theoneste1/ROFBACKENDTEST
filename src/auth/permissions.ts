@@ -78,6 +78,10 @@ export const PERMISSIONS = [
   'schools.manage',
   // ── School directory S2b: approve and apply a directory sync, resolve its conflicts (Super Admins only; never grantable) ──
   'schools.syncDirectory',
+  // ── Form availability (registration and website forms; Administrators, Super Admins) ──
+  'forms.view',                  // the administrators' view of every form, its schedule and its history
+  'forms.manageAvailability',    // open, close and schedule a form
+  'forms.editMessages',          // closed-form message, instructions, contact e-mail and support link
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -123,6 +127,7 @@ const ADMIN_GRANTS: Grants = {
   'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
   'permissions.view': 'global',
   'schools.manage': 'global',
+  'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
 };
 
 /**
@@ -184,6 +189,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
     'permissions.view': 'global', 'permissions.manageOverrides': 'global', 'settings.manageSystem': 'global',
     'schools.manage': 'global', 'schools.syncDirectory': 'global',
+    'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
   },
 };
 
@@ -236,6 +242,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // without them here the frontend hid those screens from ADMINs. users.manageAdmins, permissions.*,
     // settings.manageSystem and schools.syncDirectory are still never listed for ADMIN.
     'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
+    // Appended (additive, form availability 2026-11-15): ADMIN holds them (ADMIN_GRANTS, global) and the form routes
+    // require them; listed so the frontend can show the form-management screen.
+    'forms.view', 'forms.manageAvailability', 'forms.editMessages',
   ],
 };
 

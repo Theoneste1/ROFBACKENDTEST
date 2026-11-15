@@ -1090,6 +1090,177 @@
       ]
     },
     {
+      "name": "Admin · Forms",
+      "item": [
+        {
+          "name": "GET /admin/forms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/forms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "forms"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `forms.view` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/forms/{key}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/forms/:key",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "forms",
+                ":key"
+              ],
+              "variable": [
+                {
+                  "key": "key",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `forms.view` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PATCH /admin/forms/{key}/availability",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/forms/:key/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "forms",
+                ":key",
+                "availability"
+              ],
+              "variable": [
+                {
+                  "key": "key",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `forms.manageAvailability` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"OPEN\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/forms/{key}/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/forms/:key/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "forms",
+                ":key",
+                "history"
+              ],
+              "variable": [
+                {
+                  "key": "key",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "limit",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `forms.view` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PATCH /admin/forms/{key}/messages",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/forms/:key/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "forms",
+                ":key",
+                "messages"
+              ],
+              "variable": [
+                {
+                  "key": "key",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `forms.editMessages` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"closedMessage\": \"closedMessage\",\n  \"instructions\": \"instructions\",\n  \"contactEmail\": \"name@example.org\",\n  \"supportUrl\": \"https://meet.google.com/abc-defg-hij\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Leaderboard",
       "item": [
         {
@@ -7721,6 +7892,62 @@
                 "divisions"
               ],
               "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Forms",
+      "item": [
+        {
+          "name": "GET /forms",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/forms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "forms"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
+          }
+        },
+        {
+          "name": "GET /forms/{key}",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/forms/:key",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "forms",
+                ":key"
+              ],
+              "variable": [
+                {
+                  "key": "key",
+                  "value": "",
+                  "description": ""
+                }
+              ],
               "query": []
             },
             "description": "**Access:** Public (no token)"

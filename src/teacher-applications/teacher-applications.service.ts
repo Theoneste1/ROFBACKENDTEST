@@ -12,6 +12,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { FormAvailabilityService } from '../forms/form-availability.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { ActivationService, type IssuedActivation } from '../auth/activation.service.js';
@@ -66,13 +67,17 @@ export class TeacherApplicationsService {
     private readonly config:     ConfigService,
     private readonly notices:    DecisionNotificationsService,
     private readonly events:     EventEmitter2,
+    private readonly forms:      FormAvailabilityService,
   ) {}
 
   // ─── Public ────────────────────────────────────────────────────────────────
 
-  /** Open only while TEACHERS_ENABLED and registration.teacherSelfSignup are both on. */
+  /**
+   * Open only while TEACHERS_ENABLED is on AND the TEACHER_REGISTRATION form is open (open, closed or scheduled;
+   * registration.teacherSelfSignup reads and writes that form).
+   */
   async isOpen(): Promise<boolean> {
-    return teacherRegistrationOpen(roleFlagOn('TEACHER', this.config), await this.settings.get('registration.teacherSelfSignup'));
+    return teacherRegistrationOpen(roleFlagOn('TEACHER', this.config), await this.forms.isOpen('TEACHER_REGISTRATION'));
   }
 
   async availability() {
@@ -80,7 +85,11 @@ export class TeacherApplicationsService {
   }
 
   async register(dto: RegisterTeacherDto) {
-    if (!(await this.isOpen())) throw registrationClosed();
+    // 403 REGISTRATION_CLOSED with the form's closed message (also while the Teacher role is disabled).
+    if (!(await this.isOpen())) {
+      await this.forms.assertOpen('TEACHER_REGISTRATION');
+      throw registrationClosed();
+    }
     assertPasswordsMatch(dto.password, dto.confirmPassword);
     const phone = normalisePhone(dto.phone);
     if (!phone) {

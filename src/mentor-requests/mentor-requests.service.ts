@@ -7,6 +7,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { FormAvailabilityService } from '../forms/form-availability.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -37,6 +38,7 @@ export class MentorRequestsService {
     private readonly activation: ActivationService,
     private readonly settings:   SettingsService,
     private readonly notices:    DecisionNotificationsService,
+    private readonly forms:      FormAvailabilityService,
   ) {}
 
   // ─── Submit a mentor application (public) ─────────────────────────────────
@@ -44,6 +46,8 @@ export class MentorRequestsService {
   // A previously REJECTED applicant may apply again with the same details;
   // the old request is reused.
   async create(data: CreateMentorRequestDto) {
+    // The COACH_APPLICATION form: 403 FORM_CLOSED with its closed message while it is not open.
+    await this.forms.assertOpen('COACH_APPLICATION');
     const [existingUser, existingRequest, pendingTeacherApplication] = await Promise.all([
       this.prisma.user.findFirst({
         where:  { OR: [{ username: data.username }, { email: data.email }] },

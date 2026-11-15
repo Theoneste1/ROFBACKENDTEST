@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 20 @Public + 29 @Roles + 187 @RequirePermission + 56 @Authenticated = 292, none undeclared', () => {
+  it('declarations add up: 22 @Public + 29 @Roles + 192 @RequirePermission + 56 @Authenticated = 299, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 20, '@Roles': 29, '@RequirePermission': 187, '@Authenticated': 56 });  // +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 22, '@Roles': 29, '@RequirePermission': 192, '@Authenticated': 56 });  // +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in; form availability: +2 public, +5 forms.*
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -217,6 +217,8 @@ describe('route declarations (P1-02 §5)', () => {
       'schools.manage': 36,
       // directory S2b: approve, apply, resolve after apply (Super Admins only)
       'schools.syncDirectory': 3,
+      // Form availability (2026-11-15): list, form, history (forms.view); open/close/schedule; messages
+      'forms.view': 3, 'forms.manageAvailability': 1, 'forms.editMessages': 1,
     });
   });
 
@@ -329,7 +331,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 81 added since: 283 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 88 added since: 290 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -360,7 +362,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(20);   // P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register
+      expect(handlers.filter(isPublic)).toHaveLength(22);   // P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register; form availability: + GET /forms, /forms/:key
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {

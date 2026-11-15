@@ -79,6 +79,8 @@ function makeMocks() {
   const issued        = { token: 't', expiresAt: new Date(), purpose: 'EMAIL_VERIFICATION', userId: 'u-new', email: 'a@x.rw', firstName: 'A' };
   const accountEmails = { welcome: vi.fn(), passwordChanged: vi.fn() };
   const events        = { emit: vi.fn() };
+  /** The STUDENT_REGISTRATION form: open unless a test closes it. */
+  const forms         = { assertOpen: vi.fn().mockResolvedValue(undefined) };
   const activation    = {
     issue:        vi.fn().mockResolvedValue(issued),
     send:         vi.fn().mockResolvedValue({}),
@@ -91,8 +93,9 @@ function makeMocks() {
     { assertCanAssign: vi.fn(), assertCanManage: vi.fn() } as any,
     { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() } as any,   // school affiliation (claims are tested end to end)
     events as any,
+    forms as any,
   );
-  return { service, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails, events };
+  return { service, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails, events, forms };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({
@@ -256,11 +259,11 @@ describe('AuthService', () => {
       gradeLevel: 'S2', schoolName: 'GS Kigali', schoolLocation: 'Kigali', homeLocation: 'Gasabo',
     } as any;
 
-    it('fails with REGISTRATION_CLOSED when self-signup is disabled', async () => {
-      const { service, prisma, settings } = makeMocks();
-      settings.get.mockResolvedValue(false);
+    it('fails with REGISTRATION_CLOSED while the STUDENT_REGISTRATION form is closed, before writing anything', async () => {
+      const { service, prisma, forms } = makeMocks();
+      forms.assertOpen.mockRejectedValue(Object.assign(new Error('closed'), { code: 'REGISTRATION_CLOSED', status: 403 }));
       await expect(service.registerStudent(dto)).rejects.toMatchObject({ code: 'REGISTRATION_CLOSED', status: 403 });
-      expect(settings.get).toHaveBeenCalledWith('registration.studentSelfSignup');
+      expect(forms.assertOpen).toHaveBeenCalledWith('STUDENT_REGISTRATION');
       expect(prisma.user.create).not.toHaveBeenCalled();
     });
 

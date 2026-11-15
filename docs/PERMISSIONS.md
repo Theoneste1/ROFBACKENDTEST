@@ -83,6 +83,9 @@ permission guard.
 | `submissions.submitOnBehalf` | — | — | — | — | — | — |
 | `schools.manage` | — | — | — | — | all | all |
 | `schools.syncDirectory` | — | — | — | — | — | all |
+| `forms.view` | — | — | — | — | all | all |
+| `forms.manageAvailability` | — | — | — | — | all | all |
+| `forms.editMessages` | — | — | — | — | all | all |
 
 ## Administrators and Head Coaches (D-5, 2026-11-14)
 

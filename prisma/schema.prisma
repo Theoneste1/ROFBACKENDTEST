@@ -493,6 +493,7 @@ model User {
   invitationsSent                   AccountActivationToken[]   @relation("ActivationInviter")
   filesUploaded                     FileObject[]               @relation("FileUploader")
   settingsUpdated                   SystemSetting[]
+  formAvailabilityUpdated           FormAvailability[]
   studentEnrollments                StudentEnrollment[]
   reviews                           MentorReview[]             @relation("ReviewMentor")
   reviewsAssigned                   MentorReview[]             @relation("ReviewAssigner")
@@ -2025,6 +2026,42 @@ model SystemSetting {
   updatedById String?
   updatedBy   User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
   updatedAt   DateTime @updatedAt
+
+  @@index([updatedById])
+}
+
+/// The public and registration forms whose availability administrators control (docs/operations/forms.md).
+enum FormKey {
+  STUDENT_REGISTRATION
+  TEACHER_REGISTRATION
+  COACH_APPLICATION
+  CONTACT
+}
+
+/// How a form's availability is decided: always open (until closesAt), always closed, or by its schedule.
+enum FormMode {
+  OPEN
+  CLOSED
+  SCHEDULED
+}
+
+/// Availability, schedule and closed-form message of one form: the single source of truth (it replaces the
+/// registration.studentSelfSignup and registration.teacherSelfSignup switches, which now read and write it).
+/// Times are UTC instants; they are shown in Africa/Kigali. A null message, instructions or contact means the
+/// built-in default (FORM_DEFAULTS).
+model FormAvailability {
+  key           FormKey  @id
+  mode          FormMode
+  opensAt       DateTime?
+  closesAt      DateTime?
+  closedMessage String?
+  instructions  String?
+  contactEmail  String?
+  supportUrl    String?
+  updatedById   String?
+  updatedBy     User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([updatedById])
 }

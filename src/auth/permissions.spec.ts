@@ -52,6 +52,8 @@ describe('permissions', () => {
       'users.manageTeachers',   // appended 2026-11-13: already granted (ADMIN_GRANTS), now reported too
       // appended 2026-11-14 (owner decision D-5): already granted (ADMIN_GRANTS), now reported too
       'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
+      // appended 2026-11-15 (form availability): granted (ADMIN_GRANTS), reported so the form-management screen shows
+      'forms.view', 'forms.manageAvailability', 'forms.editMessages',
     ]);
   });
 
@@ -67,10 +69,11 @@ describe('permissions', () => {
 
   it('D-5 (2026-11-14): ADMIN reports the Head Coach administration it holds — exactly five names appended, all global grants', () => {
     const D5 = ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view'] as const;
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-D5.length)).toEqual([...D5]);
+    const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // appended after D-5 (2026-11-15)
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + FORMS.length), -FORMS.length)).toEqual([...D5]);
     for (const p of D5) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     // Additive only: the 25 original entries keep their order, and nothing else appeared.
-    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length);
+    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + FORMS.length);
     // Never reported to ADMIN (and never granted, except users.manageAdmins / permissions.view which stay unreported).
     for (const p of ['users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
       expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
@@ -165,6 +168,7 @@ describe('permissions', () => {
       'users.manageHeadCoaches': G, 'users.manageAdmins': G,
       'programmes.manageHeads': G, 'programmes.manageMembers': G, 'coaches.monitor': G,
       'permissions.view': G, 'schools.manage': G,
+      'forms.view': G, 'forms.manageAvailability': G, 'forms.editMessages': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {
