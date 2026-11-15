@@ -133,8 +133,11 @@ export class StorageService implements OnModuleInit {
   // Serve
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Stream a file to the client. Authorization must already have happened. */
-  async send(res: Response, file: ServableFile, opts: { download?: boolean } = {}) {
+  /**
+   * Stream a file to the client. Authorization must already have happened.
+   * `cacheControl` overrides the default `private, no-store` (e.g. versioned profile pictures).
+   */
+  async send(res: Response, file: ServableFile, opts: { download?: boolean; cacheControl?: string } = {}) {
     const stream = await this.driver.getStream(file.storageKey);
 
     const inline = !opts.download && INLINE_TYPES.has(file.mimeType);
@@ -142,7 +145,7 @@ export class StorageService implements OnModuleInit {
     res.setHeader('Content-Length', String(file.size));
     res.setHeader('Content-Disposition', contentDisposition(file.originalName, inline));
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Cache-Control', opts.cacheControl ?? 'private, no-store');
     // Uploaded documents must never run script in our origin.
     res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
 
@@ -173,8 +176,8 @@ export class StorageService implements OnModuleInit {
   /**
    * Nightly: delete files no record refers to any more (detached resource
    * files, uploads whose request failed after storing, …). Every reference to
-   * a file goes through an attachment table, so a file is an orphan only when
-   * no attachment of any kind points to it. Submission files stay attached to
+   * a file goes through an attachment table or is an account's current profile
+   * picture, so a file is an orphan only when nothing of either kind points to it. Submission files stay attached to
    * their revision history and are never removed here.
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'storage-orphan-cleanup' })
@@ -192,6 +195,7 @@ export class StorageService implements OnModuleInit {
         assignmentAttachments: { none: {} },
         submissionAttachments: { none: {} },
         reviewAttachments:     { none: {} },
+        avatarOf:              { is: null },
       },
       select: { id: true, storageKey: true },
       take:   500,

@@ -20,6 +20,8 @@ const PUBLIC: AddedRouteDecisions = { anonymous: 'allow', STUDENT: 'allow', MENT
 /** Granted only by an individual delegation (P1-11): no baseline caller holds it. */
 const NOBODY_BY_DEFAULT: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
+/** @Authenticated: every signed-in caller, whatever the role (own data only, or data shown to every member). */
+const SIGNED_IN:        AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
 
 export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>> = {
   // P1-09 — individual permission overrides (permissions.manageOverrides: Super Admin only)
@@ -121,4 +123,11 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/notification-deliveries/:id/retry  DecisionNotificationsController.retry':              ADMINISTRATORS,
   // Owner decision 2026-11-14: an administrator verifies a school (schools.manage, like every school edit).
   'POST /api/v1/admin/schools/:id/verify  AdminSchoolsController.verify':                                     ADMINISTRATORS,
+  // Profile pictures (2026-11-15): own picture (any signed-in user), viewing (any signed-in user, never anonymous),
+  // another account's picture (users.manage + the role policy on the target account, in AvatarService)
+  'PUT /api/v1/me/avatar  MeController.setAvatar':                                                             SIGNED_IN,
+  'DELETE /api/v1/me/avatar  MeController.removeAvatar':                                                       SIGNED_IN,
+  'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
+  'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
+  'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
 };
