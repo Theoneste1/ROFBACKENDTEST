@@ -1864,7 +1864,7 @@ Body (JSON):
 
 Returns `201` JSON with:
 
-`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` any or null · `lastName` string · `olympiadInterests` any[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) · `avatarUrl` any or null · `country` string or null · `createdAt` string (date-time) · `dateOfBirth` string (date-time) or null · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `guardianPhone` string or null · `homeDistrict` string or null · `homeLocation` any or null · `homeProvince` string or null · `homeSector` string or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` any or null · `lastName` string · `olympiadInterests` any[] · `phone` string or null · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
 
 ### GET `/api/v1/admin/users/{id}`
 
@@ -1876,7 +1876,7 @@ Returns `201` JSON with:
 
 Returns `200` JSON with:
 
-`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) · `avatarUrl` any or null · `country` string or null · `createdAt` string (date-time) · `dateOfBirth` string (date-time) or null · `division` object · `email` string · `firstName` string · `gradeLevel` string · `guardianPhone` string or null · `homeDistrict` string or null · `homeLocation` any or null · `homeProvince` string or null · `homeSector` string or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `phone` string or null · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object · `updatedAt` string (date-time) · `username` string
 
 ### PATCH `/api/v1/admin/users/{id}`
 
@@ -1904,7 +1904,7 @@ Body (JSON):
 
 Returns `200` JSON with:
 
-`activatedAt` string (date-time) · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `olympiadInterests` any[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) · `avatarUrl` any or null · `country` string or null · `createdAt` string (date-time) · `dateOfBirth` string (date-time) or null · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `guardianPhone` string or null · `homeDistrict` string or null · `homeLocation` any or null · `homeProvince` string or null · `homeSector` string or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `olympiadInterests` any[] · `phone` string or null · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` any or null · `updatedAt` string (date-time) · `username` string
 
 ### DELETE `/api/v1/admin/users/{id}`
 
@@ -1993,7 +1993,7 @@ Body (JSON):
 
 Returns `200` JSON with:
 
-`activatedAt` string (date-time) or null · `avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` any or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `olympiadInterests` any[] · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object or null · `updatedAt` string (date-time) · `username` string
+`activatedAt` string (date-time) or null · `avatarUrl` any or null · `country` string or null · `createdAt` string (date-time) · `dateOfBirth` string (date-time) or null · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `guardianPhone` string or null · `homeDistrict` string or null · `homeLocation` any or null · `homeProvince` string or null · `homeSector` string or null · `id` string (uuid) · `isActive` boolean · `isApproved` boolean · `lastLoginAt` string (date-time) or null · `lastName` string · `olympiadInterests` any[] · `phone` string or null · `points` integer · `problemsSolved` integer · `provider` string · `role` string · `school` object or null · `updatedAt` string (date-time) · `username` string
 
 ### POST `/api/v1/admin/users/import`
 
@@ -2492,12 +2492,19 @@ Body (JSON):
 | `schoolDistrict` | string |  |  |
 | `schoolSector` | string |  |  |
 | `schoolLocation` | string |  | Legacy, with schoolName: city / region of the school (not stored). |
-| `homeLocation` | string | ✓ | Student's home city / region. |
+| `homeLocation` | string |  | Student's home city / region. Required unless the official home place (homeProvince, homeDistrict, homeSector) is sent; then it is optional and stored as "Sector, District". |
+| `dateOfBirth` | string |  |  |
+| `phone` | string |  | The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. |
+| `guardianPhone` | string |  | A close-family member's phone, stored in E.164 (teacher-application rules). The form requires it. Not audited. |
+| `homeCountry` | string |  | The student's own country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. |
+| `homeProvince` | string |  | The official home place (Rwanda only; a place of GET /schools/locations, else 400 UNKNOWN_HOME_LOCATION; with another homeCountry 400 HOME_LOCATION_RWANDA_ONLY). All three together. |
+| `homeDistrict` | string |  |  |
+| `homeSector` | string |  |  |
 | `olympiadInterests` | string[] |  | Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then has none); the sign-up form requires at least one. Information only: no programme membership, no permissions. |
 
 Returns `201` JSON with:
 
-`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` any or null · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `requiresApproval` boolean · `requiresEmailVerification` boolean · `role` string · `school` object or null · `schoolVerification` string or null · `username` string
+`avatarUrl` any or null · `country` string or null · `createdAt` string (date-time) · `dateOfBirth` string (date-time) or null · `division` object · `email` string · `firstName` string · `gradeLevel` string · `guardianPhone` string or null · `homeDistrict` string or null · `homeLocation` string · `homeProvince` string or null · `homeSector` string or null · `id` string (uuid) · `lastLoginAt` any or null · `lastName` string · `olympiadInterests` string[] · `phone` string or null · `points` integer · `problemsSolved` integer · `requiresApproval` boolean · `requiresEmailVerification` boolean · `role` string · `school` object or null · `schoolVerification` string or null · `username` string
 
 ### POST `/api/v1/auth/register/teacher`
 
@@ -2867,7 +2874,7 @@ Returns `200` JSON with:
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `status` | query | OPEN \| RESOLVED \| DISMISSED |  | Default OPEN. |
-| `reason` | query | SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY \| OTHER |  |  |
+| `reason` | query | OTHER \| SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY |  |  |
 | `targetType` | query | THREAD \| COMMENT |  |  |
 
 Returns `200` JSON with:
@@ -3043,7 +3050,7 @@ Body (JSON):
 
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
-| `reason` | SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY \| OTHER | ✓ |  |
+| `reason` | OTHER \| SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY | ✓ |  |
 | `details` | string |  |  |
 
 Returns `201` JSON with:
@@ -3223,7 +3230,7 @@ Body (JSON):
 
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
-| `reason` | SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY \| OTHER | ✓ |  |
+| `reason` | OTHER \| SPAM \| ABUSE \| INAPPROPRIATE \| OFF_TOPIC \| ACADEMIC_DISHONESTY | ✓ |  |
 | `details` | string |  |  |
 
 Returns `201` JSON with:
@@ -3344,7 +3351,7 @@ The current user's profile, division and school.
 
 Returns `200` JSON with:
 
-`avatarUrl` any or null · `createdAt` string (date-time) · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `homeLocation` string or null · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `role` string · `school` object or null · `username` string
+`avatarUrl` any or null · `country` string or null · `createdAt` string (date-time) · `dateOfBirth` string (date-time) or null · `division` object or null · `email` string · `firstName` string · `gradeLevel` string or null · `guardianPhone` string or null · `homeDistrict` string or null · `homeLocation` string or null · `homeProvince` string or null · `homeSector` string or null · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `phone` string or null · `points` integer · `problemsSolved` integer · `role` string · `school` object or null · `username` string
 
 ### PATCH `/api/v1/me`
 
@@ -3361,7 +3368,7 @@ Body (JSON):
 
 Returns `200` JSON with:
 
-`avatarUrl` any or null · `createdAt` string (date-time) · `division` object · `email` string · `firstName` string · `gradeLevel` string · `homeLocation` string · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `points` integer · `problemsSolved` integer · `role` string · `school` object · `username` string
+`avatarUrl` any or null · `country` string or null · `createdAt` string (date-time) · `dateOfBirth` string (date-time) or null · `division` object · `email` string · `firstName` string · `gradeLevel` string · `guardianPhone` string or null · `homeDistrict` string or null · `homeLocation` string · `homeProvince` string or null · `homeSector` string or null · `id` string (uuid) · `lastLoginAt` string (date-time) · `lastName` string · `olympiadInterests` string[] · `phone` string or null · `points` integer · `problemsSolved` integer · `role` string · `school` object · `username` string
 
 ### GET `/api/v1/me/assignments`
 
@@ -3590,10 +3597,14 @@ Body (JSON):
 | `username` | string | ✓ |  |
 | `email` | string (email) | ✓ |  |
 | `password` | string | ✓ |  |
+| `country` | string |  |  |
+| `occupation` | string |  | Current or most recent occupation, as entered (2–200 characters). |
+| `educationLevel` | SECONDARY \| DIPLOMA \| BACHELOR \| MASTER \| DOCTORATE \| OTHER |  | Highest education level. |
+| `olympiadInterests` | string[] |  | One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). Copied to the Coach account on approval; information only. |
 
 Returns `201` JSON with:
 
-`createdAt` string (date-time) · `email` string · `firstName` string · `id` string (uuid) · `lastName` string · `status` string · `updatedAt` string (date-time) · `username` string
+`country` string or null · `createdAt` string (date-time) · `educationLevel` string or null · `email` string · `firstName` string · `id` string (uuid) · `lastName` string · `occupation` string or null · `olympiadInterests` string[] · `status` string · `updatedAt` string (date-time) · `username` string
 
 ### PATCH `/api/v1/mentor-requests/{id}/approve`
 

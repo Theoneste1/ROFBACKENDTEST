@@ -5935,7 +5935,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"homeLocation\": \"homeLocation\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6858,7 +6858,7 @@
                 },
                 {
                   "key": "reason",
-                  "value": "SPAM",
+                  "value": "OTHER",
                   "disabled": true,
                   "description": ""
                 },
@@ -7246,7 +7246,7 @@
             "description": "**Access:** Any signed-in user",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"reason\": \"SPAM\"\n}",
+              "raw": "{\n  \"reason\": \"OTHER\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7629,7 +7629,7 @@
             "description": "**Access:** Any signed-in user",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"reason\": \"SPAM\"\n}",
+              "raw": "{\n  \"reason\": \"OTHER\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

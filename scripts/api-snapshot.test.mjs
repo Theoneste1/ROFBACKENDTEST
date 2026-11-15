@@ -117,9 +117,107 @@ const CODELESS_SCHOOLS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-codeles
 const RELEASE_PERMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-release-permissions.json';
 const SCHOOL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-school-verification.json';
 const POST_PHASE1_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-14-post-phase1.json';
+const REGISTRATION_DETAILS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-registration-details.json';
+/**
+ * Registration details (owner approval as a baseline pending): optional student fields (date of birth, phones, own
+ * country, official home place; homeLocation optional with the home place) and coach application fields (country,
+ * occupation, education level, Olympiad interests); the profile and admin user responses return the student fields.
+ * Additive only; chained after the post-Phase-1 bundle.
+ */
+const REGISTRATION_DETAILS_ADDITIONS = [
+  'GET /api/v1/admin/users › response 200 application/json.data[].country: new field',
+  'GET /api/v1/admin/users › response 200 application/json.data[].dateOfBirth: new field',
+  'GET /api/v1/admin/users › response 200 application/json.data[].guardianPhone: new field',
+  'GET /api/v1/admin/users › response 200 application/json.data[].homeDistrict: new field',
+  'GET /api/v1/admin/users › response 200 application/json.data[].homeProvince: new field',
+  'GET /api/v1/admin/users › response 200 application/json.data[].homeSector: new field',
+  'GET /api/v1/admin/users › response 200 application/json.data[].phone: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.country: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.dateOfBirth: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.guardianPhone: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.homeDistrict: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.homeProvince: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.homeSector: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.phone: new field',
+  'GET /api/v1/me › response 200 application/json.country: new field',
+  'GET /api/v1/me › response 200 application/json.dateOfBirth: new field',
+  'GET /api/v1/me › response 200 application/json.guardianPhone: new field',
+  'GET /api/v1/me › response 200 application/json.homeDistrict: new field',
+  'GET /api/v1/me › response 200 application/json.homeProvince: new field',
+  'GET /api/v1/me › response 200 application/json.homeSector: new field',
+  'GET /api/v1/me › response 200 application/json.phone: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.country: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.dateOfBirth: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.guardianPhone: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.homeDistrict: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.homeProvince: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.homeSector: new field',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.phone: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.country: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.dateOfBirth: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.guardianPhone: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.homeDistrict: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.homeProvince: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.homeSector: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.phone: new field',
+  'PATCH /api/v1/me › response 200 application/json.country: new field',
+  'PATCH /api/v1/me › response 200 application/json.dateOfBirth: new field',
+  'PATCH /api/v1/me › response 200 application/json.guardianPhone: new field',
+  'PATCH /api/v1/me › response 200 application/json.homeDistrict: new field',
+  'PATCH /api/v1/me › response 200 application/json.homeProvince: new field',
+  'PATCH /api/v1/me › response 200 application/json.homeSector: new field',
+  'PATCH /api/v1/me › response 200 application/json.phone: new field',
+  'POST /api/v1/admin/users › response 201 application/json.country: new field',
+  'POST /api/v1/admin/users › response 201 application/json.dateOfBirth: new field',
+  'POST /api/v1/admin/users › response 201 application/json.guardianPhone: new field',
+  'POST /api/v1/admin/users › response 201 application/json.homeDistrict: new field',
+  'POST /api/v1/admin/users › response 201 application/json.homeProvince: new field',
+  'POST /api/v1/admin/users › response 201 application/json.homeSector: new field',
+  'POST /api/v1/admin/users › response 201 application/json.phone: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.country: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.dateOfBirth: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.guardianPhone: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.homeDistrict: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.homeProvince: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.homeSector: new field',
+  'POST /api/v1/admin/users/invite › response 201 application/json.user.phone: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.country: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.dateOfBirth: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.guardianPhone: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.homeDistrict: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.homeProvince: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.homeSector: new field',
+  'POST /api/v1/auth/login › response 200 application/json.user.phone: new field',
+  'POST /api/v1/auth/register/student › request application/json.dateOfBirth: new optional field',
+  'POST /api/v1/auth/register/student › request application/json.guardianPhone: new optional field',
+  'POST /api/v1/auth/register/student › request application/json.homeCountry: new optional field',
+  'POST /api/v1/auth/register/student › request application/json.homeDistrict: new optional field',
+  'POST /api/v1/auth/register/student › request application/json.homeLocation: field is now optional',
+  'POST /api/v1/auth/register/student › request application/json.homeProvince: new optional field',
+  'POST /api/v1/auth/register/student › request application/json.homeSector: new optional field',
+  'POST /api/v1/auth/register/student › request application/json.phone: new optional field',
+  'POST /api/v1/auth/register/student › response 201 application/json.country: new field',
+  'POST /api/v1/auth/register/student › response 201 application/json.dateOfBirth: new field',
+  'POST /api/v1/auth/register/student › response 201 application/json.guardianPhone: new field',
+  'POST /api/v1/auth/register/student › response 201 application/json.homeDistrict: new field',
+  'POST /api/v1/auth/register/student › response 201 application/json.homeProvince: new field',
+  'POST /api/v1/auth/register/student › response 201 application/json.homeSector: new field',
+  'POST /api/v1/auth/register/student › response 201 application/json.phone: new field',
+  'POST /api/v1/mentor-requests › request application/json.country: new optional field',
+  'POST /api/v1/mentor-requests › request application/json.educationLevel: new optional field',
+  'POST /api/v1/mentor-requests › request application/json.occupation: new optional field',
+  'POST /api/v1/mentor-requests › request application/json.olympiadInterests: new optional field',
+  'POST /api/v1/mentor-requests › response 201 application/json.country: new field',
+  'POST /api/v1/mentor-requests › response 201 application/json.educationLevel: new field',
+  'POST /api/v1/mentor-requests › response 201 application/json.occupation: new field',
+  'POST /api/v1/mentor-requests › response 201 application/json.olympiadInterests: new field',
+];
 const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile-pictures.json';
 const CURRENT_SNAPSHOT = PROFILE_PICTURES_SNAPSHOT;
-/** Profile pictures (2026-11-15): upload, replace, remove, view; administrators on other accounts. Additive only. */
+/**
+ * Profile pictures (2026-11-15): upload, replace, remove, view; administrators on other accounts. Additive only;
+ * chained after registration details.
+ */
 const PROFILE_PICTURES_ADDITIONS = [
   'DELETE /api/v1/admin/users/{id}/avatar: operation added',
   'DELETE /api/v1/me/avatar: operation added',
@@ -933,10 +1031,19 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, POST_PHASE1_ADDITIONS);
   });
 
-  test('post-Phase-1 bundle → profile pictures: exactly the five new avatar operations; nothing breaking or for review', () => {
+  test('post-Phase-1 bundle → registration details: exactly the listed additions; nothing breaking or for review', () => {
+    for (const f of [POST_PHASE1_SNAPSHOT, REGISTRATION_DETAILS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(POST_PHASE1_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_DETAILS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, REGISTRATION_DETAILS_ADDITIONS);
+  });
+
+  test('registration details → profile pictures: exactly the five new avatar operations; nothing breaking or for review', () => {
     // avatarUrl already existed in every profile response; only the routes are new.
-    for (const f of [POST_PHASE1_SNAPSHOT, PROFILE_PICTURES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
-    const res = compare(JSON.parse(readFileSync(POST_PHASE1_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(PROFILE_PICTURES_SNAPSHOT, 'utf8')));
+    for (const f of [REGISTRATION_DETAILS_SNAPSHOT, PROFILE_PICTURES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_DETAILS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(PROFILE_PICTURES_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);

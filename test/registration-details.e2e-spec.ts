@@ -1,0 +1,250 @@
+/**
+ * Registration details (capabilities studentRegistrationDetails and coachApplicationDetails):
+ * a student's date of birth, phones, own country and official home place; a coach applicant's country,
+ * occupation, education level and Olympiad interests. All optional at the API for older clients.
+ * Nothing here grants a role or a permission; coach applications are still reviewed by an Administrator.
+ */
+import { createTestApp, login, bearer, type TestContext } from './helpers.js';
+import { ageOn, todayInRwanda } from '../src/auth/dto/registration-details.rules.js';
+
+describe('Registration details (e2e)', () => {
+  let ctx: TestContext;
+  let admin: string;
+  const http = () => ctx.http();
+
+  beforeAll(async () => {
+    ctx = await createTestApp();
+    admin = await login(ctx, 'admin');
+    await ctx.prisma.school.create({ data: {
+      name: 'GS DETAILS', location: 'Huye', code: '310888', province: 'Southern Province', district: 'Huye', sector: 'Ngoma',
+      ownership: 'PUBLIC', nameKey: 'gs details', source: 'OFFICIAL_LIST',
+    } });
+  });
+  afterAll(async () => { await ctx?.app.close(); });
+
+  /** A date of birth giving this age today in Rwanda (birthday a few days ago). */
+  const bornYearsAgo = (years: number) => {
+    const [y, m, d] = todayInRwanda().split('-').map(Number);
+    const dt = new Date(Date.UTC(y - years, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() - 3);
+    return dt.toISOString().slice(0, 10);
+  };
+
+  let n = 0;
+  const register = (body: Record<string, unknown> = {}) => {
+    n += 1;
+    return http().post('/api/v1/auth/register/student').send({
+      firstName: 'Diane', lastName: 'Details', username: `rd.s${n}`, email: `rd.s${n}@example.com`,
+      password: 'Secret123', gradeLevel: 'S3', schoolCode: '310888', homeLocation: 'Huye', ...body,
+    });
+  };
+  const HOME = { homeCountry: 'RW', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma' };
+  const status = async (r: PromiseLike<{ status: number; body: { code?: string } }>) => { const res = await r; return [res.status, res.body.code]; };
+
+  it('the capabilities announce both groups', async () => {
+    const { features } = (await http().get('/api/v1').expect(200)).body.capabilities;
+    expect(features).toEqual(expect.arrayContaining(['studentRegistrationDetails', 'coachApplicationDetails']));
+  });
+
+  it('a student with every detail: stored (E.164 phones, date only, own country, home place) and on the profile', async () => {
+    const dateOfBirth = bornYearsAgo(14);
+    const res = await register({
+      homeLocation: undefined, dateOfBirth, phone: '0788 123 456', guardianPhone: '+254 712 345678', ...HOME,
+    }).expect(201);
+    expect(res.body).toMatchObject({
+      phone: '+250788123456', guardianPhone: '+254712345678', country: 'RW',
+      homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', homeLocation: 'Ngoma, Huye',
+    });
+    expect(String(res.body.dateOfBirth).slice(0, 10)).toBe(dateOfBirth);
+    expect(ageOn(dateOfBirth, todayInRwanda())).toBe(14);
+
+    const token = await login(ctx, res.body.username, 'Secret123');
+    const me = (await http().get('/api/v1/me').set(bearer(token)).expect(200)).body;
+    expect(me).toMatchObject({ guardianPhone: '+254712345678', homeSector: 'Ngoma', country: 'RW' });
+    const detail = (await http().get(`/api/v1/admin/users/${res.body.id}`).set(bearer(admin)).expect(200)).body;
+    expect(detail).toMatchObject({ phone: '+250788123456', guardianPhone: '+254712345678', homeDistrict: 'Huye' });
+    expect(String(detail.dateOfBirth).slice(0, 10)).toBe(dateOfBirth);
+
+    // The audit entry says only whether each detail was given.
+    const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entityId: res.body.id } });
+    expect(audit.metadata).toMatchObject({ dateOfBirthGiven: true, phoneGiven: true, guardianPhoneGiven: true, homePlaceGiven: true, homeCountry: 'RW' });
+    expect(JSON.stringify(audit.metadata)).not.toMatch(/712345678|788123456/);
+    expect(JSON.stringify(audit.metadata)).not.toContain(dateOfBirth);
+  });
+
+  it('older clients: registered exactly as before (no details)', async () => {
+    const res = await register().expect(201);
+    expect(res.body).toMatchObject({ dateOfBirth: null, phone: null, guardianPhone: null, homeProvince: null, homeLocation: 'Huye' });
+  });
+
+  it('an international student: own country, home city as text, school abroad', async () => {
+    const res = await register({
+      schoolCode: undefined, country: 'KE', schoolName: 'Alliance High School', homeCountry: 'KE', homeLocation: 'Nairobi',
+      dateOfBirth: bornYearsAgo(16), guardianPhone: '+254712345678',
+    }).expect(201);
+    expect(res.body).toMatchObject({ country: 'KE', homeLocation: 'Nairobi', homeProvince: null });
+  });
+
+  it('invalid details: 400 with the field named; nothing created', async () => {
+    const cases: [Record<string, unknown>, string][] = [
+      [{ dateOfBirth: '2012-02-30' }, 'dateOfBirth'],
+      [{ dateOfBirth: bornYearsAgo(3) }, 'dateOfBirth'],
+      [{ dateOfBirth: bornYearsAgo(31) }, 'dateOfBirth'],
+      [{ dateOfBirth: '2099-01-01' }, 'dateOfBirth'],
+      [{ phone: '12345' }, 'phone'],
+      [{ guardianPhone: 'my mother' }, 'guardianPhone'],
+      [{ homeCountry: 'Rwanda' }, 'homeCountry'],
+      [{ homeProvince: 'Southern Province' }, 'homeDistrict'],
+      [{ homeLocation: undefined }, 'homeLocation'],
+    ];
+    for (const [body, field] of cases) {
+      const username = `rd.bad${++n}`;
+      const res = await register({ username, email: `${username}@example.com`, ...body }).expect(400);
+      expect(res.body.code).toBe('VALIDATION_FAILED');
+      expect(JSON.stringify(res.body)).toContain(field);
+      expect(await ctx.prisma.user.count({ where: { username } })).toBe(0);
+    }
+  });
+
+  it('home place: must be a place of the official directory, and only for Rwanda', async () => {
+    expect(await status(register({ ...HOME, homeSector: 'Kacyiru' }))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);
+    expect(await status(register({ ...HOME, homeProvince: 'Kigali City' }))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);
+    expect(await status(register({ ...HOME, homeCountry: 'KE' }))).toEqual([400, 'HOME_LOCATION_RWANDA_ONLY']);
+  });
+
+  it('a coach application with its details; the admin list shows them; approval copies country and interests', async () => {
+    const apply = await http().post('/api/v1/mentor-requests').send({
+      firstName: 'Claude', lastName: 'Coach', username: 'rd.coach', email: 'rd.coach@example.com', password: 'Mentor123',
+      country: 'ke', occupation: ' Secondary school teacher ', educationLevel: 'MASTER', olympiadInterests: ['PHYSICS', 'MATHEMATICS'],
+    }).expect(201);
+    expect(apply.body).toMatchObject({
+      status: 'PENDING', country: 'KE', occupation: 'Secondary school teacher', educationLevel: 'MASTER', olympiadInterests: ['MATHEMATICS', 'PHYSICS'],
+    });
+    // Submitting creates no account and no permission.
+    expect(await ctx.prisma.user.count({ where: { username: 'rd.coach' } })).toBe(0);
+
+    const list = (await http().get('/api/v1/mentor-requests?status=PENDING').set(bearer(admin)).expect(200)).body;
+    expect(list.data.find((r: { id: string }) => r.id === apply.body.id)).toMatchObject({ occupation: 'Secondary school teacher', educationLevel: 'MASTER' });
+
+    await http().patch(`/api/v1/mentor-requests/${apply.body.id}/approve`).set(bearer(admin)).expect(200);
+    const coach = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'rd.coach' } });
+    expect(coach).toMatchObject({ role: 'MENTOR', country: 'KE', olympiadInterests: ['MATHEMATICS', 'PHYSICS'] });
+  });
+
+  it('home place combinations: a district of another province, a sector of another district, partial places', async () => {
+    // Huye is in the Southern Province; Ngoma is a sector of Huye (the directory has no other place here).
+    expect(await status(register({ ...HOME, homeProvince: 'Kigali City' }))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);
+    expect(await status(register({ ...HOME, homeDistrict: 'Gasabo' }))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);
+    expect(await status(register({ ...HOME, homeSector: 'Tumba' }))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);
+    expect(await status(register({ homeProvince: 'Southern Province', homeDistrict: 'Huye' }))).toEqual([400, 'VALIDATION_FAILED']);
+    expect(await status(register({ homeSector: 'Ngoma' }))).toEqual([400, 'VALIDATION_FAILED']);
+    // Without homeCountry, a home place is Rwanda's (accepted when it exists).
+    const { homeCountry: _rw, ...place } = HOME;
+    expect((await register({ ...place, homeLocation: undefined }).expect(201)).body.homeLocation).toBe('Ngoma, Huye');
+  });
+
+  it('phones: Rwandan and international forms are normalised to E.164; both phones are independent', async () => {
+    for (const [given, stored] of [['0788123456', '+250788123456'], ['250 788 123 456', '+250788123456'], ['00254712345678', '+254712345678'], ['+1 202 555 0143', '+12025550143']]) {
+      const res = await register({ guardianPhone: given }).expect(201);
+      expect([given, res.body.guardianPhone, res.body.phone]).toEqual([given, stored, null]);
+    }
+    for (const bad of ['0788', '+250 688 123 456', '07881234567', 'abc']) {
+      expect(await status(register({ phone: bad }))).toEqual([400, 'VALIDATION_FAILED']);
+    }
+  });
+
+  describe("backward compatibility: the payloads today's frontend sends", () => {
+    /** The registration response keys before this change; the only additions are the seven detail fields. */
+    const NEW_KEYS = ['country', 'dateOfBirth', 'guardianPhone', 'homeDistrict', 'homeProvince', 'homeSector', 'phone'];
+    const oldShape = (body: Record<string, unknown>) => Object.keys(body).filter((k) => !NEW_KEYS.includes(k)).sort();
+    let reference: string[];
+    let codeless: string;
+
+    beforeAll(async () => {
+      codeless = (await ctx.prisma.school.create({ data: {
+        name: 'Ecole Sans Code', location: 'Ngoma', province: 'Southern Province', district: 'Huye', sector: 'Ngoma',
+        source: 'ADMIN', nameKey: 'ecole sans code',
+      } })).id;
+    });
+    const claimOf = (userId: string) => ctx.prisma.studentSchoolAffiliation.findFirstOrThrow({ where: { studentId: userId } });
+
+    it('by school code: linked to that official school, PENDING; same response shape plus the new fields (null)', async () => {
+      const res = await register({ olympiadInterests: ['MATHEMATICS'] }).expect(201);
+      reference = oldShape(res.body);
+      for (const k of NEW_KEYS) expect(res.body[k]).toBeNull();
+      expect(res.body.school).toMatchObject({ name: 'GS DETAILS' });
+      expect(await claimOf(res.body.id)).toMatchObject({ status: 'PENDING', source: 'REGISTRATION' });
+    });
+
+    it('by school id (a school without an official code): linked, PENDING, no code invented', async () => {
+      const res = await register({ schoolCode: undefined, schoolId: codeless }).expect(201);
+      expect(oldShape(res.body)).toEqual(reference);
+      expect(await claimOf(res.body.id)).toMatchObject({ status: 'PENDING', schoolId: codeless });
+      expect((await ctx.prisma.school.findUniqueOrThrow({ where: { id: codeless } })).code).toBeNull();
+    });
+
+    it('"my school is not listed": a PENDING claim with the name and place; never approved, never a new school', async () => {
+      const before = await ctx.prisma.school.count();
+      const res = await register({
+        schoolCode: undefined, schoolName: 'Groupe Scolaire Nouveau', schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolSector: 'Ngoma',
+      }).expect(201);
+      expect(oldShape(res.body)).toEqual(reference);
+      expect(await claimOf(res.body.id)).toMatchObject({
+        status: 'PENDING', schoolId: null, claimedName: 'Groupe Scolaire Nouveau', claimedProvince: 'Southern Province', claimedDistrict: 'Huye', claimedSector: 'Ngoma',
+      });
+      expect(await ctx.prisma.school.count()).toBe(before);
+    });
+
+    it('a school abroad: an unverified name, never matched to a Rwandan school', async () => {
+      const res = await register({ schoolCode: undefined, country: 'UG', schoolName: 'GS Details' }).expect(201);
+      expect(oldShape(res.body)).toEqual(reference);
+      expect(res.body.school).toBeNull();
+      expect(await claimOf(res.body.id)).toMatchObject({ status: 'PENDING', schoolId: null, claimedCountry: 'UG' });
+    });
+
+    it('the legacy name + location payload still registers (school matched only by an exact unique name)', async () => {
+      const res = await register({ schoolCode: undefined, schoolName: 'GS Details', schoolLocation: 'Huye' }).expect(201);
+      expect(oldShape(res.body)).toEqual(reference);
+      expect(res.body.school).toMatchObject({ name: 'GS DETAILS' });
+    });
+
+    it('a coach application with only the original five fields', async () => {
+      const res = await http().post('/api/v1/mentor-requests').send({
+        firstName: 'Five', lastName: 'Fields', username: 'rd.five', email: 'rd.five@example.com', password: 'Mentor123',
+      }).expect(201);
+      expect(res.body).toMatchObject({ status: 'PENDING', country: null, occupation: null, educationLevel: null, olympiadInterests: [] });
+      expect(res.body.passwordHash).toBeUndefined();
+    });
+  });
+
+  it('audit and activity logs never hold a date of birth or a phone number (students and coach applicants)', async () => {
+    const dateOfBirth = bornYearsAgo(12);
+    const res = await register({ dateOfBirth, phone: '0788 999 111', guardianPhone: '0722 999 111' }).expect(201);
+    await login(ctx, res.body.username, 'Secret123');
+    const coach = await http().post('/api/v1/mentor-requests').send({
+      firstName: 'Log', lastName: 'Check', username: 'rd.logcheck', email: 'rd.logcheck@example.com', password: 'Mentor123',
+      country: 'RW', occupation: 'Engineer', educationLevel: 'BACHELOR', olympiadInterests: ['COMPUTING'],
+    }).expect(201);
+    const audits = await ctx.prisma.auditLog.findMany({ where: { entityId: { in: [res.body.id, coach.body.id] } } });
+    const activities = await ctx.prisma.activityLog.findMany({ where: { userId: res.body.id } });
+    expect(audits.length).toBeGreaterThanOrEqual(2);
+    const stored = JSON.stringify([...audits.map((a) => a.metadata), ...activities.map((a) => a.metadata)]);
+    for (const secret of [dateOfBirth, '788999111', '722999111', '+250788999111', '+250722999111']) expect(stored).not.toContain(secret);
+    expect(audits.find((a) => a.action === 'REGISTER')?.metadata).toMatchObject({ dateOfBirthGiven: true, phoneGiven: true, guardianPhoneGiven: true });
+    expect(audits.find((a) => a.action === 'SUBMIT_MENTOR_REQUEST')?.metadata).toEqual({ reapplication: false });
+  });
+
+  it('coach applications: older clients still work; invalid details refused; no national ID field', async () => {
+    await http().post('/api/v1/mentor-requests').send({
+      firstName: 'Old', lastName: 'Client', username: 'rd.oldcoach', email: 'rd.oldcoach@example.com', password: 'Mentor123',
+    }).expect(201);
+    for (const bad of [{ country: 'Kenya' }, { occupation: 'x' }, { educationLevel: 'PHD' }, { olympiadInterests: [] }, { nationalId: '1199880012345678' }]) {
+      const username = `rd.badcoach${++n}`;
+      const res = await http().post('/api/v1/mentor-requests').send({
+        firstName: 'Bad', lastName: 'Coach', username, email: `${username}@example.com`, password: 'Mentor123', ...bad,
+      }).expect(400);
+      expect(res.body.code).toBe('VALIDATION_FAILED');
+      expect(await ctx.prisma.mentorRequest.count({ where: { username } })).toBe(0);
+    }
+  });
+});

@@ -10,7 +10,7 @@
     "paths": 248,
     "schemas": 84
   },
-  "fingerprint": "b130142b8dcc6b8895078af9f7c82dd45925c3c59feaa451b99774bfaad168f6",
+  "fingerprint": "b2d4f6543ae0af638cc9163f7643064610ea78831a36f2d074663073dddf7aca",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -13662,18 +13662,25 @@
                   "required": [
                     "activatedAt",
                     "avatarUrl",
+                    "country",
                     "createdAt",
+                    "dateOfBirth",
                     "division",
                     "email",
                     "firstName",
                     "gradeLevel",
+                    "guardianPhone",
+                    "homeDistrict",
                     "homeLocation",
+                    "homeProvince",
+                    "homeSector",
                     "id",
                     "isActive",
                     "isApproved",
                     "lastLoginAt",
                     "lastName",
                     "olympiadInterests",
+                    "phone",
                     "points",
                     "problemsSolved",
                     "provider",
@@ -13692,7 +13699,16 @@
                       "nullable": true,
                       "type": "any"
                     },
+                    "country": {
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "dateOfBirth": {
+                      "nullable": true,
                       "type": "string",
                       "format": "date-time"
                     },
@@ -13727,9 +13743,25 @@
                       "nullable": true,
                       "type": "string"
                     },
+                    "guardianPhone": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "homeDistrict": {
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "homeLocation": {
                       "nullable": true,
                       "type": "any"
+                    },
+                    "homeProvince": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "homeSector": {
+                      "nullable": true,
+                      "type": "string"
                     },
                     "id": {
                       "type": "string",
@@ -13752,6 +13784,10 @@
                     "olympiadInterests": {
                       "type": "array",
                       "items": null
+                    },
+                    "phone": {
+                      "nullable": true,
+                      "type": "string"
                     },
                     "points": {
                       "type": "integer"
@@ -13856,18 +13892,25 @@
             "required": [
               "activatedAt",
               "avatarUrl",
+              "country",
               "createdAt",
+              "dateOfBirth",
               "division",
               "email",
               "firstName",
               "gradeLevel",
+              "guardianPhone",
+              "homeDistrict",
               "homeLocation",
+              "homeProvince",
+              "homeSector",
               "id",
               "isActive",
               "isApproved",
               "lastLoginAt",
               "lastName",
               "olympiadInterests",
+              "phone",
               "points",
               "problemsSolved",
               "provider",
@@ -13885,7 +13928,16 @@
                 "nullable": true,
                 "type": "any"
               },
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateOfBirth": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -13920,9 +13972,25 @@
                 "nullable": true,
                 "type": "string"
               },
+              "guardianPhone": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeDistrict": {
+                "nullable": true,
+                "type": "string"
+              },
               "homeLocation": {
                 "nullable": true,
                 "type": "any"
+              },
+              "homeProvince": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeSector": {
+                "nullable": true,
+                "type": "string"
               },
               "id": {
                 "type": "string",
@@ -13944,6 +14012,10 @@
               "olympiadInterests": {
                 "type": "array",
                 "items": null
+              },
+              "phone": {
+                "nullable": true,
+                "type": "string"
               },
               "points": {
                 "type": "integer"
@@ -14145,18 +14217,25 @@
                 "required": [
                   "activatedAt",
                   "avatarUrl",
+                  "country",
                   "createdAt",
+                  "dateOfBirth",
                   "division",
                   "email",
                   "firstName",
                   "gradeLevel",
+                  "guardianPhone",
+                  "homeDistrict",
                   "homeLocation",
+                  "homeProvince",
+                  "homeSector",
                   "id",
                   "isActive",
                   "isApproved",
                   "lastLoginAt",
                   "lastName",
                   "olympiadInterests",
+                  "phone",
                   "points",
                   "problemsSolved",
                   "role",
@@ -14172,7 +14251,16 @@
                     "nullable": true,
                     "type": "any"
                   },
+                  "country": {
+                    "nullable": true,
+                    "type": "string"
+                  },
                   "createdAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "dateOfBirth": {
+                    "nullable": true,
                     "type": "string",
                     "format": "date-time"
                   },
@@ -14207,9 +14295,25 @@
                     "nullable": true,
                     "type": "string"
                   },
+                  "guardianPhone": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "homeDistrict": {
+                    "nullable": true,
+                    "type": "string"
+                  },
                   "homeLocation": {
                     "nullable": true,
                     "type": "any"
+                  },
+                  "homeProvince": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "homeSector": {
+                    "nullable": true,
+                    "type": "string"
                   },
                   "id": {
                     "type": "string",
@@ -14231,6 +14335,10 @@
                   "olympiadInterests": {
                     "type": "array",
                     "items": null
+                  },
+                  "phone": {
+                    "nullable": true,
+                    "type": "string"
                   },
                   "points": {
                     "type": "integer"
@@ -14349,18 +14457,25 @@
             "required": [
               "activatedAt",
               "avatarUrl",
+              "country",
               "createdAt",
+              "dateOfBirth",
               "division",
               "email",
               "firstName",
               "gradeLevel",
+              "guardianPhone",
+              "homeDistrict",
               "homeLocation",
+              "homeProvince",
+              "homeSector",
               "id",
               "isActive",
               "isApproved",
               "lastLoginAt",
               "lastName",
               "olympiadInterests",
+              "phone",
               "points",
               "problemsSolved",
               "provider",
@@ -14378,7 +14493,16 @@
                 "nullable": true,
                 "type": "any"
               },
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateOfBirth": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -14411,9 +14535,25 @@
               "gradeLevel": {
                 "type": "string"
               },
+              "guardianPhone": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeDistrict": {
+                "nullable": true,
+                "type": "string"
+              },
               "homeLocation": {
                 "nullable": true,
                 "type": "any"
+              },
+              "homeProvince": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeSector": {
+                "nullable": true,
+                "type": "string"
               },
               "id": {
                 "type": "string",
@@ -14437,6 +14577,10 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "phone": {
+                "nullable": true,
+                "type": "string"
               },
               "points": {
                 "type": "integer"
@@ -14523,18 +14667,25 @@
             "required": [
               "activatedAt",
               "avatarUrl",
+              "country",
               "createdAt",
+              "dateOfBirth",
               "division",
               "email",
               "firstName",
               "gradeLevel",
+              "guardianPhone",
+              "homeDistrict",
               "homeLocation",
+              "homeProvince",
+              "homeSector",
               "id",
               "isActive",
               "isApproved",
               "lastLoginAt",
               "lastName",
               "olympiadInterests",
+              "phone",
               "points",
               "problemsSolved",
               "provider",
@@ -14552,7 +14703,16 @@
                 "nullable": true,
                 "type": "any"
               },
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateOfBirth": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -14587,9 +14747,25 @@
                 "nullable": true,
                 "type": "string"
               },
+              "guardianPhone": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeDistrict": {
+                "nullable": true,
+                "type": "string"
+              },
               "homeLocation": {
                 "nullable": true,
                 "type": "any"
+              },
+              "homeProvince": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeSector": {
+                "nullable": true,
+                "type": "string"
               },
               "id": {
                 "type": "string",
@@ -14612,6 +14788,10 @@
               "olympiadInterests": {
                 "type": "array",
                 "items": null
+              },
+              "phone": {
+                "nullable": true,
+                "type": "string"
               },
               "points": {
                 "type": "integer"
@@ -15352,18 +15532,25 @@
             "required": [
               "activatedAt",
               "avatarUrl",
+              "country",
               "createdAt",
+              "dateOfBirth",
               "division",
               "email",
               "firstName",
               "gradeLevel",
+              "guardianPhone",
+              "homeDistrict",
               "homeLocation",
+              "homeProvince",
+              "homeSector",
               "id",
               "isActive",
               "isApproved",
               "lastLoginAt",
               "lastName",
               "olympiadInterests",
+              "phone",
               "points",
               "problemsSolved",
               "provider",
@@ -15382,7 +15569,16 @@
                 "nullable": true,
                 "type": "any"
               },
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateOfBirth": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -15417,9 +15613,25 @@
                 "nullable": true,
                 "type": "string"
               },
+              "guardianPhone": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeDistrict": {
+                "nullable": true,
+                "type": "string"
+              },
               "homeLocation": {
                 "nullable": true,
                 "type": "any"
+              },
+              "homeProvince": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeSector": {
+                "nullable": true,
+                "type": "string"
               },
               "id": {
                 "type": "string",
@@ -15442,6 +15654,10 @@
               "olympiadInterests": {
                 "type": "array",
                 "items": null
+              },
+              "phone": {
+                "nullable": true,
+                "type": "string"
               },
               "points": {
                 "type": "integer"
@@ -21115,16 +21331,23 @@
                 "type": "object",
                 "required": [
                   "avatarUrl",
+                  "country",
                   "createdAt",
+                  "dateOfBirth",
                   "division",
                   "email",
                   "firstName",
                   "gradeLevel",
+                  "guardianPhone",
+                  "homeDistrict",
                   "homeLocation",
+                  "homeProvince",
+                  "homeSector",
                   "id",
                   "lastLoginAt",
                   "lastName",
                   "olympiadInterests",
+                  "phone",
                   "points",
                   "problemsSolved",
                   "role",
@@ -21136,7 +21359,16 @@
                     "nullable": true,
                     "type": "any"
                   },
+                  "country": {
+                    "nullable": true,
+                    "type": "string"
+                  },
                   "createdAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "dateOfBirth": {
+                    "nullable": true,
                     "type": "string",
                     "format": "date-time"
                   },
@@ -21171,7 +21403,23 @@
                     "nullable": true,
                     "type": "string"
                   },
+                  "guardianPhone": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "homeDistrict": {
+                    "nullable": true,
+                    "type": "string"
+                  },
                   "homeLocation": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "homeProvince": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "homeSector": {
                     "nullable": true,
                     "type": "string"
                   },
@@ -21191,6 +21439,10 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "phone": {
+                    "nullable": true,
+                    "type": "string"
                   },
                   "points": {
                     "type": "integer"
@@ -21498,16 +21750,23 @@
             "type": "object",
             "required": [
               "avatarUrl",
+              "country",
               "createdAt",
+              "dateOfBirth",
               "division",
               "email",
               "firstName",
               "gradeLevel",
+              "guardianPhone",
+              "homeDistrict",
               "homeLocation",
+              "homeProvince",
+              "homeSector",
               "id",
               "lastLoginAt",
               "lastName",
               "olympiadInterests",
+              "phone",
               "points",
               "problemsSolved",
               "requiresApproval",
@@ -21522,7 +21781,16 @@
                 "nullable": true,
                 "type": "any"
               },
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateOfBirth": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -21555,7 +21823,23 @@
               "gradeLevel": {
                 "type": "string"
               },
+              "guardianPhone": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeDistrict": {
+                "nullable": true,
+                "type": "string"
+              },
               "homeLocation": {
+                "type": "string"
+              },
+              "homeProvince": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeSector": {
+                "nullable": true,
                 "type": "string"
               },
               "id": {
@@ -21574,6 +21858,10 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "phone": {
+                "nullable": true,
+                "type": "string"
               },
               "points": {
                 "type": "integer"
@@ -26085,16 +26373,23 @@
             "type": "object",
             "required": [
               "avatarUrl",
+              "country",
               "createdAt",
+              "dateOfBirth",
               "division",
               "email",
               "firstName",
               "gradeLevel",
+              "guardianPhone",
+              "homeDistrict",
               "homeLocation",
+              "homeProvince",
+              "homeSector",
               "id",
               "lastLoginAt",
               "lastName",
               "olympiadInterests",
+              "phone",
               "points",
               "problemsSolved",
               "role",
@@ -26106,7 +26401,16 @@
                 "nullable": true,
                 "type": "any"
               },
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateOfBirth": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -26141,7 +26445,23 @@
                 "nullable": true,
                 "type": "string"
               },
+              "guardianPhone": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeDistrict": {
+                "nullable": true,
+                "type": "string"
+              },
               "homeLocation": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeProvince": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeSector": {
                 "nullable": true,
                 "type": "string"
               },
@@ -26161,6 +26481,10 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "phone": {
+                "nullable": true,
+                "type": "string"
               },
               "points": {
                 "type": "integer"
@@ -26232,16 +26556,23 @@
             "type": "object",
             "required": [
               "avatarUrl",
+              "country",
               "createdAt",
+              "dateOfBirth",
               "division",
               "email",
               "firstName",
               "gradeLevel",
+              "guardianPhone",
+              "homeDistrict",
               "homeLocation",
+              "homeProvince",
+              "homeSector",
               "id",
               "lastLoginAt",
               "lastName",
               "olympiadInterests",
+              "phone",
               "points",
               "problemsSolved",
               "role",
@@ -26253,7 +26584,16 @@
                 "nullable": true,
                 "type": "any"
               },
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "dateOfBirth": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -26286,7 +26626,23 @@
               "gradeLevel": {
                 "type": "string"
               },
+              "guardianPhone": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeDistrict": {
+                "nullable": true,
+                "type": "string"
+              },
               "homeLocation": {
+                "type": "string"
+              },
+              "homeProvince": {
+                "nullable": true,
+                "type": "string"
+              },
+              "homeSector": {
+                "nullable": true,
                 "type": "string"
               },
               "id": {
@@ -26305,6 +26661,10 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "phone": {
+                "nullable": true,
+                "type": "string"
               },
               "points": {
                 "type": "integer"
@@ -28643,19 +29003,31 @@
           "application/json": {
             "type": "object",
             "required": [
+              "country",
               "createdAt",
+              "educationLevel",
               "email",
               "firstName",
               "id",
               "lastName",
+              "occupation",
+              "olympiadInterests",
               "status",
               "updatedAt",
               "username"
             ],
             "properties": {
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
               "createdAt": {
                 "type": "string",
                 "format": "date-time"
+              },
+              "educationLevel": {
+                "nullable": true,
+                "type": "string"
               },
               "email": {
                 "type": "string"
@@ -28669,6 +29041,16 @@
               },
               "lastName": {
                 "type": "string"
+              },
+              "occupation": {
+                "nullable": true,
+                "type": "string"
+              },
+              "olympiadInterests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               },
               "status": {
                 "type": "string"
@@ -39654,6 +40036,20 @@
         "username"
       ],
       "properties": {
+        "country": {
+          "type": "string"
+        },
+        "educationLevel": {
+          "type": "string",
+          "enum": [
+            "BACHELOR",
+            "DIPLOMA",
+            "DOCTORATE",
+            "MASTER",
+            "OTHER",
+            "SECONDARY"
+          ]
+        },
         "email": {
           "type": "string",
           "format": "email"
@@ -39667,6 +40063,23 @@
           "type": "string",
           "minLength": 2,
           "maxLength": 50
+        },
+        "occupation": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "olympiadInterests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "COMPUTING",
+              "MATHEMATICS",
+              "PHYSICS"
+            ]
+          },
+          "minItems": 1
         },
         "password": {
           "type": "string"
@@ -40409,13 +40822,15 @@
         "email",
         "firstName",
         "gradeLevel",
-        "homeLocation",
         "lastName",
         "password",
         "username"
       ],
       "properties": {
         "country": {
+          "type": "string"
+        },
+        "dateOfBirth": {
           "type": "string"
         },
         "email": {
@@ -40438,10 +40853,31 @@
             "S6"
           ]
         },
+        "guardianPhone": {
+          "type": "string"
+        },
+        "homeCountry": {
+          "type": "string"
+        },
+        "homeDistrict": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
         "homeLocation": {
           "type": "string",
           "minLength": 2,
           "maxLength": 200
+        },
+        "homeProvince": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "homeSector": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
         },
         "lastName": {
           "type": "string",
@@ -40461,6 +40897,9 @@
           "minItems": 1
         },
         "password": {
+          "type": "string"
+        },
+        "phone": {
           "type": "string"
         },
         "schoolCode": {

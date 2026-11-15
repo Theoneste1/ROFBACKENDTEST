@@ -230,6 +230,16 @@ enum OlympiadSubject {
   PHYSICS
 }
 
+/// Highest education level a coach applicant reports (capability coachApplicationDetails).
+enum CoachEducationLevel {
+  SECONDARY
+  DIPLOMA
+  BACHELOR
+  MASTER
+  DOCTORATE
+  OTHER
+}
+
 /**
  * CommentStatus — moderation state of a discussion comment.
  * ACTIVE  – visible to all eligible users
@@ -419,6 +429,16 @@ model User {
   /// PHYSICS, chosen at registration and editable on the profile. Information only: never grants
   /// programme membership or permissions. Empty for accounts that never chose (older clients, staff).
   olympiadInterests OlympiadSubject[] @default([])
+
+  /// Student registration details (capability studentRegistrationDetails); NULL for older accounts and
+  /// for staff. `country` above is the student's own country; the school's country is on the claim.
+  /// Date of birth (date only), a close-family phone (E.164) and the official home place (Rwanda only;
+  /// homeLocation keeps "Sector, District" for existing displays). Never written to audit metadata.
+  dateOfBirth   DateTime? @db.Date
+  guardianPhone String?
+  homeProvince  String?
+  homeDistrict  String?
+  homeSector    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -890,6 +910,12 @@ model MentorRequest {
   /// Cleared once the request is decided.
   passwordHash String?
   status       MentorRequestStatus @default(PENDING)
+  /// Application details (capability coachApplicationDetails); NULL / empty for older applications.
+  /// country and olympiadInterests are copied to the Coach account on approval.
+  country           String?
+  occupation        String?
+  educationLevel    CoachEducationLevel?
+  olympiadInterests OlympiadSubject[]    @default([])
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
