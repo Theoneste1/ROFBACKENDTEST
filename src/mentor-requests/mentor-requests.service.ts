@@ -17,12 +17,15 @@ import { SettingsService } from '../settings/settings.service.js';
 import { Events } from '../notifications/events.js';
 import { CreateMentorRequestDto, ListMentorRequestsDto } from './dto/create-mentor-request.dto.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
+import { canonicalInterests } from '../users/olympiad-interests.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 import { DecisionEvents } from '../decision-notifications/decision-content.js';
 
 const PUBLIC_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
   status: true, createdAt: true, updatedAt: true,
+  // Application details (coachApplicationDetails); NULL / empty on older applications.
+  country: true, occupation: true, educationLevel: true, olympiadInterests: true,
 } as const;
 
 @Injectable()
@@ -71,6 +74,11 @@ export class MentorRequestsService {
       email:     data.email,
       passwordHash,
       status:    'PENDING' as const,
+      // Application details (coachApplicationDetails); a reapplication replaces the earlier ones.
+      country:           data.country ?? null,
+      occupation:        data.occupation ?? null,
+      educationLevel:    data.educationLevel ?? null,
+      olympiadInterests: canonicalInterests(data.olympiadInterests),
     };
 
     const request = existingRequest
@@ -135,6 +143,9 @@ export class MentorRequestsService {
           email:        request.email,
           passwordHash: request.passwordHash,
           role:         'MENTOR',
+          // From the application (coachApplicationDetails): information only, no permissions.
+          country:           request.country,
+          olympiadInterests: request.olympiadInterests,
           // The applicant chose this password; the address may still need confirming.
           activatedAt:  verify ? null : new Date(),
         },
