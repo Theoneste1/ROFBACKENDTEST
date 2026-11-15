@@ -104,20 +104,29 @@ export class BulkOperationsService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', `Give a reason (${REASON_MIN}–${REASON_MAX} characters).`);
     }
 
-    const ids = await this.matchingIds(selection);
-    if (selectionToken(action, params, selection, ids) !== dto.selectionToken || ids.length !== dto.expectedTotal) {
-      throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED',
-        'The selected accounts changed since the preview. Preview the action again and confirm the new selection.',
-        { total: ids.length, expectedTotal: dto.expectedTotal });
-    }
-    if (ids.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_SELECTION', 'No account matches the selection.');
-
-    const privileged = action === 'assignRole' ? await this.prisma.user.count({ where: { id: { in: ids }, role: { in: ['ADMIN', 'SUPER_ADMIN'] } } }) : 0;
-    const stepUp = this.requiresStepUp(action, params, privileged);
+    // Step-up first (outside the transaction: bcrypt is slow and must not hold row locks). The selected Administrators
+    // are counted again under the locks below; a different set fails the token check anyway.
+    const privilegedNow = action === 'assignRole' ? await this.prisma.user.count({ where: { AND: [this.whereOf(selection), { role: { in: ['ADMIN', 'SUPER_ADMIN'] } }] } }) : 0;
+    const stepUp = this.requiresStepUp(action, params, privilegedNow);
     if (stepUp) await this.users.assertStepUp(caller, dto.currentPassword);   // checked once; the password is never stored
 
     try {
       const operation = await this.prisma.$transaction(async (tx) => {
+        // Review fix A — the confirmed set is validated and the operation created atomically:
+        //   1. scan the matching accounts; 2. lock them FOR SHARE in id order (a concurrent change to one of them waits
+        //   for this transaction; one already in flight is waited for, and its result seen); 3. scan again: anything
+        //   that left or joined meanwhile shows up; repeat until the scan equals the locked set; 4. compare with the
+        //   confirmed token (and total) — any difference → 409 SELECTION_CHANGED, nothing created; 5. insert.
+        // Until this commits, no selected account can change; an account that starts matching after step 3 is ordered
+        // after the operation (it was not part of the set at the moment the operation was created).
+        const ids = await this.lockedMatchingIds(tx, selection);
+        if (selectionToken(action, params, selection, ids) !== dto.selectionToken || ids.length !== dto.expectedTotal) {
+          throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED',
+            'The selected accounts changed since the preview. Preview the action again and confirm the new selection.',
+            { total: ids.length, expectedTotal: dto.expectedTotal });
+        }
+        if (ids.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_SELECTION', 'No account matches the selection.');
+
         const op = await tx.bulkOperation.create({
           data: {
             actorId: caller.id, actorRole: caller.role, action, reason, requestId,
@@ -147,7 +156,7 @@ export class BulkOperationsService {
           },
         }, tx);
         return tx.bulkOperation.findUniqueOrThrow({ where: { id: op.id }, select: OPERATION_SELECT });
-      }, { timeout: 120_000 });
+      }, { timeout: 120_000, maxWait: 30_000 });
       return { operation, alreadyExisted: false };
     } catch (err) {
       // The same key raced in: return the operation the other request created (nothing created twice).
@@ -166,9 +175,12 @@ export class BulkOperationsService {
   async get(id: string, caller: AuthUser) {
     const op = await this.prisma.bulkOperation.findUnique({ where: { id }, select: { ...OPERATION_SELECT, actorId: true } });
     if (!op || !this.canSee(caller, op.actorId)) throw new NotFoundException('Bulk operation not found.');
-    const pending = await this.prisma.bulkOperationItem.count({ where: { operationId: id, outcome: 'PENDING' } });
+    const [pending, processing] = await Promise.all([
+      this.prisma.bulkOperationItem.count({ where: { operationId: id, outcome: 'PENDING' } }),
+      this.prisma.bulkOperationItem.count({ where: { operationId: id, outcome: 'PROCESSING' } }),
+    ]);
     const { actorId: _a, ...rest } = op;
-    return { ...rest, pending, processed: op.total - pending };
+    return { ...rest, pending, processing, processed: op.total - pending - processing };
   }
 
   async items(id: string, q: ListBulkItemsDto, caller: AuthUser) {
@@ -200,7 +212,12 @@ export class BulkOperationsService {
     return paginated(rows, total, page, limit);
   }
 
-  /** Stops an operation: items not yet processed are SKIPPED (CANCELLED); processed ones keep their result. */
+  /**
+   * Stops an operation (review fix C). Only items still PENDING are skipped (CANCELLED). Items a worker has already
+   * claimed (PROCESSING) finish truthfully; until they have, the operation is CANCELLING, then CANCELLED. The operation
+   * row is locked first: a worker's per-item transaction holds it FOR SHARE, so a cancel waits for an item that is
+   * being changed right now, and the worker's finishing step (FOR UPDATE) waits for the cancel.
+   */
   async cancel(id: string, caller: AuthUser) {
     const op = await this.prisma.bulkOperation.findUnique({ where: { id }, select: { actorId: true, status: true } });
     if (!op || !this.canSee(caller, op.actorId)) throw new NotFoundException('Bulk operation not found.');
@@ -208,13 +225,14 @@ export class BulkOperationsService {
     const now = new Date();
     const done = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.bulkOperation.updateMany({
-        where: { id, status: { in: ['PENDING', 'RUNNING'] } }, data: { status: 'CANCELLED', cancelledAt: now, finishedAt: now },
+        where: { id, status: { in: ['PENDING', 'RUNNING'] } }, data: { status: 'CANCELLING', cancelledAt: now },
       });
       if (count === 0) return false;
       await tx.bulkOperationItem.updateMany({
         where: { operationId: id, outcome: 'PENDING' }, data: { outcome: 'SKIPPED', code: 'CANCELLED', message: 'The operation was cancelled.', processedAt: now },
       });
-      await refreshCounts(tx, id);
+      const c = await refreshCounts(tx, id);
+      if (c.processing === 0) await tx.bulkOperation.update({ where: { id }, data: { status: 'CANCELLED', finishedAt: now } });
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role, action: 'BULK_OPERATION_CANCELLED', entity: 'BulkOperation', entityId: id, metadata: {},
       }, tx);
@@ -278,9 +296,45 @@ export class BulkOperationsService {
     }
   }
 
+  private whereOf(selection: BulkSelection): Prisma.UserWhereInput {
+    return selection.mode === 'ids' ? { id: { in: selection.ids } } : userListWhere(selection.filter as never);
+  }
+
+  /**
+   * Inside the creation transaction: the matching ids, with every one of those accounts locked FOR SHARE, re-scanned
+   * until the scan equals the locked set (at most 5 rounds; a selection that keeps changing is refused).
+   */
+  private async lockedMatchingIds(tx: Prisma.TransactionClient, selection: BulkSelection): Promise<string[]> {
+    const where = this.whereOf(selection);
+    const n = await tx.user.count({ where });
+    if (n > MAX_SELECTION) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'SELECTION_TOO_LARGE',
+        `The selection matches ${n} accounts; at most ${MAX_SELECTION} can be changed in one operation. Narrow the filters.`, { total: n });
+    }
+    let ids = await scanIds(tx, where);
+    const locked = new Set<string>();
+    for (let round = 0; round < 5; round++) {
+      const toLock = ids.filter((id) => !locked.has(id));
+      if (toLock.length) await this.lockSelection(tx, toLock);
+      for (const id of toLock) locked.add(id);
+      const again = await scanIds(tx, where);
+      if (again.length === ids.length && again.every((id, i) => id === ids[i]) && again.every((id) => locked.has(id))) return again;
+      ids = again;
+    }
+    throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED', 'The selected accounts keep changing. Preview the action again.');
+  }
+
+  /** Locks the accounts FOR SHARE, in id order (no deadlock between two operations). A separate method so tests can pause here. */
+  async lockSelection(tx: Prisma.TransactionClient, ids: string[]): Promise<void> {
+    const sorted = [...ids].sort();
+    for (let i = 0; i < sorted.length; i += 5000) {
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ANY(${sorted.slice(i, i + 5000)}::text[]) ORDER BY "id" FOR SHARE`;
+    }
+  }
+
   /** The ids of every account the selection matches now, sorted. Never sent to the browser in full. */
   private async matchingIds(selection: BulkSelection): Promise<string[]> {
-    const where = selection.mode === 'ids' ? { id: { in: selection.ids } } : userListWhere(selection.filter as never);
+    const where = this.whereOf(selection);
     const n = await this.prisma.user.count({ where });
     if (n > MAX_SELECTION) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SELECTION_TOO_LARGE',
@@ -322,7 +376,7 @@ export async function refreshCounts(tx: Prisma.TransactionClient | PrismaService
   const n = (o: string) => groups.find((g) => g.outcome === o)?._count._all ?? 0;
   const counts = { succeeded: n('SUCCEEDED'), failed: n('FAILED'), skipped: n('SKIPPED') };
   await tx.bulkOperation.update({ where: { id: operationId }, data: counts });
-  return { ...counts, pending: n('PENDING') };
+  return { ...counts, pending: n('PENDING'), processing: n('PROCESSING') };
 }
 
 /** Audit metadata: the selection criteria (the filter, or the number of chosen ids) — the item rows hold the accounts. */
@@ -332,4 +386,8 @@ export function auditSelection(s: BulkSelection) {
 /** Audit metadata never holds a message body (only its subject). */
 function auditParams(action: BulkAction, p: BulkParams) {
   return action === 'message' ? { subject: p.subject } : p;
+}
+
+async function scanIds(tx: Prisma.TransactionClient, where: Prisma.UserWhereInput): Promise<string[]> {
+  return (await tx.user.findMany({ where, select: { id: true }, orderBy: { id: 'asc' } })).map((r) => r.id);
 }

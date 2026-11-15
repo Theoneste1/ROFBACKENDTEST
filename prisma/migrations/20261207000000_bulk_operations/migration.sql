@@ -4,10 +4,10 @@
 -- Rollback: docs/migrations/20261207000000_bulk_operations.rollback.sql
 
 -- CreateEnum
-CREATE TYPE "BulkOperationStatus" AS ENUM ('PENDING', 'RUNNING', 'COMPLETED', 'COMPLETED_WITH_FAILURES', 'FAILED', 'CANCELLED');
+CREATE TYPE "BulkOperationStatus" AS ENUM ('PENDING', 'RUNNING', 'CANCELLING', 'COMPLETED', 'COMPLETED_WITH_FAILURES', 'FAILED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "BulkItemOutcome" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED', 'SKIPPED');
+CREATE TYPE "BulkItemOutcome" AS ENUM ('PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'SKIPPED');
 
 -- CreateTable
 CREATE TABLE "BulkOperation" (
@@ -44,6 +44,7 @@ CREATE TABLE "BulkOperationItem" (
     "code" TEXT,
     "message" TEXT,
     "stillBlockedBy" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "claimToken" TEXT,
     "lockedAt" TIMESTAMP(3),
     "processedAt" TIMESTAMP(3),
 

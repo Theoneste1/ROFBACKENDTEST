@@ -6777,6 +6777,15 @@
                       "properties": {
                         "filter": {
                           "properties": {
+                            "accountStatus": {
+                              "type": "string"
+                            },
+                            "gradeLevel": {
+                              "type": "string"
+                            },
+                            "role": {
+                              "type": "string"
+                            },
                             "search": {
                               "type": "string"
                             }
@@ -7135,6 +7144,9 @@
                           "properties": {
                             "filter": {
                               "properties": {
+                                "role": {
+                                  "type": "string"
+                                },
                                 "search": {
                                   "type": "string"
                                 }
@@ -7243,6 +7255,7 @@
               "enum": [
                 "PENDING",
                 "RUNNING",
+                "CANCELLING",
                 "COMPLETED",
                 "COMPLETED_WITH_FAILURES",
                 "FAILED",
@@ -7573,6 +7586,9 @@
                     "processed": {
                       "type": "integer"
                     },
+                    "processing": {
+                      "type": "integer"
+                    },
                     "reason": {
                       "type": "string"
                     },
@@ -7640,6 +7656,7 @@
                     "params",
                     "pending",
                     "processed",
+                    "processing",
                     "reason",
                     "requestId",
                     "selection",
@@ -7698,6 +7715,7 @@
               "enum": [
                 "PENDING",
                 "FAILED",
+                "PROCESSING",
                 "SUCCEEDED",
                 "SKIPPED"
               ]
@@ -7902,6 +7920,7 @@
                     },
                     "finishedAt": {
                       "format": "date-time",
+                      "nullable": true,
                       "type": "string"
                     },
                     "id": {
@@ -7913,13 +7932,15 @@
                     },
                     "params": {
                       "properties": {},
-                      "required": [],
                       "type": "object"
                     },
                     "pending": {
                       "type": "integer"
                     },
                     "processed": {
+                      "type": "integer"
+                    },
+                    "processing": {
                       "type": "integer"
                     },
                     "reason": {
@@ -7942,12 +7963,18 @@
                           ],
                           "type": "object"
                         },
+                        "ids": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
                         "mode": {
                           "type": "string"
                         }
                       },
                       "required": [
-                        "filter",
                         "mode"
                       ],
                       "type": "object"
@@ -7956,7 +7983,9 @@
                       "type": "integer"
                     },
                     "startedAt": {
-                      "nullable": true
+                      "format": "date-time",
+                      "nullable": true,
+                      "type": "string"
                     },
                     "status": {
                       "type": "string"
@@ -7982,6 +8011,7 @@
                     "params",
                     "pending",
                     "processed",
+                    "processing",
                     "reason",
                     "requestId",
                     "selection",

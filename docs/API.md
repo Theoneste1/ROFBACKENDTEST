@@ -2046,7 +2046,7 @@ The caller's operations (all operations for administrators who hold audit.view),
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
-| `status` | query | PENDING \| RUNNING \| COMPLETED \| COMPLETED_WITH_FAILURES \| FAILED \| CANCELLED |  |  |
+| `status` | query | PENDING \| RUNNING \| CANCELLING \| COMPLETED \| COMPLETED_WITH_FAILURES \| FAILED \| CANCELLED |  |  |
 
 Returns `200` JSON with:
 
@@ -2089,7 +2089,7 @@ Progress: status, total, succeeded, failed, skipped, pending.
 
 Returns `200` JSON with:
 
-`action` string · `actor` object · `actorRole` string · `cancelledAt` any or null · `createdAt` string (date-time) · `emailJobId` any or null · `failed` integer · `finishedAt` string (date-time) · `id` string (uuid) · `idempotencyKey` string · `params` object · `pending` integer · `processed` integer · `reason` string · `requestId` string (uuid) · `selection` object · `skipped` integer · `startedAt` string (date-time) · `status` string · `succeeded` integer · `total` integer
+`action` string · `actor` object · `actorRole` string · `cancelledAt` any or null · `createdAt` string (date-time) · `emailJobId` any or null · `failed` integer · `finishedAt` string (date-time) · `id` string (uuid) · `idempotencyKey` string · `params` object · `pending` integer · `processed` integer · `processing` integer · `reason` string · `requestId` string (uuid) · `selection` object · `skipped` integer · `startedAt` string (date-time) · `status` string · `succeeded` integer · `total` integer
 
 ### POST `/api/v1/admin/users/bulk/{id}/cancel`
 
@@ -2103,7 +2103,7 @@ Stops the operation: accounts not yet processed are skipped (CANCELLED); process
 
 Returns `200` JSON with:
 
-`action` string · `actor` object · `actorRole` string · `cancelledAt` string (date-time) · `createdAt` string (date-time) · `emailJobId` any or null · `failed` integer · `finishedAt` string (date-time) · `id` string (uuid) · `idempotencyKey` string · `params` object · `pending` integer · `processed` integer · `reason` string · `requestId` string (uuid) · `selection` object · `skipped` integer · `startedAt` any or null · `status` string · `succeeded` integer · `total` integer
+`action` string · `actor` object · `actorRole` string · `cancelledAt` string (date-time) · `createdAt` string (date-time) · `emailJobId` any or null · `failed` integer · `finishedAt` string (date-time) or null · `id` string (uuid) · `idempotencyKey` string · `params` object · `pending` integer · `processed` integer · `processing` integer · `reason` string · `requestId` string (uuid) · `selection` object · `skipped` integer · `startedAt` string (date-time) or null · `status` string · `succeeded` integer · `total` integer
 
 ### GET `/api/v1/admin/users/bulk/{id}/items`
 
@@ -2114,7 +2114,7 @@ Per-account results (?outcome=SUCCEEDED|FAILED|SKIPPED|PENDING), with the reason
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
-| `outcome` | query | PENDING \| FAILED \| SUCCEEDED \| SKIPPED |  |  |
+| `outcome` | query | PENDING \| FAILED \| PROCESSING \| SUCCEEDED \| SKIPPED |  |  |
 
 Returns `200` JSON with:
 

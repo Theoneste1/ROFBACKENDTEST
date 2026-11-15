@@ -152,9 +152,13 @@ export class UsersService {
   // ─── Update a user (admin) ──────────────────────────────────────────────────
   /**
    * `opts.stepUpVerified`: the caller's password was already checked for this request (bulk role assignment checks it
-   * once when the operation is created and never stores it).
+   * once when the operation is created and never stores it). `opts.inTransaction` runs inside the update's transaction,
+   * after the change is written (bulk operations record their item result there, so both commit or neither does).
    */
-  async update(id: string, data: UpdateUserDto, caller: CallerCtx, opts: { stepUpVerified?: boolean } = {}) {
+  async update(
+    id: string, data: UpdateUserDto, caller: CallerCtx,
+    opts: { stepUpVerified?: boolean; inTransaction?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
+  ) {
     const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
     await this.roles.assertCanManage(caller, existing.role);
@@ -346,6 +350,7 @@ export class UsersService {
       // statement before commit): the new role and the revocation become visible
       // together, so an old token can never authenticate with the new role.
       if (endsSessions) await this.tokens.revokeAllForUser(id, tx);
+      if (opts.inTransaction) await opts.inTransaction(tx);
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
     }).catch(lastSuperAdminConflict);
 

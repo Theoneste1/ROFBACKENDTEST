@@ -25,15 +25,25 @@ account added, removed, or swapped for another (even with the same total) — th
 `409 SELECTION_CHANGED` and nothing is created: preview again and confirm the new selection. `expectedTotal` is checked
 as well.
 
+**Validation and creation are atomic.** In one transaction the server scans the matching accounts, locks them
+`FOR SHARE` in id order, scans again (anything that left or joined meanwhile shows up; it repeats until the scan equals
+the locked set), compares the token, and only then creates the operation and its items. While that transaction runs no
+selected account can change — a concurrent change waits for it — so the operation always holds exactly the confirmed
+accounts as they were when it was created; a change that waits is applied after (the items are a snapshot by design).
+SERIALIZABLE isolation alone would not do: PostgreSQL only detects conflicts between serializable transactions, and the
+rest of the platform writes accounts at READ COMMITTED.
+
 ### Retries are safe
 
 - **The same `idempotencyKey`** (per administrator) returns the same operation (`200`, `alreadyExisted: true`); nothing
   is created or processed twice.
 - **Each account is processed at most once per operation**, enforced in the database: one item per (operation,
-  account) — unique — and an item's result is written only while it is still pending. Status changes and e-mails write
-  that result in the same transaction as the change, so a second worker, a restarted worker or a cancel can never apply
-  them twice. Role and grade changes are retried idempotently (an account already changed is recorded as skipped,
-  `ALREADY_SET`).
+  account) — unique. A worker claims an item (`PENDING → PROCESSING` with a claim token) and only that claim may write
+  its result. **Every change and its result commit in one transaction** — status changes, role and grade changes and
+  e-mail deliveries alike — so a result is never recorded without its change, nor a change without its result. If a
+  worker dies mid-item, nothing of that item survived; its claim expires after 5 minutes, another worker takes it over
+  and applies the change once (`SUCCEEDED`). A stalled worker whose claim was taken over cannot record: its change is
+  rolled back.
 - **E-mails go out at most once per account per operation**: the delivery is created together with the account's
   result.
 
@@ -61,10 +71,16 @@ Your own account is always skipped (`SELF`).
 
 ## Processing
 
-A worker (in every API instance) claims up to **200 items at a time** (`FOR UPDATE SKIP LOCKED`; a claim older than
-5 minutes — a crashed worker — is taken over). Each account is changed in its own transaction, so one failure does not
-undo the others. Counts are recomputed from the items. When nothing is pending the operation ends as `COMPLETED`,
-`COMPLETED_WITH_FAILURES` or `FAILED`, once. Cancelling skips the accounts not yet processed (`CANCELLED`).
+A worker (in every API instance) claims up to **200 items at a time** (`PENDING → PROCESSING`, `FOR UPDATE SKIP LOCKED`;
+a claim older than 5 minutes — a crashed worker — is taken over). Each account is changed in its own transaction, so one
+failure does not undo the others. Counts are recomputed from the items. When nothing is pending or processing the
+operation ends as `COMPLETED`, `COMPLETED_WITH_FAILURES` or `FAILED`, once.
+
+**Cancelling** skips only the accounts still `PENDING` (code `CANCELLED`; they are untouched). Accounts a worker has
+already claimed end truthfully: one being changed at that moment completes (the cancel waits for it — each item's
+transaction holds the operation row `FOR SHARE`); a claimed account whose processing starts after the cancel committed
+is skipped (`CANCELLED`) without any change. The operation is `CANCELLING` until no account is processing, then
+`CANCELLED`. Every recorded result equals what happened: `SUCCEEDED` if and only if the account was changed.
 
 Measured locally: 5 000 accounts selected by filter — preview and creation ≈ 0.9 s, processing 25 batches ≈ 66 s.
 

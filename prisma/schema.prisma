@@ -22,19 +22,22 @@ enum AccountStatus {
   ARCHIVED
 }
 
-/// A bulk operation's state (2026-11-17). PENDING → RUNNING → COMPLETED / COMPLETED_WITH_FAILURES / FAILED, or CANCELLED.
+/// A bulk operation's state (2026-11-17). PENDING → RUNNING → COMPLETED / COMPLETED_WITH_FAILURES / FAILED; a cancel
+/// makes it CANCELLING while claimed items finish, then CANCELLED.
 enum BulkOperationStatus {
   PENDING
   RUNNING
+  CANCELLING
   COMPLETED
   COMPLETED_WITH_FAILURES
   FAILED
   CANCELLED
 }
 
-/// One user's result in a bulk operation.
+/// One user's result in a bulk operation. PROCESSING = claimed by a worker (claimToken); it always ends truthfully.
 enum BulkItemOutcome {
   PENDING
+  PROCESSING
   SUCCEEDED
   FAILED
   SKIPPED
@@ -2368,6 +2371,8 @@ model BulkOperationItem {
   message        String?
   /// After a restore or reactivation: conditions that still block sign-in (NOT_ACTIVATED, PENDING_APPROVAL…).
   stillBlockedBy String[]        @default([])
+  /// Set when a worker claims the item (PENDING → PROCESSING); only that claim may record the result.
+  claimToken     String?
   lockedAt       DateTime?
   processedAt    DateTime?
 

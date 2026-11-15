@@ -10,7 +10,7 @@
     "paths": 256,
     "schemas": 91
   },
-  "fingerprint": "f99fed67c25ec8d51f70e5007d4045a50b113b9a3598ad761afdaeca2bd14f60",
+  "fingerprint": "a305f889df1df16153bd4bc76ec6cb89d0cfef0a362d3135c9836001df7302be",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -14092,6 +14092,7 @@
             "type": "string",
             "enum": [
               "CANCELLED",
+              "CANCELLING",
               "COMPLETED",
               "COMPLETED_WITH_FAILURES",
               "FAILED",
@@ -14583,6 +14584,9 @@
                           "search"
                         ],
                         "properties": {
+                          "role": {
+                            "type": "string"
+                          },
                           "search": {
                             "type": "string"
                           }
@@ -14774,6 +14778,15 @@
                       "search"
                     ],
                     "properties": {
+                      "accountStatus": {
+                        "type": "string"
+                      },
+                      "gradeLevel": {
+                        "type": "string"
+                      },
+                      "role": {
+                        "type": "string"
+                      },
                       "search": {
                         "type": "string"
                       }
@@ -14869,6 +14882,7 @@
               "params",
               "pending",
               "processed",
+              "processing",
               "reason",
               "requestId",
               "selection",
@@ -14944,6 +14958,9 @@
                 "type": "integer"
               },
               "processed": {
+                "type": "integer"
+              },
+              "processing": {
                 "type": "integer"
               },
               "reason": {
@@ -15048,6 +15065,7 @@
               "params",
               "pending",
               "processed",
+              "processing",
               "reason",
               "requestId",
               "selection",
@@ -15104,6 +15122,7 @@
                 "type": "integer"
               },
               "finishedAt": {
+                "nullable": true,
                 "type": "string",
                 "format": "date-time"
               },
@@ -15125,6 +15144,9 @@
               "processed": {
                 "type": "integer"
               },
+              "processing": {
+                "type": "integer"
+              },
               "reason": {
                 "type": "string"
               },
@@ -15135,7 +15157,6 @@
               "selection": {
                 "type": "object",
                 "required": [
-                  "filter",
                   "mode"
                 ],
                 "properties": {
@@ -15150,6 +15171,13 @@
                       }
                     }
                   },
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  },
                   "mode": {
                     "type": "string"
                   }
@@ -15160,7 +15188,8 @@
               },
               "startedAt": {
                 "nullable": true,
-                "type": "any"
+                "type": "string",
+                "format": "date-time"
               },
               "status": {
                 "type": "string"
@@ -15210,6 +15239,7 @@
             "enum": [
               "FAILED",
               "PENDING",
+              "PROCESSING",
               "SKIPPED",
               "SUCCEEDED"
             ]
