@@ -158,6 +158,12 @@ describe('Security (e2e)', () => {
       const since = new Date();
       const attempt = (password: string) => ctx.http().post('/api/v1/auth/login').send({ username: 'mentor.j2', password });
 
+      // Test harness: supertest starts a server that is not listening for the request that needs it and
+      // closes it when that request ends, resetting the other requests still in flight (ECONNRESET on a
+      // fast runner). Listening first means supertest only connects and never closes the shared server.
+      const server = ctx.app.getHttpServer();
+      if (!server.listening) await new Promise<void>((resolve) => server.listen(0, resolve));
+
       // 20 wrong guesses at once (e.g. from 20 addresses, so no IP throttle applies).
       const burst = await Promise.all(Array.from({ length: 20 }, (_, i) => attempt(`parallel-wrong-${i}`)));
       expect(burst.map((r) => r.status)).toEqual(Array(20).fill(401));
