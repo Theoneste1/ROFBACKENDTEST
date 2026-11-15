@@ -53,3 +53,13 @@ describe('renderEmail', () => {
     expect(local.text.startsWith('Hello,\n')).toBe(true);
   });
 });
+
+describe('renderEmail greeting', () => {
+  it('a whole greeting line replaces "Hello …," (decision notifications: "Dear …,"), escaped in the HTML', () => {
+    const mail = renderEmail({ greeting: 'Dear Aline <b>,', firstName: 'Ignored', body: 'Body.' }, brand);
+    expect(mail.text.split(/\r?\n/)[0]).toBe('Dear Aline <b>,');
+    expect(mail.text).not.toContain('Hello');
+    expect(mail.html).toContain('Dear Aline &lt;b&gt;,');
+    expect(mail.html).not.toContain('Hello');
+  });
+});

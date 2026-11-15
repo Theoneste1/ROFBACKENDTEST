@@ -43,7 +43,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import pg from 'pg';
-import { migrationDirs, prePhase1Baseline, readPhase1Sql } from './release/phase1.mjs';
+import { migrationDirs, prePhase1Baseline, readLaterSql, readPhase1Sql } from './release/phase1.mjs';
 
 /** Identifies this verifier in its output: rev 2 = guard hardened against redirecting URLs (query parameters, encoding, trailing dot). */
 export const VERIFIER = 'db-drill-verify rev 2 (hardened target guard)';
@@ -56,7 +56,7 @@ export function expectedState(root, baseline) {
   const migDirs = migrationDirs(root);
   const models = [...readFileSync(join(root, 'prisma/schema.prisma'), 'utf8').matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]).sort();
   if (!baseline) return { migrations: migDirs, models };
-  return prePhase1Baseline({ migDirs, models, phase1Sql: readPhase1Sql(root, migDirs) });
+  return prePhase1Baseline({ migDirs, models, phase1Sql: readPhase1Sql(root, migDirs), laterSql: readLaterSql(root, migDirs) });
 }
 
 /** Every value of `key` in a dotenv-style text (supports `export KEY=`, spaces around `=`, quotes). */

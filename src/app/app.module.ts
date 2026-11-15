@@ -40,6 +40,8 @@ import { LeaderboardModule } from '../leaderboard/leaderboard.module.js';
 import { AssignmentsModule } from '../assignments/assignments.module.js';
 import { SubmissionsModule } from '../submissions/submissions.module.js';
 import { MentorRequestsModule } from '../mentor-requests/mentor-requests.module.js';
+import { TeacherApplicationsModule } from '../teacher-applications/teacher-applications.module.js';
+import { DecisionNotificationsModule } from '../decision-notifications/decision-notifications.module.js';
 import { PublicSiteModule } from '../public-site/public-site.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { DiscussionsModule } from '../discussions/discussions.module.js';
@@ -95,6 +97,8 @@ import { ReportsModule } from '../reports/reports.module.js';
     SubmissionsModule,
     LeaderboardModule,
     MentorRequestsModule,
+    TeacherApplicationsModule,
+    DecisionNotificationsModule,
     PublicSiteModule,
     // StudyGroupsModule is intentionally not registered: the programme has no
     // separate study groups (all discussion is in course and assignment threads).

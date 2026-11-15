@@ -297,6 +297,7 @@ reminders: every notification is triggered by an action.
 | Mentor application decided, password reset | The person |
 | New student registration | Admins (in-app, switchable), once per account |
 | Coach application submitted | Admins (in-app, switchable), once per submission |
+| Teacher application submitted (self-registration) | Admins (in-app, switchable `registration.teacher_application`), once per application |
 
 Notices that must never repeat use `notifyOnce(eventKey, …)`: the key
 (for example `registration.student:<userId>` or `result.reopened:<reviewId>`)

@@ -18,6 +18,7 @@ import { SchoolAffiliationService } from '../schools/affiliations/school-affilia
 import { resolveSchoolReference } from '../schools/school-reference.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
+import { canonicalInterests } from './olympiad-interests.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -429,7 +430,13 @@ export class UsersService {
     if (Object.keys(data).length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
     }
-    return this.prisma.user.update({ where: { id: userId }, data, select: PROFILE_SELECT });
+    const { olympiadInterests, ...rest } = data;
+    return this.prisma.user.update({
+      where: { id: userId },
+      // Olympiad interests are stored in the fixed order (owner decision 8; information only).
+      data:  { ...rest, ...(olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(olympiadInterests) }) },
+      select: PROFILE_SELECT,
+    });
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────

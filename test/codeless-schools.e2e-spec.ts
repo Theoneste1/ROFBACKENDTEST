@@ -55,10 +55,10 @@ describe('Schools without an official code (owner decision 2026-11-14)', () => {
   });
   afterAll(async () => { await ctx?.app.close(); });
 
-  it('public search finds a codeless school by name and by place (sector, district, province, location text), with its id and code null; the shape is unchanged; inactive and foreign schools are not offered', async () => {
+  it('public search finds a codeless school by name and by place (sector, district, province, location text), with its id and code null; the shape is unchanged apart from the additive province (teacher registration); inactive and foreign schools are not offered', async () => {
     const byName = await search({ q: 'saint gab' });
-    expect(byName).toEqual([{ id: codeless, code: null, name: 'Ecole Saint Gabriel', location: 'Near Ngoma market', district: 'Huye', sector: 'Ngoma' }]);
-    expect(Object.keys(byName[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'sector']);
+    expect(byName).toEqual([{ id: codeless, code: null, name: 'Ecole Saint Gabriel', location: 'Near Ngoma market', province: 'Southern Province', district: 'Huye', sector: 'Ngoma' }]);
+    expect(Object.keys(byName[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'province', 'sector']);
     for (const q of ['Ngoma', 'huye', 'Southern', 'ngoma market']) {
       expect((await search({ q })).map((s) => s.id), q).toContain(codeless);
     }

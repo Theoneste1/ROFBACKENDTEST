@@ -45,6 +45,11 @@ export const CONFIGURABLE_NOTIFICATION_TYPES: readonly NotificationTypeInfo[] = 
     description: 'Someone applied to become a coach and is waiting for a decision.',
   },
   {
+    type: Events.TeacherApplicationSubmitted, category: 'ACCOUNT', roles: ['ADMIN'], email: false,
+    label: 'New teacher applications',
+    description: 'Someone applied to register as a teacher and is waiting for a decision.',
+  },
+  {
     type: Events.ContentReported, category: 'DISCUSSIONS', roles: ['ADMIN'], email: false,
     label: 'Reported discussion content',
     description: 'Someone reported a discussion thread or comment for moderation.',

@@ -1025,6 +1025,67 @@
             },
             "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
           }
+        },
+        {
+          "name": "GET /admin/notification-deliveries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notification-deliveries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notification-deliveries"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "type",
+                  "value": "type",
+                  "disabled": true,
+                  "description": "Event type, e.g. \"teacher.application.approved\"."
+                }
+              ]
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/notification-deliveries/{id}/retry",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/notification-deliveries/:id/retry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "notification-deliveries",
+                ":id",
+                "retry"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
         }
       ]
     },
@@ -5828,6 +5889,69 @@
           }
         },
         {
+          "name": "POST /auth/register/teacher",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/teacher",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "teacher"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"confirmPassword\": \"Str0ng!Passw0rd\",\n  \"country\": \"country\",\n  \"phone\": \"phone\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ],\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /auth/register/teacher/availability",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/teacher/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "teacher",
+                "availability"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
+          }
+        },
+        {
           "name": "POST /auth/resend-activation",
           "request": {
             "method": "POST",
@@ -7734,7 +7858,7 @@
             "description": "**Access:** Any signed-in user",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"homeLocation\": \"homeLocation\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"homeLocation\": \"homeLocation\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9908,6 +10032,191 @@
                   "value": "note"
                 }
               ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teacher applications",
+      "item": [
+        {
+          "name": "GET /admin/teacher-applications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "REJECTED",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/teacher-applications/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/teacher-applications/{id}/approve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications/:id/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications",
+                ":id",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/teacher-applications/{id}/reject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications/:id/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications",
+                ":id",
+                "reject"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/teacher-applications/{id}/school",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications/:id/school",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications",
+                ":id",
+                "school"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           }
         }
