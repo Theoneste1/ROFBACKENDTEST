@@ -13,6 +13,17 @@ describe('super-admin CLI arguments', () => {
     });
   });
 
+  it('bootstrap --dry-run takes no value and needs no confirmation or reason', () => {
+    expect(parseArgs(['bootstrap', '--username', 'owner', '--dry-run'])).toEqual({
+      command: 'bootstrap', mode: undefined, flags: { username: 'owner', 'dry-run': 'true' },
+    });
+    expect(parseArgs(['bootstrap', '--dry-run', '--username', 'owner']).flags).toEqual({ 'dry-run': 'true', username: 'owner' });
+  });
+
+  it('--dry-run is refused for break-glass', () => {
+    expect(() => parseArgs(['break-glass', 'promote-admin', '--username', 'a', '--dry-run'])).toThrow(/only for bootstrap/);
+  });
+
   it.each([
     [['bootstrap', 'owner']],
     [['bootstrap', '--username']],
