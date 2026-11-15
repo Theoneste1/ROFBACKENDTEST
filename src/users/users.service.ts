@@ -40,6 +40,29 @@ const SAFE_SELECT = {
   updatedAt:  true,
 } as const;
 
+/** The filters of GET /admin/users, as a where clause — also used by bulk operations' filter selections. */
+export function userListWhere(q: Omit<ListUsersQueryDto, 'page' | 'limit'>): Prisma.UserWhereInput {
+  const where: Prisma.UserWhereInput = {
+    ...(q.role       && { role: q.role }),
+    ...(q.divisionId && { divisionId: q.divisionId }),
+    ...(q.gradeLevel && { gradeLevel: q.gradeLevel }),
+    ...(q.schoolId   && { schoolId: q.schoolId }),
+    ...(q.isApproved !== undefined && { isApproved: q.isApproved }),
+    ...(q.isActive   !== undefined && { isActive: q.isActive }),
+    ...(q.accountStatus && { accountStatus: q.accountStatus }),
+    ...(q.isActivated !== undefined && { activatedAt: q.isActivated ? { not: null } : null }),
+    ...(q.search && {
+      OR: [
+        { firstName: { contains: q.search, mode: 'insensitive' } },
+        { lastName:  { contains: q.search, mode: 'insensitive' } },
+        { username:  { contains: q.search, mode: 'insensitive' } },
+        { email:     { contains: q.search, mode: 'insensitive' } },
+      ],
+    }),
+  };
+  return where;
+}
+
 /** The reason recorded when PATCH /admin/users/:id/status suspends an account (that route takes no reason). */
 export const LEGACY_SUSPEND_REASON = 'Suspended by an administrator (status switch).';
 
@@ -60,25 +83,7 @@ export class UsersService {
   // ─── List users with optional filters ──────────────────────────────────────
   async findAll(q: ListUsersQueryDto) {
     const { page, limit, skip, take } = pageArgs(q);
-
-    const where: Prisma.UserWhereInput = {
-      ...(q.role       && { role: q.role }),
-      ...(q.divisionId && { divisionId: q.divisionId }),
-      ...(q.gradeLevel && { gradeLevel: q.gradeLevel }),
-      ...(q.schoolId   && { schoolId: q.schoolId }),
-      ...(q.isApproved !== undefined && { isApproved: q.isApproved }),
-      ...(q.isActive   !== undefined && { isActive: q.isActive }),
-      ...(q.accountStatus && { accountStatus: q.accountStatus }),
-      ...(q.isActivated !== undefined && { activatedAt: q.isActivated ? { not: null } : null }),
-      ...(q.search && {
-        OR: [
-          { firstName: { contains: q.search, mode: 'insensitive' } },
-          { lastName:  { contains: q.search, mode: 'insensitive' } },
-          { username:  { contains: q.search, mode: 'insensitive' } },
-          { email:     { contains: q.search, mode: 'insensitive' } },
-        ],
-      }),
-    };
+    const where = userListWhere(q);
 
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({ where, select: SAFE_SELECT, orderBy: { createdAt: 'desc' }, skip, take }),
@@ -87,6 +92,7 @@ export class UsersService {
 
     return paginated(users, total, page, limit);
   }
+
 
   // ─── Create a user (admin) ─────────────────────────────────────────────────
   async create(data: CreateUserDto, caller: CallerCtx) {
@@ -144,7 +150,11 @@ export class UsersService {
   }
 
   // ─── Update a user (admin) ──────────────────────────────────────────────────
-  async update(id: string, data: UpdateUserDto, caller: CallerCtx) {
+  /**
+   * `opts.stepUpVerified`: the caller's password was already checked for this request (bulk role assignment checks it
+   * once when the operation is created and never stores it).
+   */
+  async update(id: string, data: UpdateUserDto, caller: CallerCtx, opts: { stepUpVerified?: boolean } = {}) {
     const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
     await this.roles.assertCanManage(caller, existing.role);
@@ -169,7 +179,7 @@ export class UsersService {
     const roleChange = !!data.role && data.role !== existing.role;
     if (roleChange) await this.roles.assertCanAssign(caller, data.role!, 'roleChange');
     if (roleChange && (PRIVILEGED.includes(existing.role) || PRIVILEGED.includes(data.role!))) {
-      await this.assertStepUp(caller, data.currentPassword);
+      if (!opts.stepUpVerified) await this.assertStepUp(caller, data.currentPassword);
     }
     if (roleChange && data.role === 'SUPER_ADMIN' && (existing.role !== 'ADMIN' || !existing.isActive || !existing.activatedAt)) {
       throw new AppError(HttpStatus.FORBIDDEN, 'ROLE_NOT_ASSIGNABLE',
@@ -480,7 +490,7 @@ export class UsersService {
   // ─── Super Admin safeguards (P1-08, plan §8.2) ───────────────────────────────
 
   /** Step-up: the acting user re-enters their own password (403 STEP_UP_REQUIRED). */
-  private async assertStepUp(caller: CallerCtx, currentPassword: string | undefined) {
+  async assertStepUp(caller: CallerCtx, currentPassword: string | undefined) {
     const me = await this.prisma.user.findUnique({ where: { id: caller.id }, select: { passwordHash: true } });
     const ok = !!currentPassword && !!me?.passwordHash && (await bcrypt.compare(currentPassword, me.passwordHash));
     if (!ok) {

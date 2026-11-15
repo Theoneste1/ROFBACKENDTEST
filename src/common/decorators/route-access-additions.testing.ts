@@ -134,4 +134,13 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // the history needs users.viewStatusHistory
   'POST /api/v1/admin/users/:id/status-changes  UsersController.changeStatus':                                 ADMINISTRATORS,
   'GET /api/v1/admin/users/:id/status-history  UsersController.statusHistory':                                 ADMINISTRATORS,
+  // Bulk user operations (2026-11-17): users.bulkManage (export: users.export); each action's own permission and the
+  // per-account role policy are checked in BulkOperationsService / BulkOperationsWorker
+  'POST /api/v1/admin/users/bulk/preview  BulkOperationsController.preview':                                   ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk  BulkOperationsController.execute':                                           ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk  BulkOperationsController.list':                                               ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk/export  BulkOperationsController.export':                                     ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk/:id  BulkOperationsController.get':                                            ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk/:id/items  BulkOperationsController.items':                                    ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk/:id/cancel  BulkOperationsController.cancel':                                 ADMINISTRATORS,
 };

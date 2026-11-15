@@ -36,6 +36,8 @@ export interface StatusChangeContext {
   requestId?: string | null;
   /** Set by bulk operations. */
   operationId?: string | null;
+  /** Runs inside the change's transaction after it is written (bulk operations record their item there). */
+  inTransaction?: (tx: Prisma.TransactionClient, result: { stillBlockedBy: SignInBlock[] }) => Promise<void>;
 }
 
 /** The account fields a status change returns. */
@@ -124,6 +126,7 @@ export class AccountStatusService {
             ...(input.confirm === true && { confirmed: true }),
           },
         }, tx);
+        if (ctx.inTransaction) await ctx.inTransaction(tx, { stillBlockedBy: blocks });
         return { user, change, stillBlockedBy: blocks };
       });
     } catch (err) {

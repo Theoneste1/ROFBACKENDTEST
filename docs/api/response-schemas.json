@@ -6561,6 +6561,417 @@
     ],
     "type": "object"
   },
+  "GET /api/v1/admin/users/bulk 200": {
+    "properties": {
+      "data": {
+        "items": {
+          "properties": {
+            "action": {
+              "type": "string"
+            },
+            "actor": {
+              "properties": {
+                "firstName": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "lastName": {
+                  "type": "string"
+                },
+                "username": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "firstName",
+                "id",
+                "lastName",
+                "username"
+              ],
+              "type": "object"
+            },
+            "actorRole": {
+              "type": "string"
+            },
+            "cancelledAt": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "createdAt": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "emailJobId": {
+              "nullable": true
+            },
+            "failed": {
+              "type": "integer"
+            },
+            "finishedAt": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "idempotencyKey": {
+              "type": "string"
+            },
+            "params": {
+              "properties": {},
+              "required": [],
+              "type": "object"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "requestId": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "selection": {
+              "properties": {
+                "filter": {
+                  "properties": {
+                    "search": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "search"
+                  ],
+                  "type": "object"
+                },
+                "mode": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "filter",
+                "mode"
+              ],
+              "type": "object"
+            },
+            "skipped": {
+              "type": "integer"
+            },
+            "startedAt": {
+              "nullable": true
+            },
+            "status": {
+              "type": "string"
+            },
+            "succeeded": {
+              "type": "integer"
+            },
+            "total": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "action",
+            "actor",
+            "actorRole",
+            "cancelledAt",
+            "createdAt",
+            "emailJobId",
+            "failed",
+            "finishedAt",
+            "id",
+            "idempotencyKey",
+            "params",
+            "reason",
+            "requestId",
+            "selection",
+            "skipped",
+            "startedAt",
+            "status",
+            "succeeded",
+            "total"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "meta": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "page",
+          "total",
+          "totalPages"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "data",
+      "meta"
+    ],
+    "type": "object"
+  },
+  "GET /api/v1/admin/users/bulk/:id 200": {
+    "properties": {
+      "action": {
+        "type": "string"
+      },
+      "actor": {
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "firstName",
+          "id",
+          "lastName",
+          "username"
+        ],
+        "type": "object"
+      },
+      "actorRole": {
+        "type": "string"
+      },
+      "cancelledAt": {
+        "nullable": true
+      },
+      "createdAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "emailJobId": {
+        "nullable": true
+      },
+      "failed": {
+        "type": "integer"
+      },
+      "finishedAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "idempotencyKey": {
+        "type": "string"
+      },
+      "params": {
+        "properties": {},
+        "type": "object"
+      },
+      "pending": {
+        "type": "integer"
+      },
+      "processed": {
+        "type": "integer"
+      },
+      "reason": {
+        "type": "string"
+      },
+      "requestId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "selection": {
+        "properties": {
+          "filter": {
+            "properties": {
+              "search": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "search"
+            ],
+            "type": "object"
+          },
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "skipped": {
+        "type": "integer"
+      },
+      "startedAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "succeeded": {
+        "type": "integer"
+      },
+      "total": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "action",
+      "actor",
+      "actorRole",
+      "cancelledAt",
+      "createdAt",
+      "emailJobId",
+      "failed",
+      "finishedAt",
+      "id",
+      "idempotencyKey",
+      "params",
+      "pending",
+      "processed",
+      "reason",
+      "requestId",
+      "selection",
+      "skipped",
+      "startedAt",
+      "status",
+      "succeeded",
+      "total"
+    ],
+    "type": "object"
+  },
+  "GET /api/v1/admin/users/bulk/:id/items 200": {
+    "properties": {
+      "data": {
+        "items": {
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "outcome": {
+              "type": "string"
+            },
+            "processedAt": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "stillBlockedBy": {
+              "type": "array"
+            },
+            "user": {
+              "properties": {
+                "accountStatus": {
+                  "type": "string"
+                },
+                "firstName": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "lastName": {
+                  "type": "string"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "username": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "accountStatus",
+                "firstName",
+                "id",
+                "lastName",
+                "role",
+                "username"
+              ],
+              "type": "object"
+            },
+            "userId": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "outcome",
+            "processedAt",
+            "stillBlockedBy",
+            "user",
+            "userId"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "meta": {
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit",
+          "page",
+          "total",
+          "totalPages"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "data",
+      "meta"
+    ],
+    "type": "object"
+  },
   "GET /api/v1/analytics/courses/:courseId 200": {
     "properties": {
       "assignments": {
@@ -23624,6 +24035,595 @@
       "change",
       "stillBlockedBy",
       "user"
+    ],
+    "type": "object"
+  },
+  "POST /api/v1/admin/users/bulk 200": {
+    "properties": {
+      "alreadyExisted": {
+        "type": "boolean"
+      },
+      "operation": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "properties": {
+              "firstName": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "firstName",
+              "id",
+              "lastName",
+              "username"
+            ],
+            "type": "object"
+          },
+          "actorRole": {
+            "type": "string"
+          },
+          "cancelledAt": {
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "emailJobId": {
+            "nullable": true
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "params": {
+            "properties": {},
+            "type": "object"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "requestId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "selection": {
+            "properties": {
+              "filter": {
+                "properties": {
+                  "search": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "search"
+                ],
+                "type": "object"
+              },
+              "mode": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "filter",
+              "mode"
+            ],
+            "type": "object"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "actor",
+          "actorRole",
+          "cancelledAt",
+          "createdAt",
+          "emailJobId",
+          "failed",
+          "finishedAt",
+          "id",
+          "idempotencyKey",
+          "params",
+          "reason",
+          "requestId",
+          "selection",
+          "skipped",
+          "startedAt",
+          "status",
+          "succeeded",
+          "total"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "alreadyExisted",
+      "operation"
+    ],
+    "type": "object"
+  },
+  "POST /api/v1/admin/users/bulk 202": {
+    "properties": {
+      "alreadyExisted": {
+        "type": "boolean"
+      },
+      "operation": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "properties": {
+              "firstName": {
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "lastName": {
+                "type": "string"
+              },
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "firstName",
+              "id",
+              "lastName",
+              "username"
+            ],
+            "type": "object"
+          },
+          "actorRole": {
+            "type": "string"
+          },
+          "cancelledAt": {
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "emailJobId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "finishedAt": {
+            "nullable": true
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "params": {
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "gradeLevel": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string"
+              },
+              "stepUpVerified": {
+                "type": "boolean"
+              },
+              "subject": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "requestId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "selection": {
+            "properties": {
+              "filter": {
+                "properties": {
+                  "search": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "search"
+                ],
+                "type": "object"
+              },
+              "ids": {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "mode": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "mode"
+            ],
+            "type": "object"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "startedAt": {
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "actor",
+          "actorRole",
+          "cancelledAt",
+          "createdAt",
+          "emailJobId",
+          "failed",
+          "finishedAt",
+          "id",
+          "idempotencyKey",
+          "params",
+          "reason",
+          "requestId",
+          "selection",
+          "skipped",
+          "startedAt",
+          "status",
+          "succeeded",
+          "total"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "alreadyExisted",
+      "operation"
+    ],
+    "type": "object"
+  },
+  "POST /api/v1/admin/users/bulk/:id/cancel 200": {
+    "properties": {
+      "action": {
+        "type": "string"
+      },
+      "actor": {
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "firstName",
+          "id",
+          "lastName",
+          "username"
+        ],
+        "type": "object"
+      },
+      "actorRole": {
+        "type": "string"
+      },
+      "cancelledAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "createdAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "emailJobId": {
+        "nullable": true
+      },
+      "failed": {
+        "type": "integer"
+      },
+      "finishedAt": {
+        "format": "date-time",
+        "type": "string"
+      },
+      "id": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "idempotencyKey": {
+        "type": "string"
+      },
+      "params": {
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "pending": {
+        "type": "integer"
+      },
+      "processed": {
+        "type": "integer"
+      },
+      "reason": {
+        "type": "string"
+      },
+      "requestId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "selection": {
+        "properties": {
+          "filter": {
+            "properties": {
+              "search": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "search"
+            ],
+            "type": "object"
+          },
+          "mode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "filter",
+          "mode"
+        ],
+        "type": "object"
+      },
+      "skipped": {
+        "type": "integer"
+      },
+      "startedAt": {
+        "nullable": true
+      },
+      "status": {
+        "type": "string"
+      },
+      "succeeded": {
+        "type": "integer"
+      },
+      "total": {
+        "type": "integer"
+      }
+    },
+    "required": [
+      "action",
+      "actor",
+      "actorRole",
+      "cancelledAt",
+      "createdAt",
+      "emailJobId",
+      "failed",
+      "finishedAt",
+      "id",
+      "idempotencyKey",
+      "params",
+      "pending",
+      "processed",
+      "reason",
+      "requestId",
+      "selection",
+      "skipped",
+      "startedAt",
+      "status",
+      "succeeded",
+      "total"
+    ],
+    "type": "object"
+  },
+  "POST /api/v1/admin/users/bulk/preview 200": {
+    "properties": {
+      "action": {
+        "type": "string"
+      },
+      "consequences": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "params": {
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "gradeLevel": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "requiresReason": {
+        "type": "boolean"
+      },
+      "requiresStepUp": {
+        "type": "boolean"
+      },
+      "sample": {
+        "items": {
+          "properties": {
+            "accountStatus": {
+              "type": "string"
+            },
+            "firstName": {
+              "type": "string"
+            },
+            "id": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "lastName": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "username": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "accountStatus",
+            "firstName",
+            "id",
+            "lastName",
+            "role",
+            "username"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "selection": {
+        "properties": {
+          "filter": {
+            "properties": {
+              "search": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "search"
+            ],
+            "type": "object"
+          },
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "selectionToken": {
+        "type": "string"
+      },
+      "total": {
+        "type": "integer"
+      },
+      "warnings": {
+        "items": {
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "count": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "count",
+            "message"
+          ],
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "action",
+      "consequences",
+      "params",
+      "requiresReason",
+      "requiresStepUp",
+      "sample",
+      "selection",
+      "selectionToken",
+      "total",
+      "warnings"
     ],
     "type": "object"
   },

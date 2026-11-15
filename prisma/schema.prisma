@@ -22,6 +22,24 @@ enum AccountStatus {
   ARCHIVED
 }
 
+/// A bulk operation's state (2026-11-17). PENDING → RUNNING → COMPLETED / COMPLETED_WITH_FAILURES / FAILED, or CANCELLED.
+enum BulkOperationStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_FAILURES
+  FAILED
+  CANCELLED
+}
+
+/// One user's result in a bulk operation.
+enum BulkItemOutcome {
+  PENDING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
 enum Role {
   STUDENT
   MENTOR
@@ -522,6 +540,7 @@ model User {
   notificationOutbox                NotificationOutbox[]
   statusChanges                     UserStatusChange[]         @relation("StatusChangeUser")
   statusChangesMade                 UserStatusChange[]         @relation("StatusChangeActor")
+  bulkOperations                    BulkOperation[]            @relation("BulkOperationActor")
 
   @@index([points])
   @@index([role])
@@ -531,6 +550,8 @@ model User {
   @@index([role, isActive])
   @@index([accountStatus])
   @@index([role, accountStatus])
+  @@index([createdAt])
+  @@index([gradeLevel])
 }
 
 model RefreshToken {
@@ -2297,4 +2318,59 @@ model UserStatusChange {
 
   @@index([userId, createdAt])
   @@index([operationId])
+}
+
+/// A bulk action on many accounts (2026-11-17; docs/operations/bulk-user-operations.md). The selection is resolved on
+/// the server when the operation is created and snapshotted into its items; a worker processes the items in batches.
+model BulkOperation {
+  id             String              @id @default(uuid())
+  actorId        String?
+  actor          User?               @relation("BulkOperationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole      String
+  /// activate | deactivate | suspend | archive | restore | assignRole | changeClassification | message
+  action         String
+  /// The action's parameters (role, gradeLevel, subject…) — never a password or other secret.
+  params         Json
+  /// { mode: 'ids', ids } or { mode: 'filter', filter } as confirmed by the administrator.
+  selection      Json
+  /// The confirmed preview: a digest of the action, its parameters, the selection and the exact matching user ids.
+  selectionToken String
+  reason         String?
+  status         BulkOperationStatus @default(PENDING)
+  total          Int
+  succeeded      Int                 @default(0)
+  failed         Int                 @default(0)
+  skipped        Int                 @default(0)
+  idempotencyKey String
+  /// The bulk e-mail job of a 'message' operation (one delivery per user, created with that user's item).
+  emailJobId     String?             @unique
+  requestId      String?
+  createdAt      DateTime            @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  cancelledAt    DateTime?
+
+  items BulkOperationItem[]
+
+  @@unique([actorId, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([actorId, createdAt])
+}
+
+/// One account in a bulk operation: unique per (operation, user), so a user is processed — and notified — at most once.
+model BulkOperationItem {
+  id             String          @id @default(uuid())
+  operationId    String
+  operation      BulkOperation   @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  userId         String
+  outcome        BulkItemOutcome @default(PENDING)
+  code           String?
+  message        String?
+  /// After a restore or reactivation: conditions that still block sign-in (NOT_ACTIVATED, PENDING_APPROVAL…).
+  stillBlockedBy String[]        @default([])
+  lockedAt       DateTime?
+  processedAt    DateTime?
+
+  @@unique([operationId, userId])
+  @@index([operationId, outcome])
 }

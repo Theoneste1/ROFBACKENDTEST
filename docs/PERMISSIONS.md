@@ -87,6 +87,8 @@ permission guard.
 | `users.changeStatus` | — | — | — | — | all | all |
 | `users.suspend` | — | — | — | — | all | all |
 | `users.archive` | — | — | — | — | all | all |
+| `users.bulkManage` | — | — | — | — | all | all |
+| `users.export` | — | — | — | — | all | all |
 
 ## Administrators and Head Coaches (D-5, 2026-11-14)
 

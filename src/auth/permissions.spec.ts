@@ -54,6 +54,8 @@ describe('permissions', () => {
       'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
       // appended 2026-11-16 (account states): granted (ADMIN_GRANTS) and reported, so the status screens can show
       'users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive',
+      // appended 2026-11-17 (bulk user operations)
+      'users.bulkManage', 'users.export',
     ]);
   });
 
@@ -69,7 +71,7 @@ describe('permissions', () => {
 
   it('D-5 (2026-11-14): ADMIN reports the Head Coach administration it holds — exactly five names appended, all global grants', () => {
     const D5 = ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view'] as const;
-    const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive'] as const;
+    const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive', 'users.bulkManage', 'users.export'] as const;
     expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + AS.length), -AS.length)).toEqual([...D5]);
     for (const p of D5) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     // Additive only: the 25 original entries keep their order; then 2 + D-5, then the account states (2026-11-16).
@@ -172,6 +174,8 @@ describe('permissions', () => {
       'permissions.view': G, 'schools.manage': G,
       // Account states (2026-11-16)
       'users.viewStatusHistory': G, 'users.changeStatus': G, 'users.suspend': G, 'users.archive': G,
+      // Bulk user operations (2026-11-17)
+      'users.bulkManage': G, 'users.export': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {

@@ -132,6 +132,14 @@ export const FEATURES = {
    * ACCOUNT_ARCHIVED; DELETE /api/v1/admin/users/:id answers 409 PERMANENT_DELETION_DISABLED (archive instead).
    */
   accountStates: 'always',
+  /**
+   * Bulk user operations (2026-11-17): POST /api/v1/admin/users/bulk/preview (count, sample, warnings, selectionToken),
+   * POST /api/v1/admin/users/bulk (202; idempotent per idempotencyKey; 409 SELECTION_CHANGED), GET /api/v1/admin/users/bulk,
+   * GET /api/v1/admin/users/bulk/:id, GET /api/v1/admin/users/bulk/:id/items, POST /api/v1/admin/users/bulk/:id/cancel and
+   * POST /api/v1/admin/users/bulk/export (CSV). Actions: activate, deactivate, suspend, archive, restore, assignRole,
+   * changeClassification (a student's grade, and so division), message.
+   */
+  bulkUserOperations: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;
