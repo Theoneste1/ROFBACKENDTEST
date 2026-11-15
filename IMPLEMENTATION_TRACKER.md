@@ -10,7 +10,7 @@ Phases follow the approved sequence (0 stabilise · 1 permissions · 2 countries
 regression. "FE" = frontend only.
 
 **Status values:** Not started · Partial (existing) — not started · In progress · Implemented — awaiting review ·
-Verified · Done (existing) — regression · Needs decision · Frontend only · Blocked.
+Verified · Done (existing) — regression · Needs decision · Frontend only · Blocked · Deferred (approved scope change).
 A requirement is **Verified** only when its verification criteria pass in automated tests (and, where stated, on a
 production-copy rehearsal) — never because an endpoint or table exists.
 
@@ -18,14 +18,36 @@ production-copy rehearsal) — never because an endpoint or table exists.
 
 | ID | Task | Priority | Depends on | Status | Verification |
 |---|---|---|---|---|---|
-| P0-01 | Review pending backend commits (`cc27c8d`, `962e1f0`, `f624d25`) and prepare the PR `feature/backend-completion → main` | Critical | owner go-ahead to push | Not started | PR open, CI green, reviewed |
+| P0-01 | Review pending backend commits (`cc27c8d`, `962e1f0`, `f624d25`) and prepare the PR `feature/backend-completion → main` | Critical | owner go-ahead to push | **Done 2026-11-08** | PR [#3](https://github.com/Theoneste1/ROFBACKENDTEST/pull/3) (4 commits incl. docs `6f2e3a6`) CI green, merged by owner → `main` `a8df186` |
 | P0-02 | Fix and deploy the frontend Netlify 404 (frontend branch `feature/production-readiness`) | Critical | owner merge | Not started | `roflms.netlify.app` serves the app; reset link opens the reset page |
-| P0-03 | Regression baseline (tag, test counts, OpenAPI snapshot) | High | P0-01 | Not started | tag exists; 482 unit / 289 e2e recorded |
-| P0-04 | Verify database backup and restore (Neon restore drill) | Critical | — | Not started | restore documented with time and checks |
-| P0-05 | Controlled Cloudflare R2 upload and download test | Critical | P0-01 deployed | Not started | object in `rof-files`, download byte-identical, start-up log names R2 |
+| P0-03 | Regression baseline (tag, test counts, OpenAPI snapshot) | High | P0-01 | **Done 2026-11-08** | tag `rof-backend-baseline-2026-11-08` → `a8df186`; unit 482/482, e2e 289 passed + 3 skipped (S3, pass in CI), lint 0 errors / 1 warning (unused `emptyToUndefined`), type-check/build clean, 202/202 routes, CI run 42473170005 green; re-verified 2026-11-08 (BASELINE §9: one intermittent e2e timeout, not reproduced; CI green on `develop` 97131c2 and frontend `main` ea09fcc); [docs/baseline/BASELINE-2026-11-08.md](docs/baseline/BASELINE-2026-11-08.md), API snapshot + test inventory |
+| P0-04 | Verify database backup and restore (Neon restore drill) | Critical | — | Part A done (2026-11-09); Part B pending approval | restore documented with time and checks — [drill report](docs/operations/BACKUP-RESTORE-DRILL-2026-11-09.md) |
+| P0-05 | Controlled Cloudflare R2 upload and download test | Critical | P0-01 deployed | **Pending** — tooling and S3Mock tests ready; live R2 run awaits approval ([procedure](docs/operations/R2-VERIFICATION.md)) | object in `rof-files`, download byte-identical, start-up log names R2 |
 | P0-06 | CI check: migration names strictly after the newest on `main` | Critical | — | Not started | check fails on a deliberately mis-named test migration |
-| P0-07 | Align `develop` with `main` after P0-01 is merged (Q22 decided: keep `develop`) | Medium | P0-01 merged | Not started | `develop` contains everything in `main` |
+| P0-07 | Align `develop` with `main` after P0-01 is merged (Q22 decided: keep `develop`) | Medium | P0-01 merged | **Done 2026-11-08** | merge commit `2528587` on `develop` (parents `46129e2`, `a8df186`); file tree identical to `main` (`d6945d6`); normal push |
 | P0-08 | Staging environment (ADR-016) | High | P0-04 | Not started | staging URL with rehearsed migrations |
+
+## Phase 1 — Permissions and role management
+
+Plan: [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) (v5.2) · decisions: [ARCHITECTURE_DECISIONS.md](ARCHITECTURE_DECISIONS.md) ADR-002/003/004/015/017/018/019 and the Phase 1 decision register. Every PR targets `develop`; every migration, the Super Admin bootstrap and every feature-flag change needs separate approval.
+
+| ID | Task | Priority | Depends on | Status | Verification |
+|---|---|---|---|---|---|
+| P1-01 | Record Phase 1 decisions (documentation only) | Critical | owner approval of PR 1 scope | **Done 2026-11-09** — PR #10, merge commit `0be9fe9` (CI green on `develop`) | only approved Markdown files changed; statuses match the register |
+| P1-01b | Record the final owner sign-off of all Phase 1 decisions (documentation only) | Critical | P1-01 | **Done 2026-11-09** — PR #11, merge commit `16b095a` | register shows every B/C decision with the owner's outcome; H7 changed; AS1, AS2 added; Markdown only |
+| P1-02 | Every route declares access (`@Authenticated` on 54 routes) + declaration test | Critical | P1-01b; owner approval to implement (given 2026-11-09, plan v2) | Implemented — awaiting review | 211 handlers = 16 @Public + 141 @Roles + 54 @Authenticated, 0 undeclared (`src/common/decorators/route-declarations.spec.ts`); guard decisions for anonymous/STUDENT/MENTOR/ADMIN/unknown role identical to the baseline captured before the change (`route-access-baseline.json`); generated docs and API snapshot unchanged |
+| P1-03 | Positive role checks; unknown role → least privilege | Critical | P1-02; owner approval (plan v2.1, 2026-11-09) | Implemented — awaiting review | gaps G1–G5 closed; 52 registered `@Authenticated` routes tested for unsupported roles (UR-01…UR-52, `test/unknown-role.e2e-spec.ts`: 5 × 403 ROLE_NOT_SUPPORTED, 29 × 404, 18 × same as a known role); TypeScript-compiler-API role-check scanner with 14 reviewed exceptions (`src/common/access/role-checks.spec.ts`); known-role behaviour unchanged (equivalence checks, full suites, P1-02 guard baseline, API snapshot identical) |
+| P1-04 | Six-role catalogue, PermissionService, permission guard, equivalence framework, extended `/me/permissions` | Critical | P1-03; owner approval (A1–A8, 2026-11-09) | Implemented — awaiting review | six-role catalogue = plan §5 (transcription test; [docs/PERMISSIONS.md](docs/PERMISSIONS.md) checked against the code); equivalence: STUDENT/MENTOR = today, ADMIN ⊇ today (`src/auth/permission-equivalence.spec.ts`, harness self-tested; no route mapped, exception list empty); RS1 enforced in catalogue, `PermissionService.effective()` and `PermissionGuard`; guard registered after `RolesGuard`, no-op without `@RequirePermission`, P1-02 guard baseline unchanged; no route converted (P1-06); `/me/permissions` adds `roleLabel` + `scopes.courseDivisions` only (API snapshot: 0 breaking, 0 review, 2 additive; approved contract recorded in `docs/baseline/api-snapshot-2026-11-09-p1-04.json`, P0-03 snapshot unchanged; snapshot tests now in CI); mutation checks M1–M6 caught |
+| P1-05 | Role allow-list on all paths + feature flags; migration M1 (role values) | Critical | P1-04 | Not started | new roles not creatable with flags off; rehearsal clean |
+| P1-F1 | Frontend tolerates six and unknown roles | Critical | P1-01 | Not started | deployed before any new-role account exists |
+| P1-06 | Route conversion to permission checks (batches) | Critical | P1-04 | Not started | equivalence + area e2e per batch |
+| P1-07 | Programme membership: M2 + M3 backfill, scope helpers, heads/members API | Critical | P1-04 | Not started | plan §11.5 (precondition, reconciliation, access regression, scope isolation, rollback) on test DB and Neon copy |
+| P1-08 | Super Admin: authority (no grading), role rules, step-up, M4 trigger, bootstrap command (not run), runbook, audit interceptor, boundary flag (off) | Critical | P1-05, P1-06 | Not started | plan §11.2, §11.4; bootstrap rehearsed on non-production only |
+| P1-09 | Individual overrides: M5, Super-Admin-only API, approved list, expiry at `expiresAt` | Critical | P1-04 | Not started | plan §11.3 |
+| P1-10 | Head Coach (programme-scoped) | High | P1-05, P1-06, P1-07, P1-09 | Not started | programme-boundary and escalation suites |
+| P1-11 | Teacher: M6 TeacherAssignment, scoped view, override path | High | P1-05, P1-06, P1-07, P1-09 | Not started | teacher suite; never in grading distribution |
+| P1-F2 | Frontend: permission-driven navigation; Head Coach, Super Admin, Teacher views | High | matching backend tasks | Not started | API refuses every hidden action |
+| P1-12 | Phase exit: full matrix, combined M1–M6 rehearsal, docs | Critical | all above | Not started | plan §11 complete; owner sign-off |
 
 ## Requirements
 
@@ -72,7 +94,7 @@ production-copy rehearsal) — never because an endpoint or table exists.
 | ACC-04 | Approve or reject applications | High | 5 | REG-10 | registration review | Partial (existing) — not started | See REG-10 |
 | ACC-05 | Invite users | High | 5 | REG-01 | invite, import | Done (existing) — regression | Teacher invitations; new fields in import |
 | ACC-06 | Suspend and reactivate | High | 4 | ACC-12 | users status | Done (existing) — regression | Suspend/reactivate map to SUSPENDED/ACTIVE; tokens revoked |
-| ACC-07 | Change user permissions where authorized | Critical | 1 | PERM-02..06 | permission assignments | Partial (existing) — not started | Admin assigns profile with scope; escalation refused; audited |
+| ACC-07 | Change user permissions where authorized | Critical | 1 | PERM-03..06, ADR-004 (amended) | role changes, permission overrides | Partial (existing) — not started | Role changes follow the per-actor allow-list; Super Admin grants/revokes individual overrides within the approved list; escalation refused; audited (assigning custom profiles deferred with PERM-02) |
 | ACC-08 | Reset accounts, resend activation | High | — | — | auth, users | Done (existing) — regression | Regression: reset/resend e2e green |
 | ACC-09 | Bulk operations | Medium | 4 | ACC-12 | users bulk | Partial (existing) — not started | Per-row results; partial failures reported; each change audited |
 | ACC-10 | Import and export users | Medium | 4 | REG-12 | users import/export | Partial (existing) — not started | Round trip export → import dry run passes |
@@ -82,13 +104,13 @@ production-copy rehearsal) — never because an endpoint or table exists.
 | ACC-14 | Permanent deletion restricted by retention/privacy rules | Medium | 4/10 | ACC-13, Q16 | users purge, retention | Partial (existing) — not started | Purge only for archived accounts after retention, with users.purge; anonymises personal data |
 | ACC-15 | Users update profile picture, contact details, country/location, school, academic info, interests | Medium | 4 | INT-01, SUB-01, Q17 | PATCH /me, avatar | Partial (existing) — not started | User updates allowed fields; restricted ones follow approval rule |
 | ACC-16 | Sensitive information access restrictions | Critical | 4 | PERM-03 | serialisers, audit | Done (existing) — regression | Sensitive fields masked by default; reads with users.viewSensitive audited |
-| PERM-01 | Five concepts: user type, organisational role, permission profile, individual permissions, scope | Critical | 1 | ADR-004, Q5 | permissions module | Partial (existing) — not started | User type, profile, overrides and scope all resolvable for any user |
-| PERM-02 | Reusable permission profiles created by administrators | Critical | 1 | ADR-004 | PermissionProfile tables, seed | Not started | System profiles reproduce ROLE_PERMISSIONS exactly (unit + e2e equivalence) |
-| PERM-03 | Granular permissions by functional area | Critical | 1 | PERM-02 | @RequirePermission guard | Partial (existing) — not started | Guard and @Roles agree on all 202 routes for system profiles |
-| PERM-04 | Scope restrictions (country, school, subject, course, division, group, assigned support requests) | Critical | 1 | PERM-02 | scope resolution, AccessService | Partial (existing) — not started | Scope tests for every scope type |
+| PERM-01 | Five concepts: user type, organisational role, permission profile, individual permissions, scope | Critical | 1 | ADR-004 (amended), Q5 | permissions module | Partial (existing) — not started | User type, role-based defaults, overrides and scope resolvable for any user; organisational role deferred (Q5/D5, approved); custom profiles deferred (PERM-02) |
+| PERM-02 | Reusable permission profiles created by administrators | Critical | later (was 1) | ADR-004 (amended) | PermissionProfile tables, seed | **Deferred (approved scope change 2026-11-09, D3)** — Phase 1 delivers fixed role-based defaults + Super-Admin overrides instead ([ADR-004 amendment](ARCHITECTURE_DECISIONS.md), [Phase 1 plan](docs/PHASE-1-PLAN.md) §6) | When implemented: profiles reproduce the role defaults exactly (unit + e2e equivalence). Phase 1 meanwhile: role defaults equal today's ROLE_PERMISSIONS for STUDENT, COACH, ADMIN |
+| PERM-03 | Granular permissions by functional area | Critical | 1 | ADR-004 (amended) | @RequirePermission guard | Partial (existing) — not started | Every route declares its access; permission guard and @Roles agree on every route for STUDENT, COACH and ADMIN (generated equivalence) |
+| PERM-04 | Scope restrictions (country, school, subject, course, division, group, assigned support requests) | Critical | 1 | ADR-004, ADR-018 | scope resolution, AccessService | Partial (existing) — not started | Phase 1: tests for own, division, course × division and programme scopes (Head Coach isolation, plan §11.5); country, school, group and support scopes tested in their phases |
 | PERM-05 | Default-deny, backend enforcement, no reliance on UI | Critical | — | — | guards, security suite | Done (existing) — regression | Regression: security e2e green; new routes covered by generated matrix |
-| PERM-06 | Prevent privilege escalation; admins cannot grant beyond their own authority | Critical | 1 | PERM-02, Q20 | permission assignment service | Not started | Granting beyond own permissions/scope → PERMISSION_ESCALATION; system profiles only by Super Administrator |
-| PERM-07 | Record sensitive permission changes in the audit log | High | 1 | AUD-02 | audit | Partial (existing) — not started | Every grant/revoke/profile edit audited with previous and new values |
+| PERM-06 | Prevent privilege escalation; admins cannot grant beyond their own authority | Critical | 1 | ADR-004, ADR-019 | role allow-list, override service | Not started | Role assignment outside the allow-list → ROLE_NOT_ASSIGNABLE; override outside the approved list → OVERRIDE_NOT_ALLOWED; no self-changes; last Super Admin protected; Head Coach cannot cross programmes |
+| PERM-07 | Record sensitive permission changes in the audit log | High | 1 | AUD-02 | audit | Partial (existing) — not started | Every override and role change audited with previous and new values in the same transaction; override expiry recorded; every state-changing ADMIN/SUPER_ADMIN request audited without request bodies |
 | PERM-08 | Compatible with the existing authentication | Critical | 1 | ADR-004 | auth (unchanged) | Needs decision | Login/refresh/logout e2e unchanged; permission change effective without re-login |
 | PUB-01 | Consistent workflow Draft → Pending Approval → Published, plus Changes Requested, Rejected, Archived, Unpublished | High | 7 | ADR-011, Q7 | resources status, approvals queue | Partial (existing) — not started | Teacher cannot publish; coach behaviour as seeded; states and transitions enforced |
 | PUB-02 | Transitions depend on permissions | High | 7 | PERM-03 | workflow transitions | Partial (existing) — not started | Each transition denied without its permission |
@@ -112,10 +134,10 @@ production-copy rehearsal) — never because an endpoint or table exists.
 | NOT-05 | Handle delivery failures | High | — | — | email worker | Done (existing) — regression | Regression: retries, permanent failure, admin retry e2e green |
 | NOT-06 | Delivery is not proof of reading | Low | — | Q18 | notifications | Done (existing) — regression | No read receipts for e-mail; in-app read state separate |
 | ADM-01 | Admin Portal covers 20 areas | High | 1–10 | all phases | admin APIs | Partial (existing) — not started | Each of the 20 admin areas has verified APIs (tracked per phase) |
-| ADM-02 | Admins see only permitted functions | Critical | 1 | PERM-03 | /me/permissions | Partial (existing) — not started | Response lists effective permissions and scopes; old fields kept |
+| ADM-02 | Admins see only permitted functions | Critical | 1 | PERM-03 | /me/permissions | Partial (existing) — not started | Response lists effective permissions and scopes for all six user types; old fields kept |
 | UX-01 | Modern login/registration visuals; preserve authentication | Medium | FE | frontend | frontend only | Frontend only | Auth endpoints unchanged (regression) |
 | STU-01 | Student experience: subjects, authorized courses, topics, assignments, results, leaderboards, groups, notifications, support | High | 3–9 | SUB, ADR-006, SUP, GRP | student APIs | Partial (existing) — not started | Student journeys extended per phase pass end to end |
-| TCH-01 | Teacher and coach dashboards scoped to assignments | High | 5 | ADR-003, REG-01, PERM-04 | teacher/coach scopes | Partial (existing) — not started | Teacher sees only assigned schools/subjects/courses; no grading or approval rights by default |
+| TCH-01 | Teacher and coach dashboards scoped to assignments | High | 1 (D1, approved) / 5 | ADR-003 (amended), REG-01, PERM-04 | teacher/coach scopes | Partial (existing) — not started | Teacher sees only assigned course × division content (school scope deferred); no grading or approval rights by default; coach dashboards unchanged |
 | SEC-01 | Secure passwords, sessions, backend authorization, validation, rate limiting, file access, upload validation, common web protections, env handling | Critical | — | Q19 | auth, guards, uploads | Done (existing) — regression | Regression: security e2e green |
 | SEC-02 | Backup and recovery procedures | High | 0 | ADR-015 | Neon, docs | Partial (existing) — not started | Restore drill completed and documented |
 | SEC-03 | Protection of minors: restrict student/guardian contact data, restrict private communication, moderation, record access to sensitive data, data minimisation | Critical | 4/5 | ACC-16, REG-02 | masking, audit | Partial (existing) — not started | Guardian data masked; sensitive reads audited; no private messaging |
@@ -140,9 +162,10 @@ production-copy rehearsal) — never because an endpoint or table exists.
 |---|---|
 | Partial (existing) — not started | 52 |
 | Done (existing) — regression | 25 |
-| Not started | 21 |
+| Not started | 20 |
 | Needs decision | 2 |
 | Frontend only | 2 |
+| Deferred (approved scope change) | 1 |
 | **Total** | **102** |
 
 ## Update rules

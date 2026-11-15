@@ -9,14 +9,20 @@ import { UserReportsService } from './user-reports.service.js';
 import { AcademicReportsService } from './academic-reports.service.js';
 import { AssignmentReportDto, ReportFiltersDto, ReportListDto, UserReportDto } from './dto/report-filters.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { AuditService } from '../audit/audit.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
+import type { CsvExport } from './csv.js';
+import { sendCsvExport } from './csv-stream.js';
 
-class ResultsReportDto {
+/**
+ * Results export: the shared report filters (academicYearId — default the
+ * current year, "all" for every year; divisionId; courseId; from/to = submitted
+ * between) plus assignmentId. Needs assignmentId, or courseId and divisionId.
+ */
+class ResultsReportDto extends ReportFiltersDto {
   @IsOptional() @IsUUID() assignmentId?: string;
-  @IsOptional() @IsUUID() courseId?: string;
-  @IsOptional() @IsUUID() divisionId?: string;
 }
 
 class DivisionReportDto {
@@ -24,18 +30,19 @@ class DivisionReportDto {
 }
 
 /**
- * Administrator dashboard: live statistics. Filters: academicYearId (default
- * current; "all"), divisionId, courseId, from, to.
+ * Dashboard: live statistics (reports.view). Filters: academicYearId (default
+ * current; "all"), divisionId, courseId, from, to. A Head Coach gets the
+ * programmes they head only, without the moderation and account sections.
  */
 @ApiTags('Admin · Dashboard')
 @Controller('admin/dashboard')
-@Roles('ADMIN')
 export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
 
   @Get()
-  get(@Query() q: ReportFiltersDto) {
-    return this.dashboard.dashboard(q);
+  @RequirePermission('reports.view')
+  get(@Query() q: ReportFiltersDto, @CurrentUser() user: AuthUser) {
+    return this.dashboard.dashboard(q, user);
   }
 }
 
@@ -44,10 +51,13 @@ export class DashboardController {
  * and as a CSV download (`….csv`, same filters, every row). Filters:
  * academicYearId (default current; "all"), divisionId, courseId, from, to,
  * and status (account status) on user reports.
+ *
+ * Head Coaches (P1-10, programme scope): students and course participation
+ * (reports.view), coaches and coach activity (coaches.monitor) — never CSV
+ * exports (reports.export, H8) or the other administrator reports.
  */
 @ApiTags('Admin · Reports')
 @Controller('admin/reports')
-@Roles('ADMIN')
 export class ReportsController {
   constructor(
     private readonly reports:  ReportsService,
@@ -58,6 +68,7 @@ export class ReportsController {
 
   /** What is waiting for an administrator right now. */
   @Get('overview')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   overview() {
     return this.reports.overview();
   }
@@ -65,114 +76,140 @@ export class ReportsController {
   // ─── User reports ─────────────────────────────────────────────────────────
 
   @Get('students')
-  students(@Query() q: UserReportDto) {
-    return this.users.students(q);
+  @RequirePermission('reports.view')
+  students(@Query() q: UserReportDto, @CurrentUser() user: AuthUser) {
+    return this.users.students(q, user);
   }
 
   @Get('students.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async studentsCsv(@Query() q: UserReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'students', await this.users.studentsCsv(q), user, q);
+    await this.sendCsv(res, 'students', await this.users.studentsCsv(q, user), user, q);
   }
 
   @Get('mentors')
-  mentors(@Query() q: UserReportDto) {
-    return this.users.mentors(q);
+  @RequirePermission('coaches.monitor')
+  mentors(@Query() q: UserReportDto, @CurrentUser() user: AuthUser) {
+    return this.users.mentors(q, user);
   }
 
   @Get('mentors.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async mentorsCsv(@Query() q: UserReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'mentors', await this.users.mentorsCsv(q), user, q);
+    await this.sendCsv(res, 'mentors', await this.users.mentorsCsv(q, user), user, q);
   }
 
+  /**
+   * Enrolments per year × division × school × grade. Period = enrolled between;
+   * courseId = students taking part in that course (opened or completed).
+   */
   @Get('enrollment')
-  enrollment(@Query() q: ReportListDto) {
-    return this.users.enrollment(q);
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  enrollment(@Query() q: ReportListDto, @CurrentUser() user: AuthUser) {
+    return this.users.enrollment(q, user);
   }
 
   @Get('enrollment.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async enrollmentCsv(@Query() q: ReportListDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'enrollment', await this.users.enrollmentCsv(q), user, q);
+    await this.sendCsv(res, 'enrollment', await this.users.enrollmentCsv(q, user), user, q);
   }
 
   @Get('course-participation')
-  courseParticipation(@Query() q: ReportListDto) {
-    return this.users.courseParticipation(q);
+  @RequirePermission('reports.view')
+  courseParticipation(@Query() q: ReportListDto, @CurrentUser() user: AuthUser) {
+    return this.users.courseParticipation(q, user);
   }
 
   @Get('course-participation.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async courseParticipationCsv(@Query() q: ReportListDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'course-participation', await this.users.courseParticipationCsv(q), user, q);
+    await this.sendCsv(res, 'course-participation', await this.users.courseParticipationCsv(q, user), user, q);
   }
 
   // ─── Academic reports ─────────────────────────────────────────────────────
 
   @Get('assignments')
-  assignments(@Query() q: AssignmentReportDto) {
-    return this.academic.assignments(q);
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  assignments(@Query() q: AssignmentReportDto, @CurrentUser() user: AuthUser) {
+    return this.academic.assignments(q, user);
   }
 
   @Get('assignments.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async assignmentsCsv(@Query() q: AssignmentReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'assignments', await this.academic.assignmentsCsv(q), user, q);
+    await this.sendCsv(res, 'assignments', await this.academic.assignmentsCsv(q, user), user, q);
   }
 
   @Get('reviews')
-  reviews(@Query() q: ReportFiltersDto) {
-    return this.academic.reviews(q);
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  reviews(@Query() q: ReportFiltersDto, @CurrentUser() user: AuthUser) {
+    return this.academic.reviews(q, user);
   }
 
   @Get('reviews.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async reviewsCsv(@Query() q: ReportFiltersDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'reviews', await this.academic.reviewsCsv(q), user, q);
+    await this.sendCsv(res, 'reviews', await this.academic.reviewsCsv(q, user), user, q);
   }
 
   @Get('results-publication')
-  resultsPublication(@Query() q: ReportListDto) {
-    return this.academic.resultsPublication(q);
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  resultsPublication(@Query() q: ReportListDto, @CurrentUser() user: AuthUser) {
+    return this.academic.resultsPublication(q, user);
   }
 
   @Get('results-publication.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async resultsPublicationCsv(@Query() q: ReportListDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'results-publication', await this.academic.resultsPublicationCsv(q), user, q);
+    await this.sendCsv(res, 'results-publication', await this.academic.resultsPublicationCsv(q, user), user, q);
   }
 
   @Get('mentor-activity')
-  mentorActivity(@Query() q: UserReportDto) {
-    return this.academic.mentorActivity(q);
+  @RequirePermission('coaches.monitor')
+  mentorActivity(@Query() q: UserReportDto, @CurrentUser() user: AuthUser) {
+    return this.academic.mentorActivity(q, user);
   }
 
   @Get('mentor-activity.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async mentorActivityCsv(@Query() q: UserReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'mentor-activity', await this.academic.mentorActivityCsv(q), user, q);
+    await this.sendCsv(res, 'mentor-activity', await this.academic.mentorActivityCsv(q, user), user, q);
   }
 
-  // ─── Earlier exports (unchanged) ──────────────────────────────────────────
+  // ─── Earlier exports ──────────────────────────────────────────────────────
 
-  /** One row per submission with its result (by assignment, or course × division). */
+  /**
+   * One row per submission with its result, by assignment or by course ×
+   * division (one of the two is required). Also: academicYearId (default the
+   * current year; with assignmentId only when given), from/to = submitted between.
+   */
   @Get('results.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async results(@Query() q: ResultsReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    await this.sendCsv(res, 'results', await this.reports.resultsCsv(q), user, q);
+    await this.sendCsv(res, 'results', await this.reports.resultsCsv(q, user), user, q);
   }
 
   @Get('student-progress.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async studentProgress(@Query() q: DivisionReportDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
@@ -180,6 +217,7 @@ export class ReportsController {
   }
 
   @Get('mentor-workload.csv')
+  @RequirePermission('reports.export')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
   async mentorWorkload(@CurrentUser() user: AuthUser, @Res() res: Response) {
@@ -190,14 +228,13 @@ export class ReportsController {
    * Exports contain personal data, so every download is audited (with its
    * filters) — and the entry is saved before the file is sent.
    */
-  private async sendCsv(res: Response, name: string, csv: string, user: AuthUser, filters: object) {
+  /** Audits the export, then streams it (csv-stream.ts: no row limit; a late failure aborts the download). */
+  private async sendCsv(res: Response, name: string, csv: CsvExport, user: AuthUser, filters: object) {
     await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'EXPORT_REPORT', entity: 'Report',
       metadata: { report: name, filters: { ...filters } },
     });
     const date = new Date().toISOString().slice(0, 10);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}-${date}.csv"`);
-    res.send(csv);
+    await sendCsvExport(res, `${name}-${date}.csv`, csv);
   }
 }

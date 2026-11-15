@@ -16,6 +16,12 @@ enum Role {
   STUDENT
   MENTOR
   ADMIN
+  // Phase 1 (M1). Not assignable until enabled: TEACHER / HEAD_COACH behind
+  // TEACHERS_ENABLED / HEAD_COACHES_ENABLED; SUPER_ADMIN only by the approved
+  // bootstrap, never through the user API.
+  TEACHER
+  HEAD_COACH
+  SUPER_ADMIN
 }
 
 enum AuthProvider {
@@ -380,44 +386,68 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignmentsCreated    Assignment[]             @relation("AssignmentCreator")
-  assignmentsApproved   Assignment[]             @relation("AssignmentApprover")
-  assignmentEvents      AssignmentEvent[]
-  courseEnrollments     CourseEnrollment[]       @relation("CourseEnrollments")
-  resourcesUploaded     CourseResource[]         @relation("ResourceUploader")
-  resourceViews         ResourceView[]
-  comments              Comment[]                @relation("CommentAuthor")
-  commentReactions      CommentReaction[]        @relation("CommentReactions")
-  studyGroupsCreated    StudyGroup[]             @relation("StudyGroupCreator")
-  studyGroupMemberships StudyGroupMember[]       @relation("StudyGroupMemberships")
-  emailJobsCreated      EmailJob[]               @relation("EmailJobCreator")
-  submissions           Submission[]             @relation("StudentSubmissions")
-  submissionRevisions   SubmissionRevision[]
-  assignmentViews       AssignmentView[]         @relation("AssignmentViewer")
-  auditLogs             AuditLog[]               @relation("AuditActor")
-  mentorAssignments     MentorAssignment[]       @relation("MentorAssignmentMentor")
-  mentorAssignmentsMade MentorAssignment[]       @relation("MentorAssignmentAssigner")
-  notifications         Notification[]
-  notificationPrefs     NotificationPreference[]
-  notificationSettings  NotificationSetting[]
-  refreshTokens         RefreshToken[]
-  passwordResetTokens   PasswordResetToken[]
-  activationTokens      AccountActivationToken[] @relation("ActivationUser")
-  invitationsSent       AccountActivationToken[] @relation("ActivationInviter")
-  filesUploaded         FileObject[]
-  settingsUpdated       SystemSetting[]
-  studentEnrollments    StudentEnrollment[]
-  reviews               MentorReview[]           @relation("ReviewMentor")
-  reviewsAssigned       MentorReview[]           @relation("ReviewAssigner")
-  reviewsDecided        MentorReview[]           @relation("ReviewDecider")
-  reviewEvents          ReviewEvent[]
-  distributionBatches   DistributionBatch[]
-  resultReleases        ResultRelease[]
-  threadsCreated        DiscussionThread[]
-  reportsFiled          ContentReport[]          @relation("ReportReporter")
-  reportsResolved       ContentReport[]          @relation("ReportResolver")
-  moderationActions     ModerationAction[]
-  activityLogs          ActivityLog[]
+  assignmentsCreated         Assignment[]               @relation("AssignmentCreator")
+  assignmentsApproved        Assignment[]               @relation("AssignmentApprover")
+  assignmentEvents           AssignmentEvent[]
+  courseEnrollments          CourseEnrollment[]         @relation("CourseEnrollments")
+  resourcesUploaded          CourseResource[]           @relation("ResourceUploader")
+  resourceViews              ResourceView[]
+  comments                   Comment[]                  @relation("CommentAuthor")
+  commentReactions           CommentReaction[]          @relation("CommentReactions")
+  studyGroupsCreated         StudyGroup[]               @relation("StudyGroupCreator")
+  studyGroupMemberships      StudyGroupMember[]         @relation("StudyGroupMemberships")
+  emailJobsCreated           EmailJob[]                 @relation("EmailJobCreator")
+  submissions                Submission[]               @relation("StudentSubmissions")
+  submissionRevisions        SubmissionRevision[]
+  assignmentViews            AssignmentView[]           @relation("AssignmentViewer")
+  auditLogs                  AuditLog[]                 @relation("AuditActor")
+  mentorAssignments          MentorAssignment[]         @relation("MentorAssignmentMentor")
+  mentorAssignmentsMade      MentorAssignment[]         @relation("MentorAssignmentAssigner")
+  programmeMemberships       ProgrammeMembership[]      @relation("ProgrammeMember")
+  programmeMembershipsAdded  ProgrammeMembership[]      @relation("ProgrammeMemberAddedBy")
+  programmeMembershipsEnded  ProgrammeMembership[]      @relation("ProgrammeMemberEndedBy")
+  permissionOverrides        UserPermissionOverride[]   @relation("OverrideTarget")
+  permissionOverridesCreated UserPermissionOverride[]   @relation("OverrideCreatedBy")
+  permissionOverridesRevoked UserPermissionOverride[]   @relation("OverrideRevokedBy")
+  teacherSchools             TeacherSchoolAssignment[]  @relation("TeacherSchool")
+  teacherSchoolsAssigned     TeacherSchoolAssignment[]  @relation("TeacherSchoolAssignedBy")
+  teacherSchoolsEnded        TeacherSchoolAssignment[]  @relation("TeacherSchoolEndedBy")
+  schoolAffiliations         StudentSchoolAffiliation[] @relation("AffiliationStudent")
+  affiliationsCreated        StudentSchoolAffiliation[] @relation("AffiliationCreatedBy")
+  affiliationsDecided        StudentSchoolAffiliation[] @relation("AffiliationDecidedBy")
+  affiliationsRevoked        StudentSchoolAffiliation[] @relation("AffiliationRevokedBy")
+  affiliationsSuperseded     StudentSchoolAffiliation[] @relation("AffiliationSupersededBy")
+  schoolsCreated             School[]                   @relation("SchoolCreatedBy")
+  schoolsVerified            School[]                   @relation("SchoolVerifiedBy")
+  schoolContactsVerified     SchoolContact[]            @relation("SchoolContactVerifiedBy")
+  schoolContactsRemoved      SchoolContact[]            @relation("SchoolContactRemovedBy")
+  schoolSyncRunsCreated      SchoolSyncRun[]            @relation("SchoolSyncRunCreatedBy")
+  schoolSyncRunsApplied      SchoolSyncRun[]            @relation("SchoolSyncRunAppliedBy")
+  schoolSyncRunsApproved     SchoolSyncRun[]            @relation("SchoolSyncRunApprovedBy")
+  schoolSyncProposals        SchoolSyncItem[]           @relation("SchoolSyncItemProposedBy")
+  schoolSyncResolutions      SchoolSyncItem[]           @relation("SchoolSyncItemResolvedBy")
+  schoolSyncDecisions        SchoolSyncChange[]         @relation("SchoolSyncChangeDecidedBy")
+  notifications              Notification[]
+  notificationPrefs          NotificationPreference[]
+  notificationSettings       NotificationSetting[]
+  refreshTokens              RefreshToken[]
+  passwordResetTokens        PasswordResetToken[]
+  activationTokens           AccountActivationToken[]   @relation("ActivationUser")
+  invitationsSent            AccountActivationToken[]   @relation("ActivationInviter")
+  filesUploaded              FileObject[]
+  settingsUpdated            SystemSetting[]
+  studentEnrollments         StudentEnrollment[]
+  reviews                    MentorReview[]             @relation("ReviewMentor")
+  reviewsAssigned            MentorReview[]             @relation("ReviewAssigner")
+  reviewsDecided             MentorReview[]             @relation("ReviewDecider")
+  reviewEvents               ReviewEvent[]
+  distributionBatches        DistributionBatch[]
+  resultReleases             ResultRelease[]
+  threadsCreated             DiscussionThread[]
+  reportsFiled               ContentReport[]            @relation("ReportReporter")
+  reportsResolved            ContentReport[]            @relation("ReportResolver")
+  moderationActions          ModerationAction[]
+  activityLogs               ActivityLog[]
 
   @@index([points])
   @@index([role])
@@ -484,6 +514,321 @@ model AccountActivationToken {
   @@index([createdById])
 }
 
+// ─── School directory (M12, S1) ─────────────────────────────────────────────────
+
+/// A source of directory data (NESA first). New sources are new rows, not new code paths.
+model SchoolDataSource {
+  id          String   @id @default(uuid())
+  /// Stable key, e.g. NESA.
+  key         String   @unique
+  name        String
+  url         String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  externalIds   SchoolExternalId[]
+  sourceRecords SchoolSourceRecord[]
+  contacts      SchoolContact[]
+  levels        SchoolEducationLevel[]
+  programmes    SchoolProgramme[]
+  syncRuns      SchoolSyncRun[]
+}
+
+/// A school's identity in a data source: its code there, or (no usable code) a fingerprint of its
+/// published name and place. A matching aid, not an immutable identity: a school keeps every key it
+/// was ever matched by (supersededAt marks an older one), so a renamed or moved school is still
+/// found and never created twice. One key → one school per source.
+model SchoolExternalId {
+  id           String               @id @default(uuid())
+  dataSourceId String
+  dataSource   SchoolDataSource     @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  externalKey  String
+  kind         SchoolExternalIdKind
+  schoolId     String
+  school       School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  firstSeenAt  DateTime             @default(now())
+  lastSeenAt   DateTime             @default(now())
+  /// A newer key replaced this one; it still identifies the school.
+  supersededAt DateTime?
+
+  @@unique([dataSourceId, externalKey])
+  @@index([schoolId])
+}
+
+/// One source row exactly as published (every column, verbatim) — never edited or deleted
+/// (trigger school_source_record_immutable); only its link to a school may be set or corrected.
+model SchoolSourceRecord {
+  id            String           @id @default(uuid())
+  dataSourceId  String
+  dataSource    SchoolDataSource @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  /// e.g. "NESA accredited schools, generated 2026-11-11".
+  datasetLabel  String
+  /// SHA-256 of the source file.
+  datasetSha256 String
+  /// Where in the file: sheet / tab and row.
+  sourceRef     String
+  /// Every source column with its original header and value.
+  raw           Json
+  /// SHA-256 of the raw row.
+  rowHash       String
+  schoolId      String?
+  school        School?          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  /// How the row was matched to the school (CODE, EXTERNAL_ID, FINGERPRINT, REVIEW…); NULL: not matched.
+  matchedBy     String?
+  /// Data problems found in the row (missing or conflicting code, unreadable phone…).
+  issues        Json             @default("[]")
+  issueCount    Int              @default(0)
+  createdAt     DateTime         @default(now())
+  /// The directory sync run (S2) that recorded this row; NULL for rows recorded otherwise.
+  syncRunId     String?
+  syncRun       SchoolSyncRun?   @relation(fields: [syncRunId], references: [id], onDelete: Restrict)
+  syncItem      SchoolSyncItem?
+
+  @@unique([dataSourceId, datasetSha256, sourceRef])
+  @@index([syncRunId])
+  @@index([schoolId])
+  @@index([dataSourceId, rowHash])
+}
+
+/// A school's e-mail address or phone number. ADMIN_ONLY by default; REPRESENTATIVES only once an
+/// Administrator has verified it (database check). Never in public search, registration, exports or
+/// audit entries (which record a masked value). Never deleted: removing or replacing a contact sets
+/// removedAt, so every value it had stays readable by Administrators only. At most one active
+/// contact per school, type and value (enforced under the school's row lock).
+model SchoolContact {
+  id           String                  @id @default(uuid())
+  schoolId     String
+  school       School                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  type         SchoolContactType
+  /// Normalised (e-mail lower-case; phone E.164 where recognisable).
+  value        String
+  /// As entered or published.
+  rawValue     String?
+  label        String?
+  isPrimary    Boolean                 @default(false)
+  visibility   SchoolContactVisibility @default(ADMIN_ONLY)
+  verifiedAt   DateTime?
+  verifiedById String?
+  verifiedBy   User?                   @relation("SchoolContactVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  /// NULL: entered by an Administrator.
+  dataSourceId String?
+  dataSource   SchoolDataSource?       @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @default(now()) @updatedAt
+  /// Removed (or replaced by a new value): kept, no longer active.
+  removedAt    DateTime?
+  removedById  String?
+  removedBy    User?                   @relation("SchoolContactRemovedBy", fields: [removedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, type, value])
+  @@index([verifiedById])
+  @@index([removedById])
+  @@index([dataSourceId])
+}
+
+/// Education levels (reference data; Rwanda: PPR, PR, OL, AL, PE).
+model EducationLevel {
+  code      String                 @id
+  name      String
+  sortOrder Int
+  schools   SchoolEducationLevel[]
+}
+
+model SchoolEducationLevel {
+  schoolId     String
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  levelCode    String
+  level        EducationLevel    @relation(fields: [levelCode], references: [code], onDelete: Restrict)
+  /// A published variant of the level (e.g. "L"), kept as published.
+  qualifier    String?
+  /// The exact source text this offering came from.
+  sourceToken  String?
+  dataSourceId String?
+  dataSource   SchoolDataSource? @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+
+  @@id([schoolId, levelCode])
+  @@index([levelCode])
+  @@index([dataSourceId])
+}
+
+/// A-Level combinations, TVET trades and other programmes (reference data). needsReview: created
+/// from a source and not yet reviewed — never shown as a verified offering.
+model Programme {
+  id          String            @id @default(uuid())
+  code        String?           @unique
+  name        String
+  category    ProgrammeCategory
+  tvetLevel   Int?
+  needsReview Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  schools     SchoolProgramme[]
+
+  @@unique([category, name])
+}
+
+// ─── School directory sync (M13, S2) ─────────────────────────────────────────────
+
+/// One upload of a source export, compared with the directory (a dry run). Staging only until an
+/// approved apply (S2b). datasetKey and normaliserVersion come from the server's dataset
+/// configuration (src/schools/sync/sync-datasets.ts), never from the file. Never deleted; once
+/// APPLIED or SUPERSEDED only stagedPurgedAt may change (trigger school_sync_run_guard).
+model SchoolSyncRun {
+  id                 String              @id @default(uuid())
+  datasetKey         String
+  normaliserVersion  String
+  dataSourceId       String
+  dataSource         SchoolDataSource    @relation(fields: [dataSourceId], references: [id], onDelete: Restrict)
+  datasetLabel       String
+  /// Cleaned file name (src/schools/import/file-name.ts) and the SHA-256 of the file.
+  fileName           String
+  fileSha256         String
+  format             String
+  rowCount           Int
+  /// The source's own totals (e.g. NESA's Summary tab), as read.
+  sourceSummary      Json?
+  /// The source totals compared with the rows read.
+  reconciliation     Json
+  /// Counts per outcome and per change kind.
+  counts             Json
+  reportDigest       String
+  decisionsDigest    String
+  /// Incremented by every recompare and decision change (S2b); review tokens are bound to it.
+  reviewGeneration   Int                 @default(0)
+  status             SchoolSyncRunStatus @default(PREVIEW)
+  comparedAt         DateTime
+  createdAt          DateTime            @default(now())
+  createdById        String?
+  createdBy          User?               @relation("SchoolSyncRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  expiresAt          DateTime
+  appliedAt          DateTime?
+  appliedById        String?
+  appliedBy          User?               @relation("SchoolSyncRunAppliedBy", fields: [appliedById], references: [id], onDelete: SetNull)
+  /// M14 (S2b): the Super Admin who approved the run for apply, when, and the review generation
+  /// approved. approvalTokenId identifies the one valid apply token (never the token itself);
+  /// any decision, recompare or new approval replaces or clears it.
+  approvedAt         DateTime?
+  approvedById       String?
+  approvedBy         User?               @relation("SchoolSyncRunApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedGeneration Int?
+  approvalTokenId    String?
+  supersededAt       DateTime?
+  supersededByRunId  String?
+  supersededBy       SchoolSyncRun?      @relation("SchoolSyncRunSupersededBy", fields: [supersededByRunId], references: [id], onDelete: Restrict)
+  supersedes         SchoolSyncRun[]     @relation("SchoolSyncRunSupersededBy")
+  /// When the staged raw and normalised values were purged (7 days after the run ended).
+  stagedPurgedAt     DateTime?
+  /// Apply measurements (S2b): duration, lock wait, memory peak, rows written.
+  metrics            Json?
+
+  items         SchoolSyncItem[]
+  changes       SchoolSyncChange[]
+  sourceRecords SchoolSourceRecord[]
+
+  @@index([datasetKey, status])
+  @@index([status, expiresAt])
+  @@index([dataSourceId])
+  @@index([createdById])
+  @@index([appliedById])
+  @@index([approvedById])
+  @@index([supersededByRunId])
+}
+
+/// One source row of a run (or a directory school missing from the source). raw and normalized
+/// are staged copies, purged 7 days after the run ended; the permanent copy of an applied row is
+/// its SchoolSourceRecord (sourceRecordId). Never deleted.
+model SchoolSyncItem {
+  id             String                   @id @default(uuid())
+  runId          String
+  run            SchoolSyncRun            @relation(fields: [runId], references: [id], onDelete: Restrict)
+  /// NULL for MISSING_FROM_SOURCE (a directory school, not a source row).
+  rowNumber      Int?
+  sourceRef      String?
+  raw            Json?
+  normalized     Json?
+  outcome        SchoolSyncItemOutcome
+  schoolId       String?
+  school         School?                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  matchedBy      String?
+  conflictGroup  String?
+  /// Candidates, conflict reasons and the like — never contact values.
+  details        Json?
+  issues         Json                     @default("[]")
+  issueCount     Int                      @default(0)
+  conflictState  SchoolSyncConflictState?
+  proposal       Json?
+  proposedById   String?
+  proposedBy     User?                    @relation("SchoolSyncItemProposedBy", fields: [proposedById], references: [id], onDelete: SetNull)
+  proposedAt     DateTime?
+  resolution     Json?
+  resolvedById   String?
+  resolvedBy     User?                    @relation("SchoolSyncItemResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt     DateTime?
+  sourceRecordId String?                  @unique
+  sourceRecord   SchoolSourceRecord?      @relation(fields: [sourceRecordId], references: [id], onDelete: Restrict)
+  auditLogId     String?
+  createdAt      DateTime                 @default(now())
+  changes        SchoolSyncChange[]
+
+  @@index([runId, outcome])
+  @@index([runId, rowNumber])
+  @@index([conflictState])
+  @@index([schoolId])
+  @@index([proposedById])
+  @@index([resolvedById])
+}
+
+/// One proposed change — one field, one addition, one new place or one new school. Decided one by
+/// one or (allowed kinds) by category in S2b. currentValue / publishedValue are staged copies,
+/// purged with the run's staging data. Never deleted.
+model SchoolSyncChange {
+  id                     String               @id @default(uuid())
+  runId                  String
+  run                    SchoolSyncRun        @relation(fields: [runId], references: [id], onDelete: Restrict)
+  /// NULL for a run-level change (NEW_PLACE).
+  itemId                 String?
+  item                   SchoolSyncItem?      @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  schoolId               String?
+  school                 School?              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  kind                   SchoolSyncChangeKind
+  field                  String?
+  currentValue           Json?
+  publishedValue         Json?
+  decision               SchoolSyncDecision   @default(PENDING)
+  decidedById            String?
+  decidedBy              User?                @relation("SchoolSyncChangeDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt              DateTime?
+  decisionNote           String?
+  categoryApprovalDigest String?
+  appliedAt              DateTime?
+  auditLogId             String?
+  createdAt              DateTime             @default(now())
+  /// M14 (S2b): a recompare found this change no longer part of the comparison. Kept (with its
+  /// decision) as history; never applied.
+  retiredAt              DateTime?
+
+  @@index([runId, kind, decision])
+  @@index([runId, retiredAt])
+  @@index([itemId])
+  @@index([schoolId])
+  @@index([decidedById])
+}
+
+model SchoolProgramme {
+  schoolId     String
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  programmeId  String
+  programme    Programme         @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+  sourceToken  String?
+  dataSourceId String?
+  dataSource   SchoolDataSource? @relation(fields: [dataSourceId], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
+
+  @@id([schoolId, programmeId])
+  @@index([programmeId])
+  @@index([dataSourceId])
+}
+
 /// Access-token revocation list (logout). Rows are purged after expiry.
 model TokenBlacklist {
   id        String   @id @default(uuid())
@@ -511,14 +856,137 @@ model MentorRequest {
 }
 
 model School {
-  id        String   @id @default(uuid())
-  /// Normalised to title-case; unique to prevent duplicates.
-  name      String   @unique
-  location  String
-  createdAt DateTime @default(now())
+  id               String               @id @default(uuid())
+  /// Exactly as published (M12: not unique — several schools share a name; identified by code,
+  /// external source ids and place, never by name).
+  name             String
+  location         String
+  createdAt        DateTime             @default(now())
+  /// Official school code (6 digits; P1-11 official list, M8). NULL for a school entered before the list.
+  code             String?              @unique
+  /// Rwanda province (official list; the first digit of the code).
+  province         String?
+  district         String?
+  sector           String?
+  /// PUBLIC, GOVERNMENT_AIDED or PRIVATE (official list).
+  ownership        String?
+  /// Normalised official name (src/schools/school-key.ts): resolves a registration that sends a name.
+  nameKey          String?
+  /// ISO 3166-1 alpha-2 (school administration PR B, M11). Codes and the official directory are Rwanda only.
+  countryCode      String               @default("RW")
+  /// Inactive: kept with all its history, but accepts no new claim, registration or Teacher assignment.
+  isActive         Boolean              @default(true)
+  /// OFFICIAL_LIST (M8 directory), ADMIN (created by an Administrator) or LEGACY (entered before the list).
+  source           SchoolSource         @default(LEGACY)
+  createdById      String?
+  createdBy        User?                @relation("SchoolCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedAt        DateTime             @default(now()) @updatedAt
+  /// M12 (school directory S1): the official directory's cell and village (free text, trimmed).
+  cell             String?
+  village          String?
+  accommodation    SchoolAccommodation?
+  /// When a directory sync (S2) last compared this school with a source.
+  lastSourceSyncAt DateTime?
+  /// When an Administrator last confirmed the record (S2 / S3).
+  lastVerifiedAt   DateTime?
+  lastVerifiedById String?
+  lastVerifiedBy   User?                @relation("SchoolVerifiedBy", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
 
-  students    User[]
-  enrollments StudentEnrollment[]
+  students      User[]
+  enrollments   StudentEnrollment[]
+  teachers      TeacherSchoolAssignment[]
+  affiliations  StudentSchoolAffiliation[]
+  contacts      SchoolContact[]
+  levels        SchoolEducationLevel[]
+  programmes    SchoolProgramme[]
+  externalIds   SchoolExternalId[]
+  sourceRecords SchoolSourceRecord[]
+  syncItems     SchoolSyncItem[]
+  syncChanges   SchoolSyncChange[]
+
+  @@index([name])
+  @@index([nameKey])
+  @@index([province, district, sector])
+  @@index([countryCode, isActive])
+  @@index([createdById])
+  @@index([lastVerifiedById])
+}
+
+/// Where a school record comes from (M11).
+enum SchoolSource {
+  OFFICIAL_LIST
+  ADMIN
+  LEGACY
+}
+
+enum SchoolAccommodation {
+  DAY
+  BOARDING
+  MIXED
+}
+
+enum SchoolContactType {
+  EMAIL
+  PHONE
+  OTHER
+}
+
+enum SchoolContactVisibility {
+  ADMIN_ONLY
+  REPRESENTATIVES
+}
+
+enum ProgrammeCategory {
+  A_LEVEL_COMBINATION
+  TVET_TRADE
+  OTHER
+}
+
+enum SchoolSyncRunStatus {
+  PREVIEW
+  APPLIED
+  EXPIRED
+  SUPERSEDED
+}
+
+enum SchoolSyncItemOutcome {
+  MATCHED
+  NEW
+  DUPLICATE_ROW
+  CONFLICT
+  POSSIBLE_DUPLICATE
+  INVALID
+  MISSING_FROM_SOURCE
+}
+
+enum SchoolSyncChangeKind {
+  CREATE_SCHOOL
+  FILL_EMPTY
+  CHANGE
+  NAME_RESTORE
+  NEW_PLACE
+  ADD_CONTACT
+  ADD_LEVEL
+  ADD_PROGRAMME
+  RESOLVE_CONFLICT
+}
+
+enum SchoolSyncDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SchoolSyncConflictState {
+  OPEN
+  PROPOSED
+  RESOLVED
+}
+
+enum SchoolExternalIdKind {
+  CODE
+  FINGERPRINT
+  OTHER
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -536,12 +1004,13 @@ model Division {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  students           User[]
-  studentEnrollments StudentEnrollment[]
-  mentorAssignments  MentorAssignment[]
-  resources          CourseResource[]
-  assignments        Assignment[]
-  threads            DiscussionThread[]
+  students            User[]
+  studentEnrollments  StudentEnrollment[]
+  mentorAssignments   MentorAssignment[]
+  resources           CourseResource[]
+  assignments         Assignment[]
+  threads             DiscussionThread[]
+  permissionOverrides UserPermissionOverride[]
 }
 
 /// A subject area (e.g. Mathematics). The platform launches with Mathematics
@@ -557,7 +1026,8 @@ model Discipline {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  courses Course[]
+  courses     Course[]
+  memberships ProgrammeMembership[]
 }
 
 /// An academic year (e.g. "2026-2027"). Assignments belong to a year;
@@ -576,8 +1046,8 @@ model AcademicYear {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  enrollments  StudentEnrollment[]
-  assignments  Assignment[]
+  enrollments StudentEnrollment[]
+  assignments Assignment[]
 
   @@index([status])
 }
@@ -626,12 +1096,13 @@ model Course {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
-  assignments       Assignment[]
-  enrollments       CourseEnrollment[]
-  resources         CourseResource[]
-  threads           DiscussionThread[]
-  mentorAssignments MentorAssignment[]
-  activityLogs      ActivityLog[]
+  assignments         Assignment[]
+  enrollments         CourseEnrollment[]
+  resources           CourseResource[]
+  threads             DiscussionThread[]
+  mentorAssignments   MentorAssignment[]
+  activityLogs        ActivityLog[]
+  permissionOverrides UserPermissionOverride[]
 
   @@unique([disciplineId, code])
   @@index([status])
@@ -790,18 +1261,18 @@ model Assignment {
   points       Int
   maximumMarks Int
 
-  allowResubmission   Boolean   @default(false)
+  allowResubmission   Boolean @default(false)
   /// 0 = unlimited resubmissions while the deadline has not passed.
-  maxResubmissions    Int       @default(0)
+  maxResubmissions    Int     @default(0)
   /// When true, first submissions after the deadline are accepted and flagged late.
-  allowLateSubmission Boolean   @default(false)
+  allowLateSubmission Boolean @default(false)
 
   status             AssignmentStatus @default(DRAFT)
   submittedAt        DateTime?
   publishedAt        DateTime?
   rejectedAt         DateTime?
   rejectionNote      String?
-  /// Set when the admin publishes results for the whole assignment.
+  /// When results of this assignment were last released to students (any release).
   resultsPublishedAt DateTime?
   /// Set when archived (status ARCHIVED).
   archivedAt         DateTime?
@@ -1396,6 +1867,82 @@ model SystemSetting {
   @@index([updatedById])
 }
 
+/// How a programme membership was created.
+enum MembershipSource {
+  /// Phase 1 backfill of existing students and coaches (migration M3).
+  BACKFILL
+  /// Added afterwards (account creation while one programme exists, or by an administrator).
+  MANUAL
+}
+
+/// A user's membership of a programme (programme = Discipline; plan §7.1).
+/// Read only by Head Coach and Teacher scope (P1-10/P1-11): student access
+/// stays division-based and coach access MentorAssignment-based. One row per
+/// user × programme, ended and re-activated by update (like MentorAssignment).
+model ProgrammeMembership {
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation("ProgrammeMember", fields: [userId], references: [id], onDelete: Cascade)
+  disciplineId String
+  discipline   Discipline       @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  source       MembershipSource
+  isActive     Boolean          @default(true)
+  addedById    String?
+  addedBy      User?            @relation("ProgrammeMemberAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime         @default(now())
+  endedAt      DateTime?
+  endedById    String?
+  endedBy      User?            @relation("ProgrammeMemberEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, disciplineId])
+  @@index([disciplineId, isActive])
+  @@index([addedById])
+  @@index([endedById])
+}
+
+/// Whether an individual override adds or removes a permission.
+enum OverrideEffect {
+  GRANT
+  DENY
+}
+
+/// An individual permission override (P1-09, plan §6.3/§6.4): set by a Super
+/// Admin only, validated against the approved list in code, applied on every
+/// authorization decision while `revokedAt` is null and `expiresAt` is in the
+/// future (or null). A GRANT applies only inside the target's existing scope
+/// (courseId × divisionId for a teacher's assignments.prepare). Never deleted:
+/// revocation is soft and the history is kept.
+model UserPermissionOverride {
+  id               String         @id @default(uuid())
+  userId           String
+  user             User           @relation("OverrideTarget", fields: [userId], references: [id], onDelete: Cascade)
+  permission       String
+  effect           OverrideEffect
+  /// GRANT scope (course × division); null for DENY.
+  courseId         String?
+  course           Course?        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  divisionId       String?
+  division         Division?      @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  reason           String
+  expiresAt        DateTime?
+  createdById      String?
+  createdBy        User?          @relation("OverrideCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime       @default(now())
+  revokedAt        DateTime?
+  revokedById      String?
+  revokedBy        User?          @relation("OverrideRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokeReason     String?
+  /// When the expiry was recorded in the audit log (record only; the override stopped applying at expiresAt).
+  expiryRecordedAt DateTime?
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@index([createdById])
+  @@index([revokedById])
+  @@index([courseId])
+  @@index([divisionId])
+}
+
 /// Append-only: a database trigger rejects UPDATE and DELETE (the only
 /// permitted change is the foreign key clearing actorId when an account is
 /// deleted). There are no API routes that modify audit records.
@@ -1467,4 +2014,89 @@ model ContactMessage {
   @@index([status, createdAt])
   @@index([email, createdAt])
   @@index([ipHash, createdAt])
+}
+
+/// A Teacher's school (P1-11): the teacher sees only students whose school is one of
+/// their ACTIVE assignments. Set by Administrators (users.manageTeachers); one row per
+/// (teacher, school), ended / re-activated by update (same pattern as ProgrammeMembership).
+model TeacherSchoolAssignment {
+  id           String    @id @default(uuid())
+  teacherId    String
+  teacher      User      @relation("TeacherSchool", fields: [teacherId], references: [id], onDelete: Cascade)
+  schoolId     String
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  isActive     Boolean   @default(true)
+  assignedById String?
+  assignedBy   User?     @relation("TeacherSchoolAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  endedAt      DateTime?
+  endedById    String?
+  endedBy      User?     @relation("TeacherSchoolEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+
+  @@unique([teacherId, schoolId])
+  @@index([schoolId, isActive])
+  @@index([assignedById])
+  @@index([endedById])
+}
+
+/// Student–school affiliation (P1-11 follow-up, PR A): whether an Administrator has
+/// verified that a student genuinely belongs to a school. Choosing a school at sign-up,
+/// account approval or e-mail verification are NOT proof of membership.
+enum SchoolAffiliationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  REVOKED
+}
+
+/// How a claim was created.
+enum SchoolAffiliationSource {
+  REGISTRATION
+  ADMIN
+  MIGRATION
+  STUDENT_REQUEST
+}
+
+/// One row per claim (history and current state). The CURRENT claim of a student is the one
+/// with supersededAt NULL — at most one, written only by SchoolAffiliationService under a
+/// per-student lock. Teacher access requires a current VERIFIED claim for the student's school.
+model StudentSchoolAffiliation {
+  id              String                  @id @default(uuid())
+  studentId       String
+  student         User                    @relation("AffiliationStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  /// The canonical school; NULL while the school is not yet resolved (international, unmatched or not listed).
+  schoolId        String?
+  school          School?                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  claimedName     String?
+  claimedCountry  String?
+  claimedProvince String?
+  claimedDistrict String?
+  claimedSector   String?
+  status          SchoolAffiliationStatus @default(PENDING)
+  source          SchoolAffiliationSource
+  createdById     String?
+  createdBy       User?                   @relation("AffiliationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime                @default(now())
+  decidedById     String?
+  decidedBy       User?                   @relation("AffiliationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt       DateTime?
+  /// Verification note or rejection reason (a rejection reason is shown to the student).
+  decisionReason  String?
+  revokedById     String?
+  revokedBy       User?                   @relation("AffiliationRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokedAt       DateTime?
+  revokeReason    String?
+  supersededAt    DateTime?
+  supersededById  String?
+  supersededBy    User?                   @relation("AffiliationSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  /// SCHOOL_CHANGE, ROLE_CHANGE or NEW_CLAIM.
+  supersedeReason String?
+
+  @@index([studentId, supersededAt])
+  @@index([schoolId, status])
+  @@index([status])
+  @@index([createdById])
+  @@index([decidedById])
+  @@index([revokedById])
+  @@index([supersededById])
 }

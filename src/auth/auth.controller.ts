@@ -26,11 +26,12 @@ import {
   RefreshTokenDto,
   ResetPasswordDto,
 } from './dto/password.dto.js';
-import { Roles } from './decorators/roles.decorator.js';
+import { RequirePermission } from './decorators/require-permission.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import type { ClientInfo, IssuedTokens } from './token.service.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 export const REFRESH_COOKIE = 'rof_refresh';
 
@@ -56,10 +57,10 @@ export class AuthController {
 
   // ─── Admin account creation (ADMIN only) ───────────────────────────────────
   @ApiBearerAuth()
-  @Roles('ADMIN')
+  @RequirePermission('users.manage')
   @Post('register/admin')
   registerAdmin(@Body() body: RegisterAdminDto, @CurrentUser() user: AuthUser) {
-    return this.authService.registerAdmin(body, user.id);
+    return this.authService.registerAdmin(body, user);
   }
 
   // ─── Login (all roles, public) ─────────────────────────────────────────────
@@ -126,6 +127,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(200)
   @Post('logout-all')
+  @Authenticated()
   async logoutAll(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
     await this.authService.logoutAll(user);
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
@@ -181,6 +183,7 @@ export class AuthController {
   @ApiBearerAuth()
   @Throttle(CREDENTIAL_LIMIT)
   @Patch('password')
+  @Authenticated()
   changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto) {
     return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
   }

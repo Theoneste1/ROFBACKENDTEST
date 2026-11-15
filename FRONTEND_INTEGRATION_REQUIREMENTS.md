@@ -20,7 +20,8 @@ backend's e-mail links already point to this site.
 | Change | Required frontend action |
 |---|---|
 | New user type `TEACHER` in `role` (ADR-002) | Every role switch/guard/label handles TEACHER (show "Teacher"); unknown roles must not crash; a teacher dashboard shows only assigned schools/subjects/courses and offers "submit for approval" — never publish, approve or grade unless `/me/permissions` grants it (ADR-003) |
-| `/me/permissions` extended `{ role, permissions[], scopes[], profiles[] }` | Drive navigation and buttons from `permissions` (+ scopes) instead of `role`; keep working with the current shape |
+| **Six user types (2026-11-09, Phase 1):** `role` may be `STUDENT`, `TEACHER`, `MENTOR` (label "Coach"), `HEAD_COACH`, `ADMIN`, `SUPER_ADMIN` | `Role` type, portal maps, `RoleGate` and labels handle all six; an unknown role shows a safe "no access configured" page (no redirect loop). **Must be deployed before any account holds a new role** (Phase 1 task P1-F1) |
+| `/me/permissions` extended `{ role, permissions[], scopes[], profiles[] }` — **Phase 1 shape (2026-11-09):** `{ role, roleLabel, permissions[], scopes{ programmes[], courseDivisions[] }, overrides[] }` (profiles deferred) | Drive navigation and buttons from `permissions` (+ scopes) instead of `role`; keep working with the current shape |
 | New notification types/categories (SUPPORT, GROUPS, PUBLISHING) | Unknown types shown generically; links followed when present |
 | `gradeLevel` also returned as an object (`gradeLevelRef`) | Keep reading the string until screens move to the reference data |
 | Resources gain `status`/`publishedRevision` (`isPublished` kept) | No change required until the publishing UI is built |
@@ -42,6 +43,18 @@ backend's e-mail links already point to this site.
 | Student support (ADR-012) | **Separate authenticated portal**; the public contact form stays as it is. Student: Support portal (new request, attachments, reference number, status timeline, messages); Staff: request list with filters, assignment, priority, status, internal notes (visually distinct), meetings | `/support/*`, `/me/support/requests`, `/admin/support/*` | `support.*` |
 | Groups (ADR-013) | **No private one-to-one messaging UI.** Groups directory/my groups, group page (announcements, discussions, replies, mentions, members), group admin tools for delegated group admins (only their groups), reporting and moderation; targeted e-mail with audience builder, **preview then confirm** | `/groups*`, `/me/groups`, `/admin/groups*`, `/admin/email/preview`, `/admin/email/send` | `groups.*`, `email.bulkSend` |
 | Admin pages already backed by APIs (not yet built) | Academic years & enrollments, bulk e-mail jobs, activity log | `/admin/academic-years*`, `/admin/email/*`, `/admin/activity*` | existing |
+
+### 2.1 Phase 1 views (2026-11-09) — see [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §10.2
+
+| View | Content | Backend dependency |
+|---|---|---|
+| Head Coach portal | **only the programme(s) the Head Coach heads**:<br>• students (participation, progress, programme membership)<br>• coaches (activity, review timeliness, course × division assignments)<br>• invite a coach (pending ADMIN approval)<br>• programme reports | P1-07, P1-10 |
+| Super Admin sections (in `/admin`) | • ADMIN/SUPER_ADMIN account management with step-up confirmation<br>• individual permission overrides (approved list)<br>• system settings<br>• audit trail of Super Admin actions | P1-08, P1-09 |
+| Admin additions | • appoint Head Coaches to existing programmes<br>• programme members<br>• teachers and teacher assignments<br>• pending approvals, including coaches invited by a Head Coach | P1-07, P1-10, P1-11 |
+| Teacher portal | • assigned course × division content (read)<br>• limited student list<br>• assignment drafts and "submit for approval" only with an override | P1-11 |
+| Student and coach portals | labels and permission-driven menus only | P1-04 |
+
+No programme-creation screens in Phase 1 (Phase 3). Hiding is convenience only; the API refuses every action not permitted.
 
 ## 3. UX rules from the requirements
 

@@ -48,6 +48,23 @@ Sizes: S (1 table/column), M (several tables + backfill), L (enum replacement or
 
 Rollback: drop the four tables (no existing table touched).
 
+**Updated 2026-11-09 — Phase 1 database changes (replaces the table above for Phase 1):** custom permission profiles are **deferred** (approved scope change D3, ADR-004 amendment), so `PermissionProfile`, `PermissionProfilePermission` and `UserPermissionAssignment` and their backfill are **not** part of Phase 1. They are kept above for the later phase. The Phase 1 migrations are:
+- numbered in rollout order;
+- each in its own PR with a rollback file;
+- each rehearsed on a Neon copy of production before production approval is requested;
+- none of them changes an existing table, column, constraint or ID.
+
+| # | Migration | Content | Rollback | Limitation |
+|---|---|---|---|---|
+| M1 | `20261121000000_roles_teacher_head_coach_super_admin` | `Role` + `TEACHER`, `HEAD_COACH`, `SUPER_ADMIN` | none by SQL; values inert while unused | forward-only |
+| M2 | `20261121000100_programme_membership` | `ProgrammeMembership` (user × discipline, `source` BACKFILL/MANUAL, active, history; unique pair) | drop table + enum | — |
+| M3 | `20261121000200_backfill_programme_membership` | students → Mathematics; coaches → programmes of their assigned courses, else Mathematics; aborts unless Mathematics is the only discipline | delete `source = 'BACKFILL'` | — |
+| M4 | `20261121000300_last_super_admin_guard` | trigger on `User` protecting the last active SUPER_ADMIN | drop trigger + function | — |
+| M5 | `20261121000400_permission_overrides` | `UserPermissionOverride` (GRANT/DENY, scope, reason, `expiresAt`, `revokedAt`) | drop table + enums | overrides lost (audit keeps history) |
+| M6 | `20261121000500_teacher_assignment` | `TeacherAssignment` (teacher × course × division; separate from `MentorAssignment`) | drop table | assignments lost |
+
+Backfill acceptance tests (reconciliation, access regression, scope isolation, rollback): [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §11.5. The membership backfill must not change student (division-based) or coach (`MentorAssignment`-based) access.
+
 ### 3.2 Phase 2 — Countries, education systems, grades, schools (ADR-005)
 
 | Change | Detail | Size |
@@ -161,7 +178,7 @@ Rollback: drop the four tables (no existing table touched).
 
 - Row counts per table touched; must be equal unless rows are intentionally added.
 - Mathematics: `Discipline MATHEMATICS` exists; its 4 courses keep IDs, codes, assignment/resource/submission/review/result counts.
-- Every user has exactly one system profile assignment matching their role; effective permissions = `ROLE_PERMISSIONS[role]`.
+- Every user has exactly one system profile assignment matching their role; effective permissions = `ROLE_PERMISSIONS[role]`. *(Updated 2026-11-09: with profiles deferred, Phase 1 checks instead that every existing user's effective permissions equal today's `ROLE_PERMISSIONS[role]`, and that every student and coach has the expected `ProgrammeMembership` — see the Phase 1 plan §11.5.)*
 - Account status distribution equals the counts computed from the old flags.
 - Every existing user/enrollment/school links to Rwanda and a grade level equal to its old enum value.
 - No orphaned foreign keys (`LEFT JOIN … WHERE … IS NULL`).

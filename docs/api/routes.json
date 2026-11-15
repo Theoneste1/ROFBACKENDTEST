@@ -23,7 +23,8 @@
     "method": "POST",
     "path": "/api/v1/admin/academic-years",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Academic years"
   },
@@ -31,7 +32,8 @@
     "method": "GET",
     "path": "/api/v1/admin/academic-years/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Academic years"
   },
@@ -39,7 +41,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/academic-years/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Academic years"
   },
@@ -47,7 +50,8 @@
     "method": "POST",
     "path": "/api/v1/admin/academic-years/{id}/activate",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Academic years"
   },
@@ -55,7 +59,8 @@
     "method": "GET",
     "path": "/api/v1/admin/academic-years/{id}/enrollments",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Academic years"
   },
@@ -63,7 +68,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/enrollments/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Academic years"
   },
@@ -71,7 +77,9 @@
     "method": "GET",
     "path": "/api/v1/admin/activity",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Activity"
   },
@@ -79,7 +87,9 @@
     "method": "GET",
     "path": "/api/v1/admin/activity/summary",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Activity"
   },
@@ -87,7 +97,8 @@
     "method": "GET",
     "path": "/api/v1/admin/audit-logs",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Audit"
   },
@@ -95,7 +106,8 @@
     "method": "GET",
     "path": "/api/v1/admin/audit-logs/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Audit"
   },
@@ -103,7 +115,8 @@
     "method": "GET",
     "path": "/api/v1/admin/audit-logs/actions",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Audit"
   },
@@ -111,7 +124,8 @@
     "method": "GET",
     "path": "/api/v1/admin/audit-logs/export.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Audit"
   },
@@ -119,7 +133,8 @@
     "method": "GET",
     "path": "/api/v1/admin/contact-messages",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Contact messages"
   },
@@ -127,7 +142,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/contact-messages/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Contact messages"
   },
@@ -135,7 +151,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/courses/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Courses"
   },
@@ -143,7 +160,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/courses/{id}/archive",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Courses"
   },
@@ -151,7 +169,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/courses/{id}/publish",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Courses"
   },
@@ -159,7 +178,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/courses/{id}/unpublish",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Courses"
   },
@@ -167,15 +187,36 @@
     "method": "GET",
     "path": "/api/v1/admin/dashboard",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Dashboard"
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/email/deliveries",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/email/deliveries/{id}/retry",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/email/jobs",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Email"
   },
@@ -183,7 +224,8 @@
     "method": "GET",
     "path": "/api/v1/admin/email/jobs/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Email"
   },
@@ -191,7 +233,8 @@
     "method": "GET",
     "path": "/api/v1/admin/email/jobs/{id}/deliveries",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Email"
   },
@@ -199,7 +242,8 @@
     "method": "POST",
     "path": "/api/v1/admin/email/jobs/{id}/retry",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Email"
   },
@@ -207,7 +251,8 @@
     "method": "POST",
     "path": "/api/v1/admin/email/send",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Email"
   },
@@ -215,7 +260,8 @@
     "method": "GET",
     "path": "/api/v1/admin/email/users",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Email"
   },
@@ -223,7 +269,8 @@
     "method": "POST",
     "path": "/api/v1/admin/leaderboard/recompute",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Leaderboard"
   },
@@ -231,7 +278,9 @@
     "method": "GET",
     "path": "/api/v1/admin/mentor-assignments",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Mentor assignments"
   },
@@ -239,7 +288,9 @@
     "method": "POST",
     "path": "/api/v1/admin/mentor-assignments",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Mentor assignments"
   },
@@ -247,15 +298,128 @@
     "method": "DELETE",
     "path": "/api/v1/admin/mentor-assignments/{id}",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Mentor assignments"
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/permissions/catalogue",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/permission-overrides",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/permission-overrides",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/users/{id}/permission-overrides/{overrideId}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/permissions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Permissions"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/programmes/{id}/coach-invitations",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/programmes/{id}/heads",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/programmes/{id}/heads",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/programmes/{id}/members",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/programmes/{id}/members",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/programmes/{id}/members/{userId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/programmes/{id}/student-candidates",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Programmes"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/reports/assignments",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -263,7 +427,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/assignments.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -271,7 +436,9 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/course-participation",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -279,7 +446,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/course-participation.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -287,7 +455,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/enrollment",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -295,7 +464,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/enrollment.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -303,7 +473,9 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/mentor-activity",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -311,7 +483,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/mentor-activity.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -319,7 +492,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/mentor-workload.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -327,7 +501,9 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/mentors",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -335,7 +511,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/mentors.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -343,7 +520,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/overview",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -351,7 +529,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/results-publication",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -359,7 +538,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/results-publication.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -367,7 +547,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/results.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -375,7 +556,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/reviews",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -383,7 +565,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/reviews.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -391,7 +574,8 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/student-progress.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -399,7 +583,9 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/students",
     "roles": [
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
@@ -407,15 +593,365 @@
     "method": "GET",
     "path": "/api/v1/admin/reports/students.csv",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Reports"
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/school-affiliations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-affiliations/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-affiliations/{id}/candidates",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/match",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/reopen",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/revoke",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-affiliations/{id}/verify",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/school-affiliations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School affiliations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/apply",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/approve",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/categories",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/changes",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/decisions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/items",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/items/{itemId}/proposal",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/items/{itemId}/resolve",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/school-sync/runs/{id}/recompare",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/report.csv",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/school-sync/runs/{id}/review",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · School directory sync"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/schools",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/schools/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/schools/{id}/active",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/contacts",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/schools/{id}/contacts",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/schools/{id}/contacts/{contactId}/verify",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/offerings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/schools/{id}/offerings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/schools/{id}/verify",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/schools/import",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/import-template",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/reference-data",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Schools"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/settings",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Settings"
   },
@@ -423,15 +959,71 @@
     "method": "PATCH",
     "path": "/api/v1/admin/settings",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Settings"
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/teacher-assignments",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-assignments",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teacher-assignments/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teachers/{id}/delegations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teachers/{id}/delegations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/users",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -439,7 +1031,8 @@
     "method": "POST",
     "path": "/api/v1/admin/users",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -447,7 +1040,8 @@
     "method": "GET",
     "path": "/api/v1/admin/users/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -455,7 +1049,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/users/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -463,7 +1058,8 @@
     "method": "DELETE",
     "path": "/api/v1/admin/users/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -471,7 +1067,8 @@
     "method": "POST",
     "path": "/api/v1/admin/users/{id}/resend-invitation",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -479,7 +1076,8 @@
     "method": "POST",
     "path": "/api/v1/admin/users/{id}/send-password-reset",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -487,7 +1085,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/users/{id}/status",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -495,7 +1094,8 @@
     "method": "POST",
     "path": "/api/v1/admin/users/import",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -503,7 +1103,8 @@
     "method": "POST",
     "path": "/api/v1/admin/users/invite",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Admin · Users"
   },
@@ -512,7 +1113,9 @@
     "path": "/api/v1/analytics/courses/{courseId}",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Analytics"
   },
@@ -530,7 +1133,8 @@
     "method": "POST",
     "path": "/api/v1/assignments",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Assignments"
   },
@@ -548,7 +1152,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Assignments"
   },
@@ -556,7 +1161,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/archive",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Assignments"
   },
@@ -564,7 +1170,8 @@
     "method": "POST",
     "path": "/api/v1/assignments/{id}/attachments",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Assignments"
   },
@@ -572,7 +1179,8 @@
     "method": "DELETE",
     "path": "/api/v1/assignments/{id}/attachments/{attachmentId}",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Assignments"
   },
@@ -590,7 +1198,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/close",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Assignments"
   },
@@ -609,7 +1218,9 @@
     "path": "/api/v1/assignments/{id}/history",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Assignments"
   },
@@ -617,7 +1228,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/publish",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Assignments"
   },
@@ -625,7 +1237,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/recall",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Assignments"
   },
@@ -633,7 +1246,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/reject",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Assignments"
   },
@@ -641,7 +1255,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/reopen",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Assignments"
   },
@@ -649,7 +1264,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/submit",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Assignments"
   },
@@ -657,7 +1273,8 @@
     "method": "PATCH",
     "path": "/api/v1/assignments/{id}/unpublish",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Assignments"
   },
@@ -733,7 +1350,8 @@
     "method": "POST",
     "path": "/api/v1/auth/register/admin",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Auth"
   },
@@ -786,7 +1404,8 @@
     "path": "/api/v1/courses/{courseId}/resources",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -805,7 +1424,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -814,7 +1434,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -823,7 +1444,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}/archive",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -832,7 +1454,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}/attachments",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -841,7 +1464,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -870,7 +1494,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}/publish",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -879,7 +1504,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}/restore",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -888,7 +1514,8 @@
     "path": "/api/v1/courses/{courseId}/resources/{resourceId}/unpublish",
     "roles": [
       "MENTOR",
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Courses"
   },
@@ -924,7 +1551,8 @@
     "method": "GET",
     "path": "/api/v1/admin/comments/hidden",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -932,7 +1560,8 @@
     "method": "GET",
     "path": "/api/v1/admin/moderation/actions",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -940,7 +1569,8 @@
     "method": "GET",
     "path": "/api/v1/admin/moderation/reports",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -948,7 +1578,8 @@
     "method": "GET",
     "path": "/api/v1/admin/moderation/reports/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -956,7 +1587,8 @@
     "method": "POST",
     "path": "/api/v1/admin/moderation/reports/{id}/resolve",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -1004,7 +1636,8 @@
     "method": "PATCH",
     "path": "/api/v1/comments/{id}/hide",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -1042,7 +1675,8 @@
     "method": "PATCH",
     "path": "/api/v1/comments/{id}/restore",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -1100,7 +1734,8 @@
     "method": "PATCH",
     "path": "/api/v1/threads/{id}/{op}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Discussions"
   },
@@ -1138,7 +1773,8 @@
     "method": "GET",
     "path": "/api/v1/admin/divisions",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Divisions"
   },
@@ -1146,7 +1782,8 @@
     "method": "PATCH",
     "path": "/api/v1/admin/divisions/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Divisions"
   },
@@ -1282,6 +1919,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/me/school-affiliation",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/school-affiliation",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/me/submissions",
     "roles": [
       "STUDENT"
@@ -1292,7 +1945,8 @@
     "method": "GET",
     "path": "/api/v1/me/teaching",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Me"
   },
@@ -1300,7 +1954,8 @@
     "method": "GET",
     "path": "/api/v1/mentor/reviews",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Mentor"
   },
@@ -1308,7 +1963,8 @@
     "method": "GET",
     "path": "/api/v1/mentor-requests",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Mentor requests"
   },
@@ -1324,7 +1980,8 @@
     "method": "PATCH",
     "path": "/api/v1/mentor-requests/{id}/approve",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Mentor requests"
   },
@@ -1332,7 +1989,8 @@
     "method": "PATCH",
     "path": "/api/v1/mentor-requests/{id}/reject",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Mentor requests"
   },
@@ -1361,7 +2019,8 @@
     "path": "/api/v1/me/notification-settings",
     "roles": [
       "ADMIN",
-      "MENTOR"
+      "MENTOR",
+      "SUPER_ADMIN"
     ],
     "tag": "Notifications"
   },
@@ -1370,7 +2029,8 @@
     "path": "/api/v1/me/notification-settings",
     "roles": [
       "ADMIN",
-      "MENTOR"
+      "MENTOR",
+      "SUPER_ADMIN"
     ],
     "tag": "Notifications"
   },
@@ -1379,7 +2039,8 @@
     "path": "/api/v1/me/notification-settings/reset",
     "roles": [
       "ADMIN",
-      "MENTOR"
+      "MENTOR",
+      "SUPER_ADMIN"
     ],
     "tag": "Notifications"
   },
@@ -1454,6 +2115,18 @@
     "tag": "Notifications"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/programmes",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Programmes"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/public/contact",
     "roles": [
@@ -1473,7 +2146,8 @@
     "method": "GET",
     "path": "/api/v1/schools",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Schools"
   },
@@ -1481,7 +2155,16 @@
     "method": "GET",
     "path": "/api/v1/schools/{id}",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/schools/locations",
+    "roles": [
+      "PUBLIC"
     ],
     "tag": "Schools"
   },
@@ -1497,7 +2180,8 @@
     "method": "POST",
     "path": "/api/v1/assignments/{assignmentId}/distribute",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1505,7 +2189,8 @@
     "method": "GET",
     "path": "/api/v1/assignments/{assignmentId}/distribution-batches",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1513,7 +2198,8 @@
     "method": "GET",
     "path": "/api/v1/assignments/{assignmentId}/result-releases",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1521,7 +2207,8 @@
     "method": "POST",
     "path": "/api/v1/assignments/{assignmentId}/results/publish",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1529,7 +2216,8 @@
     "method": "GET",
     "path": "/api/v1/submissions",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1555,7 +2243,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/approve",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1563,7 +2252,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/assign",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1621,7 +2311,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/mark",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Submissions"
   },
@@ -1629,7 +2320,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/publish",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1637,7 +2329,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/reassign",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1645,7 +2338,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/reject",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1653,7 +2347,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/reopen",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1661,7 +2356,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/request-resubmission",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Submissions"
   },
@@ -1669,7 +2365,8 @@
     "method": "GET",
     "path": "/api/v1/submissions/{id}/result-history",
     "roles": [
-      "ADMIN"
+      "ADMIN",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1677,7 +2374,8 @@
     "method": "DELETE",
     "path": "/api/v1/submissions/{id}/review/attachments/{attachmentId}",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Submissions"
   },
@@ -1686,7 +2384,9 @@
     "path": "/api/v1/submissions/{id}/reviews",
     "roles": [
       "ADMIN",
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH",
+      "SUPER_ADMIN"
     ],
     "tag": "Submissions"
   },
@@ -1704,7 +2404,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/start-review",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Submissions"
   },
@@ -1712,7 +2413,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/submit-to-admin",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Submissions"
   },
@@ -1720,7 +2422,8 @@
     "method": "PATCH",
     "path": "/api/v1/submissions/{id}/withdraw-resubmission-request",
     "roles": [
-      "MENTOR"
+      "MENTOR",
+      "HEAD_COACH"
     ],
     "tag": "Submissions"
   },
@@ -1731,5 +2434,37 @@
       "PUBLIC"
     ],
     "tag": "Support"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students/{id}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students/{id}/progress",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/teacher/students/{id}/submissions",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
   }
 ]

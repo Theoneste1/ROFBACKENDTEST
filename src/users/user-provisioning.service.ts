@@ -6,6 +6,10 @@
  * the e-mailed activation link and chooses one (ActivationService). Students
  * are placed in a division by grade and enrolled in the current academic year
  * in the same transaction that creates them.
+ *
+ * A student's school must be an EXISTING, active school named by schoolId or schoolCode
+ * (school administration PR B): invitations and CSV imports never create a school, and a
+ * school name alone is refused (school-reference.ts).
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
@@ -19,7 +23,13 @@ import { AuthService, PROFILE_SELECT } from '../auth/auth.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { parseCsv } from '../common/csv-parse.js';
 import { divisionCodeForGrade } from '../common/grade-levels.js';
-import type { CallerCtx } from '../common/auth-user.js';
+import type { AuthUser, CallerCtx } from '../common/auth-user.js';
+import { AccessService } from '../common/access/access.service.js';
+import { isHeadCoach } from '../common/access/roles.js';
+import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
+import { resolveSchoolReference } from '../schools/school-reference.js';
+import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
+import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { InviteUserDto } from './dto/invite-user.dto.js';
 
@@ -28,7 +38,7 @@ export const IMPORT_MAX_BYTES = 1024 * 1024;
 
 const KNOWN_COLUMNS = [
   'firstName', 'lastName', 'email', 'username', 'role',
-  'gradeLevel', 'schoolName', 'schoolLocation', 'homeLocation',
+  'gradeLevel', 'schoolCode', 'schoolId', 'schoolName', 'schoolLocation', 'homeLocation',
 ] as const;
 const REQUIRED_COLUMNS = ['firstName', 'lastName', 'email'] as const;
 
@@ -49,11 +59,15 @@ export class UserProvisioningService {
     private readonly academicYears: AcademicYearsService,
     private readonly activation:    ActivationService,
     private readonly auth:          AuthService,
+    private readonly roles:         RoleAssignmentPolicy,
+    private readonly access:        AccessService,
+    private readonly affiliations:  SchoolAffiliationService,
   ) {}
 
   // ─── Invitations ──────────────────────────────────────────────────────────
 
   async invite(dto: InviteUserDto, caller: CallerCtx) {
+    await this.roles.assertCanAssign(caller, dto.role ?? 'STUDENT');
     await this.assertFree(dto.email, dto.username);
     const username = dto.username ?? (await this.generateUsername(dto.email));
 
@@ -70,13 +84,44 @@ export class UserProvisioningService {
     return { user, invitation };
   }
 
+  /**
+   * Invite a Coach into a programme (P1-10, plan §7.2). An Administrator's
+   * invitation is approved at once; a Head Coach's — only into a programme they
+   * head — is created PENDING (isApproved = false: no login until an
+   * Administrator approves it through PATCH /admin/users/:id/status). Either way
+   * the coach is a member of the programme, in the same transaction as the
+   * account and its audit record.
+   */
+  async inviteCoachToProgramme(disciplineId: string, dto: InviteUserDto, caller: AuthUser) {
+    const programme = await this.prisma.discipline.findUnique({ where: { id: disciplineId }, select: { id: true } });
+    if (!programme) throw new NotFoundException('Programme not found.');
+    await this.access.assertProgrammeInScope(caller, disciplineId);
+    this.roles.assertCanInviteCoach(caller);
+    await this.assertFree(dto.email, dto.username);
+    const username = dto.username ?? (await this.generateUsername(dto.email));
+    const pendingApproval = isHeadCoach(caller);
+
+    const { user, issued } = await this.prisma.$transaction(async (tx) => {
+      const created = await this.createInvited(tx, { ...dto, role: 'MENTOR', username }, caller, { coachInvite: { disciplineId, pendingApproval } });
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role,
+        action: 'INVITE_USER', entity: 'User', entityId: created.user.id,
+        metadata: { role: 'MENTOR', username: created.user.username, programmeId: disciplineId, pendingApproval },
+      }, tx);
+      return created;
+    });
+    const invitation = await this.activation.send(issued);
+    return { user, invitation, pendingApproval };
+  }
+
   /** Send a fresh invitation (the previous link stops working). */
   async resendInvitation(userId: string, caller: CallerCtx) {
     const user = await this.prisma.user.findUnique({
       where:  { id: userId },
-      select: { id: true, activatedAt: true, isActive: true, passwordHash: true },
+      select: { id: true, role: true, activatedAt: true, isActive: true, passwordHash: true },
     });
     if (!user) throw new NotFoundException('User not found.');
+    await this.roles.assertCanManage(caller, user.role);
     if (user.activatedAt) throw invalidState('This account is already activated.');
     if (!user.isActive)   throw invalidState('Reactivate the account before re-sending the invitation.');
 
@@ -94,9 +139,10 @@ export class UserProvisioningService {
   async sendPasswordReset(userId: string, caller: CallerCtx) {
     const user = await this.prisma.user.findUnique({
       where:  { id: userId },
-      select: { id: true, activatedAt: true, isActive: true, provider: true },
+      select: { id: true, role: true, activatedAt: true, isActive: true, provider: true },
     });
     if (!user) throw new NotFoundException('User not found.');
+    await this.roles.assertCanManage(caller, user.role);
     if (!user.isActive)    throw invalidState('This account is suspended.');
     if (!user.activatedAt) throw invalidState('This account is not activated yet; re-send the invitation instead.');
     if (user.provider !== 'LOCAL') throw invalidState('This account signs in with an external provider.');
@@ -114,8 +160,12 @@ export class UserProvisioningService {
    *
    * Columns (header row, any order, case-sensitive names):
    *   firstName*, lastName*, email*, role (STUDENT|MENTOR|ADMIN, default STUDENT),
-   *   gradeLevel (required for students), schoolName, schoolLocation,
+   *   gradeLevel (required for students), schoolCode or schoolId (an existing school),
+   *   schoolName (optional check: must be that school's name), schoolLocation (not used),
    *   homeLocation, username (generated when empty)
+   *
+   * A row naming a school by schoolName only, an unknown or inactive school, or a name that
+   * does not match the code is a row error (dry run too); no school is ever created.
    */
   async importCsv(file: Express.Multer.File | undefined, dryRun: boolean, caller: CallerCtx) {
     if (!file?.buffer?.length) {
@@ -169,10 +219,18 @@ export class UserProvisioningService {
         if (first) problems.push(`email repeats row ${first}.`);
         else seenEmails.set(dto.email, rec.line);
       }
+      {
+        const refusal = await this.roleRefusal(caller, dto.role ?? 'STUDENT');
+        if (refusal) problems.push(refusal);
+      }
       if (dto.username) {
         const first = seenUsernames.get(dto.username);
         if (first) problems.push(`username repeats row ${first}.`);
         else seenUsernames.set(dto.username, rec.line);
+      }
+      if (problems.length === 0) {
+        const schoolProblem = await this.schoolProblem(dto);
+        if (schoolProblem) problems.push(schoolProblem);
       }
 
       if (problems.length) errors.push({ row: rec.line, email: rec.values['email'], errors: problems });
@@ -249,26 +307,47 @@ export class UserProvisioningService {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
+  /** A CSV row's school problem as a row error message (null when the row's school is fine or none). */
+  private async schoolProblem(dto: InviteUserDto): Promise<string | null> {
+    if ((dto.role ?? 'STUDENT') !== 'STUDENT') return null;
+    try {
+      await resolveSchoolReference(this.prisma, dto, { requireActive: true });
+      return null;
+    } catch (err) {
+      return (err as Error).message;
+    }
+  }
+
+  /** The allow-list refusal for a CSV row, as a row error message (null when allowed). */
+  private async roleRefusal(caller: CallerCtx, role: string): Promise<string | null> {
+    try {
+      await this.roles.assertCanAssign(caller, role);
+      return null;
+    } catch (err) {
+      return err instanceof AppError ? `role ${role}: ${err.code}` : 'role: not allowed.';
+    }
+  }
+
   /** Create an invited (password-less, not activated) account and its activation token. */
   private async createInvited(
     tx: Tx, dto: InviteUserDto & { username: string }, caller: CallerCtx,
+    opts: { coachInvite?: { disciplineId: string; pendingApproval: boolean } } = {},
   ): Promise<{ user: Prisma.UserGetPayload<{ select: typeof INVITED_SELECT }>; issued: IssuedActivation }> {
     const role = dto.role ?? 'STUDENT';
+    // Defence in depth: every invited account. A programme coach invitation has its own rule (MENTOR only).
+    if (opts.coachInvite) {
+      if (role !== 'MENTOR') throw new AppError(HttpStatus.FORBIDDEN, 'ROLE_NOT_ASSIGNABLE', 'This role cannot be assigned.', { role });
+      this.roles.assertCanInviteCoach(caller);
+    } else {
+      await this.roles.assertCanAssign(caller, role);
+    }
     const isStudent = role === 'STUDENT';
 
-    let schoolId: string | null = null;
-    if (isStudent && dto.schoolId) {
-      const school = await tx.school.findUnique({ where: { id: dto.schoolId }, select: { id: true } });
-      if (!school) throw new NotFoundException('School not found.');
-      schoolId = school.id;
-    } else if (isStudent && dto.schoolName) {
-      const school = await tx.school.upsert({
-        where:  { name: dto.schoolName },
-        update: {},
-        create: { name: dto.schoolName, location: dto.schoolLocation ?? 'Unknown' },
-      });
-      schoolId = school.id;
-    }
+    // An existing, active school by id / code — never created here (PR B). The claim below
+    // locks it and re-checks that it is still active.
+    const schoolId = isStudent
+      ? ((await resolveSchoolReference(tx, dto, { requireActive: true }))?.id ?? null)
+      : null;
 
     const division = isStudent
       ? await tx.division.findUniqueOrThrow({ where: { code: divisionCodeForGrade(dto.gradeLevel!) }, select: { id: true } })
@@ -283,6 +362,7 @@ export class UserProvisioningService {
         role,
         passwordHash: null,
         activatedAt:  null,
+        ...(opts.coachInvite?.pendingApproval && { isApproved: false }),
         ...(isStudent && {
           gradeLevel:   dto.gradeLevel,
           divisionId:   division!.id,
@@ -294,6 +374,19 @@ export class UserProvisioningService {
     });
 
     if (isStudent) await this.academicYears.enrollInCurrentYear(tx, created.id, dto.gradeLevel!, schoolId);
+    // An invited student's school is a claim: PENDING until an Administrator verifies it.
+    if (isStudent && schoolId) {
+      await this.affiliations.claim(tx, { studentId: created.id, schoolId, source: 'ADMIN', reason: 'NEW_CLAIM', actor: { actorId: caller.id, actorRole: caller.role } });
+    }
+    await ensureDefaultMembership(tx, { id: created.id, role }, caller.id);   // invite and CSV import (P1-07, K6)
+    if (opts.coachInvite) {
+      const disciplineId = opts.coachInvite.disciplineId;
+      await tx.programmeMembership.upsert({
+        where:  { userId_disciplineId: { userId: created.id, disciplineId } },
+        create: { userId: created.id, disciplineId, source: 'MANUAL', addedById: caller.id },
+        update: {},
+      });
+    }
     const issued = await this.activation.issue(created.id, 'INVITATION', caller.id, tx);
     const user = await tx.user.findUniqueOrThrow({ where: { id: created.id }, select: INVITED_SELECT });
     return { user, issued };

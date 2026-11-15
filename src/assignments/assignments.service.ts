@@ -42,10 +42,11 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
-import type { AssignmentEventType, AssignmentStatus, FileObject, Prisma } from '../generated/prisma/client.js';
+import { isCourseStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
+import type { AssignmentEventType, AssignmentStatus, FileObject, Prisma, SubmissionStatus } from '../generated/prisma/client.js';
 import { Events } from '../notifications/events.js';
 import { deriveStudentDisplayStatus } from '../submissions/student-display-status.js';
-import { CreateAssignmentDto, ListAssignmentsDto } from './dto/create-assignment.dto.js';
+import { CreateAssignmentDto, ListAssignmentsDto, MyAssignmentsQueryDto, type MyAssignmentProgress } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { CloseAssignmentDto, RejectAssignmentDto, ReopenAssignmentDto } from './dto/reject-assignment.dto.js';
 
@@ -450,47 +451,65 @@ export class AssignmentsService {
   /**
    * Paginated list.
    *   STUDENT: published or closed assignments of their division (published courses only).
-   *   MENTOR:  every status, within their scopes.
+   *   MENTOR, HEAD_COACH (H4): every status, within their assigned scopes.
    *   ADMIN:   everything.
+   *   Any other role: refused (403 ROLE_NOT_SUPPORTED, from scopeFilter).
    */
   async findAll(user: AuthUser, q: ListAssignmentsDto) {
+    assertOneStatusFilter(q);
     const { page, limit, skip, take } = pageArgs(q);
     const scope = await this.access.scopeFilter(user);
-    const isStudent = user.role === 'STUDENT';
 
-    const where: Prisma.AssignmentWhereInput = {
-      AND: [
-        scope ?? {},
-        isStudent ? this.studentStatusFilter(q) : q.status ? { status: q.status } : {},
-        q.divisionId && !isStudent ? { divisionId: q.divisionId } : {},
-        q.createdById && !isStudent ? { createdById: q.createdById } : {},
-        this.commonFilters(q),
-      ],
-    };
+    if (isStudent(user)) {
+      const where: Prisma.AssignmentWhereInput = {
+        AND: [scope ?? {}, this.studentStatusFilter(q), this.commonFilters(q)],
+      };
+      const [rows, total] = await this.prisma.$transaction([
+        this.prisma.assignment.findMany({ where, select: ASSIGNMENT_SUMMARY, skip, take, orderBy: { deadline: 'asc' } }),
+        this.prisma.assignment.count({ where }),
+      ]);
+      return paginated(rows, total, page, limit);
+    }
 
-    const select = user.role === 'STUDENT' ? ASSIGNMENT_SUMMARY : STAFF_DETAIL;
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.assignment.findMany({
-        where, select, skip, take,
-        orderBy: user.role === 'STUDENT' ? { deadline: 'asc' } : { updatedAt: 'desc' },
-      }),
-      this.prisma.assignment.count({ where }),
-    ]);
-    return paginated(rows, total, page, limit);
+    if (isCourseStaff(user)) {
+      const where: Prisma.AssignmentWhereInput = {
+        AND: [
+          scope ?? {},
+          q.status ? { status: q.status } : {},
+          q.statuses?.length ? { status: { in: q.statuses } } : {},
+          q.divisionId ? { divisionId: q.divisionId } : {},
+          q.createdById ? { createdById: q.createdById } : {},
+          this.commonFilters(q),
+        ],
+      };
+      const [rows, total] = await this.prisma.$transaction([
+        this.prisma.assignment.findMany({ where, select: STAFF_DETAIL, skip, take, orderBy: { updatedAt: 'desc' } }),
+        this.prisma.assignment.count({ where }),
+      ]);
+      return paginated(rows, total, page, limit);
+    }
+
+    throw unsupportedRole();
   }
 
   /** Single assignment. Opening it as a student records the view (New → Opened). */
   async findOne(assignmentId: string, user: AuthUser) {
-    const isStudent  = user.role === 'STUDENT';
+    if (isCourseStaff(user)) {
+      const assignment = await this.prisma.assignment.findUnique({ where: { id: assignmentId }, select: STAFF_DETAIL });
+      if (!assignment) throw new NotFoundException('Assignment not found.');
+      await this.access.assertCanView(user, assignment);
+      return assignment;
+    }
+    // Any role other than staff and students: 404 before anything is loaded.
+    if (!isStudent(user)) throw new NotFoundException('Assignment not found.');
+
     const assignment = await this.prisma.assignment.findUnique({
       where:  { id: assignmentId },
-      select: isStudent ? ASSIGNMENT_SUMMARY : STAFF_DETAIL,
+      select: ASSIGNMENT_SUMMARY,
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
 
     await this.access.assertCanView(user, assignment);
-
-    if (!isStudent) return assignment;
 
     if (!STUDENT_VISIBLE_STATUSES.includes(assignment.status)) throw new NotFoundException('Assignment not found.');
 
@@ -518,7 +537,8 @@ export class AssignmentsService {
   }
 
   /** STUDENT: published and closed assignments of their division, each with a display status. */
-  async getStudentAssignments(user: AuthUser, q: ListAssignmentsDto) {
+  async getStudentAssignments(user: AuthUser, q: MyAssignmentsQueryDto) {
+    assertOneStatusFilter(q);
     const divisionId = this.access.studentDivision(user);
     const { page, limit, skip, take } = pageArgs(q);
 
@@ -527,13 +547,18 @@ export class AssignmentsService {
         { divisionId, course: { status: 'PUBLISHED' } },
         this.studentStatusFilter(q),
         this.commonFilters(q),
+        q.progress ? studentProgressWhere(user.id, q.progress, new Date()) : {},
       ],
     };
+    const orderBy: Prisma.AssignmentOrderByWithRelationInput[] =
+      q.sort === 'title'     ? [{ title: 'asc' }, { deadline: 'asc' }, { id: 'asc' }]
+      : q.sort === '-deadline' ? [{ deadline: 'desc' }, { id: 'asc' }]
+      : [{ deadline: 'asc' }, { id: 'asc' }];
 
     const [assignments, total] = await this.prisma.$transaction([
       this.prisma.assignment.findMany({
         where, skip, take,
-        orderBy: { deadline: 'asc' },
+        orderBy,
         select: {
           ...ASSIGNMENT_SUMMARY,
           views:       { where: { studentId: user.id }, select: { firstViewedAt: true }, take: 1 },
@@ -578,7 +603,7 @@ export class AssignmentsService {
     });
     if (!assignment) throw new NotFoundException('Assignment not found.');
     await this.access.assertCanView(user, assignment);
-    if (user.role === 'STUDENT' && !studentCanOpenAssignment(assignment)) {
+    if (isStudent(user) && !studentCanOpenAssignment(assignment)) {
       throw new NotFoundException('Assignment not found.');
     }
     const attachment = await this.prisma.assignmentAttachment.findFirst({
@@ -676,7 +701,7 @@ export class AssignmentsService {
   /** Students see PUBLISHED and CLOSED; `status` may narrow to one of them. */
   private studentStatusFilter(q: ListAssignmentsDto): Prisma.AssignmentWhereInput {
     return {
-      status: { in: q.status ? STUDENT_VISIBLE_STATUSES.filter((s) => s === q.status) : STUDENT_VISIBLE_STATUSES },
+      status: { in: STUDENT_VISIBLE_STATUSES.filter((s) => (q.status ? s === q.status : true) && (q.statuses?.length ? q.statuses.includes(s) : true)) },
     };
   }
 
@@ -773,4 +798,33 @@ function diffFields(
     if (from !== to) changes[field] = { from, to };
   }
   return changes;
+}
+
+/**
+ * The database condition for a student's progress on an assignment, matching
+ * deriveStudentDisplayStatus (student-display-status.ts) and canStudentSubmit: OVERDUE = no
+ * submission and no longer submittable — CLOSED, or past the deadline without late work.
+ */
+export function studentProgressWhere(studentId: string, progress: MyAssignmentProgress, now: Date): Prisma.AssignmentWhereInput {
+  const mine = (statuses: SubmissionStatus[]): Prisma.AssignmentWhereInput =>
+    ({ submissions: { some: { studentId, status: { in: statuses } } } });
+  switch (progress) {
+    case 'NOT_STARTED':            return { submissions: { none: { studentId } } };
+    case 'SUBMITTED':              return mine(['SUBMITTED', 'ASSIGNED']);
+    case 'PENDING_REVIEW':         return mine(['IN_REVIEW', 'MARKED', 'SUBMITTED_TO_ADMIN', 'APPROVED', 'REJECTED']);
+    case 'RESUBMISSION_REQUESTED': return mine(['RESUBMISSION_REQUESTED']);
+    case 'REVIEWED':               return mine(['PUBLISHED']);
+    case 'OVERDUE':
+      return {
+        submissions: { none: { studentId } },
+        OR: [{ status: 'CLOSED' }, { deadline: { lt: now }, allowLateSubmission: false }],
+      };
+  }
+}
+
+/** `status` and `statuses` are alternatives; both together would be ambiguous. */
+function assertOneStatusFilter(q: ListAssignmentsDto) {
+  if (q.status && q.statuses?.length) {
+    throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Use status or statuses, not both.');
+  }
 }

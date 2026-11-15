@@ -15,6 +15,7 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { COURSE_WORK_ROLES, isAdmin, isCourseStaff, isCourseWorker, isStaff, isStudent } from '../common/access/roles.js';
 import {
   Prisma,
   type ReviewEventType,
@@ -25,6 +26,7 @@ import {
 import { Events } from '../notifications/events.js';
 import { validateScore, computePercentage, computePointsAwarded } from './score.utils.js';
 import { DistributionStrategy, OPEN_REVIEW_STATUSES, RESUBMITTABLE } from './submissions.constants.js';
+import { planDistribution } from './distribution-plan.js';
 import {
   adminView,
   mentorView,
@@ -39,9 +41,22 @@ import { AssignSubmissionDto, DistributeSubmissionsDto } from './dto/assign-subm
 import { MarkSubmissionDto } from './dto/mark-submission.dto.js';
 import { ApproveResultDto, RejectResultDto } from './dto/review-result.dto.js';
 import { ReopenResultDto } from './dto/correct-result.dto.js';
-import { ListSubmissionsDto } from './dto/list-submissions.dto.js';
+import { ListSubmissionsDto, type ReviewQueueQueryDto } from './dto/list-submissions.dto.js';
+import { reviewQueueCounts, reviewQueueOrder, reviewQueueStatus } from './review-queue.js';
 import { RequestResubmissionDto } from './dto/request-resubmission.dto.js';
 import { deriveStudentDisplayStatus } from './student-display-status.js';
+
+/**
+ * Advisory-lock namespace of the points cache (others: 4209–4216). Key 0: the
+ * maintenance recompute takes it EXCLUSIVE; every per-student points update
+ * (publish, reopen) takes it SHARED, so they run in parallel with each other but
+ * never interleave with a full recompute.
+ *
+ * Lock order for points writers: (1) this advisory lock, (2) the affected
+ * Submission rows, in id order, (3) the affected students' User rows, in id
+ * order (FOR UPDATE, before their published results are summed).
+ */
+const POINTS_LOCK_NAMESPACE = 4217;
 
 /** @deprecated Import from common/auth-user instead. Kept for compatibility. */
 export type { CallerCtx } from '../common/auth-user.js';
@@ -94,7 +109,14 @@ export class SubmissionsService {
   // STAGE 3 — Student submits / resubmits work
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async submit(data: CreateSubmissionDto, user: AuthUser, files: Express.Multer.File[] = []) {
+  /**
+   * `user` is the student who owns the submission. `actor` is who actually submits:
+   * the student themselves (default), or a Teacher with submissions.submitOnBehalf
+   * for a student of their schools (P1-11). The student stays the owner; the actor
+   * is recorded as the attempt's submitter, the files' uploader and the audit actor.
+   */
+  async submit(data: CreateSubmissionDto, user: AuthUser, files: Express.Multer.File[] = [], actor: AuthUser = user) {
+    const onBehalf = actor.id !== user.id;
     if (files.length === 0 && !data.answerText) {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
@@ -168,7 +190,7 @@ export class SubmissionsService {
     }
 
     const stored: FileObject[] = [];
-    for (const f of files) stored.push(await this.storage.store(f, 'SUBMISSION', user.id));
+    for (const f of files) stored.push(await this.storage.store(f, 'SUBMISSION', actor.id));
     const attempt: Attempt = { fileIds: stored.map((s) => s.id), note: data.note, answerText: data.answerText };
 
     // After a request, the new attempt goes straight back to the requesting
@@ -178,8 +200,8 @@ export class SubmissionsService {
       : null;
 
     const submission = existing
-      ? await this.resubmit(existing, attempt, user, returnTo)
-      : await this.firstSubmit(assignment.id, attempt, isLate, user);
+      ? await this.resubmit(existing, attempt, user, returnTo, actor)
+      : await this.firstSubmit(assignment.id, attempt, isLate, user, actor);
 
     if (returnTo) {
       this.events.emit(Events.SubmissionsAssigned, { assignmentId: assignment.id, byMentor: { [returnTo]: 1 } });
@@ -187,12 +209,13 @@ export class SubmissionsService {
 
     this.activity.record(user.id, existing ? 'SUBMISSION_RESUBMITTED' : 'SUBMISSION_CREATED', {
       courseId: assignment.courseId, entityType: 'Submission', entityId: submission.id,
+      ...(onBehalf && { metadata: { submittedById: actor.id, submittedByRole: actor.role } }),
     });
     this.events.emit(Events.SubmissionReceived, { submissionId: submission.id });
     return studentView(submission);
   }
 
-  private async firstSubmit(assignmentId: string, attempt: Attempt, isLate: boolean, user: AuthUser) {
+  private async firstSubmit(assignmentId: string, attempt: Attempt, isLate: boolean, user: AuthUser, actor: AuthUser = user) {
     try {
       return await this.prisma.$transaction(async (tx) => {
         const now = new Date();
@@ -206,16 +229,19 @@ export class SubmissionsService {
             revisions: {
               create: {
                 revisionNumber: 1, note: attempt.note ?? null, answerText: attempt.answerText ?? null,
-                isLate, submittedById: user.id, submittedAt: now,
+                isLate, submittedById: actor.id, submittedAt: now,
                 attachments: { create: attempt.fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
               },
             },
           },
         });
         await this.audit.log({
-          actorId: user.id, actorRole: user.role,
+          actorId: actor.id, actorRole: actor.role,
           action: 'SUBMIT_ASSIGNMENT', entity: 'Submission', entityId: created.id,
-          metadata: { assignmentId, isLate, files: attempt.fileIds.length, typedAnswer: !!attempt.answerText },
+          metadata: {
+            assignmentId, isLate, files: attempt.fileIds.length, typedAnswer: !!attempt.answerText,
+            ...(actor.id !== user.id && onBehalfMeta(user, attempt)),
+          },
         }, tx);
         return this.load(tx, created.id);
       });
@@ -242,6 +268,7 @@ export class SubmissionsService {
     attempt: Attempt,
     user: AuthUser,
     returnTo: string | null,
+    actor: AuthUser = user,
   ) {
     const requested = existing.status === 'RESUBMISSION_REQUESTED';
     return this.prisma.$transaction(async (tx) => {
@@ -262,14 +289,14 @@ export class SubmissionsService {
 
       if (existing.currentReviewId && !requested) {
         await this.moveReview(tx, existing.currentReviewId, ['ASSIGNED'], { status: 'CANCELLED' },
-          'CANCELLED', user.id, 'Student replaced their work before review started.');
+          'CANCELLED', actor.id, actor.id === user.id ? 'Student replaced their work before review started.' : 'Work replaced on the student\'s behalf before review started.');
       }
 
       const revisionNumber = existing.revisionCount + 2;
       await tx.submissionRevision.create({
         data: {
           submissionId: existing.id, revisionNumber, note: attempt.note ?? null, answerText: attempt.answerText ?? null,
-          submittedById: user.id, submittedAt: now,
+          submittedById: actor.id, submittedAt: now,
           attachments: { create: attempt.fileIds.map((fileId, i) => ({ fileId, sortOrder: i })) },
         },
       });
@@ -280,11 +307,12 @@ export class SubmissionsService {
       }
 
       await this.audit.log({
-        actorId: user.id, actorRole: user.role,
+        actorId: actor.id, actorRole: actor.role,
         action: 'RESUBMIT_ASSIGNMENT', entity: 'Submission', entityId: existing.id,
         metadata: {
           revisionNumber, requested, returnedToMentorId: returnTo,
           ...(!requested && { cancelledReviewId: existing.currentReviewId }),
+          ...(actor.id !== user.id && onBehalfMeta(user, attempt)),
         },
       }, tx);
 
@@ -336,14 +364,15 @@ export class SubmissionsService {
   /** Single submission, projected for the caller's role. Opening a published result is logged. */
   async findOne(submissionId: string, user: AuthUser) {
     const s = await this.loadForCaller(submissionId, user);
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       if (s.status === 'PUBLISHED') {
         this.activity.record(user.id, 'RESULT_VIEWED', { entityType: 'Submission', entityId: s.id });
       }
       return studentView(s);
     }
-    if (user.role === 'MENTOR') return mentorView(s);
-    return adminView(s);
+    if (isCourseWorker(user)) return mentorView(s);
+    if (isAdmin(user)) return adminView(s);
+    throw new NotFoundException('Submission not found.');
   }
 
   /**
@@ -351,18 +380,28 @@ export class SubmissionsService {
    * Admins see all cycles; mentors see only the cycles they did themselves.
    */
   async reviewHistory(submissionId: string, user: AuthUser) {
-    if (user.role === 'STUDENT') throw new NotFoundException('Submission not found.');
+    if (!isCourseStaff(user)) throw new NotFoundException('Submission not found.');
     const sub = await this.prisma.submission.findUnique({ where: { id: submissionId }, select: { id: true } });
     if (!sub) throw new NotFoundException('Submission not found.');
 
-    const reviews = await this.prisma.mentorReview.findMany({
-      where:   { submissionId, ...(user.role === 'MENTOR' && { mentorId: user.id }) },
-      orderBy: { cycle: 'asc' },
-      select:  REVIEW_HISTORY_SELECT,
-    });
-    if (user.role === 'MENTOR' && reviews.length === 0) throw new NotFoundException('Submission not found.');
-    // Mentors never see the administrators' internal coordination note.
-    return user.role === 'MENTOR' ? reviews.map(({ coordinationNote: _internal, ...r }) => r) : reviews;
+    if (isCourseWorker(user)) {
+      const reviews = await this.prisma.mentorReview.findMany({
+        where:   { submissionId, mentorId: user.id },
+        orderBy: { cycle: 'asc' },
+        select:  REVIEW_HISTORY_SELECT,
+      });
+      if (reviews.length === 0) throw new NotFoundException('Submission not found.');
+      // Mentors never see the administrators' internal coordination note.
+      return reviews.map(({ coordinationNote: _internal, ...r }) => r);
+    }
+    if (isAdmin(user)) {
+      return this.prisma.mentorReview.findMany({
+        where:   { submissionId },
+        orderBy: { cycle: 'asc' },
+        select:  REVIEW_HISTORY_SELECT,
+      });
+    }
+    throw new NotFoundException('Submission not found.');
   }
 
   /**
@@ -388,7 +427,7 @@ export class SubmissionsService {
       attempts:      s.revisions,
       resubmissionRequests: events.map((e) => ({
         type: e.type, note: e.note, at: e.createdAt,
-        ...(user.role !== 'STUDENT' && { by: e.actor }),
+        ...(isStaff(user) && { by: e.actor }),
       })),
       openRequest: s.status === 'RESUBMISSION_REQUESTED'
         ? { note: s.resubmissionNote, dueAt: s.resubmissionDueAt, requestedAt: s.resubmissionRequestedAt }
@@ -396,21 +435,50 @@ export class SubmissionsService {
     };
   }
 
-  /** MENTOR: submissions whose current review is mine (including ones awaiting a requested resubmission). */
-  async getReviewQueue(user: AuthUser, q: ListSubmissionsDto) {
+  /**
+   * MENTOR: submissions whose current review is mine (including ones awaiting a requested resubmission).
+   *
+   * Scope: only the caller's own reviews (`currentReview.mentorId`); every filter below can only
+   * narrow that. `courseId` / `divisionId` select one of the coach's course × division scopes (M3:
+   * they used to be ignored). Search, status group, sort and pagination run in the database (M2: the
+   * frontend loaded 100 rows and filtered in the browser). `counts` (open / done / all) cover the same
+   * scope without the search or status filter, for the page's totals.
+   */
+  async getReviewQueue(user: AuthUser, q: ReviewQueueQueryDto) {
     const { page, limit, skip, take } = pageArgs(q);
-    const where: Prisma.SubmissionWhereInput = {
+    const scope: Prisma.SubmissionWhereInput = {
       currentReview: { mentorId: user.id },
       ...(q.assignmentId && { assignmentId: q.assignmentId }),
-      status: q.status ?? {
-        in: ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED', 'SUBMITTED_TO_ADMIN', 'RESUBMISSION_REQUESTED'],
-      },
+      ...((q.courseId || q.divisionId) && {
+        assignment: {
+          ...(q.courseId   && { courseId: q.courseId }),
+          ...(q.divisionId && { divisionId: q.divisionId }),
+        },
+      }),
     };
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.submission.findMany({ where, include: SUBMISSION_INCLUDE, orderBy: { submittedAt: 'asc' }, skip, take }),
+    const status = reviewQueueStatus(q);
+    const where: Prisma.SubmissionWhereInput = {
+      ...scope,
+      ...(status && { status }),
+      ...(q.q && {
+        student: {
+          OR: [
+            { firstName: { contains: q.q, mode: 'insensitive' } },
+            { lastName:  { contains: q.q, mode: 'insensitive' } },
+            { username:  { contains: q.q, mode: 'insensitive' } },
+          ],
+        },
+      }),
+    };
+    const [rows, total, byStatus] = await this.prisma.$transaction([
+      this.prisma.submission.findMany({ where, include: SUBMISSION_INCLUDE, orderBy: reviewQueueOrder(q.sort), skip, take }),
       this.prisma.submission.count({ where }),
+      this.prisma.submission.groupBy({ by: ['status'], where: scope, orderBy: { status: 'asc' }, _count: { _all: true } }),
     ]);
-    return paginated(rows.map((s) => mentorView(s as unknown as SubmissionWithRelations)), total, page, limit);
+    return {
+      ...paginated(rows.map((s) => mentorView(s as unknown as SubmissionWithRelations)), total, page, limit),
+      counts: reviewQueueCounts(byStatus.map((g) => ({ status: g.status, count: (g._count as { _all: number })._all }))),
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -483,7 +551,7 @@ export class SubmissionsService {
     const eligible = await this.prisma.mentorAssignment.findMany({
       where: {
         courseId: assignment.courseId, divisionId: assignment.divisionId, isActive: true,
-        mentor: { isActive: true, isApproved: true, role: 'MENTOR' },
+        mentor: { isActive: true, isApproved: true, role: { in: [...COURSE_WORK_ROLES] } },
         ...(body.mentorIds && { mentorId: { in: body.mentorIds } }),
       },
       select:  { mentorId: true },
@@ -503,9 +571,13 @@ export class SubmissionsService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const pending = await tx.submission.findMany({
-        where: { assignmentId, status: 'SUBMITTED' }, orderBy: { submittedAt: 'asc' }, select: { id: true },
-      });
+      // The unassigned submissions, oldest first, locked: a concurrent assignment or withdrawal
+      // either committed before (the row is re-checked and left out) or waits for this run.
+      const pending = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "Submission"
+         WHERE "assignmentId" = ${assignmentId} AND "status" = 'SUBMITTED'
+         ORDER BY "submittedAt" ASC NULLS LAST, "id" ASC
+           FOR UPDATE`;
 
       // Current open workload per mentor (across all assignments).
       const loads = new Map<string, number>(mentorIds.map((id) => [id, 0]));
@@ -519,23 +591,16 @@ export class SubmissionsService {
         data: { assignmentId, strategy, createdById: user.id },
       });
 
-      const byMentor: Record<string, number> = {};
-      let turn = 0;
-      for (const s of pending) {
-        const mentorId = strategy === DistributionStrategy.ROUND_ROBIN
-          ? mentorIds[turn++ % mentorIds.length]
-          : [...loads.entries()].sort((a, b) => a[1] - b[1])[0][0];
-
-        const { count } = await tx.submission.updateMany({
-          where: { id: s.id, status: 'SUBMITTED' }, data: { status: 'ASSIGNED' },
-        });
-        if (count === 0) continue;
-        await this.startCycle(tx, s.id, mentorId, user.id, 'ASSIGNED', batch.id);
-        loads.set(mentorId, (loads.get(mentorId) ?? 0) + 1);
-        byMentor[mentorId] = (byMentor[mentorId] ?? 0) + 1;
+      const plan = planDistribution(pending.map((p) => p.id), mentorIds, loads, strategy);
+      // Set-based (PERF-03): one statement creates every review cycle, points each submission at it
+      // and records the ASSIGNED events — instead of 5 statements per submission.
+      const distributed = await this.assignCycles(tx, plan, user.id, batch.id);
+      if (distributed !== plan.length) {
+        throw invalidState('Some submissions changed while they were being distributed; nothing was distributed. Try again.');
       }
+      const byMentor: Record<string, number> = {};
+      for (const { mentorId } of plan) byMentor[mentorId] = (byMentor[mentorId] ?? 0) + 1;
 
-      const distributed = Object.values(byMentor).reduce((a, b) => a + b, 0);
       await tx.distributionBatch.update({ where: { id: batch.id }, data: { assignedCount: distributed } });
       await this.audit.log({
         actorId: user.id, actorRole: user.role,
@@ -827,6 +892,7 @@ export class SubmissionsService {
     const previous = sub.publishedReview;
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      await this.lockPointsShared(tx);
       const { count } = await tx.submission.updateMany({
         where: { id: submissionId, status: 'PUBLISHED' },
         data:  { status: 'REJECTED', publishedReviewId: null, pointsAwarded: 0, publishedAt: null, resultReleaseId: null },
@@ -849,7 +915,7 @@ export class SubmissionsService {
       return this.load(tx, submissionId);
     });
 
-    this.events.emit(Events.ResultReopened, { submissionId, reason: body.reopenNote });
+    this.events.emit(Events.ResultReopened, { submissionId, reason: body.reopenNote, previousReviewId: previous.id });
     return { ...adminView(updated), previousScore: previous.score };
   }
 
@@ -886,10 +952,10 @@ export class SubmissionsService {
    */
   async serveFeedbackFile(submissionId: string, user: AuthUser, res: Response, attachmentId?: string) {
     const s = await this.loadForCaller(submissionId, user);
-    if (user.role === 'STUDENT' && s.status !== 'PUBLISHED') {
+    if (isStudent(user) && s.status !== 'PUBLISHED') {
       throw new AppError(HttpStatus.FORBIDDEN, 'RESULT_NOT_PUBLISHED', 'Feedback is available once results are published.');
     }
-    const review = user.role === 'STUDENT' ? s.publishedReview : (s.currentReview ?? s.publishedReview);
+    const review = isStaff(user) ? (s.currentReview ?? s.publishedReview) : s.publishedReview;
     const attachment = review?.attachments.find((a) => (attachmentId ? a.id === attachmentId : true));
     if (!attachment) throw new NotFoundException('No feedback file attached to this result.');
 
@@ -901,30 +967,66 @@ export class SubmissionsService {
   // Points
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Rebuild every student's cached points from published results (maintenance). */
+  /**
+   * Rebuild every student's cached points from published results (maintenance).
+   *
+   * One set-based statement (M6): the published results are summed per student in a single grouped
+   * scan and only students whose cached values differ are written — seconds for 100,000 students
+   * instead of one transaction per student inside the request (which outlived the proxy timeout).
+   * Runs under an advisory lock, so a second click waits and then finds nothing left to change.
+   * `recomputed` = students checked; `changed` = students whose points or count were corrected.
+   */
   async recomputeAllPoints(user: AuthUser) {
-    const students = await this.prisma.user.findMany({ where: { role: 'STUDENT' }, select: { id: true } });
-    for (const s of students) {
-      await this.prisma.$transaction((tx) => this.recomputeStudentPoints(tx, s.id));
-    }
+    const { students, changed } = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${POINTS_LOCK_NAMESPACE}::int, 0)::text`;
+      const students = await tx.user.count({ where: { role: 'STUDENT' } });
+      const changed = await tx.$executeRaw`
+        WITH totals AS (
+          SELECT "studentId", COALESCE(SUM("pointsAwarded"), 0)::int AS points, COUNT(*)::int AS solved
+            FROM "Submission"
+           WHERE "status" = 'PUBLISHED'
+           GROUP BY "studentId"
+        )
+        UPDATE "User" AS u
+           SET "points" = COALESCE(t.points, 0), "problemsSolved" = COALESCE(t.solved, 0)
+          FROM "User" AS s
+          LEFT JOIN totals AS t ON t."studentId" = s."id"
+         WHERE u."id" = s."id"
+           AND s."role" = 'STUDENT'
+           AND (u."points" <> COALESCE(t.points, 0) OR u."problemsSolved" <> COALESCE(t.solved, 0))`;
+      return { students, changed };
+    }, { maxWait: 10_000, timeout: 120_000 });
     await this.audit.log({
       actorId: user.id, actorRole: user.role,
-      action: 'RECOMPUTE_POINTS', entity: 'User', metadata: { students: students.length },
+      action: 'RECOMPUTE_POINTS', entity: 'User', metadata: { students, changed },
     });
-    return { recomputed: students.length };
+    return { recomputed: students, changed };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Private helpers
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Publish the given APPROVED submissions of one assignment as a ResultRelease. */
+  /**
+   * Publish the given APPROVED submissions of one assignment as a ResultRelease.
+   *
+   * Set-based (PERF-02): a fixed number of statements whatever the size of the release, instead of
+   * ~6 per result (a large release outlived the 60 s transaction). Same guarantees:
+   *   - points lock order (POINTS_LOCK_NAMESPACE): shared advisory lock, then the release's
+   *     Submission rows locked in id order, then the students' User rows locked in id order
+   *     before their published results are summed;
+   *   - conditional transitions: only submissions still APPROVED are published, and each one's
+   *     current review must still be APPROVED (otherwise the whole release is refused, as before);
+   *   - a PUBLISHED review event per result, the release record with its count, the audit entry.
+   */
   private async release(assignmentId: string, ids: string[], user: AuthUser, note?: string) {
     if (ids.length === 0) return { published: [] as string[], releaseId: null };
 
     const out = await this.prisma.$transaction(async (tx) => {
+      await this.lockPointsShared(tx);
       const subs = await tx.submission.findMany({
         where:  { id: { in: ids }, assignmentId, status: 'APPROVED' },
+        orderBy: { id: 'asc' },   // rows are then locked and updated in a consistent order
         select: {
           id: true, studentId: true, currentReviewId: true,
           currentReview: { select: { score: true } },
@@ -937,28 +1039,58 @@ export class SubmissionsService {
         data: { assignmentId, publishedById: user.id, resultCount: 0, note: note ?? null },
       });
 
-      const done: string[] = [];
       const now = new Date();
-      for (const s of subs) {
-        if (!s.currentReviewId) continue;
-        const pointsAwarded = computePointsAwarded(s.currentReview?.score ?? 0, s.assignment.maximumMarks, s.assignment.points);
-        const { count } = await tx.submission.updateMany({
-          where: { id: s.id, status: 'APPROVED' },
-          data:  {
-            status: 'PUBLISHED', publishedAt: now, pointsAwarded,
-            publishedReviewId: s.currentReviewId, resultReleaseId: releaseRow.id,
-          },
-        });
-        if (count === 0) continue;
-        await this.moveReview(tx, s.currentReviewId, ['APPROVED'], { status: 'PUBLISHED', publishedAt: now },
-          'PUBLISHED', user.id, null);
-        done.push(s.id);
+      const ready = subs.filter((s) => !!s.currentReviewId);
+      const rowIds  = ready.map((s) => s.id);
+      const reviews = ready.map((s) => s.currentReviewId!);
+      const points  = ready.map((s) => computePointsAwarded(s.currentReview?.score ?? 0, s.assignment.maximumMarks, s.assignment.points));
+
+      let done: string[] = [];
+      if (ready.length) {
+        // (2) The release's submissions, locked in id order; then one conditional update.
+        await tx.$queryRaw`SELECT 1 FROM "Submission" WHERE "id" = ANY(${rowIds}::text[]) ORDER BY "id" FOR UPDATE`;
+        const published = await tx.$queryRaw<Array<{ id: string; reviewId: string }>>`
+          UPDATE "Submission" AS s
+             SET "status" = 'PUBLISHED', "publishedAt" = ${now}::timestamp(3), "pointsAwarded" = v."points",
+                 "publishedReviewId" = v."reviewId", "resultReleaseId" = ${releaseRow.id}, "updatedAt" = ${now}::timestamp(3)
+            FROM unnest(${rowIds}::text[], ${reviews}::text[], ${points}::int[]) AS v("id", "reviewId", "points")
+           WHERE s."id" = v."id" AND s."status" = 'APPROVED'
+          RETURNING s."id", v."reviewId"`;
+        const publishedIds = new Set(published.map((p) => p.id));
+        done = rowIds.filter((id) => publishedIds.has(id));   // id order
+        const doneReviews = published.map((p) => p.reviewId);
+
+        // Each published result's review: APPROVED → PUBLISHED, with its history event.
+        const moved = await tx.$queryRaw<Array<{ id: string }>>`
+          WITH moved AS (
+            UPDATE "MentorReview" SET "status" = 'PUBLISHED', "publishedAt" = ${now}::timestamp(3), "updatedAt" = ${now}::timestamp(3)
+             WHERE "id" = ANY(${doneReviews}::text[]) AND "status" = 'APPROVED'
+            RETURNING "id"
+          ), events AS (
+            INSERT INTO "ReviewEvent" ("id", "reviewId", "type", "actorId", "note", "score", "createdAt")
+            SELECT gen_random_uuid()::text, m."id", 'PUBLISHED'::"ReviewEventType", ${user.id}, NULL, NULL, ${now}::timestamp(3) FROM moved AS m
+            RETURNING 1
+          )
+          SELECT "id" FROM moved`;
+        if (moved.length !== doneReviews.length) {
+          const movedIds = new Set(moved.map((m) => m.id));
+          const stuck = doneReviews.find((r) => !movedIds.has(r));
+          const current = await tx.mentorReview.findUnique({ where: { id: stuck }, select: { status: true } });
+          throw invalidState(
+            `This action requires review status APPROVED; the review is "${current?.status}".`,
+            { currentReviewStatus: current?.status, allowedFrom: ['APPROVED'] },
+          );
+        }
       }
 
       await tx.resultRelease.update({ where: { id: releaseRow.id }, data: { resultCount: done.length } });
+      // The assignment records when its results were (last) released to students.
+      if (done.length) await tx.assignment.update({ where: { id: assignmentId }, data: { resultsPublishedAt: now } });
 
-      const students = [...new Set(subs.filter((s) => done.includes(s.id)).map((s) => s.studentId))];
-      for (const studentId of students) await this.recomputeStudentPoints(tx, studentId);
+      // (3) Students in id order: two releases sharing students lock them in the same order (no deadlock).
+      const doneSet = new Set(done);
+      const students = [...new Set(subs.filter((s) => doneSet.has(s.id)).map((s) => s.studentId))].sort();
+      await this.recomputePointsOf(tx, students);
 
       await this.audit.log({
         actorId: user.id, actorRole: user.role,
@@ -972,8 +1104,73 @@ export class SubmissionsService {
     return out;
   }
 
-  /** User.points / problemsSolved are a cache of published results. */
+  /**
+   * recomputeStudentPoints for many students in two statements: their User rows are locked in id
+   * order (FOR UPDATE), THEN their published results are summed — a new statement, so it sees every
+   * publication that committed while this one waited for a lock — and written.
+   */
+  private async recomputePointsOf(tx: Tx, studentIds: string[]) {
+    if (studentIds.length === 0) return;
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ANY(${studentIds}::text[]) ORDER BY "id" FOR UPDATE`;
+    await tx.$executeRaw`
+      UPDATE "User" AS u
+         SET "points" = t."points", "problemsSolved" = t."solved", "updatedAt" = ${new Date()}::timestamp(3)
+        FROM (SELECT ids."id", COALESCE(SUM(s."pointsAwarded"), 0)::int AS "points", COUNT(s."id")::int AS "solved"
+                FROM unnest(${studentIds}::text[]) AS ids("id")
+                LEFT JOIN "Submission" AS s ON s."studentId" = ids."id" AND s."status" = 'PUBLISHED'
+               GROUP BY ids."id") AS t
+       WHERE u."id" = t."id"`;
+  }
+
+  /**
+   * Distribution in one statement: for each planned (submission, coach) a new review cycle
+   * (ASSIGNED, cycle = previous + 1, in the batch), the submission ASSIGNED with it as its current
+   * review (only while still SUBMITTED), and an ASSIGNED event. Returns the submissions assigned.
+   */
+  private async assignCycles(tx: Tx, plan: Array<{ submissionId: string; mentorId: string }>, actorId: string, batchId: string) {
+    if (plan.length === 0) return 0;
+    const now = new Date();
+    const [row] = await tx.$queryRaw<Array<{ assigned: number }>>`
+      WITH v AS (
+        SELECT * FROM unnest(${plan.map((p) => p.submissionId)}::text[], ${plan.map((p) => p.mentorId)}::text[]) AS v("submissionId", "mentorId")
+      ), cycles AS (
+        INSERT INTO "MentorReview" ("id", "submissionId", "cycle", "mentorId", "status", "assignedById", "distributionBatchId",
+                                    "assignedAt", "createdAt", "updatedAt")
+        SELECT gen_random_uuid()::text, v."submissionId",
+               COALESCE((SELECT max(r."cycle") FROM "MentorReview" AS r WHERE r."submissionId" = v."submissionId"), 0) + 1,
+               v."mentorId", 'ASSIGNED'::"ReviewStatus", ${actorId}, ${batchId},
+               ${now}::timestamp(3), ${now}::timestamp(3), ${now}::timestamp(3)
+          FROM v
+        RETURNING "id", "submissionId"
+      ), assigned AS (
+        UPDATE "Submission" AS s SET "status" = 'ASSIGNED', "currentReviewId" = c."id", "updatedAt" = ${now}::timestamp(3)
+          FROM cycles AS c
+         WHERE s."id" = c."submissionId" AND s."status" = 'SUBMITTED'
+        RETURNING s."id"
+      ), events AS (
+        INSERT INTO "ReviewEvent" ("id", "reviewId", "type", "actorId", "note", "score", "createdAt")
+        SELECT gen_random_uuid()::text, c."id", 'ASSIGNED'::"ReviewEventType", ${actorId}, NULL, NULL, ${now}::timestamp(3) FROM cycles AS c
+        RETURNING 1
+      )
+      SELECT (SELECT count(*) FROM assigned)::int AS "assigned"`;
+    return row.assigned;
+  }
+
+  /** Shared side of the points lock (see POINTS_LOCK_NAMESPACE); the full recompute takes it exclusively. */
+  private async lockPointsShared(tx: Tx) {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock_shared(${POINTS_LOCK_NAMESPACE}::int, 0)::text`;
+  }
+
+  /**
+   * User.points / problemsSolved are a cache of published results. The student's
+   * row is locked first: a concurrent transaction that changes the same student's
+   * published results then commits before this one sums them (READ COMMITTED: the
+   * aggregate below is a new statement, so it sees that commit). Without the lock
+   * the sum could miss the other transaction's results and overwrite its total.
+   * Callers lock several students in id order.
+   */
   private async recomputeStudentPoints(tx: Tx, studentId: string) {
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${studentId} FOR UPDATE`;
     const agg = await tx.submission.aggregate({
       where:  { studentId, status: 'PUBLISHED' },
       _sum:   { pointsAwarded: true },
@@ -1054,9 +1251,9 @@ export class SubmissionsService {
     const s = (await this.prisma.submission.findUnique({ where: { id }, include: SUBMISSION_INCLUDE })) as unknown as SubmissionWithRelations | null;
     const allowed =
       s &&
-      (user.role === 'ADMIN' ||
-        (user.role === 'STUDENT' && s.studentId === user.id) ||
-        (user.role === 'MENTOR' && s.currentReview?.mentor.id === user.id));
+      (isAdmin(user) ||
+        (isStudent(user) && s.studentId === user.id) ||
+        (isCourseWorker(user) && s.currentReview?.mentor.id === user.id));
     if (!allowed) throw new NotFoundException('Submission not found.');
     return s;
   }
@@ -1086,7 +1283,7 @@ export class SubmissionsService {
 
   /** The caller must be the mentor of the current review cycle. Returns its id. */
   private requireAssignedMentor(sub: { currentReview: { id: string; mentorId: string } | null }, user: AuthUser) {
-    if (user.role !== 'MENTOR' || sub.currentReview?.mentorId !== user.id) {
+    if (!isCourseWorker(user) || sub.currentReview?.mentorId !== user.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_MENTOR', 'This submission is not assigned to you.');
     }
     return sub.currentReview.id;
@@ -1108,7 +1305,8 @@ export class SubmissionsService {
       select: { role: true, isActive: true, isApproved: true },
     });
     if (!user) throw new NotFoundException('Coach not found.');
-    if (user.role !== 'MENTOR') {
+    // Coaches, and Head Coaches with an Administrator-created assignment in this scope (H4, checked below).
+    if (!(COURSE_WORK_ROLES as readonly string[]).includes(user.role)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Selected user is not a coach.');
     }
     if (!user.isActive || !user.isApproved) {
@@ -1122,4 +1320,9 @@ export class SubmissionsService {
       );
     }
   }
+}
+
+/** Audit metadata of an attempt made on a student's behalf (P1-11): who it is for, and which files. */
+function onBehalfMeta(student: AuthUser, attempt: Attempt) {
+  return { onBehalfOf: student.id, studentId: student.id, fileIds: attempt.fileIds };
 }

@@ -10,7 +10,9 @@ export interface CsvRecord {
   values: Record<string, string>;
 }
 
-export function parseCsv(text: string): { headers: string[]; records: CsvRecord[] } {
+/** `trimValues: false` keeps every value exactly as written (the directory sync keeps raw source cells). */
+export function parseCsv(text: string, opts: { trimValues?: boolean } = {}): { headers: string[]; records: CsvRecord[] } {
+  const trimValues = opts.trimValues ?? true;
   const rows: Array<{ line: number; cells: string[] }> = [];
   let cells: string[] = [];
   let field = '';
@@ -52,7 +54,7 @@ export function parseCsv(text: string): { headers: string[]; records: CsvRecord[
   const headers = rows[0].cells.map((h) => h.trim());
   const records = rows.slice(1).map((r) => ({
     line:   r.line,
-    values: Object.fromEntries(headers.map((h, i) => [h, (r.cells[i] ?? '').trim()])),
+    values: Object.fromEntries(headers.map((h, i) => [h, trimValues ? (r.cells[i] ?? '').trim() : (r.cells[i] ?? '')])),
   }));
   return { headers, records };
 }

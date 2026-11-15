@@ -74,6 +74,31 @@ export class AccountEmailsService {
     });
   }
 
+  /**
+   * Super Admin security notice (plan §8.2, AS1/AS2): sent to EVERY active Super
+   * Admin when the set of Super Admins changes (promotion, demotion, bootstrap,
+   * break-glass). Names the account and the action only — never credentials.
+   */
+  async superAdminChanged(change: { action: string; targetUsername: string; actorUsername: string | null; reason?: string }) {
+    await this.safe('super admin notice', async () => {
+      const recipients = await this.prisma.user.findMany({
+        where:  { role: 'SUPER_ADMIN', isActive: true },
+        select: { id: true, email: true, firstName: true },
+      });
+      for (const r of recipients) {
+        await this.notifications.queueEmail(
+          r.email,
+          'Super Administrator change',
+          `Security notice: ${change.action} for the account "${change.targetUsername}"` +
+            (change.actorUsername ? ` by "${change.actorUsername}"` : ' (operator command)') + '.' +
+            (change.reason ? `\n\nReason recorded: ${change.reason}` : '') +
+            '\n\nIf you did not expect this change, review the audit log immediately.',
+          { firstName: r.firstName, recipientId: r.id, link: '/admin/audit', actionLabel: 'Open the audit log' },
+        );
+      }
+    });
+  }
+
   private user(id: string) {
     return this.prisma.user.findUnique({
       where:  { id },

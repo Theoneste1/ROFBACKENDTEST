@@ -14,6 +14,10 @@
  *
  * Unexpected errors are logged with the request id and returned as a generic
  * 500 — internal details never reach the client.
+ *
+ * The database's school-affiliation invariants (M10 triggers) are reported as 409
+ * with their code and a generic message (the database message, which names the
+ * student, is logged, not returned).
  */
 import {
   ArgumentsHost,
@@ -49,6 +53,10 @@ const STATUS_CODES: Record<number, string> = {
   503: 'SERVICE_UNAVAILABLE',
 };
 
+/** Raised by the M10 triggers (per statement); the application keeps both invariants itself, so
+ *  reaching one means a write bypassed SchoolAffiliationService. */
+const AFFILIATION_INTEGRITY = /\b(AFFILIATION_ONE_CURRENT|AFFILIATION_SCHOOL_MISMATCH)\b/;
+
 function reason(status: number): string {
   const name = HttpStatus[status];
   if (!name) return 'Error';
@@ -69,6 +77,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>();
 
     const body = this.toBody(exception);
+    if (body.code === 'AFFILIATION_ONE_CURRENT' || body.code === 'AFFILIATION_SCHOOL_MISMATCH') {
+      this.logger.warn(`[${req.id ?? '-'}] ${req.method} ${req.originalUrl} → ${body.statusCode} ${(exception as Error).message}`);
+    }
 
     if (body.statusCode >= 500) {
       this.logger.error(
@@ -83,6 +94,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
 
+    // A busy database is temporary: tell clients when to try again.
+    if (body.code === 'DATABASE_BUSY') res.setHeader?.('Retry-After', '2');
+
     res.status(body.statusCode).json({
       ...body,
       requestId: req.id,
@@ -94,6 +108,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private toBody(exception: unknown): ErrorBody {
     if (exception instanceof HttpException) {
       return this.fromHttpException(exception);
+    }
+    // Before the Prisma mapping: the driver may wrap the trigger error in any Prisma error class.
+    const integrity = exception instanceof Error ? AFFILIATION_INTEGRITY.exec(exception.message) : null;
+    if (integrity) {
+      return {
+        statusCode: 409,
+        error:      'Conflict',
+        code:       integrity[1],
+        message:    integrity[1] === 'AFFILIATION_ONE_CURRENT'
+          ? 'A student can have only one current school claim; nothing was changed.'
+          : "The student's current school claim must be for the student's school; nothing was changed.",
+      };
     }
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       return this.fromPrismaError(exception);
@@ -163,6 +189,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
           error:      'Conflict',
           code:       'REFERENCE_CONSTRAINT',
           message:    'The operation conflicts with related records.',
+        };
+      // "Unable to start a transaction in the given time": every pooled connection stayed busy for
+      // longer than the transaction may wait. Temporary, nothing was changed: 503, retry later.
+      case 'P2028':
+        return {
+          statusCode: 503,
+          error:      'Service Unavailable',
+          code:       'DATABASE_BUSY',
+          message:    'The server is busy. Nothing was changed; please try again in a moment.',
         };
       default:
         return {

@@ -198,6 +198,51 @@ export class EmailService {
     return paginated(rows, total, page, limit);
   }
 
+  /** All deliveries (transactional and bulk), newest first, without bodies. */
+  async listAllDeliveries(q: PaginationQueryDto & { status?: EmailDeliveryStatus; kind?: 'TRANSACTIONAL' | 'BULK' }) {
+    const { page, limit, skip, take } = pageArgs(q);
+    const where = {
+      ...(q.status && { status: q.status }),
+      ...(q.kind === 'TRANSACTIONAL' && { jobId: null }),
+      ...(q.kind === 'BULK' && { jobId: { not: null } }),
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.emailDelivery.findMany({
+        where, skip, take,
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        select: {
+          id: true, jobId: true, recipientEmail: true, recipientId: true, subject: true, status: true,
+          attempts: true, errorMessage: true, attemptedAt: true, createdAt: true,
+        },
+      }),
+      this.prisma.emailDelivery.count({ where }),
+    ]);
+    return paginated(rows.map((r) => ({ ...r, kind: r.jobId ? 'BULK' : 'TRANSACTIONAL' })), total, page, limit);
+  }
+
+  /** Re-queue one FAILED delivery; its job's counters are refreshed. Conditional, so a double click re-queues once. */
+  async retryDelivery(id: string, caller: CallerCtx) {
+    const d = await this.prisma.emailDelivery.findUnique({ where: { id }, select: { id: true, jobId: true, status: true, body: true, html: true } });
+    if (!d) throw new NotFoundException('Delivery not found.');
+    // One-time links (activation, password reset) are never kept: such an e-mail cannot be re-sent
+    // as it was — the administrator sends a new link (resend invitation / password reset) instead.
+    if (d.status === 'FAILED' && d.body === null && d.html === null) {
+      throw new AppError(HttpStatus.CONFLICT, 'CONTENT_NOT_KEPT',
+        'This e-mail contained a one-time link and was not kept. Send a new invitation or password-reset link instead.');
+    }
+    const { count } = await this.prisma.emailDelivery.updateMany({
+      where: { id, status: 'FAILED' },
+      data:  { status: 'PENDING', attempts: 0, nextAttemptAt: new Date(), errorMessage: null, lockedAt: null },
+    });
+    if (count === 0) throw invalidState(`Only FAILED deliveries can be retried. Current: "${d.status}".`);
+    if (d.jobId) await this.worker.refreshJob(d.jobId);
+    await this.audit.log({
+      actorId: caller.id, actorRole: caller.role,
+      action: 'RETRY_EMAIL_DELIVERY', entity: 'EmailDelivery', entityId: id, metadata: { jobId: d.jobId },
+    });
+    return { message: 'Retry enqueued.', deliveryId: id };
+  }
+
   async listJobs(q: PaginationQueryDto) {
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total] = await this.prisma.$transaction([

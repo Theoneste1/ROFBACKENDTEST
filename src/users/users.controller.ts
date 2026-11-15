@@ -27,13 +27,14 @@ import {
   UpdateUserStatusDto,
 } from './dto/update-user.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
-import { permissionsFor } from '../auth/permissions.js';
+import { PermissionService } from '../auth/permission.service.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Admin · Users')
 @Controller('admin/users')
-@Roles('ADMIN')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
@@ -42,12 +43,14 @@ export class UsersController {
 
   /** List users with filters (role, division, grade, school, status, search). */
   @Get()
+  @RequirePermission('users.manage')
   findAll(@Query() query: ListUsersQueryDto) {
     return this.usersService.findAll(query);
   }
 
   /** Create a student, mentor or admin directly. Students require a gradeLevel. */
   @Post()
+  @RequirePermission('users.manage')
   create(@Body() body: CreateUserDto, @CurrentUser() user: AuthUser) {
     return this.usersService.create(body, user);
   }
@@ -57,6 +60,7 @@ export class UsersController {
    * activation link (valid 7 days) is e-mailed. Students need a gradeLevel.
    */
   @Post('invite')
+  @RequirePermission('users.manage')
   invite(@Body() body: InviteUserDto, @CurrentUser() user: AuthUser) {
     return this.provisioning.invite(body, user);
   }
@@ -70,6 +74,7 @@ export class UsersController {
   @HttpCode(200)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_MAX_BYTES, files: 1 } }))
+  @RequirePermission('users.manage')
   import(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Query() query: ImportUsersQueryDto,
@@ -79,11 +84,13 @@ export class UsersController {
   }
 
   @Get(':id')
+  @RequirePermission('users.manage')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
+  @RequirePermission('users.manage')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateUserDto,
@@ -95,6 +102,7 @@ export class UsersController {
   /** Send a new activation link to an invited account that has not activated yet. */
   @Post(':id/resend-invitation')
   @HttpCode(200)
+  @RequirePermission('users.manage')
   resendInvitation(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.provisioning.resendInvitation(id, user);
   }
@@ -102,12 +110,14 @@ export class UsersController {
   /** E-mail the user a password-reset link. */
   @Post(':id/send-password-reset')
   @HttpCode(200)
+  @RequirePermission('users.manage')
   sendPasswordReset(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.provisioning.sendPasswordReset(id, user);
   }
 
   /** Suspend/reactivate (`isActive`) or approve (`isApproved`) an account. */
   @Patch(':id/status')
+  @RequirePermission('users.manage')
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateUserStatusDto,
@@ -118,6 +128,7 @@ export class UsersController {
 
   /** Only accounts without academic history can be deleted; suspend the others. */
   @Delete(':id')
+  @RequirePermission('users.manage')
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.usersService.delete(id, user);
   }
@@ -126,23 +137,29 @@ export class UsersController {
 @ApiTags('Me')
 @Controller('me')
 export class MeController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly permissionService: PermissionService,
+  ) {}
 
   /** The current user's profile, division and school. */
   @Get()
+  @Authenticated()
   getMe(@CurrentUser() user: AuthUser) {
     return this.usersService.getMe(user.id);
   }
 
   @Patch()
+  @Authenticated()
   updateMe(@CurrentUser() user: AuthUser, @Body() body: UpdateMeDto) {
     return this.usersService.updateMe(user.id, body);
   }
 
   /** What the current user's role may do (for showing/hiding UI). */
   @Get('permissions')
+  @Authenticated()
   permissions(@CurrentUser() user: AuthUser) {
-    return { role: user.role, permissions: permissionsFor(user.role) };
+    return this.permissionService.describe(user);
   }
 
   /** The current student's enrolment history (one row per academic year). */

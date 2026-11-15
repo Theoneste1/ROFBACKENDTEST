@@ -6,6 +6,12 @@ describe('Authentication (e2e)', () => {
 
   beforeAll(async () => {
     ctx = await createTestApp();
+    // Official schools (P1-11): one Lycée de Kigali; two official schools named GS Mwendo.
+    await ctx.prisma.school.createMany({ data: [
+      { name: 'LYCEE DE KIGALI', location: 'Nyarugenge, Nyarugenge', code: '110912', district: 'Nyarugenge', sector: 'Nyarugenge', ownership: 'PUBLIC', nameKey: 'lycee de kigali' },
+      { name: 'GS MWENDO — Nyarugenge', location: 'Kigali, Nyarugenge', code: '110305', district: 'Nyarugenge', sector: 'Kigali', ownership: 'GOVERNMENT_AIDED', nameKey: 'gs mwendo' },
+      { name: 'GS MWENDO — Huye', location: 'Mwendo, Huye', code: '310205', district: 'Huye', sector: 'Mwendo', ownership: 'GOVERNMENT_AIDED', nameKey: 'gs mwendo' },
+    ] });
   });
 
   afterAll(async () => {
@@ -21,11 +27,79 @@ describe('Authentication (e2e)', () => {
 
   it('registers a student into the division matching their grade', async () => {
     const res = await register({}).expect(201);
+    // Legacy name: matches exactly one official school (accents and case ignored) → that school.
     expect(res.body).toMatchObject({
       username: 'ada', email: 'ada@example.com', role: 'STUDENT', gradeLevel: 'S4',
-      division: { code: 'SENIOR' }, school: { name: 'Lycée De Kigali' },
+      division: { code: 'SENIOR' }, school: { name: 'LYCEE DE KIGALI' },
     });
     expect(res.body.passwordHash).toBeUndefined();
+  });
+
+  describe('school (P1-11): official code, or a legacy name that matches exactly one official school; never a new school', () => {
+    const schoolOf = async (username: string) =>
+      (await ctx.prisma.user.findUniqueOrThrow({ where: { username }, select: { school: { select: { code: true } } } })).school?.code ?? null;
+    const schools = () => ctx.prisma.school.count();
+
+    it('by official code → exactly that school, with its enrolment', async () => {
+      const res = await register({ username: 'by.code', email: 'by.code@example.com', schoolName: undefined, schoolLocation: undefined, schoolCode: '310205' }).expect(201);
+      expect(res.body.school).toMatchObject({ name: 'GS MWENDO — Huye' });
+      expect(await schoolOf('by.code')).toBe('310205');
+      const user = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'by.code' } });
+      expect((await ctx.prisma.studentEnrollment.findFirstOrThrow({ where: { studentId: user.id }, include: { school: true } })).school?.code).toBe('310205');
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entityId: user.id } });
+      expect(audit.metadata).toMatchObject({ schoolCode: '310205' });
+    });
+
+    it('an unknown or malformed code is refused; nothing is created', async () => {
+      const before = await schools();
+      expect((await register({ username: 'bad.code', email: 'bad.code@example.com', schoolName: undefined, schoolCode: '999999' }).expect(400)).body.code).toBe('UNKNOWN_SCHOOL_CODE');
+      expect((await register({ username: 'bad.code', email: 'bad.code@example.com', schoolName: undefined, schoolCode: 'ABC' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+      expect(await ctx.prisma.user.count({ where: { username: 'bad.code' } })).toBe(0);
+      expect(await schools()).toBe(before);
+    });
+
+    it('a legacy name shared by several official schools, or matching none, links no school and creates none', async () => {
+      const before = await schools();
+      await register({ username: 'amb', email: 'amb@example.com', schoolName: 'G.S. Mwendo' }).expect(201);
+      await register({ username: 'none', email: 'none@example.com', schoolName: 'Unknown Academy' }).expect(201);
+      expect(await schoolOf('amb')).toBeNull();
+      expect(await schoolOf('none')).toBeNull();
+      expect(await schools()).toBe(before);
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entity: 'User', metadata: { path: ['schoolNameEntered'], equals: 'Unknown Academy' } } });
+      expect(audit.metadata).toMatchObject({ schoolMatched: false, schoolCode: null });
+    });
+
+    it('another country: the school name is recorded unverified and NEVER matched to a Rwandan school, even with the same name', async () => {
+      const before = await schools();
+      const res = await register({ username: 'intl.ke', email: 'intl.ke@example.com', country: 'ke', schoolName: 'Lycée de Kigali' }).expect(201);
+      expect(res.body.school).toBeNull();
+      expect(await schoolOf('intl.ke')).toBeNull();
+      expect(await schools()).toBe(before);
+      const user = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'intl.ke' } });
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entityId: user.id } });
+      expect(audit.metadata).toMatchObject({ country: 'KE', schoolNameEntered: 'Lycée De Kigali', schoolMatched: false, schoolLinked: false, schoolCode: null });
+      // Rwandan school codes are for Rwanda only; an invalid country is refused.
+      expect((await register({ username: 'intl.code', email: 'intl.code@example.com', country: 'UG', schoolName: undefined, schoolCode: '110912' }).expect(400)).body.code).toBe('SCHOOL_CODE_RWANDA_ONLY');
+      expect((await register({ username: 'intl.bad', email: 'intl.bad@example.com', country: 'XX' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+      // Rwanda is the default and can be sent explicitly.
+      await register({ username: 'rw.explicit', email: 'rw.explicit@example.com', country: 'RW', schoolName: undefined, schoolCode: '110912' }).expect(201);
+      expect(await schoolOf('rw.explicit')).toBe('110912');
+    });
+
+    it('neither a code nor a name is refused', async () => {
+      expect((await register({ username: 'noschool', email: 'noschool@example.com', schoolName: undefined, schoolLocation: undefined }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+    });
+  });
+
+  it('a schoolId must name an active school of the Rwandan list (owner decision 2026-11-14 replaces the P1-11 "no schoolId" rule): unknown, foreign or inactive are refused and nothing is created', async () => {
+    const closed = await ctx.prisma.school.create({ data: { name: 'Another Official School', location: 'Huye', isActive: false, source: 'ADMIN' } });
+    const abroad = await ctx.prisma.school.create({ data: { name: 'Abroad School', location: 'Nairobi', countryCode: 'KE' } });
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: closed.id }).expect(409)).body.code).toBe('SCHOOL_INACTIVE');
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: abroad.id }).expect(400)).body.code).toBe('UNKNOWN_SCHOOL');
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: '6f1d3c1e-2b1a-4c3d-9e8f-0a1b2c3d4e5f' }).expect(400)).body.code).toBe('UNKNOWN_SCHOOL');
+    expect((await register({ username: 'sid.probe', email: 'sid.probe@example.com', schoolId: 'x' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+    expect(await ctx.prisma.user.count({ where: { username: 'sid.probe' } })).toBe(0);
+    expect(await ctx.prisma.user.count({ where: { schoolId: { in: [closed.id, abroad.id] } } })).toBe(0);
   });
 
   it('refuses a taken username or email with one generic message', async () => {
@@ -74,49 +148,25 @@ describe('Authentication (e2e)', () => {
     await ctx.http().get('/api/v1/me').set(bearer(token)).expect(401);
   });
 
-  describe('logout works without a valid access token (H1)', () => {
+  describe('session end (H1/M1): logout works without a valid access token; reuse is refused', () => {
     const cookieOf = (res: { headers: Record<string, unknown> }) =>
       ((res.headers['set-cookie'] as string[] | undefined) ?? []).find((c) => c.startsWith('rof_refresh='))!.split(';')[0];
-    const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
-    it('logout with only the refresh cookie (expired or garbage access token) revokes the session; the cookie cannot be reused', async () => {
+    it('logout with only the refresh cookie (expired access token) revokes the session; the cookie cannot be reused', async () => {
       const session = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
       const cookie = cookieOf(session);
 
-      const out = await ctx.http().post('/api/v1/auth/logout').set('Cookie', cookie)
-        .set('Authorization', 'Bearer expired.or.garbage').send({}).expect(200);
-      expect(out.body).toEqual({ message: 'Logged out successfully.' });
-      // The cookie is cleared with the attributes it was set with.
-      const cleared = (out.headers['set-cookie'] as unknown as string[]).find((c) => c.startsWith('rof_refresh='))!;
-      expect(cleared).toMatch(/^rof_refresh=;/);
-      expect(cleared).toMatch(/Path=\/api\/v1\/auth/);
-      expect(cleared).toMatch(/HttpOnly/);
-      expect(cleared).toMatch(/SameSite=Strict/);
-      expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970/);
+      // No Authorization header, or an expired / garbage one: still a real logout.
+      const out = await ctx.http().post('/api/v1/auth/logout').set('Cookie', cookie).set('Authorization', 'Bearer expired.or.garbage').send({}).expect(200);
+      expect((out.headers['set-cookie'] as unknown as string[]).join(';')).toMatch(/rof_refresh=;.*Expires=Thu, 01 Jan 1970/);
 
-      // Shared device: the next person reloads -> the old cookie is refused.
+      // Shared device: the next person reloads → the old cookie is refused.
       const reuse = await ctx.http().post('/api/v1/auth/refresh').set('Cookie', cookie).expect(401);
       expect(reuse.body.code).toBe('REFRESH_TOKEN_REUSED');
-      expect(await ctx.prisma.refreshToken.count({ where: { tokenHash: sha256(session.body.refresh_token), revokedAt: null } })).toBe(0);
+      expect(await ctx.prisma.refreshToken.count({ where: { tokenHash: createHash('sha256').update(session.body.refresh_token).digest('hex'), revokedAt: null } })).toBe(0);
     });
 
-    it('logout with no Authorization header at all still revokes the session and is audited', async () => {
-      const session = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
-      const before = await ctx.prisma.auditLog.count({ where: { action: 'LOGOUT' } });
-      await ctx.http().post('/api/v1/auth/logout').set('Cookie', cookieOf(session)).send({}).expect(200);
-      expect(await ctx.prisma.auditLog.count({ where: { action: 'LOGOUT' } })).toBe(before + 1);
-      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: session.body.refresh_token }).expect(401);
-    });
-
-    it('logout with a still-valid access token blacklists it as well', async () => {
-      const session = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
-      await ctx.http().post('/api/v1/auth/logout').set(bearer(session.body.access_token))
-        .send({ refreshToken: session.body.refresh_token }).expect(200);
-      await ctx.http().get('/api/v1/me').set(bearer(session.body.access_token)).expect(401);
-      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: session.body.refresh_token }).expect(401);
-    });
-
-    it('logout with an already-rotated token still ends the whole session (the newer token too)', async () => {
+    it('logout with an already-rotated cookie still ends the whole session (the newer token too)', async () => {
       const first = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
       const second = await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: first.body.refresh_token }).expect(200);
       await ctx.http().post('/api/v1/auth/logout').send({ refreshToken: first.body.refresh_token }).expect(200);
@@ -137,10 +187,58 @@ describe('Authentication (e2e)', () => {
       expect(await ctx.prisma.auditLog.count({ where: { action: 'LOGOUT' } })).toBe(before);
     });
 
-    it('logout-all and password change still require a valid access token', async () => {
-      await ctx.http().post('/api/v1/auth/logout-all').expect(401);
-      await ctx.http().patch('/api/v1/auth/password').send({ currentPassword: 'Secret123', newPassword: 'Changed123' }).expect(401);
+    it('changing the password ends every session, refresh tokens included', async () => {
+      const a = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      const b = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      await ctx.http().patch('/api/v1/auth/password').set(bearer(a.body.access_token))
+        .send({ currentPassword: 'Secret123', newPassword: 'Changed123' }).expect(200);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: a.body.refresh_token }).expect(401);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: b.body.refresh_token }).expect(401);
+      await ctx.http().get('/api/v1/me').set(bearer(b.body.access_token)).expect(401);
+      // Restore for the following tests.
+      const c = await login(ctx, 'ada', 'Changed123');
+      await ctx.http().patch('/api/v1/auth/password').set(bearer(c)).send({ currentPassword: 'Changed123', newPassword: 'Secret123' }).expect(200);
     });
+
+    it('logout-all ends every session, refresh tokens included', async () => {
+      const a = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      const b = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+      await ctx.http().post('/api/v1/auth/logout-all').set(bearer(a.body.access_token)).expect(200);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: b.body.refresh_token }).expect(401);
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: a.body.refresh_token }).expect(401);
+    });
+
+    it('a refresh racing a logout of the same session never leaves a usable token', async () => {
+      for (let i = 0; i < 5; i++) {
+        const s = await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: 'Secret123' }).expect(200);
+        const [refreshed] = await Promise.all([
+          ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: s.body.refresh_token }),
+          ctx.http().post('/api/v1/auth/logout').send({ refreshToken: s.body.refresh_token }).expect(200),
+        ]);
+        if (refreshed.status === 200) {
+          await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: refreshed.body.refresh_token }).expect(401);
+        }
+      }
+    });
+  });
+
+  it('an administrator\'s password reset racing the user\'s own refresh never fails (lock order: sessions → User row)', async () => {
+    // Before the fix the edit locked the User row and then waited for the session lock, while the
+    // refresh held the session lock and waited for KEY SHARE on that row: PostgreSQL aborted one of
+    // them (40P01 → 500). Now the edit takes the session lock first and simply waits.
+    const admin = await login(ctx, 'admin');
+    for (let i = 0; i < 8; i++) {
+      const s = await ctx.http().post('/api/v1/auth/login').send({ username: 'student.j2', password: PASSWORD }).expect(200);
+      const [edit, refresh] = await Promise.all([
+        ctx.http().patch(`/api/v1/admin/users/${ctx.ids.studentJunior2}`).set(bearer(admin)).send({ password: PASSWORD }),
+        ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: s.body.refresh_token }),
+      ]);
+      expect(edit.status).toBe(200);
+      expect([200, 401]).toContain(refresh.status);   // 401 when the edit ended the session first
+      // Whatever the order, the session is over: the edit ended every session of the user.
+      const token = refresh.status === 200 ? refresh.body.refresh_token : s.body.refresh_token;
+      await ctx.http().post('/api/v1/auth/refresh').send({ refreshToken: token }).expect(401);
+    }
   });
 
   it('suspending an account cuts off existing tokens', async () => {

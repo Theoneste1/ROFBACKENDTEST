@@ -4,6 +4,7 @@
  * recorded, by whom, on which record; read-only, admin-only, append-only).
  */
 import { createTestApp, login, bearer, inDays, PDF, type TestContext, waitForEvents } from './helpers.js';
+import { zonedDate } from './support/zoned-dates.js';
 
 describe('System settings and audit logging (e2e)', () => {
   let ctx: TestContext;
@@ -139,18 +140,45 @@ describe('System settings and audit logging (e2e)', () => {
       }).expect(201);
       newUserId = created.body.id;
 
-      await ctx.http().patch(`/api/v1/admin/users/${newUserId}`).set(bearer(admin)).send({ gradeLevel: 'S5' }).expect(200);
-      await ctx.http().patch(`/api/v1/admin/users/${newUserId}`).set(bearer(admin)).send({ role: 'MENTOR' }).expect(200);
-      await ctx.http().patch(`/api/v1/admin/users/${newUserId}/status`).set(bearer(admin)).send({ isActive: false }).expect(200);
+      // The entries of ONE request are written in one transaction and can share a millisecond
+      // timestamp (ids are random UUIDs), so their order within a request is not defined: each
+      // request's entries are checked as a set, collected right after that request (which keeps
+      // the order between requests).
+      const seen = new Set<string>();
+      const newEntries = async () => {
+        const fresh = (await entries({ entityId: newUserId })).filter((e) => !seen.has(e.id));
+        fresh.forEach((e) => seen.add(e.id));
+        return fresh;
+      };
+      const actions = (rows: Array<{ action: string }>) => rows.map((e) => e.action).sort();
+      const one = <T extends { action: string }>(rows: T[], action: string) => {
+        const found = rows.filter((e) => e.action === action);
+        expect(found).toHaveLength(1);
+        return found[0];
+      };
 
-      const logged = await entries({ entityId: newUserId });
-      expect(logged.map((e) => e.action)).toEqual([
-        'CREATE_USER',
-        'UPDATE_USER', 'CHANGE_STUDENT_ENROLLMENT',
-        'UPDATE_USER', 'CHANGE_USER_ROLE', 'CHANGE_STUDENT_ENROLLMENT',
-        'UPDATE_USER_STATUS',
-      ]);
-      const [, gradeUpdate, placed, , role, withdrawn, status] = logged;
+      const createRows = await newEntries();
+      expect(actions(createRows)).toEqual(['CREATE_USER']);
+
+      await ctx.http().patch(`/api/v1/admin/users/${newUserId}`).set(bearer(admin)).send({ gradeLevel: 'S5' }).expect(200);
+      const gradeRows = await newEntries();
+      expect(actions(gradeRows)).toEqual(['CHANGE_STUDENT_ENROLLMENT', 'UPDATE_USER']);
+
+      await ctx.http().patch(`/api/v1/admin/users/${newUserId}`).set(bearer(admin)).send({ role: 'MENTOR' }).expect(200);
+      const roleRows = await newEntries();
+      expect(actions(roleRows)).toEqual(['CHANGE_STUDENT_ENROLLMENT', 'CHANGE_USER_ROLE', 'UPDATE_USER']);
+
+      await ctx.http().patch(`/api/v1/admin/users/${newUserId}/status`).set(bearer(admin)).send({ isActive: false }).expect(200);
+      const statusRows = await newEntries();
+      expect(actions(statusRows)).toEqual(['UPDATE_USER_STATUS']);
+
+      const logged = [...createRows, ...gradeRows, ...roleRows, ...statusRows];
+      expect(await entries({ entityId: newUserId })).toHaveLength(7);   // nothing else was recorded
+      const gradeUpdate = one(gradeRows, 'UPDATE_USER');
+      const placed      = one(gradeRows, 'CHANGE_STUDENT_ENROLLMENT');
+      const role        = one(roleRows, 'CHANGE_USER_ROLE');
+      const withdrawn   = one(roleRows, 'CHANGE_STUDENT_ENROLLMENT');
+      const status      = one(statusRows, 'UPDATE_USER_STATUS');
       expect(gradeUpdate.metadata).toMatchObject({ changes: { gradeLevel: { from: 'S2', to: 'S5' }, divisionId: { from: ctx.ids.junior, to: ctx.ids.senior } } });
       expect(placed.metadata).toMatchObject({ change: 'PLACED', from: { gradeLevel: 'S2' }, to: { gradeLevel: 'S5', divisionId: ctx.ids.senior } });
       expect(role.metadata).toEqual({ from: 'STUDENT', to: 'MENTOR' });
@@ -225,7 +253,7 @@ describe('System settings and audit logging (e2e)', () => {
       expect(byMentor.data.every((e: any) => e.actorUsername === 'mentor.j')).toBe(true);
       expect((await get({ actorRole: 'MENTOR' })).body.meta.total).toBe(byMentor.meta.total);
 
-      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      const tomorrow = zonedDate(1);   // in the API's time zone (Kigali), not UTC
       expect((await get({ from: tomorrow })).body.meta.total).toBe(0);
 
       const one = await ctx.http().get(`/api/v1/admin/audit-logs/${history.data[0].id}`).set(bearer(admin)).expect(200);

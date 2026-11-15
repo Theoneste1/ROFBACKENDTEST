@@ -42,6 +42,33 @@ resources and **submit** them but cannot publish or approve (403); cannot create
 `assignment_author`, and then only submit for approval; cannot grade (403 on `PATCH /submissions/:id/mark`), cannot
 use any `/admin/users*` or global admin route; sees nothing outside scope (school B, subject Y, course D).
 
+### 3.4a Phase 1 update (2026-11-09) — six user types, programme scope, overrides, Super Admin
+Custom profiles are deferred (D3), so §3.1's "example profiles" and §3.3's "system profile editing" apply to the later phase. The authoritative Phase 1 test list is [docs/PHASE-1-PLAN.md](docs/PHASE-1-PLAN.md) §11. It covers:
+- **Route declaration:** every non-public route declares `@Roles`, `@RequirePermission` or `@Authenticated`.
+- **Equivalence:** for STUDENT, COACH (`MENTOR`) and ADMIN, the permission decision equals the old `@Roles` decision on every route; the only exceptions are reviewed boundary routes, and only while the boundary is on.
+- **Matrix e2e:** every route × {anonymous, STUDENT, TEACHER, TEACHER with override, COACH, HEAD_COACH, ADMIN, SUPER_ADMIN}.
+- **Programme boundaries:** Mathematics plus a test-only Physics discipline, with a coach shared between them. A Head Coach gets 404 on everything outside their programme, cannot see ADMIN, SUPER_ADMIN or other Head Coach accounts, and cannot add programmes to themselves.
+- **Override safeguards:**
+  - no scope widening;
+  - nothing granted outside the approved list (`OVERRIDE_NOT_ALLOWED`);
+  - record-level rules still apply;
+  - no override on a SUPER_ADMIN;
+  - revocation effective on the next request;
+  - **expiry effective at `expiresAt` even with the expiry job not run**;
+  - exactly one audit row per change, written in the same transaction.
+- **Super Admin:** **never holds or inherits `reviews.grade` / `assignments.prepare`**, refused on every grading route; the last Super Admin is protected, both through the API and through the database trigger; step-up confirmation; one audit row per state-changing request, without bodies.
+- **`SUPER_ADMIN_BOUNDARY_ENABLED`:** off; on with no active Super Admin (fail-safe, today's behaviour); on with an active Super Admin (ADMIN refused on ADMIN/SUPER_ADMIN management); Super Admin passes every intended administrative route; rollback by switching it off.
+- **Programme backfill (M2 + M3):**
+  - precondition abort;
+  - reconciliation (counts and per-user memberships);
+  - access regression (student/coach decisions and responses unchanged; access paths do not read memberships; existing tables' fingerprints unchanged);
+  - scope isolation;
+  - rollback and re-apply.
+
+  Run on the test database and on a Neon copy of production.
+- **Owner sign-off additions (2026-11-09):** Head Coach assigns Coaches (programme members) to course × division in their programme, but creating an assignment for themselves or another Head Coach is refused (403), and a Head Coach prepares or grades only with an Administrator-created assignment and the normal distribution (H3, H4); Head Coach discussion moderation refused (H7 deferred); Head Coach student views return participation and learning activity only, never grades, marks, feedback or contact details (D7 clarification); Super Admin transfer is atomic and never leaves zero Super Admins, including under concurrent changes (AS2); emergency recovery refuses without reason and approval reference and writes its audit row in the same transaction (AS1) — plan §11.4a.
+- **Teacher (§3.4 as amended):** course × division scope only (school scope deferred); no resource submission until Phase 7; assignment preparation only with a Super-Admin override; never part of grading distribution.
+
 ### 3.5 Course access safety (ADR-006)
 - Migration: every course existing before Phase 6 is `DIVISION_OPEN`; students' visible courses are identical before and after (snapshot comparison).
 - `POST /admin/courses` creates `ENROLLMENT_REQUIRED` by default; an unenrolled student cannot list, open, or download from it (courses, resources, assignments, files).

@@ -3,6 +3,7 @@
  * and when, and the guarantees that only the assigned mentor grades and that
  * administrators never grade or write academic feedback.
  */
+import { randomUUID } from 'crypto';
 import { createTestApp, login, bearer, PDF, inDays, type TestContext } from './helpers.js';
 
 describe('Distribution and mentor review (e2e)', () => {
@@ -86,6 +87,32 @@ describe('Distribution and mentor review (e2e)', () => {
     // A mentor only sees the cycles they did themselves.
     const own = await ctx.http().get(`/api/v1/submissions/${subId}/reviews`).set(bearer(mentorJ)).expect(200);
     expect(own.body.map((r: any) => r.cycle)).toEqual([1]);
+  });
+
+  it('review queue filters (M2/M3): scope, search, groups, every sort and counts run in the database', async () => {
+    const q = (query: string) => ctx.http().get(`/api/v1/mentor/reviews?${query}`).set(bearer(mentorJ2));
+    // Every sort order is valid SQL on PostgreSQL (score orders by the current review's nullable score).
+    for (const sort of ['submitted', 'recent', 'name', 'score']) {
+      const res = await q(`group=all&sort=${sort}&limit=5`).expect(200);
+      expect(res.body.data.map((s: any) => s.id)).toContain(subId);
+      expect(res.body.counts).toMatchObject({ open: expect.any(Number), done: expect.any(Number), all: expect.any(Number) });
+      expect(res.body.counts.all).toBeGreaterThanOrEqual(1);
+    }
+    // A scope the coach has no review in is empty (M3: courseId used to be ignored) — totals too.
+    const other = await q(`courseId=${randomUUID()}`).expect(200);
+    expect(other.body).toMatchObject({ data: [], meta: { total: 0 }, counts: { open: 0, done: 0, all: 0 } });
+    // A search with no match empties the page but not the scope's totals.
+    const none = await q('q=no-such-student-zz&group=all').expect(200);
+    expect(none.body.data).toEqual([]);
+    expect(none.body.counts.all).toBeGreaterThanOrEqual(1);
+    // The open group contains the newly assigned work; done does not.
+    expect((await q('group=open').expect(200)).body.data.map((s: any) => s.id)).toContain(subId);
+    expect((await q('group=done').expect(200)).body.data.map((s: any) => s.id)).not.toContain(subId);
+    // Unknown values are refused; another coach never sees this review.
+    await q('group=everything').expect(400);
+    await q('sort=random').expect(400);
+    const mine = await ctx.http().get('/api/v1/mentor/reviews?group=all&q=a').set(bearer(mentorJ)).expect(200);
+    expect(mine.body.data.map((s: any) => s.id)).not.toContain(subId);
   });
 
   it('the new mentor scores, writes feedback, attaches documents and submits the review', async () => {

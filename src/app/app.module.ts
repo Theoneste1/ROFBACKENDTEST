@@ -24,6 +24,14 @@ import { DivisionsModule } from '../divisions/divisions.module.js';
 import { AcademicYearsModule } from '../academic-years/academic-years.module.js';
 import { ActivityModule } from '../activity/activity.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { PermissionsModule } from '../auth/permissions.module.js';
+import { SuperAdminModule } from '../super-admin/super-admin.module.js';
+import { PermissionOverridesModule } from '../permission-overrides/permission-overrides.module.js';
+import { ProgrammesModule } from '../programmes/programmes.module.js';
+import { TeachersModule } from '../teachers/teachers.module.js';
+import { SchoolAffiliationModule } from '../schools/affiliations/school-affiliation.module.js';
+import { PermissionGuard } from '../auth/guards/permission.guard.js';
+import { AdminRequestAuditMiddleware } from '../audit/admin-request-audit.middleware.js';
 import { UsersModule } from '../users/users.module.js';
 import { SchoolsModule } from '../schools/schools.module.js';
 import { CoursesModule } from '../courses/courses.module.js';
@@ -73,6 +81,12 @@ import { ReportsModule } from '../reports/reports.module.js';
 
     // ── Features ──────────────────────────────────────────────────────────
     AuthModule,
+    PermissionsModule,
+    SuperAdminModule,
+    PermissionOverridesModule,
+    ProgrammesModule,
+    TeachersModule,
+    SchoolAffiliationModule,
     UsersModule,
     SchoolsModule,
     CoursesModule,
@@ -97,10 +111,14 @@ import { ReportsModule } from '../reports/reports.module.js';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    // No-op on routes without @RequirePermission (P1-04: none yet).
+    { provide: APP_GUARD, useClass: PermissionGuard },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware).forRoutes('*path');
+    // Request id first; then one audit row per state-changing ADMIN / SUPER_ADMIN request,
+    // written when the response finishes (so guard refusals are included). P1-08.
+    consumer.apply(RequestIdMiddleware, AdminRequestAuditMiddleware).forRoutes('*path');
   }
 }

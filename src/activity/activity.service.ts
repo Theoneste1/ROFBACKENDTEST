@@ -8,7 +8,11 @@
  * Writes are fire-and-forget: a failure is logged and never affects the
  * request that triggered it.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+
+import { AccessService } from '../common/access/access.service.js';
+import { isAdmin, isHeadCoach, unsupportedRole } from '../common/access/roles.js';
+import type { AuthUser } from '../common/auth-user.js';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -26,7 +30,30 @@ export interface ActivityContext {
 export class ActivityService {
   private readonly logger = new Logger(ActivityService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma:  PrismaService,
+    private readonly access:  AccessService,
+  ) {}
+
+  /**
+   * Which activity a caller may read (activity.view). Administrators: all.
+   * Head Coach (P1-10, plan §7.2): only Students and Coaches who are active
+   * members of the programmes they head, and — for activity tied to a course —
+   * only that programme's courses (a shared coach's other programmes stay hidden).
+   */
+  private async callerWhere(user: AuthUser, courseId?: string): Promise<Prisma.ActivityLogWhereInput> {
+    if (isAdmin(user)) return {};
+    if (isHeadCoach(user)) {
+      const programmes = await this.access.headedProgrammes(user);
+      const courses = (await this.prisma.course.findMany({ where: this.access.programmeCoursesFilter(programmes), select: { id: true } })).map((c) => c.id);
+      if (courseId && !courses.includes(courseId)) throw new NotFoundException('Course not found.');
+      return {
+        user: { role: { in: ['STUDENT', 'MENTOR'] }, ...this.access.programmeMembersFilter(programmes) },
+        OR:   [{ courseId: null }, { courseId: { in: courses } }],
+      };
+    }
+    throw unsupportedRole();
+  }
 
   /** Record an activity without blocking or failing the caller. */
   record(userId: string, type: ActivityType, ctx: ActivityContext = {}): void {
@@ -44,9 +71,10 @@ export class ActivityService {
       .catch((err: Error) => this.logger.warn(`Could not record ${type}: ${err.message}`));
   }
 
-  async list(q: ListActivityDto) {
+  async list(q: ListActivityDto, user: AuthUser) {
     const { page, limit, skip, take } = pageArgs(q);
     const where: Prisma.ActivityLogWhereInput = {
+      AND: [await this.callerWhere(user, q.courseId)],
       ...(q.userId   && { userId: q.userId }),
       ...(q.courseId && { courseId: q.courseId }),
       ...(q.type     && { type: q.type }),
@@ -65,20 +93,21 @@ export class ActivityService {
   }
 
   /** Activity counts per type for a period (dashboard). */
-  async summary(from: Date, to: Date) {
+  async summary(from: Date, to: Date, user: AuthUser) {
+    const scoped = await this.callerWhere(user);
     const rows = await this.prisma.activityLog.groupBy({
       by:     ['type'],
-      where:  { createdAt: { gte: from, lte: to } },
+      where:  { AND: [scoped], createdAt: { gte: from, lte: to } },
       _count: { _all: true },
     });
-    const activeUsers = await this.prisma.activityLog.findMany({
-      where:    { createdAt: { gte: from, lte: to } },
-      distinct: ['userId'],
-      select:   { userId: true },
+    // Users with at least one matching entry, counted in the database (PERF-06): `distinct` read
+    // every entry of the period (one row per page view) into memory to count the users.
+    const activeUsers = await this.prisma.user.count({
+      where: { activityLogs: { some: { AND: [scoped], createdAt: { gte: from, lte: to } } } },
     });
     return {
       from, to,
-      activeUsers: activeUsers.length,
+      activeUsers,
       byType: Object.fromEntries(rows.map((r) => [r.type, r._count._all])),
     };
   }

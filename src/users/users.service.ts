@@ -12,6 +12,12 @@ import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
+import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
+import { endTeacherSchools, revokeTeacherDelegations } from '../teachers/teacher-schools.service.js';
+import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
+import { resolveSchoolReference } from '../schools/school-reference.js';
+import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
+import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
@@ -39,6 +45,8 @@ export class UsersService {
     private readonly tokens:    TokenService,
     private readonly academicYears: AcademicYearsService,
     private readonly accountEmails: AccountEmailsService,
+    private readonly roles:     RoleAssignmentPolicy,
+    private readonly affiliations: SchoolAffiliationService,
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
@@ -73,9 +81,12 @@ export class UsersService {
 
   // ─── Create a user (admin) ─────────────────────────────────────────────────
   async create(data: CreateUserDto, caller: CallerCtx) {
+    await this.roles.assertCanAssign(caller, data.role ?? 'STUDENT');
     await this.assertIdentityFree(data.username, data.email);
 
     const role = data.role ?? 'STUDENT';
+    // An existing, active school by id or code (PR B); the claim re-checks it under a row lock.
+    if (role === 'STUDENT') data = { ...data, schoolId: (await this.schoolFromReference(data, true)) ?? undefined };
     const studentFields = role === 'STUDENT' ? await this.studentFields(data.gradeLevel!, data.schoolId) : {};
     const passwordHash  = await bcrypt.hash(data.password, BCRYPT_COST);
 
@@ -96,7 +107,14 @@ export class UsersService {
       });
       if (role === 'STUDENT') {
         await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel!, data.schoolId ?? null);
+        // An Administrator's choice of school is a claim too: PENDING until verified.
+        if (data.schoolId) {
+          await this.affiliations.claim(tx, {
+            studentId: created.id, schoolId: data.schoolId, source: 'ADMIN', reason: 'NEW_CLAIM', actor: { actorId: caller.id, actorRole: caller.role },
+          });
+        }
       }
+      await ensureDefaultMembership(tx, { id: created.id, role }, caller.id);   // students and coaches (P1-07, K6)
       return tx.user.findUniqueOrThrow({ where: { id: created.id }, select: SAFE_SELECT });
     });
 
@@ -118,21 +136,35 @@ export class UsersService {
 
   // ─── Update a user (admin) ──────────────────────────────────────────────────
   async update(id: string, data: UpdateUserDto, caller: CallerCtx) {
-    const existing = await this.prisma.user.findUnique({
-      where:  { id },
-      select: {
-        id: true, role: true, gradeLevel: true, username: true, email: true,
-        firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
-      },
-    });
+    const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
+    await this.roles.assertCanManage(caller, existing.role);
 
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).filter((k) => k !== 'currentPassword').length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
+    }
+    // schoolCode → the school's id (PR B). Not required to be active here: re-sending a student's
+    // current school creates no claim; a NEW claim for an inactive school is refused by claim().
+    if (data.schoolCode !== undefined) {
+      if (data.schoolId === null) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH', 'schoolId: null clears the school; do not send a schoolCode with it.');
+      }
+      const { schoolCode: _code, ...rest } = data;
+      data = { ...rest, schoolId: (await this.schoolFromReference(data, false))! };
     }
     if (id === caller.id && data.role && data.role !== existing.role) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_CHANGE_OWN_ROLE', 'You cannot change your own role.');
     }
+    const roleChange = !!data.role && data.role !== existing.role;
+    if (roleChange) await this.roles.assertCanAssign(caller, data.role!, 'roleChange');
+    if (roleChange && (PRIVILEGED.includes(existing.role) || PRIVILEGED.includes(data.role!))) {
+      await this.assertStepUp(caller, data.currentPassword);
+    }
+    if (roleChange && data.role === 'SUPER_ADMIN' && (existing.role !== 'ADMIN' || !existing.isActive || !existing.activatedAt)) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'ROLE_NOT_ASSIGNABLE',
+        'Only an active, activated Administrator can be promoted to Super Administrator.', { role: 'SUPER_ADMIN' });
+    }
+    if (roleChange && existing.role === 'SUPER_ADMIN') await this.assertNotLastSuperAdmin(id);
     if ((data.username && data.username !== existing.username) || (data.email && data.email !== existing.email)) {
       await this.assertIdentityFree(
         data.username !== existing.username ? data.username : undefined,
@@ -167,11 +199,46 @@ export class UsersService {
       role !== existing.role || (grade && grade !== existing.gradeLevel) || data.schoolId !== undefined;
 
     const actor = { actorId: caller.id, actorRole: caller.role };
+    const endsSessions = Boolean(data.password || data.role);
     const user = await this.prisma.$transaction(async (tx) => {
+      // Lock the user row, then re-read it. Everything above — authorization, the role rules,
+      // step-up, and the update itself (role, grade, division, school) — was prepared from
+      // `existing`, read before this transaction. If another edit committed in between, writing
+      // this one would silently restore stale values (e.g. a demoted Administrator's role), so it
+      // is refused instead; the caller reloads and retries. Concurrent edits of this user wait here.
+      // A role or password change ends the user's sessions below: take the session lock FIRST
+      // (lock order sessions → User row, token.service.ts), or a refresh of this user — which holds
+      // the session lock and needs a KEY SHARE lock on this row — would deadlock with this edit.
+      if (endsSessions) await this.tokens.lockSessions(tx, id);
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${id} FOR UPDATE`;
+      const locked = await tx.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
+      if (!locked) throw new NotFoundException(`User ${id} not found.`);
+      if (changedSince(existing, locked)) {
+        throw new AppError(HttpStatus.CONFLICT, 'USER_CHANGED_CONCURRENTLY',
+          'This user was changed by someone else in the meantime. Reload the user and try again.');
+      }
+
+      // School affiliation follows the student's school and role, in this transaction:
+      //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
+      //   becoming STUDENT, a school → a new PENDING claim;
+      //   another school             → the current claim is superseded and a new PENDING one created;
+      //   the same school            → nothing changes (a VERIFIED claim stays VERIFIED).
+      // The old claim ends BEFORE the User row changes and the new one is created after it, so
+      // every statement leaves the student consistent (M10).
+      // The student's school after this edit: omitted → the locked (committed) school is kept;
+      // an id → that school; explicit null → cleared.
+      const nextSchoolId = role !== 'STUDENT' ? null : data.schoolId !== undefined ? data.schoolId : locked.schoolId;
+      const nextClaim = roleChange || data.schoolId !== undefined
+        ? await this.affiliations.beginUserChange(tx, {
+            id, isStudent: role === 'STUDENT', becameStudent: role === 'STUDENT' && existing.role !== 'STUDENT', schoolId: nextSchoolId,
+          }, actor)
+        : null;
+
       const updated = await tx.user.update({
         where: { id }, data: updateData,
         select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true },
       });
+      if (nextClaim) await this.affiliations.claim(tx, nextClaim);
       let enrollment: 'PLACED' | 'WITHDRAWN' | null = null;
       if (placementChanged && role === 'STUDENT') {
         // Keep the current-year enrolment in step with the new placement.
@@ -185,17 +252,64 @@ export class UsersService {
         enrollment = 'WITHDRAWN';
       }
 
+      // A coach or Head Coach who changes role keeps no course × division scope:
+      // their assignments are deactivated (kept as history) in the same transaction
+      // (a former coach's assignments never become a Head Coach's, H4).
+      if ((existing.role === 'MENTOR' || existing.role === 'HEAD_COACH') && role !== existing.role) {
+        await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+
+
+      // A Teacher who changes role keeps no school scope (P1-11): their school assignments end here.
+      if (existing.role === 'TEACHER' && role !== 'TEACHER') {
+        await endTeacherSchools(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+      // Any role change revokes the user's teacher delegations (P1-11): a later return to
+      // TEACHER never brings old grants back — an Administrator grants them again explicitly.
+      if (existing.role !== role) {
+        await revokeTeacherDelegations(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+
+      // Heading a programme = HEAD_COACH role + active membership (P1-10). A change
+      // to or from HEAD_COACH ends every active membership in the same transaction,
+      // so a promoted Student/Coach never inherits a programme to head, and a former
+      // head keeps no membership; heads are then set explicitly (PUT …/heads).
+      if (existing.role !== role && (existing.role === 'HEAD_COACH' || role === 'HEAD_COACH')) {
+        const memberships = await tx.programmeMembership.findMany({ where: { userId: id, isActive: true }, select: { disciplineId: true } });
+        if (memberships.length) {
+          await tx.programmeMembership.updateMany({
+            where: { userId: id, isActive: true }, data: { isActive: false, endedAt: new Date(), endedById: caller.id },
+          });
+          await this.audit.log({
+            ...actor, action: 'PROGRAMME_MEMBERSHIPS_ENDED', entity: 'User', entityId: id,
+            metadata: { reason: 'ROLE_CHANGE', from: existing.role, to: role, disciplineIds: memberships.map((m) => m.disciplineId) },
+          }, tx);
+        }
+      }
+
       // The audit entries commit with the change: what changed, from what, to what.
       const changes = diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
+
+      // A new e-mail address: links already e-mailed to the old address (invitation, e-mail
+      // verification, password reset) stop working, in this transaction. Otherwise whoever holds
+      // the old (e.g. mistyped) address could still activate the account or set its password.
+      // The administrator re-sends an invitation or reset, which goes to the new address.
+      const linksRevoked = changes.email ? await revokeEmailedLinks(tx, id) : undefined;
       await this.audit.log({
         ...actor, action: 'UPDATE_USER', entity: 'User', entityId: id,
-        metadata: { changes, passwordChanged: !!data.password },
+        metadata: { changes, passwordChanged: !!data.password, ...(linksRevoked && { linksRevoked }) },
       }, tx);
       if (existing.role !== updated.role) {
         await this.audit.log({
           ...actor, action: 'CHANGE_USER_ROLE', entity: 'User', entityId: id,
           metadata: { from: existing.role, to: updated.role },
         }, tx);
+        if (existing.role === 'SUPER_ADMIN' || updated.role === 'SUPER_ADMIN') {
+          await this.audit.log({
+            ...actor, action: updated.role === 'SUPER_ADMIN' ? 'SUPER_ADMIN_PROMOTE' : 'SUPER_ADMIN_DEMOTE',
+            entity: 'User', entityId: id, metadata: { from: existing.role, to: updated.role, stepUp: true },
+          }, tx);
+        }
       }
       if (enrollment && (changes.gradeLevel || changes.divisionId || changes.schoolId || changes.role)) {
         await this.audit.log({
@@ -207,10 +321,16 @@ export class UsersService {
           },
         }, tx);
       }
+      // Sessions end in the same transaction as the role / password change (last
+      // statement before commit): the new role and the revocation become visible
+      // together, so an old token can never authenticate with the new role.
+      if (endsSessions) await this.tokens.revokeAllForUser(id, tx);
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
-    });
+    }).catch(lastSuperAdminConflict);
 
-    if (data.password || data.role) await this.tokens.revokeAllForUser(id);
+    if (roleChange && (existing.role === 'SUPER_ADMIN' || data.role === 'SUPER_ADMIN')) {
+      await this.notifySuperAdminChange(data.role === 'SUPER_ADMIN' ? 'Promotion to Super Administrator' : 'Super Administrator role removed', existing.username, caller.id);
+    }
     return user;
   }
 
@@ -220,13 +340,15 @@ export class UsersService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_SUSPEND_SELF', 'You cannot suspend your own account.');
     }
     const before = await this.findOne(id);
+    await this.roles.assertCanManage(caller, before.role);
+    if (before.role === 'SUPER_ADMIN' && before.isActive && data.isActive === false) await this.assertNotLastSuperAdmin(id);
 
     const user = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where:  { id },
         data:   { isActive: data.isActive, isApproved: data.isApproved },
         select: SAFE_SELECT,
-      });
+      }).catch(lastSuperAdminConflict);
       // Deactivation / reactivation / approval, with the previous state.
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
@@ -256,10 +378,13 @@ export class UsersService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_DELETE_SELF', 'You cannot delete your own account.');
     }
     const user = await this.findOne(id);
+    await this.roles.assertCanManage(caller, user.role);
+    if (user.role === 'SUPER_ADMIN' && user.isActive) await this.assertNotLastSuperAdmin(id);
 
     try {
       await this.prisma.user.delete({ where: { id } });
     } catch (err: any) {
+      if (isLastSuperAdminError(err)) throw lastSuperAdmin();
       if (err?.code === 'P2003') {
         throw new AppError(
           HttpStatus.CONFLICT,
@@ -309,7 +434,14 @@ export class UsersService {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  private async studentFields(gradeLevel: GradeLevel, schoolId?: string) {
+  /** The id of the existing school a create / edit names by schoolId and/or schoolCode (null: none). */
+  private async schoolFromReference(data: { schoolId?: string | null; schoolCode?: string }, requireActive: boolean) {
+    const school = await resolveSchoolReference(this.prisma, { schoolId: data.schoolId, schoolCode: data.schoolCode }, { requireActive });
+    return school?.id ?? null;
+  }
+
+  /** Student placement fields. `schoolId`: omitted → unchanged; an id → that (existing) school; null → cleared. */
+  private async studentFields(gradeLevel: GradeLevel, schoolId?: string | null) {
     if (schoolId) {
       const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { id: true } });
       if (!school) throw new NotFoundException('School not found.');
@@ -317,7 +449,7 @@ export class UsersService {
     return {
       gradeLevel,
       divisionId: await this.divisions.idForGrade(gradeLevel),
-      ...(schoolId && { schoolId }),
+      ...(schoolId !== undefined && { schoolId }),
     };
   }
 
@@ -332,6 +464,29 @@ export class UsersService {
       throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
     }
   }
+
+  // ─── Super Admin safeguards (P1-08, plan §8.2) ───────────────────────────────
+
+  /** Step-up: the acting user re-enters their own password (403 STEP_UP_REQUIRED). */
+  private async assertStepUp(caller: CallerCtx, currentPassword: string | undefined) {
+    const me = await this.prisma.user.findUnique({ where: { id: caller.id }, select: { passwordHash: true } });
+    const ok = !!currentPassword && !!me?.passwordHash && (await bcrypt.compare(currentPassword, me.passwordHash));
+    if (!ok) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'STEP_UP_REQUIRED',
+        'Confirm with your current password to change an Administrator or Super Administrator role.');
+    }
+  }
+
+  /** 409 LAST_SUPER_ADMIN when no OTHER active Super Admin would remain (the M4 trigger re-checks atomically). */
+  private async assertNotLastSuperAdmin(targetId: string) {
+    const others = await this.prisma.user.count({ where: { role: 'SUPER_ADMIN', isActive: true, id: { not: targetId } } });
+    if (others === 0) throw lastSuperAdmin();
+  }
+
+  private async notifySuperAdminChange(action: string, targetUsername: string, actorId: string) {
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId }, select: { username: true } });
+    await this.accountEmails.superAdminChanged({ action, targetUsername, actorUsername: actor?.username ?? null });
+  }
 }
 
 /** `{ field: { from, to } }` for the fields whose value changed. */
@@ -341,4 +496,57 @@ function diff<T extends Record<string, unknown>>(before: T, after: Partial<T>, f
     if (f in after && before[f] !== after[f]) out[f] = { from: before[f] ?? null, to: after[f] ?? null };
   }
   return out;
+
+}
+
+/** Accounts whose role changes need step-up (plan §10.1). */
+const PRIVILEGED: readonly string[] = ['ADMIN', 'SUPER_ADMIN'];
+
+function lastSuperAdmin() {
+  return new AppError(HttpStatus.CONFLICT, 'LAST_SUPER_ADMIN', 'At least one active Super Administrator must remain.');
+}
+
+/** What an Administrator edit is prepared from (and re-checked against under the row lock). */
+const EDIT_STATE_SELECT = {
+  id: true, role: true, gradeLevel: true, username: true, email: true,
+  firstName: true, lastName: true, divisionId: true, schoolId: true, homeLocation: true,
+  isActive: true, activatedAt: true,
+} as const;
+type EditState = Prisma.UserGetPayload<{ select: typeof EDIT_STATE_SELECT }>;
+
+/** True when any field the edit was prepared from differs from the locked, committed row. */
+function changedSince(before: EditState, now: EditState): boolean {
+  return (Object.keys(EDIT_STATE_SELECT) as Array<keyof EditState>).some((k) => {
+    const a = before[k], b = now[k];
+    return a instanceof Date || b instanceof Date ? (a as Date | null)?.getTime() !== (b as Date | null)?.getTime() : a !== b;
+  });
+}
+
+const isLastSuperAdminError = (err: unknown) => String((err as Error)?.message ?? '').includes('LAST_SUPER_ADMIN');
+
+/** The database trigger (M4) refuses the change → the same 409 as the service rule. */
+function lastSuperAdminConflict(err: unknown): never {
+  if (isLastSuperAdminError(err)) throw lastSuperAdmin();
+  throw err;
+}
+
+/**
+ * Retire every unused link e-mailed to a user: activation (invitation / e-mail verification)
+ * tokens are revoked, password-reset tokens marked used (as a newer reset link does). Returns how
+ * many of each were still usable, for the audit entry.
+ */
+export async function revokeEmailedLinks(tx: Prisma.TransactionClient, userId: string) {
+  const now = new Date();
+  const activation = await tx.accountActivationToken.updateMany({
+    where: { userId, usedAt: null, revokedAt: null, expiresAt: { gt: now } },
+    data:  { revokedAt: now },
+  });
+  // Expired ones cannot be used anyway; retire them too so nothing stays open, without counting them.
+  await tx.accountActivationToken.updateMany({ where: { userId, usedAt: null, revokedAt: null }, data: { revokedAt: now } });
+  const passwordReset = await tx.passwordResetToken.updateMany({
+    where: { userId, usedAt: null, expiresAt: { gt: now } },
+    data:  { usedAt: now },
+  });
+  await tx.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: now } });
+  return { activation: activation.count, passwordReset: passwordReset.count };
 }

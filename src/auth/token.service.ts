@@ -1,13 +1,30 @@
 /**
  * TokenService — access-token signing and refresh-token rotation.
  *
- * Access tokens: short-lived JWTs (default 15 min) carrying only `sub` + `jti`.
+ * Access tokens: short-lived JWTs (default 15 min) carrying only `sub`, `jti` and
+ * `iatMs` (issue time in milliseconds, checked against `User.tokensValidAfter`).
  *
  * Refresh tokens: opaque random strings, stored as SHA-256 hashes.
  *   - Every refresh exchanges the presented token for a new one (rotation).
  *   - All tokens from one login share a `familyId`.
  *   - Presenting an already-rotated or revoked token means it was stolen or
  *     replayed: the whole family is revoked and the user must log in again.
+ *
+ * Session changes of one user are serialised by a transaction-scoped advisory
+ * lock (namespace SESSION_LOCK_NAMESPACE, key = the user id): rotation, logout
+ * (revoke a family) and "end every session" (revokeAllForUser). Without it a
+ * refresh racing a logout could create its new token after the revocation had
+ * already run, and that token would survive the logout (PostgreSQL's UPDATE
+ * only sees rows committed before the statement started).
+ *
+ * LOCK ORDER (deadlock rule): the session lock comes BEFORE any lock on the
+ * user's "User" row. Rotation holds the session lock while it inserts the new
+ * RefreshToken, whose foreign key takes a KEY SHARE lock on that User row; a
+ * transaction that first locks the row FOR UPDATE and then asks for the session
+ * lock (e.g. an administrator's role or password change) would deadlock with it.
+ * Such a transaction calls `lockSessions` first (users.service.ts `update`).
+ * Plain UPDATEs of non-key User columns (FOR NO KEY UPDATE) do not conflict with
+ * KEY SHARE and need nothing.
  */
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +33,7 @@ import { createHash, randomBytes, randomUUID } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AppError } from '../common/errors/app-error.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
 export interface IssuedTokens {
   access_token:  string;
@@ -32,12 +50,31 @@ export interface ClientInfo {
 
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
-/** The claims of a valid access token (signature and expiry checked). */
+/** Advisory-lock namespace for one user's sessions (other namespaces: 4209–4215). */
+export const SESSION_LOCK_NAMESPACE = 4216;
+
+type Db = Prisma.TransactionClient;
+
+/** Serialise session changes of one user until the end of the current transaction. */
+async function lockUserSessions(tx: Db, userId: string): Promise<void> {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${SESSION_LOCK_NAMESPACE}::int, hashtext(${userId}))::text`;
+}
+
+async function revokeFamily(tx: Db, familyId: string): Promise<void> {
+  await tx.refreshToken.updateMany({ where: { familyId, revokedAt: null }, data: { revokedAt: new Date() } });
+}
+
+/** The claims of a valid access token (signature and expiry checked), or null. */
 export interface AccessClaims {
   sub: string;
   jti?: string;
   exp?: number;
 }
+
+type RotateResult =
+  | { kind: 'ok'; userId: string; tokens: IssuedTokens }
+  | { kind: 'reused' }
+  | { kind: 'invalid' };
 
 @Injectable()
 export class TokenService {
@@ -57,47 +94,63 @@ export class TokenService {
 
   /** Start a new session (login). */
   async issue(userId: string, client: ClientInfo): Promise<IssuedTokens> {
-    return this.issueInFamily(userId, randomUUID(), client);
+    return this.issueInFamily(this.prisma, userId, randomUUID(), client);
   }
 
-  /** Exchange a refresh token for a new pair. */
+  /**
+   * Exchange a refresh token for a new pair. The checks and the new token are
+   * written under the user's session lock, in one transaction: a logout or
+   * "end every session" either runs first (this token is then revoked → reuse)
+   * or after (it then revokes the new token too).
+   */
   async rotate(rawRefreshToken: string, client: ClientInfo): Promise<{ userId: string; tokens: IssuedTokens }> {
-    const existing = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: hashToken(rawRefreshToken) },
+    const found = await this.prisma.refreshToken.findUnique({
+      where:  { tokenHash: hashToken(rawRefreshToken) },
+      select: { id: true, userId: true },
+    });
+    if (!found) throw invalidRefresh();
+
+    // Revocations are written inside the transaction and committed with it; the
+    // error is thrown afterwards (throwing inside would roll them back).
+    const result = await this.prisma.$transaction(async (tx): Promise<RotateResult> => {
+      await lockUserSessions(tx, found.userId);
+      const existing = await tx.refreshToken.findUnique({ where: { id: found.id } });
+      if (!existing) return { kind: 'invalid' };
+
+      if (existing.revokedAt || existing.rotatedAt) {
+        // Replay of a token that was already used or revoked → assume theft.
+        await revokeFamily(tx, existing.familyId);
+        return { kind: 'reused' };
+      }
+      if (existing.expiresAt < new Date()) return { kind: 'invalid' };
+
+      const user = await tx.user.findUnique({
+        where:  { id: existing.userId },
+        select: { isActive: true, isApproved: true },
+      });
+      if (!user?.isActive || !user.isApproved) {
+        await revokeFamily(tx, existing.familyId);
+        return { kind: 'invalid' };
+      }
+
+      // Still conditional, as a second line of defence behind the lock.
+      const { count } = await tx.refreshToken.updateMany({
+        where: { id: existing.id, rotatedAt: null, revokedAt: null },
+        data:  { rotatedAt: new Date() },
+      });
+      if (count === 0) {
+        await revokeFamily(tx, existing.familyId);
+        return { kind: 'reused' };
+      }
+
+      return { kind: 'ok', userId: existing.userId, tokens: await this.issueInFamily(tx, existing.userId, existing.familyId, client) };
     });
 
-    if (!existing) throw invalidRefresh();
-
-    if (existing.revokedAt || existing.rotatedAt) {
-      // Replay of a token that was already used → assume theft.
-      await this.revokeFamily(existing.familyId);
+    if (result.kind === 'reused') {
       throw new AppError(HttpStatus.UNAUTHORIZED, 'REFRESH_TOKEN_REUSED', 'Session invalidated. Please log in again.');
     }
-    if (existing.expiresAt < new Date()) throw invalidRefresh();
-
-    const user = await this.prisma.user.findUnique({
-      where:  { id: existing.userId },
-      select: { isActive: true, isApproved: true },
-    });
-    if (!user?.isActive || !user.isApproved) {
-      await this.revokeFamily(existing.familyId);
-      throw invalidRefresh();
-    }
-
-    // Conditional update: if two refreshes race, only one wins.
-    const { count } = await this.prisma.refreshToken.updateMany({
-      where: { id: existing.id, rotatedAt: null, revokedAt: null },
-      data:  { rotatedAt: new Date() },
-    });
-    if (count === 0) {
-      await this.revokeFamily(existing.familyId);
-      throw new AppError(HttpStatus.UNAUTHORIZED, 'REFRESH_TOKEN_REUSED', 'Session invalidated. Please log in again.');
-    }
-
-    return {
-      userId: existing.userId,
-      tokens: await this.issueInFamily(existing.userId, existing.familyId, client),
-    };
+    if (result.kind === 'invalid') throw invalidRefresh();
+    return { userId: result.userId, tokens: result.tokens };
   }
 
   /**
@@ -112,8 +165,20 @@ export class TokenService {
       select: { userId: true, familyId: true },
     });
     if (!token) return null;
-    await this.revokeFamily(token.familyId);
+    await this.prisma.$transaction(async (tx) => {
+      await lockUserSessions(tx, token.userId);
+      await revokeFamily(tx, token.familyId);
+    });
     return { userId: token.userId };
+  }
+
+  /**
+   * Take the user's session lock inside the caller's transaction (held until it
+   * ends; re-entrant, so a later revokeAllForUser in the same transaction does
+   * not block). Call it before locking the user's row FOR UPDATE — see LOCK ORDER.
+   */
+  async lockSessions(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+    await lockUserSessions(tx, userId);
   }
 
   /**
@@ -130,17 +195,32 @@ export class TokenService {
     }
   }
 
-  /** Revoke every session of a user (password change, suspension, logout-all). */
   /**
-   * End every session of a user: refresh tokens are revoked and access tokens
-   * issued until now stop working (JwtStrategy compares their `iat`).
+   * End every session of a user (password change, suspension, role change,
+   * logout-all): refresh tokens are revoked and every access token issued at or
+   * before this moment stops working (JwtStrategy compares `iatMs`).
+   *
+   * With `tx`, the revocation is written inside the caller's transaction, so it
+   * commits together with the change that requires it (e.g. a role change): no
+   * request can see the new role while an old token is still valid.
+   *
+   * Returns only once the clock has moved past the revocation millisecond, so a
+   * token issued afterwards (e.g. the next login) is always strictly newer.
+   *
+   * The revocation time is taken only after the user's session lock is held: a
+   * refresh that was in progress has then committed, and the access token it
+   * issued is older than `tokensValidAfter` (so it is refused too).
    */
-  async revokeAllForUser(userId: string): Promise<void> {
-    const now = new Date();
-    await this.prisma.$transaction([
-      this.prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } }),
-      this.prisma.user.update({ where: { id: userId }, data: { tokensValidAfter: now } }),
-    ]);
+  async revokeAllForUser(userId: string, tx?: Prisma.TransactionClient): Promise<void> {
+    const run = async (db: Db) => {
+      await lockUserSessions(db, userId);
+      const now = new Date();
+      await db.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } });
+      await db.user.update({ where: { id: userId }, data: { tokensValidAfter: now } });
+      return now;
+    };
+    const now = tx ? await run(tx) : await this.prisma.$transaction(run);
+    while (Date.now() <= now.getTime()) await new Promise((r) => setTimeout(r, 1));
   }
 
   /** Blacklist an access token until it expires. */
@@ -153,23 +233,16 @@ export class TokenService {
     });
   }
 
-  private async revokeFamily(familyId: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: { familyId, revokedAt: null },
-      data:  { revokedAt: new Date() },
-    });
-  }
-
-  private async issueInFamily(userId: string, familyId: string, client: ClientInfo): Promise<IssuedTokens> {
+  private async issueInFamily(db: Db | PrismaService, userId: string, familyId: string, client: ClientInfo): Promise<IssuedTokens> {
     const accessToken = await this.jwt.signAsync(
-      { sub: userId, jti: randomUUID() },
+      { sub: userId, jti: randomUUID(), iatMs: Date.now() },
       { expiresIn: this.accessTtlSeconds },
     );
 
     const refreshToken = randomBytes(48).toString('base64url');
     const expiresAt    = new Date(Date.now() + this.refreshTtlMs);
 
-    await this.prisma.refreshToken.create({
+    await db.refreshToken.create({
       data: {
         userId,
         familyId,

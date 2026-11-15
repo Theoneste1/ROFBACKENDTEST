@@ -6,11 +6,12 @@ import type { Response } from 'express';
 import { AuditQueryService } from './audit-query.service.js';
 import { AuditService } from './audit.service.js';
 import { AUDIT_CATEGORY_NAMES, type AuditCategory } from './audit-categories.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { PaginationQueryDto } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { Role } from '../generated/prisma/client.js';
+import { sendCsvExport } from '../reports/csv-stream.js';
 
 class AuditQueryDto extends PaginationQueryDto {
   /** USERS, ENROLLMENT, MENTOR_ASSIGNMENTS, ASSIGNMENTS, DISTRIBUTION, REVIEWS, RESULTS, MODERATION, SETTINGS, … */
@@ -40,7 +41,6 @@ class AuditQueryDto extends PaginationQueryDto {
  */
 @ApiTags('Admin · Audit')
 @Controller('admin/audit-logs')
-@Roles('ADMIN')
 export class AuditController {
   constructor(
     private readonly query: AuditQueryService,
@@ -49,32 +49,34 @@ export class AuditController {
 
   /** Newest first; filter by category, action, actor, record and date range. */
   @Get()
+  @RequirePermission('audit.view')
   findAll(@Query() q: AuditQueryDto) {
     return this.query.list(q);
   }
 
   /** Every action with its category and how many times it was recorded (for filters). */
   @Get('actions')
+  @RequirePermission('audit.view')
   actions() {
     return this.query.actions();
   }
 
-  /** The filtered trail as CSV (up to 50 000 rows). The export itself is audited. */
+  /** The filtered trail as CSV, streamed (no row limit; was 50 000). The export itself is audited. */
   @Get('export.csv')
   @ApiProduces('text/csv')
   @Header('Cache-Control', 'no-store')
+  @RequirePermission('audit.view')
   async export(@Query() q: AuditQueryDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
     const csv = await this.query.csv(q);
     await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'EXPORT_AUDIT_LOG', entity: 'AuditLog', metadata: { filters: { ...q } },
     });
     const date = new Date().toISOString().slice(0, 10);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="audit-log-${date}.csv"`);
-    res.send(csv);
+    await sendCsvExport(res, `audit-log-${date}.csv`, csv);
   }
 
   @Get(':id')
+  @RequirePermission('audit.view')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.query.findOne(id);
   }

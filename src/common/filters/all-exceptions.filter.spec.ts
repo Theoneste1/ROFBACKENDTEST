@@ -14,9 +14,10 @@ import { Prisma } from '../../generated/prisma/client.js';
 function makeHost(headersSent = false) {
   const res = {
     headersSent,
-    status: vi.fn(),
-    json:   vi.fn(),
-    end:    vi.fn(),
+    status:    vi.fn(),
+    json:      vi.fn(),
+    end:       vi.fn(),
+    setHeader: vi.fn(),
   };
   res.status.mockReturnValue(res);
   const req = { id: 'req-1', method: 'GET', originalUrl: '/api/v1/things' };
@@ -29,7 +30,7 @@ function makeHost(headersSent = false) {
 function run(exception: unknown) {
   const { host, res } = makeHost();
   new AllExceptionsFilter().catch(exception, host);
-  return { status: res.status.mock.calls[0]?.[0], body: res.json.mock.calls[0]?.[0] };
+  return { status: res.status.mock.calls[0]?.[0], body: res.json.mock.calls[0]?.[0], res };
 }
 
 const prismaError = (code: string, meta?: Record<string, unknown>) =>
@@ -107,6 +108,14 @@ describe('AllExceptionsFilter', () => {
     expect(run(prismaError('P2003')).body).toMatchObject({ statusCode: 409, code: 'REFERENCE_CONSTRAINT' });
   });
 
+  it('maps Prisma P2028 (no connection within the transaction wait) to 503 DATABASE_BUSY with Retry-After', () => {
+    const { status, body, res } = run(prismaError('P2028'));
+    expect(status).toBe(503);
+    expect(body).toMatchObject({ statusCode: 503, code: 'DATABASE_BUSY' });
+    expect(body.message).toMatch(/Nothing was changed/);
+    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '2');
+  });
+
   it('maps unknown Prisma codes to a generic 500', () => {
     const { status, body } = run(prismaError('P1001'));
     expect(status).toBe(500);
@@ -124,6 +133,19 @@ describe('AllExceptionsFilter', () => {
     const { status, body } = run(new MulterError('LIMIT_UNEXPECTED_FILE', 'other'));
     expect(status).toBe(400);
     expect(body).toMatchObject({ code: 'UPLOAD_REJECTED' });
+  });
+
+  it('maps the M10 affiliation triggers to 409 with their code, never echoing the database message (it names the student)', () => {
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const one = run(new Error('ERROR: AFFILIATION_ONE_CURRENT: student stu-123 has 2 current school claims'));
+    expect(one.status).toBe(409);
+    expect(one.body).toMatchObject({ statusCode: 409, code: 'AFFILIATION_ONE_CURRENT' });
+    const mismatch = run(new Prisma.PrismaClientKnownRequestError('AFFILIATION_SCHOOL_MISMATCH: the current school claim of student stu-123 is not for the school of the student', { code: 'P2010', clientVersion: 'x' }));
+    expect(mismatch.status).toBe(409);
+    expect(mismatch.body).toMatchObject({ code: 'AFFILIATION_SCHOOL_MISMATCH' });
+    expect(JSON.stringify([one.body, mismatch.body])).not.toContain('stu-123');
+    expect(Logger.prototype.warn).toHaveBeenCalledTimes(2);
+    expect(Logger.prototype.error).not.toHaveBeenCalled();
   });
 
   it('returns a generic 500 for unknown errors without leaking the message', () => {

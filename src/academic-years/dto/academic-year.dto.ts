@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsISO8601, IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { IsBoolean, IsEnum, IsISO8601, IsOptional, IsString, IsUUID, Length, Matches, ValidateIf } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { GradeLevel, StudentEnrollmentStatus } from '../../generated/prisma/client.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
@@ -44,6 +44,16 @@ export class ActivateAcademicYearDto {
   @IsOptional()
   @IsBoolean()
   deactivateGraduates?: boolean;
+
+  /**
+   * REQUIRED: the academic year the caller saw as current (null: none). When the current year is
+   * now another one (another start went through meanwhile), the start is refused with
+   * 409 CURRENT_YEAR_CHANGED instead of closing a year the caller never saw and rolling students
+   * over a second time. Required so that no client can start a year blind.
+   */
+  @ValidateIf((o) => o.expectedCurrentYearId !== null)
+  @IsUUID('all', { message: 'expectedCurrentYearId must be the id of the current academic year, or null when there is none.' })
+  expectedCurrentYearId: string | null;
 }
 
 export class ListEnrollmentsDto extends PaginationQueryDto {

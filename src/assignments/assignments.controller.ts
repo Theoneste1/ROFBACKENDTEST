@@ -17,14 +17,16 @@ import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { AssignmentsService } from './assignments.service.js';
-import { CreateAssignmentDto, ListAssignmentsDto } from './dto/create-assignment.dto.js';
+import { CreateAssignmentDto, ListAssignmentsDto, MyAssignmentsQueryDto } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { CloseAssignmentDto, RejectAssignmentDto, ReopenAssignmentDto } from './dto/reject-assignment.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
 import { ATTACHMENT_FIELDS, filesFrom, type UploadedAttachmentFiles } from '../common/storage/attachments.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 
 @ApiTags('Assignments')
 @Controller('assignments')
@@ -38,7 +40,7 @@ export class AssignmentsController {
    * files in "files" — up to 10 — or "file").
    */
   @Post()
-  @Roles('MENTOR')
+  @RequirePermission('assignments.prepare')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('ASSIGNMENT_BRIEF')))
   create(
@@ -51,7 +53,7 @@ export class AssignmentsController {
 
   /** Edit a DRAFT or REJECTED assignment; uploaded files are added to the brief. */
   @Patch(':id')
-  @Roles('MENTOR')
+  @RequirePermission('assignments.prepare')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('ASSIGNMENT_BRIEF')))
   update(
@@ -65,7 +67,7 @@ export class AssignmentsController {
 
   /** Add brief files (DRAFT/REJECTED only). */
   @Post(':id/attachments')
-  @Roles('MENTOR')
+  @RequirePermission('assignments.prepare')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileFieldsInterceptor(ATTACHMENT_FIELDS, uploadOptions('ASSIGNMENT_BRIEF')))
   addAttachments(
@@ -77,7 +79,7 @@ export class AssignmentsController {
   }
 
   @Delete(':id/attachments/:attachmentId')
-  @Roles('MENTOR')
+  @RequirePermission('assignments.prepare')
   removeAttachment(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
@@ -88,14 +90,14 @@ export class AssignmentsController {
 
   /** Send to the administrators for official publication. */
   @Patch(':id/submit')
-  @Roles('MENTOR')
+  @RequirePermission('assignments.prepare')
   submitForReview(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.submitForReview(id, user);
   }
 
   /** Withdraw from review back to draft. */
   @Patch(':id/recall')
-  @Roles('MENTOR')
+  @RequirePermission('assignments.prepare')
   recall(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.recall(id, user);
   }
@@ -103,13 +105,13 @@ export class AssignmentsController {
   // ─── ADMIN: official publication ──────────────────────────────────────────
 
   @Patch(':id/publish')
-  @Roles('ADMIN')
+  @RequirePermission('assignments.publish')
   publish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.publish(id, user);
   }
 
   @Patch(':id/reject')
-  @Roles('ADMIN')
+  @RequirePermission('assignments.publish')
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: RejectAssignmentDto,
@@ -120,14 +122,14 @@ export class AssignmentsController {
 
   /** Only possible while the assignment has no submissions. */
   @Patch(':id/unpublish')
-  @Roles('ADMIN')
+  @RequirePermission('assignments.publish')
   unpublish(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.unpublish(id, user);
   }
 
   /** Stop accepting submissions now. Reviews and results carry on. */
   @Patch(':id/close')
-  @Roles('ADMIN')
+  @RequirePermission('assignments.publish')
   close(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: CloseAssignmentDto,
@@ -138,7 +140,7 @@ export class AssignmentsController {
 
   /** Accept submissions again; a new deadline is required if the old one has passed. */
   @Patch(':id/reopen')
-  @Roles('ADMIN')
+  @RequirePermission('assignments.publish')
   reopen(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: ReopenAssignmentDto,
@@ -149,7 +151,7 @@ export class AssignmentsController {
 
   /** Read-only from now on; results stay visible. */
   @Patch(':id/archive')
-  @Roles('ADMIN')
+  @RequirePermission('assignments.publish')
   archive(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.archive(id, user);
   }
@@ -163,25 +165,28 @@ export class AssignmentsController {
    * deadlineFrom / deadlineTo.
    */
   @Get()
+  @Authenticated()
   findAll(@CurrentUser() user: AuthUser, @Query() query: ListAssignmentsDto) {
     return this.assignmentsService.findAll(user, query);
   }
 
   /** Detail. For students this records the view and includes their submission state. */
   @Get(':id')
+  @Authenticated()
   findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.findOne(id, user);
   }
 
   /** Everything that happened to the assignment, oldest first (mentors of the scope, admins). */
   @Get(':id/history')
-  @Roles('MENTOR', 'ADMIN')
+  @Roles('MENTOR', 'HEAD_COACH', 'ADMIN', 'SUPER_ADMIN')
   history(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.assignmentsService.history(id, user);
   }
 
   /** Download the (first) brief file. */
   @Get(':id/file')
+  @Authenticated()
   async download(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('download') download: string | undefined,
@@ -193,6 +198,7 @@ export class AssignmentsController {
 
   /** Download a specific brief file. */
   @Get(':id/attachments/:attachmentId/file')
+  @Authenticated()
   async downloadAttachment(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
@@ -210,9 +216,13 @@ export class AssignmentsController {
 export class MyAssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
-  /** Every assignment for the student's division with New / Opened / Submitted / In Review / Marked. */
+  /**
+   * Every assignment for the student's division with my display status. Filters: q, courseId,
+   * academicYearId, deadlineFrom/To, progress (my status, incl. OVERDUE); sort: deadline | -deadline
+   * | title (capability studentAssignmentFilters).
+   */
   @Get()
-  findMine(@CurrentUser() user: AuthUser, @Query() query: ListAssignmentsDto) {
+  findMine(@CurrentUser() user: AuthUser, @Query() query: MyAssignmentsQueryDto) {
     return this.assignmentsService.getStudentAssignments(user, query);
   }
 }

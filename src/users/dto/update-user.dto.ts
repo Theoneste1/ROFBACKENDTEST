@@ -7,6 +7,7 @@ import {
   IsUUID,
   Length,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { GradeLevel, Role } from '../../generated/prisma/client.js';
@@ -46,14 +47,36 @@ export class UpdateUserDto {
   @IsEnum(Role)
   role?: Role;
 
+  /**
+   * Your own current password (step-up, P1-08). Required to change a role to or
+   * from ADMIN or SUPER_ADMIN; otherwise ignored. Never stored or logged.
+   */
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  currentPassword?: string;
+
   /** Changing the grade moves a student to the matching division. */
   @IsOptional()
   @IsEnum(GradeLevel)
   gradeLevel?: GradeLevel;
 
+  /**
+   * Omitted: the school is kept. A school id: the student moves to that school. null: the
+   * student's school is cleared (their current school claim ends; no new claim is created).
+   */
   @IsOptional()
   @IsUUID()
-  schoolId?: string;
+  schoolId?: string | null;
+
+  /**
+   * A Rwandan school by its official code — an alternative to schoolId (PR B). Given together,
+   * both must name the same school.
+   */
+  @ValidateIf((o) => o.schoolCode !== undefined)
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'schoolCode must be exactly 6 digits.' })
+  schoolCode?: string;
 
   @IsOptional()
   @IsString()

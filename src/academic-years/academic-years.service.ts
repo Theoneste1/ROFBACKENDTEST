@@ -16,9 +16,9 @@ import { AuditService } from '../audit/audit.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
-import { divisionCodeForGrade, nextGrade } from '../common/grade-levels.js';
+import { DIVISION_GRADES, divisionCodeForGrade, nextGrade } from '../common/grade-levels.js';
 import type { CallerCtx } from '../common/auth-user.js';
-import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
+import { Prisma, type GradeLevel } from '../generated/prisma/client.js';
 import {
   ActivateAcademicYearDto,
   CreateAcademicYearDto,
@@ -28,6 +28,22 @@ import {
 } from './dto/academic-year.dto.js';
 
 type Tx = Prisma.TransactionClient;
+
+/** pg advisory lock key of academic-year starts (any constant unique in this database). */
+const ACTIVATION_LOCK_KEY = 7_302_026_001n;
+
+const GRADES: GradeLevel[] = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'];
+
+/** SQL for nextGrade(): the grade after `column`, NULL after S6 (generated from the same rule). */
+function nextGradeSql(column: Prisma.Sql): Prisma.Sql {
+  const steps = GRADES.map((g) => [g, nextGrade(g)] as const).filter(([, n]) => n !== null);
+  return Prisma.sql`(CASE ${column} ${Prisma.join(steps.map(([g, n]) => Prisma.sql`WHEN ${g}::"GradeLevel" THEN ${n}::"GradeLevel"`), ' ')} ELSE NULL END)`;
+}
+
+/** SQL for divisionCodeForGrade() mapped to the division ids: JUNIOR for S1–S3, SENIOR otherwise. */
+function divisionSql(divisionFor: Record<'JUNIOR' | 'SENIOR', string>, grade: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`(CASE WHEN ${grade}::text IN (${Prisma.join(DIVISION_GRADES.JUNIOR)}) THEN ${divisionFor.JUNIOR} ELSE ${divisionFor.SENIOR} END)`;
+}
 
 @Injectable()
 export class AcademicYearsService {
@@ -110,11 +126,13 @@ export class AcademicYearsService {
    *                                S6 students are GRADUATED (and deactivated
    *                                when deactivateGraduates=true);
    *        promoteStudents=false → same grade in the new year.
-   *   3. Active students without an enrolment are enrolled at their current grade.
+   *   3. Active students without an enrolment are enrolled at their current grade
+   *      — except students whose latest enrolment is GRADUATED (never re-enrolled
+   *      automatically, whether kept active or reactivated later).
+   * Steps 2 and 3 are one SQL statement each (rollOver, enrollUnenrolled).
    */
   async activate(id: string, dto: ActivateAcademicYearDto, caller: CallerCtx) {
-    const target = await this.findOne(id);
-    if (target.status !== 'PLANNED') throw invalidState('Only a PLANNED academic year can be activated.');
+    await this.findOne(id);   // 404 before anything else
 
     // Resolve outside the transaction: only `tx` may be used inside it.
     const divisionFor = {
@@ -123,8 +141,32 @@ export class AcademicYearsService {
     };
     const counts = { promoted: 0, carriedOver: 0, graduated: 0, newlyEnrolled: 0, assignmentsArchived: 0 };
 
-    await this.prisma.$transaction(async (tx) => {
+    // A start rewrites every student's enrolment, so starts are single-flight, platform-wide:
+    // the transaction-scoped advisory lock is held until this start commits or rolls back. A
+    // concurrent start (a retry after the proxy's ~26 s timeout, a double click, another
+    // administrator) does not wait behind it — it is refused at once, and a retry after the
+    // first one committed is answered from its audit record (no second rollover).
+    const replay = await this.prisma.$transaction(async (tx) => {
+      const [{ locked }] = await tx.$queryRaw<Array<{ locked: boolean }>>`SELECT pg_try_advisory_xact_lock(${ACTIVATION_LOCK_KEY}::bigint) AS locked`;
+      if (!locked) {
+        throw new AppError(HttpStatus.CONFLICT, 'ACTIVATION_IN_PROGRESS',
+          'An academic year is being started right now. Wait for it to finish, then reload the list.');
+      }
+      // Re-read under the lock: the state seen before it may be stale.
+      const target = await tx.academicYear.findUnique({ where: { id } });
+      if (!target) throw new NotFoundException('Academic year not found.');
       const previous = await tx.academicYear.findFirst({ where: { isCurrent: true } });
+
+      if (target.status !== 'PLANNED') {
+        const recorded = await this.recordedActivation(tx, id, dto);
+        if (recorded) return recorded;
+        throw invalidState('Only a PLANNED academic year can be activated.', { currentStatus: target.status });
+      }
+      if ((previous?.id ?? null) !== dto.expectedCurrentYearId) {
+        throw new AppError(HttpStatus.CONFLICT, 'CURRENT_YEAR_CHANGED',
+          'The current academic year changed since this request was prepared; nothing was changed.',
+          { expectedCurrentYearId: dto.expectedCurrentYearId, currentYearId: previous?.id ?? null });
+      }
       const now = new Date();
 
       if (previous) {
@@ -151,53 +193,168 @@ export class AcademicYearsService {
 
       await tx.academicYear.update({ where: { id }, data: { isCurrent: true, status: 'ACTIVE' } });
 
-      const previousEnrollments = previous
-        ? await tx.studentEnrollment.findMany({
-            where:   { academicYearId: previous.id, status: 'ACTIVE', student: { isActive: true } },
-            select:  { id: true, studentId: true, gradeLevel: true, schoolId: true },
-          })
-        : [];
-
-      for (const e of previousEnrollments) {
-        const grade = dto.promoteStudents ? nextGrade(e.gradeLevel) : e.gradeLevel;
-        if (!grade) {
-          await tx.studentEnrollment.update({ where: { id: e.id }, data: { status: 'GRADUATED', endedAt: now } });
-          if (dto.deactivateGraduates ?? true) {
-            await tx.user.update({ where: { id: e.studentId }, data: { isActive: false } });
-          }
-          counts.graduated++;
-          continue;
-        }
-        await tx.studentEnrollment.update({
-          where: { id: e.id },
-          data:  { status: dto.promoteStudents ? 'PROMOTED' : 'ACTIVE', endedAt: now },
+      // Set-based (PERF-01): one statement rolls every student over and one enrols the rest, instead
+      // of 3–4 statements per student (49 s for 10,000 students locally; the 120 s transaction expired at 50,000).
+      if (previous) {
+        const rolled = await this.rollOver(tx, {
+          previousYearId: previous.id, yearId: id, now, divisionFor,
+          promote: dto.promoteStudents, deactivateGraduates: dto.deactivateGraduates ?? true,
         });
-        await this.writeEnrollment(tx, e.studentId, id, grade, divisionFor[divisionCodeForGrade(grade)], e.schoolId);
-        if (dto.promoteStudents) counts.promoted++;
-        else counts.carriedOver++;
+        counts.graduated = rolled.graduated;
+        if (dto.promoteStudents) counts.promoted = rolled.moved;
+        else counts.carriedOver = rolled.moved;
       }
-
-      // Active students who had no enrolment (e.g. created before years existed).
-      const unenrolled = await tx.user.findMany({
-        where: {
-          role: 'STUDENT', isActive: true, gradeLevel: { not: null },
-          studentEnrollments: { none: { academicYearId: id } },
-        },
-        select: { id: true, gradeLevel: true, schoolId: true },
-      });
-      for (const s of unenrolled) {
-        await this.writeEnrollment(tx, s.id, id, s.gradeLevel!, divisionFor[divisionCodeForGrade(s.gradeLevel!)], s.schoolId);
-        counts.newlyEnrolled++;
-      }
+      counts.newlyEnrolled = await this.enrollUnenrolled(tx, { yearId: id, now, divisionFor });
 
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'ACTIVATE_ACADEMIC_YEAR', entity: 'AcademicYear', entityId: id,
-        metadata: { previousYearId: previous?.id ?? null, ...dto, counts },
+        metadata: {
+          previousYearId: previous?.id ?? null,
+          promoteStudents: dto.promoteStudents,
+          deactivateGraduates: dto.deactivateGraduates ?? true,
+          counts,
+        },
       }, tx);
+      return null;
     }, { timeout: 120_000 });
 
+    if (replay) return { academicYear: await this.findOne(id), ...replay.counts, replayed: true };
     return { academicYear: await this.findOne(id), ...counts };
+  }
+
+  /**
+   * A year that is no longer PLANNED: the outcome recorded by the start that made it current, when
+   * this request repeats it (same choices; same expected current year, when given). A different
+   * request for an already started year is refused with what differs.
+   */
+  private async recordedActivation(tx: Tx, id: string, dto: ActivateAcademicYearDto) {
+    const year = await tx.academicYear.findUniqueOrThrow({ where: { id }, select: { status: true, isCurrent: true } });
+    if (year.status !== 'ACTIVE' || !year.isCurrent) return null;   // CLOSED since: not a repeat any more
+    const entry = await tx.auditLog.findFirst({
+      where: { action: 'ACTIVATE_ACADEMIC_YEAR', entity: 'AcademicYear', entityId: id },
+      orderBy: { createdAt: 'desc' }, select: { metadata: true },
+    });
+    const m = (entry?.metadata ?? null) as {
+      previousYearId?: string | null; promoteStudents?: boolean; deactivateGraduates?: boolean;
+      counts?: { promoted: number; carriedOver: number; graduated: number; newlyEnrolled: number; assignmentsArchived: number };
+    } | null;
+    if (!m || typeof m.promoteStudents !== 'boolean' || !m.counts) return null;
+    const recorded = { promoteStudents: m.promoteStudents, deactivateGraduates: m.deactivateGraduates ?? true };
+    const asked = { promoteStudents: dto.promoteStudents, deactivateGraduates: dto.deactivateGraduates ?? true };
+    if (recorded.promoteStudents !== asked.promoteStudents || (asked.promoteStudents && recorded.deactivateGraduates !== asked.deactivateGraduates)) {
+      throw new AppError(HttpStatus.CONFLICT, 'ACTIVATION_OPTIONS_DIFFER',
+        'This academic year was already started with different choices; nothing was changed.', { recorded, requested: asked });
+    }
+    if ((m.previousYearId ?? null) !== dto.expectedCurrentYearId) {
+      throw new AppError(HttpStatus.CONFLICT, 'CURRENT_YEAR_CHANGED',
+        'This academic year was started from a different current year than this request expected; nothing was changed.',
+        { expectedCurrentYearId: dto.expectedCurrentYearId, currentYearId: m.previousYearId ?? null });
+    }
+    return { counts: m.counts };
+  }
+
+  /**
+   * Step 2 of a start, in ONE statement: every ACTIVE enrolment of the previous year whose student
+   * is active rolls over. Same rules as the former per-student loop:
+   *   - next grade (promote) or the same grade (carry over); no next grade (S6) → GRADUATED;
+   *   - the old enrolment ends (endedAt = now) as PROMOTED, ACTIVE (carried over) or GRADUATED;
+   *   - graduates are deactivated when `deactivateGraduates`;
+   *   - everyone else gets an ACTIVE enrolment in the new year (an existing one is overwritten,
+   *     as the former upsert did), and User.gradeLevel / divisionId / schoolId mirror it.
+   * The data-modifying CTEs touch disjoint rows; the User triggers (M4, M10) fire per row as before.
+   */
+  private async rollOver(tx: Tx, p: {
+    previousYearId: string; yearId: string; now: Date; promote: boolean; deactivateGraduates: boolean;
+    divisionFor: Record<'JUNIOR' | 'SENIOR', string>;
+  }): Promise<{ moved: number; graduated: number }> {
+    // The grade in the new year (NULL: graduates). gradeLevel itself is not changed by the UPDATE,
+    // so the expression means the same in SET and in RETURNING.
+    const grade = Prisma.sql`(CASE WHEN ${p.promote}::boolean THEN ${nextGradeSql(Prisma.sql`e."gradeLevel"`)} ELSE e."gradeLevel" END)`;
+    const [row] = await tx.$queryRaw<Array<{ moved: number; graduated: number }>>`
+      WITH rolled AS (
+        UPDATE "StudentEnrollment" AS e
+           SET "status"  = CASE WHEN ${grade} IS NULL THEN 'GRADUATED'
+                                WHEN ${p.promote}::boolean THEN 'PROMOTED'
+                                ELSE 'ACTIVE' END::"StudentEnrollmentStatus",
+               "endedAt" = ${p.now}::timestamp(3)
+          FROM "User" AS u
+         WHERE e."academicYearId" = ${p.previousYearId} AND e."status" = 'ACTIVE'
+           AND u."id" = e."studentId" AND u."isActive"
+        RETURNING e."studentId", e."schoolId", ${grade} AS "grade"
+      ),
+      graduates AS (
+        UPDATE "User" AS u SET "isActive" = false, "updatedAt" = ${p.now}::timestamp(3)
+          FROM rolled AS r
+         WHERE ${p.deactivateGraduates}::boolean AND r."grade" IS NULL AND u."id" = r."studentId"
+        RETURNING u."id"
+      ),
+      enrolled AS (
+        INSERT INTO "StudentEnrollment" ("id", "studentId", "academicYearId", "divisionId", "gradeLevel", "schoolId", "status", "enrolledAt")
+        SELECT gen_random_uuid()::text, r."studentId", ${p.yearId}, ${divisionSql(p.divisionFor, Prisma.sql`r."grade"`)},
+               r."grade", r."schoolId", 'ACTIVE'::"StudentEnrollmentStatus", ${p.now}::timestamp(3)
+          FROM rolled AS r WHERE r."grade" IS NOT NULL
+        ON CONFLICT ("studentId", "academicYearId") DO UPDATE
+           SET "gradeLevel" = EXCLUDED."gradeLevel", "divisionId" = EXCLUDED."divisionId",
+               "schoolId" = EXCLUDED."schoolId", "status" = 'ACTIVE', "endedAt" = NULL
+        RETURNING "studentId", "gradeLevel", "divisionId", "schoolId"
+      ),
+      placed AS (
+        UPDATE "User" AS u
+           SET "gradeLevel" = n."gradeLevel", "divisionId" = n."divisionId", "schoolId" = n."schoolId", "updatedAt" = ${p.now}::timestamp(3)
+          FROM enrolled AS n
+         WHERE u."id" = n."studentId"
+        RETURNING u."id"
+      )
+      SELECT (SELECT count(*) FROM enrolled)::int AS "moved",
+             (SELECT count(*) FROM rolled WHERE "grade" IS NULL)::int AS "graduated",
+             (SELECT count(*) FROM graduates)::int AS "deactivated",
+             (SELECT count(*) FROM placed)::int AS "placed"`;
+    return { moved: row.moved, graduated: row.graduated };
+  }
+
+  /**
+   * Step 3 of a start, in ONE statement: active students with a grade and no enrolment in the new
+   * year (e.g. created before academic years existed) are enrolled at their current grade.
+   *
+   * A student whose LATEST enrolment (by academic year) is GRADUATED is never enrolled here: a
+   * graduate kept active (deactivateGraduates=false), or a graduate whose account was reactivated
+   * later, is not turned back into an ACTIVE S6 student of the new year (B-M3). Placing such a
+   * student again is an explicit administrator action (an enrolment in the current year).
+   */
+  private async enrollUnenrolled(tx: Tx, p: {
+    yearId: string; now: Date; divisionFor: Record<'JUNIOR' | 'SENIOR', string>;
+  }): Promise<number> {
+    const [row] = await tx.$queryRaw<Array<{ enrolled: number }>>`
+      WITH candidates AS (
+        SELECT u."id", u."gradeLevel", u."schoolId"
+          FROM "User" AS u
+         WHERE u."role" = 'STUDENT' AND u."isActive" AND u."gradeLevel" IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM "StudentEnrollment" AS n WHERE n."studentId" = u."id" AND n."academicYearId" = ${p.yearId})
+           AND (SELECT l."status" FROM "StudentEnrollment" AS l JOIN "AcademicYear" AS y ON y."id" = l."academicYearId"
+                 WHERE l."studentId" = u."id"
+                 ORDER BY y."startsOn" DESC, l."enrolledAt" DESC
+                 LIMIT 1) IS DISTINCT FROM 'GRADUATED'
+      ),
+      enrolled AS (
+        INSERT INTO "StudentEnrollment" ("id", "studentId", "academicYearId", "divisionId", "gradeLevel", "schoolId", "status", "enrolledAt")
+        SELECT gen_random_uuid()::text, c."id", ${p.yearId}, ${divisionSql(p.divisionFor, Prisma.sql`c."gradeLevel"`)},
+               c."gradeLevel", c."schoolId", 'ACTIVE'::"StudentEnrollmentStatus", ${p.now}::timestamp(3)
+          FROM candidates AS c
+        ON CONFLICT ("studentId", "academicYearId") DO UPDATE
+           SET "gradeLevel" = EXCLUDED."gradeLevel", "divisionId" = EXCLUDED."divisionId",
+               "schoolId" = EXCLUDED."schoolId", "status" = 'ACTIVE', "endedAt" = NULL
+        RETURNING "studentId", "gradeLevel", "divisionId", "schoolId"
+      ),
+      placed AS (
+        UPDATE "User" AS u
+           SET "gradeLevel" = n."gradeLevel", "divisionId" = n."divisionId", "schoolId" = n."schoolId", "updatedAt" = ${p.now}::timestamp(3)
+          FROM enrolled AS n
+         WHERE u."id" = n."studentId"
+        RETURNING u."id"
+      )
+      SELECT (SELECT count(*) FROM enrolled)::int AS "enrolled", (SELECT count(*) FROM placed)::int AS "placed"`;
+    return row.enrolled;
   }
 
   // ─── Enrolments ───────────────────────────────────────────────────────────

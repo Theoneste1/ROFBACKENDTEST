@@ -50,6 +50,15 @@ export class CreateUserDto {
   @IsUUID()
   schoolId?: string;
 
+  /**
+   * A Rwandan school by its official code — an alternative to schoolId (PR B). Given together,
+   * both must name the same school.
+   */
+  @ValidateIf((o) => o.schoolCode !== undefined)
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'schoolCode must be exactly 6 digits.' })
+  schoolCode?: string;
+
   @IsOptional()
   @IsString()
   @Length(2, 200)

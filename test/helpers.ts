@@ -16,6 +16,7 @@ import { AppModule } from '../src/app/app.module.js';
 import { configureApp } from '../src/main.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import type { GradeLevel } from '../src/generated/prisma/client.js';
+import { EDUCATION_LEVELS, NESA_DATA_SOURCE } from '../src/schools/directory/reference-data.js';
 
 export const PASSWORD = 'Passw0rd!';
 
@@ -160,6 +161,9 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
   const algebra  = courses[0];
   const geometry = courses[1];
 
+  // Directory reference data (seeded by M12 in real databases; every table is truncated here).
+  await prisma.educationLevel.createMany({ data: [...EDUCATION_LEVELS] });
+  await prisma.schoolDataSource.create({ data: { ...NESA_DATA_SOURCE } });
   const school = await prisma.school.create({ data: { name: 'Test School', location: 'Kigali' } });
 
   const user = (username: string, role: 'ADMIN' | 'MENTOR' | 'STUDENT', grade?: GradeLevel) =>
@@ -200,6 +204,14 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
     ],
   });
 
+  // Programme membership as after the P1-07 backfill (M3): every student and coach in
+  // Mathematics, source BACKFILL. The whole suite therefore runs with memberships
+  // present, proving they change no existing access.
+  await prisma.programmeMembership.createMany({
+    data: [studentJunior, studentJunior2, studentSenior, mentorJunior, mentorJunior2, mentorSenior]
+      .map((u) => ({ userId: u.id, disciplineId: maths.id, source: 'BACKFILL' as const })),
+  });
+
   return {
     year: year.id, junior: junior.id, senior: senior.id, algebra: algebra.id, geometry: geometry.id,
     admin: admin.id, mentorJunior: mentorJunior.id, mentorJunior2: mentorJunior2.id,
@@ -228,3 +240,8 @@ export const EXE = Buffer.concat([Buffer.from('MZ'), Buffer.alloc(200, 0x90)]);
 
 /** An ISO date `days` from now. */
 export const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+
+/** The current academic year's id (null: none) — `expectedCurrentYearId` of a year start. */
+export async function currentYearId(ctx: TestContext): Promise<string | null> {
+  return (await ctx.prisma.academicYear.findFirst({ where: { isCurrent: true }, select: { id: true } }))?.id ?? null;
+}

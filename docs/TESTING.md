@@ -51,6 +51,7 @@ Every one of the API routes is called by at least one e2e test, checked by
 | `courses` | Courses, resources, metadata, filters, discussions switch |
 | `assignments` | Lifecycle, CLOSED/reopen, history, filters |
 | `submissions`, `review`, `results` | Answers and files, resubmissions (student and mentor-requested), distribution, review cycles, admin approval, publication, result history, corrections |
+| `points-concurrency` | Points stay equal to the published results under forced interleavings: two publications for one student, a correction racing a publication, a publication racing the full recompute, and repeated concurrent publications over the same students in opposite orders (no deadlock) |
 | `discussions` | Course and assignment threads, permissions, reports, moderation, notifications |
 | `notifications`, `notification-settings` | Who is notified, inbox API, per-type switches; no automatic reminders |
 | `dashboard-reports` | Exact statistics against a known dataset, filters, CSV exports, authorization |
@@ -71,7 +72,8 @@ Every one of the API routes is called by at least one e2e test, checked by
   - forged, unsigned (`alg: none`), wrong-secret and expired tokens are rejected;
   - logout and "sign out everywhere" work;
   - password change and suspension end sessions;
-  - the account lockout works and reveals nothing;
+  - the account lockout works and reveals nothing, also against 20 parallel
+    wrong guesses (no lost counts);
   - password-reset requests don't reveal whether an account exists, and only
     the newest reset link works;
   - one-time links are not kept in the e-mail outbox after sending.

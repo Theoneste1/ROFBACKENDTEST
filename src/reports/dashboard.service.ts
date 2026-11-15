@@ -17,6 +17,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import type { AuthUser } from '../common/auth-user.js';
 import { ReportScopeService, type ReportScope } from './report-scope.js';
 import { UserReportsService } from './user-reports.service.js';
 import type { ReportFiltersDto } from './dto/report-filters.dto.js';
@@ -32,8 +33,9 @@ export class DashboardService {
     private readonly users:  UserReportsService,
   ) {}
 
-  async dashboard(q: ReportFiltersDto) {
-    const s = await this.scope.resolve(q);
+  async dashboard(q: ReportFiltersDto, user: AuthUser) {
+    const s = await this.scope.resolve(q, user);
+    const restricted = this.scope.restricted(s);
     const [students, mentors, assignments, submissions, reviews, results, reports, accounts] = await Promise.all([
       this.students(s),
       this.mentors(s),
@@ -41,8 +43,9 @@ export class DashboardService {
       this.submissions(s),
       this.reviews(s),
       this.results(s),
-      this.reportedContent(s),
-      this.accountsAwaitingSetup(),
+      // Head Coach: no moderation queue (H7) and no account-wide setup figures.
+      restricted ? null : this.reportedContent(s),
+      restricted ? null : this.accountsAwaitingSetup(),
     ]);
     return {
       generatedAt: new Date(),
@@ -53,8 +56,7 @@ export class DashboardService {
       submissions,
       reviews,
       results,
-      reportedContent:       reports,
-      accountsAwaitingSetup: accounts,
+      ...(!restricted && { reportedContent: reports, accountsAwaitingSetup: accounts }),
     };
   }
 
@@ -92,13 +94,13 @@ export class DashboardService {
   private async studentsByCourse(s: ReportScope, studentWhere: Prisma.UserWhereInput) {
     const [courses, rows] = await Promise.all([
       this.prisma.course.findMany({
-        where:   s.courseId ? { id: s.courseId } : {},
+        where:   this.scope.courseWhere(s),
         orderBy: { sortOrder: 'asc' },
         select:  { id: true, code: true, title: true },
       }),
       this.prisma.courseEnrollment.groupBy({
         by:     ['courseId', 'status'],
-        where:  { status: { in: ['ROLLED', 'COMPLETED'] }, student: studentWhere, ...(s.courseId && { courseId: s.courseId }) },
+        where:  { status: { in: ['ROLLED', 'COMPLETED'] }, student: studentWhere, ...this.scope.courseIdWhere(s) },
         _count: { _all: true },
       }),
     ]);

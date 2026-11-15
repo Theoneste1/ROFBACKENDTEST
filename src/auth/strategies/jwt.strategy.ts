@@ -12,6 +12,22 @@ interface AccessTokenPayload {
   exp?: number;
   /** Issued at (seconds), set by the JWT library. */
   iat?: number;
+  /** Issued at (milliseconds), set by TokenService. Absent on tokens issued before it existed. */
+  iatMs?: number;
+}
+
+/**
+ * True when the token was issued at or before the moment the user's sessions
+ * were ended. Compared in milliseconds (the precision of tokensValidAfter), so a
+ * token issued in the same second as the revocation is refused too. A token
+ * without `iatMs` (issued before this check existed) is refused if it was
+ * issued in or before the revocation second.
+ */
+export function issuedBeforeRevocation(payload: Pick<AccessTokenPayload, 'iat' | 'iatMs'>, tokensValidAfter: Date): boolean {
+  const revokedAtMs = tokensValidAfter.getTime();
+  if (typeof payload.iatMs === 'number' && Number.isFinite(payload.iatMs)) return payload.iatMs <= revokedAtMs;
+  if (typeof payload.iat === 'number' && Number.isFinite(payload.iat)) return payload.iat <= Math.floor(revokedAtMs / 1000);
+  return true;   // no issue time at all: cannot prove it is newer — refuse
 }
 
 @Injectable()
@@ -50,6 +66,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       select: {
         id: true, username: true, role: true, isActive: true, isApproved: true, activatedAt: true,
         divisionId: true, gradeLevel: true, tokensValidAfter: true,
+        // Active individual overrides (P1-09): read fresh on every request, so a
+        // revocation applies on the next request and nothing is cached.
+        permissionOverrides: {
+          where:  { revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          select: { id: true, permission: true, effect: true, courseId: true, divisionId: true, expiresAt: true },
+        },
       },
     });
 
@@ -57,9 +79,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Your session is no longer valid. Please log in again.');
     }
     // Sessions ended (password changed, signed out everywhere, suspended, role
-    // changed): tokens issued before then are refused. `iat` has whole-second
-    // precision, so tokens issued in that same second still pass.
-    if (user.tokensValidAfter && payload.iat !== undefined && payload.iat < Math.floor(user.tokensValidAfter.getTime() / 1000)) {
+    // changed): every token issued at or before that moment is refused —
+    // including one issued in the same second (millisecond comparison).
+    if (user.tokensValidAfter && issuedBeforeRevocation(payload, user.tokensValidAfter)) {
       throw new UnauthorizedException('Your session is no longer valid. Please log in again.');
     }
 
@@ -71,6 +93,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       gradeLevel: user.gradeLevel,
       jti:        payload.jti,
       exp:        payload.exp,
+      overrides:  user.permissionOverrides,
     };
   }
 }

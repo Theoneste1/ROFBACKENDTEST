@@ -6,6 +6,7 @@ import { AccessService } from '../common/access/access.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { isStaff, isStudent, unsupportedRole } from '../common/access/roles.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { LeaderboardQueryDto } from './dto/leaderboard-query.dto.js';
 
@@ -36,6 +37,10 @@ interface RankedRow {
   schoolName:     string | null;
 }
 
+/** The student (`u`) holds a current VERIFIED affiliation for their school. */
+const VERIFIED_AT_SCHOOL = Prisma.sql`EXISTS (SELECT 1 FROM "StudentSchoolAffiliation" a
+  WHERE a."studentId" = u."id" AND a."supersededAt" IS NULL AND a."status" = 'VERIFIED' AND a."schoolId" = u."schoolId")`;
+
 @Injectable()
 export class LeaderboardService {
   constructor(
@@ -44,14 +49,18 @@ export class LeaderboardService {
     private readonly access:    AccessService,
   ) {}
 
-  /** Ranked students of one division, optionally narrowed to a school. */
+  /**
+   * Ranked students of one division, optionally narrowed to a school. A school filter lists
+   * only students whose membership of that school is VERIFIED, and a student's school is
+   * shown only when verified (an unverified claim is never displayed).
+   */
   async findGeneral(user: AuthUser, q: LeaderboardQueryDto) {
     const divisionId = await this.resolveDivision(user, q.divisionId);
     const { page, limit, skip, take } = pageArgs(q);
 
     const filter = Prisma.sql`
       u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
-      ${q.schoolId ? Prisma.sql`AND u."schoolId" = ${q.schoolId}` : Prisma.empty}`;
+      ${q.schoolId ? Prisma.sql`AND u."schoolId" = ${q.schoolId} AND ${VERIFIED_AT_SCHOOL}` : Prisma.empty}`;
 
     const [rows, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>`
@@ -59,7 +68,7 @@ export class LeaderboardService {
                u."id", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
                s."id" AS "schoolId", s."name" AS "schoolName"
         FROM "User" u
-        LEFT JOIN "School" s ON s."id" = u."schoolId"
+        LEFT JOIN "School" s ON s."id" = u."schoolId" AND ${VERIFIED_AT_SCHOOL}
         WHERE ${filter}
         ORDER BY "rank" ASC, u."createdAt" ASC
         LIMIT ${take} OFFSET ${skip}`,
@@ -96,7 +105,7 @@ export class LeaderboardService {
     };
   }
 
-  /** Schools ranked by total student points within a division. */
+  /** Schools ranked by total points of their VERIFIED students within a division. */
   async findSchoolSummary(user: AuthUser, q: LeaderboardQueryDto) {
     const divisionId = await this.resolveDivision(user, q.divisionId);
     const { page, limit, skip, take } = pageArgs(q);
@@ -111,14 +120,15 @@ export class LeaderboardService {
              ROUND(AVG(u."points")::numeric, 1)::float AS "averagePoints"
       FROM "User" u
       JOIN "School" s ON s."id" = u."schoolId"
-      WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
+      WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId} AND ${VERIFIED_AT_SCHOOL}
       GROUP BY s."id", s."name", s."location"
       ORDER BY "rank" ASC, s."name" ASC
       LIMIT ${take} OFFSET ${skip}`;
 
-    const total = await this.prisma.school.count({
-      where: { students: { some: { role: 'STUDENT', isActive: true, divisionId } } },
-    });
+    const counted = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(DISTINCT u."schoolId") AS "count" FROM "User" u
+       WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId} AND u."schoolId" IS NOT NULL AND ${VERIFIED_AT_SCHOOL}`;
+    const total = Number(counted[0]?.count ?? 0);
 
     return {
       divisionId,
@@ -141,15 +151,16 @@ export class LeaderboardService {
 
   /**
    * Students always see their own division (and only if the setting allows).
-   * Staff must choose a division.
+   * Staff (admins, coaches) must choose a division. Any other role is refused.
    */
   private async resolveDivision(user: AuthUser, requested?: string): Promise<string> {
-    if (user.role === 'STUDENT') {
+    if (isStudent(user)) {
       if (!(await this.settings.get('leaderboard.visibleToStudents'))) {
         throw new AppError(HttpStatus.FORBIDDEN, 'LEADERBOARD_HIDDEN', 'The leaderboard is currently not available.');
       }
       return this.access.studentDivision(user);
     }
+    if (!isStaff(user)) throw unsupportedRole();
     if (!requested) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId.');
     }
@@ -158,13 +169,12 @@ export class LeaderboardService {
     return requested;
   }
 
-  /** Students see first name + last initial; staff see full names. */
+  /** Staff (admins, coaches) see full names; everyone else sees first name + last initial. */
   private toEntry(r: RankedRow, user: AuthUser) {
-    const isStaff = user.role !== 'STUDENT';
     return {
       rank:           Number(r.rank),
       id:             r.id,
-      displayName:    isStaff ? `${r.firstName} ${r.lastName}` : `${r.firstName} ${r.lastName.charAt(0)}.`,
+      displayName:    isStaff(user) ? `${r.firstName} ${r.lastName}` : `${r.firstName} ${r.lastName.charAt(0)}.`,
       avatarUrl:      r.avatarUrl,
       points:         r.points,
       problemsSolved: r.problemsSolved,

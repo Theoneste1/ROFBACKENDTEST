@@ -203,10 +203,20 @@ describe('Remaining endpoints (e2e)', () => {
       await http().patch(`/api/v1/admin/divisions/${ctx.ids.junior}`).set(bearer(studentJ)).send({ name: 'x' }).expect(403);
     });
 
-    it('schools: a public search for sign-up exposes names only; administrators see details', async () => {
+    it('schools: a public search for sign-up exposes official and administrator-entered schools (name, code, place); administrators see details', async () => {
+      // P1-11; owner decision 2026-11-14: schools without an official code are offered when an administrator
+      // entered them (codeless-schools e2e). 'Test School' is a LEGACY free-text school without a code: never offered.
+      await ctx.prisma.school.create({ data: { name: 'TEST OFFICIAL SCHOOL', location: 'Kigali, Gasabo', code: '120999', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'test official school' } });
       const found = await http().get('/api/v1/schools/search').query({ q: 'Test' }).expect(200);
-      expect(found.body).toEqual([expect.objectContaining({ name: 'Test School' })]);
-      expect(Object.keys(found.body[0]).sort()).toEqual(['id', 'location', 'name']);
+      expect(found.body).toEqual([expect.objectContaining({ name: 'TEST OFFICIAL SCHOOL', code: '120999' })]);
+      expect(Object.keys(found.body[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'sector']);
+      expect((await http().get('/api/v1/schools/search').query({ q: '1209' }).expect(200)).body.map((s: any) => s.code)).toEqual(['120999']);
+      // Rwanda cascade: Province → District → Sector, then every official school of the sector.
+      await ctx.prisma.school.update({ where: { code: '120999' }, data: { province: 'Kigali City' } });
+      expect((await http().get('/api/v1/schools/locations').expect(200)).body)
+        .toEqual([{ province: 'Kigali City', districts: [{ district: 'Gasabo', sectors: ['Kigali'] }] }]);
+      expect((await http().get('/api/v1/schools/search').query({ district: 'Gasabo', sector: 'Kigali' }).expect(200)).body.map((s: any) => s.code)).toEqual(['120999']);
+      expect((await http().get('/api/v1/schools/search').query({ district: 'Huye' }).expect(200)).body).toEqual([]);
       await http().get('/api/v1/schools/search').query({ q: 'T' }).expect(400);
 
       const list = await http().get('/api/v1/schools').set(bearer(admin)).expect(200);
@@ -226,6 +236,32 @@ describe('Remaining endpoints (e2e)', () => {
       await http().post('/api/v1/admin/leaderboard/recompute').set(bearer(admin)).expect((r) => {
         if (r.status !== 200 && r.status !== 201) throw new Error(`recompute: ${r.status}`);
       });
+    });
+
+    it('leaderboard recompute (M6): one set-based statement corrects drifted caches and is idempotent', async () => {
+      const id = ctx.ids.studentJunior;
+      const truth = await ctx.prisma.submission.aggregate({
+        where: { studentId: id, status: 'PUBLISHED' }, _sum: { pointsAwarded: true }, _count: { _all: true },
+      });
+      // Corrupt the cache of one student (and leave every other student as it is).
+      await ctx.prisma.user.update({ where: { id }, data: { points: 987_654, problemsSolved: 321 } });
+
+      const first = await http().post('/api/v1/admin/leaderboard/recompute').set(bearer(admin)).expect(200);
+      expect(first.body.recomputed).toBe(await ctx.prisma.user.count({ where: { role: 'STUDENT' } }));
+      expect(first.body.changed).toBeGreaterThanOrEqual(1);
+      expect(await ctx.prisma.user.findUniqueOrThrow({ where: { id }, select: { points: true, problemsSolved: true } }))
+        .toEqual({ points: truth._sum.pointsAwarded ?? 0, problemsSolved: truth._count._all });
+
+      // Nothing left to correct: a second run changes no row (also what a double click does).
+      const second = await http().post('/api/v1/admin/leaderboard/recompute').set(bearer(admin)).expect(200);
+      expect(second.body).toMatchObject({ changed: 0 });
+      // Every student's cache now equals the published results.
+      const drift = await ctx.prisma.$queryRaw<Array<{ n: bigint }>>`
+        SELECT count(*) AS n FROM "User" u
+          LEFT JOIN (SELECT "studentId", COALESCE(SUM("pointsAwarded"),0)::int p, COUNT(*)::int c
+                       FROM "Submission" WHERE "status" = 'PUBLISHED' GROUP BY "studentId") t ON t."studentId" = u."id"
+         WHERE u."role" = 'STUDENT' AND (u."points" <> COALESCE(t.p,0) OR u."problemsSolved" <> COALESCE(t.c,0))`;
+      expect(Number(drift[0].n)).toBe(0);
     });
 
     it('academic years are listed for everyone signed in', async () => {

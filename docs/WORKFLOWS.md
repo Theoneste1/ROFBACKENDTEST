@@ -33,6 +33,11 @@ flowchart LR
   can edit any account: details, role, password, status. Mentors are normally
   added by an administrator; anyone signing up as a mentor needs an
   administrator's approval.
+- When an administrator changes a user's e-mail address, every unused link
+  already e-mailed to the old address (invitation, e-mail verification,
+  password reset) stops working, and the audit entry records how many were
+  revoked. To give an invited user a working link, re-send the invitation:
+  it goes to the new address.
 - E-mail verification (`registration.requireEmailVerification`) is on by
   default in production: self-registered students and approved mentor
   applicants confirm their address before their first login.
@@ -42,7 +47,8 @@ flowchart LR
   every session immediately: refresh tokens are revoked and earlier access
   tokens are refused.
 - Five wrong passwords in a row lock an account for 15 minutes from every
-  address. The response never reveals the lock.
+  address, also when they arrive at the same moment (each attempt is counted
+  before its password is checked). The response never reveals the lock.
 
 ## 2. Academic year
 

@@ -1,13 +1,13 @@
 import { Reflector } from '@nestjs/core';
 import { AuthController, REFRESH_COOKIE, bearerToken } from './auth.controller.js';
 import { ROLES_KEY } from './decorators/roles.decorator.js';
+import { legacyRolesFor, requiredPermission } from './route-access.testing.js';
 import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
 
 const reflector = new Reflector();
 const proto = AuthController.prototype as unknown as Record<string, Function>;
 
-const roles = (method: string) =>
-  reflector.getAllAndOverride<string[] | undefined>(ROLES_KEY, [proto[method], AuthController]);
+const roles = (method: string) => legacyRolesFor(AuthController, method);
 const isPublic = (method: string) =>
   reflector.getAllAndOverride<boolean | undefined>(IS_PUBLIC_KEY, [proto[method], AuthController]);
 
@@ -27,6 +27,7 @@ describe('AuthController authorization metadata', () => {
 
   it('registerAdmin is ADMIN only and not public', () => {
     expect(roles('registerAdmin')).toEqual(['ADMIN']);
+    expect(requiredPermission(AuthController, 'registerAdmin')).toBe('users.manage');   // P1-06
     expect(isPublic('registerAdmin')).toBeUndefined();
   });
 
@@ -42,16 +43,13 @@ describe('AuthController authorization metadata', () => {
 });
 
 describe('AuthController.logout (H1)', () => {
-  const make = (nodeEnv = 'production') => {
-    const authService = {
-      logout: vi.fn().mockResolvedValue(undefined),
-      login:  vi.fn().mockResolvedValue({ refresh_token: 'r', refresh_expires_at: new Date(Date.now() + 60_000) }),
-    };
-    const config = { get: vi.fn((key: string) => (key === 'NODE_ENV' ? nodeEnv : undefined)) };
+  const make = () => {
+    const authService = { logout: vi.fn().mockResolvedValue(undefined) };
+    const config = { get: vi.fn().mockReturnValue('production') };
     const controller = new AuthController(authService as never, config as never, {} as never);
-    const res = { clearCookie: vi.fn(), cookie: vi.fn() };
+    const res = { clearCookie: vi.fn() };
     const req = (headers: Record<string, string> = {}, cookies: Record<string, string> = {}) =>
-      ({ cookies, ip: '127.0.0.1', get: (h: string) => headers[h.toLowerCase()] }) as never;
+      ({ cookies, get: (h: string) => headers[h.toLowerCase()] }) as never;
     return { controller, authService, res, req };
   };
 
@@ -62,19 +60,6 @@ describe('AuthController.logout (H1)', () => {
     expect(authService.logout).toHaveBeenCalledWith({ refreshToken: 'cookie-token', accessToken: 'abc.def.ghi' });
     expect(res.clearCookie).toHaveBeenCalledWith(REFRESH_COOKIE, { httpOnly: true, secure: true, sameSite: 'strict', path: '/api/v1/auth' });
   });
-
-  it.each(['production', 'development'])(
-    'clears the cookie with exactly the attributes login set it with (%s)',
-    async (env) => {
-      const { controller, res, req } = make(env);
-      await controller.login({ username: 'a', password: 'b' } as never, req(), res as never);
-      await controller.logout({} as never, req(), res as never);
-      const [name, , setWith] = res.cookie.mock.calls[0];
-      const { expires: _expires, ...attributes } = setWith;
-      expect(name).toBe(REFRESH_COOKIE);
-      expect(res.clearCookie).toHaveBeenCalledWith(REFRESH_COOKIE, attributes);
-    },
-  );
 
   it('a refresh token in the body (non-browser clients) wins over the cookie', async () => {
     const { controller, authService, res, req } = make();

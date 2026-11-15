@@ -1,5 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service.js';
+
+/** The acting admin's password and hash, for step-up (P1-08). */
+const STEP_UP = 'Admin-Pass-1';
+const STEP_UP_HASH = bcrypt.hashSync(STEP_UP, 4);
+/** findUnique answers the caller's own row (step-up) and the target row. */
+const withCaller = (target: unknown) => (args: { where: { id: string } }) =>
+  Promise.resolve(args.where.id === 'admin-1' ? { passwordHash: STEP_UP_HASH } : target);
 
 const ADMIN = { id: 'admin-1', role: 'ADMIN' };
 
@@ -16,6 +24,14 @@ function makeMocks() {
     },
     school: { findUnique: vi.fn() },
     studentEnrollment: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    mentorAssignment:  { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    // P1-11: a role change revokes teacher delegations (none here).
+    userPermissionOverride: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    mentorReview:      { count: vi.fn().mockResolvedValue(0) },
+    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
+    // Admin edits lock the user row first (PR A.1).
+    $queryRaw: vi.fn().mockResolvedValue([{ schoolId: null }]),
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
@@ -25,12 +41,14 @@ function makeMocks() {
     idForGrade: vi.fn().mockResolvedValue('div-x'),
     idForCode:  vi.fn((code: string) => Promise.resolve(`div-${code.toLowerCase()}`)),
   };
-  const tokens    = { revokeAllForUser: vi.fn() };
+  const tokens    = { revokeAllForUser: vi.fn(), lockSessions: vi.fn() };
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
 
   const accountEmails = { approved: vi.fn() };
-  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any);
-  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails };
+  const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn() };
+  const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn(), beginUserChange: vi.fn().mockResolvedValue(null) };
+  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any);
+  return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations };
 }
 
 describe('UsersService', () => {
@@ -122,6 +140,15 @@ describe('UsersService', () => {
         .rejects.toMatchObject({ code: 'IDENTITY_TAKEN' });
     });
 
+    it('refuses (409 USER_CHANGED_CONCURRENTLY) when the user changed between the first read and the row lock — nothing is written', async () => {
+      const { service, prisma, audit } = makeMocks();
+      // First read: STUDENT; inside the transaction, after the lock: already MENTOR (another edit committed).
+      prisma.user.findUnique.mockResolvedValueOnce(existing).mockResolvedValueOnce({ ...existing, role: 'MENTOR', gradeLevel: null });
+      await expect(service.update('u2', { firstName: 'Stale' } as any, ADMIN)).rejects.toMatchObject({ code: 'USER_CHANGED_CONCURRENTLY' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+    });
+
     it('clears student data and revokes sessions when a student becomes a mentor', async () => {
       const { service, prisma, tokens } = makeMocks();
       prisma.user.findUnique.mockResolvedValue(existing);
@@ -129,7 +156,58 @@ describe('UsersService', () => {
       expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({
         role: 'MENTOR', gradeLevel: null, divisionId: null, schoolId: null, homeLocation: null,
       });
-      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2');
+      // Revoked with the transaction client: commits together with the role change.
+      expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2', prisma);
+    });
+
+    it.each([
+      ['a role change', { role: 'ADMIN', currentPassword: STEP_UP }],
+      ['a password change', { password: 'N3w!Passw0rd' }],
+    ])('ends sessions INSIDE the same transaction as %s, after the user row is written', async (_, data) => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockImplementation(withCaller({ ...existing, role: 'MENTOR', gradeLevel: null }));
+      const tx = { ...prisma, marker: 'tx' };
+      let inTransaction = false;
+      prisma.$transaction.mockImplementation(async (fn: (c: unknown) => unknown) => {
+        inTransaction = true;
+        try { return await fn(tx); } finally { inTransaction = false; }
+      });
+      const seen: Array<{ inTransaction: boolean; client: unknown }> = [];
+      tokens.revokeAllForUser.mockImplementation(async (_id: string, client: unknown) => { seen.push({ inTransaction, client }); });
+
+      await service.update('u2', data as any, ADMIN);
+
+      expect(seen).toEqual([{ inTransaction: true, client: tx }]);
+      // The role / password update ran before the revocation, in the same transaction.
+      expect(prisma.user.update.mock.invocationCallOrder[0]).toBeLessThan(tokens.revokeAllForUser.mock.invocationCallOrder[0]);
+    });
+
+    it('does not end sessions for a change without role or password', async () => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue(existing);
+      await service.update('u2', { firstName: 'New' } as any, ADMIN);
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+      expect(tokens.lockSessions).not.toHaveBeenCalled();
+    });
+
+    // Deadlock regression (lock order sessions → User row, token.service.ts): a refresh of this user
+    // holds the session lock and needs KEY SHARE on the User row; locking the row first would deadlock.
+    it.each([
+      ['a role change', { role: 'ADMIN', currentPassword: STEP_UP }],
+      ['a password change', { password: 'N3w!Passw0rd' }],
+    ])('%s takes the session lock BEFORE the User row lock, in the same transaction', async (_, data) => {
+      const { service, prisma, tokens } = makeMocks();
+      prisma.user.findUnique.mockImplementation(withCaller({ ...existing, role: 'MENTOR', gradeLevel: null }));
+      const tx = { ...prisma, marker: 'tx' };
+      prisma.$transaction.mockImplementation(async (fn: (c: unknown) => unknown) => fn(tx));
+
+      await service.update('u2', data as any, ADMIN);
+
+      expect(tokens.lockSessions).toHaveBeenCalledWith(tx, 'u2');
+      const rowLock = prisma.$queryRaw.mock.calls.findIndex((call: unknown[]) => (call[0] as TemplateStringsArray).join('?').includes('FOR UPDATE'));
+      expect(rowLock).toBeGreaterThanOrEqual(0);
+      expect(tokens.lockSessions.mock.invocationCallOrder[0]).toBeLessThan(prisma.$queryRaw.mock.invocationCallOrder[rowLock]);
+      expect(tokens.lockSessions.mock.invocationCallOrder[0]).toBeLessThan(tokens.revokeAllForUser.mock.invocationCallOrder[0]);
     });
 
     it('withdraws the active enrolment when a student becomes a mentor', async () => {
@@ -196,6 +274,56 @@ describe('UsersService', () => {
     it('requires at least one field', async () => {
       const { service } = makeMocks();
       await expect(service.updateMe('u1', {})).rejects.toMatchObject({ code: 'NO_CHANGES' });
+    });
+  });
+
+  describe('role allow-list (P1-05)', () => {
+    const refusal = () => Object.assign(new Error('refused'), { code: 'ROLE_NOT_ASSIGNABLE' });
+
+    it('create checks the requested role (default STUDENT) before writing anything', async () => {
+      const { service, prisma, roles } = makeMocks();
+      roles.assertCanAssign.mockImplementation(() => { throw refusal(); });
+      await expect(service.create({ role: 'SUPER_ADMIN' } as any, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      expect(roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'SUPER_ADMIN');
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+
+      const ok = makeMocks();
+      await ok.service.create({ firstName: 'a' } as any, ADMIN).catch(() => undefined);
+      expect(ok.roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'STUDENT');
+    });
+
+    it('update checks the CURRENT role on every edit, and the NEW role only when it changes', async () => {
+      const { service, prisma, roles } = makeMocks();
+      prisma.user.findUnique.mockImplementation(withCaller({ id: 'u2', role: 'MENTOR', gradeLevel: null, username: 'bob', email: 'b@x.rw' }));
+      await service.update('u2', { firstName: 'New' } as any, ADMIN);
+      expect(roles.assertCanManage).toHaveBeenCalledWith(ADMIN, 'MENTOR');
+      expect(roles.assertCanAssign).not.toHaveBeenCalled();
+
+      await service.update('u2', { role: 'ADMIN', currentPassword: STEP_UP } as any, ADMIN);
+      expect(roles.assertCanAssign).toHaveBeenCalledWith(ADMIN, 'ADMIN', 'roleChange');
+    });
+
+    it('a refused role change writes nothing and ends no session', async () => {
+      const { service, prisma, roles, tokens } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'STUDENT', gradeLevel: 'S2', username: 'bob', email: 'b@x.rw' });
+      roles.assertCanAssign.mockImplementation(() => { throw refusal(); });
+      await expect(service.update('u2', { role: 'TEACHER' } as any, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
+    });
+
+    it('an account whose current role the actor may not manage cannot be edited, suspended or deleted', async () => {
+      const { service, prisma, roles } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'SUPER_ADMIN', gradeLevel: null, username: 'sa', email: 's@x.rw' });
+      roles.assertCanManage.mockImplementation(() => { throw refusal(); });
+      await expect(service.update('u2', { firstName: 'X' } as any, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      await expect(service.updateStatus('u2', { isActive: false }, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      await expect(service.delete('u2', ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.user.delete).not.toHaveBeenCalled();
+      expect(roles.assertCanManage).toHaveBeenCalledTimes(3);
     });
   });
 });

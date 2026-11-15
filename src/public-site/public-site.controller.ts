@@ -36,7 +36,7 @@ export class PublicSiteController {
 /** Contact-form messages, for administrators. */
 @ApiTags('Admin · Contact messages')
 @Controller('admin/contact-messages')
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 export class ContactMessagesController {
   constructor(private readonly service: PublicSiteService) {}
 

@@ -19,6 +19,8 @@ export const Events = {
   ResubmissionRequestWithdrawn: 'submission.resubmission_request_withdrawn',
   ResourcePublished:            'resource.published',
   MentorRequestDecided:         'mentor_request.decided',
+  StudentRegistered:            'registration.student',
+  MentorRequestSubmitted:       'registration.mentor_request',
   DiscussionThreadCreated:      'discussion.thread_created',
   DiscussionCommentPosted:      'discussion.comment_posted',
   ContentReported:              'moderation.content_reported',
@@ -28,6 +30,12 @@ export const Events = {
 
 export interface AssignmentEvent        { assignmentId: string; note?: string }
 export interface SubmissionEvent        { submissionId: string; reason?: string }
+/** A published result withdrawn for correction; previousReviewId identifies this withdrawal (one notice each). */
+export interface ResultReopenedEvent    { submissionId: string; reason?: string; previousReviewId: string }
+/** A new student account (self-registration). */
+export interface StudentRegisteredEvent { userId: string; requiresApproval: boolean }
+/** A coach application submitted (or re-submitted after a rejection); submittedAt identifies this submission. */
+export interface MentorRequestSubmittedEvent { requestId: string; submittedAt: string; reapplication: boolean }
 export interface SubmissionsAssignedEvent { assignmentId: string; byMentor: Record<string, number> }
 export interface ResultsPublishedEvent  { submissionIds: string[] }
 export interface ResourceEvent          { resourceId: string }
