@@ -5,6 +5,7 @@
  * Built with the application (`npm run build`) and run with Node — in a checkout or inside the
  * runtime image, where it is dist/super-admin/cli.js:
  *
+ *   node dist/super-admin/cli.js bootstrap --username <admin> --dry-run
  *   node dist/super-admin/cli.js bootstrap --username <admin> --confirm-username <admin> --reason "<why>"
  *   node dist/super-admin/cli.js break-glass reset-credentials --username <super-admin> --reason "<why>" --approval-ref <ref> [--note "<text>"]
  *   node dist/super-admin/cli.js break-glass promote-admin     --username <admin>       --reason "<why>" --approval-ref <ref> [--note "<text>"]
@@ -14,7 +15,12 @@
  * decorator metadata that tsc emits and tsx/esbuild do not (run through tsx, the injected services
  * are undefined and the command crashes before doing anything).
  *
- * Exit codes: 0 done · 2 usage error · 3 refused (nothing changed).
+ * --dry-run (bootstrap only) prints the target's username, name, role, active and activated status,
+ * the number of active Super Admins and the refusal the bootstrap would give — and changes nothing.
+ * The seeded shared account (`admin` / SEED_ADMIN_USERNAME) is always refused (SHARED_ACCOUNT_REFUSED).
+ *
+ * Exit codes: 0 done (dry run: the bootstrap would go ahead) · 2 usage error · 3 refused (nothing changed;
+ * dry run: the bootstrap would be refused).
  * Uses DATABASE_URL like the application; prints no connection details.
  */
 import 'dotenv/config';
@@ -42,7 +48,19 @@ async function main() {
   try {
     const ops = app.select(SuperAdminModule).get(SuperAdminOperationsService);
     const f = args.flags;
-    if (args.command === 'bootstrap') {
+    if (args.command === 'bootstrap' && f['dry-run']) {
+      const v = await ops.bootstrapPreview(f.username ?? '');
+      const yesNo = (b: boolean | null) => (b === null ? '—' : b ? 'yes' : 'no');
+      console.log('DRY RUN — nothing is changed.');
+      console.log(`  Username:            ${v.username || '—'}${v.found ? '' : ' (no such account)'}`);
+      console.log(`  Name:                ${v.name ?? '—'}`);
+      console.log(`  Current role:        ${v.role ?? '—'}`);
+      console.log(`  Active:              ${yesNo(v.isActive)}`);
+      console.log(`  Activated:           ${yesNo(v.activated)}`);
+      console.log(`  Active Super Admins: ${v.activeSuperAdmins}`);
+      console.log(v.wouldRefuse ? `  Bootstrap would be REFUSED: ${v.wouldRefuse}` : '  Bootstrap would go ahead.');
+      if (v.wouldRefuse) process.exitCode = 3;
+    } else if (args.command === 'bootstrap') {
       const r = await ops.bootstrap({ username: f.username, confirmUsername: f['confirm-username'], reason: f.reason });
       console.log(`Done: "${f.username}" is now the Super Administrator (user ${r.userId}). Sessions ended; audit row written.`);
     } else {

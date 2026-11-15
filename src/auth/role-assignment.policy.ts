@@ -16,6 +16,9 @@
  *    never given on creation — only by a Super Admin's role change (promotion,
  *    with step-up; UsersService) or the operator commands (bootstrap /
  *    break-glass, P1-08);
+ *  - the shared seeded account (`admin`, or SEED_ADMIN_USERNAME) never becomes SUPER_ADMIN and
+ *    keeps its username (SHARED_ACCOUNT_REFUSED; assertSharedAccountRules — the operator commands
+ *    use isSharedAccount too);
  *  - SUPER_ADMIN_BOUNDARY_ENABLED (plan §8.3): when "true" and at least one
  *    active SUPER_ADMIN exists, an ADMIN can no longer manage ADMIN accounts;
  *    with no active SUPER_ADMIN it is not enforced (fail-safe, error logged);
@@ -37,6 +40,7 @@ import { AppError } from '../common/errors/app-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PermissionService } from './permission.service.js';
 import type { AppRole, Permission } from './permissions.js';
+import { isSharedAdminAccount } from './shared-accounts.js';
 
 /**
  * The permission needed to manage accounts of each role. SUPER_ADMIN has no
@@ -101,6 +105,28 @@ export class RoleAssignmentPolicy {
     throw notAssignable('MENTOR');
   }
 
+  /** The seeded shared administrator account: `admin`, or the username in SEED_ADMIN_USERNAME. */
+  isSharedAccount(username: string): boolean {
+    return isSharedAdminAccount(username, this.config.get<string>('SEED_ADMIN_USERNAME'));
+  }
+
+  /**
+   * SHARED_ACCOUNT_REFUSED (403): a change to an existing account that would make the shared seeded
+   * account a Super Administrator, or give it another username (renaming it would take it out of this
+   * rule, so it could then be promoted). `target` is the account as it is now. Every API path that
+   * changes an existing account's role or username calls this (UsersService.update); the operator
+   * commands check isSharedAccount themselves.
+   */
+  assertSharedAccountRules(target: { username: string }, change: { role?: string; username?: string }): void {
+    if (!this.isSharedAccount(target.username)) return;
+    if (change.role === 'SUPER_ADMIN') {
+      throw sharedRefused('This is the shared seeded administrator account; it can never become a Super Administrator.');
+    }
+    if (change.username !== undefined && change.username.trim().toLowerCase() !== target.username.trim().toLowerCase()) {
+      throw sharedRefused('The shared seeded administrator account keeps its username.');
+    }
+  }
+
   /** The actor may act on an account that currently holds this role. */
   async assertCanManage(actor: CallerCtx, currentRole: string): Promise<void> {
     if (!(await this.mayManage(actor, currentRole))) {
@@ -130,6 +156,10 @@ export class RoleAssignmentPolicy {
     }
     return true;
   }
+}
+
+function sharedRefused(message: string) {
+  return new AppError(HttpStatus.FORBIDDEN, 'SHARED_ACCOUNT_REFUSED', message, { role: 'SUPER_ADMIN' });
 }
 
 function notAssignable(role: string) {
