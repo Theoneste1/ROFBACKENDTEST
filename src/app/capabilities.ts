@@ -90,6 +90,21 @@ export const FEATURES = {
    */
   studentOlympiadInterests: 'always',
   /**
+   * Student registration details: POST /api/v1/auth/register/student accepts `dateOfBirth` (YYYY-MM-DD, age 5–30),
+   * `phone` (optional) and `guardianPhone` (close-family phone; both stored in E.164), `homeCountry` (the student's own
+   * country) and the official home place `homeProvince` / `homeDistrict` / `homeSector` (Rwanda only; then
+   * `homeLocation` is optional). All optional at the API for older clients; the profile (GET /api/v1/me, admin user
+   * detail) returns them. Without this feature the fields are refused (400): the sign-up form must not send them.
+   */
+  studentRegistrationDetails: 'always',
+  /**
+   * Coach application details: POST /api/v1/mentor-requests accepts `country`, `occupation`, `educationLevel`
+   * (SECONDARY | DIPLOMA | BACHELOR | MASTER | DOCTORATE | OTHER) and `olympiadInterests`; the admin list returns them
+   * and approval copies country and interests to the Coach account. Optional at the API for older clients. Without
+   * this feature the fields are refused (400).
+   */
+  coachApplicationDetails: 'always',
+  /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing
    * TEACHER accounts may still exist and use their portal.
