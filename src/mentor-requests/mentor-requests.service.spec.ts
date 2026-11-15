@@ -78,6 +78,16 @@ describe('MentorRequestsService', () => {
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ metadata: { reapplication: false } }));
     });
 
+    it('stores the application details (coachApplicationDetails); older clients get NULL / no interests', async () => {
+      const { service, prisma } = makeMocks();
+      await service.create({ ...dto, country: 'KE', occupation: 'Teacher', educationLevel: 'MASTER', olympiadInterests: ['PHYSICS', 'MATHEMATICS'] });
+      expect(prisma.mentorRequest.create.mock.calls[0][0].data).toMatchObject({
+        country: 'KE', occupation: 'Teacher', educationLevel: 'MASTER', olympiadInterests: ['MATHEMATICS', 'PHYSICS'], status: 'PENDING',
+      });
+      await service.create(dto);
+      expect(prisma.mentorRequest.create.mock.calls[1][0].data).toMatchObject({ country: null, occupation: null, educationLevel: null, olympiadInterests: [] });
+    });
+
     it('tells administrators about the application (one event per submission)', async () => {
       const { service, events } = makeMocks();
       await service.create(dto);
@@ -146,6 +156,13 @@ describe('MentorRequestsService', () => {
         recipient: { userId: 'u-new', email: 'jean@x.rw', firstName: 'Jean' }, payload: { activated: true },
       }));
       expect(notices.dispatchAfterCommit).toHaveBeenCalledWith(['outbox-1']);
+    });
+
+    it("copies the applicant's country and Olympiad interests to the Coach account (no other change)", async () => {
+      const { service, prisma } = makeMocks();
+      prisma.mentorRequest.findUnique.mockResolvedValue(pending({ country: 'KE', occupation: 'Teacher', educationLevel: 'MASTER', olympiadInterests: ['COMPUTING'] }));
+      await service.approve('mr1', ADMIN);
+      expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ role: 'MENTOR', country: 'KE', olympiadInterests: ['COMPUTING'] });
     });
 
     it('with e-mail verification on, the account waits for the applicant to confirm the address', async () => {
