@@ -15,6 +15,11 @@ import {
 import { Transform } from 'class-transformer';
 import { GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from './password.rules.js';
+import { IsNormalisablePhone, IsStudentDateOfBirth } from './registration-details.rules.js';
+
+/** True when any part of the official home place is sent (then all three are required). */
+export const hasHomePlace = (o: { homeProvince?: unknown; homeDistrict?: unknown; homeSector?: unknown }) =>
+  o.homeProvince !== undefined || o.homeDistrict !== undefined || o.homeSector !== undefined;
 
 /** Normalise a string to Title Case, trim whitespace. */
 export const toTitleCase = (value: string) =>
@@ -124,11 +129,57 @@ export class RegisterStudentDto {
   @Transform(titleCase)
   schoolLocation?: string;
 
-  /** Student's home city / region. */
+  /**
+   * Student's home city / region. Required unless the official home place (homeProvince, homeDistrict,
+   * homeSector) is sent; then it is optional and stored as "Sector, District".
+   */
+  @ValidateIf((o: RegisterStudentDto) => o.homeLocation !== undefined || !hasHomePlace(o))
   @IsString()
   @Length(2, 200)
   @Transform(titleCase)
-  homeLocation: string;
+  homeLocation?: string;
+
+  // ─── Registration details (capability studentRegistrationDetails; optional for older clients) ───
+
+  /** Date of birth, "YYYY-MM-DD": a real past date, age 5–30 on the day of registration (Rwanda). Not audited. */
+  @IsOptional()
+  @Transform(trim)
+  @IsStudentDateOfBirth()
+  dateOfBirth?: string;
+
+  /** The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. */
+  @IsOptional()
+  @Transform(trim)
+  @IsNormalisablePhone()
+  phone?: string;
+
+  /** A close-family member's phone, stored in E.164 (teacher-application rules). The form requires it. Not audited. */
+  @IsOptional()
+  @Transform(trim)
+  @IsNormalisablePhone()
+  guardianPhone?: string;
+
+  /** The student's own country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsISO31661Alpha2({ message: 'homeCountry must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
+  homeCountry?: string;
+
+  /**
+   * The official home place (Rwanda only; a place of GET /schools/locations, else 400 UNKNOWN_HOME_LOCATION;
+   * with another homeCountry 400 HOME_LOCATION_RWANDA_ONLY). All three together.
+   */
+  @ValidateIf((o: RegisterStudentDto) => hasHomePlace(o))
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeProvince?: string;
+
+  @ValidateIf((o: RegisterStudentDto) => hasHomePlace(o))
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeDistrict?: string;
+
+  @ValidateIf((o: RegisterStudentDto) => hasHomePlace(o))
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
 
   /**
    * Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and
