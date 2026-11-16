@@ -410,7 +410,7 @@ describe('Remaining endpoints (e2e)', () => {
       expect(res.body.data[0]).toHaveProperty('gradeLevel');
     });
 
-    it('an administrator creates another administrator, and deletes an account without history', async () => {
+    it('an administrator creates another administrator; DELETE never deletes an account, even one without history', async () => {
       const created = await http().post('/api/v1/auth/register/admin').set(bearer(admin)).send({
         firstName: 'Second', lastName: 'Admin', username: 'second.admin', email: 'second.admin@test.local', password: 'Str0ng!Passw0rd',
       }).expect(201);
@@ -421,8 +421,9 @@ describe('Remaining endpoints (e2e)', () => {
       const temp = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
         firstName: 'Temp', lastName: 'User', username: 'temp.user', email: 'temp.user@test.local', password: 'Str0ng!Passw0rd', role: 'MENTOR',
       }).expect(201);
-      await http().delete(`/api/v1/admin/users/${temp.body.id}`).set(bearer(admin)).expect(200);
-      expect(await ctx.prisma.user.count({ where: { id: temp.body.id } })).toBe(0);
+      const refused = await http().delete(`/api/v1/admin/users/${temp.body.id}`).set(bearer(admin)).expect(409);
+      expect(refused.body.code).toBe('PERMANENT_DELETION_DISABLED');
+      expect(await ctx.prisma.user.count({ where: { id: temp.body.id } })).toBe(1);
     });
 
     it('a student opens a published resource; a mentor deletes one', async () => {

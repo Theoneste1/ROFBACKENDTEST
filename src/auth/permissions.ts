@@ -78,6 +78,11 @@ export const PERMISSIONS = [
   'schools.manage',
   // ── School directory S2b: approve and apply a directory sync, resolve its conflicts (Super Admins only; never grantable) ──
   'schools.syncDirectory',
+  // ── Account states (2026-11-16): Administrators and Super Admins, global; plus management of the account's role ──
+  'users.viewStatusHistory',  // an account's status history (who, when, why)
+  'users.changeStatus',       // deactivate / reactivate
+  'users.suspend',            // suspend / lift a suspension
+  'users.archive',            // archive / restore an archived account
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -123,6 +128,8 @@ const ADMIN_GRANTS: Grants = {
   'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
   'permissions.view': 'global',
   'schools.manage': 'global',
+  // Account states (2026-11-16)
+  'users.viewStatusHistory': 'global', 'users.changeStatus': 'global', 'users.suspend': 'global', 'users.archive': 'global',
 };
 
 /**
@@ -184,6 +191,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
     'permissions.view': 'global', 'permissions.manageOverrides': 'global', 'settings.manageSystem': 'global',
     'schools.manage': 'global', 'schools.syncDirectory': 'global',
+    'users.viewStatusHistory': 'global', 'users.changeStatus': 'global', 'users.suspend': 'global', 'users.archive': 'global',
   },
 };
 
@@ -236,6 +244,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // without them here the frontend hid those screens from ADMINs. users.manageAdmins, permissions.*,
     // settings.manageSystem and schools.syncDirectory are still never listed for ADMIN.
     'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
+    // Appended (additive, account states 2026-11-16): ADMIN holds them (ADMIN_GRANTS) and the status routes need them.
+    'users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive',
   ],
 };
 

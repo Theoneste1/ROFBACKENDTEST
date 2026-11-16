@@ -83,6 +83,10 @@ permission guard.
 | `submissions.submitOnBehalf` | — | — | — | — | — | — |
 | `schools.manage` | — | — | — | — | all | all |
 | `schools.syncDirectory` | — | — | — | — | — | all |
+| `users.viewStatusHistory` | — | — | — | — | all | all |
+| `users.changeStatus` | — | — | — | — | all | all |
+| `users.suspend` | — | — | — | — | all | all |
+| `users.archive` | — | — | — | — | all | all |
 
 ## Administrators and Head Coaches (D-5, 2026-11-14)
 

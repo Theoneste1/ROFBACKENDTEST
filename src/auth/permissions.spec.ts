@@ -52,6 +52,8 @@ describe('permissions', () => {
       'users.manageTeachers',   // appended 2026-11-13: already granted (ADMIN_GRANTS), now reported too
       // appended 2026-11-14 (owner decision D-5): already granted (ADMIN_GRANTS), now reported too
       'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
+      // appended 2026-11-16 (account states): granted (ADMIN_GRANTS) and reported, so the status screens can show
+      'users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive',
     ]);
   });
 
@@ -67,10 +69,13 @@ describe('permissions', () => {
 
   it('D-5 (2026-11-14): ADMIN reports the Head Coach administration it holds — exactly five names appended, all global grants', () => {
     const D5 = ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view'] as const;
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-D5.length)).toEqual([...D5]);
+    const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive'] as const;
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + AS.length), -AS.length)).toEqual([...D5]);
     for (const p of D5) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    // Additive only: the 25 original entries keep their order, and nothing else appeared.
-    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length);
+    // Additive only: the 25 original entries keep their order; then 2 + D-5, then the account states (2026-11-16).
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-AS.length)).toEqual([...AS]);
+    for (const p of AS) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
+    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + AS.length);
     // Never reported to ADMIN (and never granted, except users.manageAdmins / permissions.view which stay unreported).
     for (const p of ['users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
       expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
@@ -165,6 +170,8 @@ describe('permissions', () => {
       'users.manageHeadCoaches': G, 'users.manageAdmins': G,
       'programmes.manageHeads': G, 'programmes.manageMembers': G, 'coaches.monitor': G,
       'permissions.view': G, 'schools.manage': G,
+      // Account states (2026-11-16)
+      'users.viewStatusHistory': G, 'users.changeStatus': G, 'users.suspend': G, 'users.archive': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {

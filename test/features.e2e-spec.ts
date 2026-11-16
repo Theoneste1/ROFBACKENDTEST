@@ -209,9 +209,10 @@ describe('Features (e2e)', () => {
       await ctx.http().get('/api/v1/leaderboard').query({ divisionId: ctx.ids.junior }).set(bearer(admin)).expect(200);
     });
 
-    it('users with academic history cannot be hard-deleted', async () => {
+    it('accounts are never hard-deleted (account states: archive instead)', async () => {
       const res = await ctx.http().delete(`/api/v1/admin/users/${ctx.ids.studentJunior}`).set(bearer(admin)).expect(409);
-      expect(res.body.code).toBe('USER_HAS_HISTORY');
+      expect(res.body.code).toBe('PERMANENT_DELETION_DISABLED');
+      expect(await ctx.prisma.user.count({ where: { id: ctx.ids.studentJunior } })).toBe(1);
     });
 
     it('audit log records actions and caps page size', async () => {

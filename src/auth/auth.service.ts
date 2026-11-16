@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { loginRefusal } from '../users/account-status.js';
 import { canonicalInterests } from '../users/olympiad-interests.js';
 import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -267,7 +268,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: identifier.includes('@') ? { email: identifier } : { username: identifier },
       select: {
-        id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true,
+        id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true, accountStatus: true,
       },
     });
 
@@ -291,7 +292,9 @@ export class AuthService {
       await this.prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0 } });
     }
     if (!user.isActive) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_SUSPENDED', 'This account has been suspended.');
+      // Account states: ACCOUNT_DEACTIVATED, ACCOUNT_SUSPENDED (as before) or ACCOUNT_ARCHIVED.
+      const refusal = loginRefusal(user.accountStatus) ?? loginRefusal('SUSPENDED')!;
+      throw new AppError(HttpStatus.FORBIDDEN, refusal.code, refusal.message);
     }
     if (!user.activatedAt) {
       throw new AppError(

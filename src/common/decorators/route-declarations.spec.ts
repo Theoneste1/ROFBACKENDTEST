@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 20 @Public + 29 @Roles + 187 @RequirePermission + 56 @Authenticated = 292, none undeclared', () => {
+  it('declarations add up: 20 @Public + 29 @Roles + 189 @RequirePermission + 56 @Authenticated = 294, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 20, '@Roles': 29, '@RequirePermission': 187, '@Authenticated': 56 });  // +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 20, '@Roles': 29, '@RequirePermission': 189, '@Authenticated': 56 });  // account states: +2; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -191,7 +191,8 @@ describe('route declarations (P1-02 §5)', () => {
     }
     expect(byPermission).toEqual({
       'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
-      'audit.view': 4, 'users.manage': 13,   // + 2 profile-picture routes (another account's picture)
+      'audit.view': 4, 'users.manage': 14,   // + 2 profile-picture routes (another account's picture); + 1 status change (account states)
+      'users.viewStatusHistory': 1,   // account states: an account's status history
       'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
       'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 10, 'mentorRequests.decide': 3,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
@@ -329,7 +330,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 81 added since: 283 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 83 added since: 285 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

@@ -6706,6 +6706,21 @@
             }
           },
           {
+            "name": "accountStatus",
+            "required": false,
+            "in": "query",
+            "description": "ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED (capability accountStates).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "DEACTIVATED",
+                "SUSPENDED",
+                "ARCHIVED"
+              ]
+            }
+          },
+          {
             "name": "divisionId",
             "required": false,
             "in": "query",
@@ -6785,6 +6800,9 @@
                     "data": {
                       "items": {
                         "properties": {
+                          "accountStatus": {
+                            "type": "string"
+                          },
                           "activatedAt": {
                             "format": "date-time",
                             "nullable": true,
@@ -6923,6 +6941,7 @@
                           }
                         },
                         "required": [
+                          "accountStatus",
                           "activatedAt",
                           "avatarUrl",
                           "country",
@@ -7031,6 +7050,9 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "accountStatus": {
+                      "type": "string"
+                    },
                     "activatedAt": {
                       "format": "date-time",
                       "type": "string"
@@ -7148,6 +7170,7 @@
                     }
                   },
                   "required": [
+                    "accountStatus",
                     "activatedAt",
                     "avatarUrl",
                     "country",
@@ -7583,6 +7606,9 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "accountStatus": {
+                      "type": "string"
+                    },
                     "activatedAt": {
                       "format": "date-time",
                       "type": "string"
@@ -7719,6 +7745,7 @@
                     }
                   },
                   "required": [
+                    "accountStatus",
                     "activatedAt",
                     "avatarUrl",
                     "country",
@@ -7803,6 +7830,9 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "accountStatus": {
+                      "type": "string"
+                    },
                     "activatedAt": {
                       "format": "date-time",
                       "type": "string"
@@ -7922,6 +7952,7 @@
                     }
                   },
                   "required": [
+                    "accountStatus",
                     "activatedAt",
                     "avatarUrl",
                     "country",
@@ -7991,22 +8022,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
+            "description": ""
           },
           "default": {
             "description": "Error",
@@ -8019,7 +8035,7 @@
             }
           }
         },
-        "summary": "Only accounts without academic history can be deleted; suspend the others.",
+        "summary": "Accounts are never deleted through the API (account states, 2026-11-16): always 409 PERMANENT_DELETION_DISABLED\nfor an account the caller may manage. Archive it instead (POST :id/status-changes, toStatus ARCHIVED).",
         "tags": [
           "Admin · Users"
         ],
@@ -8176,6 +8192,9 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "accountStatus": {
+                      "type": "string"
+                    },
                     "activatedAt": {
                       "format": "date-time",
                       "nullable": true,
@@ -8314,6 +8333,7 @@
                     }
                   },
                   "required": [
+                    "accountStatus",
                     "activatedAt",
                     "avatarUrl",
                     "country",
@@ -8359,7 +8379,7 @@
             }
           }
         },
-        "summary": "Suspend/reactivate (`isActive`) or approve (`isApproved`) an account.",
+        "summary": "Suspend (`isActive: false`), lift a suspension or reactivate (`isActive: true`), or approve (`isApproved`) an\naccount. Compatible view of the account states; POST :id/status-changes records a reason and covers every state.",
         "tags": [
           "Admin · Users"
         ],
@@ -8369,6 +8389,346 @@
         ],
         "x-permission": "users.manage",
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/{id}/status-changes": {
+      "post": {
+        "operationId": "UsersController_changeStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAccountStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "change": {
+                      "properties": {
+                        "actor": {
+                          "properties": {
+                            "firstName": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "firstName",
+                            "id",
+                            "lastName",
+                            "username"
+                          ],
+                          "type": "object"
+                        },
+                        "actorRole": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "fromStatus": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "operationId": {
+                          "nullable": true
+                        },
+                        "reason": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "toStatus": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "actor",
+                        "actorRole",
+                        "createdAt",
+                        "fromStatus",
+                        "id",
+                        "operationId",
+                        "reason",
+                        "requestId",
+                        "toStatus"
+                      ],
+                      "type": "object"
+                    },
+                    "stillBlockedBy": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "user": {
+                      "properties": {
+                        "accountStatus": {
+                          "type": "string"
+                        },
+                        "activatedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "isApproved": {
+                          "type": "boolean"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "accountStatus",
+                        "activatedAt",
+                        "firstName",
+                        "id",
+                        "isActive",
+                        "isApproved",
+                        "lastName",
+                        "role",
+                        "updatedAt",
+                        "username"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "change",
+                    "stillBlockedBy",
+                    "user"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change an account's state (capability accountStates): ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED, with a reason\n(3–500 characters; required except to reactivate or lift a suspension). Restoring an archived account also needs\n`confirm: true`. Leaving ACTIVE ends every session. Returning to ACTIVE sets the state only; `stillBlockedBy` lists\nwhat still prevents sign-in (NOT_ACTIVATED, PENDING_APPROVAL, LOCKED, ROLE_DISABLED).\nNeeds users.changeStatus, users.suspend or users.archive (by transition) and the right to manage the account's\nrole. 409 STATUS_UNCHANGED / INVALID_STATUS_TRANSITION / LAST_SUPER_ADMIN, 400 REASON_REQUIRED /\nCANNOT_CHANGE_OWN_STATUS / CONFIRMATION_REQUIRED, 403 PERMISSION_REQUIRED / ROLE_NOT_ASSIGNABLE.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/{id}/status-history": {
+      "get": {
+        "operationId": "UsersController_statusHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "accountStatus": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "actor": {
+                            "properties": {
+                              "firstName": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "firstName",
+                              "id",
+                              "lastName",
+                              "username"
+                            ],
+                            "type": "object"
+                          },
+                          "actorRole": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "fromStatus": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "operationId": {
+                            "nullable": true
+                          },
+                          "reason": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "toStatus": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "actor",
+                          "actorRole",
+                          "createdAt",
+                          "fromStatus",
+                          "id",
+                          "operationId",
+                          "reason",
+                          "requestId",
+                          "toStatus"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "accountStatus",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The account's state changes, newest first (who, when, from, to, reason).",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.viewStatusHistory",
+        "description": "**Access:** permission `users.viewStatusHistory` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/users/{id}/avatar": {
@@ -26742,9 +27102,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "ARCHIVED",
                 "DRAFT",
                 "PUBLISHED",
-                "ARCHIVED",
                 "CLOSED",
                 "PENDING_APPROVAL",
                 "REJECTED"
@@ -26761,9 +27121,9 @@
               "items": {
                 "type": "string",
                 "enum": [
+                  "ARCHIVED",
                   "DRAFT",
                   "PUBLISHED",
-                  "ARCHIVED",
                   "CLOSED",
                   "PENDING_APPROVAL",
                   "REJECTED"
@@ -31021,9 +31381,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "ARCHIVED",
                 "DRAFT",
                 "PUBLISHED",
-                "ARCHIVED",
                 "CLOSED",
                 "PENDING_APPROVAL",
                 "REJECTED"
@@ -31040,9 +31400,9 @@
               "items": {
                 "type": "string",
                 "enum": [
+                  "ARCHIVED",
                   "DRAFT",
                   "PUBLISHED",
-                  "ARCHIVED",
                   "CLOSED",
                   "PENDING_APPROVAL",
                   "REJECTED"
@@ -40957,9 +41317,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "ARCHIVED",
                 "DRAFT",
                 "PUBLISHED",
-                "ARCHIVED",
                 "CLOSED",
                 "PENDING_APPROVAL",
                 "REJECTED"
@@ -41337,9 +41697,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "ARCHIVED",
                 "DRAFT",
                 "PUBLISHED",
-                "ARCHIVED",
                 "CLOSED",
                 "PENDING_APPROVAL",
                 "REJECTED"
@@ -43564,13 +43924,40 @@
         "properties": {
           "isActive": {
             "type": "boolean",
-            "description": "false suspends the account immediately (all sessions are revoked)."
+            "description": "Compatible with the account states (capability accountStates): false suspends the account immediately (SUSPENDED;\nall sessions are revoked), true lifts a suspension or reactivates a deactivated account (an archived account is\nrestored with POST /admin/users/:id/status-changes only). Prefer that route: it records your reason."
           },
           "isApproved": {
             "type": "boolean",
             "description": "Approve a student or mentor waiting for approval."
           }
         }
+      },
+      "ChangeAccountStatusDto": {
+        "type": "object",
+        "properties": {
+          "toStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DEACTIVATED",
+              "SUSPENDED",
+              "ARCHIVED"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required (3–500 characters) to deactivate, suspend or archive, and to restore an archived account.",
+            "minLength": 0,
+            "maxLength": 500
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Must be true to restore an archived account (ARCHIVED → ACTIVE); ignored otherwise."
+          }
+        },
+        "required": [
+          "toStatus"
+        ]
       },
       "UpdateMeDto": {
         "type": "object",
