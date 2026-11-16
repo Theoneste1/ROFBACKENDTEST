@@ -1056,7 +1056,7 @@
             }
           }
         },
-        "summary": "Change one or more settings: `{ \"submissions.resubmissionRequestDays\": 14 }`. Every change is audited.",
+        "summary": "Change one or more settings: `{ \"submissions.resubmissionRequestDays\": 14 }`. Every change is audited.\nregistration.studentSelfSignup / registration.teacherSelfSignup are form availability switches: writing one\nalso needs forms.manageAvailability (403 PERMISSION_REQUIRED otherwise, and nothing in the request is saved).",
         "tags": [
           "Admin · Settings"
         ],
@@ -1131,6 +1131,323 @@
         ],
         "description": "**Access:** Public (no token)",
         "security": []
+      }
+    },
+    "/api/v1/forms": {
+      "get": {
+        "operationId": "FormsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every form: { key, label, open, state, opensAt, closesAt, closedMessage, instructions, contactEmail, supportUrl, timezone, serverTime }.",
+        "tags": [
+          "Forms"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/forms/{key}": {
+      "get": {
+        "operationId": "FormsController_one",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "STUDENT_REGISTRATION",
+                "TEACHER_REGISTRATION",
+                "COACH_APPLICATION",
+                "CONTACT"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One form (404 FORM_NOT_FOUND for an unknown key).",
+        "tags": [
+          "Forms"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/admin/forms": {
+      "get": {
+        "operationId": "AdminFormsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every form with its mode, schedule, messages, computed state and who changed it last.",
+        "tags": [
+          "Admin · Forms"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "forms.view",
+        "description": "**Access:** permission `forms.view` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/forms/{key}": {
+      "get": {
+        "operationId": "AdminFormsController_one",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "STUDENT_REGISTRATION",
+                "TEACHER_REGISTRATION",
+                "COACH_APPLICATION",
+                "CONTACT"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Forms"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "forms.view",
+        "description": "**Access:** permission `forms.view` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/forms/{key}/history": {
+      "get": {
+        "operationId": "AdminFormsController_history",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "STUDENT_REGISTRATION",
+                "TEACHER_REGISTRATION",
+                "COACH_APPLICATION",
+                "CONTACT"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The form's changes, newest first (audit rows; `limit` 1–200, default 50).",
+        "tags": [
+          "Admin · Forms"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "forms.view",
+        "description": "**Access:** permission `forms.view` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/forms/{key}/availability": {
+      "patch": {
+        "operationId": "AdminFormsController_availability",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "STUDENT_REGISTRATION",
+                "TEACHER_REGISTRATION",
+                "COACH_APPLICATION",
+                "CONTACT"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFormAvailabilityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Open, close or schedule the form. 400 INVALID_FORM_SCHEDULE (SCHEDULED needs opensAt; closesAt after opensAt).",
+        "tags": [
+          "Admin · Forms"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "forms.manageAvailability",
+        "description": "**Access:** permission `forms.manageAvailability` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/forms/{key}/messages": {
+      "patch": {
+        "operationId": "AdminFormsController_messages",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "STUDENT_REGISTRATION",
+                "TEACHER_REGISTRATION",
+                "COACH_APPLICATION",
+                "CONTACT"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFormMessagesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Closed message, instructions, contact e-mail and support link (null or \"\" restores the default / removes).",
+        "tags": [
+          "Admin · Forms"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "forms.editMessages",
+        "description": "**Access:** permission `forms.editMessages` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/notifications": {
@@ -44538,6 +44855,60 @@
       }
     },
     "schemas": {
+      "UpdateFormAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "OPEN (open now, until closesAt if set), CLOSED, or SCHEDULED (open from opensAt until closesAt).",
+            "enum": [
+              "OPEN",
+              "CLOSED",
+              "SCHEDULED"
+            ]
+          },
+          "opensAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When a SCHEDULED form opens (required for SCHEDULED). null removes it."
+          },
+          "closesAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "When the form closes (OPEN or SCHEDULED); null = no closing date. Must be after opensAt."
+          }
+        }
+      },
+      "UpdateFormMessagesDto": {
+        "type": "object",
+        "properties": {
+          "closedMessage": {
+            "type": "string",
+            "nullable": true,
+            "description": "Shown while the form is closed (and returned with a refused submission).",
+            "maxLength": 1000
+          },
+          "instructions": {
+            "type": "string",
+            "nullable": true,
+            "description": "Extra guidance shown with the form (open or closed).",
+            "maxLength": 2000
+          },
+          "contactEmail": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 254,
+            "format": "email"
+          },
+          "supportUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "A support page; https only.",
+            "maxLength": 500,
+            "format": "uri"
+          }
+        }
+      },
       "MarkReadDto": {
         "type": "object",
         "properties": {}

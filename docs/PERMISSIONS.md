@@ -89,6 +89,9 @@ permission guard.
 | `users.archive` | — | — | — | — | all | all |
 | `users.bulkManage` | — | — | — | — | all | all |
 | `users.export` | — | — | — | — | all | all |
+| `forms.view` | — | — | — | — | all | all |
+| `forms.manageAvailability` | — | — | — | — | all | all |
+| `forms.editMessages` | — | — | — | — | all | all |
 
 ## Administrators and Head Coaches (D-5, 2026-11-14)
 

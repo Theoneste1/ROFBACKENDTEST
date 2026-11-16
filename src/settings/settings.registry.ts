@@ -33,7 +33,7 @@ export const SETTINGS = {
     category:    'REGISTRATION',
     type:        'boolean',
     default:     true,
-    description: 'Allow students to create their own accounts.',
+    description: 'Allow students to create their own accounts. Mirrors the STUDENT_REGISTRATION form (GET /admin/forms): it reports whether the form is open now; true opens it (no closing date), false closes it. Schedules and the closed-form message are set on the form.',
   },
   'registration.studentRequiresApproval': {
     category:    'REGISTRATION',
@@ -52,7 +52,7 @@ export const SETTINGS = {
     category:    'REGISTRATION',
     type:        'boolean',
     default:     false,
-    description: 'Allow teachers to apply for an account (POST /auth/register/teacher); an Administrator approves each application. Open only while the Teacher role is enabled (TEACHERS_ENABLED).',
+    description: 'Allow teachers to apply for an account (POST /auth/register/teacher); an Administrator approves each application. Open only while the Teacher role is enabled (TEACHERS_ENABLED). Mirrors the TEACHER_REGISTRATION form (GET /admin/forms): true opens it (no closing date), false closes it.',
   },
 
   // ── Assignments and submissions ────────────────────────────────────────────

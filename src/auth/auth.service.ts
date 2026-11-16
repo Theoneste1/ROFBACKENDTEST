@@ -5,6 +5,7 @@ import { randomBytes } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { loginRefusal } from '../users/account-status.js';
+import { FormAvailabilityService } from '../forms/form-availability.service.js';
 import { canonicalInterests } from '../users/olympiad-interests.js';
 import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -71,6 +72,7 @@ export class AuthService {
     private readonly roles:         RoleAssignmentPolicy,
     private readonly affiliations:  SchoolAffiliationService,
     private readonly events:        EventEmitter2,
+    private readonly forms:         FormAvailabilityService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -127,9 +129,8 @@ export class AuthService {
   }
 
   async registerStudent(data: RegisterStudentDto) {
-    if (!(await this.settings.get('registration.studentSelfSignup'))) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'REGISTRATION_CLOSED', 'Student self-registration is currently closed.');
-    }
+    // The STUDENT_REGISTRATION form (open, closed or scheduled): 403 REGISTRATION_CLOSED with its closed message.
+    await this.forms.assertOpen('STUDENT_REGISTRATION');
 
     // Registration details (studentRegistrationDetails): the official home place must exist (Rwanda only).
     const home = homePlaceOf(data);

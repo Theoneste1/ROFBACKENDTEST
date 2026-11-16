@@ -22,6 +22,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { FormAvailabilityService } from '../forms/form-availability.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -61,6 +62,7 @@ export class PublicSiteService {
     private readonly notifications: NotificationsService,
     private readonly audit:         AuditService,
     private readonly config:        ConfigService,
+    private readonly forms:         FormAvailabilityService,
   ) {}
 
   // ─── Statistics ─────────────────────────────────────────────────────────────
@@ -86,6 +88,8 @@ export class PublicSiteService {
   // ─── Contact ────────────────────────────────────────────────────────────────
 
   async contact(dto: CreateContactMessageDto, ip: string | undefined) {
+    // The CONTACT form: 403 FORM_CLOSED with its closed message while it is not open.
+    await this.forms.assertOpen('CONTACT');
     // Honeypot filled in: look like success, store and send nothing.
     if (dto.website && dto.website.trim() !== '') return { received: true, notification: 'QUEUED' as const };
 

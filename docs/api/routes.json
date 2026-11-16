@@ -284,6 +284,51 @@
     "tag": "Admin · Email"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/forms",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/forms/{key}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/forms/{key}/availability",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/forms/{key}/history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/forms/{key}/messages",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/leaderboard/recompute",
     "roles": [
@@ -1927,6 +1972,22 @@
       "PUBLIC"
     ],
     "tag": "Divisions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/forms",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Forms"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/forms/{key}",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Forms"
   },
   {
     "method": "GET",

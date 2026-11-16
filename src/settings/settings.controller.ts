@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Req } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 
 import { SettingsService } from './settings.service.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
@@ -24,12 +25,16 @@ export class SettingsController {
     return this.settings.getAll();
   }
 
-  /** Change one or more settings: `{ "submissions.resubmissionRequestDays": 14 }`. Every change is audited. */
+  /**
+   * Change one or more settings: `{ "submissions.resubmissionRequestDays": 14 }`. Every change is audited.
+   * registration.studentSelfSignup / registration.teacherSelfSignup are form availability switches: writing one
+   * also needs forms.manageAvailability (403 PERMISSION_REQUIRED otherwise, and nothing in the request is saved).
+   */
   @Patch()
   @ApiBody({ schema: { type: 'object', additionalProperties: true } })
   @RequirePermission('settings.manage')
-  update(@Body() body: Record<string, unknown>, @CurrentUser() user: AuthUser) {
-    return this.settings.update(body, user);
+  update(@Body() body: Record<string, unknown>, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.settings.update(body, user, (req as Request & { id?: string }).id ?? null);
   }
 }
 

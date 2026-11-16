@@ -215,7 +215,8 @@ const REGISTRATION_DETAILS_ADDITIONS = [
 const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile-pictures.json';
 const ACCOUNT_STATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-16-account-states.json';
 const BULK_OPERATIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-bulk-operations.json';
-const CURRENT_SNAPSHOT = BULK_OPERATIONS_SNAPSHOT;
+const FORM_AVAILABILITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-form-availability.json';
+const CURRENT_SNAPSHOT = FORM_AVAILABILITY_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -259,6 +260,21 @@ const PROFILE_PICTURES_ADDITIONS = [
   'GET /api/v1/users/{id}/avatar: operation added',
   'PUT /api/v1/admin/users/{id}/avatar: operation added',
   'PUT /api/v1/me/avatar: operation added',
+];
+/**
+ * Form availability (2026-11-15): the public view of each form and the administrators' management (forms.view,
+ * forms.manageAvailability, forms.editMessages). Additive only; chained after bulk user operations.
+ */
+const FORM_AVAILABILITY_ADDITIONS = [
+  'GET /api/v1/admin/forms/{key}/history: operation added',
+  'GET /api/v1/admin/forms/{key}: operation added',
+  'GET /api/v1/admin/forms: operation added',
+  'GET /api/v1/forms/{key}: operation added',
+  'GET /api/v1/forms: operation added',
+  'PATCH /api/v1/admin/forms/{key}/availability: operation added',
+  'PATCH /api/v1/admin/forms/{key}/messages: operation added',
+  'schema UpdateFormAvailabilityDto: added',
+  'schema UpdateFormMessagesDto: added',
 ];
 /**
  * Post-Phase-1 bundle (owner approval as a baseline pending): Teacher Registration (self-registration, Administrator
@@ -1102,6 +1118,15 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, BULK_OPERATIONS_ADDITIONS);
+  });
+
+  test('bulk user operations → form availability: exactly the seven form operations and their two request schemas; nothing breaking or for review', () => {
+    for (const f of [BULK_OPERATIONS_SNAPSHOT, FORM_AVAILABILITY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BULK_OPERATIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FORM_AVAILABILITY_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, FORM_AVAILABILITY_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {
