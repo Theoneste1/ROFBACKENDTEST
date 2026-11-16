@@ -17,6 +17,8 @@ import { endTeacherSchools, revokeTeacherDelegations } from '../teachers/teacher
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import { resolveSchoolReference } from '../schools/school-reference.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
+import type { AuthUser } from '../common/auth-user.js';
+import { AccountStatusService } from './account-status.service.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { canonicalInterests } from './olympiad-interests.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -33,9 +35,36 @@ const SAFE_SELECT = {
   provider:   true,
   isApproved: true,
   isActive:   true,
+  accountStatus: true,
   activatedAt: true,
   updatedAt:  true,
 } as const;
+
+/** The filters of GET /admin/users, as a where clause — also used by bulk operations' filter selections. */
+export function userListWhere(q: Omit<ListUsersQueryDto, 'page' | 'limit'>): Prisma.UserWhereInput {
+  const where: Prisma.UserWhereInput = {
+    ...(q.role       && { role: q.role }),
+    ...(q.divisionId && { divisionId: q.divisionId }),
+    ...(q.gradeLevel && { gradeLevel: q.gradeLevel }),
+    ...(q.schoolId   && { schoolId: q.schoolId }),
+    ...(q.isApproved !== undefined && { isApproved: q.isApproved }),
+    ...(q.isActive   !== undefined && { isActive: q.isActive }),
+    ...(q.accountStatus && { accountStatus: q.accountStatus }),
+    ...(q.isActivated !== undefined && { activatedAt: q.isActivated ? { not: null } : null }),
+    ...(q.search && {
+      OR: [
+        { firstName: { contains: q.search, mode: 'insensitive' } },
+        { lastName:  { contains: q.search, mode: 'insensitive' } },
+        { username:  { contains: q.search, mode: 'insensitive' } },
+        { email:     { contains: q.search, mode: 'insensitive' } },
+      ],
+    }),
+  };
+  return where;
+}
+
+/** The reason recorded when PATCH /admin/users/:id/status suspends an account (that route takes no reason). */
+export const LEGACY_SUSPEND_REASON = 'Suspended by an administrator (status switch).';
 
 @Injectable()
 export class UsersService {
@@ -48,29 +77,13 @@ export class UsersService {
     private readonly accountEmails: AccountEmailsService,
     private readonly roles:     RoleAssignmentPolicy,
     private readonly affiliations: SchoolAffiliationService,
+    private readonly accountStatus: AccountStatusService,
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
   async findAll(q: ListUsersQueryDto) {
     const { page, limit, skip, take } = pageArgs(q);
-
-    const where: Prisma.UserWhereInput = {
-      ...(q.role       && { role: q.role }),
-      ...(q.divisionId && { divisionId: q.divisionId }),
-      ...(q.gradeLevel && { gradeLevel: q.gradeLevel }),
-      ...(q.schoolId   && { schoolId: q.schoolId }),
-      ...(q.isApproved !== undefined && { isApproved: q.isApproved }),
-      ...(q.isActive   !== undefined && { isActive: q.isActive }),
-      ...(q.isActivated !== undefined && { activatedAt: q.isActivated ? { not: null } : null }),
-      ...(q.search && {
-        OR: [
-          { firstName: { contains: q.search, mode: 'insensitive' } },
-          { lastName:  { contains: q.search, mode: 'insensitive' } },
-          { username:  { contains: q.search, mode: 'insensitive' } },
-          { email:     { contains: q.search, mode: 'insensitive' } },
-        ],
-      }),
-    };
+    const where = userListWhere(q);
 
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({ where, select: SAFE_SELECT, orderBy: { createdAt: 'desc' }, skip, take }),
@@ -79,6 +92,7 @@ export class UsersService {
 
     return paginated(users, total, page, limit);
   }
+
 
   // ─── Create a user (admin) ─────────────────────────────────────────────────
   async create(data: CreateUserDto, caller: CallerCtx) {
@@ -136,7 +150,15 @@ export class UsersService {
   }
 
   // ─── Update a user (admin) ──────────────────────────────────────────────────
-  async update(id: string, data: UpdateUserDto, caller: CallerCtx) {
+  /**
+   * `opts.stepUpVerified`: the caller's password was already checked for this request (bulk role assignment checks it
+   * once when the operation is created and never stores it). `opts.inTransaction` runs inside the update's transaction,
+   * after the change is written (bulk operations record their item result there, so both commit or neither does).
+   */
+  async update(
+    id: string, data: UpdateUserDto, caller: CallerCtx,
+    opts: { stepUpVerified?: boolean; inTransaction?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
+  ) {
     const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
     await this.roles.assertCanManage(caller, existing.role);
@@ -161,7 +183,7 @@ export class UsersService {
     const roleChange = !!data.role && data.role !== existing.role;
     if (roleChange) await this.roles.assertCanAssign(caller, data.role!, 'roleChange');
     if (roleChange && (PRIVILEGED.includes(existing.role) || PRIVILEGED.includes(data.role!))) {
-      await this.assertStepUp(caller, data.currentPassword);
+      if (!opts.stepUpVerified) await this.assertStepUp(caller, data.currentPassword);
     }
     if (roleChange && data.role === 'SUPER_ADMIN' && (existing.role !== 'ADMIN' || !existing.isActive || !existing.activatedAt)) {
       throw new AppError(HttpStatus.FORBIDDEN, 'ROLE_NOT_ASSIGNABLE',
@@ -328,6 +350,7 @@ export class UsersService {
       // statement before commit): the new role and the revocation become visible
       // together, so an old token can never authenticate with the new role.
       if (endsSessions) await this.tokens.revokeAllForUser(id, tx);
+      if (opts.inTransaction) await opts.inTransaction(tx);
       return tx.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
     }).catch(lastSuperAdminConflict);
 
@@ -338,7 +361,7 @@ export class UsersService {
   }
 
   // ─── Suspend / activate / approve ───────────────────────────────────────────
-  async updateStatus(id: string, data: UpdateUserStatusDto, caller: CallerCtx) {
+  async updateStatus(id: string, data: UpdateUserStatusDto, caller: CallerCtx, requestId?: string | null) {
     if (id === caller.id && data.isActive === false) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_SUSPEND_SELF', 'You cannot suspend your own account.');
     }
@@ -346,10 +369,23 @@ export class UsersService {
     await this.roles.assertCanManage(caller, before.role);
     if (before.role === 'SUPER_ADMIN' && before.isActive && data.isActive === false) await this.assertNotLastSuperAdmin(id);
 
+    // isActive is the compatible view of the account states: false → SUSPENDED, true → ACTIVE (from SUSPENDED or
+    // DEACTIVATED; an archived account is restored with POST /admin/users/:id/status-changes). Recorded in the
+    // status history like any change (AccountStatusService).
+    if (data.isActive !== undefined && data.isActive !== before.isActive) {
+      if (data.isActive && before.accountStatus === 'ARCHIVED') {
+        throw new AppError(HttpStatus.CONFLICT, 'INVALID_STATUS_TRANSITION',
+          'An archived account is restored with POST /admin/users/:id/status-changes (with a reason).', { from: 'ARCHIVED', to: 'ACTIVE' });
+      }
+      await this.accountStatus.change(id,
+        { toStatus: data.isActive ? 'ACTIVE' : 'SUSPENDED', reason: data.isActive ? null : LEGACY_SUSPEND_REASON },
+        caller as AuthUser, { requestId });
+    }
+
     const user = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where:  { id },
-        data:   { isActive: data.isActive, isApproved: data.isApproved },
+        data:   { isApproved: data.isApproved },
         select: SAFE_SELECT,
       }).catch(lastSuperAdminConflict);
       // Deactivation / reactivation / approval, with the previous state.
@@ -366,7 +402,6 @@ export class UsersService {
       return updated;
     });
 
-    if (data.isActive === false) await this.tokens.revokeAllForUser(id);
     if (!before.isApproved && user.isApproved && user.isActive) await this.accountEmails.approved(id);
     return user;
   }
@@ -382,27 +417,10 @@ export class UsersService {
     }
     const user = await this.findOne(id);
     await this.roles.assertCanManage(caller, user.role);
-    if (user.role === 'SUPER_ADMIN' && user.isActive) await this.assertNotLastSuperAdmin(id);
-
-    try {
-      await this.prisma.user.delete({ where: { id } });
-    } catch (err: any) {
-      if (isLastSuperAdminError(err)) throw lastSuperAdmin();
-      if (err?.code === 'P2003') {
-        throw new AppError(
-          HttpStatus.CONFLICT,
-          'USER_HAS_HISTORY',
-          'This account has academic history and cannot be deleted. Suspend it instead.',
-        );
-      }
-      throw err;
-    }
-
-    await this.audit.log({
-      actorId: caller.id, actorRole: caller.role,
-      action: 'DELETE_USER', entity: 'User', entityId: id, metadata: { username: user.username },
-    });
-    return { message: `User ${id} deleted successfully.` };
+    // Account states (2026-11-16): accounts are never deleted through the API — archive them instead (their
+    // submissions, results, discussions, enrolments, affiliations, notifications and audit history are kept).
+    throw new AppError(HttpStatus.CONFLICT, 'PERMANENT_DELETION_DISABLED',
+      'Accounts are not deleted. Archive the account instead (POST /admin/users/:id/status-changes with toStatus ARCHIVED).');
   }
 
   // (Annual promotion moved to AcademicYearsService.activate, which also keeps
@@ -477,7 +495,7 @@ export class UsersService {
   // ─── Super Admin safeguards (P1-08, plan §8.2) ───────────────────────────────
 
   /** Step-up: the acting user re-enters their own password (403 STEP_UP_REQUIRED). */
-  private async assertStepUp(caller: CallerCtx, currentPassword: string | undefined) {
+  async assertStepUp(caller: CallerCtx, currentPassword: string | undefined) {
     const me = await this.prisma.user.findUnique({ where: { id: caller.id }, select: { passwordHash: true } });
     const ok = !!currentPassword && !!me?.passwordHash && (await bcrypt.compare(currentPassword, me.passwordHash));
     if (!ok) {

@@ -52,6 +52,10 @@ describe('permissions', () => {
       'users.manageTeachers',   // appended 2026-11-13: already granted (ADMIN_GRANTS), now reported too
       // appended 2026-11-14 (owner decision D-5): already granted (ADMIN_GRANTS), now reported too
       'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
+      // appended 2026-11-16 (account states): granted (ADMIN_GRANTS) and reported, so the status screens can show
+      'users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive',
+      // appended 2026-11-17 (bulk user operations)
+      'users.bulkManage', 'users.export',
       // appended 2026-11-15 (form availability): granted (ADMIN_GRANTS), reported so the form-management screen shows
       'forms.view', 'forms.manageAvailability', 'forms.editMessages',
     ]);
@@ -69,11 +73,16 @@ describe('permissions', () => {
 
   it('D-5 (2026-11-14): ADMIN reports the Head Coach administration it holds — exactly five names appended, all global grants', () => {
     const D5 = ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view'] as const;
-    const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // appended after D-5 (2026-11-15)
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + FORMS.length), -FORMS.length)).toEqual([...D5]);
+    const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive', 'users.bulkManage', 'users.export'] as const;
+    const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // form availability, after AS
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + AS.length + FORMS.length), -(AS.length + FORMS.length))).toEqual([...D5]);
     for (const p of D5) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    // Additive only: the 25 original entries keep their order, and nothing else appeared.
-    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + FORMS.length);
+    // Additive only: the 25 original entries keep their order; then 2 + D-5, the account states and bulk operations, then the forms.
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-(AS.length + FORMS.length), -FORMS.length)).toEqual([...AS]);
+    for (const p of AS) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-FORMS.length)).toEqual([...FORMS]);
+    for (const p of FORMS) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
+    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + AS.length + FORMS.length);
     // Never reported to ADMIN (and never granted, except users.manageAdmins / permissions.view which stay unreported).
     for (const p of ['users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
       expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
@@ -168,6 +177,10 @@ describe('permissions', () => {
       'users.manageHeadCoaches': G, 'users.manageAdmins': G,
       'programmes.manageHeads': G, 'programmes.manageMembers': G, 'coaches.monitor': G,
       'permissions.view': G, 'schools.manage': G,
+      // Account states (2026-11-16)
+      'users.viewStatusHistory': G, 'users.changeStatus': G, 'users.suspend': G, 'users.archive': G,
+      // Bulk user operations (2026-11-17)
+      'users.bulkManage': G, 'users.export': G,
       'forms.view': G, 'forms.manageAvailability': G, 'forms.editMessages': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {

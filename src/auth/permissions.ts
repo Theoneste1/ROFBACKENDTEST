@@ -78,6 +78,14 @@ export const PERMISSIONS = [
   'schools.manage',
   // ── School directory S2b: approve and apply a directory sync, resolve its conflicts (Super Admins only; never grantable) ──
   'schools.syncDirectory',
+  // ── Account states (2026-11-16): Administrators and Super Admins, global; plus management of the account's role ──
+  'users.viewStatusHistory',  // an account's status history (who, when, why)
+  'users.changeStatus',       // deactivate / reactivate
+  'users.suspend',            // suspend / lift a suspension
+  'users.archive',            // archive / restore an archived account
+  // ── Bulk user operations (2026-11-17): Administrators and Super Admins, global ──
+  'users.bulkManage',         // run bulk actions (each action also needs its own permission; each account the role policy)
+  'users.export',             // export the selected users' records (CSV; no dates of birth or phone numbers)
   // ── Form availability (registration and website forms; Administrators, Super Admins) ──
   'forms.view',                  // the administrators' view of every form, its schedule and its history
   'forms.manageAvailability',    // open, close and schedule a form
@@ -127,6 +135,10 @@ const ADMIN_GRANTS: Grants = {
   'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
   'permissions.view': 'global',
   'schools.manage': 'global',
+  // Account states (2026-11-16)
+  'users.viewStatusHistory': 'global', 'users.changeStatus': 'global', 'users.suspend': 'global', 'users.archive': 'global',
+  // Bulk user operations (2026-11-17)
+  'users.bulkManage': 'global', 'users.export': 'global',
   'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
 };
 
@@ -189,6 +201,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'programmes.manageHeads': 'global', 'programmes.manageMembers': 'global', 'coaches.monitor': 'global',
     'permissions.view': 'global', 'permissions.manageOverrides': 'global', 'settings.manageSystem': 'global',
     'schools.manage': 'global', 'schools.syncDirectory': 'global',
+    'users.viewStatusHistory': 'global', 'users.changeStatus': 'global', 'users.suspend': 'global', 'users.archive': 'global',
+    'users.bulkManage': 'global', 'users.export': 'global',
     'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
   },
 };
@@ -242,6 +256,10 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // without them here the frontend hid those screens from ADMINs. users.manageAdmins, permissions.*,
     // settings.manageSystem and schools.syncDirectory are still never listed for ADMIN.
     'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
+    // Appended (additive, account states 2026-11-16): ADMIN holds them (ADMIN_GRANTS) and the status routes need them.
+    'users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive',
+    // Appended (additive, bulk user operations 2026-11-17)
+    'users.bulkManage', 'users.export',
     // Appended (additive, form availability 2026-11-15): ADMIN holds them (ADMIN_GRANTS, global) and the form routes
     // require them; listed so the frontend can show the form-management screen.
     'forms.view', 'forms.manageAvailability', 'forms.editMessages',

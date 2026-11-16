@@ -130,6 +130,19 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
   'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
   'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
+  // Account states (2026-11-16): users.manage + the transition's permission and the role policy (AccountStatusService);
+  // the history needs users.viewStatusHistory
+  'POST /api/v1/admin/users/:id/status-changes  UsersController.changeStatus':                                 ADMINISTRATORS,
+  'GET /api/v1/admin/users/:id/status-history  UsersController.statusHistory':                                 ADMINISTRATORS,
+  // Bulk user operations (2026-11-17): users.bulkManage (export: users.export); each action's own permission and the
+  // per-account role policy are checked in BulkOperationsService / BulkOperationsWorker
+  'POST /api/v1/admin/users/bulk/preview  BulkOperationsController.preview':                                   ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk  BulkOperationsController.execute':                                           ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk  BulkOperationsController.list':                                               ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk/export  BulkOperationsController.export':                                     ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk/:id  BulkOperationsController.get':                                            ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk/:id/items  BulkOperationsController.items':                                    ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk/:id/cancel  BulkOperationsController.cancel':                                 ADMINISTRATORS,
   // Form availability (2026-11-15): the public view of every form (no sign-in), and the administrators' management
   // (forms.view, forms.manageAvailability, forms.editMessages: Administrators and Super Admins)
   'GET /api/v1/forms  FormsController.list':                                                                  PUBLIC,

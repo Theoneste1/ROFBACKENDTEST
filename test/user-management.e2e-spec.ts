@@ -335,7 +335,9 @@ describe('User management (e2e)', () => {
         .send({ firstName: 'Sus', lastName: 'Pended', email: 'sus@example.com', gradeLevel: 'S1' }).expect(201);
       const link = await lastLinkToken('sus@example.com');
       await ctx.http().patch(`/api/v1/admin/users/${invited.body.user.id}/status`).set(bearer(admin)).send({ isActive: false }).expect(200);
-      await ctx.http().post('/api/v1/auth/activation/inspect').send({ token: link }).expect(404);
+      // Account states: blocking the account also voids its unused activation links (a restore never revives them).
+      const inspect = await ctx.http().post('/api/v1/auth/activation/inspect').send({ token: link }).expect(400);
+      expect(inspect.body.code).toBe('INVALID_ACTIVATION_TOKEN');
 
       await ctx.http().patch(`/api/v1/admin/users/${ctx.ids.studentJunior2}/status`).set(bearer(admin)).send({ isActive: true }).expect(200);
       await login(ctx, 'student.j2');

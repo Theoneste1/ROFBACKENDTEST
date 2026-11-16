@@ -1876,7 +1876,7 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": ""
                 }
@@ -1934,7 +1934,7 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": ""
                 }
@@ -2881,7 +2881,7 @@
               "query": [
                 {
                   "key": "status",
-                  "value": "REJECTED",
+                  "value": "PENDING",
                   "disabled": true,
                   "description": ""
                 },
@@ -3448,7 +3448,7 @@
                 },
                 {
                   "key": "decision",
-                  "value": "REJECTED",
+                  "value": "PENDING",
                   "disabled": true,
                   "description": ""
                 }
@@ -4644,6 +4644,12 @@
                   "description": ""
                 },
                 {
+                  "key": "accountStatus",
+                  "value": "ACTIVE",
+                  "disabled": true,
+                  "description": "ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED (capability accountStates)."
+                },
+                {
                   "key": "divisionId",
                   "value": "00000000-0000-4000-8000-000000000000",
                   "disabled": true,
@@ -4974,6 +4980,304 @@
           }
         },
         {
+          "name": "POST /admin/users/{id}/status-changes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/status-changes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "status-changes"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toStatus\": \"ACTIVE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/users/{id}/status-history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/status-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "status-history"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.viewStatusHistory` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/users/bulk",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "bulk"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/users/bulk",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "bulk"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"activate\",\n  \"selection\": {\n    \"mode\": \"ids\"\n  },\n  \"selectionToken\": \"selectionToken selectionToken\",\n  \"expectedTotal\": 0,\n  \"confirm\": true,\n  \"idempotencyKey\": \"idempotencyKey idempotencyKey\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/users/bulk/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/bulk/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "bulk",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/users/bulk/{id}/cancel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/bulk/:id/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "bulk",
+                ":id",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/users/bulk/{id}/items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/bulk/:id/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "bulk",
+                ":id",
+                "items"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "outcome",
+                  "value": "PENDING",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/users/bulk/export",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/bulk/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "bulk",
+                "export"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `users.export` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selection\": {\n    \"mode\": \"ids\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/users/bulk/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/bulk/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "bulk",
+                "preview"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"activate\",\n  \"selection\": {\n    \"mode\": \"ids\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "POST /admin/users/import",
           "request": {
             "method": "POST",
@@ -5102,13 +5406,13 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Mentors/admins only."
                 },
                 {
                   "key": "statuses",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
                 },
@@ -8180,13 +8484,13 @@
                 },
                 {
                   "key": "status",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Mentors/admins only."
                 },
                 {
                   "key": "statuses",
-                  "value": "DRAFT",
+                  "value": "ARCHIVED",
                   "disabled": true,
                   "description": "Several statuses at once (comma-separated, e.g. DRAFT,REJECTED), so a list that groups\nstatuses pages in the database. Not together with `status`."
                 },
@@ -8664,7 +8968,7 @@
               "query": [
                 {
                   "key": "status",
-                  "value": "REJECTED",
+                  "value": "PENDING",
                   "disabled": true,
                   "description": ""
                 }
@@ -10381,7 +10685,7 @@
               "query": [
                 {
                   "key": "status",
-                  "value": "REJECTED",
+                  "value": "PENDING",
                   "disabled": true,
                   "description": ""
                 }

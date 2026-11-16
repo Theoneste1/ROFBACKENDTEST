@@ -126,6 +126,21 @@ export const FEATURES = {
    */
   profilePictures: 'always',
   /**
+   * Account states (2026-11-16): accountStatus (ACTIVE, DEACTIVATED, SUSPENDED, ARCHIVED) on admin user records and
+   * the ?accountStatus= filter of GET /api/v1/admin/users; POST /api/v1/admin/users/:id/status-changes {toStatus,
+   * reason} and GET /api/v1/admin/users/:id/status-history; login refusals ACCOUNT_DEACTIVATED / ACCOUNT_SUSPENDED /
+   * ACCOUNT_ARCHIVED; DELETE /api/v1/admin/users/:id answers 409 PERMANENT_DELETION_DISABLED (archive instead).
+   */
+  accountStates: 'always',
+  /**
+   * Bulk user operations (2026-11-17): POST /api/v1/admin/users/bulk/preview (count, sample, warnings, selectionToken),
+   * POST /api/v1/admin/users/bulk (202; idempotent per idempotencyKey; 409 SELECTION_CHANGED), GET /api/v1/admin/users/bulk,
+   * GET /api/v1/admin/users/bulk/:id, GET /api/v1/admin/users/bulk/:id/items, POST /api/v1/admin/users/bulk/:id/cancel and
+   * POST /api/v1/admin/users/bulk/export (CSV). Actions: activate, deactivate, suspend, archive, restore, assignRole,
+   * changeClassification (a student's grade, and so division), message.
+   */
+  bulkUserOperations: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

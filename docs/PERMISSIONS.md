@@ -83,6 +83,12 @@ permission guard.
 | `submissions.submitOnBehalf` | — | — | — | — | — | — |
 | `schools.manage` | — | — | — | — | all | all |
 | `schools.syncDirectory` | — | — | — | — | — | all |
+| `users.viewStatusHistory` | — | — | — | — | all | all |
+| `users.changeStatus` | — | — | — | — | all | all |
+| `users.suspend` | — | — | — | — | all | all |
+| `users.archive` | — | — | — | — | all | all |
+| `users.bulkManage` | — | — | — | — | all | all |
+| `users.export` | — | — | — | — | all | all |
 | `forms.view` | — | — | — | — | all | all |
 | `forms.manageAvailability` | — | — | — | — | all | all |
 | `forms.editMessages` | — | — | — | — | all | all |

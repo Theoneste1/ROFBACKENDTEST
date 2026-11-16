@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -17,7 +18,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 import { UsersService } from './users.service.js';
 import { AvatarService } from './avatar.service.js';
@@ -30,7 +31,10 @@ import {
   UpdateMeDto,
   UpdateUserDto,
   UpdateUserStatusDto,
+  ChangeAccountStatusDto,
 } from './dto/update-user.dto.js';
+import { AccountStatusService } from './account-status.service.js';
+import { PaginationQueryDto } from '../common/pagination.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -45,6 +49,7 @@ export class UsersController {
     private readonly avatars: AvatarService,
     private readonly usersService: UsersService,
     private readonly provisioning: UserProvisioningService,
+    private readonly accountStatus: AccountStatusService,
   ) {}
 
   /** List users with filters (role, division, grade, school, status, search). */
@@ -121,18 +126,53 @@ export class UsersController {
     return this.provisioning.sendPasswordReset(id, user);
   }
 
-  /** Suspend/reactivate (`isActive`) or approve (`isApproved`) an account. */
+  /**
+   * Suspend (`isActive: false`), lift a suspension or reactivate (`isActive: true`), or approve (`isApproved`) an
+   * account. Compatible view of the account states; POST :id/status-changes records a reason and covers every state.
+   */
   @Patch(':id/status')
   @RequirePermission('users.manage')
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: UpdateUserStatusDto,
     @CurrentUser() user: AuthUser,
+    @Req() req: Request & { id?: string },
   ) {
-    return this.usersService.updateStatus(id, body, user);
+    return this.usersService.updateStatus(id, body, user, req.id ?? null);
   }
 
-  /** Only accounts without academic history can be deleted; suspend the others. */
+  /**
+   * Change an account's state (capability accountStates): ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED, with a reason
+   * (3–500 characters; required except to reactivate or lift a suspension). Restoring an archived account also needs
+   * `confirm: true`. Leaving ACTIVE ends every session. Returning to ACTIVE sets the state only; `stillBlockedBy` lists
+   * what still prevents sign-in (NOT_ACTIVATED, PENDING_APPROVAL, LOCKED, ROLE_DISABLED).
+   * Needs users.changeStatus, users.suspend or users.archive (by transition) and the right to manage the account's
+   * role. 409 STATUS_UNCHANGED / INVALID_STATUS_TRANSITION / LAST_SUPER_ADMIN, 400 REASON_REQUIRED /
+   * CANNOT_CHANGE_OWN_STATUS / CONFIRMATION_REQUIRED, 403 PERMISSION_REQUIRED / ROLE_NOT_ASSIGNABLE.
+   */
+  @Post(':id/status-changes')
+  @HttpCode(200)
+  @RequirePermission('users.manage')
+  changeStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ChangeAccountStatusDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request & { id?: string },
+  ) {
+    return this.accountStatus.change(id, { toStatus: body.toStatus, reason: body.reason, confirm: body.confirm }, user, { requestId: req.id ?? null });
+  }
+
+  /** The account's state changes, newest first (who, when, from, to, reason). */
+  @Get(':id/status-history')
+  @RequirePermission('users.viewStatusHistory')
+  statusHistory(@Param('id', ParseUUIDPipe) id: string, @Query() query: PaginationQueryDto) {
+    return this.accountStatus.history(id, query);
+  }
+
+  /**
+   * Accounts are never deleted through the API (account states, 2026-11-16): always 409 PERMANENT_DELETION_DISABLED
+   * for an account the caller may manage. Archive it instead (POST :id/status-changes, toStatus ARCHIVED).
+   */
   @Delete(':id')
   @RequirePermission('users.manage')
   delete(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {

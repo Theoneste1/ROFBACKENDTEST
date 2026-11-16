@@ -213,8 +213,43 @@ const REGISTRATION_DETAILS_ADDITIONS = [
   'POST /api/v1/mentor-requests › response 201 application/json.olympiadInterests: new field',
 ];
 const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile-pictures.json';
+const ACCOUNT_STATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-16-account-states.json';
+const BULK_OPERATIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-bulk-operations.json';
 const FORM_AVAILABILITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-form-availability.json';
 const CURRENT_SNAPSHOT = FORM_AVAILABILITY_SNAPSHOT;
+/** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
+const BULK_OPERATIONS_ADDITIONS = [
+  'GET /api/v1/admin/users/bulk/{id}/items: operation added',
+  'GET /api/v1/admin/users/bulk/{id}: operation added',
+  'GET /api/v1/admin/users/bulk: operation added',
+  'POST /api/v1/admin/users/bulk/export: operation added',
+  'POST /api/v1/admin/users/bulk/preview: operation added',
+  'POST /api/v1/admin/users/bulk/{id}/cancel: operation added',
+  'POST /api/v1/admin/users/bulk: operation added',
+  'schema BulkExecuteDto: added',
+  'schema BulkExportDto: added',
+  'schema BulkFilterDto: added',
+  'schema BulkParamsDto: added',
+  'schema BulkPreviewDto: added',
+  'schema BulkSelectionDto: added',
+];
+/**
+ * Account states (2026-11-16): accountStatus on the admin user records and the list filter, the status-change and
+ * status-history routes. Chained after profile pictures. One approved breaking change: DELETE /admin/users/:id never
+ * deletes any more (always 409 PERMANENT_DELETION_DISABLED — archive instead), so its 200 response is gone.
+ */
+const ACCOUNT_STATES_BREAKING = ['DELETE /api/v1/admin/users/{id}: response 200 body removed'];
+const ACCOUNT_STATES_ADDITIONS = [
+  'GET /api/v1/admin/users › response 200 application/json.data[].accountStatus: new field',
+  'GET /api/v1/admin/users/{id} › response 200 application/json.accountStatus: new field',
+  'GET /api/v1/admin/users/{id}/status-history: operation added',
+  'GET /api/v1/admin/users: new optional query parameter "accountStatus"',
+  'PATCH /api/v1/admin/users/{id} › response 200 application/json.accountStatus: new field',
+  'PATCH /api/v1/admin/users/{id}/status › response 200 application/json.accountStatus: new field',
+  'POST /api/v1/admin/users › response 201 application/json.accountStatus: new field',
+  'POST /api/v1/admin/users/{id}/status-changes: operation added',
+  'schema ChangeAccountStatusDto: added',
+];
 /**
  * Profile pictures (2026-11-15): upload, replace, remove, view; administrators on other accounts. Additive only;
  * chained after registration details.
@@ -228,7 +263,7 @@ const PROFILE_PICTURES_ADDITIONS = [
 ];
 /**
  * Form availability (2026-11-15): the public view of each form and the administrators' management (forms.view,
- * forms.manageAvailability, forms.editMessages). Additive only; chained after profile pictures.
+ * forms.manageAvailability, forms.editMessages). Additive only; chained after bulk user operations.
  */
 const FORM_AVAILABILITY_ADDITIONS = [
   'GET /api/v1/admin/forms/{key}/history: operation added',
@@ -1066,9 +1101,28 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, PROFILE_PICTURES_ADDITIONS);
   });
 
-  test('profile pictures → form availability: exactly the seven form operations and their two request schemas; nothing breaking or for review', () => {
-    for (const f of [PROFILE_PICTURES_SNAPSHOT, FORM_AVAILABILITY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
-    const res = compare(JSON.parse(readFileSync(PROFILE_PICTURES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FORM_AVAILABILITY_SNAPSHOT, 'utf8')));
+  test('profile pictures → account states: the listed additions and one approved breaking change (DELETE never deletes)', () => {
+    for (const f of [PROFILE_PICTURES_SNAPSHOT, ACCOUNT_STATES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(PROFILE_PICTURES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(ACCOUNT_STATES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    // Approved (owner, 2026-11-16): accounts are never deleted through the API; archive instead.
+    assert.deepEqual(res.breaking, ACCOUNT_STATES_BREAKING);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ACCOUNT_STATES_ADDITIONS);
+  });
+
+  test('account states → bulk user operations: exactly the seven bulk routes and their request schemas; nothing breaking or for review', () => {
+    for (const f of [ACCOUNT_STATES_SNAPSHOT, BULK_OPERATIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(ACCOUNT_STATES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_OPERATIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, BULK_OPERATIONS_ADDITIONS);
+  });
+
+  test('bulk user operations → form availability: exactly the seven form operations and their two request schemas; nothing breaking or for review', () => {
+    for (const f of [BULK_OPERATIONS_SNAPSHOT, FORM_AVAILABILITY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BULK_OPERATIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FORM_AVAILABILITY_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
