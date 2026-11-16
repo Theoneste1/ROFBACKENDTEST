@@ -27,7 +27,7 @@ import { sendCsvExport } from '../../reports/csv-stream.js';
 import { idBatches, mapBatches } from '../../reports/csv.js';
 import { userListWhere, UsersService } from '../users.service.js';
 import {
-  ACTION_RULES, MAX_SELECTION, normaliseParams, normaliseSelection, selectionToken,
+  ACTION_RULES, BULK_MEMBERSHIP_KEY, MAX_SELECTION, normaliseParams, normaliseSelection, selectionToken,
   type BulkAction, type BulkParams, type BulkSelection,
 } from './bulk-rules.js';
 import type { BulkExecuteDto, BulkExportDto, BulkPreviewDto, ListBulkItemsDto, ListBulkOperationsDto } from './bulk.dto.js';
@@ -110,16 +110,18 @@ export class BulkOperationsService {
     const stepUp = this.requiresStepUp(action, params, privilegedNow);
     if (stepUp) await this.users.assertStepUp(caller, dto.currentPassword);   // checked once; the password is never stored
 
+    for (let attempt = 1; ; attempt++) {
     try {
       const operation = await this.prisma.$transaction(async (tx) => {
-        // Review fix A — the confirmed set is validated and the operation created atomically:
-        //   1. scan the matching accounts; 2. lock them FOR SHARE in id order (a concurrent change to one of them waits
-        //   for this transaction; one already in flight is waited for, and its result seen); 3. scan again: anything
-        //   that left or joined meanwhile shows up; repeat until the scan equals the locked set; 4. compare with the
-        //   confirmed token (and total) — any difference → 409 SELECTION_CHANGED, nothing created; 5. insert.
-        // Until this commits, no selected account can change; an account that starts matching after step 3 is ordered
-        // after the operation (it was not part of the set at the moment the operation was created).
-        const ids = await this.lockedMatchingIds(tx, selection);
+        // The confirmed set is validated and the operation created atomically (owner review, round 2):
+        //   1. take the membership lock EXCLUSIVELY — every write that can change filter membership (INSERT, DELETE, or
+        //      an UPDATE of a filtered column, by anyone: database trigger user_bulk_membership_guard) holds it SHARED,
+        //      so this waits for membership writes in flight, and holds new ones until this transaction commits;
+        //   2. one scan of the matching accounts; 3. compare with the confirmed token (and total) — any difference →
+        //      409 SELECTION_CHANGED, nothing created; 4. insert; 5. scan again and verify (cannot differ under the lock).
+        // So the items equal the exact filter membership at the moment the operation commits.
+        await this.acquireMembershipLock(tx);
+        const ids = await this.matchingIdsIn(tx, selection);
         if (selectionToken(action, params, selection, ids) !== dto.selectionToken || ids.length !== dto.expectedTotal) {
           throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED',
             'The selected accounts changed since the preview. Preview the action again and confirm the new selection.',
@@ -136,8 +138,12 @@ export class BulkOperationsService {
           },
           select: { id: true },
         });
-        for (let i = 0; i < ids.length; i += 1000) {
-          await tx.bulkOperationItem.createMany({ data: ids.slice(i, i + 1000).map((userId) => ({ operationId: op.id, userId })), skipDuplicates: true });
+        // One set-based INSERT per 10 000 accounts (the membership lock is held: keep it short).
+        for (let i = 0; i < ids.length; i += 10_000) {
+          await tx.$executeRaw`
+            INSERT INTO "BulkOperationItem" ("id", "operationId", "userId")
+            SELECT gen_random_uuid()::text, ${op.id}, u FROM unnest(${ids.slice(i, i + 10_000)}::text[]) AS u
+            ON CONFLICT ("operationId", "userId") DO NOTHING`;
         }
         if (action === 'message') {
           // One bulk e-mail job; each delivery is created with its account's item (BulkOperationsWorker), so an
@@ -155,10 +161,21 @@ export class BulkOperationsService {
             reason, requestId, stepUpVerified: stepUp,
           },
         }, tx);
+        // The invariant, checked at the end of the transaction: the items equal a fresh scan of the filter.
+        const final = await scanIds(tx, this.whereOf(selection));
+        if (final.length !== ids.length || final.some((id, i) => id !== ids[i])) {
+          throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED', 'The selected accounts changed. Preview the action again.');
+        }
         return tx.bulkOperation.findUniqueOrThrow({ where: { id: op.id }, select: OPERATION_SELECT });
       }, { timeout: 120_000, maxWait: 30_000 });
       return { operation, alreadyExisted: false };
     } catch (err) {
+      // A deadlock (rare: e.g. the administrator's own row deleted by direct SQL meanwhile) → retry a bounded number
+      // of times; then ask to retry later. Nothing was created by the failed attempt.
+      if (isDeadlock(err)) {
+        if (attempt < 3) continue;
+        throw new AppError(HttpStatus.SERVICE_UNAVAILABLE, 'BULK_BUSY', 'The accounts are busy. Try again in a moment.');
+      }
       // The same key raced in: return the operation the other request created (nothing created twice).
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const raced = await this.prisma.bulkOperation.findUnique({
@@ -167,6 +184,7 @@ export class BulkOperationsService {
         if (raced) return { operation: raced, alreadyExisted: true };
       }
       throw err;
+    }
     }
   }
 
@@ -301,35 +319,22 @@ export class BulkOperationsService {
   }
 
   /**
-   * Inside the creation transaction: the matching ids, with every one of those accounts locked FOR SHARE, re-scanned
-   * until the scan equals the locked set (at most 5 rounds; a selection that keeps changing is refused).
+   * The membership lock, EXCLUSIVE, for the rest of the creation transaction (BULK_MEMBERSHIP_KEY; writers take it
+   * SHARED through the trigger user_bulk_membership_guard). A separate method so tests can pause here.
    */
-  private async lockedMatchingIds(tx: Prisma.TransactionClient, selection: BulkSelection): Promise<string[]> {
+  async acquireMembershipLock(tx: Prisma.TransactionClient): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${BULK_MEMBERSHIP_KEY})`;
+  }
+
+  /** Inside the creation transaction (membership lock held): the matching ids, sorted, within the size limit. */
+  private async matchingIdsIn(tx: Prisma.TransactionClient, selection: BulkSelection): Promise<string[]> {
     const where = this.whereOf(selection);
     const n = await tx.user.count({ where });
     if (n > MAX_SELECTION) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SELECTION_TOO_LARGE',
         `The selection matches ${n} accounts; at most ${MAX_SELECTION} can be changed in one operation. Narrow the filters.`, { total: n });
     }
-    let ids = await scanIds(tx, where);
-    const locked = new Set<string>();
-    for (let round = 0; round < 5; round++) {
-      const toLock = ids.filter((id) => !locked.has(id));
-      if (toLock.length) await this.lockSelection(tx, toLock);
-      for (const id of toLock) locked.add(id);
-      const again = await scanIds(tx, where);
-      if (again.length === ids.length && again.every((id, i) => id === ids[i]) && again.every((id) => locked.has(id))) return again;
-      ids = again;
-    }
-    throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED', 'The selected accounts keep changing. Preview the action again.');
-  }
-
-  /** Locks the accounts FOR SHARE, in id order (no deadlock between two operations). A separate method so tests can pause here. */
-  async lockSelection(tx: Prisma.TransactionClient, ids: string[]): Promise<void> {
-    const sorted = [...ids].sort();
-    for (let i = 0; i < sorted.length; i += 5000) {
-      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ANY(${sorted.slice(i, i + 5000)}::text[]) ORDER BY "id" FOR SHARE`;
-    }
+    return scanIds(tx, where);
   }
 
   /** The ids of every account the selection matches now, sorted. Never sent to the browser in full. */
@@ -390,4 +395,10 @@ function auditParams(action: BulkAction, p: BulkParams) {
 
 async function scanIds(tx: Prisma.TransactionClient, where: Prisma.UserWhereInput): Promise<string[]> {
   return (await tx.user.findMany({ where, select: { id: true }, orderBy: { id: 'asc' } })).map((r) => r.id);
+}
+
+/** PostgreSQL deadlock_detected (40P01), as Prisma reports it. */
+function isDeadlock(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; meta?: { code?: string } };
+  return e?.code === 'P2034' || e?.meta?.code === '40P01' || /40P01|deadlock detected/i.test(String(e?.message ?? ''));
 }

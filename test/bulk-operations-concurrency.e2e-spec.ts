@@ -10,9 +10,6 @@
  *     item is SUCCEEDED if and only if its account was changed by the operation.
  * Runs on its own freshly reset test database (never production).
  */
-import pg from 'pg';
-
-import { BulkOperationsService } from '../src/users/bulk/bulk-operations.service.js';
 import { BulkOperationsWorker, type ClaimedItem } from '../src/users/bulk/bulk-operations.worker.js';
 import { createTestApp, login, bearer, PASSWORD, type TestContext } from './helpers.js';
 
@@ -20,7 +17,6 @@ describe('Bulk user operations — atomicity, recovery and cancellation (review 
   let ctx: TestContext;
   let admin: string;
   let worker: BulkOperationsWorker;
-  let service: BulkOperationsService;
   let hash: string;
   const p = () => ctx.prisma;
   const http = () => ctx.http();
@@ -30,11 +26,6 @@ describe('Bulk user operations — atomicity, recovery and cancellation (review 
   /** Resolves to 'pending' if the promise has not settled within `ms`. */
   const settledWithin = (pr: Promise<unknown>, ms: number) => Promise.race([pr.then(() => 'settled', () => 'settled'), sleep(ms).then(() => 'pending')]);
   const gate = () => { let open!: () => void; const wait = new Promise<void>((r) => { open = r; }); return { open, wait }; };
-  async function sql(text: string, values: unknown[] = []) {
-    const c = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL });
-    await c.connect();
-    try { return await c.query(text, values); } finally { await c.end(); }
-  }
 
   const preview = (body: Record<string, unknown>) => http().post('/api/v1/admin/users/bulk/preview').set(bearer(admin)).send(body);
   const execute = (body: Record<string, unknown>) => http().post('/api/v1/admin/users/bulk').set(bearer(admin)).send(body);
@@ -71,75 +62,12 @@ describe('Bulk user operations — atomicity, recovery and cancellation (review 
     ctx = await createTestApp();
     admin = await login(ctx, 'admin');
     worker = ctx.app.get(BulkOperationsWorker);
-    service = ctx.app.get(BulkOperationsService);
     hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash!;
   });
   afterEach(() => vi.restoreAllMocks());
   afterAll(async () => { await ctx?.app.close(); });
 
-  describe('A — the confirmed set is validated and the operation created atomically', () => {
-    it('a selected account changes role (another connection) between the preview and the locks → 409, nothing created', async () => {
-      const ids = await makeUsers('atoma', 4);
-      const body = await confirmed('suspend', { mode: 'filter', filter: { search: 'atoma', role: 'MENTOR' } }, { reason: 'Atomicity test' });
-      const orig = service.lockSelection.bind(service);
-      const reached = gate(); const go = gate();
-      vi.spyOn(service, 'lockSelection').mockImplementationOnce(async (tx, list) => { reached.open(); await go.wait; return orig(tx, list); });
-      const pending = execute(body).then((r) => r);
-      await reached.wait;                                   // execute is inside its transaction, before the locks
-      await sql(`UPDATE "User" SET "role" = 'TEACHER' WHERE "id" = $1`, [ids[1]]);   // commits at once (not locked yet)
-      go.open();
-      const res = await pending;
-      expect([res.status, res.body.code]).toEqual([409, 'SELECTION_CHANGED']);
-      expect(await p().bulkOperation.count({ where: { idempotencyKey: body.idempotencyKey } })).toBe(0);
-    });
-
-    it('a change to a selected account while the locks are held waits for the operation; the operation holds exactly the confirmed set', async () => {
-      const ids = await makeUsers('atomb', 4);
-      const body = await confirmed('suspend', { mode: 'filter', filter: { search: 'atomb', role: 'MENTOR' } }, { reason: 'Atomicity test' });
-      const orig = service.lockSelection.bind(service);
-      const reached = gate(); const go = gate();
-      vi.spyOn(service, 'lockSelection').mockImplementationOnce(async (tx, list) => { await orig(tx, list); reached.open(); await go.wait; });
-      const pending = execute(body).then((r) => r);
-      await reached.wait;                                   // the four accounts are locked FOR SHARE
-      const write = sql(`UPDATE "User" SET "role" = 'TEACHER' WHERE "id" = $1`, [ids[2]]);
-      expect(await settledWithin(write, 800)).toBe('pending');   // blocked by the operation's lock
-      go.open();
-      const res = await pending;
-      expect(res.status).toBe(202);
-      await write;                                          // lands after the operation was created
-      const items = await p().bulkOperationItem.findMany({ where: { operationId: res.body.operation.id }, select: { userId: true } });
-      expect(items.map((i) => i.userId).sort()).toEqual([...ids].sort());   // exactly the confirmed set
-      expect((await p().user.findUniqueOrThrow({ where: { id: ids[2] } })).role).toBe('TEACHER');
-      await drain();
-      await assertTruthful(res.body.operation.id);
-    });
-
-    it('an account that starts matching while execute holds the locks (status change by another connection) → 409', async () => {
-      await makeUsers('atomc', 3);
-      const [joiner] = await makeUsers('atomcx', 1, { accountStatus: 'SUSPENDED' });
-      const body = await confirmed('deactivate', { mode: 'filter', filter: { search: 'atomc', accountStatus: 'ACTIVE' } }, { reason: 'Atomicity test' });
-      expect(body.expectedTotal).toBe(3);
-      const orig = service.lockSelection.bind(service);
-      const reached = gate(); const go = gate();
-      vi.spyOn(service, 'lockSelection').mockImplementationOnce(async (tx, list) => { await orig(tx, list); reached.open(); await go.wait; });
-      const pending = execute(body).then((r) => r);
-      await reached.wait;
-      await sql(`UPDATE "User" SET "accountStatus" = 'ACTIVE' WHERE "id" = $1`, [joiner]);   // not locked: commits
-      go.open();
-      const res = await pending;
-      expect([res.status, res.body.code]).toEqual([409, 'SELECTION_CHANGED']);
-      expect(await p().bulkOperation.count({ where: { idempotencyKey: body.idempotencyKey } })).toBe(0);
-    });
-
-    it('a grade change of a selected student between preview and execute (another connection) → 409', async () => {
-      const junior = await p().division.findFirstOrThrow({ where: { code: 'JUNIOR' } });
-      const ids = await makeUsers('atomd', 3, { role: 'STUDENT', gradeLevel: 'S2', divisionId: junior.id });
-      const body = await confirmed('suspend', { mode: 'filter', filter: { search: 'atomd', gradeLevel: 'S2' } }, { reason: 'Atomicity test' });
-      await sql(`UPDATE "User" SET "gradeLevel" = 'S3' WHERE "id" = $1`, [ids[0]]);
-      const res = await execute(body);
-      expect([res.status, res.body.code]).toEqual([409, 'SELECTION_CHANGED']);
-    });
-  });
+  // A (selection atomicity) is covered with the membership lock in bulk-operations-membership.e2e-spec.ts.
 
   describe('B — a role or grade change and its result commit together', () => {
     async function crashOnce(userId: string) {
@@ -178,21 +106,19 @@ describe('Bulk user operations — atomicity, recovery and cancellation (review 
       expect((await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } })).status).toBe('COMPLETED');
     });
 
-    it('a stalled worker that lost its claim cannot record — its change is rolled back; the new claim applies it once', async () => {
+    it('a worker whose claim was taken over (stalled before its item transaction) changes nothing; the new claim applies it once', async () => {
       const ids = await makeUsers('stall', 1);
       const res = await execute(await confirmed('archive', { mode: 'ids', ids }, { reason: 'Stall test' })).expect(202);
       const opId = res.body.operation.id;
-      const orig = worker.record.bind(worker);
+      const orig = worker.statusPrecheck.bind(worker);
       const reached = gate(); const go = gate();
-      vi.spyOn(worker, 'record').mockImplementationOnce(async (...a) => { reached.open(); await go.wait; return orig(...a); });
+      vi.spyOn(worker, 'statusPrecheck').mockImplementationOnce(async (id) => { const s = await orig(id); reached.open(); await go.wait; return s; });
       const slow = worker.processBatch();
-      await reached.wait;                                    // the first worker is inside its transaction, stalled
-      // Meanwhile its claim is considered expired and taken over (the stalled transaction holds the user row: the
-      // second change waits, so the takeover is driven by a separate claim of the item).
+      await reached.wait;                                    // the first worker stalls before its item transaction
       await p().$executeRawUnsafe(`UPDATE "BulkOperationItem" SET "claimToken" = 'taken-over' WHERE "operationId" = '${opId}'`);
       go.open();
       await slow;
-      expect(await p().userStatusChange.count({ where: { operationId: opId } })).toBe(0);   // rolled back: claim lost
+      expect(await p().userStatusChange.count({ where: { operationId: opId } })).toBe(0);   // claim lost: nothing changed
       expect((await p().user.findUniqueOrThrow({ where: { id: ids[0] } })).accountStatus).toBe('ACTIVE');
       await p().$executeRawUnsafe(`UPDATE "BulkOperationItem" SET "lockedAt" = (NOW() AT TIME ZONE 'UTC') - INTERVAL '10 minutes' WHERE "operationId" = '${opId}'`);
       await drain();
@@ -267,6 +193,94 @@ describe('Bulk user operations — atomicity, recovery and cancellation (review 
       expect(items.every((i) => i.outcome === 'SKIPPED' && i.code === 'CANCELLED')).toBe(true);
       expect(await p().user.count({ where: { id: { in: ids }, accountStatus: 'ACTIVE' } })).toBe(3);
     });
+  });
+
+  describe('C2 — the status re-check and the change share one transaction, for every action (owner review, round 2)', () => {
+    type Kind = 'suspend' | 'assignRole' | 'changeClassification' | 'message';
+    let setN = 0;
+    /** Three accounts and a confirmed operation of this kind. */
+    async function setUp(kind: Kind) {
+      const junior = await p().division.findFirstOrThrow({ where: { code: 'JUNIOR' } });
+      const students = kind === 'assignRole' || kind === 'changeClassification';
+      const ids = await makeUsers(`c2${kind.slice(0, 4).toLowerCase()}${++setN}`, 3,
+        students ? { role: 'STUDENT', gradeLevel: 'S2', divisionId: junior.id } : {});
+      const params = kind === 'assignRole' ? { role: 'MENTOR' } : kind === 'changeClassification' ? { gradeLevel: 'S5' }
+        : kind === 'message' ? { subject: 'Cancel test', body: 'This must not be sent after a cancel.' } : undefined;
+      const res = await execute(await confirmed(kind, { mode: 'ids', ids }, kind === 'suspend' ? { reason: 'Cancel test' } : {}, params)).expect(202);
+      return { ids, opId: res.body.operation.id as string };
+    }
+    /** Whether the operation changed (or e-mailed) this account. */
+    async function changed(kind: Kind, opId: string, userId: string) {
+      const u = await p().user.findUniqueOrThrow({ where: { id: userId } });
+      if (kind === 'suspend') return (await p().userStatusChange.count({ where: { operationId: opId, userId } })) === 1 && u.accountStatus === 'SUSPENDED';
+      if (kind === 'assignRole') return u.role === 'MENTOR';
+      if (kind === 'changeClassification') return u.gradeLevel === 'S5';
+      const op = await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } });
+      return (await p().emailDelivery.count({ where: { jobId: op.emailJobId!, recipientId: userId } })) === 1;
+    }
+    async function outcomes(opId: string) {
+      return p().bulkOperationItem.findMany({ where: { operationId: opId }, select: { userId: true, outcome: true, code: true } });
+    }
+    const cancel = (opId: string) => http().post(`/api/v1/admin/users/bulk/${opId}/cancel`).set(bearer(admin)).then((r) => r);
+
+    it.each(['suspend', 'assignRole', 'changeClassification', 'message'] as const)(
+      '%s (i): paused after the unlocked status check, the cancel commits → nothing changed or e-mailed, SKIPPED (CANCELLED)', async (kind) => {
+        const { ids, opId } = await setUp(kind);
+        const orig = worker.statusPrecheck.bind(worker);
+        const reached = gate(); const go = gate();
+        vi.spyOn(worker, 'statusPrecheck').mockImplementationOnce(async (id) => { const s = await orig(id); reached.open(); await go.wait; return s; });
+        const batch = worker.processBatch();
+        await reached.wait;                                  // the first account passed the check (RUNNING) …
+        const c = await cancel(opId);                        // … and the cancel commits before its transaction
+        expect([c.status, c.body.status]).toEqual([200, 'CANCELLING']);
+        go.open();
+        await batch;
+        await drain();
+        for (const id of ids) expect(await changed(kind, opId, id)).toBe(false);
+        expect((await outcomes(opId)).every((i) => i.outcome === 'SKIPPED' && i.code === 'CANCELLED')).toBe(true);
+        expect((await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } })).status).toBe('CANCELLED');
+      });
+
+    it.each(['suspend', 'assignRole', 'changeClassification', 'message'] as const)(
+      '%s (ii): the worker holds the operation lock → the cancel waits; that account SUCCEEDED and changed, later ones cancelled', async (kind) => {
+        const { ids, opId } = await setUp(kind);
+        const orig = worker.lockOperation.bind(worker);
+        const reached = gate(); const go = gate();
+        vi.spyOn(worker, 'lockOperation').mockImplementationOnce(async (tx, id) => { const s = await orig(tx, id); reached.open(); await go.wait; return s; });
+        const batch = worker.processBatch();
+        await reached.wait;                                  // the first account's transaction holds the operation FOR SHARE
+        const c = cancel(opId);
+        expect(await settledWithin(c, 1000)).toBe('pending');   // the cancel waits for it
+        go.open();
+        expect((await c).status).toBe(200);
+        await batch;
+        await drain();
+        const items = await outcomes(opId);
+        const first = items.filter((i) => i.outcome === 'SUCCEEDED');
+        expect(first).toHaveLength(1);
+        for (const i of items) expect([i.userId, i.outcome === 'SUCCEEDED']).toEqual([i.userId, await changed(kind, opId, i.userId)]);
+        expect(items.filter((i) => i.code === 'CANCELLED')).toHaveLength(2);
+        expect(ids).toContain(first[0].userId);
+        expect((await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } })).status).toBe('CANCELLED');
+      });
+
+    it('deadlock freedom: a cancel racing two workers claiming and processing, 20 rounds — always truthful, never stuck', async () => {
+      for (let round = 0; round < 20; round++) {
+        await makeUsers(`dl${round}x`, 40);
+        const res = await execute(await confirmed('suspend', { mode: 'filter', filter: { search: `dl${round}x` } }, { reason: 'Deadlock test' })).expect(202);
+        const opId = res.body.operation.id;
+        const [, , c] = await Promise.all([
+          worker.processBatch(),
+          worker.processBatch(),
+          (async () => { await sleep((round % 5) * 10); return http().post(`/api/v1/admin/users/bulk/${opId}/cancel`).set(bearer(admin)); })(),
+        ]);
+        expect([200, 409]).toContain(c.status);
+        await drain();
+        const op = await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } });
+        expect(['CANCELLED', 'COMPLETED']).toContain(op.status);
+        await assertTruthful(opId);
+      }
+    }, 300_000);
   });
 
   it('the login of an unrelated account still works', async () => {

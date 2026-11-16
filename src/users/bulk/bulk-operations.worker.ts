@@ -13,11 +13,19 @@
  *    "between" — after a crash the item is still PROCESSING, is claimed again, and the change is applied (once);
  *  - one item per (operation, account): an account is changed — and e-mailed — at most once per operation.
  *
- * Cancellation: cancel skips only PENDING items and marks the operation CANCELLING. Each item's transaction holds the
- * operation row FOR SHARE, so a cancel waits for an item that is being changed right now. A claimed item whose
- * processing starts after the cancel committed is recorded SKIPPED (CANCELLED) without any change. When no item is
- * pending or processing the operation ends (CANCELLING → CANCELLED, or its final status), once, under the operation's
- * row lock, with one BULK_OPERATION_FINISHED audit row. Counters are recomputed from the items.
+ * One transaction per item (owner review, round 2), always in this lock order — operation row → item row → user row
+ * (→ e-mail outbox):
+ *   1. the operation row FOR SHARE, and its status re-read under that lock; 2. the item row FOR UPDATE, and the claim
+ *      re-checked; 3. a lost claim → nothing; an operation that is no longer RUNNING (CANCELLING) → the item is
+ *      recorded SKIPPED (CANCELLED), with no change and no e-mail; 4. otherwise the change (AccountStatusService.change /
+ *      UsersService.update run INSIDE this transaction), its result and, for a message, the EmailDelivery row.
+ * A refusal (e.g. the role policy) rolls the transaction back — nothing changed — and is recorded in a second item
+ * transaction under the same locks. Cancel takes the operation row FOR UPDATE (an UPDATE), so it waits for items
+ * being processed, then marks the operation CANCELLING and skips the PENDING items; every item processed after that
+ * sees CANCELLING under its lock. The finishing step takes the operation row FOR UPDATE, then reads the items; claims
+ * lock only item rows. When no item is pending or processing the operation ends (CANCELLING → CANCELLED, or its final
+ * status), once, with one BULK_OPERATION_FINISHED audit row. Counters are recomputed from the items.
+ * A deadlock (40P01) of an item transaction releases the claim (the item goes back to PENDING) for a later retry.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -90,7 +98,7 @@ export class BulkOperationsWorker {
           // Unexpected (not a refusal): reported on the item — nothing was changed for it (the change and the result
           // share one transaction). If even that cannot be written, the claim expires and the item is retried.
           this.logger.error(`Bulk item ${item.id} failed: ${(err as Error).message}`);
-          await this.record(this.prisma, item, 'FAILED', 'UNEXPECTED_ERROR', 'Unexpected error; nothing was changed for this account.');
+          await this.recordUnder(opId, item, 'FAILED', 'UNEXPECTED_ERROR', 'Unexpected error; nothing was changed for this account.');
         }
       }
       await this.finishIfDone(opId);
@@ -117,76 +125,99 @@ export class BulkOperationsWorker {
       RETURNING i."id", i."operationId", i."userId", i."claimToken"`;
   }
 
-  private async processItem(op: Op, actor: AuthUser | null, item: ClaimedItem) {
-    // A cancel that committed before this item's processing started: nothing is changed for it.
-    const now = await this.prisma.bulkOperation.findUniqueOrThrow({ where: { id: op.id }, select: { status: true } });
-    if (now.status === 'CANCELLING' || now.status === 'CANCELLED') {
-      return this.record(this.prisma, item, 'SKIPPED', 'CANCELLED', 'The operation was cancelled before this account was processed.');
-    }
+  /** A first, unlocked look at the operation's status (a cancelled operation skips without work). A hook for tests. */
+  async statusPrecheck(operationId: string): Promise<string> {
+    return (await this.prisma.bulkOperation.findUniqueOrThrow({ where: { id: operationId }, select: { status: true } })).status;
+  }
+
+  private async processItem(op: Op, actor: AuthUser | null, item: ClaimedItem): Promise<boolean> {
+    const pre = await this.statusPrecheck(op.id);
+    if (pre !== 'RUNNING' && pre !== 'PENDING') return this.recordUnder(op.id, item, 'SKIPPED', 'CANCELLED', CANCELLED_MESSAGE);
+
     const action = op.action as BulkAction;
     const params = (op.params ?? {}) as { role?: string; gradeLevel?: string; stepUpVerified?: boolean };
-    if (!actor) return this.record(this.prisma, item, 'FAILED', 'ACTOR_NOT_AUTHORIZED', 'The administrator who started this operation can no longer run it.');
+    if (!actor) return this.recordUnder(op.id, item, 'FAILED', 'ACTOR_NOT_AUTHORIZED', 'The administrator who started this operation can no longer run it.');
     for (const p of ['users.bulkManage', ...ACTION_RULES[action].permissions] as const) {
-      if (!this.permissions.has(actor, p)) return this.record(this.prisma, item, 'FAILED', 'PERMISSION_REQUIRED', `The administrator no longer holds ${p}.`);
+      if (!this.permissions.has(actor, p)) return this.recordUnder(op.id, item, 'FAILED', 'PERMISSION_REQUIRED', `The administrator no longer holds ${p}.`);
     }
-    if (item.userId === actor.id) return this.record(this.prisma, item, 'SKIPPED', 'SELF', 'Your own account is never changed in bulk.');
+    if (item.userId === actor.id) return this.recordUnder(op.id, item, 'SKIPPED', 'SELF', 'Your own account is never changed in bulk.');
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: item.userId }, select: { id: true, role: true, accountStatus: true, gradeLevel: true, email: true },
-    });
-    if (!user) return this.record(this.prisma, item, 'SKIPPED', 'NOT_FOUND', 'The account no longer exists.');
-
-    /** Records SUCCEEDED inside the change's own transaction; a lost claim rolls the change back. */
-    const commitWith = (stillBlockedBy: string[] = []) => async (tx: Prisma.TransactionClient) => {
-      await this.lockOperation(tx, op.id);
-      if (!(await this.record(tx, item, 'SUCCEEDED', null, null, stillBlockedBy))) throw new ClaimLost();
-    };
-
+    const afterCommit: Array<() => Promise<void>> = [];
     try {
-      if (ACTION_RULES[action].toStatus) {
-        const d = statusDecision(action, user.accountStatus);
-        if ('skip' in d) return this.record(this.prisma, item, 'SKIPPED', d.skip, null);
-        await this.accountStatus.change(user.id, { toStatus: d.toStatus, reason: op.reason, confirm: action === 'restore' }, actor, {
-          operationId: op.id,
-          inTransaction: (tx, result) => commitWith(result.stillBlockedBy)(tx),
+      const done = await this.inItemTransaction(op.id, item, async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: item.userId }, select: { id: true, role: true, accountStatus: true, gradeLevel: true, email: true },
         });
-        return true;
-      }
-      if (action === 'assignRole') {
-        if (user.role === params.role) return this.record(this.prisma, item, 'SKIPPED', 'ALREADY_SET', null);
-        await this.users.update(user.id, { role: params.role } as never, actor,
-          { stepUpVerified: params.stepUpVerified === true, inTransaction: commitWith() });
-        return true;
-      }
-      if (action === 'changeClassification') {
-        if (user.role !== 'STUDENT') return this.record(this.prisma, item, 'SKIPPED', 'NOT_APPLICABLE', 'Only students have a grade.');
-        if (user.gradeLevel === params.gradeLevel) return this.record(this.prisma, item, 'SKIPPED', 'ALREADY_SET', null);
-        await this.users.update(user.id, { gradeLevel: params.gradeLevel } as never, actor, { inTransaction: commitWith() });
-        return true;
-      }
-      if (action === 'message') {
-        if (user.accountStatus !== 'ACTIVE' || !user.email) {
-          return this.record(this.prisma, item, 'SKIPPED', 'ACCOUNT_NOT_ACTIVE', 'Only active accounts are e-mailed.');
+        if (!user) return this.record(tx, item, 'SKIPPED', 'NOT_FOUND', 'The account no longer exists.');
+        if (ACTION_RULES[action].toStatus) {
+          const d = statusDecision(action, user.accountStatus);
+          if ('skip' in d) return this.record(tx, item, 'SKIPPED', d.skip, null);
+          const r = await this.accountStatus.change(user.id, { toStatus: d.toStatus, reason: op.reason, confirm: action === 'restore' }, actor,
+            { operationId: op.id, tx });
+          return this.record(tx, item, 'SUCCEEDED', null, null, r.stillBlockedBy);
         }
-        await this.prisma.$transaction(async (tx) => {
-          await commitWith()(tx);
+        if (action === 'assignRole') {
+          if (user.role === params.role) return this.record(tx, item, 'SKIPPED', 'ALREADY_SET', null);
+          await this.users.update(user.id, { role: params.role } as never, actor, { stepUpVerified: params.stepUpVerified === true, tx, afterCommit });
+          return this.record(tx, item, 'SUCCEEDED', null, null);
+        }
+        if (action === 'changeClassification') {
+          if (user.role !== 'STUDENT') return this.record(tx, item, 'SKIPPED', 'NOT_APPLICABLE', 'Only students have a grade.');
+          if (user.gradeLevel === params.gradeLevel) return this.record(tx, item, 'SKIPPED', 'ALREADY_SET', null);
+          await this.users.update(user.id, { gradeLevel: params.gradeLevel } as never, actor, { tx, afterCommit });
+          return this.record(tx, item, 'SUCCEEDED', null, null);
+        }
+        if (action === 'message') {
+          if (user.accountStatus !== 'ACTIVE' || !user.email) return this.record(tx, item, 'SKIPPED', 'ACCOUNT_NOT_ACTIVE', 'Only active accounts are e-mailed.');
+          // The outbox row is written in this transaction: a cancelled or rolled-back item never sends anything.
           await tx.emailDelivery.create({ data: { jobId: op.emailJobId!, recipientEmail: user.email, recipientId: user.id } });
-        });
-        return true;
-      }
-      return this.record(this.prisma, item, 'FAILED', 'UNKNOWN_ACTION', null);
+          return this.record(tx, item, 'SUCCEEDED', null, null);
+        }
+        return this.record(tx, item, 'FAILED', 'UNKNOWN_ACTION', null);
+      });
+      for (const fn of afterCommit) await fn().catch((err) => this.logger.error(`Bulk item notice failed: ${(err as Error).message}`));
+      return done;
     } catch (err) {
-      if (err instanceof ClaimLost) return false;   // another claim owns the item now; nothing was changed here
+      if (isDeadlock(err)) {
+        // Nothing was changed (rolled back): give the item back for a later retry.
+        await this.prisma.bulkOperationItem.updateMany({
+          where: { id: item.id, outcome: 'PROCESSING', claimToken: item.claimToken }, data: { outcome: 'PENDING', claimToken: null, lockedAt: null },
+        });
+        return false;
+      }
       const e = err as { code?: string; message?: string; response?: { code?: string; message?: string } };
       const code = e.code ?? e.response?.code;
-      if (!code || code === 'UNEXPECTED_ERROR') throw err;
-      return this.record(this.prisma, item, SKIP_CODES.has(code) ? 'SKIPPED' : 'FAILED', code, e.response?.message ?? e.message ?? null);
+      if (!code || code === 'UNEXPECTED_ERROR' || code.startsWith('P')) throw err;
+      // A refusal: the transaction was rolled back (nothing changed); record it under the same locks.
+      return this.recordUnder(op.id, item, SKIP_CODES.has(code) ? 'SKIPPED' : 'FAILED', code, e.response?.message ?? e.message ?? null);
     }
   }
 
-  /** The operation row FOR SHARE: a cancel (FOR UPDATE) waits for this item's change to commit. */
-  async lockOperation(tx: Prisma.TransactionClient, operationId: string) {
-    await tx.$queryRaw`SELECT 1 FROM "BulkOperation" WHERE "id" = ${operationId} FOR SHARE`;
+  /**
+   * The item transaction: operation row FOR SHARE (status re-read under the lock) → item row FOR UPDATE (claim
+   * re-checked). Lost claim → false, nothing done. Operation no longer RUNNING → SKIPPED (CANCELLED), nothing changed.
+   * Otherwise runs `body` (the change and its result) in the same transaction.
+   */
+  async inItemTransaction(operationId: string, item: ClaimedItem, body: (tx: Prisma.TransactionClient) => Promise<boolean>): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const status = await this.lockOperation(tx, operationId);
+      const rows = await tx.$queryRaw<Array<{ outcome: string; claimToken: string | null }>>`
+        SELECT "outcome", "claimToken" FROM "BulkOperationItem" WHERE "id" = ${item.id} FOR UPDATE`;
+      if (rows[0]?.outcome !== 'PROCESSING' || rows[0]?.claimToken !== item.claimToken) return false;   // claim lost
+      if (status !== 'RUNNING') return this.record(tx, item, 'SKIPPED', 'CANCELLED', CANCELLED_MESSAGE);
+      return body(tx);
+    }, { timeout: 60_000, maxWait: 30_000 });
+  }
+
+  /** Records an outcome that involves no change, under the same locks and checks as a change. */
+  private recordUnder(operationId: string, item: ClaimedItem, outcome: Outcome, code: string | null, message: string | null) {
+    return this.inItemTransaction(operationId, item, (tx) => this.record(tx, item, outcome, code, message));
+  }
+
+  /** The operation row FOR SHARE, and its status as of that lock (a cancel, FOR UPDATE, waits for this item). A test hook. */
+  async lockOperation(tx: Prisma.TransactionClient, operationId: string): Promise<string> {
+    const rows = await tx.$queryRaw<Array<{ status: string }>>`SELECT "status"::text AS status FROM "BulkOperation" WHERE "id" = ${operationId} FOR SHARE`;
+    return rows[0]?.status ?? 'MISSING';
   }
 
   /** Records an item's result only through the claim that holds it; false if the claim was lost. */
@@ -239,4 +270,10 @@ export class BulkOperationsWorker {
   }
 }
 
-class ClaimLost extends Error {}
+const CANCELLED_MESSAGE = 'The operation was cancelled before this account was processed.';
+
+/** PostgreSQL deadlock_detected (40P01), as Prisma reports it. */
+function isDeadlock(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; meta?: { code?: string } };
+  return e?.code === 'P2034' || e?.meta?.code === '40P01' || /40P01|deadlock detected/i.test(String(e?.message ?? ''));
+}
