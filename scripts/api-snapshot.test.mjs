@@ -214,7 +214,24 @@ const REGISTRATION_DETAILS_ADDITIONS = [
 ];
 const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile-pictures.json';
 const ACCOUNT_STATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-16-account-states.json';
-const CURRENT_SNAPSHOT = ACCOUNT_STATES_SNAPSHOT;
+const BULK_OPERATIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-bulk-operations.json';
+const CURRENT_SNAPSHOT = BULK_OPERATIONS_SNAPSHOT;
+/** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
+const BULK_OPERATIONS_ADDITIONS = [
+  'GET /api/v1/admin/users/bulk/{id}/items: operation added',
+  'GET /api/v1/admin/users/bulk/{id}: operation added',
+  'GET /api/v1/admin/users/bulk: operation added',
+  'POST /api/v1/admin/users/bulk/export: operation added',
+  'POST /api/v1/admin/users/bulk/preview: operation added',
+  'POST /api/v1/admin/users/bulk/{id}/cancel: operation added',
+  'POST /api/v1/admin/users/bulk: operation added',
+  'schema BulkExecuteDto: added',
+  'schema BulkExportDto: added',
+  'schema BulkFilterDto: added',
+  'schema BulkParamsDto: added',
+  'schema BulkPreviewDto: added',
+  'schema BulkSelectionDto: added',
+];
 /**
  * Account states (2026-11-16): accountStatus on the admin user records and the list filter, the status-change and
  * status-history routes. Chained after profile pictures. One approved breaking change: DELETE /admin/users/:id never
@@ -1076,6 +1093,15 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ACCOUNT_STATES_BREAKING);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, ACCOUNT_STATES_ADDITIONS);
+  });
+
+  test('account states → bulk user operations: exactly the seven bulk routes and their request schemas; nothing breaking or for review', () => {
+    for (const f of [ACCOUNT_STATES_SNAPSHOT, BULK_OPERATIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(ACCOUNT_STATES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_OPERATIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, BULK_OPERATIONS_ADDITIONS);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

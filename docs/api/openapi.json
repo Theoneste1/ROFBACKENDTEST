@@ -6685,6 +6685,1370 @@
         "description": "**Access:** permission `programmes.manageMembers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/users/bulk/preview": {
+      "post": {
+        "operationId": "BulkOperationsController_preview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkPreviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "consequences": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "params": {
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "gradeLevel": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "subject": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "requiresReason": {
+                      "type": "boolean"
+                    },
+                    "requiresStepUp": {
+                      "type": "boolean"
+                    },
+                    "sample": {
+                      "items": {
+                        "properties": {
+                          "accountStatus": {
+                            "type": "string"
+                          },
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "accountStatus",
+                          "firstName",
+                          "id",
+                          "lastName",
+                          "role",
+                          "username"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "selection": {
+                      "properties": {
+                        "filter": {
+                          "properties": {
+                            "accountStatus": {
+                              "type": "string"
+                            },
+                            "gradeLevel": {
+                              "type": "string"
+                            },
+                            "role": {
+                              "type": "string"
+                            },
+                            "search": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "search"
+                          ],
+                          "type": "object"
+                        },
+                        "ids": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "mode": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mode"
+                      ],
+                      "type": "object"
+                    },
+                    "selectionToken": {
+                      "type": "string"
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "warnings": {
+                      "items": {
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "count",
+                          "message"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "consequences",
+                    "params",
+                    "requiresReason",
+                    "requiresStepUp",
+                    "sample",
+                    "selection",
+                    "selectionToken",
+                    "total",
+                    "warnings"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "What the action would do, now: the number of matching accounts, a sample (≤ 10), warnings, consequences, whether a\nreason or step-up is needed, and the selectionToken to confirm with. Changes nothing.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/bulk": {
+      "post": {
+        "operationId": "BulkOperationsController_execute",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkExecuteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "alreadyExisted": {
+                      "type": "boolean"
+                    },
+                    "operation": {
+                      "properties": {
+                        "action": {
+                          "type": "string"
+                        },
+                        "actor": {
+                          "properties": {
+                            "firstName": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "firstName",
+                            "id",
+                            "lastName",
+                            "username"
+                          ],
+                          "type": "object"
+                        },
+                        "actorRole": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "emailJobId": {
+                          "nullable": true
+                        },
+                        "failed": {
+                          "type": "integer"
+                        },
+                        "finishedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "idempotencyKey": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "properties": {},
+                          "type": "object"
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "selection": {
+                          "properties": {
+                            "filter": {
+                              "properties": {
+                                "search": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "search"
+                              ],
+                              "type": "object"
+                            },
+                            "mode": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "filter",
+                            "mode"
+                          ],
+                          "type": "object"
+                        },
+                        "skipped": {
+                          "type": "integer"
+                        },
+                        "startedAt": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "succeeded": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "action",
+                        "actor",
+                        "actorRole",
+                        "cancelledAt",
+                        "createdAt",
+                        "emailJobId",
+                        "failed",
+                        "finishedAt",
+                        "id",
+                        "idempotencyKey",
+                        "params",
+                        "reason",
+                        "requestId",
+                        "selection",
+                        "skipped",
+                        "startedAt",
+                        "status",
+                        "succeeded",
+                        "total"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "alreadyExisted",
+                    "operation"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "alreadyExisted": {
+                      "type": "boolean"
+                    },
+                    "operation": {
+                      "properties": {
+                        "action": {
+                          "type": "string"
+                        },
+                        "actor": {
+                          "properties": {
+                            "firstName": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "lastName": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "firstName",
+                            "id",
+                            "lastName",
+                            "username"
+                          ],
+                          "type": "object"
+                        },
+                        "actorRole": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "emailJobId": {
+                          "format": "uuid",
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "failed": {
+                          "type": "integer"
+                        },
+                        "finishedAt": {
+                          "nullable": true
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "idempotencyKey": {
+                          "type": "string"
+                        },
+                        "params": {
+                          "properties": {
+                            "body": {
+                              "type": "string"
+                            },
+                            "gradeLevel": {
+                              "type": "string"
+                            },
+                            "role": {
+                              "type": "string"
+                            },
+                            "stepUpVerified": {
+                              "type": "boolean"
+                            },
+                            "subject": {
+                              "type": "string"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "reason": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "requestId": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "selection": {
+                          "properties": {
+                            "filter": {
+                              "properties": {
+                                "role": {
+                                  "type": "string"
+                                },
+                                "search": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "search"
+                              ],
+                              "type": "object"
+                            },
+                            "ids": {
+                              "items": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "type": "array"
+                            },
+                            "mode": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "mode"
+                          ],
+                          "type": "object"
+                        },
+                        "skipped": {
+                          "type": "integer"
+                        },
+                        "startedAt": {
+                          "nullable": true
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "succeeded": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "action",
+                        "actor",
+                        "actorRole",
+                        "cancelledAt",
+                        "createdAt",
+                        "emailJobId",
+                        "failed",
+                        "finishedAt",
+                        "id",
+                        "idempotencyKey",
+                        "params",
+                        "reason",
+                        "requestId",
+                        "selection",
+                        "skipped",
+                        "startedAt",
+                        "status",
+                        "succeeded",
+                        "total"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "alreadyExisted",
+                    "operation"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Starts the action on exactly the previewed accounts: 202 with the operation (200 with the same operation when the\nidempotencyKey was already used). 409 SELECTION_CHANGED when the accounts no longer match the preview.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      },
+      "get": {
+        "operationId": "BulkOperationsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "RUNNING",
+                "CANCELLING",
+                "COMPLETED",
+                "COMPLETED_WITH_FAILURES",
+                "FAILED",
+                "CANCELLED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "action": {
+                            "type": "string"
+                          },
+                          "actor": {
+                            "properties": {
+                              "firstName": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "firstName",
+                              "id",
+                              "lastName",
+                              "username"
+                            ],
+                            "type": "object"
+                          },
+                          "actorRole": {
+                            "type": "string"
+                          },
+                          "cancelledAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "emailJobId": {
+                            "nullable": true
+                          },
+                          "failed": {
+                            "type": "integer"
+                          },
+                          "finishedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "idempotencyKey": {
+                            "type": "string"
+                          },
+                          "params": {
+                            "properties": {},
+                            "required": [],
+                            "type": "object"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "requestId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "selection": {
+                            "properties": {
+                              "filter": {
+                                "properties": {
+                                  "search": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "search"
+                                ],
+                                "type": "object"
+                              },
+                              "mode": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "filter",
+                              "mode"
+                            ],
+                            "type": "object"
+                          },
+                          "skipped": {
+                            "type": "integer"
+                          },
+                          "startedAt": {
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "succeeded": {
+                            "type": "integer"
+                          },
+                          "total": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "action",
+                          "actor",
+                          "actorRole",
+                          "cancelledAt",
+                          "createdAt",
+                          "emailJobId",
+                          "failed",
+                          "finishedAt",
+                          "id",
+                          "idempotencyKey",
+                          "params",
+                          "reason",
+                          "requestId",
+                          "selection",
+                          "skipped",
+                          "startedAt",
+                          "status",
+                          "succeeded",
+                          "total"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The caller's operations (all operations for administrators who hold audit.view), newest first.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/bulk/export": {
+      "post": {
+        "operationId": "BulkOperationsController_export",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkExportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "CSV of the selected accounts (name, username, e-mail, role, state, school, grade, created). Audited.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.export",
+        "description": "**Access:** permission `users.export` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/bulk/{id}": {
+      "get": {
+        "operationId": "BulkOperationsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "actor": {
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "actorRole": {
+                      "type": "string"
+                    },
+                    "cancelledAt": {
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "emailJobId": {
+                      "nullable": true
+                    },
+                    "failed": {
+                      "type": "integer"
+                    },
+                    "finishedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "idempotencyKey": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "pending": {
+                      "type": "integer"
+                    },
+                    "processed": {
+                      "type": "integer"
+                    },
+                    "processing": {
+                      "type": "integer"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "selection": {
+                      "properties": {
+                        "filter": {
+                          "properties": {
+                            "search": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "search"
+                          ],
+                          "type": "object"
+                        },
+                        "ids": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "mode": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mode"
+                      ],
+                      "type": "object"
+                    },
+                    "skipped": {
+                      "type": "integer"
+                    },
+                    "startedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "succeeded": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "actor",
+                    "actorRole",
+                    "cancelledAt",
+                    "createdAt",
+                    "emailJobId",
+                    "failed",
+                    "finishedAt",
+                    "id",
+                    "idempotencyKey",
+                    "params",
+                    "pending",
+                    "processed",
+                    "processing",
+                    "reason",
+                    "requestId",
+                    "selection",
+                    "skipped",
+                    "startedAt",
+                    "status",
+                    "succeeded",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Progress: status, total, succeeded, failed, skipped, pending.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/bulk/{id}/items": {
+      "get": {
+        "operationId": "BulkOperationsController_items",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outcome",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "FAILED",
+                "PROCESSING",
+                "SUCCEEDED",
+                "SKIPPED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "type": "string"
+                          },
+                          "processedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "stillBlockedBy": {
+                            "type": "array"
+                          },
+                          "user": {
+                            "properties": {
+                              "accountStatus": {
+                                "type": "string"
+                              },
+                              "firstName": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "type": "string"
+                              },
+                              "role": {
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "accountStatus",
+                              "firstName",
+                              "id",
+                              "lastName",
+                              "role",
+                              "username"
+                            ],
+                            "type": "object"
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "message",
+                          "outcome",
+                          "processedAt",
+                          "stillBlockedBy",
+                          "user",
+                          "userId"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Per-account results (?outcome=SUCCEEDED|FAILED|SKIPPED|PENDING), with the reason code of each failure or skip.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/bulk/{id}/cancel": {
+      "post": {
+        "operationId": "BulkOperationsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "actor": {
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "actorRole": {
+                      "type": "string"
+                    },
+                    "cancelledAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "emailJobId": {
+                      "nullable": true
+                    },
+                    "failed": {
+                      "type": "integer"
+                    },
+                    "finishedAt": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "idempotencyKey": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "properties": {},
+                      "type": "object"
+                    },
+                    "pending": {
+                      "type": "integer"
+                    },
+                    "processed": {
+                      "type": "integer"
+                    },
+                    "processing": {
+                      "type": "integer"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "selection": {
+                      "properties": {
+                        "filter": {
+                          "properties": {
+                            "search": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "search"
+                          ],
+                          "type": "object"
+                        },
+                        "ids": {
+                          "items": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "mode": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mode"
+                      ],
+                      "type": "object"
+                    },
+                    "skipped": {
+                      "type": "integer"
+                    },
+                    "startedAt": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "succeeded": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "actor",
+                    "actorRole",
+                    "cancelledAt",
+                    "createdAt",
+                    "emailJobId",
+                    "failed",
+                    "finishedAt",
+                    "id",
+                    "idempotencyKey",
+                    "params",
+                    "pending",
+                    "processed",
+                    "processing",
+                    "reason",
+                    "requestId",
+                    "selection",
+                    "skipped",
+                    "startedAt",
+                    "status",
+                    "succeeded",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Stops the operation: accounts not yet processed are skipped (CANCELLED); processed ones keep their result.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users": {
       "get": {
         "operationId": "UsersController_findAll",
@@ -19998,8 +21362,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "REJECTED",
                 "PENDING",
+                "REJECTED",
                 "VERIFIED",
                 "REVOKED"
               ]
@@ -22174,9 +23538,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "PENDING",
                 "REJECTED",
-                "APPROVED",
-                "PENDING"
+                "APPROVED"
               ]
             }
           }
@@ -32277,9 +33641,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "PENDING",
                 "REJECTED",
-                "APPROVED",
-                "PENDING"
+                "APPROVED"
               ]
             }
           }
@@ -32675,9 +34039,9 @@
             "schema": {
               "type": "string",
               "enum": [
+                "PENDING",
                 "REJECTED",
-                "APPROVED",
-                "PENDING"
+                "APPROVED"
               ]
             }
           }
@@ -43689,6 +45053,232 @@
           "firstName",
           "lastName",
           "email"
+        ]
+      },
+      "BulkParamsDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "MENTOR",
+              "ADMIN",
+              "TEACHER",
+              "HEAD_COACH",
+              "SUPER_ADMIN"
+            ]
+          },
+          "gradeLevel": {
+            "type": "string",
+            "enum": [
+              "S1",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 10000
+          }
+        }
+      },
+      "BulkFilterDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "MENTOR",
+              "ADMIN",
+              "TEACHER",
+              "HEAD_COACH",
+              "SUPER_ADMIN"
+            ]
+          },
+          "divisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "gradeLevel": {
+            "type": "string",
+            "enum": [
+              "S1",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          },
+          "schoolId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "isApproved": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "accountStatus": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "DEACTIVATED",
+              "SUSPENDED",
+              "ARCHIVED"
+            ]
+          },
+          "isActivated": {
+            "type": "boolean"
+          },
+          "search": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        }
+      },
+      "BulkSelectionDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ids",
+              "filter"
+            ]
+          },
+          "ids": {
+            "minItems": 1,
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "filter": {
+            "$ref": "#/components/schemas/BulkFilterDto"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "BulkPreviewDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "activate",
+              "deactivate",
+              "suspend",
+              "archive",
+              "restore",
+              "assignRole",
+              "changeClassification",
+              "message"
+            ]
+          },
+          "params": {
+            "$ref": "#/components/schemas/BulkParamsDto"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/BulkSelectionDto"
+          }
+        },
+        "required": [
+          "action",
+          "selection"
+        ]
+      },
+      "BulkExecuteDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "enum": [
+              "activate",
+              "deactivate",
+              "suspend",
+              "archive",
+              "restore",
+              "assignRole",
+              "changeClassification",
+              "message"
+            ],
+            "type": "string"
+          },
+          "params": {
+            "$ref": "#/components/schemas/BulkParamsDto"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/BulkSelectionDto"
+          },
+          "selectionToken": {
+            "type": "string",
+            "description": "From the preview: binds this request to exactly the previewed accounts.",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "expectedTotal": {
+            "type": "number",
+            "description": "The total the administrator confirmed (secondary check).",
+            "minimum": 0
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Must be true: the administrator confirmed the action."
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "The same key returns the same operation; nothing is done twice.",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required (3–500 characters) for deactivate, suspend, archive and restore.",
+            "minLength": 0,
+            "maxLength": 500
+          },
+          "currentPassword": {
+            "type": "string",
+            "description": "Required when the action touches Administrator or Super Administrator accounts or roles (checked, never stored).",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "action",
+          "selection",
+          "selectionToken",
+          "expectedTotal",
+          "confirm",
+          "idempotencyKey"
+        ]
+      },
+      "BulkExportDto": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "#/components/schemas/BulkSelectionDto"
+          }
+        },
+        "required": [
+          "selection"
         ]
       },
       "CreateUserDto": {

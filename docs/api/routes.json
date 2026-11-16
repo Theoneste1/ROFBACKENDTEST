@@ -1145,6 +1145,69 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/users/bulk",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/bulk/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk/{id}/cancel",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/bulk/{id}/items",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk/export",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk/preview",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/users/import",
     "roles": [

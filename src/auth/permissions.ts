@@ -83,6 +83,9 @@ export const PERMISSIONS = [
   'users.changeStatus',       // deactivate / reactivate
   'users.suspend',            // suspend / lift a suspension
   'users.archive',            // archive / restore an archived account
+  // ── Bulk user operations (2026-11-17): Administrators and Super Admins, global ──
+  'users.bulkManage',         // run bulk actions (each action also needs its own permission; each account the role policy)
+  'users.export',             // export the selected users' records (CSV; no dates of birth or phone numbers)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -130,6 +133,8 @@ const ADMIN_GRANTS: Grants = {
   'schools.manage': 'global',
   // Account states (2026-11-16)
   'users.viewStatusHistory': 'global', 'users.changeStatus': 'global', 'users.suspend': 'global', 'users.archive': 'global',
+  // Bulk user operations (2026-11-17)
+  'users.bulkManage': 'global', 'users.export': 'global',
 };
 
 /**
@@ -192,6 +197,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'permissions.view': 'global', 'permissions.manageOverrides': 'global', 'settings.manageSystem': 'global',
     'schools.manage': 'global', 'schools.syncDirectory': 'global',
     'users.viewStatusHistory': 'global', 'users.changeStatus': 'global', 'users.suspend': 'global', 'users.archive': 'global',
+    'users.bulkManage': 'global', 'users.export': 'global',
   },
 };
 
@@ -246,6 +252,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view',
     // Appended (additive, account states 2026-11-16): ADMIN holds them (ADMIN_GRANTS) and the status routes need them.
     'users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive',
+    // Appended (additive, bulk user operations 2026-11-17)
+    'users.bulkManage', 'users.export',
   ],
 };
 

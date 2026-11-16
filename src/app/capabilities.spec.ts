@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'coachApplicationDetails', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'bulkUserOperations', 'coachApplicationDetails', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -25,6 +25,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   notificationDeliveries:  'always',   // appended 2026-11-14: decision-notification delivery log (owner approval pending)
   profilePictures:         'always',   // appended 2026-11-15: profile pictures (upload, replace, remove, view)
   accountStates:           'always',   // appended 2026-11-16: account states, status history, no permanent deletion
+  bulkUserOperations:      'always',   // appended 2026-11-17: bulk user operations
   permissionScopes:        'always',
   reportExportFilters:     'always',   // appended 2026-11-14: results.csv period/year/course/division, enrolment by course
   reviewQueueFilters:      'always',   // appended 2026-11-14: coach review queue search, groups, sort, scope, counts

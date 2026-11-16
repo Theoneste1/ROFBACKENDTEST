@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 285 endpoints — 20 public, 159 administrator-only.
+Totals: 292 endpoints — 20 public, 166 administrator-only.
 
 ## Academic years
 
@@ -237,6 +237,13 @@ Totals: 285 endpoints — 20 public, 159 administrator-only.
 | PATCH | `/api/v1/admin/users/{id}/status` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/status-changes` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/{id}/status-history` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/bulk` |  |  |  | ✓ |
+| POST | `/api/v1/admin/users/bulk` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/bulk/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/users/bulk/{id}/cancel` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/bulk/{id}/items` |  |  |  | ✓ |
+| POST | `/api/v1/admin/users/bulk/export` |  |  |  | ✓ |
+| POST | `/api/v1/admin/users/bulk/preview` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/import` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/invite` |  |  |  | ✓ |
 
