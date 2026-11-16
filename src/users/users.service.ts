@@ -40,7 +40,11 @@ const SAFE_SELECT = {
   updatedAt:  true,
 } as const;
 
-/** The filters of GET /admin/users, as a where clause — also used by bulk operations' filter selections. */
+/**
+ * The filters of GET /admin/users, as a where clause — also used by bulk operations' filter selections.
+ * Every User column read here must be in MEMBERSHIP_COLUMNS (src/users/bulk/bulk-rules.ts) and in the trigger
+ * user_bulk_membership_guard (migration 20261207000100) — checked by bulk-rules.spec.ts.
+ */
 export function userListWhere(q: Omit<ListUsersQueryDto, 'page' | 'limit'>): Prisma.UserWhereInput {
   const where: Prisma.UserWhereInput = {
     ...(q.role       && { role: q.role }),
@@ -157,7 +161,13 @@ export class UsersService {
    */
   async update(
     id: string, data: UpdateUserDto, caller: CallerCtx,
-    opts: { stepUpVerified?: boolean; inTransaction?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
+    opts: {
+      stepUpVerified?: boolean;
+      inTransaction?: (tx: Prisma.TransactionClient) => Promise<void>;
+      /** Run inside this OUTER transaction (bulk operations); post-commit notices are then queued in afterCommit. */
+      tx?: Prisma.TransactionClient;
+      afterCommit?: Array<() => Promise<void>>;
+    } = {},
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
     if (!existing) throw new NotFoundException(`User ${id} not found.`);
@@ -225,7 +235,8 @@ export class UsersService {
 
     const actor = { actorId: caller.id, actorRole: caller.role };
     const endsSessions = Boolean(data.password || data.role);
-    const user = await this.prisma.$transaction(async (tx) => {
+    const inTx = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => (opts.tx ? fn(opts.tx) : this.prisma.$transaction(fn));
+    const user = await inTx(async (tx) => {
       // Lock the user row, then re-read it. Everything above — authorization, the role rules,
       // step-up, and the update itself (role, grade, division, school) — was prepared from
       // `existing`, read before this transaction. If another edit committed in between, writing
@@ -355,7 +366,9 @@ export class UsersService {
     }).catch(lastSuperAdminConflict);
 
     if (roleChange && (existing.role === 'SUPER_ADMIN' || data.role === 'SUPER_ADMIN')) {
-      await this.notifySuperAdminChange(data.role === 'SUPER_ADMIN' ? 'Promotion to Super Administrator' : 'Super Administrator role removed', existing.username, caller.id);
+      const notice = () => this.notifySuperAdminChange(data.role === 'SUPER_ADMIN' ? 'Promotion to Super Administrator' : 'Super Administrator role removed', existing.username, caller.id);
+      // Inside an outer transaction the notice must wait until that transaction has committed.
+      if (opts.tx) opts.afterCommit?.push(notice); else await notice();
     }
     return user;
   }

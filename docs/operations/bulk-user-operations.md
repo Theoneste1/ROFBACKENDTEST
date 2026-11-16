@@ -25,13 +25,26 @@ account added, removed, or swapped for another (even with the same total) — th
 `409 SELECTION_CHANGED` and nothing is created: preview again and confirm the new selection. `expectedTotal` is checked
 as well.
 
-**Validation and creation are atomic.** In one transaction the server scans the matching accounts, locks them
-`FOR SHARE` in id order, scans again (anything that left or joined meanwhile shows up; it repeats until the scan equals
-the locked set), compares the token, and only then creates the operation and its items. While that transaction runs no
-selected account can change — a concurrent change waits for it — so the operation always holds exactly the confirmed
-accounts as they were when it was created; a change that waits is applied after (the items are a snapshot by design).
-SERIALIZABLE isolation alone would not do: PostgreSQL only detects conflicts between serializable transactions, and the
-rest of the platform writes accounts at READ COMMITTED.
+**Validation and creation are atomic — the membership lock.** The operation's accounts equal the filter's exact
+membership at the moment the operation commits:
+
+- Every write that can change membership — an `INSERT` or `DELETE` of an account, or an `UPDATE` of a column the filters
+  read (`role`, `divisionId`, `gradeLevel`, `schoolId`, `isApproved`, `isActive`, `accountStatus`, `activatedAt`, and
+  for the search `firstName`, `lastName`, `username`, `email`) — takes the **membership lock** (advisory lock
+  8152026002) **shared**. A database trigger (`user_bulk_membership_guard`, migration `20261207000100`) does it, so every
+  writer takes part: the application, scripts and direct SQL. The filters read no other table.
+- Creating an operation takes it **exclusively**, then — in the same transaction — scans the matching accounts once,
+  compares the token (and the total), inserts the operation and its items, and checks a final scan equals the items.
+  It waits for membership writes already in flight (their result is then seen: a different set → `409`), and holds new
+  ones until it commits (they are applied right after, so an account that becomes eligible meanwhile is consistently
+  not part of the operation).
+- A deadlock (only possible if the administrator's own account is deleted by direct SQL at that moment) is retried up to
+  three times, then `503 BULK_BUSY`; nothing is half-created.
+
+**Disruption profile.** Shared locks never wait for each other: ordinary writes are only delayed while an operation is
+being *created*, and only if they change a filtered column. Sign-ins (`lastLoginAt`, `failedLoginCount`, `lockedUntil`,
+`tokensValidAfter`), points, profile pictures and the like never wait. Measured locally (lock held ≈ time a concurrent
+membership write waits): **5 000 accounts ≈ 0.12 s; 50 000 accounts (the maximum) ≈ 1.5 s.**
 
 ### Retries are safe
 
@@ -76,11 +89,17 @@ a claim older than 5 minutes — a crashed worker — is taken over). Each accou
 failure does not undo the others. Counts are recomputed from the items. When nothing is pending or processing the
 operation ends as `COMPLETED`, `COMPLETED_WITH_FAILURES` or `FAILED`, once.
 
-**Cancelling** skips only the accounts still `PENDING` (code `CANCELLED`; they are untouched). Accounts a worker has
-already claimed end truthfully: one being changed at that moment completes (the cancel waits for it — each item's
-transaction holds the operation row `FOR SHARE`); a claimed account whose processing starts after the cancel committed
-is skipped (`CANCELLED`) without any change. The operation is `CANCELLING` until no account is processing, then
-`CANCELLED`. Every recorded result equals what happened: `SUCCEEDED` if and only if the account was changed.
+**One transaction per account, in one lock order** — operation row → item row → account row (→ e-mail outbox):
+the worker locks the operation `FOR SHARE` and re-reads its status, locks the item `FOR UPDATE` and re-checks its
+claim, and only then changes the account, records the result and (for a message) writes the e-mail delivery — all in
+that transaction. A refusal rolls it back (nothing changed) and is recorded in a second transaction under the same
+locks.
+
+**Cancelling** takes the operation row (`FOR UPDATE`), so it waits for the account being processed at that moment;
+then it marks the operation `CANCELLING` and skips the accounts still `PENDING` (code `CANCELLED`; untouched). Every
+account processed afterwards sees `CANCELLING` under its lock and is skipped (`CANCELLED`) with no change and no e-mail.
+The operation becomes `CANCELLED` once no account is processing. Every recorded result equals what happened:
+`SUCCEEDED` if and only if the account was changed (or e-mailed).
 
 Measured locally: 5 000 accounts selected by filter — preview and creation ≈ 0.9 s, processing 25 batches ≈ 66 s.
 
@@ -96,7 +115,8 @@ Measured locally: 5 000 accounts selected by filter — preview and creation ≈
 
 `400` `CONFIRMATION_REQUIRED`, `REASON_REQUIRED`, `EMPTY_SELECTION`, `SELECTION_TOO_LARGE`,
 `ROLE_NOT_ALLOWED_IN_BULK`, `VALIDATION_FAILED`; `403` `PERMISSION_REQUIRED`, `STEP_UP_REQUIRED`; `404` unknown
-operation (or not yours, without `audit.view`); `409` `SELECTION_CHANGED`, `OPERATION_FINISHED` (cancel).
+operation (or not yours, without `audit.view`); `409` `SELECTION_CHANGED`, `OPERATION_FINISHED` (cancel); `503` `BULK_BUSY`
+(a deadlock during creation persisted after three tries — try again).
 
 Item codes: `SELF`, `ALREADY_IN_STATE`, `NOT_APPLICABLE`, `USE_RESTORE`, `ALREADY_SET`, `ACCOUNT_NOT_ACTIVE`,
 `CANCELLED`, `NOT_FOUND` (skipped); `ROLE_NOT_ASSIGNABLE`, `PERMISSION_REQUIRED`, `LAST_SUPER_ADMIN`,

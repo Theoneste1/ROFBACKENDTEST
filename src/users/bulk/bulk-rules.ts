@@ -20,6 +20,16 @@ export const MAX_IDS = 1000;
 /** A filter may match at most this many accounts in one operation (larger selections are split by filter). */
 export const MAX_SELECTION = 50_000;
 export const BATCH_SIZE = 200;
+/**
+ * The membership advisory lock: every write that can change bulk-filter membership takes it SHARED (database trigger
+ * user_bulk_membership_guard, migration 20261207000100); creating an operation takes it EXCLUSIVELY.
+ */
+export const BULK_MEMBERSHIP_KEY = 8_152_026_002n;
+/** The User columns a bulk / list filter reads (userListWhere): the trigger guards writes to exactly these. */
+export const MEMBERSHIP_COLUMNS = [
+  'role', 'divisionId', 'gradeLevel', 'schoolId', 'isApproved', 'isActive', 'accountStatus', 'activatedAt',
+  'firstName', 'lastName', 'username', 'email',
+] as const;
 /** A claimed item whose worker vanished is claimed again after this long. */
 export const CLAIM_TIMEOUT_MS = 5 * 60_000;
 

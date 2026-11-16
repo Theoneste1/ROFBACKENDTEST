@@ -1,4 +1,7 @@
-import { ACTION_RULES, BULK_ACTIONS, finalStatus, normaliseParams, normaliseSelection, selectionToken, statusDecision } from './bulk-rules.js';
+import { readFileSync } from 'node:fs';
+
+import { userListWhere } from '../users.service.js';
+import { ACTION_RULES, BULK_ACTIONS, finalStatus, MEMBERSHIP_COLUMNS, normaliseParams, normaliseSelection, selectionToken, statusDecision } from './bulk-rules.js';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -63,5 +66,24 @@ describe('bulk rules', () => {
     expect(finalStatus({ succeeded: 2, failed: 1, skipped: 0, total: 3 })).toBe('COMPLETED_WITH_FAILURES');
     expect(finalStatus({ succeeded: 0, failed: 2, skipped: 0, total: 2 })).toBe('FAILED');
     expect(finalStatus({ succeeded: 0, failed: 1, skipped: 1, total: 2 })).toBe('COMPLETED_WITH_FAILURES');
+  });
+
+  it('membership guard: the trigger covers exactly the User columns the list / bulk filters read', () => {
+    // Every filter set at once; collect the column names the where clause reads (top level and the search OR).
+    const where = userListWhere({
+      role: 'STUDENT', divisionId: 'd', gradeLevel: 'S1', schoolId: 's', isApproved: true, isActive: true,
+      accountStatus: 'ACTIVE', isActivated: true, search: 'x',
+    } as never) as Record<string, unknown>;
+    const cols = new Set<string>();
+    for (const [k, v] of Object.entries(where)) {
+      if (k === 'OR') for (const o of v as Array<Record<string, unknown>>) for (const c of Object.keys(o)) cols.add(c);
+      else cols.add(k);
+    }
+    expect([...cols].sort()).toEqual([...MEMBERSHIP_COLUMNS].sort());
+    const sql = readFileSync('prisma/migrations/20261207000100_bulk_membership_guard/migration.sql', 'utf8');
+    const guarded = [...sql.match(/UPDATE OF([\s\S]*?)\n\s*ON "User"/)![1].matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]).sort();
+    expect(guarded).toEqual([...MEMBERSHIP_COLUMNS].sort());
+    // Sign-in columns are deliberately NOT guarded (a sign-in never waits for a bulk operation).
+    for (const c of ['lastLoginAt', 'failedLoginCount', 'lockedUntil', 'tokensValidAfter', 'passwordHash']) expect(guarded).not.toContain(c);
   });
 });

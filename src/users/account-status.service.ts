@@ -36,6 +36,11 @@ export interface StatusChangeContext {
   requestId?: string | null;
   /** Set by bulk operations. */
   operationId?: string | null;
+  /**
+   * Run inside this OUTER transaction instead of a new one (bulk operations: the operation and item rows are already
+   * locked in it, and the item's result is recorded in it — one transaction for the whole item).
+   */
+  tx?: Prisma.TransactionClient;
   /** Runs inside the change's transaction after it is written (bulk operations record their item there). */
   inTransaction?: (tx: Prisma.TransactionClient, result: { stillBlockedBy: SignInBlock[] }) => Promise<void>;
 }
@@ -82,9 +87,12 @@ export class AccountStatusService {
     const reason = input.reason?.trim() || null;
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const inTx = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => (ctx.tx ? fn(ctx.tx) : this.prisma.$transaction(fn));
+      return await inTx(async (tx) => {
         // Row lock: concurrent changes of the same account are serialised and re-checked against the current state.
-        await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${targetId} FOR UPDATE`;
+        // FOR NO KEY UPDATE (not FOR UPDATE): it serialises every update of the row just the same, but does not conflict
+        // with the KEY SHARE locks foreign-key inserts take (e.g. a bulk operation's creation referencing this account).
+        await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${targetId} FOR NO KEY UPDATE`;
         const current = await tx.user.findUniqueOrThrow({ where: { id: targetId }, select: { role: true, accountStatus: true } });
         if (current.role !== target.role) await this.roles.assertCanManage(caller, current.role);
         this.assertAllowed(current.accountStatus, input.toStatus, input.reason, caller, input.confirm);
