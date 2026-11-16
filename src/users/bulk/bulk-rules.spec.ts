@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
 
+import { getMetadataStorage } from 'class-validator';
+
+import { Prisma } from '../../generated/prisma/client.js';
+import { ListUsersQueryDto } from '../dto/update-user.dto.js';
 import { userListWhere } from '../users.service.js';
+import { BulkFilterDto } from './bulk.dto.js';
 import { ACTION_RULES, BULK_ACTIONS, finalStatus, MEMBERSHIP_COLUMNS, normaliseParams, normaliseSelection, selectionToken, statusDecision } from './bulk-rules.js';
 
 const A = '11111111-1111-4111-8111-111111111111';
@@ -68,22 +73,62 @@ describe('bulk rules', () => {
     expect(finalStatus({ succeeded: 0, failed: 1, skipped: 1, total: 2 })).toBe('COMPLETED_WITH_FAILURES');
   });
 
-  it('membership guard: the trigger covers exactly the User columns the list / bulk filters read', () => {
-    // Every filter set at once; collect the column names the where clause reads (top level and the search OR).
-    const where = userListWhere({
+  describe('membership guard: the trigger covers every User column any list / bulk filter reads', () => {
+    // The filter keys come from the DTOs themselves (class-validator metadata), so a filter added later without a
+    // sample value — and so without trigger coverage — fails here instead of passing silently.
+    const NOT_FILTERS: Record<string, string> = {
+      page:  'pagination only (PaginationQueryDto); never reaches the where clause',
+      limit: 'pagination only (PaginationQueryDto); never reaches the where clause',
+    };
+    const keysOf = (cls: new () => object) =>
+      [...new Set(getMetadataStorage().getTargetValidationMetadatas(cls, '', true, false).map((m) => m.propertyName))].sort();
+    const listKeys = keysOf(ListUsersQueryDto).filter((k) => !(k in NOT_FILTERS));
+    const bulkKeys = keysOf(BulkFilterDto);
+    // One value per filter key (each must make userListWhere read at least one column).
+    const SAMPLE: Record<string, unknown> = {
       role: 'STUDENT', divisionId: 'd', gradeLevel: 'S1', schoolId: 's', isApproved: true, isActive: true,
       accountStatus: 'ACTIVE', isActivated: true, search: 'x',
-    } as never) as Record<string, unknown>;
-    const cols = new Set<string>();
-    for (const [k, v] of Object.entries(where)) {
-      if (k === 'OR') for (const o of v as Array<Record<string, unknown>>) for (const c of Object.keys(o)) cols.add(c);
-      else cols.add(k);
+    };
+    const USER_SCALARS = new Set<string>(Object.values(Prisma.UserScalarFieldEnum));
+    const LOGICAL = new Set(['AND', 'OR', 'NOT']);
+    /** The User columns a where clause reads, recursively through AND / OR / NOT; a relation filter is refused. */
+    function columnsOf(where: unknown, out = new Set<string>()): Set<string> {
+      if (Array.isArray(where)) { for (const w of where) columnsOf(w, out); return out; }
+      if (where === null || typeof where !== 'object') return out;
+      for (const [k, v] of Object.entries(where as Record<string, unknown>)) {
+        if (v === undefined) continue;
+        if (LOGICAL.has(k)) columnsOf(v, out);
+        else if (USER_SCALARS.has(k)) out.add(k);      // its value is a scalar filter ({ contains }, { not: null }…)
+        else throw new Error(`the where clause filters on "${k}", which is not a scalar User column (a relation filter): the related table also needs the bulk membership guard trigger, or the filter must not be offered for bulk selection`);
+      }
+      return out;
     }
-    expect([...cols].sort()).toEqual([...MEMBERSHIP_COLUMNS].sort());
-    const sql = readFileSync('prisma/migrations/20261207000100_bulk_membership_guard/migration.sql', 'utf8');
-    const guarded = [...sql.match(/UPDATE OF([\s\S]*?)\n\s*ON "User"/)![1].matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]).sort();
-    expect(guarded).toEqual([...MEMBERSHIP_COLUMNS].sort());
-    // Sign-in columns are deliberately NOT guarded (a sign-in never waits for a bulk operation).
-    for (const c of ['lastLoginAt', 'failedLoginCount', 'lockedUntil', 'tokensValidAfter', 'passwordHash']) expect(guarded).not.toContain(c);
+    const triggerColumns = () => {
+      const sql = readFileSync('prisma/migrations/20261207000100_bulk_membership_guard/migration.sql', 'utf8');
+      return [...sql.match(/UPDATE OF([\s\S]*?)\n\s*ON "User"/)![1].matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]).sort();
+    };
+
+    it('derives the filter keys from the DTOs; the bulk filters are a subset of the list filters', () => {
+      expect(listKeys.length).toBeGreaterThan(0);
+      for (const k of bulkKeys) expect(listKeys, `BulkFilterDto.${k} is not a ListUsersQueryDto filter`).toContain(k);
+    });
+
+    it('has a sample value for every filter key, and every key reaches the where clause', () => {
+      for (const k of new Set([...listKeys, ...bulkKeys])) {
+        if (!(k in SAMPLE)) throw new Error(`add a sample value and trigger coverage for ${k}`);
+        const cols = columnsOf(userListWhere({ [k]: SAMPLE[k] } as never));
+        expect(cols.size, `filter ${k} reads no User column`).toBeGreaterThan(0);
+      }
+      for (const k of Object.keys(SAMPLE)) expect(listKeys, `sample key ${k} is not a filter any more`).toContain(k);
+    });
+
+    it('the columns read = MEMBERSHIP_COLUMNS = the trigger UPDATE OF list; sign-in columns are not guarded', () => {
+      const cols = [...columnsOf(userListWhere(SAMPLE as never))].sort();
+      const guarded = triggerColumns();
+      for (const c of cols) if (!guarded.includes(c)) throw new Error(`column ${c} is read by a filter but not covered by the guard trigger (UPDATE OF list)`);
+      expect(cols).toEqual([...MEMBERSHIP_COLUMNS].sort());
+      expect(guarded).toEqual([...MEMBERSHIP_COLUMNS].sort());
+      for (const c of ['lastLoginAt', 'failedLoginCount', 'lockedUntil', 'tokensValidAfter', 'passwordHash']) expect(guarded).not.toContain(c);
+    });
   });
 });

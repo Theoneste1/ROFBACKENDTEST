@@ -43,8 +43,11 @@ membership at the moment the operation commits:
 
 **Disruption profile.** Shared locks never wait for each other: ordinary writes are only delayed while an operation is
 being *created*, and only if they change a filtered column. Sign-ins (`lastLoginAt`, `failedLoginCount`, `lockedUntil`,
-`tokensValidAfter`), points, profile pictures and the like never wait. Measured locally (lock held ≈ time a concurrent
-membership write waits): **5 000 accounts ≈ 0.12 s; 50 000 accounts (the maximum) ≈ 1.5 s.**
+`tokensValidAfter`), points, profile pictures and the like never wait. Measured locally against a running server with
+real concurrent connections (3 runs each; exclusive lock held ≈ time a concurrent membership write waits, median and
+range): **5 000 accounts ≈ 0.16 s (0.14–0.18 s); 50 000 accounts (the maximum) ≈ 2.0 s (1.9–2.4 s).** A concurrent
+sign-in takes as long as without an operation (≈ 0.1 s), and writes to unguarded columns finish in tens of
+milliseconds. Production hardware and load will differ; create very large operations outside peak hours.
 
 ### Retries are safe
 
