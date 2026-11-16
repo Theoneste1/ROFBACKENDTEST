@@ -9,20 +9,24 @@ import { endpointId, segments, rollbackFiles, childEnv, checkDumpDir, conninfoFr
   PHASE1, M9_M14_TABLES, M9_M14_ENUMS } from './rehearsal.mjs';
 import { LAST_PHASE1_TIMESTAMP, laterMigrations, migrationDirs } from './phase1.mjs';
 import { REPO_ROOT } from '../db-drill-verify.mjs';
+import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releaseRollbackFiles } from './releases.mjs';
+
+/** This checkout as it was for Phase 1: its migrations without the nine post-Phase-1 ones (the Phase 1 tests' fixture). */
+const phase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !POST_PHASE1_MIGRATIONS.includes(d));
 
 // ── Later-migration guard (owner decision 2026-11-13) ─────────────────────────────────────────────
 
 const LATER = ['20261201000000_teacher_applications', '20261202000000_notification_outbox'];
 
-test('laterMigrations: nothing after M14 in the original state (this checkout: 17 + 14 migrations); M14 itself is not "later"', () => {
-  const dirs = migrationDirs(REPO_ROOT);
+test('laterMigrations: nothing after M14 in the Phase 1 state (17 + 14 migrations); M14 itself is not "later"', () => {
+  const dirs = phase1Dirs();
   assert.equal(dirs.filter((d) => PHASE1.test(d)).length, 14);
   assert.deepEqual(laterMigrations(dirs), []);
   assert.deepEqual(laterMigrations([`${LAST_PHASE1_TIMESTAMP}_school_directory_sync_approval`, '20261120000000_email_html_body']), []);
 });
 
 test('laterMigrations: the 16-migration state (two migrations after M14) is detected, by name order, from directories or history rows', () => {
-  const sixteen = [...migrationDirs(REPO_ROOT), ...LATER];
+  const sixteen = [...phase1Dirs(), ...LATER];
   assert.equal(sixteen.filter((d) => PHASE1.test(d) || LATER.includes(d)).length, 16);
   assert.deepEqual(laterMigrations(sixteen), LATER);
   assert.deepEqual(laterMigrations([...LATER].reverse()), LATER);
@@ -33,7 +37,7 @@ test('laterMigrations: the 16-migration state (two migrations after M14) is dete
  * A throw-away copy of this checkout's scripts and migrations (node_modules linked, never copied),
  * optionally with extra migration directories; removed afterwards without touching the real node_modules.
  */
-function withCheckoutCopy(extra, fn) {
+function withCheckoutCopy(extra, fn, { drop = [] } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'rof-kit-guard-'));
   const modules = join(root, 'node_modules');
   try {
@@ -41,6 +45,7 @@ function withCheckoutCopy(extra, fn) {
     cpSync(join(REPO_ROOT, 'prisma'), join(root, 'prisma'), { recursive: true });
     cpSync(join(REPO_ROOT, 'docs/migrations'), join(root, 'docs/migrations'), { recursive: true });
     symlinkSync(join(REPO_ROOT, 'node_modules'), modules, 'junction');
+    for (const name of drop) rmSync(join(root, 'prisma/migrations', name), { recursive: true, force: true });
     for (const name of extra) {
       mkdirSync(join(root, 'prisma/migrations', name));
       writeFileSync(join(root, 'prisma/migrations', name, 'migration.sql'), 'SELECT 1;\n');
@@ -63,7 +68,7 @@ test('the runner refuses a checkout with migrations after M14 (16-migration stat
       assert.equal(r.status, 5, `${command}: ${r.stderr}`);
       assert.match(r.stderr, /refused: this checkout has 2 migration\(s\) after M14 \(20261201000000_teacher_applications, 20261202000000_notification_outbox\)/);
     }
-  });
+  }, { drop: POST_PHASE1_MIGRATIONS });
 });
 
 test('the runner accepts the original 14-migration checkout: it passes the later-migration guard and goes on to the target check', () => {
@@ -74,7 +79,7 @@ test('the runner accepts the original 14-migration checkout: it passes the later
     assert.match(r.stdout, /verifier guard: db-drill-verify rev 2/);
     // No .env.production.local / DRILL_DATABASE_URL in the copy: the target guard refuses next (fail-closed).
     assert.ok(r.status !== 0, 'no target configured, so the target guard refuses');
-  });
+  }, { drop: POST_PHASE1_MIGRATIONS });
 });
 
 const BRANCH = 'postgresql://rof_user:s%40cret%27pw@ep-branch-222.c-1.us-east-2.aws.example.tech/neondb?sslmode=require';
@@ -169,4 +174,95 @@ test('segments: \\echo lines kept in order, other meta-commands refused, comment
   assert.deepEqual(segments("BEGIN;\n\\echo '== a'\nSELECT 1;\n-- note\n\\echo '== b'\n-- only a comment\nROLLBACK;"),
     ['BEGIN;', { echo: '== a' }, 'SELECT 1;\n-- note', { echo: '== b' }, '-- only a comment\nROLLBACK;']);
   assert.throws(() => segments('\\set x 1'), /unsupported psql meta-command/);
+});
+
+// ── post-Phase-1 release (--release post-phase1) ──────────────────────────────────────────────────
+
+test('post-Phase-1: the nine migrations are exactly those between M14 and form_availability in this checkout, in apply order', () => {
+  const dirs = migrationDirs(REPO_ROOT);
+  const between = dirs.filter((d) => d.slice(0, 14) > LAST_PHASE1_TIMESTAMP && d.slice(0, 14) <= RELEASES['post-phase1'].last);
+  assert.deepEqual(between, POST_PHASE1_MIGRATIONS);
+  assert.deepEqual([...POST_PHASE1_MIGRATIONS].sort(), POST_PHASE1_MIGRATIONS);
+  assert.deepEqual(laterMigrations(dirs).slice(0, 9), POST_PHASE1_MIGRATIONS);
+});
+
+const createdBy = (dirs, re) => dirs.flatMap((d) => [...readFileSync(`prisma/migrations/${d}/migration.sql`, 'utf8').matchAll(re)].map((m) => m.slice(1).join('.'))).sort();
+
+test('post-Phase-1: rollback-history checks exactly the tables, enums, columns, triggers and functions the nine migrations create', () => {
+  const o = POST_PHASE1_OBJECTS;
+  assert.deepEqual([...o.tables].sort(), createdBy(POST_PHASE1_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g));
+  assert.deepEqual([...o.enums].sort(), createdBy(POST_PHASE1_MIGRATIONS, /CREATE TYPE "([A-Za-z]+)"/g));
+  assert.deepEqual([...new Set(createdBy(POST_PHASE1_MIGRATIONS, /CREATE TRIGGER ([a-z_]+)/g))], [...o.triggers].sort());
+  assert.deepEqual([...new Set(createdBy(POST_PHASE1_MIGRATIONS, /CREATE (?:OR REPLACE )?FUNCTION ([a-z_]+)/g))], [...o.functions].sort());
+  // Columns: every ADD COLUMN on a table that already existed before the release (new tables are dropped whole).
+  const added = POST_PHASE1_MIGRATIONS.flatMap((d) => {
+    let table = null;
+    return readFileSync(`prisma/migrations/${d}/migration.sql`, 'utf8').split(/\r?\n/).flatMap((line) => {
+      const t = /ALTER TABLE "([A-Za-z]+)"/.exec(line); if (t) table = t[1];
+      const c = /ADD COLUMN +"([A-Za-z]+)"/.exec(line);
+      return c && !o.tables.includes(table) ? [`${table}.${c[1]}`] : [];
+    });
+  }).sort();
+  assert.deepEqual(o.columns.map(([t, c]) => `${t}.${c}`).sort(), added);
+});
+
+test('post-Phase-1: one rollback file per migration, run newest first; anything missing is refused', () => {
+  const release = releaseFrom(['--release', 'post-phase1']);
+  const files = releaseRollbackFiles(release, readdirSync('docs/migrations'));
+  assert.deepEqual(files, [...POST_PHASE1_MIGRATIONS].reverse().map((m) => `${m}.rollback.sql`));
+  assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 9 .* found 8/);
+  // The Phase 1 rollbacks are never part of it, and vice versa.
+  assert.equal(rollbackFiles(readdirSync('docs/migrations')).length, 14);
+  for (const f of files) assert.doesNotThrow(() => segments(readFileSync(`docs/migrations/${f}`, 'utf8')), f);
+});
+
+test('post-Phase-1: the pre- and post-check SQL are read only and use only \\echo (no other psql meta-command)', () => {
+  for (const file of [RELEASES['post-phase1'].precheck, RELEASES['post-phase1'].postcheck]) {
+    const text = readFileSync(file, 'utf8');
+    const segs = segments(text).filter((s) => typeof s === 'string');
+    assert.match(segs[0], /BEGIN TRANSACTION READ ONLY;/, file);
+    assert.match(segs.at(-1), /ROLLBACK;\s*$/, file);
+    // The SQL statements only (segments() leaves out the \echo headings, which are prose).
+    assert.doesNotMatch(segs.join('\n').replace(/--[^\n]*/g, ''), /\b(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE)\b/i, file);
+    // Every post-Phase-1 table and enum named in the checks exists in the release (no stale names).
+    for (const name of [...POST_PHASE1_OBJECTS.tables, ...POST_PHASE1_OBJECTS.enums]) assert.ok(text.includes(`'${name}'`), `${file}: ${name}`);
+  }
+});
+
+test('releaseFrom / afterRelease / checkoutProblem: default phase1; post-phase1 needs its nine and nothing after them', () => {
+  assert.equal(releaseFrom([]).name, 'phase1');
+  assert.equal(releaseFrom(['--release', 'post-phase1']).name, 'post-phase1');
+  assert.equal(releaseFrom(['--release', 'phase2']), null);
+  const post = releaseFrom(['--release', 'post-phase1']);
+  const dirs = migrationDirs(REPO_ROOT);
+  assert.equal(checkoutProblem(post, dirs), null);
+  assert.match(checkoutProblem(post, [...dirs, '20261209000000_next']), /1 migration\(s\) after .* \(20261209000000_next\)/);
+  assert.match(checkoutProblem(post, dirs.filter((d) => d !== '20261204000000_registration_details')), /expected the 9 .* found 8/);
+  assert.deepEqual(afterRelease(post, ['20261208000000_form_availability', '20261209000000_x', '20261121001300_y']), ['20261209000000_x']);
+  assert.deepEqual(afterRelease(releaseFrom([]), POST_PHASE1_MIGRATIONS), POST_PHASE1_MIGRATIONS);
+});
+
+test('the runner: post-phase1 passes the checkout guard on this checkout; a later migration, a missing one, phase1 here, or an unknown release are refused', () => {
+  withCheckoutCopy([], (root) => {
+    const ok = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
+    assert.notEqual(ok.status, 5, ok.stderr);
+    assert.match(ok.stdout, /release: post-phase1/);
+    assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
+    const p1 = run(root, 'precheck');
+    assert.equal(p1.status, 5);
+    assert.match(p1.stderr, /after M14 .*use --release post-phase1/);
+    const bad = run(root, 'precheck', '--release', 'phase2');
+    assert.equal(bad.status, 2);
+    assert.match(bad.stderr, /--release must be one of: phase1, post-phase1/);
+  });
+  withCheckoutCopy(['20261209000000_next'], (root) => {
+    const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
+    assert.equal(r.status, 5, r.stderr);
+    assert.match(r.stderr, /1 migration\(s\) after post-Phase-1 .*20261209000000_next/);
+  });
+  withCheckoutCopy([], (root) => {
+    const r = run(root, 'status', '--release', 'post-phase1');
+    assert.equal(r.status, 5, r.stderr);
+    assert.match(r.stderr, /expected the 9 migrations of post-Phase-1 .* found 8/);
+  }, { drop: ['20261206000000_account_states'] });
 });

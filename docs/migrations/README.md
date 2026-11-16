@@ -72,3 +72,14 @@ Nothing is changed. M10's pre-check reports how many current-year enrolments dif
 | `20261207000000_bulk_operations` (bulk user operations: operations and per-account items; User.createdAt and gradeLevel indexes) | `20261207000000_bulk_operations.rollback.sql` | roll it back **before** `20261206000000_account_states`; deploy the previous release first. **Refused** while any bulk operation is recorded, unless the loss is explicitly acknowledged after a backup. Account changes made by bulk operations are not undone. |
 | `20261207000100_bulk_membership_guard` (bulk operations: a trigger on User that takes a shared advisory lock on membership writes) | `20261207000100_bulk_membership_guard.rollback.sql` | roll it back **before** `20261207000000_bulk_operations`, together with the release that creates bulk operations. Drops the trigger and function only; no data changes. |
 | `20261208000000_form_availability` (form availability: open, close, schedule, closed messages) | `20261208000000_form_availability.rollback.sql` | roll it back **before** the earlier post-Phase-1 migrations; deploy the previous release first. It writes `registration.studentSelfSignup` / `registration.teacherSelfSignup` back from the forms' current state, then drops the table and its enums. **Refused** while a form has a schedule, custom texts, or the coach / contact form is closed, unless the loss is explicitly acknowledged (`SET rof.form_availability_rollback = 'discard-form-settings'`). |
+
+### `20261205000000_avatar_file_purpose`: changed before its first production run (checksum note)
+On 2026-11-17, before any production or Neon run, its enum step became `ALTER TYPE "FilePurpose" ADD VALUE IF NOT EXISTS 'AVATAR';`. Its rollback cannot drop an enum value (PostgreSQL), so without `IF NOT EXISTS` a re-deploy after a rollback failed with `enum label "AVATAR" already exists`. A first run behaves exactly as before.
+
+Prisma stores a checksum of each applied migration file. On a **development or test database that already applied the previous version**:
+- `prisma migrate deploy` (CI, Render, production) and `prisma migrate status` don't flag the changed file. This was verified on 2026-11-17 on a throwaway database that had applied the previous version: deploy applied nothing and exited 0; status reported "Database schema is up to date!".
+- `prisma migrate dev` compares checksums. Per Prisma's documentation, it reports the migration as modified after it was applied and offers to reset that database. Not run here.
+
+Nothing repairs or resets a database automatically. Resetting a disposable development database (`prisma migrate reset`) is its owner's choice; production and Neon have never applied this migration, so they are unaffected.
+
+The post-Phase-1 release kit: `scripts/release/rehearsal.mjs --release post-phase1` and `docs/operations/RELEASE-POST-PHASE1.md`.
