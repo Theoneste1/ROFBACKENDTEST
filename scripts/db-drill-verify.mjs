@@ -3,12 +3,14 @@
  * Backup/restore drill verification (P0-04) — read-only checks of a RESTORED
  * database (e.g. a Neon branch created from production "Past data").
  *
- *   node scripts/db-drill-verify.mjs [--baseline pre-phase1] [--trigger-test] [--json <file>]
+ *   node scripts/db-drill-verify.mjs [--baseline pre-phase1|pre-post-phase1] [--trigger-test] [--json <file>]
  *   node scripts/db-drill-verify.mjs --check-target   (target guard only; no connection)
  *
  * Expected state: by default, every migration and model of THIS checkout (a database already migrated
- * to it). With --baseline pre-phase1: the state before M1–M14 (production `main` today), derived from
- * this checkout (scripts/release/phase1.mjs) — never from another branch or checkout. Migrations and
+ * to it). With --baseline pre-phase1: the state before M1–M14 (production before Phase 1), derived from
+ * this checkout (scripts/release/phase1.mjs). With --baseline pre-post-phase1: the state immediately before the
+ * post-Phase-1 release (production after Phase 1: every migration up to M14, without the tables the nine
+ * post-Phase-1 migrations create; scripts/release/releases.mjs). Never from another branch or checkout. Migrations and
  * the schema are read from the checkout this script belongs to, whatever the working directory; the
  * `.env*` files are read from the working directory. Every run prints VERIFIER (also in --json), so a
  * procedure can confirm the hardened verifier ran.
@@ -44,18 +46,21 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { migrationDirs, prePhase1Baseline, readLaterSql, readPhase1Sql } from './release/phase1.mjs';
+import { prePostPhase1Baseline } from './release/releases.mjs';
 
 /** Identifies this verifier in its output: rev 2 = guard hardened against redirecting URLs (query parameters, encoding, trailing dot). */
 export const VERIFIER = 'db-drill-verify rev 2 (hardened target guard)';
 /** The repository root of the checkout this script belongs to. */
 export const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
-export const BASELINES = ['pre-phase1'];
+export const BASELINES = ['pre-phase1', 'pre-post-phase1'];
 
-/** The migrations and models the database must have: this checkout's, or the pre-Phase-1 baseline. */
+/** The migrations and models the database must have: this checkout's, or one of the BASELINES. */
 export function expectedState(root, baseline) {
   const migDirs = migrationDirs(root);
   const models = [...readFileSync(join(root, 'prisma/schema.prisma'), 'utf8').matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]).sort();
   if (!baseline) return { migrations: migDirs, models };
+  if (baseline === 'pre-post-phase1') return prePostPhase1Baseline({ migDirs, models, laterSql: readLaterSql(root, migDirs) });
+  if (baseline !== 'pre-phase1') throw new Error(`unknown baseline ${baseline}`);
   return prePhase1Baseline({ migDirs, models, phase1Sql: readPhase1Sql(root, migDirs), laterSql: readLaterSql(root, migDirs) });
 }
 

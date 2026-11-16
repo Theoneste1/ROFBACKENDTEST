@@ -198,7 +198,7 @@ describe('CLI guard (no database connection)', () => {
   test('refuses an unknown --baseline before reading any target (exit 2)', () => {
     const r = spawnSync(process.execPath, [script, '--baseline', 'main'], { cwd: mkdtempSync(join(tmpdir(), 'drill-guard-')), encoding: 'utf8' });
     assert.equal(r.status, 2);
-    assert.match(r.stderr, /--baseline must be one of: pre-phase1/);
+    assert.match(r.stderr, /--baseline must be one of: pre-phase1, pre-post-phase1/);
   });
 });
 
@@ -227,6 +227,23 @@ describe('expected state — derived from this checkout only', () => {
     for (const sql of [...phase1Sql, ...laterSql]) assert.doesNotMatch(sql, /DROP TABLE (IF EXISTS )?(public\.)?"|ALTER TABLE (public\.)?"\w+" RENAME TO/);
     const created = [...new Set([...phase1Sql, ...laterSql].flatMap((s) => [...s.matchAll(/CREATE TABLE "(\w+)"/g)].map((m) => m[1])))].sort();
     assert.deepEqual(full.models.filter((m) => !base.models.includes(m)).sort(), created);
+  });
+  test('pre-post-phase1 = production after Phase 1: 31 migrations ending with M14; the six post-Phase-1 tables absent', () => {
+    const pp = expectedState(REPO_ROOT, 'pre-post-phase1');
+    assert.equal(pp.migrations.length, 31);
+    assert.equal(pp.migrations.at(-1), '20261121001300_school_directory_sync_approval');
+    assert.equal(pp.migrations.filter((m) => PHASE1.test(m)).length, 14);
+    assert.equal(pp.migrations.some((m) => m >= '20261201000000'), false);
+    const postTables = ['BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange'];
+    assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), postTables);
+  });
+  test('the two baselines are distinct: pre-phase1 ⊂ pre-post-phase1 ⊂ this checkout (migrations and models)', () => {
+    const pp = expectedState(REPO_ROOT, 'pre-post-phase1');
+    assert.notDeepEqual(base, pp);
+    assert.ok(base.migrations.every((m) => pp.migrations.includes(m)) && pp.migrations.length === base.migrations.length + 14);
+    assert.ok(base.models.every((m) => pp.models.includes(m)) && pp.models.length > base.models.length);
+    assert.ok(pp.migrations.every((m) => full.migrations.includes(m)) && full.migrations.length === pp.migrations.length + later.length);
+    assert.throws(() => expectedState(REPO_ROOT, 'main'), /unknown baseline/);
   });
   test('the checkout is the one the script belongs to, not the working directory', () => {
     assert.equal(resolve(REPO_ROOT), resolve(import.meta.dirname, '..'));
