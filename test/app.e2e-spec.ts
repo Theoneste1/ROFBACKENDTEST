@@ -33,7 +33,7 @@ describe('App basics (e2e)', () => {
     expect(res.body.capabilities.features).toEqual([
       'academicYearActivation', 'accountStates', 'applicationDetails', 'bulkUserOperations', 'coachApplicationDetails', 'formAvailability',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
-      'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails',
+      'notificationDeliveries', 'permissionScopes', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts', 'teacherSelfRegistration'] : []),
     ]);
     const again = await ctx.http().get('/api/v1').expect(200);

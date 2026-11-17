@@ -116,6 +116,12 @@ export const FEATURES = {
    */
   applicationDetails: 'always',
   /**
+   * Optional profile picture at registration (REG-02): student registration and Teacher / Coach application answers
+   * carry avatarUploadToken for PUT /api/v1/auth/register/avatar (the first picture of that account / pending
+   * application, 30 minutes). Never required.
+   */
+  registrationAvatar: 'always',
+  /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing
    * TEACHER accounts may still exist and use their portal.
