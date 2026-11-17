@@ -14,9 +14,9 @@ gated (flag / release).
 
 | | Count |
 |---|---|
-| ✅ Complete | 46 |
+| ✅ Complete | 49 |
 | 🔒 Complete, gated by flags / release | 2 |
-| 🟡 Partial | 32 |
+| 🟡 Partial | 29 |
 | ❌ Missing | 21 |
 | ⏸ Deferred (owner decision) | 1 |
 | **Total** | **102** |
@@ -53,15 +53,15 @@ the pages' rules). The API workflows above are covered end to end by the backend
 | ID | Requirement | Status | Evidence / what is missing |
 |---|---|---|---|
 | REG-01 | Student, Teacher, Coach user types (+ Admin) | 🔒 | six roles (M1); Teacher/Head Coach behind flags |
-| REG-02 | Student registration fields | 🟡 | done: DOB, phone, guardian phone, home country/place, school, grade, interests; missing: profile picture **at sign-up** (available after), country-specific grades (P1–P6), current academic year field, subjects from a dynamic list |
+| REG-02 | Student registration fields | 🟡 | done: DOB (**required at registration**, owner 2026-11-17, backend cf964dc), phone, guardian phone, home country/place, school, grade, interests; missing: profile picture **at sign-up** (available after), country-specific grades (P1–P6), current academic year field, subjects from a dynamic list |
 | REG-03 | School / grade options adapt to country | 🟡 | schools carry `countryCode`; directory and grades are Rwanda / S1–S6 only |
 | REG-04 | Registration ≠ enrollment | 🟡 | students get their division's courses; per-course enrollment (ENROLLMENT_REQUIRED) is Phase 6 |
-| REG-05 | Teacher registration fields | 🟡 | done: names, username, e-mail, phone, country, school, interests; **missing: position / teaching role, years of experience** (no owner decision found dropping them) |
-| REG-06 | Coach registration fields | 🟡 | done: country, occupation, education level, interests; **missing: phone, affiliation, areas of expertise, relevant experience** |
+| REG-05 | Teacher registration fields | ✅ | names, username, e-mail, phone, country, school, interests, **position and years of experience** (backend `feat/applications-complete` 9364827, frontend ef9bfe5; e2e application-info-requests) |
+| REG-06 | Coach registration fields | ✅ | country, occupation, education, interests, **phone, affiliation, expertise, relevant experience, years** (same branches) |
 | REG-07 | Coaches verified and approved | ✅ | mentor requests; Head-Coach-invited coaches need Administrator approval |
 | REG-08 | Enable/disable registration per type | ✅ | form availability (backend #57); Forms page (frontend branch) |
 | REG-09 | Configure mandatory/optional fields | ❌ | not started |
-| REG-10 | Review, approve, reject with reason, request more information | 🟡 | approve / reject with reason done; **"request more information" missing** |
+| REG-10 | Review, approve, reject with reason, request more information | ✅ | approve / reject with an e-mailed reason (Teacher and Coach); **request more information** with a one-time answer link, corrections, history (same branches; e2e 8 cases on PostgreSQL) |
 | REG-11 | Resend activation, suspend/reactivate, bulk import | ✅ | |
 | REG-12 | Export user records | ✅ | bulk export CSV (branch), report CSVs |
 | REG-13 | Registration history | 🟡 | account history (branch), audit log; no per-user registration timeline |
