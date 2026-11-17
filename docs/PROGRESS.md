@@ -70,8 +70,13 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 ## New feature (owner request 2026-11-17, Part B) — Teacher–student association, delegated submission, bulk access
 
 - Status: architecture reviewed; plan `docs/TEACHER-STUDENT-ACCESS-PLAN.md` (a9eaabd). Not started in code.
-- Awaiting owner: TS-1 (automatic visibility: verified claims only vs all who registered with the school code — conflicts
-  with the earlier rule), TS-2…TS-6 (recommendations in the plan).
+- APPROVED 2026-11-18 (owner): TS-1 automatic visibility only for Administrator-VERIFIED claims; teachers see only a COUNT of
+  students awaiting verification (no identities). TS-2 several teachers per student (independent records, no duplicate
+  active assignment, history kept). TS-3 cross-school only by explicit Administrator action with reason, audited, no
+  school-wide side effect. TS-4 three scopes (whole school / assigned only / selected students; selected rows keep
+  history). TS-5 ending an assignment makes dependent selected-student delegations inactive and flagged for review; no
+  deletion. TS-6 notify teachers on assignment (dedupe on retry), never students.
+- Status: IN PROGRESS.
 - Next: migration + scope rules + admin API (parts independent of TS-1), then UI, then Playwright scenarios 1–20.
 
 ## Owner decisions recorded
