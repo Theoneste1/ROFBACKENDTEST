@@ -91,6 +91,16 @@ describe('Teachers (P1-11)', () => {
       .toMatchObject({ actorId: ctx.ids.admin, metadata: { teacherId: t1Id, schoolId: schoolA } });
   });
 
+  it('teachers of a school (INT-07, the school page): filtered by school and state; names only, never contact details; Administrators only', async () => {
+    const bySchool = await http().get(ASSIGN).query({ schoolId: schoolA }).set(bearer(admin)).expect(200);
+    expect(bySchool.body.data.map((r: any) => r.teacher.id)).toEqual([t1Id]);
+    expect(Object.keys(bySchool.body.data[0].teacher).sort()).toEqual(['firstName', 'id', 'lastName', 'username']);
+    expect(JSON.stringify(bySchool.body)).not.toMatch(/email|phone/i);
+    expect((await http().get(ASSIGN).query({ schoolId: schoolB, isActive: true }).set(bearer(superAdmin)).expect(200)).body.data.map((r: any) => r.teacher.id)).toEqual([t2Id]);
+    expect((await http().get(ASSIGN).query({ schoolId: schoolA, isActive: false }).set(bearer(admin)).expect(200)).body.data).toEqual([]);
+    for (const token of [coachJ, studentJ2, t1]) expect(await status(http().get(ASSIGN).query({ schoolId: schoolA }).set(bearer(token)))).toEqual([403, 'PERMISSION_REQUIRED']);
+  });
+
   it('school isolation: a Teacher lists only students of their schools, without contact details; other schools 404; other roles refused', async () => {
     // Access follows the School relationship (schoolId), not a name: a school with a similar name stays invisible.
     const lookalike = (await p().school.create({ data: { name: 'Test School Branch', location: 'Kigali' } })).id;
