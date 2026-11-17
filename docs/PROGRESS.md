@@ -65,6 +65,13 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
   `E2E_DATABASE_URL=postgresql://rof@127.0.0.1:55432/rof_play E2E_ADMIN_PASSWORD=E2e-Admin-2026! npx playwright test` in fe-e2e.
 - The backend allows 10 sign-ins per minute per address (not weakened): one sign-in per role per test file; leave a minute between full runs.
 
+## Owner decisions recorded
+
+- 2026-11-17 Sidebar "More" menu APPROVED as implemented (`feat/sidebar-more-menu` 2c36727, 33b3a5a, 4c8a511): desktop opens a
+  panel beside the sidebar (must NOT expand inside the desktop sidebar — it would bring back sidebar scrolling); tablets and
+  phones expand inline. No further changes. Keep the branch and commits intact; include it in the final integration,
+  regression testing and release; never merge or deploy it on its own.
+
 ## Awaiting owner decision (do not implement)
 
 - D1–D8 in `docs/DESIGN-PROPOSALS.md`; ADR-008 states; DOB for administrator-created / invited / imported students.
