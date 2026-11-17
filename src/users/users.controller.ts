@@ -23,6 +23,7 @@ import type { Request, Response } from 'express';
 import { UsersService } from './users.service.js';
 import { AvatarService } from './avatar.service.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
+import { RegistrationTimelineService } from './registration-timeline.service.js';
 import { IMPORT_MAX_BYTES, UserProvisioningService } from './user-provisioning.service.js';
 import { ImportUsersQueryDto, InviteUserDto } from './dto/invite-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -50,6 +51,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly provisioning: UserProvisioningService,
     private readonly accountStatus: AccountStatusService,
+    private readonly registrationTimelineService: RegistrationTimelineService,
   ) {}
 
   /** List users with filters (role, division, grade, school, status, search). */
@@ -160,6 +162,16 @@ export class UsersController {
     @Req() req: Request & { id?: string },
   ) {
     return this.accountStatus.change(id, { toStatus: body.toStatus, reason: body.reason, confirm: body.confirm }, user, { requestId: req.id ?? null });
+  }
+
+  /**
+   * Registration timeline (REG-13): the current stages and every registration-related event, oldest first
+   * (registration / invitation, application, activation, approval, state and role changes, school claims).
+   */
+  @Get(':id/registration-timeline')
+  @RequirePermission('users.manage')
+  registrationTimeline(@Param('id', ParseUUIDPipe) id: string) {
+    return this.registrationTimelineService.timeline(id);
   }
 
   /** The account's state changes, newest first (who, when, from, to, reason). */

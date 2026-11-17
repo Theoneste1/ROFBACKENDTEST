@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 25 @Public + 29 @Roles + 203 @RequirePermission + 56 @Authenticated = 313, none undeclared', () => {
+  it('declarations add up: 25 @Public + 29 @Roles + 204 @RequirePermission + 56 @Authenticated = 314, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 25, '@Roles': 29, '@RequirePermission': 203, '@Authenticated': 56 });  // registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 25, '@Roles': 29, '@RequirePermission': 204, '@Authenticated': 56 });  // registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -191,7 +191,7 @@ describe('route declarations (P1-02 §5)', () => {
     }
     expect(byPermission).toEqual({
       'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
-      'audit.view': 4, 'users.manage': 14,   // + 2 profile-picture routes (another account's picture); + 1 status change (account states)
+      'audit.view': 4, 'users.manage': 15,   // + 1 registration timeline (REG-13); + 2 profile-picture routes (another account's picture); + 1 status change (account states)
       'users.viewStatusHistory': 1,   // account states: an account's status history
       'users.bulkManage': 6, 'users.export': 1,   // bulk user operations (2026-11-17)
       'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,

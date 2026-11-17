@@ -10264,6 +10264,46 @@
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/users/{id}/registration-timeline": {
+      "get": {
+        "operationId": "UsersController_registrationTimeline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Registration timeline (REG-13): the current stages and every registration-related event, oldest first\n(registration / invitation, application, activation, approval, state and role changes, school claims).",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users/{id}/status-history": {
       "get": {
         "operationId": "UsersController_statusHistory",

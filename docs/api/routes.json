@@ -1145,6 +1145,15 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/registration-timeline",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/users/{id}/resend-invitation",
     "roles": [

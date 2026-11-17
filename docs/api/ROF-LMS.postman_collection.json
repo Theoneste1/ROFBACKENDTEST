@@ -4882,6 +4882,34 @@
           }
         },
         {
+          "name": "GET /admin/users/{id}/registration-timeline",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/registration-timeline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "registration-timeline"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "POST /admin/users/{id}/resend-invitation",
           "request": {
             "method": "POST",

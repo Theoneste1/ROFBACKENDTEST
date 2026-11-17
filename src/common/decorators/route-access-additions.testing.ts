@@ -160,4 +160,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/applications/info-requests/:token  ApplicationInfoRequestsController.answer':                 PUBLIC,
   // Optional profile picture right after registering (REG-02): the one-time token is the authorization.
   'PUT /api/v1/auth/register/avatar  RegistrationAvatarController.upload':                                   PUBLIC,
+  // Registration timeline (REG-13): users.manage, as the user page.
+  'GET /api/v1/admin/users/:id/registration-timeline  UsersController.registrationTimeline':                ADMINISTRATORS,
 };
