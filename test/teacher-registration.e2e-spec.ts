@@ -257,7 +257,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       // Student registration and coach applications treat a pending teacher application's identity as taken.
       expect(await status(http().post('/api/v1/auth/register/student').send({
         firstName: 'Stu', lastName: 'Dent', username: 'stu.dup', email: 'dup.teacher@test.local', password: 'Secret123',
-        gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220001',
+        dateOfBirth: '2010-05-01', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220001',
       }))).toEqual([409, 'IDENTITY_TAKEN']);
       expect(await status(http().post('/api/v1/mentor-requests').send({
         firstName: 'Co', lastName: 'Dup', username: 'dup.teacher', email: 'coach.dup@test.local', password: 'Secret123',

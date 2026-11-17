@@ -218,7 +218,7 @@ describe('Student–school affiliation hardening (school administration PR A.1)'
     const sync = vi.spyOn(svc(), 'beginUserChange');
     try {
       await http().post('/api/v1/auth/register/student').send({
-        firstName: 'R', lastName: 'Reg', username: 'a1.reg', email: 'a1.reg@test.local', password: 'Secret123', gradeLevel: 'S2', homeLocation: 'Kigali', schoolCode: '220998',
+        firstName: 'R', lastName: 'Reg', username: 'a1.reg', email: 'a1.reg@test.local', password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S2', homeLocation: 'Kigali', schoolCode: '220998',
       }).expect(201);
       const reg = await p().user.findUniqueOrThrow({ where: { username: 'a1.reg' } });
       expect(claim).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ studentId: reg.id, schoolId: schoolB, source: 'REGISTRATION' }));

@@ -131,7 +131,7 @@ describe('User management (e2e)', () => {
 
       const reg = await ctx.http().post('/api/v1/auth/register/student').send({
         firstName: 'Eric', lastName: 'Nkusi', username: 'eric.n', email: 'eric@example.com', password: 'Student123',
-        gradeLevel: 'S2', schoolName: 'Test School', schoolLocation: 'Kigali', homeLocation: 'Kigali',
+        dateOfBirth: '2010-05-01', gradeLevel: 'S2', schoolName: 'Test School', schoolLocation: 'Kigali', homeLocation: 'Kigali',
       }).expect(201);
       expect(reg.body.requiresEmailVerification).toBe(true);
 

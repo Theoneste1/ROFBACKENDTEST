@@ -2766,7 +2766,7 @@ Body (JSON):
 | `schoolSector` | string |  |  |
 | `schoolLocation` | string |  | Legacy, with schoolName: city / region of the school (not stored). |
 | `homeLocation` | string |  | Student's home city / region. Required unless the official home place (homeProvince, homeDistrict, homeSector) is sent; then it is optional and stored as "Sector, District". |
-| `dateOfBirth` | string |  |  |
+| `dateOfBirth` | string | ✓ |  |
 | `phone` | string |  | The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. |
 | `guardianPhone` | string |  | A close-family member's phone, stored in E.164 (teacher-application rules). The form requires it. Not audited. |
 | `homeCountry` | string |  | The student's own country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. |

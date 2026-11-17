@@ -141,11 +141,13 @@ export class RegisterStudentDto {
 
   // ─── Registration details (capability studentRegistrationDetails; optional for older clients) ───
 
-  /** Date of birth, "YYYY-MM-DD": a real past date, age 5–30 on the day of registration (Rwanda). Not audited. */
-  @IsOptional()
+  /**
+   * Date of birth, "YYYY-MM-DD": a real past date, age 5–30 on the day of registration (Rwanda). Not audited.
+   * Required (owner, 2026-11-17: every student is asked their date of birth at registration).
+   */
   @Transform(trim)
   @IsStudentDateOfBirth()
-  dateOfBirth?: string;
+  dateOfBirth: string;
 
   /** The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. */
   @IsOptional()

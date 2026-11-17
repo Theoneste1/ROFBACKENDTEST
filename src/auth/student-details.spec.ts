@@ -20,7 +20,7 @@ const problems = <T extends object>(cls: new () => T, body: object) => {
 
 const STUDENT = {
   firstName: 'Aline', lastName: 'Uwase', username: 'aline.u', email: 'aline@example.rw', password: 'Secret123',
-  gradeLevel: 'S2', schoolCode: '110123', homeLocation: 'Kigali',
+  gradeLevel: 'S2', schoolCode: '110123', homeLocation: 'Kigali', dateOfBirth: '2012-05-01',
 };
 
 describe('student registration details (studentRegistrationDetails)', () => {
@@ -52,8 +52,10 @@ describe('student registration details (studentRegistrationDetails)', () => {
   });
 
   describe('RegisterStudentDto', () => {
-    it('older clients: none of the new fields is needed', () => {
+    it('the date of birth is required (owner, 2026-11-17); the other new fields are optional', () => {
       expect(problems(RegisterStudentDto, STUDENT)).toEqual({});
+      const { dateOfBirth: _dob, ...noDob } = STUDENT;
+      expect(Object.keys(problems(RegisterStudentDto, noDob))).toEqual(['dateOfBirth']);
     });
 
     it('all details given: valid', () => {
@@ -96,7 +98,7 @@ describe('student registration details (studentRegistrationDetails)', () => {
         homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera', homeLocation: 'Remera, Gasabo',
       });
       // Older clients: only homeLocation.
-      expect(studentDetailColumns(dto({}), null)).toEqual({ homeLocation: 'Kigali' });
+      expect(studentDetailColumns(dto({ dateOfBirth: undefined }), null)).toEqual({ homeLocation: 'Kigali' });
     });
 
     it('the audit log says only whether each detail was given — never a phone or a date', () => {

@@ -45367,7 +45367,8 @@
           "username",
           "email",
           "password",
-          "gradeLevel"
+          "gradeLevel",
+          "dateOfBirth"
         ]
       },
       "RegisterAdminDto": {

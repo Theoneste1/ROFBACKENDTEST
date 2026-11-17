@@ -64,7 +64,7 @@ describe('Release notices (e2e)', () => {
     const before = await ctx.prisma.emailDelivery.count();
     const res = await ctx.http().post('/api/v1/auth/register/student').send({
       firstName: 'Nadia', lastName: 'Keza', username: 'nadia.keza', email: 'nadia.keza@example.com',
-      password: 'Secret123', gradeLevel: 'S2', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
+      password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S2', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
     }).expect(201);
     await waitForEvents();
 
@@ -114,7 +114,7 @@ describe('Release notices (e2e)', () => {
       .send({ settings: [{ type: 'registration.student', inAppEnabled: false }] }).expect(200);
     const res = await ctx.http().post('/api/v1/auth/register/student').send({
       firstName: 'Paul', lastName: 'Habimana', username: 'paul.h', email: 'paul.h@example.com',
-      password: 'Secret123', gradeLevel: 'S5', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
+      password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S5', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
     }).expect(201);
     await waitForEvents();
     expect(await count({ userId: ctx.ids.admin, type: 'registration.student', data: { path: ['userId'], equals: res.body.id } })).toBe(0);

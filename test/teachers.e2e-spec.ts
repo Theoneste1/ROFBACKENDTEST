@@ -325,7 +325,7 @@ describe('Teachers (P1-11)', () => {
     const coded = (await p().school.create({ data: { name: 'APPROVAL TEST SCHOOL', location: 'Kigali, Gasabo', code: '120998', province: 'Kigali City', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'approval test school' } })).id;
     await http().post(ASSIGN).set(bearer(admin)).send({ teacherId: t3Id, schoolId: coded }).expect(201);
     const reg = (username: string, extra: object = {}) => http().post('/api/v1/auth/register/student').send({
-      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', gradeLevel: 'S2',
+      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S2',
       schoolCode: '120998', homeLocation: 'Kigali', ...extra,
     });
     const listed = async () => (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t3)).expect(200)).body.data.map((s: any) => s.username);

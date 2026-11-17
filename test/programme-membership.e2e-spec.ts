@@ -238,7 +238,7 @@ describe('Programme membership (P1-07)', () => {
     it('student self-registration (no actor)', async () => {
       await http().post('/api/v1/auth/register/student').send({
         firstName: 'Reg', lastName: 'Student', username: 'k6.reg', email: 'k6.reg@test.local', password: 'Secret123',
-        gradeLevel: 'S2', schoolName: 'Test School', schoolLocation: 'Kigali', homeLocation: 'Kigali',
+        dateOfBirth: '2010-05-01', gradeLevel: 'S2', schoolName: 'Test School', schoolLocation: 'Kigali', homeLocation: 'Kigali',
       }).expect(201);
       expect(await membershipOf('k6.reg')).toEqual([{ disciplineId: mathsId, source: 'MANUAL', addedById: null, isActive: true }]);
     });

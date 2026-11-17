@@ -220,7 +220,9 @@ const FORM_AVAILABILITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-form-a
 const ROLE_NOTIFICATION_SETTINGS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-role-notification-settings.json';
 /** Application details and request more information (2026-11-17, ADR-009): additive only. */
 const APPLICATION_DETAILS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-application-details.json';
-const CURRENT_SNAPSHOT = APPLICATION_DETAILS_SNAPSHOT;
+/** Student date of birth required (owner, 2026-11-17): one approved breaking change, nothing else. */
+const STUDENT_DOB_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-student-date-of-birth.json';
+const CURRENT_SNAPSHOT = STUDENT_DOB_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1169,6 +1171,15 @@ describe('approved API contract history', () => {
       'schema RejectMentorRequestDto: added',
       'schema RequestApplicationInfoDto: added',
     ]);
+  });
+
+  test('application details → student date of birth required: exactly one approved breaking change (owner, 2026-11-17)', () => {
+    for (const f of [APPLICATION_DETAILS_SNAPSHOT, STUDENT_DOB_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(APPLICATION_DETAILS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(STUDENT_DOB_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['POST /api/v1/auth/register/student › request application/json.dateOfBirth: field is now required']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, []);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

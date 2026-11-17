@@ -93,7 +93,7 @@ export const FEATURES = {
    * Student registration details: POST /api/v1/auth/register/student accepts `dateOfBirth` (YYYY-MM-DD, age 5–30),
    * `phone` (optional) and `guardianPhone` (close-family phone; both stored in E.164), `homeCountry` (the student's own
    * country) and the official home place `homeProvince` / `homeDistrict` / `homeSector` (Rwanda only; then
-   * `homeLocation` is optional). All optional at the API for older clients; the profile (GET /api/v1/me, admin user
+   * `homeLocation` is optional). `dateOfBirth` is required (owner, 2026-11-17); the others are optional at the API for older clients; the profile (GET /api/v1/me, admin user
    * detail) returns them. Without this feature the fields are refused (400): the sign-up form must not send them.
    */
   studentRegistrationDetails: 'always',

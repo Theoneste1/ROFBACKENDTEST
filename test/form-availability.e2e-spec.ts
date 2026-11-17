@@ -27,7 +27,7 @@ describe('Form availability', () => {
     n++;
     return http().post('/api/v1/auth/register/student').send({
       firstName: 'Ada', lastName: 'Uwase', username: `form.student${n}`, email: `form.student${n}@example.com`,
-      password: 'Secret123', gradeLevel: 'S4', schoolName: 'Some School', schoolLocation: 'Kigali', homeLocation: 'Kigali', ...extra,
+      password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S4', schoolName: 'Some School', schoolLocation: 'Kigali', homeLocation: 'Kigali', ...extra,
     });
   };
   const applyCoach = () => {
