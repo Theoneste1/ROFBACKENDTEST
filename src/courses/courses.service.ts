@@ -6,6 +6,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { auditChanges } from '../audit/audit-changes.js';
 import { AccessService } from '../common/access/access.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
@@ -175,7 +176,7 @@ export class CoursesService {
 
   // ─── ADMIN: Edit course text / order ───────────────────────────────────────
   async update(courseId: string, data: UpdateCourseDto, caller: CallerCtx) {
-    await this.findOrThrow(courseId);
+    const before = await this.findOrThrow(courseId);
 
     if (Object.keys(data).length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
@@ -195,6 +196,7 @@ export class CoursesService {
       action: 'UPDATE_COURSE', entity: 'Course', entityId: courseId, metadata: {
         fields: Object.keys(data),
         ...(data.discussionsEnabled !== undefined && { discussionsEnabled: data.discussionsEnabled }),
+        changes: auditChanges(before, updated, ['title', 'description', 'sortOrder', 'discussionsEnabled']),
       },
     });
     return updated;
@@ -215,7 +217,7 @@ export class CoursesService {
     });
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
-      action: 'ARCHIVE_COURSE', entity: 'Course', entityId: courseId,
+      action: 'ARCHIVE_COURSE', entity: 'Course', entityId: courseId, metadata: { from: course.status, to: 'ARCHIVED' },
     });
     return updated;
   }

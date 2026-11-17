@@ -216,16 +216,18 @@ export class AssignmentsService {
       allowLateSubmission: data.allowLateSubmission,
     };
     const changes = diffFields(assignment, next);
-    const updated = Object.keys(changes).length === 0
-      ? await this.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: STAFF_DETAIL })
-      : await this.transition(assignmentId, EDITABLE_STATUSES, next, { type: 'UPDATED', actorId: user.id, changes });
-
+    const auditMeta = { fields: Object.keys(data), filesAdded: files.length };
+    if (Object.keys(changes).length > 0) {
+      return this.transition(assignmentId, EDITABLE_STATUSES, next, { type: 'UPDATED', actorId: user.id, changes },
+        { action: 'UPDATE_ASSIGNMENT', actorRole: user.role, metadata: auditMeta });
+    }
+    // Only files added: nothing on the assignment itself changed.
     await this.audit.log({
       actorId: user.id, actorRole: user.role,
       action: 'UPDATE_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-      metadata: { fields: Object.keys(data), filesAdded: files.length },
+      metadata: { ...auditMeta, changes: {} },
     });
-    return updated;
+    return this.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: STAFF_DETAIL });
   }
 
   async submitForReview(assignmentId: string, user: AuthUser) {
@@ -238,12 +240,8 @@ export class AssignmentsService {
 
     const updated = await this.transition(assignmentId, EDITABLE_STATUSES, {
       status: 'PENDING_APPROVAL', submittedAt: new Date(), rejectedAt: null, rejectionNote: null,
-    }, { type: 'SUBMITTED_FOR_REVIEW', actorId: user.id });
+    }, { type: 'SUBMITTED_FOR_REVIEW', actorId: user.id }, { action: 'SUBMIT_ASSIGNMENT_FOR_REVIEW', actorRole: user.role });
 
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'SUBMIT_ASSIGNMENT_FOR_REVIEW', entity: 'Assignment', entityId: assignmentId,
-    });
     this.events.emit(Events.AssignmentSubmittedForReview, { assignmentId });
     return updated;
   }
@@ -254,13 +252,8 @@ export class AssignmentsService {
 
     const updated = await this.transition(
       assignmentId, ['PENDING_APPROVAL'], { status: 'DRAFT', submittedAt: null },
-      { type: 'RECALLED', actorId: user.id },
+      { type: 'RECALLED', actorId: user.id }, { action: 'RECALL_ASSIGNMENT', actorRole: user.role },
     );
-
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'RECALL_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-    });
     return updated;
   }
 
@@ -280,13 +273,8 @@ export class AssignmentsService {
 
     const updated = await this.transition(assignmentId, ['PENDING_APPROVAL'], {
       status: 'PUBLISHED', publishedAt: new Date(), approvedById: user.id, rejectedAt: null, rejectionNote: null,
-    }, { type: 'PUBLISHED', actorId: user.id });
+    }, { type: 'PUBLISHED', actorId: user.id }, { action: 'PUBLISH_ASSIGNMENT', actorRole: user.role, metadata: { title: assignment.title } });
 
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'PUBLISH_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-      metadata: { title: assignment.title },
-    });
     this.events.emit(Events.AssignmentPublished, { assignmentId });
     return updated;
   }
@@ -296,13 +284,9 @@ export class AssignmentsService {
 
     const updated = await this.transition(assignmentId, ['PENDING_APPROVAL'], {
       status: 'REJECTED', rejectedAt: new Date(), rejectionNote: body.rejectionNote, submittedAt: null,
-    }, { type: 'REJECTED', actorId: user.id, note: body.rejectionNote });
+    }, { type: 'REJECTED', actorId: user.id, note: body.rejectionNote },
+    { action: 'REJECT_ASSIGNMENT', actorRole: user.role, metadata: { rejectionNote: body.rejectionNote } });
 
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'REJECT_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-      metadata: { rejectionNote: body.rejectionNote },
-    });
     this.events.emit(Events.AssignmentRejected, { assignmentId, note: body.rejectionNote });
     return updated;
   }
@@ -321,12 +305,8 @@ export class AssignmentsService {
 
     const updated = await this.transition(assignmentId, ['PUBLISHED'], {
       status: 'DRAFT', publishedAt: null, approvedById: null,
-    }, { type: 'UNPUBLISHED', actorId: user.id });
+    }, { type: 'UNPUBLISHED', actorId: user.id }, { action: 'UNPUBLISH_ASSIGNMENT', actorRole: user.role });
 
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'UNPUBLISH_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-    });
     return updated;
   }
 
@@ -339,12 +319,8 @@ export class AssignmentsService {
     const updated = await this.transition(
       assignmentId, ['PUBLISHED'], { status: 'CLOSED', closedAt: new Date() },
       { type: 'CLOSED', actorId: user.id, note: body.note ?? null },
+      { action: 'CLOSE_ASSIGNMENT', actorRole: user.role, ...(body.note && { metadata: { note: body.note } }) },
     );
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'CLOSE_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-      ...(body.note && { metadata: { note: body.note } }),
-    });
     return updated;
   }
 
@@ -373,12 +349,8 @@ export class AssignmentsService {
         type: 'REOPENED', actorId: user.id, note: body.note ?? null,
         ...(Object.keys(changes).length > 0 && { changes }),
       },
+      { action: 'REOPEN_ASSIGNMENT', actorRole: user.role, metadata: { deadline: deadline.toISOString(), ...(body.note && { note: body.note }) } },
     );
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'REOPEN_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-      metadata: { deadline: deadline.toISOString(), ...(body.note && { note: body.note }) },
-    });
     return updated;
   }
 
@@ -394,12 +366,8 @@ export class AssignmentsService {
       assignmentId,
       ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'CLOSED', 'REJECTED'],
       { status: 'ARCHIVED', archivedAt: new Date() },
-      { type: 'ARCHIVED', actorId: user.id },
+      { type: 'ARCHIVED', actorId: user.id }, { action: 'ARCHIVE_ASSIGNMENT', actorRole: user.role },
     );
-    await this.audit.log({
-      actorId: user.id, actorRole: user.role,
-      action: 'ARCHIVE_ASSIGNMENT', entity: 'Assignment', entityId: assignmentId,
-    });
     return updated;
   }
 
@@ -652,6 +620,8 @@ export class AssignmentsService {
     from: AssignmentStatus[],
     data: Prisma.AssignmentUncheckedUpdateManyInput,
     entry: HistoryEntry,
+    /** The audit entry, written in the same transaction with the status before and after (AUD-02). */
+    audit: { action: string; actorRole: string; metadata?: Record<string, unknown> },
   ) {
     await this.prisma.$transaction(async (tx) => {
       const [current] = await tx.$queryRaw<{ status: AssignmentStatus }[]>`
@@ -674,6 +644,13 @@ export class AssignmentsService {
           ...(entry.changes !== undefined && { changes: entry.changes }),
         },
       });
+      await this.audit.log({
+        actorId: entry.actorId, actorRole: audit.actorRole, action: audit.action, entity: 'Assignment', entityId: id,
+        metadata: {
+          ...audit.metadata, from: current.status, to: (data.status as AssignmentStatus | undefined) ?? current.status,
+          ...(entry.changes !== undefined && { changes: entry.changes }),
+        },
+      }, tx);
     });
     return this.prisma.assignment.findUniqueOrThrow({ where: { id }, select: STAFF_DETAIL });
   }
