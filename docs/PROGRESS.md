@@ -37,18 +37,30 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 - 2026-11-17 W1 applications: backend e2e full suite 951 passed / 6 skipped (S3) on PostgreSQL 18; unit 1140/1140;
   10-migration deploy → rollback → re-deploy clean; frontend integration 382/382, typecheck, lint, Netlify build.
 - 2026-11-17 Student DOB required at self-registration (backend `cf964dc`).
+- 2026-11-17 INT-07 Teachers tab on the school page (frontend `feat/school-teachers` 7c0d878; backend e2e case 4816f0e).
+- 2026-11-17 ACC-16 phones masked in user lists; e2e sweep of contact data access (backend b8f0267).
+- 2026-11-17 DEFECT FIXED: bulk operation could stay RUNNING forever (finishIfDone tx expired under a concurrent worker; 4/10 → 0/10 after the fix; finishStale sweep) — backend b8f0267.
+- 2026-11-17 Owner request: sidebar "More" menu in every portal (frontend `feat/sidebar-more-menu` 2c36727, 33b3a5a, 4c8a511); browser-verified (see W0).
+- 2026-11-17 W0 started: frontend `test/e2e-playwright` (Playwright 1.59.1, real backend + PostgreSQL, local-only DB guard); sidebar specs desktop + phone.
 
 ## Outstanding — approved, to implement (in this order)
 
-1. [ ] INT-07 Teachers on the school page (backend list by school if missing + frontend tab; contact data restricted).
-2. [ ] ACC-16 / SEC-03 guardian / student phone masking for readers without users.manageStudents in scope.
+1. [x] INT-07 Teachers on the school page (backend list by school if missing + frontend tab; contact data restricted).
+2. [x] ACC-16 / SEC-03 guardian / student phone masking for readers without users.manageStudents in scope.
 3. [ ] REG-13 registration timeline on the user page (application, decision, activation, state changes, claims).
 4. [ ] REG-02 profile picture during registration (after the account exists: activation / first sign-in step).
 5. [ ] AUD-02 before / after values on the remaining audited actions (inventory first).
-6. [ ] W0 Playwright browser e2e, seven roles, frontend + backend + PostgreSQL (no mocked API for main flows).
+6. [~] W0 Playwright (sidebar done; role workflows next) browser e2e, seven roles, frontend + backend + PostgreSQL (no mocked API for main flows).
 7. [ ] S3 tests: assess the 6 skipped (need S3-compatible server); run with a local S3 server if possible, else document.
 8. [ ] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
 9. [ ] Authoritative requirements matrix v2 (all columns the owner listed), design proposals v2 (11 sections each).
+
+## Notes for the next session
+
+- Local browser stack: backend `node dist/main.js` in be-apps (PORT 4100, NODE_ENV=development, DATABASE_URL rof_play,
+  TEACHERS/HEAD_COACHES_ENABLED=true); frontend fe-hist `next start -p 3100` built with API_PROXY_TARGET=http://127.0.0.1:4100;
+  `E2E_DATABASE_URL=postgresql://rof@127.0.0.1:55432/rof_play E2E_ADMIN_PASSWORD=E2e-Admin-2026! npx playwright test` in fe-e2e.
+- The backend allows 10 sign-ins per minute per address (not weakened): one sign-in per role per test file; leave a minute between full runs.
 
 ## Awaiting owner decision (do not implement)
 
