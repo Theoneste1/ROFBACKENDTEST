@@ -41,7 +41,7 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 - 2026-11-17 ACC-16 phones masked in user lists; e2e sweep of contact data access (backend b8f0267).
 - 2026-11-17 DEFECT FIXED: bulk operation could stay RUNNING forever (finishIfDone tx expired under a concurrent worker; 4/10 → 0/10 after the fix; finishStale sweep) — backend b8f0267.
 - 2026-11-17 Owner request: sidebar "More" menu in every portal (frontend `feat/sidebar-more-menu` 2c36727, 33b3a5a, 4c8a511); browser-verified (see W0).
-- 2026-11-17 W0 started: frontend `test/e2e-playwright` (Playwright 1.59.1, real backend + PostgreSQL, local-only DB guard); sidebar specs desktop + phone.
+- 2026-11-17 W0 started: frontend `test/e2e-playwright` 212dc96 (Playwright 1.59.1, real backend + PostgreSQL, local-only DB guard); sidebar specs desktop + phone: 8 passed on the integrated stack.
 
 ## Outstanding — approved, to implement (in this order)
 
@@ -50,7 +50,10 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 3. [ ] REG-13 registration timeline on the user page (application, decision, activation, state changes, claims).
 4. [ ] REG-02 profile picture during registration (after the account exists: activation / first sign-in step).
 5. [ ] AUD-02 before / after values on the remaining audited actions (inventory first).
-6. [~] W0 Playwright (sidebar done; role workflows next) browser e2e, seven roles, frontend + backend + PostgreSQL (no mocked API for main flows).
+6. [~] W0 Playwright (infrastructure + sidebar done). NEXT: specs per role — student registration (DOB required) + profile;
+   teacher application → request info → answer page → approve → activation → teacher portal; coach application → reject with
+   reason; head coach programme / invitation / notification settings; admin forms, bulk preview, account history, school
+   teachers tab; super admin permissions boundary. E-mails: read the EmailDelivery rows from the test DB (dry-run mail). browser e2e, seven roles, frontend + backend + PostgreSQL (no mocked API for main flows).
 7. [ ] S3 tests: assess the 6 skipped (need S3-compatible server); run with a local S3 server if possible, else document.
 8. [ ] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
 9. [ ] Authoritative requirements matrix v2 (all columns the owner listed), design proposals v2 (11 sections each).
