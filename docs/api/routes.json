@@ -1534,6 +1534,14 @@
     "tag": "Auth"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/auth/register/avatar",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/auth/register/student",
     "roles": [

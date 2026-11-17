@@ -23,6 +23,7 @@ import { DecisionNotificationsService } from '../decision-notifications/decision
 import { DecisionEvents } from '../decision-notifications/decision-content.js';
 import { ApplicationInfoRequestsService, INFO_REQUEST_SELECT } from '../application-info-requests/application-info-requests.service.js';
 import { normalisePhone } from '../schools/directory/school-contacts.js';
+import { RegistrationAvatarService, carryApplicationAvatar } from '../users/registration-avatar.service.js';
 
 const PUBLIC_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
@@ -45,6 +46,7 @@ export class MentorRequestsService {
     private readonly notices:    DecisionNotificationsService,
     private readonly forms:      FormAvailabilityService,
     private readonly infoRequests: ApplicationInfoRequestsService,
+    private readonly registrationAvatar: RegistrationAvatarService,
   ) {}
 
   // ─── Submit a mentor application (public) ─────────────────────────────────
@@ -96,6 +98,8 @@ export class MentorRequestsService {
       phone, affiliation: data.affiliation ?? null, expertise: data.expertise ?? null,
       relevantExperience: data.relevantExperience ?? null, yearsOfExperience: data.yearsOfExperience ?? null,
       rejectionReason: null,
+      // A reapplication starts without the earlier picture (a new one may be added; the old file is cleaned up).
+      avatarFileId: null,
     };
 
     const request = existingRequest
@@ -111,7 +115,8 @@ export class MentorRequestsService {
       requestId: request.id, submittedAt: request.updatedAt.toISOString(), reapplication: !!existingRequest,
     });
 
-    return request;
+    // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes.
+    return { ...request, avatarUploadToken: this.registrationAvatar.issue('COACH_APPLICATION', request.id) };
   }
 
   // ─── ADMIN: List requests ─────────────────────────────────────────────────
@@ -169,6 +174,7 @@ export class MentorRequestsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
+      await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
       await ensureDefaultMembership(tx, mentor, caller.id);   // approved coach (P1-07, K6)
       if (verify) issued = await this.activation.issue(mentor.id, 'EMAIL_VERIFICATION', caller.id, tx);
 

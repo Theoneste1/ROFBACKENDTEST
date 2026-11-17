@@ -6456,6 +6456,34 @@
           }
         },
         {
+          "name": "PUT /auth/register/avatar",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "avatar"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            }
+          }
+        },
+        {
           "name": "POST /auth/register/student",
           "request": {
             "method": "POST",

@@ -222,7 +222,9 @@ const ROLE_NOTIFICATION_SETTINGS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-
 const APPLICATION_DETAILS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-application-details.json';
 /** Student date of birth required (owner, 2026-11-17): one approved breaking change, nothing else. */
 const STUDENT_DOB_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-student-date-of-birth.json';
-const CURRENT_SNAPSHOT = STUDENT_DOB_SNAPSHOT;
+/** Optional profile picture at registration (REG-02, 2026-11-18): one public upload operation; additive only. */
+const REGISTRATION_AVATAR_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-avatar.json';
+const CURRENT_SNAPSHOT = REGISTRATION_AVATAR_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1180,6 +1182,15 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ['POST /api/v1/auth/register/student › request application/json.dateOfBirth: field is now required']);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, []);
+  });
+
+  test('student date of birth → registration avatar: one upload operation and its request schema; nothing breaking', () => {
+    for (const f of [STUDENT_DOB_SNAPSHOT, REGISTRATION_AVATAR_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(STUDENT_DOB_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_AVATAR_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PUT /api/v1/auth/register/avatar: operation added', 'schema RegistrationAvatarDto: added']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

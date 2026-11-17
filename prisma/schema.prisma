@@ -967,6 +967,9 @@ model MentorRequest {
   /// Why an Administrator rejected the application (e-mailed to the applicant).
   rejectionReason    String?
   infoRequests       ApplicationInfoRequest[]
+  /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
+  avatarFileId       String?              @unique
+  avatarFile         FileObject?          @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
@@ -1052,6 +1055,9 @@ model TeacherApplication {
   /// Years of teaching experience (0–60), where the applicant gives it.
   yearsOfExperience  Int?
   infoRequests       ApplicationInfoRequest[]
+  /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
+  avatarFileId       String?                  @unique
+  avatarFile         FileObject?              @relation("TeacherApplicationAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([schoolId])
@@ -1379,6 +1385,9 @@ model FileObject {
   reviewAttachments     ReviewAttachment[]
   /// The account whose current profile picture this is (FilePurpose AVATAR); keeps it from orphan cleanup.
   avatarOf              User?                  @relation("UserAvatar")
+  /// An optional profile picture sent with a Teacher / Coach application (REG-02), moved to the account on approval.
+  teacherApplicationAvatarOf TeacherApplication? @relation("TeacherApplicationAvatar")
+  mentorRequestAvatarOf      MentorRequest?      @relation("MentorRequestAvatar")
 
   @@index([purpose])
   @@index([createdAt])

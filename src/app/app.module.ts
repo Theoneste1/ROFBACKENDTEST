@@ -43,6 +43,7 @@ import { SubmissionsModule } from '../submissions/submissions.module.js';
 import { MentorRequestsModule } from '../mentor-requests/mentor-requests.module.js';
 import { TeacherApplicationsModule } from '../teacher-applications/teacher-applications.module.js';
 import { ApplicationInfoRequestsModule } from '../application-info-requests/application-info-requests.module.js';
+import { RegistrationAvatarModule } from '../users/registration-avatar.controller.js';
 import { DecisionNotificationsModule } from '../decision-notifications/decision-notifications.module.js';
 import { PublicSiteModule } from '../public-site/public-site.module.js';
 import { EmailModule } from '../email/email.module.js';
@@ -102,6 +103,7 @@ import { ReportsModule } from '../reports/reports.module.js';
     MentorRequestsModule,
     TeacherApplicationsModule,
     ApplicationInfoRequestsModule,
+    RegistrationAvatarModule,
     DecisionNotificationsModule,
     PublicSiteModule,
     // StudyGroupsModule is intentionally not registered: the programme has no

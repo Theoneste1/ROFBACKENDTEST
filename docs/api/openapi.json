@@ -35727,6 +35727,45 @@
         "security": []
       }
     },
+    "/api/v1/auth/register/avatar": {
+      "put": {
+        "operationId": "RegistrationAvatarController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationAvatarDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
     "/api/v1/admin/notification-deliveries": {
       "get": {
         "operationId": "DecisionNotificationsController_list",
@@ -47542,6 +47581,10 @@
         "required": [
           "answer"
         ]
+      },
+      "RegistrationAvatarDto": {
+        "type": "object",
+        "properties": {}
       },
       "SendEmailDto": {
         "type": "object",

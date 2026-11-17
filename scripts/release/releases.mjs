@@ -32,7 +32,7 @@ export const POST_PHASE1_OBJECTS = {
   columns: [
     ['MentorRequest', 'country'], ['MentorRequest', 'educationLevel'], ['MentorRequest', 'occupation'], ['MentorRequest', 'olympiadInterests'],
     ['MentorRequest', 'affiliation'], ['MentorRequest', 'expertise'], ['MentorRequest', 'phone'], ['MentorRequest', 'rejectionReason'],
-    ['MentorRequest', 'relevantExperience'], ['MentorRequest', 'yearsOfExperience'],
+    ['MentorRequest', 'relevantExperience'], ['MentorRequest', 'yearsOfExperience'], ['MentorRequest', 'avatarFileId'],
     ['User', 'accountStatus'], ['User', 'avatarFileId'], ['User', 'country'], ['User', 'dateOfBirth'], ['User', 'guardianPhone'],
     ['User', 'homeDistrict'], ['User', 'homeProvince'], ['User', 'homeSector'], ['User', 'olympiadInterests'], ['User', 'phone'],
   ],

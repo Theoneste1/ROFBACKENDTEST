@@ -18,9 +18,10 @@ DECLARE
   details  bigint;
 BEGIN
   SELECT count(*) INTO requests FROM "ApplicationInfoRequest";
-  SELECT (SELECT count(*) FROM "TeacherApplication" WHERE "position" IS NOT NULL OR "yearsOfExperience" IS NOT NULL)
+  SELECT (SELECT count(*) FROM "TeacherApplication" WHERE "position" IS NOT NULL OR "yearsOfExperience" IS NOT NULL OR "avatarFileId" IS NOT NULL)
        + (SELECT count(*) FROM "MentorRequest" WHERE "phone" IS NOT NULL OR "affiliation" IS NOT NULL OR "expertise" IS NOT NULL
-                                                  OR "relevantExperience" IS NOT NULL OR "yearsOfExperience" IS NOT NULL OR "rejectionReason" IS NOT NULL)
+                                                  OR "relevantExperience" IS NOT NULL OR "yearsOfExperience" IS NOT NULL OR "rejectionReason" IS NOT NULL
+                                                  OR "avatarFileId" IS NOT NULL)
     INTO details;
   IF (requests > 0 OR details > 0)
      AND current_setting('rof.application_details_rollback', true) IS DISTINCT FROM 'discard-application-details' THEN
@@ -29,6 +30,10 @@ BEGIN
 END $$;
 DROP TABLE IF EXISTS "ApplicationInfoRequest";
 ALTER TABLE "MentorRequest" DROP CONSTRAINT IF EXISTS "MentorRequest_yearsOfExperience_check";
+ALTER TABLE "MentorRequest" DROP CONSTRAINT IF EXISTS "MentorRequest_avatarFileId_fkey";
+ALTER TABLE "TeacherApplication" DROP CONSTRAINT IF EXISTS "TeacherApplication_avatarFileId_fkey";
+ALTER TABLE "MentorRequest" DROP COLUMN IF EXISTS "avatarFileId";
+ALTER TABLE "TeacherApplication" DROP COLUMN IF EXISTS "avatarFileId";
 ALTER TABLE "MentorRequest" DROP COLUMN IF EXISTS "phone", DROP COLUMN IF EXISTS "affiliation", DROP COLUMN IF EXISTS "expertise",
   DROP COLUMN IF EXISTS "relevantExperience", DROP COLUMN IF EXISTS "yearsOfExperience", DROP COLUMN IF EXISTS "rejectionReason";
 ALTER TABLE "TeacherApplication" DROP CONSTRAINT IF EXISTS "TeacherApplication_yearsOfExperience_check";

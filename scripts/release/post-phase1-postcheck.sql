@@ -18,7 +18,7 @@ SELECT count(*) FILTER (WHERE migration_name LIKE '2026112100%' AND finished_at 
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                                             AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
-\echo '== 2. MUST be 7, 9, 20, 2, 1: tables, enums, columns, triggers created, and the AVATAR file purpose'
+\echo '== 2. MUST be 7, 9, 21, 2, 1: tables, enums, columns, triggers created, and the AVATAR file purpose'
 SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
           AND table_name IN ('ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange')) AS tables,
        (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
@@ -30,7 +30,7 @@ SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'pub
                ('User', 'phone'), ('MentorRequest', 'country'), ('MentorRequest', 'educationLevel'), ('MentorRequest', 'occupation'),
                ('MentorRequest', 'olympiadInterests'),
                ('MentorRequest', 'affiliation'), ('MentorRequest', 'expertise'), ('MentorRequest', 'phone'), ('MentorRequest', 'rejectionReason'),
-               ('MentorRequest', 'relevantExperience'), ('MentorRequest', 'yearsOfExperience'))) AS columns,
+               ('MentorRequest', 'relevantExperience'), ('MentorRequest', 'yearsOfExperience'), ('MentorRequest', 'avatarFileId'))) AS columns,
        (SELECT count(*) FROM pg_trigger WHERE tgname IN ('user_account_status_sync', 'user_bulk_membership_guard') AND tgenabled = 'O') AS triggers,
        (SELECT count(*) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'FilePurpose' AND e.enumlabel = 'AVATAR') AS avatar_purpose;
 

@@ -30,6 +30,7 @@ import { DecisionNotificationsService } from '../decision-notifications/decision
 import { DecisionEvents } from '../decision-notifications/decision-content.js';
 import { Events } from '../notifications/events.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { RegistrationAvatarService, carryApplicationAvatar } from '../users/registration-avatar.service.js';
 import { ApplicationInfoRequestsService, INFO_REQUEST_SELECT } from '../application-info-requests/application-info-requests.service.js';
 import {
   ApproveTeacherApplicationDto, ListTeacherApplicationsDto, RegisterTeacherDto, RejectTeacherApplicationDto,
@@ -75,6 +76,7 @@ export class TeacherApplicationsService {
     private readonly forms:      FormAvailabilityService,
     private readonly infoRequests: ApplicationInfoRequestsService,
     private readonly notifications: NotificationsService,
+    private readonly registrationAvatar: RegistrationAvatarService,
   ) {}
 
   // ─── Public ────────────────────────────────────────────────────────────────
@@ -172,6 +174,8 @@ export class TeacherApplicationsService {
       requiresApproval: true as const,
       school,
       proposedSchoolName: created.proposedSchoolName,
+      // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes.
+      avatarUploadToken: this.registrationAvatar.issue('TEACHER_APPLICATION', created.id),
     };
   }
 
@@ -249,6 +253,7 @@ export class TeacherApplicationsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
+      await carryApplicationAvatar(tx, user.id, application.avatarFileId);   // REG-02
       const assignment = await tx.teacherSchoolAssignment.create({
         data: { teacherId: user.id, schoolId, assignedById: caller.id }, select: { id: true },
       });

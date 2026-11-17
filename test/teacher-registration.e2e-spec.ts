@@ -145,7 +145,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(res.body).toEqual({
         id: expect.any(String), status: 'PENDING', requiresApproval: true,
         school: { id: ngoma, name: 'gs ngoma official', code: '220001', province: 'Southern Province', district: 'Huye', sector: 'Ngoma' },
-        proposedSchoolName: null,
+        proposedSchoolName: null, avatarUploadToken: expect.any(String),   // the optional picture (REG-02)
       });
       expect(await p().user.count()).toBe(users);
       expect(await p().teacherSchoolAssignment.count()).toBe(0);
@@ -179,7 +179,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     it('missing school: PENDING with the proposed name and place; no school is created', async () => {
       const schools = await p().school.count();
       const res = await register(missing()).expect(201);
-      expect(res.body).toEqual({ id: expect.any(String), status: 'PENDING', requiresApproval: true, school: null, proposedSchoolName: 'GS Not Yet Listed' });
+      expect(res.body).toEqual({ id: expect.any(String), status: 'PENDING', requiresApproval: true, school: null, proposedSchoolName: 'GS Not Yet Listed', avatarUploadToken: expect.any(String) });
       expect(await p().school.count()).toBe(schools);
       expect(await p().teacherApplication.findUniqueOrThrow({ where: { id: res.body.id } }))
         .toMatchObject({ schoolId: null, proposedSchoolName: 'GS Not Yet Listed', schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolSector: 'Tumba' });

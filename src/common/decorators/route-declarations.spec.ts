@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 24 @Public + 29 @Roles + 203 @RequirePermission + 56 @Authenticated = 312, none undeclared', () => {
+  it('declarations add up: 25 @Public + 29 @Roles + 203 @RequirePermission + 56 @Authenticated = 313, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 24, '@Roles': 29, '@RequirePermission': 203, '@Authenticated': 56 });  // request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 25, '@Roles': 29, '@RequirePermission': 203, '@Authenticated': 56 });  // registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -364,7 +364,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(24);   // request more information: + GET, POST /applications/info-requests/:token; P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register; form availability: + GET /forms, /forms/:key
+      expect(handlers.filter(isPublic)).toHaveLength(25);   // registration avatar: + PUT /auth/register/avatar; request more information: + GET, POST /applications/info-requests/:token; P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register; form availability: + GET /forms, /forms/:key
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {

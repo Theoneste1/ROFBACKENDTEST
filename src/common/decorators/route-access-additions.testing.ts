@@ -158,4 +158,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/mentor-requests/:id/request-info  MentorRequestsController.requestInfo':                      ADMINISTRATORS,
   'GET /api/v1/applications/info-requests/:token  ApplicationInfoRequestsController.view':                    PUBLIC,
   'POST /api/v1/applications/info-requests/:token  ApplicationInfoRequestsController.answer':                 PUBLIC,
+  // Optional profile picture right after registering (REG-02): the one-time token is the authorization.
+  'PUT /api/v1/auth/register/avatar  RegistrationAvatarController.upload':                                   PUBLIC,
 };

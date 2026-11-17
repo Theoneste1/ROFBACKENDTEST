@@ -30,6 +30,7 @@ import { homePlaceOf, studentDetailAudit, studentDetailColumns, unknownHomeLocat
 import { schoolInactive } from '../schools/school-usage.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import { RegistrationAvatarService } from '../users/registration-avatar.service.js';
 import type { CallerCtx } from '../common/auth-user.js';
 
 export const BCRYPT_COST = 12;
@@ -73,6 +74,7 @@ export class AuthService {
     private readonly affiliations:  SchoolAffiliationService,
     private readonly events:        EventEmitter2,
     private readonly forms:         FormAvailabilityService,
+    private readonly registrationAvatar: RegistrationAvatarService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -227,6 +229,8 @@ export class AuthService {
       requiresEmailVerification: requiresVerification,
       // 'PENDING' when a school claim was created (an Administrator verifies it); null otherwise.
       schoolVerification: student.affiliationId ? ('PENDING' as const) : null,
+      // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes; registration never depends on it.
+      avatarUploadToken: this.registrationAvatar.issue('STUDENT', student.created.id),
     };
   }
 

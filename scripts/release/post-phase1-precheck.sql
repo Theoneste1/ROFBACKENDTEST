@@ -26,7 +26,7 @@ SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'pub
                ('User', 'phone'), ('MentorRequest', 'country'), ('MentorRequest', 'educationLevel'), ('MentorRequest', 'occupation'),
                ('MentorRequest', 'olympiadInterests'),
                ('MentorRequest', 'affiliation'), ('MentorRequest', 'expertise'), ('MentorRequest', 'phone'), ('MentorRequest', 'rejectionReason'),
-               ('MentorRequest', 'relevantExperience'), ('MentorRequest', 'yearsOfExperience'))) AS columns,
+               ('MentorRequest', 'relevantExperience'), ('MentorRequest', 'yearsOfExperience'), ('MentorRequest', 'avatarFileId'))) AS columns,
        (SELECT count(*) FROM pg_trigger WHERE tgname IN ('user_account_status_sync', 'user_bulk_membership_guard')) AS triggers;
 
 \echo '== 3. MUST be present (Phase 1 guards the new triggers work alongside): user_last_super_admin_guard, audit_log_append_only'

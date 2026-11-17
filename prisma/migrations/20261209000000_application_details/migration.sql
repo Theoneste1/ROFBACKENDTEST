@@ -7,11 +7,14 @@
 --   * exactly one of teacherApplicationId / mentorRequestId;
 --   * at most one OPEN request (not answered, not cancelled) per application (partial unique indexes);
 --   * years of experience 0–60.
+-- Also (REG-02, 2026-11-18, before any shared run): an optional profile picture on both applications (avatarFileId,
+-- unique, ON DELETE SET NULL), moved to the account on approval.
 -- Explicit transaction: everything is created together or not at all.
 -- Rollback: docs/migrations/20261209000000_application_details.rollback.sql
 BEGIN;
 -- AlterTable
 ALTER TABLE "MentorRequest" ADD COLUMN     "affiliation" TEXT,
+ADD COLUMN     "avatarFileId" TEXT,
 ADD COLUMN     "expertise" TEXT,
 ADD COLUMN     "phone" TEXT,
 ADD COLUMN     "rejectionReason" TEXT,
@@ -19,7 +22,8 @@ ADD COLUMN     "relevantExperience" TEXT,
 ADD COLUMN     "yearsOfExperience" INTEGER;
 
 -- AlterTable
-ALTER TABLE "TeacherApplication" ADD COLUMN     "position" TEXT,
+ALTER TABLE "TeacherApplication" ADD COLUMN     "avatarFileId" TEXT,
+ADD COLUMN     "position" TEXT,
 ADD COLUMN     "yearsOfExperience" INTEGER;
 
 -- CreateTable
@@ -60,6 +64,12 @@ ALTER TABLE "ApplicationInfoRequest" ADD CONSTRAINT "ApplicationInfoRequest_ment
 -- AddForeignKey
 ALTER TABLE "ApplicationInfoRequest" ADD CONSTRAINT "ApplicationInfoRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+
+-- Profile pictures of applications (REG-02).
+CREATE UNIQUE INDEX "TeacherApplication_avatarFileId_key" ON "TeacherApplication"("avatarFileId");
+CREATE UNIQUE INDEX "MentorRequest_avatarFileId_key" ON "MentorRequest"("avatarFileId");
+ALTER TABLE "TeacherApplication" ADD CONSTRAINT "TeacherApplication_avatarFileId_fkey" FOREIGN KEY ("avatarFileId") REFERENCES "FileObject"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "MentorRequest" ADD CONSTRAINT "MentorRequest_avatarFileId_fkey" FOREIGN KEY ("avatarFileId") REFERENCES "FileObject"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- Rules (see the header).
 ALTER TABLE "ApplicationInfoRequest" ADD CONSTRAINT "ApplicationInfoRequest_one_application_check"
