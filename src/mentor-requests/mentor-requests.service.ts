@@ -21,12 +21,17 @@ import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { canonicalInterests } from '../users/olympiad-interests.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 import { DecisionEvents } from '../decision-notifications/decision-content.js';
+import { ApplicationInfoRequestsService, INFO_REQUEST_SELECT } from '../application-info-requests/application-info-requests.service.js';
+import { normalisePhone } from '../schools/directory/school-contacts.js';
 
 const PUBLIC_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
   status: true, createdAt: true, updatedAt: true,
   // Application details (coachApplicationDetails); NULL / empty on older applications.
   country: true, occupation: true, educationLevel: true, olympiadInterests: true,
+  // REG-06 / REG-10 (2026-11-17)
+  phone: true, affiliation: true, expertise: true, relevantExperience: true, yearsOfExperience: true, rejectionReason: true,
+  infoRequests: { select: INFO_REQUEST_SELECT, orderBy: { requestedAt: 'desc' }, take: 10 },
 } as const;
 
 @Injectable()
@@ -39,6 +44,7 @@ export class MentorRequestsService {
     private readonly settings:   SettingsService,
     private readonly notices:    DecisionNotificationsService,
     private readonly forms:      FormAvailabilityService,
+    private readonly infoRequests: ApplicationInfoRequestsService,
   ) {}
 
   // ─── Submit a mentor application (public) ─────────────────────────────────
@@ -70,6 +76,10 @@ export class MentorRequestsService {
     if (existingUser || pendingTeacherApplication) throw taken();
     if (existingRequest && existingRequest.status !== 'REJECTED') throw taken();
 
+    const phone = data.phone === undefined ? null : normalisePhone(data.phone);
+    if (data.phone !== undefined && !phone) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_PHONE', 'Enter a valid phone number (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere: +country number).');
+    }
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
     const fields = {
       firstName: data.firstName,
@@ -83,6 +93,9 @@ export class MentorRequestsService {
       occupation:        data.occupation ?? null,
       educationLevel:    data.educationLevel ?? null,
       olympiadInterests: canonicalInterests(data.olympiadInterests),
+      phone, affiliation: data.affiliation ?? null, expertise: data.expertise ?? null,
+      relevantExperience: data.relevantExperience ?? null, yearsOfExperience: data.yearsOfExperience ?? null,
+      rejectionReason: null,
     };
 
     const request = existingRequest
@@ -130,6 +143,7 @@ export class MentorRequestsService {
         data:  { status: 'APPROVED', passwordHash: null },
       });
       if (count === 0) throw invalidState('This coach application has already been processed.');
+      await this.infoRequests.cancelOpen(tx, 'COACH', requestId);
 
       const clash = await tx.user.findFirst({
         where:  { OR: [{ username: request.username }, { email: request.email }] },
@@ -187,22 +201,33 @@ export class MentorRequestsService {
   }
 
   // ─── ADMIN: Reject ────────────────────────────────────────────────────────
-  async reject(requestId: string, caller: CallerCtx) {
+  /** Ask the applicant for more information (ADR-009): the application stays PENDING; e-mailed one-time link. */
+  async requestInfo(requestId: string, question: string, caller: CallerCtx) {
+    await this.infoRequests.request('COACH', requestId, question, caller);
+    return this.prisma.mentorRequest.findUniqueOrThrow({ where: { id: requestId }, select: PUBLIC_SELECT });
+  }
+
+  async reject(requestId: string, caller: CallerCtx, reason?: string) {
     const request = await this.requireRequest(requestId);
 
-    const { count } = await this.prisma.mentorRequest.updateMany({
-      where: { id: requestId, status: 'PENDING' },
-      data:  { status: 'REJECTED', passwordHash: null },
+    const count = await this.prisma.$transaction(async (tx) => {
+      const r = await tx.mentorRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        data:  { status: 'REJECTED', passwordHash: null, rejectionReason: reason ?? null },
+      });
+      if (r.count > 0) await this.infoRequests.cancelOpen(tx, 'COACH', requestId);
+      return r.count;
     });
     if (count === 0) throw invalidState('This coach application has already been processed.');
 
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
       action: 'REJECT_MENTOR_REQUEST', entity: 'MentorRequest', entityId: requestId,
+      ...(reason && { metadata: { reason } }),
     });
 
     this.events.emit(Events.MentorRequestDecided, {
-      email: request.email, firstName: request.firstName, approved: false,
+      email: request.email, firstName: request.firstName, approved: false, ...(reason && { reason }),
     });
 
     return { id: requestId, status: 'REJECTED' };

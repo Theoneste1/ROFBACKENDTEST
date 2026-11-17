@@ -347,8 +347,8 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       const one = (await http().get(`${ADMIN_APPS}/${listedId}`).set(bearer(superAdmin)).expect(200)).body;
       expect(Object.keys(one).sort()).toEqual([
         'assignedSchool', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeSector',
-        'id', 'lastName', 'olympiadInterests', 'phone', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
-        'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username',
+        'id', 'infoRequests', 'lastName', 'olympiadInterests', 'phone', 'position', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
+        'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username', 'yearsOfExperience',
       ]);
       expect(one).toMatchObject({
         username: 'tr.approve', phone: '+250788123456', country: 'RW', olympiadInterests: ['MATHEMATICS', 'PHYSICS'], status: 'PENDING',

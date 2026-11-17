@@ -56,4 +56,6 @@ export interface MentorRequestDecidedEvent {
   email:     string;
   firstName: string;
   approved:  boolean;
+  /** A rejection's reason, e-mailed to the applicant (REG-10). */
+  reason?:   string;
 }

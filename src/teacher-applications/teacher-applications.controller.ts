@@ -11,6 +11,7 @@ import {
   ApproveTeacherApplicationDto, ListTeacherApplicationsDto, RegisterTeacherDto, RejectTeacherApplicationDto,
   VerifyTeacherApplicationSchoolDto,
 } from './dto/teacher-application.dto.js';
+import { RequestApplicationInfoDto } from '../application-info-requests/application-info-requests.dto.js';
 
 /** Teacher self-registration (public): availability and the application itself. */
 @ApiTags('Auth')
@@ -71,6 +72,14 @@ export class AdminTeacherApplicationsController {
   @RequirePermission('users.manageTeachers')
   approve(@Param('id', ParseUUIDPipe) id: string, @Body() body: ApproveTeacherApplicationDto, @CurrentUser() user: AuthUser) {
     return this.service.approve(id, body, user);
+  }
+
+  /** Ask the applicant for more information (ADR-009); the application stays PENDING. 409 when already decided. */
+  @Post(':id/request-info')
+  @HttpCode(200)
+  @RequirePermission('users.manageTeachers')
+  requestInfo(@Param('id', ParseUUIDPipe) id: string, @Body() body: RequestApplicationInfoDto, @CurrentUser() user: AuthUser) {
+    return this.service.requestInfo(id, body.question, user);
   }
 
   @Post(':id/reject')

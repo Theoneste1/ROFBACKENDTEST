@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'bulkUserOperations', 'coachApplicationDetails', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'bulkUserOperations', 'coachApplicationDetails', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -21,6 +21,7 @@ const ALWAYS = ['academicYearActivation', 'accountStates', 'bulkUserOperations',
 const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>> = {
   academicYearActivation:  'always',   // appended 2026-11-13: single-flight, retry-safe year start
   coachApplicationDetails: 'always',   // appended 2026-11-15: coach application country, occupation, education, interests
+  applicationDetails:      'always',   // appended 2026-11-17: teacher position / experience, coach phone / affiliation / expertise / experience, request more information
   formAvailability:        'always',   // appended 2026-11-15: form availability (open, close, schedule, closed messages)
   headCoachAccounts:       'HEAD_COACH',
   notificationDeliveries:  'always',   // appended 2026-11-14: decision-notification delivery log (owner approval pending)

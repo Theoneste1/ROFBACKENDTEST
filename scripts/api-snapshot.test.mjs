@@ -218,7 +218,9 @@ const BULK_OPERATIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-bulk-ope
 const FORM_AVAILABILITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-form-availability.json';
 /** Notification switches for Head Coaches (2026-11-17): HEAD_COACH on the three /me/notification-settings routes; nothing else. */
 const ROLE_NOTIFICATION_SETTINGS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-role-notification-settings.json';
-const CURRENT_SNAPSHOT = ROLE_NOTIFICATION_SETTINGS_SNAPSHOT;
+/** Application details and request more information (2026-11-17, ADR-009): additive only. */
+const APPLICATION_DETAILS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-application-details.json';
+const CURRENT_SNAPSHOT = APPLICATION_DETAILS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1141,6 +1143,31 @@ describe('approved API contract history', () => {
       'GET /api/v1/me/notification-settings: roles added: HEAD_COACH',
       'PATCH /api/v1/me/notification-settings: roles added: HEAD_COACH',
       'POST /api/v1/me/notification-settings/reset: roles added: HEAD_COACH',
+    ]);
+  });
+
+  test('Head Coach notification switches → application details and request more information: additive only', () => {
+    for (const f of [ROLE_NOTIFICATION_SETTINGS_SNAPSHOT, APPLICATION_DETAILS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(ROLE_NOTIFICATION_SETTINGS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(APPLICATION_DETAILS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/applications/info-requests/{token}: operation added',
+      'PATCH /api/v1/mentor-requests/{id}/reject: optional request body added',
+      'POST /api/v1/admin/teacher-applications/{id}/request-info: operation added',
+      'POST /api/v1/applications/info-requests/{token}: operation added',
+      'POST /api/v1/auth/register/teacher › request application/json.position: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.yearsOfExperience: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.affiliation: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.expertise: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.phone: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.relevantExperience: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.yearsOfExperience: new optional field',
+      'POST /api/v1/mentor-requests/{id}/request-info: operation added',
+      'schema AnswerInfoRequestDto: added',
+      'schema RejectMentorRequestDto: added',
+      'schema RequestApplicationInfoDto: added',
     ]);
   });
 

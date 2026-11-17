@@ -105,6 +105,17 @@ export const FEATURES = {
    */
   coachApplicationDetails: 'always',
   /**
+   * Application details and "request more information" (2026-11-17; ADR-009): POST /auth/register/teacher accepts
+   * `position` and `yearsOfExperience`; POST /mentor-requests accepts `phone`, `affiliation`, `expertise`,
+   * `relevantExperience` and `yearsOfExperience`; PATCH /mentor-requests/:id/reject takes an optional `reason`
+   * (e-mailed, like a Teacher rejection's); Administrators ask a question with POST
+   * /admin/teacher-applications/:id/request-info or POST /mentor-requests/:id/request-info (the application stays
+   * PENDING; `infoRequests` on the application lists the questions and answers); the applicant answers through
+   * GET / POST /applications/info-requests/:token (410 INFO_REQUEST_LINK_INVALID once used, expired or decided).
+   * Without this feature the new fields are refused (400) and the routes do not exist (404).
+   */
+  applicationDetails: 'always',
+  /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing
    * TEACHER accounts may still exist and use their portal.

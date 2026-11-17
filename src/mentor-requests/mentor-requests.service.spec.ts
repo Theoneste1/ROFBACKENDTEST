@@ -42,7 +42,8 @@ function makeMocks() {
   const settings = { get: vi.fn().mockResolvedValue(false) }; // e-mail verification off
   const notices = { enqueue: vi.fn().mockResolvedValue('outbox-1'), dispatchAfterCommit: vi.fn() };
   const forms = { assertOpen: vi.fn().mockResolvedValue(undefined) };   // the COACH_APPLICATION form is open
-  const service = new MentorRequestsService(prisma as any, audit as any, events as any, activation as any, settings as any, notices as any, forms as any);
+  const infoRequests = { cancelOpen: vi.fn().mockResolvedValue(undefined), request: vi.fn() };
+  const service = new MentorRequestsService(prisma as any, audit as any, events as any, activation as any, settings as any, notices as any, forms as any, infoRequests as any);
   return { service, prisma, audit, events, activation, settings, notices, forms };
 }
 

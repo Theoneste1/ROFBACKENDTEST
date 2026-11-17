@@ -1,5 +1,5 @@
 import {
-  ArrayNotEmpty,
+  IsInt, Max, Min, ArrayNotEmpty,
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -90,6 +90,16 @@ export class RegisterTeacherDto {
   @ValidateIf((o: RegisterTeacherDto) => o.proposedSchoolName !== undefined || o.schoolSector !== undefined)
   @IsString() @Length(1, 100) @Transform(trim)
   schoolSector?: string;
+
+  /** Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients. */
+  @IsOptional()
+  @IsString() @Length(2, 100) @Transform(trim)
+  position?: string;
+
+  /** Years of teaching experience, 0–60 (REG-05). Optional. */
+  @IsOptional()
+  @IsInt() @Min(0) @Max(60)
+  yearsOfExperience?: number;
 
   @IsString() @Length(1, 100) @Transform(trim)
   homeDistrict: string;

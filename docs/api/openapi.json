@@ -34154,6 +34154,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectMentorRequestDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success. Shape recorded from the end-to-end tests.",
@@ -34177,6 +34187,55 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Mentor requests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "mentorRequests.decide",
+        "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/mentor-requests/{id}/request-info": {
+      "post": {
+        "operationId": "MentorRequestsController_requestInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestApplicationInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
           },
           "default": {
             "description": "Error",
@@ -35310,6 +35369,61 @@
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/teacher-applications/{id}/request-info": {
+      "post": {
+        "operationId": "AdminTeacherApplicationsController_requestInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestApplicationInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ask the applicant for more information (ADR-009); the application stays PENDING. 409 when already decided.",
+        "tags": [
+          "Teacher applications"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/teacher-applications/{id}/reject": {
       "post": {
         "operationId": "AdminTeacherApplicationsController_reject",
@@ -35525,6 +35639,92 @@
         ],
         "x-permission": "users.manageTeachers",
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/applications/info-requests/{token}": {
+      "get": {
+        "operationId": "ApplicationInfoRequestsController_view",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The question, the application kind, and the details the applicant may correct with their current values.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      },
+      "post": {
+        "operationId": "ApplicationInfoRequestsController_answer",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerInfoRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Answer once (and optionally correct details); the administrators are told.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
       }
     },
     "/api/v1/admin/notification-deliveries": {
@@ -47066,6 +47266,36 @@
                 "PHYSICS"
               ]
             }
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone, stored in E.164 (else 400 INVALID_PHONE). REG-06.",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "affiliation": {
+            "type": "string",
+            "description": "Institution or affiliation, where applicable (2–200).",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "expertise": {
+            "type": "string",
+            "description": "Areas of expertise (2–1000).",
+            "minLength": 2,
+            "maxLength": 1000
+          },
+          "relevantExperience": {
+            "type": "string",
+            "description": "Relevant experience, e.g. Olympiad coaching, teaching, competitions (2–2000).",
+            "minLength": 2,
+            "maxLength": 2000
+          },
+          "yearsOfExperience": {
+            "type": "number",
+            "description": "Years of relevant experience, 0–60.",
+            "minimum": 0,
+            "maximum": 60
           }
         },
         "required": [
@@ -47074,6 +47304,30 @@
           "username",
           "email",
           "password"
+        ]
+      },
+      "RejectMentorRequestDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 500
+          }
+        }
+      },
+      "RequestApplicationInfoDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The question shown to the applicant (5–2000 characters).",
+            "minLength": 5,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "question"
         ]
       },
       "RegisterTeacherDto": {
@@ -47157,6 +47411,18 @@
             "minLength": 1,
             "maxLength": 100
           },
+          "position": {
+            "type": "string",
+            "description": "Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients.",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "yearsOfExperience": {
+            "type": "number",
+            "description": "Years of teaching experience, 0–60 (REG-05). Optional.",
+            "minimum": 0,
+            "maximum": 60
+          },
           "homeDistrict": {
             "type": "string",
             "minLength": 1,
@@ -47226,6 +47492,54 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "AnswerInfoRequestDto": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "position": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "yearsOfExperience": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60
+          },
+          "affiliation": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "expertise": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 1000
+          },
+          "relevantExperience": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2000
+          },
+          "occupation": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "answer"
         ]
       },
       "SendEmailDto": {

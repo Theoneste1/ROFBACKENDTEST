@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -9,10 +10,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 
 import { MentorRequestsService } from './mentor-requests.service.js';
-import { CreateMentorRequestDto, ListMentorRequestsDto } from './dto/create-mentor-request.dto.js';
+import { CreateMentorRequestDto, ListMentorRequestsDto, RejectMentorRequestDto } from './dto/create-mentor-request.dto.js';
+import { RequestApplicationInfoDto } from '../application-info-requests/application-info-requests.dto.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -48,7 +50,17 @@ export class MentorRequestsController {
   // ─── ADMIN: reject ─────────────────────────────────────────────────────────
   @Patch(':id/reject')
   @RequirePermission('mentorRequests.decide')
-  reject(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.mentorRequestsService.reject(id, user);
+  // The body is optional: older clients send none (no reason).
+  @ApiBody({ type: RejectMentorRequestDto, required: false })
+  reject(@Param('id', ParseUUIDPipe) id: string, @Body() body: RejectMentorRequestDto, @CurrentUser() user: AuthUser) {
+    return this.mentorRequestsService.reject(id, user, body?.reason);
+  }
+
+  // ─── ADMIN: request more information (ADR-009); the application stays PENDING ───
+  @Post(':id/request-info')
+  @HttpCode(200)
+  @RequirePermission('mentorRequests.decide')
+  requestInfo(@Param('id', ParseUUIDPipe) id: string, @Body() body: RequestApplicationInfoDto, @CurrentUser() user: AuthUser) {
+    return this.mentorRequestsService.requestInfo(id, body.question, user);
   }
 }
