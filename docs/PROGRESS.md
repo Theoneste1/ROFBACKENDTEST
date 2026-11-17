@@ -43,12 +43,19 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 - 2026-11-17 Owner request: sidebar "More" menu in every portal (frontend `feat/sidebar-more-menu` 2c36727, 33b3a5a, 4c8a511); browser-verified (see W0).
 - 2026-11-17 W0 started: frontend `test/e2e-playwright` 212dc96 (Playwright 1.59.1, real backend + PostgreSQL, local-only DB guard); sidebar specs desktop + phone: 8 passed on the integrated stack.
 
+- 2026-11-18 ACC-02 IMPLEMENTED + unit-tested: user page shows DOB (age), phone, close-family phone, home country / place
+  (frontend `feat/admin-user-details` a43563f, local). Browser test pending (W0).
+- 2026-11-18 REG-02 IMPLEMENTED + TESTED: optional picture at registration for students / teachers / coaches via a one-time
+  30-min token (PUT /auth/register/avatar); carried to the account on approval; orphan cleanup keeps application pictures.
+  Backend `feat/applications-complete` 4b7450f (e2e 6 cases, unit token 3; DEFECT FIXED: import cycle crashed the built
+  server). Frontend `feat/applications-complete` f6723e4 (unit 4). Capability `registrationAvatar` to add in backend.
+
 ## Outstanding — approved, to implement (in this order)
 
 1. [x] INT-07 Teachers on the school page (backend list by school if missing + frontend tab; contact data restricted).
 2. [x] ACC-16 / SEC-03 guardian / student phone masking for readers without users.manageStudents in scope.
 3. [ ] REG-13 registration timeline on the user page (application, decision, activation, state changes, claims).
-4. [ ] REG-02 profile picture during registration — AGREED: OPTIONAL, never mandatory (all roles); registration and activation
+4. [x] REG-02 profile picture during registration — AGREED: OPTIONAL, never mandatory (all roles); registration and activation
    must work without it; valid upload accepted; invalid files rejected; manage later in profile.
 5. [ ] AUD-02 before / after values on the remaining audited actions (inventory first).
 6. [~] W0 Playwright (infrastructure + sidebar done). NEXT: specs per role — student registration (DOB required) + profile;
@@ -56,7 +63,7 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
    reason; head coach programme / invitation / notification settings; admin forms, bulk preview, account history, school
    teachers tab; super admin permissions boundary. E-mails: read the EmailDelivery rows from the test DB (dry-run mail). browser e2e, seven roles, frontend + backend + PostgreSQL (no mocked API for main flows).
 7. [ ] S3 tests: assess the 6 skipped (need S3-compatible server); run with a local S3 server if possible, else document.
-8. [ ] ACC-02 administrator user page: show the student's date of birth, phones, home place (backend returns them to users.manage).
+8. [x] ACC-02 administrator user page: show the student's date of birth, phones, home place (backend returns them to users.manage).
 9. [ ] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
 10. [ ] Authoritative requirements matrix v2 (all columns the owner listed), design proposals v2 (11 sections each).
 
