@@ -3910,7 +3910,7 @@ Returns `200` JSON, an array of objects with:
 
 ### GET `/api/v1/me/notification-settings`
 
-**Access:** ADMIN, MENTOR, SUPER_ADMIN
+**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN
 
 Returns `200` JSON with:
 
@@ -3918,7 +3918,7 @@ Returns `200` JSON with:
 
 ### PATCH `/api/v1/me/notification-settings`
 
-**Access:** ADMIN, MENTOR, SUPER_ADMIN
+**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN
 
 Turn notifications on or off; only the switches you send change.
 
@@ -3928,7 +3928,7 @@ Returns `200` JSON with:
 
 ### POST `/api/v1/me/notification-settings/reset`
 
-**Access:** ADMIN, MENTOR, SUPER_ADMIN
+**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN
 
 Back to the defaults: every notification on.
 

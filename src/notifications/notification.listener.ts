@@ -7,6 +7,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
+import { COURSE_WORK_ROLES } from '../common/access/roles.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from './notifications.service.js';
 import {
@@ -286,7 +287,7 @@ export class NotificationListener {
       if (!t) return;
       const courseId = t.courseId ?? t.assignment!.courseId;
       const mentors = await this.prisma.mentorAssignment.findMany({
-        where:  { courseId, divisionId: t.divisionId, isActive: true, mentor: { isActive: true, role: 'MENTOR' } },
+        where:  { courseId, divisionId: t.divisionId, isActive: true, mentor: { isActive: true, role: { in: [...COURSE_WORK_ROLES] } } },
         select: { mentorId: true },
       });
       const where = t.assignment ? `the assignment "${t.assignment.title}"` : t.course!.title;
