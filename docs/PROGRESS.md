@@ -66,6 +66,15 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
   (S3_TEST_ENDPOINT). This machine has neither Docker nor Java; installing either was not done without approval. They run
   in CI when the backend PRs are opened. Not weakened, not removed.
 - 2026-11-18 Teacher–student access (TS-1…TS-6) TESTED (see the section below).
+- 2026-11-18 Playwright role journeys VERIFIED (`test/e2e-playwright` e5390a4): every role lands on its portal, its pages load,
+  another portal is refused; Student profile DOB; Admin user page DOB / close-family phone (ACC-02) and Registration history
+  (REG-13); Super Admin permission overrides card — 7 passed. Teacher–student browser flow 4 passed; sidebar 8 passed.
+- 2026-11-18 Permission sweep VERIFIED: `src/auth/role-route-sweep.spec.ts` (backend `feat/teacher-student-access`) — real guard
+  chain × 7 callers × 315 registered routes; invariants hold; reviewed lists: 15 Head Coach /admin routes (programme-scoped),
+  2 teacher routes Head Coaches pass the guard for (service refuses). Matrix: `docs/ROLE-ROUTE-MATRIX.md` (cd8f9e9).
+- 2026-11-18 Requirements matrix v2 (`docs/REQUIREMENTS-MATRIX-V2.md`, dd8a606): 102 requirements — 45 complete and verified,
+  10 implemented not fully tested, 15 partial, 0 missing, 29 awaiting design approval, 1 deferred, 2 blocked (external).
+- 2026-11-18 Frontend bulk page: teacher–student bulk actions (`feat/admin-bulk-user-operations` d548de3; unit 366/366).
 
 ## Outstanding — approved, to implement (in this order)
 
@@ -81,8 +90,8 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
    teachers tab; super admin permissions boundary. E-mails: read the EmailDelivery rows from the test DB (dry-run mail). browser e2e, seven roles, frontend + backend + PostgreSQL (no mocked API for main flows).
 7. [!] S3 tests (BLOCKED locally — runs in CI): assess the 6 skipped (need S3-compatible server); run with a local S3 server if possible, else document.
 8. [x] ACC-02 administrator user page: show the student's date of birth, phones, home place (backend returns them to users.manage).
-9. [ ] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
-10. [ ] Authoritative requirements matrix v2 (all columns the owner listed), design proposals v2 (11 sections each).
+9. [x] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
+10. [~] Authoritative requirements matrix v2 (done); design proposals v2 (in progress) (all columns the owner listed), design proposals v2 (11 sections each).
 
 ## Notes for the next session
 
