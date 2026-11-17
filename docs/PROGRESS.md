@@ -48,15 +48,17 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 1. [x] INT-07 Teachers on the school page (backend list by school if missing + frontend tab; contact data restricted).
 2. [x] ACC-16 / SEC-03 guardian / student phone masking for readers without users.manageStudents in scope.
 3. [ ] REG-13 registration timeline on the user page (application, decision, activation, state changes, claims).
-4. [ ] REG-02 profile picture during registration (after the account exists: activation / first sign-in step).
+4. [ ] REG-02 profile picture during registration — AGREED: OPTIONAL, never mandatory (all roles); registration and activation
+   must work without it; valid upload accepted; invalid files rejected; manage later in profile.
 5. [ ] AUD-02 before / after values on the remaining audited actions (inventory first).
 6. [~] W0 Playwright (infrastructure + sidebar done). NEXT: specs per role — student registration (DOB required) + profile;
    teacher application → request info → answer page → approve → activation → teacher portal; coach application → reject with
    reason; head coach programme / invitation / notification settings; admin forms, bulk preview, account history, school
    teachers tab; super admin permissions boundary. E-mails: read the EmailDelivery rows from the test DB (dry-run mail). browser e2e, seven roles, frontend + backend + PostgreSQL (no mocked API for main flows).
 7. [ ] S3 tests: assess the 6 skipped (need S3-compatible server); run with a local S3 server if possible, else document.
-8. [ ] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
-9. [ ] Authoritative requirements matrix v2 (all columns the owner listed), design proposals v2 (11 sections each).
+8. [ ] ACC-02 administrator user page: show the student's date of birth, phones, home place (backend returns them to users.manage).
+9. [ ] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
+10. [ ] Authoritative requirements matrix v2 (all columns the owner listed), design proposals v2 (11 sections each).
 
 ## Notes for the next session
 
@@ -64,6 +66,13 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
   TEACHERS/HEAD_COACHES_ENABLED=true); frontend fe-hist `next start -p 3100` built with API_PROXY_TARGET=http://127.0.0.1:4100;
   `E2E_DATABASE_URL=postgresql://rof@127.0.0.1:55432/rof_play E2E_ADMIN_PASSWORD=E2e-Admin-2026! npx playwright test` in fe-e2e.
 - The backend allows 10 sign-ins per minute per address (not weakened): one sign-in per role per test file; leave a minute between full runs.
+
+## New feature (owner request 2026-11-17, Part B) — Teacher–student association, delegated submission, bulk access
+
+- Status: architecture reviewed; plan `docs/TEACHER-STUDENT-ACCESS-PLAN.md` (a9eaabd). Not started in code.
+- Awaiting owner: TS-1 (automatic visibility: verified claims only vs all who registered with the school code — conflicts
+  with the earlier rule), TS-2…TS-6 (recommendations in the plan).
+- Next: migration + scope rules + admin API (parts independent of TS-1), then UI, then Playwright scenarios 1–20.
 
 ## Owner decisions recorded
 
