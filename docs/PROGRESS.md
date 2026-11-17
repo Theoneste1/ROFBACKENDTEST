@@ -48,13 +48,17 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 - 2026-11-18 REG-02 IMPLEMENTED + TESTED: optional picture at registration for students / teachers / coaches via a one-time
   30-min token (PUT /auth/register/avatar); carried to the account on approval; orphan cleanup keeps application pictures.
   Backend `feat/applications-complete` 4b7450f (e2e 6 cases, unit token 3; DEFECT FIXED: import cycle crashed the built
-  server). Frontend `feat/applications-complete` f6723e4 (unit 4). Capability `registrationAvatar` to add in backend.
+  server). Frontend `feat/applications-complete` f6723e4 (unit 4). Capability `registrationAvatar` added (dd58aae).
+- 2026-11-18 REG-13 TESTED: registration timeline GET /admin/users/:id/registration-timeline (users.manage): stages + events
+  oldest first from AuditLog / application / claims, safe details only (backend `feat/applications-complete` 117be91: e2e 3,
+  unit 1146/1146, routes 305/305, snapshot 1 additive). Frontend "Registration history" card (`feat/admin-user-details` 4bad525,
+  unit 3, 360/360). Browser test pending (W0).
 
 ## Outstanding — approved, to implement (in this order)
 
 1. [x] INT-07 Teachers on the school page (backend list by school if missing + frontend tab; contact data restricted).
 2. [x] ACC-16 / SEC-03 guardian / student phone masking for readers without users.manageStudents in scope.
-3. [ ] REG-13 registration timeline on the user page (application, decision, activation, state changes, claims).
+3. [x] REG-13 registration timeline on the user page (application, decision, activation, state changes, claims).
 4. [x] REG-02 profile picture during registration — AGREED: OPTIONAL, never mandatory (all roles); registration and activation
    must work without it; valid upload accepted; invalid files rejected; manage later in profile.
 5. [ ] AUD-02 before / after values on the remaining audited actions (inventory first).
