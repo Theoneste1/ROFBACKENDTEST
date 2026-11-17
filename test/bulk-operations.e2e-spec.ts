@@ -142,6 +142,17 @@ describe('Bulk user operations', () => {
     expect(await p().userStatusChange.count({ where: { operationId: first.body.operation.id } })).toBe(12);
   });
 
+  it('an operation left RUNNING with every item processed (its finishing step failed) is finished by the next tick', async () => {
+    const done = await p().bulkOperation.findFirstOrThrow({ where: { status: { in: ['COMPLETED', 'COMPLETED_WITH_FAILURES'] } }, orderBy: { createdAt: 'desc' } });
+    await p().bulkOperation.update({ where: { id: done.id }, data: { status: 'RUNNING', finishedAt: null } });
+    expect(await worker.processBatch()).toBe(0);   // nothing to claim: before the fix it stayed RUNNING forever
+    expect(await worker.finishStale()).toBeGreaterThanOrEqual(1);
+    const after = await p().bulkOperation.findUniqueOrThrow({ where: { id: done.id } });
+    expect(after.status).toBe(done.status);
+    expect(after.finishedAt).not.toBeNull();
+    expect(await worker.finishStale()).toBe(0);
+  });
+
   it('two workers at once never process an account twice (real concurrent connections)', async () => {
     const ids = await makeUsers('race', 450);
     const { res } = await run('archive', { mode: 'filter', filter: { search: 'race' } }, { reason: 'Concurrency test' });
@@ -155,6 +166,8 @@ describe('Bulk user operations', () => {
     expect(perUser.every((g) => g._count._all === 1)).toBe(true);
     expect(await p().user.count({ where: { id: { in: ids }, accountStatus: 'ARCHIVED' } })).toBe(450);
     expect(await p().auditLog.count({ where: { action: 'BULK_OPERATION_FINISHED', entityId: opId } })).toBe(1);
+    // Finished exactly once (the finishing step waits for the operation row instead of expiring).
+    expect((await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } })).status).toMatch(/^COMPLETED/);
   });
 
   it('partial failures are reported separately: a Super Admin (role policy), yourself (skipped), others succeed', async () => {

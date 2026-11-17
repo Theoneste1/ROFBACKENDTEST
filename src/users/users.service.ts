@@ -7,6 +7,7 @@ import { DivisionsService } from '../divisions/divisions.service.js';
 import { TokenService } from '../auth/token.service.js';
 import { AccountEmailsService } from '../notifications/account-emails.service.js';
 import { BCRYPT_COST, PROFILE_SELECT } from '../auth/auth.service.js';
+import { maskContacts } from './contact-masking.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
@@ -94,7 +95,8 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    return paginated(users, total, page, limit);
+    // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
+    return paginated(users.map(maskContacts), total, page, limit);
   }
 
 

@@ -70,6 +70,11 @@ export class BulkOperationsWorker {
       while (Date.now() < until && (await this.processBatch()) > 0) { /* next batch */ }
     } catch (err) {
       this.logger.error(`Bulk operations batch failed: ${(err as Error).message}`);
+    }
+    try {
+      await this.finishStale();
+    } catch (err) {
+      this.logger.error(`Bulk operations finishing sweep failed: ${(err as Error).message}`);
     } finally {
       this.running = false;
     }
@@ -246,6 +251,20 @@ export class BulkOperationsWorker {
     return { id: u.id, username: u.username, role: u.role, divisionId: u.divisionId, gradeLevel: u.gradeLevel, overrides: u.permissionOverrides } as AuthUser;
   }
 
+  /**
+   * Operations still RUNNING / CANCELLING with nothing PENDING or PROCESSING: finish them. Normally finishIfDone does
+   * it after the last batch; if that failed (e.g. a lock wait while another worker held the operation row), no item
+   * is left to claim and nothing else would ever finish the operation — this sweep, run on every tick, does.
+   */
+  async finishStale(): Promise<number> {
+    const stale = await this.prisma.bulkOperation.findMany({
+      where: { status: { in: ['RUNNING', 'CANCELLING'] }, items: { none: { outcome: { in: ['PENDING', 'PROCESSING'] } } } },
+      select: { id: true }, take: 50,
+    });
+    for (const op of stale) await this.finishIfDone(op.id);
+    return stale.length;
+  }
+
   /** Recomputes the counters; when nothing is pending or processing, ends the operation exactly once. */
   async finishIfDone(opId: string) {
     await this.prisma.$transaction(async (tx) => {
@@ -266,7 +285,7 @@ export class BulkOperationsWorker {
         actorId: op.actorId, actorRole: op.actorRole, action: 'BULK_OPERATION_FINISHED', entity: 'BulkOperation', entityId: opId,
         metadata: { action: op.action, status, total: op.total, succeeded: c.succeeded, failed: c.failed, skipped: c.skipped },
       }, tx);
-    });
+    }, { timeout: 60_000, maxWait: 30_000 });   // waits for the operation row like an item transaction
   }
 }
 
