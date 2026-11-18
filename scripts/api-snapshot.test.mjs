@@ -226,7 +226,12 @@ const STUDENT_DOB_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-student-date
 const REGISTRATION_AVATAR_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-avatar.json';
 /** Registration timeline (REG-13, 2026-11-18): one administrators' read operation. */
 const REGISTRATION_TIMELINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-timeline.json';
-const CURRENT_SNAPSHOT = REGISTRATION_TIMELINE_SNAPSHOT;
+/**
+ * Owner decisions 9.2 / 9.3 (2026-11-18): guardianPhone required at student self-registration (one approved breaking
+ * change); PUT /me/date-of-birth (first-sign-in date of birth); /me/avatar responses documented as the profile.
+ */
+const APPROVED_DECISIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-approved-decisions.json';
+const CURRENT_SNAPSHOT = APPROVED_DECISIONS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1199,6 +1204,20 @@ describe('approved API contract history', () => {
     for (const f of [REGISTRATION_AVATAR_SNAPSHOT, REGISTRATION_TIMELINE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(REGISTRATION_AVATAR_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')));
     assert.deepEqual([res.breaking, res.review, res.additive], [[], [], ['GET /api/v1/admin/users/{id}/registration-timeline: operation added']]);
+  });
+
+  test('registration timeline → approved decisions 9.2 / 9.3: exactly one approved breaking change (guardian phone), the date-of-birth step, avatar response bodies', () => {
+    for (const f of [REGISTRATION_TIMELINE_SNAPSHOT, APPROVED_DECISIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['POST /api/v1/auth/register/student › request application/json.guardianPhone: field is now required']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'DELETE /api/v1/me/avatar: response 200 body added',
+      'PUT /api/v1/me/avatar: response 200 body added',
+      'PUT /api/v1/me/date-of-birth: operation added',
+      'schema SetDateOfBirthDto: added',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {
