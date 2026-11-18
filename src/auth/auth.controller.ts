@@ -11,7 +11,8 @@ import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
-import { refreshTracker } from '../common/rate-limit.js';
+import { ipTracker, refreshTracker } from '../common/rate-limit.js';
+import { LOGIN_PER_ADDRESS_PER_MINUTE } from './login-limiter.js';
 
 import { AuthService } from './auth.service.js';
 import { ActivationService } from './activation.service.js';
@@ -73,7 +74,9 @@ export class AuthController {
    * is also set as an httpOnly cookie for browser clients.
    */
   @Public()
-  @Throttle(CREDENTIAL_LIMIT)
+  // Per address: 60 a minute (owner approval 2026-11-18); per username 5 a minute / 20 an hour and the lock scoped to
+  // username + address are in AuthService (LoginLimiter).
+  @Throttle({ default: { limit: LOGIN_PER_ADDRESS_PER_MINUTE, ttl: 60_000, getTracker: ipTracker } })
   @HttpCode(200)
   @Post('login')
   async login(

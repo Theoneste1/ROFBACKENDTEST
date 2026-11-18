@@ -119,14 +119,23 @@ invited, and `?dryRun=true` validates without creating anything.
 
 **Passwords.** bcrypt cost 12; login timing is equalised for unknown users;
 account state (suspended/pending) is only revealed after a correct password;
-credential endpoints are rate-limited per IP. Five wrong passwords in a row
-lock the account for 15 minutes whatever the source address (answered exactly
-like a wrong password; audited as `LOCK_ACCOUNT`). Each attempt is reserved
-under the user's row lock *before* the password is checked, so concurrent
-guesses cannot all be evaluated against a stale "not locked" read: at most five
-guesses are ever checked before the lock, however many arrive at once. The row
-lock is held only for that short transaction, not during bcrypt. A correct
-password never counts towards the lockout. An administrator's change of a user's
+credential endpoints are rate-limited per IP. Sign-in (owner approval
+2026-11-18, `src/auth/login-limiter.ts`): at most 5 attempts a minute and 20 an
+hour per normalised username (trimmed, lower-case) from any address, and 60 a
+minute per address; above either the answer is 429 with `retryAfter`. Five
+wrong passwords in a row for one username from one address lock that username
+*for that address only* for 15 minutes (answered exactly like a wrong
+password, the right password included; audited as `LOCK_ACCOUNT` with
+`scope: ADDRESS` and the address), so an attacker cannot lock a student out
+everywhere. An address the account signed in from successfully in the last 30
+days is not held by the per-username windows (its own lock still applies).
+Unknown usernames are counted, limited and locked exactly like real ones. Each
+attempt is decided and recorded synchronously before the password is checked,
+so concurrent guesses cannot pass a stale check. A correct password clears that
+address's failures; a password reset clears every lock of the account. The
+store is in memory (one backend instance); several instances would need a
+shared store. A `User.lockedUntil` set by the earlier release is still honoured
+until it expires. An administrator's change of a user's
 e-mail address revokes the activation and reset links still open for the old
 address (`UPDATE_USER` audit: `linksRevoked`). Issuing a password-reset
 link retires earlier unused ones, and one-time links are not kept in the

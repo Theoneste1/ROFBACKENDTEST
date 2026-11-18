@@ -46,9 +46,12 @@ flowchart LR
 - Suspending an account, changing its role, or a password change/reset ends
   every session immediately: refresh tokens are revoked and earlier access
   tokens are refused.
-- Five wrong passwords in a row lock an account for 15 minutes from every
-  address, also when they arrive at the same moment (each attempt is counted
-  before its password is checked). The response never reveals the lock.
+- Sign-in is limited to 5 attempts a minute and 20 an hour per username, and
+  60 a minute per address (429 above). Five wrong passwords in a row from one
+  address lock that username for 15 minutes *from that address only*, also
+  when they arrive at the same moment; the student can still sign in from
+  school or home. The response never reveals the lock, and unknown usernames
+  get the same answers.
 
 ## 2. Academic year
 

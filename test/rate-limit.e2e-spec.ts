@@ -4,13 +4,14 @@
  * Every request in this file comes from the same address (127.0.0.1) — a school computer lab. Before: 120 API
  * requests and 30 session refreshes a minute for the whole address. Now: a signed-in user has their own budget, a
  * refresh counts against its token, and a per-address ceiling still bounds the address. Tokens are issued directly
- * (TokenService) so the sign-in limit (10 a minute per address, unchanged) is not involved.
+ * (TokenService) so the sign-in limits are not involved there; sign-in has its own block at the end.
  */
 process.env.THROTTLE_DISABLED = 'false';   // this file only: the limits are what is tested
 
 import { TokenService } from '../src/auth/token.service.js';
 import { REFRESH_IP_LIMIT } from '../src/auth/auth.controller.js';
-import { createTestApp, type TestContext } from './helpers.js';
+import { LOGIN_PER_ADDRESS_PER_MINUTE } from '../src/auth/login-limiter.js';
+import { createTestApp, PASSWORD, type TestContext } from './helpers.js';
 
 describe('Rate limits for a shared school connection (e2e, throttling on)', () => {
   let ctx: TestContext;
@@ -77,5 +78,59 @@ describe('Rate limits for a shared school connection (e2e, throttling on)', () =
     }
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThan(0);   // the address ceiling
     expect(statuses.filter((s) => s === 200)).toEqual([]);                  // never a session
+  });
+
+  describe('sign-in (owner approval 2026-11-18): 5/min and 20/h per username, 60/min per address, lock per username + address', () => {
+    // As production (TRUST_PROXY=1): X-Forwarded-For stands for the client address. Requests above send none (127.0.0.1).
+    beforeAll(() => { ctx.app.getHttpAdapter().getInstance().set('trust proxy', 1); });
+    const LAB = '192.0.2.40';
+    const login = (username: string, password: string, from: string) =>
+      http().post('/api/v1/auth/login').set('X-Forwarded-For', from).send({ username, password });
+
+    it('a class of 40 signs in from one school address: nobody is refused (the old limit was 10 a minute)', async () => {
+      const statuses: number[] = [];
+      for (let i = 0; i < 40; i++) statuses.push((await login(`lab.s${i}`, PASSWORD, LAB)).status);
+      expect(statuses.filter((s) => s !== 200)).toEqual([]);
+    });
+
+    it('guesses for one student from several addresses: the 6th attempt in the minute is refused; the school address the student used before is not held', async () => {
+      // Every attempt counts, successful ones included: lab.s1 signed in once above, so 4 guesses fill the minute.
+      for (let i = 1; i <= 4; i++) {
+        const r = await login('lab.s1', `guess-${i}`, `198.51.100.${i}`);
+        expect(r.status).toBe(401);
+        expect(r.body.message).toBe('Invalid username or password.');
+      }
+      const sixth = await login('lab.s1', 'guess-5', '198.51.100.5');
+      expect(sixth.status).toBe(429);
+      expect(sixth.body.code).toBe('TOO_MANY_REQUESTS');
+      // The right password from an address the student never used waits too (the username window is full)…
+      expect((await login('lab.s1', PASSWORD, '198.51.100.99')).status).toBe(429);
+      // …but the school address the student signed in from earlier is not held by the attacker's attempts.
+      await login('lab.s1', PASSWORD, LAB).expect(200);
+    });
+
+    it('an unknown username gets exactly the same answers as a real one', async () => {
+      const bodies: { status: number; code?: string; message: string }[] = [];
+      for (let i = 1; i <= 6; i++) {
+        const r = await login('nobody.at.all', `guess-${i}`, `198.51.101.${i}`);
+        bodies.push({ status: r.status, code: r.body.code, message: r.body.message });
+      }
+      const real: typeof bodies = [];
+      for (let i = 1; i <= 6; i++) {
+        const r = await login('mentor.j2', `guess-${i}`, `198.51.102.${i}`);   // a real account not used above
+        real.push({ status: r.status, code: r.body.code, message: r.body.message });
+      }
+      expect(bodies).toEqual(real);
+      expect(bodies.map((b) => b.status)).toEqual([401, 401, 401, 401, 401, 429]);
+    });
+
+    it(`one address trying many accounts: refused after ${LOGIN_PER_ADDRESS_PER_MINUTE} attempts in a minute`, async () => {
+      const statuses: number[] = [];
+      for (let i = 0; i <= LOGIN_PER_ADDRESS_PER_MINUTE; i++) statuses.push((await login(`sprayed.${i}`, 'Spring2026!', '203.0.113.61')).status);
+      expect(statuses.slice(0, LOGIN_PER_ADDRESS_PER_MINUTE).filter((s) => s !== 401)).toEqual([]);
+      expect(statuses[LOGIN_PER_ADDRESS_PER_MINUTE]).toBe(429);
+      // Another address is unaffected.
+      await login('lab.s3', PASSWORD, '203.0.113.62').expect(200);
+    });
   });
 });
