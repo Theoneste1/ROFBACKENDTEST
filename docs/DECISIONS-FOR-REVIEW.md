@@ -22,6 +22,13 @@ Legend — Work: **none** (confirms what is built), **S** (≤ 1 day), **M** (da
 | Q17 | Students change school only through a claim an Administrator verifies; grade by request | As built | none | 🔒 | confirms TS-1 foundation |
 | O5 | Head Coaches cannot create coaches without Administrator approval | As built | none | 🔒 | confirms shipped behaviour |
 
+**From the security review of teacher–student access (2026-11-18) — product choices, not defects:**
+
+| # | Question | Recommendation | Work | Flags | Why now |
+|---|---|---|---|---|---|
+| SR-1 | Should Teachers still see students whose account is SUSPENDED, DEACTIVATED or ARCHIVED? Today they do (list, profile, progress — not submit); this predates this work (P1-11) and the new assigned path follows it | Hide them: add the active-account condition to both visibility rules | S | 🔒 | minors' accounts an Administrator blocked stay visible to teachers |
+| SR-2 | A student whose claim at the teacher's school is still PENDING can be assigned to the teacher with a reason (treated like cross-school, TS-3); the teacher then sees that one student by name although TS-1 says pending students appear only as a count | Keep (explicit, audited Administrator decision with a reason) — or refuse assignment of pending students | none / S | 🔒 | exception between TS-1 and TS-3 needs your confirmation |
+
 **Not a product decision but needed before release:** a staging / rehearsal target (ARC-04) is optional now — the
 migrations were rehearsed on a restored copy of production (see `FINAL-REVIEW-PACKAGE.md` §5).
 
