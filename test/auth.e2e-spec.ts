@@ -269,7 +269,14 @@ describe('Authentication (e2e)', () => {
       where: { tokenHash: createHash('sha256').update(token).digest('hex') },
     })).toBe(1);
 
+    // Locked two ways before the reset: five wrong passwords from this address, and an account lock recorded by the
+    // earlier release. A password reset is the remedy for both (there is no Administrator unlock).
+    for (let i = 0; i < 5; i++) await ctx.http().post('/api/v1/auth/login').send({ username: 'ada', password: `wrong-${i}` }).expect(401);
+    const ada = await ctx.prisma.user.findFirstOrThrow({ where: { username: 'ada' } });
+    await ctx.prisma.user.update({ where: { id: ada.id }, data: { lockedUntil: new Date(Date.now() + 10 * 60_000) } });
+
     await ctx.http().post('/api/v1/auth/reset-password').send({ token, newPassword: 'NewSecret456' }).expect(200);
+    expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: ada.id } })).lockedUntil).toBeNull();
     const again = await ctx.http().post('/api/v1/auth/reset-password').send({ token, newPassword: 'Other789xyz' }).expect(400);
     expect(again.body.code).toBe('INVALID_RESET_TOKEN');
 

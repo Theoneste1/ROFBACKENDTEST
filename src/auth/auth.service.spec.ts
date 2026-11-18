@@ -435,6 +435,10 @@ describe('AuthService', () => {
       await service.resetPassword('token', 'NewPassw0rd!');
       expect(tokens.revokeAllForUser).toHaveBeenCalledTimes(1);
       expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u1', prisma);
+      // The remedy for sign-in locks: the earlier release's account lock ends too.
+      expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'u1' }, data: expect.objectContaining({ failedLoginCount: 0, lockedUntil: null }),
+      }));
     });
   });
 

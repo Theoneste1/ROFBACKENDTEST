@@ -132,7 +132,8 @@ days is not held by the per-username windows (its own lock still applies).
 Unknown usernames are counted, limited and locked exactly like real ones. Each
 attempt is decided and recorded synchronously before the password is checked,
 so concurrent guesses cannot pass a stale check. A correct password clears that
-address's failures; a password reset clears every lock of the account. The
+address's failures; a password reset clears every lock of the account (the only
+remedy: there is no Administrator unlock control). The
 store is in memory (one backend instance); several instances would need a
 shared store. A `User.lockedUntil` set by the earlier release is still honoured
 until it expires. An administrator's change of a user's
