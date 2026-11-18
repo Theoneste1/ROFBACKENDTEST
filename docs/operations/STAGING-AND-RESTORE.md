@@ -287,3 +287,16 @@ is identical to `9d58ebd`; only the kit changed. Do **not** use Resume. Then the
 `feat/teacher-student-access` (the `main` label in the incident came from the production service) and that auto-deploy is off. After a deploy, the developer checks
 that `rof-backend-staging.onrender.com/api/v1` lists the release features **and** that production's `/api/v1` still does
 not.
+
+### Staging deployment verification — 2026-11-18, 15:56 UTC (read-only)
+
+Service `rof-backend-staging` (`srv-dbuq9fm7bikc73an3gb0`), branch `feat/teacher-student-access`, commit `6e78c2b` (as Render reports).
+
+| Check | Result | Evidence |
+|---|---|---|
+| Health | PASS | `{"status":"ok","checks":{"database":"up","storage":"up"}}` |
+| Built from `6e78c2b` | PASS (consistent; the SHA is not exposed by the API) | 23 features = exactly the 23 "always" features of `6e78c2b`'s `src/app/capabilities.ts`; the 3 flag-gated features are absent, so the flags are off, as in production. The API does not report a commit, and `9d58ebd`…`6e78c2b` have identical app code, so the exact SHA rests on Render's deploy record. |
+| Release features and routes | PASS | Release features present (`dateOfBirthCorrection`, `formAvailability`, `accountStates`, `bulkUserOperations`, `teacherStudentAccess`, …). `/api/v1/forms` 200: STUDENT_REGISTRATION closed, TEACHER_REGISTRATION closed, COACH_APPLICATION open, CONTACT open. |
+| Database = branch `ep-orange-mountain-bd28w4ro`, role `staging` | PASS | (1) `/forms` returns exactly the branch's post-check rows; production has no `FormAvailability` table and returns 404 or 500. (2) During staging traffic, the branch's `pg_stat_activity` shows 3 sessions of role `staging` through `pgbouncer`, the pooled connection. The checker connects directly, is excluded, and has `pg_read_all_stats`. |
+| `EMAIL_DRY_RUN=true`, no `RESEND_API_KEY` | NOT VERIFIABLE READ-ONLY | The API exposes neither, and the startup log is in Render. Owner to confirm on the Environment page (names only) and in the deploy log line "EMAIL_DRY_RUN=true: NO e-mail is sent (staging)". Mitigations already in place: the staging-only key is revoked, and the branch has 0 pending e-mail deliveries. |
+| Production unaffected | PASS | `/health` ok (database and storage up); 9 features = `b7ed2a3`'s "always" set; `/forms` 404. |
