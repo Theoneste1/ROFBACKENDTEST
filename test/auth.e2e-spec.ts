@@ -21,7 +21,7 @@ describe('Authentication (e2e)', () => {
   const register = (body: Record<string, unknown>) =>
     ctx.http().post('/api/v1/auth/register/student').send({
       firstName: 'Ada', lastName: 'Uwase', username: 'ada', email: 'Ada@Example.com',
-      password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S4', schoolName: '  lycée de kigali ',
+      password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S4', schoolName: '  lycée de kigali ',
       schoolLocation: 'kigali', homeLocation: 'kigali', ...body,
     });
 

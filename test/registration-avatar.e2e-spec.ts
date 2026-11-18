@@ -24,7 +24,7 @@ describe('Optional profile picture at registration (e2e)', () => {
     n += 1;
     return http().post('/api/v1/auth/register/student').send({
       firstName: 'Pia', lastName: 'Picture', username: `ra.s${n}`, email: `ra.s${n}@test.local`, password: 'Secret123',
-      dateOfBirth: '2011-03-04', gradeLevel: 'S3', homeLocation: 'Huye', schoolCode: '229911', ...over,
+      dateOfBirth: '2011-03-04', guardianPhone: '0722000111', gradeLevel: 'S3', homeLocation: 'Huye', schoolCode: '229911', ...over,
     });
   };
 

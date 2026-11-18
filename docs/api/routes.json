@@ -2123,6 +2123,14 @@
     "tag": "Me"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/me/date-of-birth",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/me/enrollments",
     "roles": [

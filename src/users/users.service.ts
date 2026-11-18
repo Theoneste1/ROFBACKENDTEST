@@ -6,7 +6,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { TokenService } from '../auth/token.service.js';
 import { AccountEmailsService } from '../notifications/account-emails.service.js';
-import { BCRYPT_COST, PROFILE_SELECT } from '../auth/auth.service.js';
+import { BCRYPT_COST, PROFILE_SELECT, withProfileSteps } from '../auth/auth.service.js';
 import { maskContacts } from './contact-masking.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -445,7 +445,27 @@ export class UsersService {
   async getMe(userId: string) {
     const me = await this.prisma.user.findUnique({ where: { id: userId }, select: PROFILE_SELECT });
     if (!me) throw new NotFoundException('User not found.');
-    return me;
+    return withProfileSteps(me);
+  }
+
+  /**
+   * First-sign-in date of birth (owner decision 9.3): a STUDENT without one gives it once (the registration rules:
+   * a real past date, age 5–30 in Rwanda). 409 DATE_OF_BIRTH_ALREADY_SET when it is already recorded — it is not
+   * changed here (an Administrator corrects it). Audited without the value.
+   */
+  async setOwnDateOfBirth(user: AuthUser, dateOfBirth: string) {
+    const { count } = await this.prisma.user.updateMany({
+      where: { id: user.id, role: 'STUDENT', dateOfBirth: null },
+      data:  { dateOfBirth: new Date(`${dateOfBirth}T00:00:00Z`) },
+    });
+    if (count === 0) {
+      throw new AppError(HttpStatus.CONFLICT, 'DATE_OF_BIRTH_ALREADY_SET', 'Your date of birth is already recorded. Ask an administrator to correct it.');
+    }
+    await this.audit.log({
+      actorId: user.id, actorRole: user.role, action: 'DATE_OF_BIRTH_ADDED', entity: 'User', entityId: user.id,
+      metadata: { source: 'FIRST_SIGN_IN', dateOfBirthGiven: true },
+    });
+    return this.getMe(user.id);
   }
 
   async getMyEnrollments(userId: string) {

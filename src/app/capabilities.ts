@@ -122,6 +122,13 @@ export const FEATURES = {
    */
   registrationAvatar: 'always',
   /**
+   * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
+   * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
+   * imported) every route except GET /me, GET /me/permissions, PUT /me/date-of-birth and sign-out answers
+   * 403 DATE_OF_BIRTH_REQUIRED. PUT /api/v1/me/date-of-birth { dateOfBirth: "YYYY-MM-DD" } ends the step.
+   */
+  studentDateOfBirthStep: 'always',
+  /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing
    * TEACHER accounts may still exist and use their portal.

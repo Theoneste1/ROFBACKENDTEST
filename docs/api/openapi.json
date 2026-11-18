@@ -10707,7 +10707,7 @@
             }
           }
         },
-        "summary": "The current user's profile, division and school.",
+        "summary": "The current user's profile, division and school; `dateOfBirthRequired` true: PUT /me/date-of-birth first.",
         "tags": [
           "Me"
         ],
@@ -10906,6 +10906,52 @@
           "ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/me/date-of-birth": {
+      "put": {
+        "operationId": "MeController_setDateOfBirth",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDateOfBirthDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A student who has no date of birth yet (created by an Administrator, invited or imported) gives it here; until\nthen other routes answer 403 DATE_OF_BIRTH_REQUIRED (owner decision 9.3). 400 VALIDATION_FAILED (registration\nrules), 409 DATE_OF_BIRTH_ALREADY_SET. Returns the profile.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "description": "**Access:** STUDENT"
       }
     },
     "/api/v1/me/avatar": {
@@ -45403,7 +45449,7 @@
           },
           "guardianPhone": {
             "type": "string",
-            "description": "A close-family member's phone, stored in E.164 (teacher-application rules). The form requires it. Not audited."
+            "description": "A close-family member's phone, stored in E.164 (teacher-application rules). Required (owner decision 9.2,\n2026-11-18: the server requires it, not only the form) — missing, empty or not a valid phone number is refused.\nNot audited."
           },
           "homeCountry": {
             "type": "string",
@@ -45447,7 +45493,8 @@
           "email",
           "password",
           "gradeLevel",
-          "dateOfBirth"
+          "dateOfBirth",
+          "guardianPhone"
         ]
       },
       "RegisterAdminDto": {
@@ -46201,6 +46248,17 @@
         },
         "required": [
           "toStatus"
+        ]
+      },
+      "SetDateOfBirthDto": {
+        "type": "object",
+        "properties": {
+          "dateOfBirth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dateOfBirth"
         ]
       },
       "UpdateMeDto": {

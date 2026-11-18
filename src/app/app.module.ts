@@ -12,6 +12,7 @@ import { AccessModule } from '../common/access/access.module.js';
 import { StorageModule } from '../common/storage/storage.module.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { DateOfBirthGuard } from '../auth/guards/date-of-birth.guard.js';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -120,6 +121,8 @@ import { ReportsModule } from '../reports/reports.module.js';
     // Order matters: rate limit → authenticate → authorize.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // A student without a date of birth gives it first (owner decision 9.3).
+    { provide: APP_GUARD, useClass: DateOfBirthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     // No-op on routes without @RequirePermission (P1-04: none yet).
     { provide: APP_GUARD, useClass: PermissionGuard },

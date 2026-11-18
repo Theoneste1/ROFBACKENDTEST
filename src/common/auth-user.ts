@@ -24,6 +24,11 @@ export interface AuthUser {
    * checked again at each authorization decision (PermissionService).
    */
   overrides?: readonly ActiveOverride[];
+  /**
+   * A STUDENT without a date of birth (created by an Administrator, invited or imported): until they give it, only
+   * routes marked @AllowedBeforeDateOfBirth answer (DateOfBirthGuard, owner decision 9.3). Absent otherwise.
+   */
+  dateOfBirthRequired?: true;
 }
 
 export interface ActiveOverride {

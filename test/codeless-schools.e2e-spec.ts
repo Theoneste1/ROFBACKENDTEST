@@ -28,7 +28,7 @@ describe('Schools without an official code (owner decision 2026-11-14)', () => {
   const status = async (req: any) => { const r = await req; return [r.status, r.body?.code ?? null]; };
   const search = async (query: object) => (await http().get('/api/v1/schools/search').query(query).expect(200)).body as any[];
   const reg = (username: string, extra: object) => http().post('/api/v1/auth/register/student').send({
-    firstName: 'Cl', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S2', homeLocation: 'Huye', ...extra,
+    firstName: 'Cl', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', ...extra,
   });
   const user = (username: string) => p().user.findUniqueOrThrow({ where: { username } });
   const claims = (studentId: string) => p().studentSchoolAffiliation.findMany({ where: { studentId, supersededAt: null } });

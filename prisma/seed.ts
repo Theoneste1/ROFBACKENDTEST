@@ -202,7 +202,7 @@ async function seedDemo() {
       where:  { username: s.username },
       create: {
         username: s.username, firstName: s.firstName, lastName: 'Student', email: `${s.username}@rof.local`,
-        passwordHash: password, role: 'STUDENT', gradeLevel: s.gradeLevel, activatedAt: new Date(),
+        passwordHash: password, role: 'STUDENT', dateOfBirth: new Date('2010-05-01T00:00:00Z'), gradeLevel: s.gradeLevel, activatedAt: new Date(),
         divisionId: divisions.get(division)!, schoolId: school.id, homeLocation: 'Kigali',
       },
       update: {},

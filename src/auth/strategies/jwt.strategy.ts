@@ -65,7 +65,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where:  { id: payload.sub },
       select: {
         id: true, username: true, role: true, isActive: true, isApproved: true, activatedAt: true,
-        divisionId: true, gradeLevel: true, tokensValidAfter: true,
+        divisionId: true, gradeLevel: true, tokensValidAfter: true, dateOfBirth: true,
         // Active individual overrides (P1-09): read fresh on every request, so a
         // revocation applies on the next request and nothing is cached.
         permissionOverrides: {
@@ -94,6 +94,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jti:        payload.jti,
       exp:        payload.exp,
       overrides:  user.permissionOverrides,
+      ...(user.role === 'STUDENT' && user.dateOfBirth === null && { dateOfBirthRequired: true as const }),
     };
   }
 }
