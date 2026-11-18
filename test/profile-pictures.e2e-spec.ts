@@ -101,13 +101,15 @@ describe('profile pictures', () => {
   });
 
   describe('viewing (GET /users/:id/avatar)', () => {
-    it('another signed-in user sees it inline, privately cached, nosniff; anonymous is 401; no picture is 404', async () => {
+    it('an Administrator sees the picture of a student inline, never cached, nosniff; another student cannot (2026-11-18); anonymous is 401; no picture is 404', async () => {
       await put('/api/v1/me/avatar', student, PNG).expect(200);
-      const r = await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(student2)).buffer(true)
+      // A student's picture: the student, Administrators and teachers who may view the profile only.
+      await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(student2)).expect(404);
+      const r = await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(admin)).buffer(true)
         .parse((res, cb) => { const chunks: Buffer[] = []; res.on('data', (c: Buffer) => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks))); })
         .expect(200);
       expect(r.headers['content-type']).toBe('image/png');
-      expect(r.headers['cache-control']).toBe('private, max-age=86400');
+      expect(r.headers['cache-control']).toBe('private, no-store');
       expect(r.headers['x-content-type-options']).toBe('nosniff');
       expect(r.headers['content-disposition']).toMatch(/^inline/);
       expect(r.headers['content-disposition']).not.toMatch(/student|photo/i);
@@ -184,6 +186,6 @@ describe('profile pictures', () => {
     for (const u of await p().user.findMany({ where: { avatarFileId: { not: null } }, select: { avatarFileId: true } })) {
       expect(await p().fileObject.findUnique({ where: { id: u.avatarFileId! } })).not.toBeNull();
     }
-    await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(student2)).expect(200);
+    await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(student)).expect(200);
   });
 });

@@ -9,9 +9,9 @@ import { endpointId, segments, rollbackFiles, childEnv, checkDumpDir, conninfoFr
   PHASE1, M9_M14_TABLES, M9_M14_ENUMS } from './rehearsal.mjs';
 import { LAST_PHASE1_TIMESTAMP, laterMigrations, migrationDirs } from './phase1.mjs';
 import { REPO_ROOT } from '../db-drill-verify.mjs';
-import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releaseRollbackFiles } from './releases.mjs';
+import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
 
-/** This checkout as it was for Phase 1: its migrations without the nine post-Phase-1 ones (the Phase 1 tests' fixture). */
+/** This checkout as it was for Phase 1: its migrations without the eleven post-Phase-1 ones (the Phase 1 tests' fixture). */
 const phase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !POST_PHASE1_MIGRATIONS.includes(d));
 
 // ── Later-migration guard (owner decision 2026-11-13) ─────────────────────────────────────────────
@@ -178,7 +178,7 @@ test('segments: \\echo lines kept in order, other meta-commands refused, comment
 
 // ── post-Phase-1 release (--release post-phase1) ──────────────────────────────────────────────────
 
-test('post-Phase-1: the nine migrations are exactly those between M14 and form_availability in this checkout, in apply order', () => {
+test('post-Phase-1: the eleven migrations are exactly those between M14 and teacher_student_access in this checkout, in apply order', () => {
   const dirs = migrationDirs(REPO_ROOT);
   const between = dirs.filter((d) => d.slice(0, 14) > LAST_PHASE1_TIMESTAMP && d.slice(0, 14) <= RELEASES['post-phase1'].last);
   assert.deepEqual(between, POST_PHASE1_MIGRATIONS);
@@ -188,7 +188,7 @@ test('post-Phase-1: the nine migrations are exactly those between M14 and form_a
 
 const createdBy = (dirs, re) => dirs.flatMap((d) => [...readFileSync(`prisma/migrations/${d}/migration.sql`, 'utf8').matchAll(re)].map((m) => m.slice(1).join('.'))).sort();
 
-test('post-Phase-1: rollback-history checks exactly the tables, enums, columns, triggers and functions the nine migrations create', () => {
+test('post-Phase-1: rollback-history checks exactly the tables, enums, columns, triggers and functions the eleven migrations create', () => {
   const o = POST_PHASE1_OBJECTS;
   assert.deepEqual([...o.tables].sort(), createdBy(POST_PHASE1_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g));
   assert.deepEqual([...o.enums].sort(), createdBy(POST_PHASE1_MIGRATIONS, /CREATE TYPE "([A-Za-z]+)"/g));
@@ -210,7 +210,9 @@ test('post-Phase-1: one rollback file per migration, run newest first; anything 
   const release = releaseFrom(['--release', 'post-phase1']);
   const files = releaseRollbackFiles(release, readdirSync('docs/migrations'));
   assert.deepEqual(files, [...POST_PHASE1_MIGRATIONS].reverse().map((m) => `${m}.rollback.sql`));
-  assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 10 .* found 9/);
+  assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 11 .* found 10/);
+  // The teacher–student pre-switch step exists, belongs to this release and is not counted as a rollback file.
+  assert.deepEqual(releasePreSwitchFiles(release, readdirSync('docs/migrations')), ['20261210000000_teacher_student_access.pre-switch.sql']);
   // The Phase 1 rollbacks are never part of it, and vice versa.
   assert.equal(rollbackFiles(readdirSync('docs/migrations')).length, 14);
   for (const f of files) assert.doesNotThrow(() => segments(readFileSync(`docs/migrations/${f}`, 'utf8')), f);
@@ -229,16 +231,16 @@ test('post-Phase-1: the pre- and post-check SQL are read only and use only \\ech
   }
 });
 
-test('releaseFrom / afterRelease / checkoutProblem: default phase1; post-phase1 needs its nine and nothing after them', () => {
+test('releaseFrom / afterRelease / checkoutProblem: default phase1; post-phase1 needs its eleven and nothing after them', () => {
   assert.equal(releaseFrom([]).name, 'phase1');
   assert.equal(releaseFrom(['--release', 'post-phase1']).name, 'post-phase1');
   assert.equal(releaseFrom(['--release', 'phase2']), null);
   const post = releaseFrom(['--release', 'post-phase1']);
   const dirs = migrationDirs(REPO_ROOT);
   assert.equal(checkoutProblem(post, dirs), null);
-  assert.match(checkoutProblem(post, [...dirs, '20261210000000_next']), /1 migration\(s\) after .* \(20261210000000_next\)/);
-  assert.match(checkoutProblem(post, dirs.filter((d) => d !== '20261204000000_registration_details')), /expected the 10 .* found 9/);
-  assert.deepEqual(afterRelease(post, ['20261209000000_application_details', '20261210000000_x', '20261121001300_y']), ['20261210000000_x']);
+  assert.match(checkoutProblem(post, [...dirs, '20261211000000_next']), /1 migration\(s\) after .* \(20261211000000_next\)/);
+  assert.match(checkoutProblem(post, dirs.filter((d) => d !== '20261204000000_registration_details')), /expected the 11 .* found 10/);
+  assert.deepEqual(afterRelease(post, ['20261210000000_teacher_student_access', '20261211000000_x', '20261121001300_y']), ['20261211000000_x']);
   assert.deepEqual(afterRelease(releaseFrom([]), POST_PHASE1_MIGRATIONS), POST_PHASE1_MIGRATIONS);
 });
 
@@ -255,14 +257,52 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
     assert.equal(bad.status, 2);
     assert.match(bad.stderr, /--release must be one of: phase1, post-phase1/);
   });
-  withCheckoutCopy(['20261210000000_next'], (root) => {
+  withCheckoutCopy(['20261211000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /1 migration\(s\) after post-Phase-1 .*20261210000000_next/);
+    assert.match(r.stderr, /1 migration\(s\) after post-Phase-1 .*20261211000000_next/);
   });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'post-phase1');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /expected the 10 migrations of post-Phase-1 .* found 9/);
+    assert.match(r.stderr, /expected the 11 migrations of post-Phase-1 .* found 10/);
   }, { drop: ['20261206000000_account_states'] });
+});
+
+// ── Migration role (DRILL_MIGRATION_DATABASE_URL): the branch owner for schema changes, never production's password ──
+import { resolveMigrationTarget, MIGRATION_ROLE_COMMANDS } from './rehearsal.mjs';
+
+test('resolveMigrationTarget: unset → the application target, unchanged', () => {
+  const app = { ok: true, url: 'postgresql://staging:s3@ep-branch-1.eu.aws.neon.tech/neondb', pooled: false };
+  assert.deepEqual(resolveMigrationTarget(app, { migrationUrls: [], productionUrls: ['postgresql://owner:prodpw@ep-prod-9.eu.aws.neon.tech/neondb'], appUrls: [] }),
+    { ok: true, url: app.url, role: 'staging', separate: false });
+});
+
+test('resolveMigrationTarget: the branch owner on the same endpoint with a branch-only password is used for schema changes', () => {
+  const app = { ok: true, url: 'postgresql://staging:s3@ep-branch-1.eu.aws.neon.tech/neondb', pooled: false };
+  const r = resolveMigrationTarget(app, {
+    migrationUrls: ['postgresql://neondb_owner:branch-only-pw@ep-branch-1-pooler.eu.aws.neon.tech/neondb'],
+    productionUrls: ['postgresql://neondb_owner:prodpw@ep-prod-9.eu.aws.neon.tech/neondb'], appUrls: [],
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.role, 'neondb_owner');
+  assert.equal(r.separate, true);
+  assert.equal(new URL(r.url).hostname, 'ep-branch-1.eu.aws.neon.tech');   // direct endpoint, like the application target
+  for (const c of ['deploy', 'status', 'diff', 'rollback', 'rollback-history']) assert.ok(MIGRATION_ROLE_COMMANDS.has(c));
+  for (const c of ['precheck', 'postcheck', 'check-target']) assert.ok(!MIGRATION_ROLE_COMMANDS.has(c));
+});
+
+test('resolveMigrationTarget refuses: production host, another endpoint, a production password, no password, two entries', () => {
+  const app = { ok: true, url: 'postgresql://staging:s3@ep-branch-1.eu.aws.neon.tech/neondb', pooled: false };
+  const productionUrls = ['postgresql://neondb_owner:prodpw@ep-prod-9.eu.aws.neon.tech/neondb'];
+  const run = (m) => resolveMigrationTarget(app, { migrationUrls: m, productionUrls, appUrls: [] });
+  const prodHost = run(['postgresql://neondb_owner:other@ep-prod-9.eu.aws.neon.tech/neondb']);
+  assert.equal(prodHost.ok, false); assert.match(prodHost.reason, /production host/);
+  const other = run(['postgresql://neondb_owner:other@ep-other-2.eu.aws.neon.tech/neondb']);
+  assert.equal(other.ok, false); assert.match(other.reason, /not on the same endpoint/);
+  const copied = run(['postgresql://neondb_owner:prodpw@ep-branch-1.eu.aws.neon.tech/neondb']);
+  assert.equal(copied.ok, false); assert.match(copied.reason, /production password/);
+  assert.doesNotMatch(copied.reason, /prodpw/);
+  assert.equal(run(['postgresql://neondb_owner@ep-branch-1.eu.aws.neon.tech/neondb']).ok, false);
+  assert.equal(run(['postgresql://a:b@ep-branch-1.eu.aws.neon.tech/neondb', 'postgresql://a:c@ep-branch-1.eu.aws.neon.tech/neondb']).code, 2);
 });

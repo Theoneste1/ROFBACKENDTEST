@@ -4,6 +4,7 @@ import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Min,
   ValidateIf, ValidateNested,
 } from 'class-validator';
+import { TEACHER_DELEGATIONS } from '../../auth/override-policy.js';
 
 import { AccountStatus, BulkItemOutcome, BulkOperationStatus, GradeLevel, Role } from '../../generated/prisma/client.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
@@ -44,6 +45,10 @@ export class BulkParamsDto {
   @IsOptional() @IsEnum(GradeLevel) gradeLevel?: GradeLevel;
   @IsOptional() @IsString() @Length(2, 200) subject?: string;
   @IsOptional() @IsString() @Length(5, 10_000) body?: string;
+  /** assignTeacher, unassignTeacher, grantDelegation, revokeDelegation: the Teacher. */
+  @IsOptional() @IsUUID() teacherId?: string;
+  /** grantDelegation, revokeDelegation: the delegation. */
+  @IsOptional() @IsIn(TEACHER_DELEGATIONS as unknown as string[]) permission?: string;
 }
 
 export class BulkPreviewDto {

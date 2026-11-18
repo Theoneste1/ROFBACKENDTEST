@@ -315,12 +315,14 @@ export class UserAvatarController {
   constructor(private readonly avatars: AvatarService) {}
 
   /**
-   * The account's current profile picture, inline, with Cache-Control: private, max-age=86400 (the link in
-   * avatarUrl is versioned) and X-Content-Type-Options: nosniff. 404 when the account has none.
+   * The account's current profile picture, inline, with X-Content-Type-Options: nosniff. A staff account's picture:
+   * any signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned). A student's
+   * picture: the student, Administrators, and a Teacher who may view that student's profile (Cache-Control: private,
+   * no-store) — anyone else gets 404, the same as an account without a picture.
    */
   @Get(':id/avatar')
   @Authenticated()
-  async avatar(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
-    await this.avatars.send(id, res);
+  async avatar(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
+    await this.avatars.send(id, user, res);
   }
 }

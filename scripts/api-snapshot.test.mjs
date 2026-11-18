@@ -226,14 +226,20 @@ const STUDENT_DOB_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-student-date
 const REGISTRATION_AVATAR_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-avatar.json';
 /** Registration timeline (REG-13, 2026-11-18): one administrators' read operation. */
 const REGISTRATION_TIMELINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-timeline.json';
+/** Teacher–student access (TS-1…TS-6, 2026-11-18): assignments, school access, delegation student scope, bulk actions — additive only. */
+const TEACHER_STUDENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-teacher-student-access.json';
 /**
  * Owner decisions 9.2 / 9.3 (2026-11-18): guardianPhone required at student self-registration (one approved breaking
  * change); PUT /me/date-of-birth (first-sign-in date of birth); /me/avatar responses documented as the profile.
  */
 const APPROVED_DECISIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-approved-decisions.json';
+/** Teacher–student access + decisions 9.2 / 9.3 (this branch is stacked on feat/applications-complete). SR-1 changes no API. */
+const TEACHER_STUDENT_DECISIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-teacher-student-decisions.json';
 /** Final review (2026-11-18, owner approvals): date-of-birth corrections and application picture review — additive only. */
 const FINAL_REVIEW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-final-review.json';
-const CURRENT_SNAPSHOT = FINAL_REVIEW_SNAPSHOT;
+/** Teacher–student access + every change of feat/applications-complete up to the final review (this branch is stacked on it). */
+const TEACHER_STUDENT_FINAL_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-teacher-student-final.json';
+const CURRENT_SNAPSHOT = TEACHER_STUDENT_FINAL_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1202,6 +1208,13 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, ['PUT /api/v1/auth/register/avatar: operation added', 'schema RegistrationAvatarDto: added']);
   });
 
+  test('registration timeline → teacher–student access: additive only, exactly these changes', () => {
+    for (const f of [REGISTRATION_TIMELINE_SNAPSHOT, TEACHER_STUDENT_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_STUDENT_SNAPSHOT, 'utf8')));
+    assert.deepEqual([res.breaking, res.review], [[], []]);
+    assert.deepEqual([...res.additive].sort(), ["DELETE /api/v1/admin/teacher-students/{id}: operation added","DELETE /api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}: operation added","GET /api/v1/admin/schools/{id}/access/students: operation added","GET /api/v1/admin/schools/{id}/access: operation added","GET /api/v1/admin/teacher-students: operation added","GET /api/v1/teacher/students/summary: operation added","GET /api/v1/teacher/students: new optional query parameter \"access\"","POST /api/v1/admin/teacher-students/reassign: operation added","POST /api/v1/admin/teacher-students: operation added","POST /api/v1/admin/teachers/{id}/delegations › request application/json.studentIds: new optional field","POST /api/v1/admin/teachers/{id}/delegations › request application/json.studentScope: new optional field","POST /api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed: operation added","POST /api/v1/admin/teachers/{id}/delegations/{overrideId}/students: operation added","POST /api/v1/admin/users/bulk › request application/json.action: enum values added: assignTeacher, grantDelegation, revokeDelegation, unassignTeacher","POST /api/v1/admin/users/bulk › request application/json.params.permission: new optional field","POST /api/v1/admin/users/bulk › request application/json.params.teacherId: new optional field","POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: assignTeacher, grantDelegation, revokeDelegation, unassignTeacher","POST /api/v1/admin/users/bulk/preview › request application/json.params.permission: new optional field","POST /api/v1/admin/users/bulk/preview › request application/json.params.teacherId: new optional field","schema AssignTeacherStudentsDto: added","schema DelegationStudentsDto: added","schema ReassignTeacherStudentsDto: added"].sort());
+  });
+
   test('registration avatar → registration timeline: one read operation; nothing else', () => {
     for (const f of [REGISTRATION_AVATAR_SNAPSHOT, REGISTRATION_TIMELINE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(REGISTRATION_AVATAR_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')));
@@ -1222,6 +1235,14 @@ describe('approved API contract history', () => {
     ]);
   });
 
+  test('teacher–student access → + decisions 9.2 / 9.3: the same changes as on feat/applications-complete, nothing else', () => {
+    for (const f of [TEACHER_STUDENT_SNAPSHOT, TEACHER_STUDENT_DECISIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEACHER_STUDENT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_STUDENT_DECISIONS_SNAPSHOT, 'utf8')));
+    const direct = compare(JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual([res.breaking, res.review, res.additive], [direct.breaking, direct.review, direct.additive]);
+  });
+
   test('approved decisions → final review: date-of-birth correction and history, application picture review; additive only', () => {
     for (const f of [APPROVED_DECISIONS_SNAPSHOT, FINAL_REVIEW_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FINAL_REVIEW_SNAPSHOT, 'utf8')));
@@ -1237,6 +1258,14 @@ describe('approved API contract history', () => {
       'schema ApproveMentorRequestDto: added',
       'schema CorrectDateOfBirthDto: added',
     ]);
+  });
+
+  test('teacher–student + decisions → + final review: the same changes as on feat/applications-complete, nothing else', () => {
+    for (const f of [TEACHER_STUDENT_DECISIONS_SNAPSHOT, TEACHER_STUDENT_FINAL_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEACHER_STUDENT_DECISIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_STUDENT_FINAL_SNAPSHOT, 'utf8')));
+    const direct = compare(JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FINAL_REVIEW_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual([res.breaking, res.review, res.additive], [direct.breaking, direct.review, direct.additive]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

@@ -36,16 +36,22 @@ import { AppError } from '../common/errors/app-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateOverrideDto } from './dto/create-override.dto.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
+import { activeSchoolsOf, visibilityOf, type StudentScope } from '../teachers/teacher-scope.js';
+import { lockSelections, OVERRIDE_LOCK_NAMESPACE } from '../teachers/teacher-student-ops.js';
 
 const SELECT = {
   id: true, permission: true, effect: true, courseId: true, divisionId: true, reason: true, expiresAt: true,
   createdAt: true, revokedAt: true, revokeReason: true,
+  // Teacher delegations: which students (TS-4), the students of a SELECTED one, and the TS-5 review flag.
+  studentScope: true, reviewNeededAt: true, reviewReason: true,
+  students: {
+    where: { removedAt: null }, orderBy: { createdAt: 'asc' },
+    select: { studentId: true, createdAt: true, student: { select: { id: true, username: true, firstName: true, lastName: true } } },
+  },
   createdBy: { select: { id: true, username: true } },
   revokedBy: { select: { id: true, username: true } },
 } as const;
 
-/** Namespace of the per-user advisory lock taken while creating overrides (any fixed int, unique to this purpose). */
-const OVERRIDE_LOCK_NAMESPACE = 4209;
 
 /** Administrators' teacher-delegation mode (P1-11). */
 interface DelegationMode { delegation?: boolean }
@@ -81,7 +87,7 @@ export class PermissionOverridesService {
     return rows.map((r) => ({ ...r, active: r.revokedAt === null && (r.expiresAt === null || r.expiresAt.getTime() > now) }));
   }
 
-  async create(userId: string, dto: CreateOverrideDto, actor: CallerCtx, opts: DelegationMode = {}) {
+  async create(userId: string, dto: CreateOverrideDto & { studentScope?: StudentScope; studentIds?: string[] }, actor: CallerCtx, opts: DelegationMode = {}) {
     const target = await this.requireUser(userId);
     if (target.id === actor.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'OVERRIDE_NOT_ALLOWED', 'You cannot set an override on your own account.', { reason: 'self' });
@@ -103,12 +109,26 @@ export class PermissionOverridesService {
     // Every approved GRANT is a teacher delegation (school scope): no override carries a course × division.
     const courseId: string | null = null;
     const divisionId: string | null = null;
-    if (dto.effect === 'GRANT' && grantScopeOf(dto.permission) === 'school') {
-      // Teacher delegation: applies to the teacher's schools (checked on every request), never a course × division.
-      if (dto.courseId || dto.divisionId) throw notAllowed('a teacher delegation applies to the teacher\'s schools; omit courseId and divisionId');
-      if (!(await this.prisma.teacherSchoolAssignment.count({ where: { teacherId: target.id, isActive: true } }))) {
+    // Teacher delegations cover students by scope (TS-4): SCHOOL (default; every student seen through the schools),
+    // ASSIGNED (students assigned to the teacher) or SELECTED (the listed students). Null on every other override.
+    const delegationGrant = dto.effect === 'GRANT' && grantScopeOf(dto.permission) === 'school';
+    const studentScope: StudentScope | null = delegationGrant ? (dto.studentScope ?? 'SCHOOL') : null;
+    const selectedIds = studentScope === 'SELECTED' ? [...new Set(dto.studentIds ?? [])].sort() : [];
+    if (!delegationGrant && dto.studentScope) throw notAllowed('a student scope applies only to a teacher delegation');
+    if (studentScope !== 'SELECTED' && dto.studentIds?.length) throw notAllowed('studentIds apply only to a delegation for selected students');
+    if (studentScope === 'SELECTED' && selectedIds.length === 0) throw notAllowed('a delegation for selected students needs studentIds');
+    if (delegationGrant) {
+      // Teacher delegation: checked per student on every request, never a course × division.
+      if (dto.courseId || dto.divisionId) throw notAllowed('a teacher delegation applies to the teacher\'s students; omit courseId and divisionId');
+      const schools = await activeSchoolsOf(this.prisma, target.id);
+      if (studentScope === 'SCHOOL' && schools.length === 0) {
         throw notAllowed('outside the user’s existing scope (the teacher has no active school assignment)');
       }
+      if (studentScope === 'ASSIGNED' && schools.length === 0
+          && !(await this.prisma.teacherStudentAssignment.count({ where: { teacherId: target.id, isActive: true } }))) {
+        throw notAllowed('outside the user’s existing scope (the teacher has no active school and no assigned student)');
+      }
+      // SELECTED: the listed students are checked inside the transaction below, under the selection lock.
     } else if (dto.effect === 'GRANT') {
       // Unreachable with the approved list (every GRANT on it is a school-scoped delegation); fail closed.
       throw notAllowed('not on the approved GRANT list for this role', { role: target.role, permission: dto.permission, effect: dto.effect });
@@ -123,17 +143,35 @@ export class PermissionOverridesService {
       // check runs INSIDE the lock (after any concurrent creation has committed), so two
       // concurrent requests can never both pass it. (A unique index cannot express "active":
       // that depends on expiresAt > now, and an expired or revoked row must not block a new one.)
+      // Selected students: the selection lock first (lock order: selection, teacher), then visibility, so no TS-5
+      // sweep can interleave between the check and the insert.
+      if (studentScope === 'SELECTED') await lockSelections(tx);
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${userId}))::text`;
+      if (studentScope === 'SELECTED') {
+        const seen = await visibilityOf(tx, target.id, await activeSchoolsOf(tx, target.id), selectedIds);
+        const outside = selectedIds.filter((id) => !seen.has(id));
+        if (outside.length) {
+          throw new AppError(HttpStatus.BAD_REQUEST, 'STUDENT_NOT_IN_TEACHER_SCOPE',
+            'Some students are not seen by this teacher (not verified students of their schools, and not assigned to them).', { studentIds: outside });
+        }
+      }
       const duplicate = await tx.userPermissionOverride.findFirst({
         where: {
           userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, revokedAt: null,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+          AND: [
+            { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+            // A delegation without a scope (written before scopes existed) is school-wide: the same as SCHOOL.
+            studentScope === 'SCHOOL' ? { OR: [{ studentScope: 'SCHOOL' }, { studentScope: null }] } : { studentScope },
+          ],
         },
         select: { id: true },
       });
       if (duplicate) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_EXISTS', 'An identical active override already exists.', { id: duplicate.id });
       const created = await tx.userPermissionOverride.create({
-        data: { userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, reason: dto.reason, expiresAt, createdById: actor.id },
+        data: {
+          userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, reason: dto.reason, expiresAt, createdById: actor.id, studentScope,
+          ...(selectedIds.length && { students: { create: selectedIds.map((studentId) => ({ studentId, addedById: actor.id })) } }),
+        },
         select: SELECT,
       });
       await this.audit.log({
@@ -142,6 +180,7 @@ export class PermissionOverridesService {
           targetUserId: userId, targetRole: target.role, permission: dto.permission, effect: dto.effect,
           scope: courseId ? { courseId, divisionId } : grantScopeOf(dto.permission) === 'school' && dto.effect === 'GRANT' ? 'SCHOOL' : null,
           reason: dto.reason, expiresAt, previous: null, next: { active: true },
+          ...(studentScope && { studentScope }), ...(selectedIds.length && { studentIds: selectedIds }),
           ...(opts.delegation && { via: 'TEACHER_DELEGATION' }),
         },
       }, tx);

@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 310 endpoints — 25 public, 178 administrator-only.
+Totals: 320 endpoints — 25 public, 187 administrator-only.
 
 ## Academic years
 
@@ -224,12 +224,21 @@ Totals: 310 endpoints — 25 public, 178 administrator-only.
 
 | Method | Path | Public | Student | Mentor | Admin |
 |---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/schools/{id}/access` |  |  |  | ✓ |
+| GET | `/api/v1/admin/schools/{id}/access/students` |  |  |  | ✓ |
 | GET | `/api/v1/admin/teacher-assignments` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-assignments` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teacher-assignments/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/teacher-students` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teacher-students` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/teacher-students/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teacher-students/reassign` |  |  |  | ✓ |
 | GET | `/api/v1/admin/teachers/{id}/delegations` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teachers/{id}/delegations` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  | ✓ |
 
 ## Admin · Users
 
@@ -513,6 +522,7 @@ Totals: 310 endpoints — 25 public, 178 administrator-only.
 | GET | `/api/v1/teacher/students/{id}` |  |  |  |  |
 | GET | `/api/v1/teacher/students/{id}/progress` |  |  |  |  |
 | POST | `/api/v1/teacher/students/{id}/submissions` |  |  |  |  |
+| GET | `/api/v1/teacher/students/summary` |  |  |  |  |
 
 ## Teacher applications
 

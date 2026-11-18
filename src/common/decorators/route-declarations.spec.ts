@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 25 @Public + 30 @Roles + 208 @RequirePermission + 56 @Authenticated = 319, none undeclared', () => {
+  it('declarations add up: 25 @Public + 30 @Roles + 218 @RequirePermission + 56 @Authenticated = 329, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 25, '@Roles': 30, '@RequirePermission': 208, '@Authenticated': 56 });  // final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 25, '@Roles': 30, '@RequirePermission': 218, '@Authenticated': 56 });  // final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -208,8 +208,8 @@ describe('route declarations (P1-02 §5)', () => {
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
       // P1-11: teacher school assignments, delegations and the teacher's school-scoped views (new routes)
-      'users.manageTeachers': 13,   // + application picture review (2026-11-18); + request-info; + 4 teacher-application review routes (teacher self-registration) + school verification (decision notifications)
-      'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
+      'users.manageTeachers': 22,   // + application picture review (2026-11-18); + 9 teacher–student access (assignments, school access, selected students, review); + request-info; + 4 teacher-application review routes (teacher self-registration) + school verification (decision notifications)
+      'students.viewScoped': 2, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
       // School administration PR A: student–school verification (new routes);
       // PR B: school records (list, get, students, create, update, activate / deactivate);
       // PR C: claim match, reopen, candidates; PR D: import template, import;
@@ -333,7 +333,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 108 added since: 310 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 118 added since: 320 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

@@ -278,7 +278,7 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     // Profile pictures (2026-11-15): role-independent; the caller's own account, or any account's picture.
     { id: 'UR-53', route: 'PUT /api/v1/me/avatar', kind: 'same', run: (u) => c.me.setAvatar(u, undefined) },
     { id: 'UR-54', route: 'DELETE /api/v1/me/avatar', kind: 'same', run: (u) => c.me.removeAvatar(u) },
-    { id: 'UR-55', route: 'GET /api/v1/users/:id/avatar', kind: 'same', run: (_u, res) => c.avatars.avatar(ctx.ids.studentJunior, res) },
+    { id: 'UR-55', route: 'GET /api/v1/users/:id/avatar', kind: 'same', run: (u, res) => c.avatars.avatar(ctx.ids.studentJunior, u, res) },
   ];
   /** Read-only role-independent cases: the unsupported caller must get exactly the same value. */
   const READ_ONLY = new Set(['UR-35', 'UR-36', 'UR-40', 'UR-41', 'UR-43', 'UR-46', 'UR-47', 'UR-52', 'UR-55']);

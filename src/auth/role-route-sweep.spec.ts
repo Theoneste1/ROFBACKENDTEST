@@ -1,0 +1,168 @@
+/**
+ * Role × route sweep (completion programme, 2026-11-18): the REAL global guard chain (JwtAuthGuard → RolesGuard →
+ * PermissionGuard; only Passport's token check stubbed) decides every route of the code for EVERY caller —
+ * anonymous, STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN — not only the P1-02 baseline callers.
+ *
+ * Invariants (any violation names the route):
+ *   1. Anonymous callers reach only @Public routes.
+ *   2. Portal isolation: no Student or Teacher reaches an /admin route; no Student, Teacher or Coach reaches a
+ *      /teacher route except Teachers (and Administrators where the service then answers ROLE_NOT_SUPPORTED);
+ *      Coach-only (/mentor) routes are closed to Students and Teachers. The few non-administrator /admin routes are
+ *      listed here by name (Head Coach programme management, the Coach's own course × division scope).
+ *   3. A Super Administrator reaches every route an Administrator reaches.
+ *   4. No administrator role reaches a grading route (ADMIN_PROHIBITED permissions).
+ *   5. The per-role totals are frozen: a change in who reaches how many routes must change this file on purpose.
+ *
+ * Only the routes the running application registers count (docs/api/routes.json): StudyGroupsModule is in the code
+ * but deliberately not registered (route-declarations.spec.ts names its handlers).
+ *
+ * With WRITE_ROLE_MATRIX=<file>, the full matrix is written as Markdown (evidence for the permission sweep).
+ */
+import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
+
+import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { PermissionGuard } from './guards/permission.guard.js';
+import { RolesGuard } from './guards/roles.guard.js';
+import { REQUIRED_PERMISSION_KEY } from './decorators/require-permission.decorator.js';
+import { PermissionService } from './permission.service.js';
+import { ADMIN_PROHIBITED } from './permissions.js';
+import { AppError } from '../common/errors/app-error.js';
+import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator.js';
+import { SRC, discoverHandlers, keyOf, type RouteHandler } from '../common/decorators/route-discovery.testing.js';
+
+const CALLERS = ['anonymous', 'STUDENT', 'TEACHER', 'MENTOR', 'HEAD_COACH', 'ADMIN', 'SUPER_ADMIN'] as const;
+type Caller = (typeof CALLERS)[number];
+type Decision = 'allow' | '401' | '403';
+
+vi.spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype) as { canActivate: (ctx: ExecutionContext) => unknown }, 'canActivate')
+  .mockImplementation(function (this: unknown, ctx: ExecutionContext) {
+    if (!ctx.switchToHttp().getRequest<{ user?: unknown }>().user) throw new UnauthorizedException();
+    return true;
+  });
+
+const reflector = new Reflector();
+const jwtGuard = new JwtAuthGuard(reflector);
+const rolesGuard = new RolesGuard(reflector);
+const permissionGuard = new PermissionGuard(reflector, new PermissionService({ mentorScopes: async () => [] } as never));
+
+async function decide(h: RouteHandler, caller: Caller): Promise<Decision> {
+  const user = caller === 'anonymous' ? undefined : { id: 'u1', username: 'u1', role: caller };
+  const ctx = { getHandler: () => h.handler, getClass: () => h.cls, switchToHttp: () => ({ getRequest: () => ({ user }) }) } as unknown as ExecutionContext;
+  try {
+    if (!(await jwtGuard.canActivate(ctx))) return '401';
+  } catch (err) {
+    if (err instanceof UnauthorizedException) return '401';
+    throw err;
+  }
+  if (!rolesGuard.canActivate(ctx)) return '403';
+  try {
+    return permissionGuard.canActivate(ctx) ? 'allow' : '403';
+  } catch (err) {
+    if ((err instanceof AppError && err.getStatus() === 403) || err instanceof ForbiddenException) return '403';
+    throw err;
+  }
+}
+
+const pathOf = (h: RouteHandler) => h.route.split(' ')[1];
+const isPublic = (h: RouteHandler) => reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [h.handler, h.cls]) === true;
+const permissionOf = (h: RouteHandler): string | undefined =>
+  Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.handler) ?? Reflect.getMetadata(REQUIRED_PERMISSION_KEY, h.cls);
+
+describe('role × route sweep (all seven callers)', () => {
+  let rows: Array<{ h: RouteHandler; d: Record<Caller, Decision> }>;
+  const allowed = (c: Caller) => rows.filter((r) => r.d[c] === 'allow');
+
+  beforeAll(async () => {
+    const registered = new Set((JSON.parse(readFileSync(join(SRC, '..', 'docs/api/routes.json'), 'utf8')) as Array<{ method: string; path: string }>)
+      .map((x) => `${x.method} ${x.path.replace(/\{(\w+)\}/g, ':$1')}`));
+    const handlers = (await discoverHandlers()).filter((h) => registered.has(h.route));
+    expect(handlers.length).toBe(registered.size);
+    rows = [];
+    for (const h of handlers) {
+      const d = {} as Record<Caller, Decision>;
+      for (const c of CALLERS) d[c] = await decide(h, c);
+      rows.push({ h, d });
+    }
+    const out = process.env.WRITE_ROLE_MATRIX;
+    if (out) {
+      const mark = (x: Decision) => (x === 'allow' ? '✓' : '');
+      const lines = rows.map(({ h, d }) => `| ${h.route.replace(' ', ' | `')}\` | ${CALLERS.map((c) => mark(d[c])).join(' | ')} |`).sort();
+      writeFileSync(out, `| Method | Path | ${CALLERS.join(' | ')} |\n|---|---|${CALLERS.map(() => ':-:').join('|')}|\n${lines.join('\n')}\n`);
+    }
+  }, 180_000);
+
+  it('1. anonymous callers reach only @Public routes', () => {
+    expect(rows.filter((r) => r.d.anonymous === 'allow' && !isPublic(r.h)).map((r) => keyOf(r.h))).toEqual([]);
+  });
+
+  it('2. portal isolation: Students and Teachers never reach /admin; /teacher is Teachers\' (and Administrators\'); /mentor is closed to Students and Teachers', () => {
+    const admin = (r: { h: RouteHandler }) => pathOf(r.h).startsWith('/api/v1/admin/');
+    const teacher = (r: { h: RouteHandler }) => pathOf(r.h).startsWith('/api/v1/teacher/');
+    const mentor = (r: { h: RouteHandler }) => pathOf(r.h).startsWith('/api/v1/mentor/');
+    expect(rows.filter((r) => admin(r) && (r.d.STUDENT === 'allow' || r.d.TEACHER === 'allow')).map((r) => keyOf(r.h))).toEqual([]);
+    expect(rows.filter((r) => teacher(r) && (r.d.STUDENT === 'allow' || r.d.MENTOR === 'allow' || r.d.HEAD_COACH === 'allow'))
+      .map((r) => `${keyOf(r.h)}  [${(['STUDENT', 'MENTOR', 'HEAD_COACH'] as const).filter((c) => r.d[c] === 'allow').join(',')}]`).sort())
+      .toEqual(TEACHER_ROUTES_GUARD_ONLY);
+    expect(rows.filter((r) => mentor(r) && (r.d.STUDENT === 'allow' || r.d.TEACHER === 'allow')).map((r) => keyOf(r.h))).toEqual([]);
+    // The only /admin routes a Coach or Head Coach reaches (programme management for Head Coaches; reviewed here).
+    expect(rows.filter((r) => admin(r) && (r.d.MENTOR === 'allow' || r.d.HEAD_COACH === 'allow'))
+      .map((r) => `${keyOf(r.h)}  [${(['MENTOR', 'HEAD_COACH'] as const).filter((c) => r.d[c] === 'allow').join(',')}]`).sort())
+      .toEqual(COACH_ADMIN_ROUTES);
+  });
+
+  it('3. a Super Administrator reaches every route an Administrator reaches', () => {
+    expect(rows.filter((r) => r.d.ADMIN === 'allow' && r.d.SUPER_ADMIN !== 'allow').map((r) => keyOf(r.h))).toEqual([]);
+  });
+
+  it('4. no administrator role reaches a grading route', () => {
+    const grading = rows.filter((r) => (ADMIN_PROHIBITED as readonly string[]).includes(permissionOf(r.h) ?? ''));
+    expect(grading.length).toBeGreaterThan(0);
+    expect(grading.filter((r) => r.d.ADMIN === 'allow' || r.d.SUPER_ADMIN === 'allow').map((r) => keyOf(r.h))).toEqual([]);
+  });
+
+  it('5. per-role totals (a change must be deliberate)', () => {
+    expect(Object.fromEntries(CALLERS.map((c) => [c, allowed(c).length]))).toEqual(TOTALS);
+  });
+});
+
+/**
+ * Reviewed 2026-11-18: /admin routes a Coach or Head Coach passes the guards for — only the Head Coach's approved
+ * programme management (P1-10, HC decisions). Each service limits them to the programmes the Head Coach heads (others
+ * are not revealed): test/head-coach-programme, head-coach-monitoring and head-coach-course-work e2e specs.
+ */
+const COACH_ADMIN_ROUTES: string[] = [
+  'DELETE /api/v1/admin/mentor-assignments/:id  MentorAssignmentsController.unassign  [HEAD_COACH]',
+  'DELETE /api/v1/admin/programmes/:id/members/:userId  AdminProgrammesController.endMember  [HEAD_COACH]',
+  'GET /api/v1/admin/activity  ActivityController.list  [HEAD_COACH]',
+  'GET /api/v1/admin/activity/summary  ActivityController.summary  [HEAD_COACH]',
+  'GET /api/v1/admin/dashboard  DashboardController.get  [HEAD_COACH]',
+  'GET /api/v1/admin/mentor-assignments  MentorAssignmentsController.findAll  [HEAD_COACH]',
+  'GET /api/v1/admin/programmes/:id/members  AdminProgrammesController.members  [HEAD_COACH]',
+  'GET /api/v1/admin/programmes/:id/student-candidates  AdminProgrammesController.studentCandidates  [HEAD_COACH]',
+  'GET /api/v1/admin/reports/course-participation  ReportsController.courseParticipation  [HEAD_COACH]',
+  'GET /api/v1/admin/reports/mentor-activity  ReportsController.mentorActivity  [HEAD_COACH]',
+  'GET /api/v1/admin/reports/mentors  ReportsController.mentors  [HEAD_COACH]',
+  'GET /api/v1/admin/reports/students  ReportsController.students  [HEAD_COACH]',
+  'POST /api/v1/admin/mentor-assignments  MentorAssignmentsController.assign  [HEAD_COACH]',
+  'POST /api/v1/admin/programmes/:id/coach-invitations  AdminProgrammesController.inviteCoach  [HEAD_COACH]',
+  'POST /api/v1/admin/programmes/:id/members  AdminProgrammesController.addMember  [HEAD_COACH]',
+];
+
+/**
+ * Reviewed 2026-11-18: /teacher routes whose permission (students.viewScoped) a Head Coach also holds (programme scope).
+ * The guard lets them through; the service refuses every non-Teacher with 403 ROLE_NOT_SUPPORTED (as for
+ * Administrators, who hold it too) — tested in test/teachers.e2e-spec.ts and test/teacher-student-access.e2e-spec.ts.
+ */
+const TEACHER_ROUTES_GUARD_ONLY: string[] = [
+  'GET /api/v1/teacher/students  TeacherStudentsController.list  [HEAD_COACH]',
+  'GET /api/v1/teacher/students/summary  TeacherStudentsController.summary  [HEAD_COACH]',
+];
+
+/**
+ * 2026-11-18, 315 registered routes. The Super Administrator's extra six: individual permission overrides (list,
+ * create, revoke) and the school-directory sync's approve, apply and resolve.
+ */
+const TOTALS: Record<Caller, number> = { anonymous: 25, STUDENT: 93, TEACHER: 81, MENTOR: 109, HEAD_COACH: 117, ADMIN: 284, SUPER_ADMIN: 290 };

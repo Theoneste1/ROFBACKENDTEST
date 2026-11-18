@@ -122,6 +122,15 @@ export const FEATURES = {
    */
   registrationAvatar: 'always',
   /**
+   * Teacher–student access (owner approvals TS-1…TS-6, 2026-11-18): explicit teacher–student assignments
+   * (/admin/teacher-students, reassign), School Access (/admin/schools/:id/access, …/students), teacher delegations
+   * with a student scope (studentScope SCHOOL | ASSIGNED | SELECTED, studentIds; …/delegations/:overrideId/students,
+   * …/reviewed), bulk actions assignTeacher / unassignTeacher / grantDelegation / revokeDelegation, and for Teachers
+   * GET /teacher/students/summary and `access` / `can` on each listed student. Without this feature none of these
+   * exist and every delegation applies to the teacher's whole school scope.
+   */
+  teacherStudentAccess: 'always',
+  /**
    * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
    * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
    * imported) every route except GET /me, GET /me/permissions, PUT /me/date-of-birth and sign-out answers

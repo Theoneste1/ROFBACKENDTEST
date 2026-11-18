@@ -23,7 +23,10 @@ import type { Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
 import { PROFILE_SELECT, withProfileSteps } from '../auth/auth.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
-import type { CallerCtx } from '../common/auth-user.js';
+import type { AuthUser, CallerCtx } from '../common/auth-user.js';
+import { PermissionService } from '../auth/permission.service.js';
+import { isAdmin, isTeacher } from '../common/access/roles.js';
+import { activeGrantsOf, activeSchoolsOf, delegationCovers, visibilityOf } from '../teachers/teacher-scope.js';
 import { AppError } from '../common/errors/app-error.js';
 import { StorageService } from '../common/storage/storage.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -35,6 +38,8 @@ export { avatarUrlOf };
 
 /** Pictures are versioned by their link, so a day of private caching is safe. */
 export const AVATAR_CACHE_CONTROL = 'private, max-age=86400';
+/** A student's picture is never kept in a browser cache: losing access to the student applies at once. */
+export const STUDENT_AVATAR_CACHE_CONTROL = 'private, no-store';
 
 @Injectable()
 export class AvatarService {
@@ -44,6 +49,7 @@ export class AvatarService {
     private readonly audit: AuditService,
     private readonly roles: RoleAssignmentPolicy,
     private readonly users: UsersService,
+    private readonly permissions: PermissionService,
   ) {}
 
   // ─── Own picture (/me) ──────────────────────────────────────────────────────
@@ -75,13 +81,37 @@ export class AvatarService {
   // ─── Serve ──────────────────────────────────────────────────────────────────
 
   /** Stream the account's current picture (404 when it has none). Callers are signed in (controller). */
-  async send(userId: string, res: Response) {
+  /**
+   * GET /users/:id/avatar. Staff pictures: every signed-in user (unchanged). A STUDENT's picture (owner decision
+   * 2026-11-18, minors): the student, Administrators and Super Administrators, and a Teacher only when they may view
+   * that student's profile now — the student is visible to them (TS-1…TS-6, SR-1) and an active students.viewProfile
+   * delegation covers the student (the same rule as GET /teacher/students/:id). Anyone else gets the same 404 as "no
+   * picture", so the answer never reveals whether a student has one.
+   */
+  async send(userId: string, viewer: AuthUser, res: Response) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { avatarFile: { select: { storageKey: true, mimeType: true, originalName: true, size: true } } },
+      select: { role: true, avatarFile: { select: { storageKey: true, mimeType: true, originalName: true, size: true } } },
     });
-    if (!user?.avatarFile) throw new NotFoundException('This account has no profile picture.');
-    await this.storage.send(res, user.avatarFile, { cacheControl: AVATAR_CACHE_CONTROL });
+    const notFound = () => new NotFoundException('This account has no profile picture.');
+    if (!user?.avatarFile) throw notFound();
+    if (user.role !== 'STUDENT') {
+      await this.storage.send(res, user.avatarFile, { cacheControl: AVATAR_CACHE_CONTROL });
+      return;
+    }
+    if (!(await this.maySeeStudentPicture(viewer, userId))) throw notFound();
+    await this.storage.send(res, user.avatarFile, { cacheControl: STUDENT_AVATAR_CACHE_CONTROL });
+  }
+
+  /** Whether this viewer may see this student's picture (see send). */
+  async maySeeStudentPicture(viewer: AuthUser, studentId: string): Promise<boolean> {
+    if (viewer.id === studentId || isAdmin(viewer)) return true;
+    if (!isTeacher(viewer) || !this.permissions.has(viewer, 'students.viewProfile')) return false;
+    const schools = await activeSchoolsOf(this.prisma, viewer.id);
+    const seen = (await visibilityOf(this.prisma, viewer.id, schools, [studentId])).get(studentId);
+    if (!seen) return false;
+    const grants = await activeGrantsOf(this.prisma, viewer.id, ['students.viewProfile']);
+    return delegationCovers(grants, { id: studentId, ...seen });
   }
 
   // ─── Internals ──────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ export const DecisionEvents = {
   TeacherApplicationApproved: 'teacher.application.approved',
   CoachApplicationApproved:   'coach.application.approved',
   PermissionsGranted:         'permissions.granted',
+  TeacherStudentsAssigned:    'teacher.students.assigned',
 } as const;
 
 export type DecisionEventType = (typeof DecisionEvents)[keyof typeof DecisionEvents];
@@ -30,7 +31,10 @@ export interface PermissionsGrantedPayload {
   permissions: Array<{ permission: string; label: string; description: string }>;
 }
 
-export type DecisionPayload = SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload;
+/** count: students newly assigned by one action (absent for a bulk operation, whose items finish one by one). Never names: students are minors. */
+export interface StudentsAssignedPayload { activated: boolean; count?: number }
+
+export type DecisionPayload = SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload | StudentsAssignedPayload;
 
 export interface DecisionEmail {
   subject:  string;
@@ -118,6 +122,17 @@ export function decisionEmail(type: string, firstName: string, payload: unknown,
         action: p.activated ? loginAction(appUrl) : undefined,
       };
     }
+    case DecisionEvents.TeacherStudentsAssigned: {
+      const p = payload as StudentsAssignedPayload;
+      const subject = 'Students have been assigned to you';
+      const what = p.count === undefined ? 'students' : p.count === 1 ? 'a student' : `${p.count} students`;
+      return {
+        subject, heading: subject, greeting,
+        body:
+          `An administrator has assigned ${what} to you on the ${ORG} platform. You can see them under My Students.\n\n${ORG}`,
+        action: p.activated ? loginAction(appUrl) : undefined,
+      };
+    }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);
   }
@@ -145,6 +160,11 @@ export function decisionInApp(type: string, payload: unknown): DecisionInApp {
         title: p.permissions.length > 1 ? 'New permissions' : 'New permission',
         body:  `An administrator gave you: ${p.permissions.map((g) => `${g.label} (${g.description})`).join('; ')}`,
       };
+    }
+    case DecisionEvents.TeacherStudentsAssigned: {
+      const p = payload as StudentsAssignedPayload;
+      const what = p.count === undefined ? 'students' : p.count === 1 ? 'a student' : `${p.count} students`;
+      return { title: 'Students assigned to you', body: `An administrator assigned ${what} to you. See My Students.` };
     }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);

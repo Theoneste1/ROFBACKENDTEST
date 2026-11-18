@@ -39,7 +39,12 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AccountStatusService } from '../account-status.service.js';
 import { UsersService } from '../users.service.js';
-import { ACTION_RULES, BATCH_SIZE, finalStatus, SKIP_CODES, statusDecision, type BulkAction } from './bulk-rules.js';
+import { ACTION_RULES, BATCH_SIZE, finalStatus, SKIP_CODES, statusDecision, TEACHER_STUDENT_ACTIONS, type BulkAction } from './bulk-rules.js';
+import { DecisionNotificationsService } from '../../decision-notifications/decision-notifications.service.js';
+import {
+  activeSelectedOverride, addSelectionInTx, assignStudentInTx, endAssignmentInTx, ensureSelectedOverrideInTx, lockSelections, lockTeacher, removeSelectionInTx, type ItemResult,
+} from '../../teachers/teacher-student-ops.js';
+import { activeSchoolsOf, visibilityOf } from '../../teachers/teacher-scope.js';
 import { refreshCounts } from './bulk-operations.service.js';
 
 export interface ClaimedItem { id: string; operationId: string; userId: string; claimToken: string }
@@ -59,6 +64,7 @@ export class BulkOperationsWorker {
     private readonly users: UsersService,
     private readonly permissions: PermissionService,
     private readonly audit: AuditService,
+    private readonly notices: DecisionNotificationsService,
   ) {}
 
   @Interval('bulk-operations', 5_000)
@@ -140,7 +146,7 @@ export class BulkOperationsWorker {
     if (pre !== 'RUNNING' && pre !== 'PENDING') return this.recordUnder(op.id, item, 'SKIPPED', 'CANCELLED', CANCELLED_MESSAGE);
 
     const action = op.action as BulkAction;
-    const params = (op.params ?? {}) as { role?: string; gradeLevel?: string; stepUpVerified?: boolean };
+    const params = (op.params ?? {}) as { role?: string; gradeLevel?: string; stepUpVerified?: boolean; teacherId?: string; permission?: string };
     if (!actor) return this.recordUnder(op.id, item, 'FAILED', 'ACTOR_NOT_AUTHORIZED', 'The administrator who started this operation can no longer run it.');
     for (const p of ['users.bulkManage', ...ACTION_RULES[action].permissions] as const) {
       if (!this.permissions.has(actor, p)) return this.recordUnder(op.id, item, 'FAILED', 'PERMISSION_REQUIRED', `The administrator no longer holds ${p}.`);
@@ -148,6 +154,7 @@ export class BulkOperationsWorker {
     if (item.userId === actor.id) return this.recordUnder(op.id, item, 'SKIPPED', 'SELF', 'Your own account is never changed in bulk.');
 
     const afterCommit: Array<() => Promise<void>> = [];
+    const noticeIds: Array<string | null> = [];
     try {
       const done = await this.inItemTransaction(op.id, item, async (tx) => {
         const user = await tx.user.findUnique({
@@ -178,8 +185,13 @@ export class BulkOperationsWorker {
           await tx.emailDelivery.create({ data: { jobId: op.emailJobId!, recipientEmail: user.email, recipientId: user.id } });
           return this.record(tx, item, 'SUCCEEDED', null, null);
         }
+        if (TEACHER_STUDENT_ACTIONS.includes(action)) {
+          const r = await this.teacherStudentItem(tx, op, action, params, actor, user, noticeIds);
+          return this.record(tx, item, r.outcome, r.code ?? null, r.message ?? null);
+        }
         return this.record(tx, item, 'FAILED', 'UNKNOWN_ACTION', null);
       });
+      this.notices.dispatchAfterCommit(noticeIds);
       for (const fn of afterCommit) await fn().catch((err) => this.logger.error(`Bulk item notice failed: ${(err as Error).message}`));
       return done;
     } catch (err) {
@@ -196,6 +208,59 @@ export class BulkOperationsWorker {
       // A refusal: the transaction was rolled back (nothing changed); record it under the same locks.
       return this.recordUnder(op.id, item, SKIP_CODES.has(code) ? 'SKIPPED' : 'FAILED', code, e.response?.message ?? e.message ?? null);
     }
+  }
+
+  /**
+   * One student of a teacher–student action (TS approvals 2026-11-18), in the item's transaction. Non-students are
+   * SKIPPED. The teacher's notices are deduplicated per OPERATION: one "students assigned" notice, one "permission
+   * given" notice, however many items succeed or are retried.
+   */
+  private async teacherStudentItem(
+    tx: Prisma.TransactionClient, op: Op, action: BulkAction, params: { teacherId?: string; permission?: string },
+    actor: AuthUser, user: { id: string; role: string }, noticeIds: Array<string | null>,
+  ): Promise<{ outcome: Outcome; code?: string; message?: string }> {
+    if (user.role !== 'STUDENT') return { outcome: 'SKIPPED', code: 'NOT_A_STUDENT', message: 'Only students are linked to a teacher.' };
+    const teacher = await tx.user.findUnique({
+      where: { id: params.teacherId! }, select: { id: true, role: true, email: true, firstName: true, isActive: true, activatedAt: true },
+    });
+    if (!teacher) return { outcome: 'FAILED', code: 'TEACHER_NOT_FOUND', message: 'The teacher no longer exists.' };
+    const by = { actorId: actor.id, actorRole: actor.role };
+    const toOutcome = (r: ItemResult) => ({
+      outcome: (r.outcome === 'SKIPPED' || r.outcome === 'FAILED' ? r.outcome : 'SUCCEEDED') as Outcome, code: r.code, message: r.message,
+    });
+    if (action === 'unassignTeacher') {
+      const r = await endAssignmentInTx(tx, this.audit, { where: { teacherId: teacher.id, studentId: user.id }, actor: by, reason: 'BULK', operationId: op.id });
+      return toOutcome(r.code === 'NOT_ASSIGNED' ? { ...r, outcome: 'SKIPPED' } : r);
+    }
+    if (teacher.role !== 'TEACHER' && action !== 'revokeDelegation') {
+      return { outcome: 'FAILED', code: 'NOT_A_TEACHER', message: 'The account is no longer a Teacher.' };
+    }
+    if (action === 'assignTeacher') {
+      const r = await assignStudentInTx(tx, this.audit, { teacherId: teacher.id, studentId: user.id, actor: by, source: 'BULK', reason: op.reason, operationId: op.id });
+      if (r.outcome === 'ASSIGNED' || r.outcome === 'REACTIVATED') {
+        noticeIds.push(await this.notices.enqueueStudentsAssigned(tx, teacher, `operation:${op.id}`));
+      }
+      return toOutcome(r);
+    }
+    if (action === 'grantDelegation') {
+      // Locks, then visibility, then the delegation: a student the teacher does not see creates nothing and tells the
+      // teacher nothing, and no sweep can interleave between this check and the insert (lock order: selection, teacher).
+      await lockSelections(tx);
+      await lockTeacher(tx, teacher.id);
+      const seen = await visibilityOf(tx, teacher.id, await activeSchoolsOf(tx, teacher.id), [user.id]);
+      if (!seen.has(user.id)) {
+        return { outcome: 'FAILED', code: 'STUDENT_NOT_IN_TEACHER_SCOPE', message: 'The teacher does not see this student (not a verified student of their schools, and not assigned to them).' };
+      }
+      const { override, created } = await ensureSelectedOverrideInTx(tx, this.audit, {
+        teacher, permission: params.permission!, reason: op.reason ?? 'Bulk operation', actor: by, operationId: op.id,
+      });
+      if (created) noticeIds.push(await this.notices.enqueuePermissionsGranted(tx, teacher, [{ id: override.id, permission: override.permission, effect: 'GRANT' }]));
+      return toOutcome(await addSelectionInTx(tx, this.audit, { override, studentId: user.id, actor: by, operationId: op.id }));
+    }
+    // revokeDelegation
+    const override = await activeSelectedOverride(tx, teacher.id, params.permission!);
+    if (!override) return { outcome: 'SKIPPED', code: 'NOT_APPLICABLE', message: 'The teacher has no delegation for selected students of this permission.' };
+    return toOutcome(await removeSelectionInTx(tx, this.audit, { override, studentId: user.id, actor: by, operationId: op.id }));
   }
 
   /**

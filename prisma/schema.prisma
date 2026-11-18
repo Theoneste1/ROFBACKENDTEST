@@ -499,6 +499,13 @@ model User {
   permissionOverridesCreated        UserPermissionOverride[]   @relation("OverrideCreatedBy")
   permissionOverridesRevoked        UserPermissionOverride[]   @relation("OverrideRevokedBy")
   teacherSchools                    TeacherSchoolAssignment[]  @relation("TeacherSchool")
+  teacherStudentsAsTeacher          TeacherStudentAssignment[] @relation("TeacherStudentTeacher")
+  teacherStudentsAsStudent          TeacherStudentAssignment[] @relation("TeacherStudentStudent")
+  teacherStudentsAssigned           TeacherStudentAssignment[] @relation("TeacherStudentAssignedBy")
+  teacherStudentsEnded              TeacherStudentAssignment[] @relation("TeacherStudentEndedBy")
+  delegationSelections              UserPermissionOverrideStudent[] @relation("OverrideSelectedStudent")
+  delegationSelectionsAdded         UserPermissionOverrideStudent[] @relation("OverrideStudentAddedBy")
+  delegationSelectionsRemoved       UserPermissionOverrideStudent[] @relation("OverrideStudentRemovedBy")
   teacherSchoolsAssigned            TeacherSchoolAssignment[]  @relation("TeacherSchoolAssignedBy")
   teacherSchoolsEnded               TeacherSchoolAssignment[]  @relation("TeacherSchoolEndedBy")
   schoolAffiliations                StudentSchoolAffiliation[] @relation("AffiliationStudent")
@@ -2229,6 +2236,13 @@ model UserPermissionOverride {
   revokeReason     String?
   /// When the expiry was recorded in the audit log (record only; the override stopped applying at expiresAt).
   expiryRecordedAt DateTime?
+  /// Teacher delegations only: which students it covers (existing delegations: SCHOOL). Null on other overrides.
+  studentScope     DelegationStudentScope?
+  /// SELECTED scope: the listed students (history kept).
+  students         UserPermissionOverrideStudent[]
+  /// Set when a listed student left the teacher's scope (TS-5): an Administrator should review the delegation.
+  reviewNeededAt   DateTime?
+  reviewReason     String?
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
@@ -2472,4 +2486,73 @@ model BulkOperationItem {
 
   @@unique([operationId, userId])
   @@index([operationId, outcome])
+}
+
+/// How a teacher–student assignment was made (TS approvals 2026-11-18).
+enum TeacherStudentSource {
+  ADMIN
+  BULK
+}
+
+/// Which students a teacher delegation (students.viewProfile, students.viewProgress, submissions.submitOnBehalf)
+/// covers: every student the teacher sees through their schools, only students assigned to the teacher, or only the
+/// listed students (UserPermissionOverrideStudent). Null on every other override.
+enum DelegationStudentScope {
+  SCHOOL
+  ASSIGNED
+  SELECTED
+}
+
+/// An Administrator's explicit link between a Teacher and a Student (TS-2: several teachers per student; TS-3: a
+/// student outside the teacher's schools only with a reason). One row per pair: re-assigning re-activates it, so
+/// duplicates are impossible and history is kept (ended rows stay). Automatic school visibility is NOT stored here.
+model TeacherStudentAssignment {
+  id           String               @id @default(uuid())
+  teacherId    String
+  teacher      User                 @relation("TeacherStudentTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User                 @relation("TeacherStudentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  source       TeacherStudentSource @default(ADMIN)
+  /// True when, at assignment time, the student was not a verified student of any of the teacher's active schools.
+  crossSchool  Boolean              @default(false)
+  reason       String?
+  isActive     Boolean              @default(true)
+  assignedById String?
+  assignedBy   User?                @relation("TeacherStudentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  endedAt      DateTime?
+  endedById    String?
+  endedBy      User?                @relation("TeacherStudentEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  endReason    String?
+
+  @@unique([teacherId, studentId])
+  @@index([studentId, isActive])
+  @@index([teacherId, isActive])
+  @@index([assignedById])
+  @@index([endedById])
+}
+
+/// The students a SELECTED-scope delegation covers. One row per (override, student): removing keeps the row
+/// (removedAt), adding again re-activates it.
+model UserPermissionOverrideStudent {
+  id           String                 @id @default(uuid())
+  overrideId   String
+  override     UserPermissionOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User                   @relation("OverrideSelectedStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  addedById    String?
+  addedBy      User?                  @relation("OverrideStudentAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime               @default(now())
+  removedAt    DateTime?
+  removedById  String?
+  removedBy    User?                  @relation("OverrideStudentRemovedBy", fields: [removedById], references: [id], onDelete: SetNull)
+  /// ADMIN (removed by an Administrator); ASSIGNMENT_ENDED, SCHOOL_ASSIGNMENT_ENDED or SCHOOL_CLAIM_CHANGED (TS-5: the
+  /// teacher no longer sees the student).
+  removeReason String?
+
+  @@unique([overrideId, studentId])
+  @@index([studentId])
+  @@index([addedById])
+  @@index([removedById])
 }

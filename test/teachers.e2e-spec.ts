@@ -122,8 +122,11 @@ describe('Teachers (P1-11)', () => {
     expect(mine.map((s: any) => s.id).sort()).toEqual([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior].sort());
     expect(mine.map((s: any) => s.id)).not.toContain(branchStudent);
     expect(mine.map((s: any) => s.id)).not.toContain(pending);
-    // The default list exposes exactly: name, username, grade, division, school.
-    for (const s of mine) expect(Object.keys(s).sort()).toEqual(['division', 'firstName', 'gradeLevel', 'id', 'lastName', 'school', 'username']);
+    // The default list exposes exactly: name, username, grade, division, school — plus (teacher–student access) how the
+    // teacher sees the student and what their permissions let them do. Never contact details.
+    for (const s of mine) expect(Object.keys(s).sort()).toEqual(['access', 'can', 'division', 'firstName', 'gradeLevel', 'id', 'lastName', 'school', 'username']);
+    for (const s of mine) expect(Object.keys(s.access).sort()).toEqual(['assigned', 'school']);
+    for (const s of mine) expect(Object.keys(s.can).sort()).toEqual(['submitOnBehalf', 'viewProfile', 'viewProgress']);
 
     // Every registered student of the school counts — no programme, course or enrolment condition.
     expect(await p().programmeMembership.count({ where: { userId: studentO } })).toBe(0);

@@ -42,7 +42,8 @@ describe('AvatarService', () => {
     const audit = { log: vi.fn() };
     const roles = { assertCanManage: vi.fn(async () => { if (opts.refuse) throw Object.assign(new Error('no'), { code: 'ROLE_NOT_ASSIGNABLE' }); }) };
     const users = { findOne: vi.fn().mockResolvedValue({ id: 'stu' }) };
-    const service = new AvatarService(prisma as never, storage as never, audit as never, roles as never, users as never);
+    const permissions = { has: vi.fn().mockReturnValue(false) };
+    const service = new AvatarService(prisma as never, storage as never, audit as never, roles as never, users as never, permissions as never);
     return { service, prisma, tx, storage, audit, roles, users };
   }
 
@@ -92,10 +93,11 @@ describe('AvatarService', () => {
 
   it('serving: 404 without a picture; otherwise the file with the versioned cache header', async () => {
     const none = make({ user: { avatarFile: null } });
-    await expect(none.service.send('stu', {} as never)).rejects.toThrow(/no profile picture/);
+    const viewer = { id: 'viewer', role: 'ADMIN' } as never;
+    await expect(none.service.send('stu', viewer, {} as never)).rejects.toThrow(/no profile picture/);
     const file = { storageKey: 'avatars/2026/11/u.png', mimeType: 'image/png', originalName: 'file.png', size: 3 };
     const some = make({ user: { avatarFile: file } });
-    await some.service.send('stu', {} as never);
+    await some.service.send('stu', viewer, {} as never);
     expect(some.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, max-age=86400' });
   });
 });

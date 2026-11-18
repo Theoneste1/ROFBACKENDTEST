@@ -4,8 +4,8 @@ import { PHASE1, PHASE1_COUNT, LAST_PHASE1_TIMESTAMP } from './phase1.mjs';
 
 /**
  * The post-Phase-1 release: the migrations after M14, in the order Prisma applies them (name order). The nine of
- * develop c39df18 (owner approval 2026-11-17), plus application details (2026-11-17, ADR-009): the owner asked for
- * one complete release, not partial ones. Listed explicitly — a migration added later is never part of it.
+ * develop c39df18 (owner approval 2026-11-17), plus application details (2026-11-17, ADR-009) and teacher–student access
+ * (2026-11-18, TS-1…TS-6): the owner asked for one complete release, not partial ones. Listed explicitly — a migration added later is never part of it.
  */
 export const POST_PHASE1_MIGRATIONS = [
   '20261201000000_teacher_applications',
@@ -18,6 +18,7 @@ export const POST_PHASE1_MIGRATIONS = [
   '20261207000100_bulk_membership_guard',
   '20261208000000_form_availability',
   '20261209000000_application_details',
+  '20261210000000_teacher_student_access',
 ];
 
 /**
@@ -26,15 +27,17 @@ export const POST_PHASE1_MIGRATIONS = [
  * unused) and indexes (dropped with their tables or columns).
  */
 export const POST_PHASE1_OBJECTS = {
-  tables: ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange'],
+  tables: ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication',
+    'TeacherStudentAssignment', 'UserPermissionOverrideStudent', 'UserStatusChange'],
   enums: ['AccountStatus', 'BulkItemOutcome', 'BulkOperationStatus', 'CoachEducationLevel', 'FormKey', 'FormMode',
-    'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus'],
+    'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus', 'DelegationStudentScope', 'TeacherStudentSource'],
   columns: [
     ['MentorRequest', 'country'], ['MentorRequest', 'educationLevel'], ['MentorRequest', 'occupation'], ['MentorRequest', 'olympiadInterests'],
     ['MentorRequest', 'affiliation'], ['MentorRequest', 'expertise'], ['MentorRequest', 'phone'], ['MentorRequest', 'rejectionReason'],
     ['MentorRequest', 'relevantExperience'], ['MentorRequest', 'yearsOfExperience'], ['MentorRequest', 'avatarFileId'],
     ['User', 'accountStatus'], ['User', 'avatarFileId'], ['User', 'country'], ['User', 'dateOfBirth'], ['User', 'guardianPhone'],
     ['User', 'homeDistrict'], ['User', 'homeProvince'], ['User', 'homeSector'], ['User', 'olympiadInterests'], ['User', 'phone'],
+    ['UserPermissionOverride', 'studentScope'], ['UserPermissionOverride', 'reviewNeededAt'], ['UserPermissionOverride', 'reviewReason'],
   ],
   triggers: ['user_account_status_sync', 'user_bulk_membership_guard'],
   functions: ['user_account_status_sync', 'user_bulk_membership_guard'],
@@ -97,7 +100,7 @@ export function checkoutProblem(release, dirs) {
 /**
  * What a database looks like immediately BEFORE the post-Phase-1 release (production after Phase 1), derived from this
  * checkout alone: every repository migration up to and including M14, and the Prisma models without the tables that
- * the migrations after M14 create (`laterSql`: the nine and anything later). They create tables and never drop or
+ * the migrations after M14 create (`laterSql`: the eleven and anything later). They create tables and never drop or
  * rename one, so the subtraction is exact (checked by the tests).
  * @param {{ migDirs: string[], models: string[], laterSql: string[] }} input
  */
@@ -108,6 +111,14 @@ export function prePostPhase1Baseline({ migDirs, models, laterSql }) {
   if (missing.length) throw new Error(`this checkout lacks post-Phase-1 migration(s): ${missing.join(', ')}`);
   const created = new Set(laterSql.flatMap((sql) => [...sql.matchAll(/CREATE TABLE "(\w+)"/g)].map((m) => m[1])));
   return { migrations: migDirs.filter((d) => d.slice(0, 14) <= LAST_PHASE1_TIMESTAMP), models: models.filter((m) => !created.has(m)) };
+}
+
+/**
+ * The release's pre-switch files in docs/migrations (run BEFORE the code switch and before any rollback file, e.g.
+ * 20261210000000_teacher_student_access.pre-switch.sql), newest first.
+ */
+export function releasePreSwitchFiles(release, names) {
+  return names.filter((f) => f.endsWith('.pre-switch.sql') && release.owns(f.replace(/.pre-switch.sql$/, ''))).sort().reverse();
 }
 
 /** The release's rollback files in docs/migrations, newest first; exactly one per migration, or an error. */
