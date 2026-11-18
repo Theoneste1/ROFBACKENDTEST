@@ -15,11 +15,11 @@ Development branches are not released: "complete" here means complete in develop
 
 | Status | Count |
 |---|---|
-| 1 Complete and verified | 45 |
+| 1 Complete and verified | 46 |
 | 2 Implemented, not fully tested | 10 |
 | 3 Partially implemented | 15 |
 | 4 Missing | 0 |
-| 5 Awaiting design approval | 29 |
+| 5 Awaiting design approval | 28 |
 | 6 Excluded (owner) | 0 |
 | 7 Deferred (owner) | 1 |
 | 8 Blocked (external) | 2 |
@@ -28,12 +28,15 @@ Development branches are not released: "complete" here means complete in develop
 Every "Awaiting design approval" item has a proposal in `DESIGN-PROPOSALS-V2.md` (11 sections each). "Blocked" items need an
 owner action outside the code: a fresh Neon branch for the restore drill (SEC-02) and staging resources (ARC-04).
 
+Update 2026-11-18 (owner approved `DECISIONS-FOR-REVIEW.md` §1, SR-1, SR-2): ACC-12 moves from 5 to 1 (four stored states
++ two derived approved as built); REG-02, SEC-03 and TCH-01 rows record 9.2, 9.3 and SR-1 below.
+
 ## Matrix
 
 | ID | Requirement | Original decision | Roles | Frontend | Backend | Database | Permissions / security | Tests / evidence | Status |
 |---|---|---|---|---|---|---|---|---|---|
 | REG-01 | Student, Teacher, Coach user types (+ Head Coach, Admin, Super Admin) | Phase 1 / ADR-001; six roles | all | portal per role (`app/student`, `teacher`, `mentor`, `admin`) | role enum, permission catalogue (`src/auth/permissions.ts`) | Role enum (M1) | least privilege per role; Teacher / Head Coach behind TEACHERS_ENABLED / HEAD_COACHES_ENABLED (off in production) | route-declarations, role-route sweep (7 callers × 315 routes), e2e role-allowlist / unknown-role; Playwright role-journeys (every portal) | 1 Complete and verified |
-| REG-02 | Student registration fields | consolidated req.; DOB required (owner 2026-11-17); picture OPTIONAL (owner 2026-11-18) | Student | `/register` (DOB, phones, home place, school cascade, interests, optional picture) | `POST /auth/register/student`, `PUT /auth/register/avatar` (one-time token) | `dateOfBirth`, phones, home place (M-registration_details); application `avatarFileId` (20261209000000) | public, throttled; picture token HMAC 30 min; contact data never in lists | e2e registration-avatar (6), student registration; frontend tests registration-avatar (4). No browser test of the sign-up form yet | 2 Implemented, not fully tested |
+| REG-02 | Student registration fields | consolidated req.; DOB required (owner 2026-11-17); picture OPTIONAL (owner 2026-11-18) | Student | `/register` (DOB, phones, home place, school cascade, interests, optional picture) | `POST /auth/register/student`, `PUT /auth/register/avatar` (one-time token) | `dateOfBirth`, phones, home place (M-registration_details); application `avatarFileId` (20261209000000) | public, throttled; picture token HMAC 30 min; contact data never in lists | e2e registration-avatar (6), student registration; frontend tests registration-avatar (4). **9.2 (2026-11-18):** guardian phone required by the server — e2e registration-details (missing / null / empty / blank / malformed / invalid refused). **9.3:** staff-created, invited and imported students give their DOB at first sign-in (`PUT /me/date-of-birth`, DateOfBirthGuard) — e2e date-of-birth-step, frontend unit, Playwright date-of-birth-step. No browser test of the sign-up form yet | 2 Implemented, not fully tested |
 | REG-03 | School / grade options adapt to country | ADR-005 (Phase 2) | Student, Teacher | Rwanda cascade only | `countryCode` on schools; grades S1–S6 fixed | School.countryCode | — | — | 5 Awaiting design approval |
 | REG-04 | Registration ≠ enrollment | ADR-006 (Phase 6) | Student, Admin | division courses only | division-based access | none yet | — | — | 5 Awaiting design approval |
 | REG-05 | Teacher registration fields | consolidated req.; ADR-009 | Teacher applicant | `/register/teacher` (+ position, years of experience, optional picture) | `POST /auth/register/teacher` | TeacherApplication (+ position, yearsOfExperience, avatarFileId) | public, throttled; one PENDING per username / e-mail | e2e teacher-registration, application-info-requests; frontend teacher-registration tests | 2 Implemented, not fully tested |
@@ -78,7 +81,7 @@ owner action outside the code: a fresh Neon branch for the restore drill (SEC-02
 | ACC-09 | Bulk operations | owner 2026-11-16 | Admin | Users bulk actions (branch `feat/admin-bulk-user-operations`, + teacher–student actions d548de3) | `/admin/users/bulk*` (+ assignTeacher / unassignTeacher / grantDelegation / revokeDelegation) | BulkOperation(+Item) | users.bulkManage + each action's permission; selection token; step-up | e2e bulk-operations* (incl. concurrency, notices), teacher-student-access (bulk); frontend bulk-users tests. No browser test of the bulk dialog | 2 Implemented, not fully tested |
 | ACC-10 | Import and export users | Phase 4 | Admin | import dialog, export | import, bulk export | — | users.import / users.export | e2e import, bulk export | 1 Complete and verified |
 | ACC-11 | Activity and account history | Phase 4 | Admin | activity log; account history card (branch) | activity, status history | UserStatusChange | audit.view / users.manage | e2e account-states, activity. No browser test of the history card | 2 Implemented, not fully tested |
-| ACC-12 | Explicit account states incl. Pending Verification / Approval / Rejected | ADR-008 (six states) vs four stored — open | Admin | states shown | ACTIVE / DEACTIVATED / SUSPENDED / ARCHIVED stored; pending derived | AccountStatus | — | e2e account-states | 5 Awaiting design approval |
+| ACC-12 | Explicit account states incl. Pending Verification / Approval / Rejected | ADR-008 (six states) vs four stored — open | Admin | states shown | ACTIVE / DEACTIVATED / SUSPENDED / ARCHIVED stored; pending derived; REJECTED stays on applications (owner approved 2026-11-18, decisions 10.1–10.3) | AccountStatus | — | e2e account-states | 1 Complete and verified |
 | ACC-13 | Soft deletion and restoration | Phase 4 | Admin | archive / restore | account states | — | users.archive | e2e account-states | 1 Complete and verified |
 | ACC-14 | Permanent deletion restricted | Phase 10 | Admin | — | permanent deletion disabled; retention deletion ✗ | — | — | e2e (delete refused with history) | 5 Awaiting design approval |
 | ACC-15 | Users update picture, contact, location, school, interests | Phase 4 | all | My Profile, avatar, school claim | `/me*`, avatar | User | own account only | e2e me, avatar, school claims; Playwright role-journeys (profile) | 1 Complete and verified |
@@ -116,10 +119,10 @@ owner action outside the code: a fresh Neon branch for the restore drill (SEC-02
 | ADM-02 | Admins see only permitted functions | Phase 1 | Admin | permission-driven menus | /me/permissions | — | — | frontend nav tests; Playwright sidebar | 1 Complete and verified |
 | UX-01 | Modern login / registration | owner | all | auth redesign (frontend develop, not released) | — | — | — | frontend tests; Playwright sign-in in every spec | 2 Implemented, not fully tested |
 | STU-01 | Student experience | consolidated req. | Student | courses, assignments, results, leaderboard | — | — | — | e2e student flows; Playwright role-journeys | 3 Partially implemented |
-| TCH-01 | Teacher and coach dashboards scoped | P1-10 / P1-11; TS-1…TS-6 | Teacher, Coach, Head Coach | teacher My Students (badges, pending count), coach and Head Coach portals | scoped services | — | school / assignment / programme scope | e2e teachers, teacher-student-access, head-coach-*; Playwright teacher-student-access, role-journeys | 1 Complete and verified |
+| TCH-01 | Teacher and coach dashboards scoped | P1-10 / P1-11; TS-1…TS-6 | Teacher, Coach, Head Coach | teacher My Students (badges, pending count), coach and Head Coach portals | scoped services | — | school / assignment / programme scope | e2e teachers, teacher-student-access (incl. SR-1: suspended / deactivated / archived students hidden on every teacher path; SR-2 pending-claim assignment), head-coach-*; Playwright teacher-student-access, role-journeys | 1 Complete and verified |
 | SEC-01 | Passwords, sessions, authorization, validation, rate limits, files | Phase 1 | all | — | guards, throttles (10 sign-ins / min), upload limits | — | — | e2e auth, uploads; role-route sweep | 1 Complete and verified |
 | SEC-02 | Backup and recovery | release plan | operations | — | backups; restore drill kit | — | — | drill kit tests; a real restore drill needs a fresh Neon branch (owner) | 8 Blocked (external) |
-| SEC-03 | Protection of minors | owner; ADR-013 | Student | no 1:1 messaging; pending students never named to teachers | contact data restricted; guardian consent ✗ | — | — | e2e contact-data-access, teacher-student-access | 3 Partially implemented |
+| SEC-03 | Protection of minors | owner; ADR-013 | Student | no 1:1 messaging; pending students never named to teachers; blocked (suspended / deactivated / archived) students hidden from teachers (SR-1); guardian phone required by the server (9.2) | contact data restricted; guardian consent ✗ (8.3: legal advice before opening student self-registration, which stays off) | — | — | e2e contact-data-access, teacher-student-access | 3 Partially implemented |
 | SEC-04 | Retention, correction, export, deletion | Phase 10 | all | — | activity-log retention only | — | — | — | 5 Awaiting design approval |
 | SEC-05 | No sensitive data in URLs / public responses / logs | Phase 1 | — | — | by design; sanitised errors | — | — | reviews; error sanitiser unit tests; no automated scan | 3 Partially implemented |
 | SEC-06 | Safe migrations | release plan | operations | — | rehearsal kit, rollbacks with data guards | — | — | rehearsal tests; local deploy → rollback → redeploy (11 migrations) | 1 Complete and verified |
@@ -140,7 +143,6 @@ owner action outside the code: a fresh Neon branch for the restore drill (SEC-02
 - Designs (status 5): Phase 2 countries / education systems, Phase 3 subjects / topics, Phase 6 course access, Phase 7 publishing
   and versioning, Phase 8 student support, Phase 9 groups and targeted e-mail, Phase 10 privacy / retention, REG-09 configurable
   fields, ADR-008 account states — see `DESIGN-PROPOSALS-V2.md`.
-- Also open: date of birth for students created by an Administrator, invited or imported (recommendation in `DESIGN-PROPOSALS.md`).
 - External (status 8): fresh Neon branch (restore drill), staging environment.
 
 ## Test evidence (2026-11-18, local, PostgreSQL 18)
@@ -151,3 +153,13 @@ owner action outside the code: a fresh Neon branch for the restore drill (SEC-02
 - Frontend integration (`integ/frontend-rc`): 408 unit tests, typecheck, lint, Next build.
 - Browser (Playwright, real backend + PostgreSQL): sidebar (8), teacher–student access (4), role journeys (7).
 - Not run locally: 6 S3 tests (need an S3 API; they run in CI with S3Mock).
+
+Later the same day (SR-1, 9.2, 9.3; local runs, then GitHub CI — see `FINAL-REVIEW-PACKAGE.md` §2):
+
+- Backend `feat/applications-complete` 4c0b152: unit 1150; e2e 976 passed / 6 skipped / 0 failed; API snapshot (one
+  approved breaking change: guardianPhone required; additive otherwise); release kit and drill scripts 144.
+- Backend `feat/teacher-student-access` eaccf4b: unit 1160 (+ sweep 5, Student 93 routes); e2e 990 passed / 6 skipped /
+  0 failed; routes 316/316; docs unchanged; migrate + no drift.
+- Frontend `feat/applications-complete` 31097e4: 368 unit tests; GitHub CI green.
+- Browser (integrated stack, merged backend): 20 tests incl. the new date-of-birth step; one sidebar test timed out once
+  (coach portal stuck on "Loading…", no throttling in the backend log) and passed 7/7 on rerun — recorded as a flake.

@@ -4,27 +4,23 @@ Owner instruction (2026-11-17): complete, integrate and test ALL approved requir
 design-dependent areas go to the owner as proposals; production untouched. This file is the running record so
 work can continue across sessions without losing anything. Newest entries first in each section.
 
-## Branches (none merged; do not merge without owner approval)
+## Pull requests (all open; none merged; do not merge without owner approval)
 
-| Repo | Branch | Base | Contents | Head |
-|---|---|---|---|---|
-| backend | `fix/role-notification-settings` | develop | Head Coach / Super Admin notification switches; new-discussion recipients | `a4016d3` |
-| backend | `feat/applications-complete` | fix/role-notification-settings | REG-05/06/10 (fields, rejection reasons, request more information); student DOB required; release kit 10 migrations | `cf964dc` |
-| backend | `docs/post-phase1-release-plan` | develop | release plan, requirements matrix, final scope, design proposals, this record | latest |
-| frontend | `chore/sync-main-into-develop` | develop | main→develop sync (tree = develop) | `6af113b` |
-| frontend | `feat/admin-form-availability` | develop | Forms page | `61c32c7` |
-| frontend | `feat/admin-bulk-user-operations` | develop | bulk operations UI, CSV export | `40cfc8e` |
-| frontend | `feat/account-history-head-coach-settings` | develop | account history card; Head Coach notification switches | `1dbdf89` |
-| frontend | `feat/applications-complete` | develop | REG-05/06/10 UI, answer page | `97db7d0` |
-| backend (local) | `feat/applications-complete` | fix/role-notification-settings | + REG-02 4b7450f dd58aae, REG-13 117be91, AUD-02 c7b1a41 | `c7b1a41` |
-| backend (local) | `feat/teacher-student-access` | feat/applications-complete | Teacher–student access TS-1…TS-6 (migration 20261210000000) | latest |
-| frontend (local) | `feat/admin-user-details` | develop | ACC-02 a43563f, REG-13 card 4bad525 | `4bad525` |
-| frontend (local) | `feat/teacher-student-access` | develop | School Access page, delegation scopes, My Students | `c7adf43` |
-| frontend (local) | `test/e2e-playwright` | develop | + teacher–student browser spec 0787304 | `0787304` |
-| frontend (local only) | `integ/frontend-rc` in `C:\rof-audit\fe-hist` | develop | all five merged; 382/382 tests, build OK | local |
+Opened by the owner 2026-11-18. Heads and CI as of the last update of `FINAL-REVIEW-PACKAGE.md` §1–§2 (the authoritative
+list).
 
-**Merge order (proposed):** backend `fix/role-notification-settings` → `feat/applications-complete` → (later
-backend branches stacked on it) → `docs/…`; frontend: any order (verified conflict-free), applications last.
+| PR | Repo | Branch → base | Head |
+|---|---|---|---|
+| #61 | backend | `fix/role-notification-settings` → develop | `a4016d3` |
+| #62 | backend | `feat/applications-complete` → `fix/role-notification-settings` | `4c0b152` (+ 9.2 / 9.3) |
+| #63 | backend | `feat/teacher-student-access` → `feat/applications-complete` | `eaccf4b` (+ SR-1, merges #62) |
+| #64 | backend | `docs/post-phase1-release-plan` → develop | branch head |
+| #31–#35, #37–#39 | frontend | sync, sidebar, forms, account history, bulk, school teachers, user details, teacher–student → develop | unchanged (see package) |
+| #36 | frontend | `feat/applications-complete` → develop | `31097e4` (+ date-of-birth step) |
+| #40 | frontend | `test/e2e-playwright` → develop | `3359757` (+ date-of-birth browser test) |
+| local only | frontend | `integ/frontend-rc` in `C:\rof-audit\fe-hist` | integration of all frontend PRs |
+
+**Merge order:** backend #61 → #62 → #63 → #64; frontend #31 … #40 in number order (each step merges cleanly).
 
 ## Local test infrastructure
 
@@ -39,6 +35,13 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 
 ## Done (with evidence)
 
+- 2026-11-18 Owner approved `DECISIONS-FOR-REVIEW.md` §1, SR-1 and SR-2; implemented: SR-1 (backend #63 14b9e1a — teachers
+  never see SUSPENDED / DEACTIVATED / ARCHIVED students on any path; scope kept separate from visibility), 9.2 (backend #62
+  c920d92 — guardian phone required by the server), 9.3 (backend #62 c920d92, frontend #36 31097e4, Playwright #40 3359757 —
+  first-sign-in date of birth for staff-created / invited / imported students). SR-2 and 10.1–10.3, Q11, Q17, O5 confirmed
+  as built (SR-2 test added). Follow-ups found by the full suites and fixed: avatar responses carry dateOfBirthRequired
+  (9bc7a6a), generated docs (d334cca), approved API snapshot with the one breaking change (4c0b152). e2e #62 976 / 6 S3 /
+  0 failed; #63 990 / 6 / 0; unit 1150 / 1160; frontend 368; Playwright 20 (one sidebar flake, passed on rerun).
 - 2026-11-17 W1 applications: backend e2e full suite 951 passed / 6 skipped (S3) on PostgreSQL 18; unit 1140/1140;
   10-migration deploy → rollback → re-deploy clean; frontend integration 382/382, typecheck, lint, Netlify build.
 - 2026-11-17 Student DOB required at self-registration (backend `cf964dc`).
@@ -135,6 +138,9 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 
 ## Owner decisions recorded
 
+- 2026-11-18 Every recommendation in `DECISIONS-FOR-REVIEW.md` §1 APPROVED, including SR-1 (hide inactive students from
+  teachers) and SR-2 (pending-claim students may be assigned explicitly with a reason). 8.3: legal advice before opening
+  student self-registration (it stays off).
 - 2026-11-17 Sidebar "More" menu APPROVED as implemented (`feat/sidebar-more-menu` 2c36727, 33b3a5a, 4c8a511): desktop opens a
   panel beside the sidebar (must NOT expand inside the desktop sidebar — it would bring back sidebar scrolling); tablets and
   phones expand inline. No further changes. Keep the branch and commits intact; include it in the final integration,
@@ -142,7 +148,8 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 
 ## Awaiting owner decision (do not implement)
 
-- D1–D8 in `docs/DESIGN-PROPOSALS.md`; ADR-008 states; DOB for administrator-created / invited / imported students.
+- The 31 deferrable questions in `DECISIONS-FOR-REVIEW.md` §2 (later phases). (ADR-008 states and DOB for staff-created
+  students were decided 2026-11-18.)
 - Fresh Neon branch for the rehearsal and restore drill; staging resources (ADR-016).
 
 ## Excluded / deferred by the owner (not missing)

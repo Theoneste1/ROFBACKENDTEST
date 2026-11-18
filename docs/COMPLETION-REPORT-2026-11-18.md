@@ -83,3 +83,11 @@ b115384; SR-1 and SR-2 went to the owner (`DECISIONS-FOR-REVIEW.md`). A merge co
 removed at the source (`feat/admin-user-details` 6166186). Production was inspected read-only, and the eleven migrations
 were rehearsed (deploy, rollback, re-deploy) on a restored copy of the production backup — never on production. The
 release runbook and plan now list eleven migrations.
+
+## Approved decisions (2026-11-18, after the review stage)
+
+The owner approved `DECISIONS-FOR-REVIEW.md` §1, SR-1 and SR-2. Implemented and tested on the open PRs: SR-1 teachers never
+see suspended, deactivated or archived students (backend #63); 9.2 guardian phone required by the server and 9.3
+first-sign-in date of birth for staff-created, invited and imported students (backend #62, frontend #36, Playwright #40).
+The other approved items confirm what was built (SR-2 test added). No new migration. GitHub CI per PR head and local
+results: `FINAL-REVIEW-PACKAGE.md` §2.
