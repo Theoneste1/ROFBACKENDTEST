@@ -85,15 +85,14 @@ describe('Application details and requests for more information (e2e)', () => {
     expect(await p().auditLog.count({ where: { action: 'APPLICATION_INFO_REQUESTED', entityId: app } })).toBe(1);
 
     const token = await tokenFor(body.email);
-    const view = await http().get(`/api/v1/applications/info-requests/${token}`).expect(200);
+    const view = await http().post('/api/v1/applications/info-requests/view').send({ token: token }).expect(200);
     expect(view.body).toMatchObject({ kind: 'TEACHER', firstName: 'Grace', question: 'Which classes do you teach?', correctable: ['phone', 'position', 'yearsOfExperience'] });
     expect(view.body.details).toMatchObject({ position: 'Teacher' });
     expect(JSON.stringify(view.body)).not.toContain('passwordHash');
 
     const admins = (await p().user.findMany({ where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] }, isActive: true }, select: { id: true } })).map((u) => u.id);
     const before = await p().notification.count({ where: { type: 'application.info_answered', userId: { in: admins } } });
-    await http().post(`/api/v1/applications/info-requests/${token}`)
-      .send({ answer: 'S4–S6 mathematics.', position: 'Senior mathematics teacher', yearsOfExperience: 9, affiliation: 'ignored for teachers' }).expect(200);
+    await http().post('/api/v1/applications/info-requests/answer').send({ token: token,  answer: 'S4–S6 mathematics.', position: 'Senior mathematics teacher', yearsOfExperience: 9, affiliation: 'ignored for teachers' }).expect(200);
     await waitForEvents();
     const after = await http().get(`/api/v1/admin/teacher-applications/${app}`).set(bearer(admin)).expect(200);
     expect(after.body).toMatchObject({ status: 'PENDING', position: 'Senior mathematics teacher', yearsOfExperience: 9 });
@@ -102,8 +101,8 @@ describe('Application details and requests for more information (e2e)', () => {
     expect(await p().notification.count({ where: { type: 'application.info_answered', userId: { in: admins } } })).toBe(before + admins.length);
 
     // Used once.
-    await http().get(`/api/v1/applications/info-requests/${token}`).expect(410);
-    await http().post(`/api/v1/applications/info-requests/${token}`).send({ answer: 'again' }).expect(410);
+    await http().post('/api/v1/applications/info-requests/view').send({ token: token }).expect(410);
+    await http().post('/api/v1/applications/info-requests/answer').send({ token: token,  answer: 'again' }).expect(410);
   });
 
   it('a new question replaces an unanswered one (the old link stops working); a decision cancels the open one', async () => {
@@ -114,12 +113,12 @@ describe('Application details and requests for more information (e2e)', () => {
     await http().post(`/api/v1/admin/teacher-applications/${app}/request-info`).set(bearer(admin)).send({ question: 'Second question?' }).expect(200);
     const second = await tokenFor(body.email);
     expect(second).not.toBe(first);
-    await http().get(`/api/v1/applications/info-requests/${first}`).expect(410);
-    await http().get(`/api/v1/applications/info-requests/${second}`).expect(200);
+    await http().post('/api/v1/applications/info-requests/view').send({ token: first }).expect(410);
+    await http().post('/api/v1/applications/info-requests/view').send({ token: second }).expect(200);
 
     // Rejecting cancels the open question and e-mails the reason.
     await http().post(`/api/v1/admin/teacher-applications/${app}/reject`).set(bearer(admin)).send({ reason: 'School could not be confirmed.' }).expect(200);
-    await http().get(`/api/v1/applications/info-requests/${second}`).expect(410);
+    await http().post('/api/v1/applications/info-requests/view').send({ token: second }).expect(410);
     const open = await p().applicationInfoRequest.count({ where: { teacherApplicationId: app, answeredAt: null, cancelledAt: null } });
     expect(open).toBe(0);
     const mail = await p().emailDelivery.findFirst({ where: { recipientEmail: body.email, subject: { contains: 'teacher application' } }, orderBy: { createdAt: 'desc' } });
@@ -135,11 +134,10 @@ describe('Application details and requests for more information (e2e)', () => {
       .send({ question: 'Please give your affiliation and phone.' }).expect(200);
     expect(asked.body.infoRequests[0]).toMatchObject({ question: 'Please give your affiliation and phone.' });
     const token = await tokenFor(body.email);
-    const view = await http().get(`/api/v1/applications/info-requests/${token}`).expect(200);
+    const view = await http().post('/api/v1/applications/info-requests/view').send({ token: token }).expect(200);
     expect(view.body.kind).toBe('COACH');
-    await http().post(`/api/v1/applications/info-requests/${token}`).send({ answer: 'Here they are.', phone: 'bad' }).expect(400);
-    await http().post(`/api/v1/applications/info-requests/${token}`)
-      .send({ answer: 'Here they are.', phone: '0788 000 222', affiliation: 'Kigali Maths Club', position: 'ignored for coaches' }).expect(200);
+    await http().post('/api/v1/applications/info-requests/answer').send({ token: token,  answer: 'Here they are.', phone: 'bad' }).expect(400);
+    await http().post('/api/v1/applications/info-requests/answer').send({ token: token,  answer: 'Here they are.', phone: '0788 000 222', affiliation: 'Kigali Maths Club', position: 'ignored for coaches' }).expect(200);
     const row = await p().mentorRequest.findUniqueOrThrow({ where: { id: app } });
     expect(row).toMatchObject({ status: 'PENDING', phone: '+250788000222', affiliation: 'Kigali Maths Club' });
 
@@ -156,7 +154,7 @@ describe('Application details and requests for more information (e2e)', () => {
     await http().post(`/api/v1/mentor-requests/${app}/request-info`).set(bearer(admin)).send({ question: 'Anything else?' }).expect(200);
     const token = await tokenFor(body.email);
     await http().patch(`/api/v1/mentor-requests/${app}/approve`).set(bearer(admin)).expect(200);
-    await http().get(`/api/v1/applications/info-requests/${token}`).expect(410);
+    await http().post('/api/v1/applications/info-requests/view').send({ token: token }).expect(410);
   });
 
   it('only administrators with the permission may ask; invalid input and unknown links are refused', async () => {
@@ -167,8 +165,10 @@ describe('Application details and requests for more information (e2e)', () => {
     await http().post(`/api/v1/mentor-requests/${c}/request-info`).send({ question: 'Hello there?' }).expect(401);
     await http().post(`/api/v1/mentor-requests/${c}/request-info`).set(bearer(admin)).send({ question: 'Hi' }).expect(400);
     await http().post('/api/v1/admin/teacher-applications/00000000-0000-4000-8000-000000000000/request-info').set(bearer(admin)).send({ question: 'Anyone there?' }).expect(404);
-    await http().get('/api/v1/applications/info-requests/not-a-real-token-at-all-1234567890').expect(410);
-    await http().get('/api/v1/applications/info-requests/short').expect(410);
+    await http().post('/api/v1/applications/info-requests/view').send({ token: 'not-a-real-token-at-all-1234567890' }).expect(410);
+    // A malformed token is refused before any lookup.
+    await http().post('/api/v1/applications/info-requests/view').send({ token: 'short' }).expect(400);
+    await http().post('/api/v1/applications/info-requests/view').send({}).expect(400);
   });
 
   describe('reapplication after a rejection: every attempt is its own application (final review 2026-11-18)', () => {
@@ -182,7 +182,7 @@ describe('Application details and requests for more information (e2e)', () => {
       victim = coachBody({ firstName: 'Victoria' });
       victimId = (await http().post('/api/v1/mentor-requests').send(victim).expect(201)).body.id;
       await http().post(`/api/v1/mentor-requests/${victimId}/request-info`).set(bearer(admin)).send({ question: SECRETS[1] }).expect(200);
-      await http().post(`/api/v1/applications/info-requests/${await tokenFor(victim.email)}`).send({ answer: `${SECRETS[0]}, private` }).expect(200);
+      await http().post('/api/v1/applications/info-requests/answer').send({ token: await tokenFor(victim.email), answer: `${SECRETS[0]}, private` }).expect(200);
       await http().patch(`/api/v1/mentor-requests/${victimId}/reject`).set(bearer(admin)).send({ reason: 'Not this year.' }).expect(200);
     });
 
@@ -240,7 +240,7 @@ describe('Application details and requests for more information (e2e)', () => {
     await http().post(`/api/v1/mentor-requests/${app}/request-info`).set(bearer(admin)).send({ question: 'Still interested?' }).expect(200);
     const token = await tokenFor(body.email);
     await p().applicationInfoRequest.updateMany({ where: { mentorRequestId: app }, data: { expiresAt: new Date(Date.now() - 1000) } });
-    await http().get(`/api/v1/applications/info-requests/${token}`).expect(410);
-    await http().post(`/api/v1/applications/info-requests/${token}`).send({ answer: 'Yes' }).expect(410);
+    await http().post('/api/v1/applications/info-requests/view').send({ token: token }).expect(410);
+    await http().post('/api/v1/applications/info-requests/answer').send({ token: token,  answer: 'Yes' }).expect(410);
   });
 });

@@ -2761,32 +2761,17 @@ Returns `200` JSON with:
 
 ## Auth
 
-### GET `/api/v1/applications/info-requests/{token}`
-
-**Access:** Public
-
-The question, the application kind, and the details the applicant may correct with their current values.
-
-| Parameter | In | Type | Required | Notes |
-|---|---|---|:-:|---|
-| `token` | path | string | ✓ |  |
-
-Returns `200` with no body.
-
-### POST `/api/v1/applications/info-requests/{token}`
+### POST `/api/v1/applications/info-requests/answer`
 
 **Access:** Public
 
 Answer once (and optionally correct details); the administrators are told.
 
-| Parameter | In | Type | Required | Notes |
-|---|---|---|:-:|---|
-| `token` | path | string | ✓ |  |
-
 Body (JSON):
 
 | Field | Type | Required | Notes |
 |---|---|:-:|---|
+| `token` | string | ✓ |  |
 | `answer` | string | ✓ |  |
 | `phone` | string |  |  |
 | `position` | string |  |  |
@@ -2795,6 +2780,20 @@ Body (JSON):
 | `expertise` | string |  |  |
 | `relevantExperience` | string |  |  |
 | `occupation` | string |  |  |
+
+Returns `200` with no body.
+
+### POST `/api/v1/applications/info-requests/view`
+
+**Access:** Public
+
+The question, the application kind, and the details the applicant may correct with their current values.
+
+Body (JSON):
+
+| Field | Type | Required | Notes |
+|---|---|:-:|---|
+| `token` | string | ✓ |  |
 
 Returns `200` with no body.
 

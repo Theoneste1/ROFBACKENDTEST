@@ -111,7 +111,8 @@ export const FEATURES = {
    * (e-mailed, like a Teacher rejection's); Administrators ask a question with POST
    * /admin/teacher-applications/:id/request-info or POST /mentor-requests/:id/request-info (the application stays
    * PENDING; `infoRequests` on the application lists the questions and answers); the applicant answers through
-   * GET / POST /applications/info-requests/:token (410 INFO_REQUEST_LINK_INVALID once used, expired or decided).
+   * POST /applications/info-requests/view and /answer, token in the body (410 INFO_REQUEST_LINK_INVALID once used,
+   * expired or decided).
    * Without this feature the new fields are refused (400) and the routes do not exist (404).
    */
   applicationDetails: 'always',

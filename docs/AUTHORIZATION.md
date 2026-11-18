@@ -301,8 +301,8 @@ Totals: 320 endpoints — 25 public, 187 administrator-only.
 
 | Method | Path | Public | Student | Mentor | Admin |
 |---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/applications/info-requests/{token}` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/applications/info-requests/{token}` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/applications/info-requests/answer` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/applications/info-requests/view` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/activate` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/activation/inspect` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/forgot-password` | ✓ | ✓ | ✓ | ✓ |

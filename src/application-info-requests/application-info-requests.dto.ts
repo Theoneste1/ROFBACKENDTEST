@@ -10,7 +10,16 @@ export class RequestApplicationInfoDto {
 }
 
 /**
- * POST /applications/info-requests/:token. `answer` is required; the other fields correct the application where the
+ * POST /applications/info-requests/view. The one-time link's token travels in the body, never in the URL (SEC-05: URLs
+ * end up in proxy and platform access logs).
+ */
+export class InfoRequestTokenDto {
+  @IsString() @Length(16, 200)
+  token: string;
+}
+
+/**
+ * POST /applications/info-requests/answer (with `token`, see InfoRequestTokenDto). `answer` is required; the other fields correct the application where the
  * application kind allows it (Teacher: phone, position, yearsOfExperience; Coach: phone, affiliation, expertise,
  * relevantExperience, yearsOfExperience, occupation) and are ignored otherwise.
  */
@@ -38,4 +47,10 @@ export class AnswerInfoRequestDto {
 
   @IsOptional() @IsString() @Length(2, 200) @Transform(trim)
   occupation?: string;
+}
+
+/** POST /applications/info-requests/answer: the token (body, never the URL) and the answer. */
+export class AnswerInfoRequestWithTokenDto extends AnswerInfoRequestDto {
+  @IsString() @Length(16, 200)
+  token: string;
 }

@@ -1549,8 +1549,8 @@
     "tag": "Assignments"
   },
   {
-    "method": "GET",
-    "path": "/api/v1/applications/info-requests/{token}",
+    "method": "POST",
+    "path": "/api/v1/applications/info-requests/answer",
     "roles": [
       "PUBLIC"
     ],
@@ -1558,7 +1558,7 @@
   },
   {
     "method": "POST",
-    "path": "/api/v1/applications/info-requests/{token}",
+    "path": "/api/v1/applications/info-requests/view",
     "roles": [
       "PUBLIC"
     ],

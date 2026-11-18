@@ -239,7 +239,12 @@ const TEACHER_STUDENT_DECISIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-1
 const FINAL_REVIEW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-final-review.json';
 /** Teacher–student access + every change of feat/applications-complete up to the final review (this branch is stacked on it). */
 const TEACHER_STUDENT_FINAL_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-teacher-student-final.json';
-const CURRENT_SNAPSHOT = TEACHER_STUDENT_FINAL_SNAPSHOT;
+/**
+ * Integration on develop (2026-11-18, SEC-05): the applicant's one-time "more information" token moves from the URL path
+ * to the request body (URLs reach proxy and platform access logs). The two path routes were never released.
+ */
+const INFO_REQUEST_TOKEN_BODY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-info-request-token-body.json';
+const CURRENT_SNAPSHOT = INFO_REQUEST_TOKEN_BODY_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1266,6 +1271,24 @@ describe('approved API contract history', () => {
     const direct = compare(JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FINAL_REVIEW_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual([res.breaking, res.review, res.additive], [direct.breaking, direct.review, direct.additive]);
+  });
+
+  test('teacher–student final → info-request token in the body (SEC-05): exactly the two path routes replaced, nothing else', () => {
+    for (const f of [TEACHER_STUDENT_FINAL_SNAPSHOT, INFO_REQUEST_TOKEN_BODY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEACHER_STUDENT_FINAL_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(INFO_REQUEST_TOKEN_BODY_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking.sort(), [
+      'GET /api/v1/applications/info-requests/{token}: operation removed',
+      'POST /api/v1/applications/info-requests/{token}: operation removed',
+    ]);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/applications/info-requests/answer: operation added',
+      'POST /api/v1/applications/info-requests/view: operation added',
+      'schema AnswerInfoRequestDto: no longer defined (check uses above)',
+      'schema AnswerInfoRequestWithTokenDto: added',
+      'schema InfoRequestTokenDto: added',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

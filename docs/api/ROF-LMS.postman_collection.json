@@ -6510,37 +6510,7 @@
       "name": "Auth",
       "item": [
         {
-          "name": "GET /applications/info-requests/{token}",
-          "request": {
-            "method": "GET",
-            "auth": {
-              "type": "noauth"
-            },
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/applications/info-requests/:token",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "applications",
-                "info-requests",
-                ":token"
-              ],
-              "variable": [
-                {
-                  "key": "token",
-                  "value": "",
-                  "description": ""
-                }
-              ],
-              "query": []
-            },
-            "description": "**Access:** Public (no token)"
-          }
-        },
-        {
-          "name": "POST /applications/info-requests/{token}",
+          "name": "POST /applications/info-requests/answer",
           "request": {
             "method": "POST",
             "auth": {
@@ -6553,28 +6523,60 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/applications/info-requests/:token",
+              "raw": "{{baseUrl}}/applications/info-requests/answer",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "applications",
                 "info-requests",
-                ":token"
+                "answer"
               ],
-              "variable": [
-                {
-                  "key": "token",
-                  "value": "",
-                  "description": ""
-                }
-              ],
+              "variable": [],
               "query": []
             },
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"answer\": \"answer\"\n}",
+              "raw": "{\n  \"token\": \"token token token token\",\n  \"answer\": \"answer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /applications/info-requests/view",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/info-requests/view",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "info-requests",
+                "view"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"token token token token\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

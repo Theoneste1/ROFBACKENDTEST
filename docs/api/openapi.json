@@ -36526,19 +36526,20 @@
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
       }
     },
-    "/api/v1/applications/info-requests/{token}": {
-      "get": {
+    "/api/v1/applications/info-requests/view": {
+      "post": {
         "operationId": "ApplicationInfoRequestsController_view",
-        "parameters": [
-          {
-            "name": "token",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InfoRequestTokenDto"
+              }
             }
           }
-        ],
+        },
         "responses": {
           "200": {
             "description": ""
@@ -36563,25 +36564,18 @@
         ],
         "description": "**Access:** Public (no token)",
         "security": []
-      },
+      }
+    },
+    "/api/v1/applications/info-requests/answer": {
       "post": {
         "operationId": "ApplicationInfoRequestsController_answer",
-        "parameters": [
-          {
-            "name": "token",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AnswerInfoRequestDto"
+                "$ref": "#/components/schemas/AnswerInfoRequestWithTokenDto"
               }
             }
           }
@@ -48578,9 +48572,27 @@
           "reason"
         ]
       },
-      "AnswerInfoRequestDto": {
+      "InfoRequestTokenDto": {
         "type": "object",
         "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "AnswerInfoRequestWithTokenDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 200
+          },
           "answer": {
             "type": "string",
             "minLength": 1,
@@ -48623,6 +48635,7 @@
           }
         },
         "required": [
+          "token",
           "answer"
         ]
       },

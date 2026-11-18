@@ -15,9 +15,9 @@ Development branches are not released: "complete" here means complete in develop
 
 | Status | Count |
 |---|---|
-| 1 Complete and verified | 57 |
+| 1 Complete and verified | 58 |
 | 2 Implemented, not fully tested | 0 |
-| 3 Partially implemented | 14 |
+| 3 Partially implemented | 13 |
 | 4 Missing | 0 |
 | 5 Awaiting design approval | 28 |
 | 6 Excluded (owner) | 0 |
@@ -34,7 +34,7 @@ Update 2026-11-18 (owner approved `DECISIONS-FOR-REVIEW.md` §1, SR-1, SR-2): AC
 Update 2026-11-18 (integration on `develop`, all 14 PRs merged): browser tests added for the ten "Implemented, not fully
 tested" rows (now 1) and an automated accessibility audit for PERF-03 (now 1). The 14 "Partially implemented" rows lack only
 parts that depend on the 28 "Awaiting design approval" areas (subjects, groups, support, countries, flexible levels, enrolment
-control, school-administrator accounts) or on legal advice (guardian consent, 8.3); SEC-05 has no automated scan.
+control, school-administrator accounts) or on legal advice (guardian consent, 8.3). SEC-05 gained an automated scan (now 1).
 
 ## Matrix
 
@@ -49,7 +49,7 @@ control, school-administrator accounts) or on legal advice (guardian consent, 8.
 | REG-07 | Coaches verified and approved | ADR-001; P1-10 invitations need Admin approval | Admin, Head Coach | Coach applications page | approve / reject (reason e-mailed) | MentorRequest | users.manageCoaches | e2e mentor requests, head-coach-programme (invitations) | 1 Complete and verified |
 | REG-08 | Enable / disable registration per type | owner (form availability) | Admin | Forms page (branch `feat/admin-form-availability`) | `/admin/forms/*`, public availability | FormAvailability (20261208000000) | forms.manage | e2e form-availability; frontend closed-form tests. No browser test **Browser:** Playwright registration-forms — form closed by an Administrator shows the closed message, reopens. | 1 Complete and verified |
 | REG-09 | Configure mandatory / optional fields | Q10 (open) | Admin | — | — | — | — | — | 5 Awaiting design approval |
-| REG-10 | Review, approve, reject with reason, request more information | ADR-009 | Admin | application pages: request info, answer page `/applications/respond` | `…/request-info`, `/applications/info-requests/:token` | ApplicationInfoRequest | users.manageTeachers / manageCoaches; one-time link | e2e application-info-requests (8), INT-07 case; frontend applications tests **Browser:** Playwright application-review — ask for information (stored, stays PENDING), reject with required reason, approve (coach account created). | 1 Complete and verified |
+| REG-10 | Review, approve, reject with reason, request more information | ADR-009 | Admin | application pages: request info, answer page `/applications/respond` | `…/request-info`, `POST /applications/info-requests/view` and `/answer` (token in the body, SEC-05) | ApplicationInfoRequest | users.manageTeachers / manageCoaches; one-time link | e2e application-info-requests (8), INT-07 case; frontend applications tests **Browser:** Playwright application-review — ask for information (stored, stays PENDING), reject with required reason, approve (coach account created). | 1 Complete and verified |
 | REG-11 | Resend activation, suspend / reactivate, bulk import | Phase 4 | Admin | user page, import dialog | users / account-states / import routes | User, UserStatusChange | users.manage*, step-up for admin roles | e2e account-states, import, activation | 1 Complete and verified |
 | REG-12 | Export user records | Phase 4 | Admin | bulk export CSV (branch), report CSVs | `POST /admin/users/bulk/export`, report exports | — | users.export; no DOB / phones in exports | e2e bulk-operations (export), reports **Browser:** Playwright admin-users — CSV export of a selection (only the selected account; no password hash). | 1 Complete and verified |
 | REG-13 | Registration history (timeline) | consolidated req. | Admin | user page "Registration history" card (branch `feat/admin-user-details` 4bad525) | `GET /admin/users/:id/registration-timeline` (117be91) | none (from AuditLog / applications / claims) | users.manage; safe details only (no contact data) | e2e registration-timeline (3); frontend tests (3); Playwright role-journeys (card) | 1 Complete and verified |
@@ -129,7 +129,7 @@ control, school-administrator accounts) or on legal advice (guardian consent, 8.
 | SEC-02 | Backup and recovery | release plan | operations | — | backups; restore drill kit | — | — | drill kit tests; a real restore drill needs a fresh Neon branch (owner) | 8 Blocked (external) |
 | SEC-03 | Protection of minors | owner; ADR-013 | Student | no 1:1 messaging; pending students never named to teachers; blocked (suspended / deactivated / archived) students hidden from teachers (SR-1); guardian phone required by the server (9.2) | contact data restricted; guardian consent ✗ (8.3: legal advice before opening student self-registration, which stays off) | — | — | e2e contact-data-access, teacher-student-access | 3 Partially implemented |
 | SEC-04 | Retention, correction, export, deletion | Phase 10 | all | — | activity-log retention only | — | — | — | 5 Awaiting design approval |
-| SEC-05 | No sensitive data in URLs / public responses / logs | Phase 1 | — | — | by design; sanitised errors | — | — | reviews; error sanitiser unit tests; no automated scan | 3 Partially implemented |
+| SEC-05 | No sensitive data in URLs / public responses / logs | Phase 1 | — | — | by design; sanitised errors | — | — | reviews; error sanitiser unit tests; no automated scan **Automated scan (2026-11-18):** e2e sensitive-data — no route takes a token, password or secret in its URL (OpenAPI contract; the applicant info-request token moved from the path to the body); sign-in, password reset, refresh and an expired link leave no password or token in any log level or response, no password hash in any response (proven to fail on a planted leak). | 1 Complete and verified |
 | SEC-06 | Safe migrations | release plan | operations | — | rehearsal kit, rollbacks with data guards | — | — | rehearsal tests; local deploy → rollback → redeploy (11 migrations) | 1 Complete and verified |
 | ARC-01 | Separate apps, contracts, errors | ADR | — | capabilities contract | API snapshot tests | — | — | api-snapshot tests | 1 Complete and verified |
 | ARC-02 | Validation, pagination, transactions | ADR | — | — | DTO validation, pagination | — | — | unit / e2e | 1 Complete and verified |
