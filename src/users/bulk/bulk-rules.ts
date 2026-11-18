@@ -13,7 +13,14 @@ import { createHash } from 'node:crypto';
 import type { AccountStatus, GradeLevel } from '../../generated/prisma/client.js';
 import type { Permission } from '../../auth/permissions.js';
 
-export const BULK_ACTIONS = ['activate', 'deactivate', 'suspend', 'archive', 'restore', 'assignRole', 'changeClassification', 'message'] as const;
+export const BULK_ACTIONS = [
+  'activate', 'deactivate', 'suspend', 'archive', 'restore', 'assignRole', 'changeClassification', 'message',
+  // Teacher–student access (TS approvals 2026-11-18): the selected accounts are students; params.teacherId (+ permission).
+  'assignTeacher', 'unassignTeacher', 'grantDelegation', 'revokeDelegation',
+] as const;
+
+/** Actions on the teacher–student links of the selected students (params.teacherId). */
+export const TEACHER_STUDENT_ACTIONS: readonly BulkAction[] = ['assignTeacher', 'unassignTeacher', 'grantDelegation', 'revokeDelegation'];
 export type BulkAction = (typeof BULK_ACTIONS)[number];
 
 export const MAX_IDS = 1000;
@@ -45,6 +52,10 @@ export interface BulkParams {
   gradeLevel?: GradeLevel;
   subject?: string;
   body?: string;
+  /** Teacher–student actions: the Teacher. */
+  teacherId?: string;
+  /** grantDelegation / revokeDelegation: students.viewProfile, students.viewProgress or submissions.submitOnBehalf. */
+  permission?: string;
 }
 
 interface ActionRule {
@@ -76,6 +87,14 @@ export const ACTION_RULES: Readonly<Record<BulkAction, ActionRule>> = {
                 consequence: 'Students move to the new grade, and so to its division (S1–S3 Junior, S4–S6 Senior), re-enrolled for the current year. Other roles are skipped.' },
   message:    { permissions: ['email.bulkSend'], reason: 'optional',
                 consequence: 'Each active account in the selection is e-mailed once. Blocked accounts are skipped.' },
+  assignTeacher:    { permissions: ['users.manageTeachers'], reason: 'optional',
+                      consequence: 'Each selected student is assigned to the teacher (students already assigned are skipped). A student who is not a verified student of the teacher\'s schools needs a reason, otherwise it fails. Other accounts are skipped. The teacher is told once; students are not notified.' },
+  unassignTeacher:  { permissions: ['users.manageTeachers'], reason: 'optional',
+                      consequence: 'Each selected student\'s assignment to the teacher ends (kept as history). If the teacher then no longer sees a student, that student is taken off the teacher\'s delegations for selected students, which are flagged for review.' },
+  grantDelegation:  { permissions: ['users.manageTeachers'], reason: 'required',
+                      consequence: 'The teacher\'s permission is given for each selected student (a delegation for selected students, created if the teacher has none). Students the teacher does not see fail. The teacher is told about a new delegation.' },
+  revokeDelegation: { permissions: ['users.manageTeachers'], reason: 'optional',
+                      consequence: 'Each selected student is taken off the teacher\'s delegation for selected students (kept as history). Delegations for the whole school or assigned students are not changed: revoke those on the teacher\'s page.' },
 };
 
 /** Status of an account before a status action: SKIPPED (with why), or the transition to make. */
@@ -103,6 +122,10 @@ export function normaliseParams(action: BulkAction, p: BulkParams): BulkParams {
     case 'assignRole': return { role: p.role };
     case 'changeClassification': return { gradeLevel: p.gradeLevel };
     case 'message': return { subject: p.subject?.trim(), body: p.body };
+    case 'assignTeacher':
+    case 'unassignTeacher': return { teacherId: p.teacherId };
+    case 'grantDelegation':
+    case 'revokeDelegation': return { teacherId: p.teacherId, permission: p.permission };
     default: return {};
   }
 }

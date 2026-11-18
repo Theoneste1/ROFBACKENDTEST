@@ -11570,6 +11570,545 @@
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/teachers/{id}/delegations/{overrideId}/students": {
+      "post": {
+        "operationId": "TeacherDelegationsController_addStudents",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overrideId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelegationStudentsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add students to a delegation for SELECTED students (each must be seen by the teacher). Per student: ADDED,\nSKIPPED (ALREADY_SET) or FAILED (STUDENT_NOT_IN_TEACHER_SCOPE). 409 NOT_SELECTED_SCOPE / OVERRIDE_INACTIVE.",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}": {
+      "delete": {
+        "operationId": "TeacherDelegationsController_removeStudent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overrideId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Take a student off a delegation for selected students (kept as history).",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed": {
+      "post": {
+        "operationId": "TeacherDelegationsController_reviewed",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overrideId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Clear the \"needs review\" flag set when a listed student left the teacher's scope (409 NO_REVIEW_NEEDED).",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-students": {
+      "get": {
+        "operationId": "TeacherStudentAssignmentsController_list",
+        "parameters": [
+          {
+            "name": "teacherId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "description": "The student's school.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "TeacherStudentAssignmentsController_assign",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignTeacherStudentsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign up to 200 students to one Teacher, in one transaction. Per student: ASSIGNED, REACTIVATED, SKIPPED\n(ALREADY_ASSIGNED) or FAILED (NOT_A_STUDENT, NOT_FOUND, REASON_REQUIRED — a student outside the teacher's\nverified schools needs a reason). The teacher gets one notice; students are never notified.",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-students/reassign": {
+      "post": {
+        "operationId": "TeacherStudentAssignmentsController_reassign",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignTeacherStudentsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Move students from one Teacher to another (each student: old ends and new starts together, or nothing changes).",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-students/{id}": {
+      "delete": {
+        "operationId": "TeacherStudentAssignmentsController_end",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "End an assignment (kept as history; 409 ASSIGNMENT_ENDED). Selected-student delegations that depended on it are flagged.",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/access": {
+      "get": {
+        "operationId": "SchoolAccessController_access",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The school's teachers with their delegations and assigned-student counts; student counts; what needs attention.",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/schools/{id}/access/students": {
+      "get": {
+        "operationId": "SchoolAccessController_students",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "gradeLevel",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "S1",
+                "S2",
+                "S3",
+                "S4",
+                "S5",
+                "S6"
+              ]
+            }
+          },
+          {
+            "name": "verification",
+            "required": false,
+            "in": "query",
+            "description": "The student's current claim for this school.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "VERIFIED",
+                "PENDING"
+              ]
+            }
+          },
+          {
+            "name": "assigned",
+            "required": false,
+            "in": "query",
+            "description": "true: assigned to at least one teacher; false: to none.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "teacherId",
+            "required": false,
+            "in": "query",
+            "description": "Only students assigned to this teacher.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The school's students (verified or pending claim) with their assigned teachers. No contact details.",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/teacher/students": {
       "get": {
         "operationId": "TeacherStudentsController_list",
@@ -11610,6 +12149,19 @@
               "maxLength": 100,
               "type": "string"
             }
+          },
+          {
+            "name": "access",
+            "required": false,
+            "in": "query",
+            "description": "How the teacher sees them: SCHOOL (verified students of their schools) or ASSIGNED (assigned to them).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SCHOOL",
+                "ASSIGNED"
+              ]
+            }
           }
         ],
         "responses": {
@@ -11633,6 +12185,44 @@
           }
         ],
         "summary": "Teachers only: every registered student of the schools an Administrator has assigned to you\n(active school assignments) — name, username, grade, division, school. Other roles: 403.",
+        "tags": [
+          "Teacher"
+        ],
+        "x-served-roles": [
+          "TEACHER"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "students.viewScoped",
+        "description": "**Access:** permission `students.viewScoped` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/students/summary": {
+      "get": {
+        "operationId": "TeacherStudentsController_summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Teachers only: how many students you see (through your schools, through assignments) and how many of your schools' students are waiting for verification (a number only).",
         "tags": [
           "Teacher"
         ],
@@ -11679,7 +12269,7 @@
             "bearer": []
           }
         ],
-        "summary": "A student of your assigned schools: profile and account status, no contact details. Needs the students.viewProfile delegation.",
+        "summary": "A student of your assigned schools, or assigned to you: profile and account status, no contact details. Needs the students.viewProfile delegation covering this student.",
         "tags": [
           "Teacher"
         ],
@@ -45743,6 +46333,20 @@
             "type": "string",
             "minLength": 5,
             "maxLength": 10000
+          },
+          "teacherId": {
+            "type": "string",
+            "description": "assignTeacher, unassignTeacher, grantDelegation, revokeDelegation: the Teacher.",
+            "format": "uuid"
+          },
+          "permission": {
+            "type": "string",
+            "description": "grantDelegation, revokeDelegation: the delegation.",
+            "enum": [
+              "students.viewProfile",
+              "students.viewProgress",
+              "submissions.submitOnBehalf"
+            ]
           }
         }
       },
@@ -45844,7 +46448,11 @@
               "restore",
               "assignRole",
               "changeClassification",
-              "message"
+              "message",
+              "assignTeacher",
+              "unassignTeacher",
+              "grantDelegation",
+              "revokeDelegation"
             ]
           },
           "params": {
@@ -45871,7 +46479,11 @@
               "restore",
               "assignRole",
               "changeClassification",
-              "message"
+              "message",
+              "assignTeacher",
+              "unassignTeacher",
+              "grantDelegation",
+              "revokeDelegation"
             ],
             "type": "string"
           },
@@ -46275,11 +46887,107 @@
           "expiresAt": {
             "type": "string",
             "description": "When it stops applying (ISO 8601, in the future). Omit for no expiry."
+          },
+          "studentScope": {
+            "type": "string",
+            "description": "Which students it covers (TS-4): SCHOOL (default — every student the teacher sees through their schools),\nASSIGNED (only students assigned to the teacher) or SELECTED (only studentIds).",
+            "enum": [
+              "SCHOOL",
+              "ASSIGNED",
+              "SELECTED"
+            ]
+          },
+          "studentIds": {
+            "description": "SELECTED only (required then): the students, each visible to the teacher.",
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "required": [
           "permission",
           "reason"
+        ]
+      },
+      "DelegationStudentsDto": {
+        "type": "object",
+        "properties": {
+          "studentIds": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "studentIds"
+        ]
+      },
+      "AssignTeacherStudentsDto": {
+        "type": "object",
+        "properties": {
+          "teacherId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "studentIds": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required for any student who is not a verified student of the teacher's schools (TS-3); audited.",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "teacherId",
+          "studentIds"
+        ]
+      },
+      "ReassignTeacherStudentsDto": {
+        "type": "object",
+        "properties": {
+          "fromTeacherId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "toTeacherId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "studentIds": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "fromTeacherId",
+          "toTeacherId",
+          "studentIds"
         ]
       },
       "CreateSubmissionDto": {

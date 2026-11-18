@@ -27,7 +27,7 @@ import { sendCsvExport } from '../../reports/csv-stream.js';
 import { idBatches, mapBatches } from '../../reports/csv.js';
 import { userListWhere, UsersService } from '../users.service.js';
 import {
-  ACTION_RULES, BULK_MEMBERSHIP_KEY, MAX_SELECTION, normaliseParams, normaliseSelection, selectionToken,
+  ACTION_RULES, BULK_MEMBERSHIP_KEY, MAX_SELECTION, normaliseParams, normaliseSelection, selectionToken, TEACHER_STUDENT_ACTIONS,
   type BulkAction, type BulkParams, type BulkSelection,
 } from './bulk-rules.js';
 import type { BulkExecuteDto, BulkExportDto, BulkPreviewDto, ListBulkItemsDto, ListBulkOperationsDto } from './bulk.dto.js';
@@ -54,7 +54,7 @@ export class BulkOperationsService {
   // ─── Preview ────────────────────────────────────────────────────────────────
 
   async preview(dto: BulkPreviewDto, caller: AuthUser) {
-    const { action, params, selection } = this.prepare(dto, caller);
+    const { action, params, selection } = await this.prepare(dto, caller);
     const ids = await this.matchingIds(selection);
     const [sample, groups] = await Promise.all([
       this.prisma.user.findMany({ where: { id: { in: ids.slice(0, 10) } }, select: SAMPLE_SELECT, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }),
@@ -76,6 +76,7 @@ export class BulkOperationsService {
     if (action === 'assignRole') warn('ALREADY_IN_ROLE', count((g) => g.role === params.role), 'Accounts that already have this role will be skipped.');
     if (action === 'changeClassification') warn('NOT_STUDENTS', count((g) => g.role !== 'STUDENT'), 'Only students have a grade; other accounts will be skipped.');
     if (action === 'message') warn('BLOCKED_ACCOUNTS', count((g) => g.accountStatus !== 'ACTIVE'), 'Accounts that are not active will not be e-mailed.');
+    if (TEACHER_STUDENT_ACTIONS.includes(action)) warn('NOT_STUDENTS', count((g) => g.role !== 'STUDENT'), 'Only students are linked to a teacher; other accounts will be skipped.');
 
     return {
       action, params, selection,
@@ -97,7 +98,7 @@ export class BulkOperationsService {
     });
     if (existing) return { operation: existing, alreadyExisted: true };
 
-    const { action, params, selection } = this.prepare(dto, caller);
+    const { action, params, selection } = await this.prepare(dto, caller);
     if (dto.confirm !== true) throw new AppError(HttpStatus.BAD_REQUEST, 'CONFIRMATION_REQUIRED', 'Confirm the bulk action (confirm: true).');
     const reason = dto.reason?.trim() || null;
     if (ACTION_RULES[action].reason === 'required' && (!reason || reason.length < REASON_MIN || reason.length > REASON_MAX)) {
@@ -287,7 +288,7 @@ export class BulkOperationsService {
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  private prepare(dto: BulkPreviewDto, caller: AuthUser) {
+  private async prepare(dto: BulkPreviewDto, caller: AuthUser) {
     const action = dto.action;
     this.assertPermissions(caller, ['users.bulkManage', ...ACTION_RULES[action].permissions]);
     const params = normaliseParams(action, dto.params ?? {});
@@ -302,6 +303,17 @@ export class BulkOperationsService {
     }
     if (action === 'message' && (!params.subject || !params.body)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.subject and params.body are required.');
+    }
+    if (TEACHER_STUDENT_ACTIONS.includes(action)) {
+      if (!params.teacherId) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.teacherId is required.');
+      if ((action === 'grantDelegation' || action === 'revokeDelegation') && !params.permission) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.permission is required.');
+      }
+      const teacher = await this.prisma.user.findUnique({ where: { id: params.teacherId }, select: { role: true } });
+      if (!teacher) throw new AppError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Teacher not found.');
+      if (teacher.role !== 'TEACHER' && action !== 'unassignTeacher' && action !== 'revokeDelegation') {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_TEACHER', 'Only users with the TEACHER role can be given students.', { role: teacher.role });
+      }
     }
     return { action, params, selection: normaliseSelection(dto.selection as BulkSelection) };
   }

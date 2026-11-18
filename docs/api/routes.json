@@ -1029,6 +1029,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/access",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/access/students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/teacher-assignments",
     "roles": [
       "ADMIN",
@@ -1056,6 +1074,42 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/teacher-students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teacher-students/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-students/reassign",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/teachers/{id}/delegations",
     "roles": [
       "ADMIN",
@@ -1075,6 +1129,33 @@
   {
     "method": "DELETE",
     "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}/students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -2721,6 +2802,14 @@
   {
     "method": "POST",
     "path": "/api/v1/teacher/students/{id}/submissions",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students/summary",
     "roles": [
       "TEACHER"
     ],

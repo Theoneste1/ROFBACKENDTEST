@@ -4413,6 +4413,94 @@
       "name": "Admin · Teachers",
       "item": [
         {
+          "name": "GET /admin/schools/{id}/access",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "access"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/schools/{id}/access/students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/schools/:id/access/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "schools",
+                ":id",
+                "access",
+                "students"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "gradeLevel",
+                  "value": "S1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "verification",
+                  "value": "VERIFIED",
+                  "disabled": true,
+                  "description": "The student's current claim for this school."
+                },
+                {
+                  "key": "assigned",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: assigned to at least one teacher; false: to none."
+                },
+                {
+                  "key": "teacherId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "Only students assigned to this teacher."
+                }
+              ]
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "GET /admin/teacher-assignments",
           "request": {
             "method": "GET",
@@ -4513,6 +4601,147 @@
           }
         },
         {
+          "name": "GET /admin/teacher-students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-students"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "teacherId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "The student's school."
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/teacher-students",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-students"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teacherId\": \"00000000-0000-4000-8000-000000000000\",\n  \"studentIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/teacher-students/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-students/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-students",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/teacher-students/reassign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-students/reassign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-students",
+                "reassign"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromTeacherId\": \"00000000-0000-4000-8000-000000000000\",\n  \"toTeacherId\": \"00000000-0000-4000-8000-000000000000\",\n  \"studentIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "GET /admin/teachers/{id}/delegations",
           "request": {
             "method": "GET",
@@ -4607,6 +4836,131 @@
                 },
                 {
                   "key": "overrideId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/teachers/{id}/delegations/{overrideId}/reviewed",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teachers/:id/delegations/:overrideId/reviewed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teachers",
+                ":id",
+                "delegations",
+                ":overrideId",
+                "reviewed"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "overrideId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/teachers/{id}/delegations/{overrideId}/students",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teachers/:id/delegations/:overrideId/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teachers",
+                ":id",
+                "delegations",
+                ":overrideId",
+                "students"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "overrideId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/teachers/{id}/delegations/{overrideId}/students/{studentId}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teachers/:id/delegations/:overrideId/students/:studentId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teachers",
+                ":id",
+                "delegations",
+                ":overrideId",
+                "students",
+                ":studentId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "overrideId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
                   "value": "",
                   "description": ""
                 }
@@ -10738,6 +11092,12 @@
                   "value": "q",
                   "disabled": true,
                   "description": "Name or username contains."
+                },
+                {
+                  "key": "access",
+                  "value": "SCHOOL",
+                  "disabled": true,
+                  "description": "How the teacher sees them: SCHOOL (verified students of their schools) or ASSIGNED (assigned to them)."
                 }
               ]
             },
@@ -10845,6 +11205,27 @@
                 }
               ]
             }
+          }
+        },
+        {
+          "name": "GET /teacher/students/summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/students/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "students",
+                "summary"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `students.viewScoped` (TEACHER)"
           }
         }
       ]

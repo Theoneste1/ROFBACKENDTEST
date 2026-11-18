@@ -44,7 +44,7 @@ describe('Registration timeline (e2e)', () => {
     expect(actions.indexOf('SCHOOL_AFFILIATION_VERIFIED')).toBeLessThan(actions.indexOf('USER_STATUS_CHANGED'));
     const times = res.body.events.map((e: any) => Date.parse(e.at));
     // Oldest first (the registration leads the steps written in its own transaction).
-    expect([...times.slice(1)].sort((a, b) => a - b)).toEqual(times.slice(1));
+    expect(times.slice(1).sort((a: number, b: number) => a - b)).toEqual(times.slice(1));
     expect(times[0] - Math.min(...times)).toBeLessThanOrEqual(2000);
     expect(res.body.events[0]).toMatchObject({ label: 'Registered (self-registration)', actor: 'SELF', actorUsername: null });
     const change = res.body.events.find((e: any) => e.action === 'USER_STATUS_CHANGED');

@@ -27,6 +27,8 @@ function makeMocks() {
     mentorAssignment:  { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     // P1-11: a role change revokes teacher delegations (none here).
     userPermissionOverride: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    // A Teacher's or Student's role change ends their teacher–student assignments (none here).
+    teacherStudentAssignment: { findMany: vi.fn().mockResolvedValue([]) },
     mentorReview:      { count: vi.fn().mockResolvedValue(0) },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },

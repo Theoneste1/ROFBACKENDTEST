@@ -122,6 +122,15 @@ export const FEATURES = {
    */
   registrationAvatar: 'always',
   /**
+   * Teacher–student access (owner approvals TS-1…TS-6, 2026-11-18): explicit teacher–student assignments
+   * (/admin/teacher-students, reassign), School Access (/admin/schools/:id/access, …/students), teacher delegations
+   * with a student scope (studentScope SCHOOL | ASSIGNED | SELECTED, studentIds; …/delegations/:overrideId/students,
+   * …/reviewed), bulk actions assignTeacher / unassignTeacher / grantDelegation / revokeDelegation, and for Teachers
+   * GET /teacher/students/summary and `access` / `can` on each listed student. Without this feature none of these
+   * exist and every delegation applies to the teacher's whole school scope.
+   */
+  teacherStudentAccess: 'always',
+  /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing
    * TEACHER accounts may still exist and use their portal.

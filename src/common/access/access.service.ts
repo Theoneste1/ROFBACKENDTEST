@@ -162,11 +162,7 @@ export class AccessService {
    * for one of these same schools. Both school conditions are required.
    */
   schoolStudentsFilter(schoolIds: readonly string[]): Prisma.UserWhereInput {
-    if (schoolIds.length === 0) return { id: { in: [] } };
-    return {
-      role: 'STUDENT', isApproved: true, activatedAt: { not: null }, schoolId: { in: [...schoolIds] },
-      schoolAffiliations: { some: { supersededAt: null, status: 'VERIFIED', schoolId: { in: [...schoolIds] } } },
-    };
+    return schoolStudentsWhere(schoolIds);
   }
 
   /** 404 unless the caller's programme scope includes this programme (HC-A: others are not revealed). */
@@ -218,4 +214,13 @@ function notAssigned() {
     'NOT_ASSIGNED_TO_SCOPE',
     'You are not assigned to this course and division.',
   );
+}
+
+/** See AccessService.schoolStudentsFilter (usable inside a transaction without the service). */
+export function schoolStudentsWhere(schoolIds: readonly string[]): Prisma.UserWhereInput {
+  if (schoolIds.length === 0) return { id: { in: [] } };
+  return {
+    role: 'STUDENT', isApproved: true, activatedAt: { not: null }, schoolId: { in: [...schoolIds] },
+    schoolAffiliations: { some: { supersededAt: null, status: 'VERIFIED', schoolId: { in: [...schoolIds] } } },
+  };
 }

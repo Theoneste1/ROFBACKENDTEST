@@ -4,8 +4,8 @@ import { PHASE1, PHASE1_COUNT, LAST_PHASE1_TIMESTAMP } from './phase1.mjs';
 
 /**
  * The post-Phase-1 release: the migrations after M14, in the order Prisma applies them (name order). The nine of
- * develop c39df18 (owner approval 2026-11-17), plus application details (2026-11-17, ADR-009): the owner asked for
- * one complete release, not partial ones. Listed explicitly — a migration added later is never part of it.
+ * develop c39df18 (owner approval 2026-11-17), plus application details (2026-11-17, ADR-009) and teacher–student access
+ * (2026-11-18, TS-1…TS-6): the owner asked for one complete release, not partial ones. Listed explicitly — a migration added later is never part of it.
  */
 export const POST_PHASE1_MIGRATIONS = [
   '20261201000000_teacher_applications',
@@ -18,6 +18,7 @@ export const POST_PHASE1_MIGRATIONS = [
   '20261207000100_bulk_membership_guard',
   '20261208000000_form_availability',
   '20261209000000_application_details',
+  '20261210000000_teacher_student_access',
 ];
 
 /**
@@ -26,15 +27,17 @@ export const POST_PHASE1_MIGRATIONS = [
  * unused) and indexes (dropped with their tables or columns).
  */
 export const POST_PHASE1_OBJECTS = {
-  tables: ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange'],
+  tables: ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication',
+    'TeacherStudentAssignment', 'UserPermissionOverrideStudent', 'UserStatusChange'],
   enums: ['AccountStatus', 'BulkItemOutcome', 'BulkOperationStatus', 'CoachEducationLevel', 'FormKey', 'FormMode',
-    'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus'],
+    'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus', 'DelegationStudentScope', 'TeacherStudentSource'],
   columns: [
     ['MentorRequest', 'country'], ['MentorRequest', 'educationLevel'], ['MentorRequest', 'occupation'], ['MentorRequest', 'olympiadInterests'],
     ['MentorRequest', 'affiliation'], ['MentorRequest', 'expertise'], ['MentorRequest', 'phone'], ['MentorRequest', 'rejectionReason'],
     ['MentorRequest', 'relevantExperience'], ['MentorRequest', 'yearsOfExperience'], ['MentorRequest', 'avatarFileId'],
     ['User', 'accountStatus'], ['User', 'avatarFileId'], ['User', 'country'], ['User', 'dateOfBirth'], ['User', 'guardianPhone'],
     ['User', 'homeDistrict'], ['User', 'homeProvince'], ['User', 'homeSector'], ['User', 'olympiadInterests'], ['User', 'phone'],
+    ['UserPermissionOverride', 'studentScope'], ['UserPermissionOverride', 'reviewNeededAt'], ['UserPermissionOverride', 'reviewReason'],
   ],
   triggers: ['user_account_status_sync', 'user_bulk_membership_guard'],
   functions: ['user_account_status_sync', 'user_bulk_membership_guard'],

@@ -226,7 +226,9 @@ const STUDENT_DOB_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-student-date
 const REGISTRATION_AVATAR_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-avatar.json';
 /** Registration timeline (REG-13, 2026-11-18): one administrators' read operation. */
 const REGISTRATION_TIMELINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-timeline.json';
-const CURRENT_SNAPSHOT = REGISTRATION_TIMELINE_SNAPSHOT;
+/** Teacher–student access (TS-1…TS-6, 2026-11-18): assignments, school access, delegation student scope, bulk actions — additive only. */
+const TEACHER_STUDENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-teacher-student-access.json';
+const CURRENT_SNAPSHOT = TEACHER_STUDENT_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1193,6 +1195,13 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, ['PUT /api/v1/auth/register/avatar: operation added', 'schema RegistrationAvatarDto: added']);
+  });
+
+  test('registration timeline → teacher–student access: additive only, exactly these changes', () => {
+    for (const f of [REGISTRATION_TIMELINE_SNAPSHOT, TEACHER_STUDENT_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_STUDENT_SNAPSHOT, 'utf8')));
+    assert.deepEqual([res.breaking, res.review], [[], []]);
+    assert.deepEqual([...res.additive].sort(), ["DELETE /api/v1/admin/teacher-students/{id}: operation added","DELETE /api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}: operation added","GET /api/v1/admin/schools/{id}/access/students: operation added","GET /api/v1/admin/schools/{id}/access: operation added","GET /api/v1/admin/teacher-students: operation added","GET /api/v1/teacher/students/summary: operation added","GET /api/v1/teacher/students: new optional query parameter \"access\"","POST /api/v1/admin/teacher-students/reassign: operation added","POST /api/v1/admin/teacher-students: operation added","POST /api/v1/admin/teachers/{id}/delegations › request application/json.studentIds: new optional field","POST /api/v1/admin/teachers/{id}/delegations › request application/json.studentScope: new optional field","POST /api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed: operation added","POST /api/v1/admin/teachers/{id}/delegations/{overrideId}/students: operation added","POST /api/v1/admin/users/bulk › request application/json.action: enum values added: assignTeacher, grantDelegation, revokeDelegation, unassignTeacher","POST /api/v1/admin/users/bulk › request application/json.params.permission: new optional field","POST /api/v1/admin/users/bulk › request application/json.params.teacherId: new optional field","POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: assignTeacher, grantDelegation, revokeDelegation, unassignTeacher","POST /api/v1/admin/users/bulk/preview › request application/json.params.permission: new optional field","POST /api/v1/admin/users/bulk/preview › request application/json.params.teacherId: new optional field","schema AssignTeacherStudentsDto: added","schema DelegationStudentsDto: added","schema ReassignTeacherStudentsDto: added"].sort());
   });
 
   test('registration avatar → registration timeline: one read operation; nothing else', () => {

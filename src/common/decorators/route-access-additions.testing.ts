@@ -162,4 +162,16 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'PUT /api/v1/auth/register/avatar  RegistrationAvatarController.upload':                                   PUBLIC,
   // Registration timeline (REG-13): users.manage, as the user page.
   'GET /api/v1/admin/users/:id/registration-timeline  UsersController.registrationTimeline':                ADMINISTRATORS,
+  // Teacher–student access (TS-1…TS-6): users.manageTeachers (Administrators); the teacher's counts: students.viewScoped
+  // (ADMIN holds it — the service then answers 403 ROLE_NOT_SUPPORTED, as for the teacher's list).
+  'GET /api/v1/admin/teacher-students  TeacherStudentAssignmentsController.list':                             ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-students  TeacherStudentAssignmentsController.assign':                          ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-students/reassign  TeacherStudentAssignmentsController.reassign':               ADMINISTRATORS,
+  'DELETE /api/v1/admin/teacher-students/:id  TeacherStudentAssignmentsController.end':                       ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/access  SchoolAccessController.access':                                     ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/access/students  SchoolAccessController.students':                          ADMINISTRATORS,
+  'POST /api/v1/admin/teachers/:id/delegations/:overrideId/students  TeacherDelegationsController.addStudents': ADMINISTRATORS,
+  'DELETE /api/v1/admin/teachers/:id/delegations/:overrideId/students/:studentId  TeacherDelegationsController.removeStudent': ADMINISTRATORS,
+  'POST /api/v1/admin/teachers/:id/delegations/:overrideId/reviewed  TeacherDelegationsController.reviewed':  ADMINISTRATORS,
+  'GET /api/v1/teacher/students/summary  TeacherStudentsController.summary':                                  ADMINISTRATORS,
 };

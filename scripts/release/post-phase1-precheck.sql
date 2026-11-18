@@ -8,25 +8,27 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST: all 14 Phase 1 migrations applied; none of the ten post-Phase-1 ones; nothing failed or rolled back'
+\echo '== 1. MUST: all 14 Phase 1 migrations applied; none of the eleven post-Phase-1 ones; nothing failed or rolled back'
 SELECT count(*) FILTER (WHERE migration_name LIKE '2026112100%' AND finished_at IS NOT NULL AND rolled_back_at IS NULL) AS phase1_applied,
        count(*) FILTER (WHERE migration_name >= '20261201000000')                                                   AS post_phase1_or_later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                                    AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
-\echo '== 2. MUST all be 0: nothing the ten migrations create exists yet'
+\echo '== 2. MUST all be 0: nothing the eleven migrations create exists yet'
 SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
-          AND table_name IN ('ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange')) AS tables,
+          AND table_name IN ('ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication',
+                          'TeacherStudentAssignment', 'UserPermissionOverrideStudent', 'UserStatusChange')) AS tables,
        (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
           AND typname IN ('AccountStatus', 'BulkItemOutcome', 'BulkOperationStatus', 'CoachEducationLevel', 'FormKey', 'FormMode',
-                          'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus')) AS enums,
+                          'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus', 'DelegationStudentScope', 'TeacherStudentSource')) AS enums,
        (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
           AND (table_name, column_name) IN (('User', 'accountStatus'), ('User', 'avatarFileId'), ('User', 'country'), ('User', 'dateOfBirth'),
                ('User', 'guardianPhone'), ('User', 'homeDistrict'), ('User', 'homeProvince'), ('User', 'homeSector'), ('User', 'olympiadInterests'),
                ('User', 'phone'), ('MentorRequest', 'country'), ('MentorRequest', 'educationLevel'), ('MentorRequest', 'occupation'),
                ('MentorRequest', 'olympiadInterests'),
                ('MentorRequest', 'affiliation'), ('MentorRequest', 'expertise'), ('MentorRequest', 'phone'), ('MentorRequest', 'rejectionReason'),
-               ('MentorRequest', 'relevantExperience'), ('MentorRequest', 'yearsOfExperience'), ('MentorRequest', 'avatarFileId'))) AS columns,
+               ('MentorRequest', 'relevantExperience'), ('MentorRequest', 'yearsOfExperience'), ('MentorRequest', 'avatarFileId'),
+               ('UserPermissionOverride', 'studentScope'), ('UserPermissionOverride', 'reviewNeededAt'), ('UserPermissionOverride', 'reviewReason'))) AS columns,
        (SELECT count(*) FROM pg_trigger WHERE tgname IN ('user_account_status_sync', 'user_bulk_membership_guard')) AS triggers;
 
 \echo '== 3. MUST be present (Phase 1 guards the new triggers work alongside): user_last_super_admin_guard, audit_log_append_only'

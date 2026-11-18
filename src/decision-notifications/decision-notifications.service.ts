@@ -160,6 +160,26 @@ export class DecisionNotificationsService {
     });
   }
 
+  /**
+   * teacher.students.assigned (TS-6): the Teacher is told that students were assigned to them — once per action
+   * (`dedupeKey`: one request, or one bulk operation, so a retried item adds nothing). Students are never notified,
+   * and the notice never names them. Nothing for non-Teachers, inactive accounts or a zero count.
+   */
+  async enqueueStudentsAssigned(
+    tx: Prisma.TransactionClient,
+    teacher: { id: string; role: string; email: string; firstName: string; isActive: boolean; activatedAt: Date | null },
+    dedupeKey: string,
+    count?: number,
+  ): Promise<string | null> {
+    if (teacher.role !== 'TEACHER' || !teacher.isActive || count === 0) return null;
+    return this.enqueue(tx, {
+      type: DecisionEvents.TeacherStudentsAssigned, dedupeKey: `${DecisionEvents.TeacherStudentsAssigned}:${dedupeKey}`,
+      recipient: { userId: teacher.id, email: teacher.email, firstName: teacher.firstName },
+      entity: { type: 'User', id: teacher.id },
+      payload: { activated: teacher.activatedAt !== null, ...(count !== undefined && { count }) },
+    });
+  }
+
   // ─── After commit ──────────────────────────────────────────────────────────
 
   /** Send the given rows in the background (after the response); null ids (duplicates) are skipped. */

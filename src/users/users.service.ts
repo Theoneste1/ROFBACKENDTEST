@@ -15,6 +15,7 @@ import type { GradeLevel, Prisma } from '../generated/prisma/client.js';
 import { AcademicYearsService } from '../academic-years/academic-years.service.js';
 import { endCoachAssignments } from '../mentor-assignments/end-coach-assignments.js';
 import { endTeacherSchools, revokeTeacherDelegations } from '../teachers/teacher-schools.service.js';
+import { endAssignmentsOfUser } from '../teachers/teacher-student-ops.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import { resolveSchoolReference } from '../schools/school-reference.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
@@ -301,6 +302,10 @@ export class UsersService {
       // A Teacher who changes role keeps no school scope (P1-11): their school assignments end here.
       if (existing.role === 'TEACHER' && role !== 'TEACHER') {
         await endTeacherSchools(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+      // Teacher–student assignments of a Teacher or Student whose role changes end too (kept as history).
+      if ((existing.role === 'TEACHER' || existing.role === 'STUDENT') && role !== existing.role) {
+        await endAssignmentsOfUser(tx, this.audit, id, actor);
       }
       // Any role change revokes the user's teacher delegations (P1-11): a later return to
       // TEACHER never brings old grants back — an Administrator grants them again explicitly.
