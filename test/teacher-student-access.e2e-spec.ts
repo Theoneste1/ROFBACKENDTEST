@@ -502,4 +502,65 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
       expect(await p().teacherStudentAssignment.count({ where: { teacherId: t9 } })).toBe(0);
     });
   });
+
+  describe('student profile pictures (owner decision 2026-11-18): the student, Administrators, and teachers who may view the profile', () => {
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    let pupil: string, classmate: string, teacherP: string, teacherQ: string, headCoach: string;
+    let pupilId: string, teacherPId: string, schoolP: string;
+    const picture = (id: string, token?: string) => { const r = http().get(`/api/v1/users/${id}/avatar`); return token ? r.set(bearer(token)) : r; };
+
+    beforeAll(async () => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      const mk = async (username: string, role: 'TEACHER' | 'STUDENT' | 'HEAD_COACH', extra: object = {}) =>
+        (await p().user.create({ data: { username, firstName: username, lastName: 'Pic', email: `${username}@test.local`, role, passwordHash: hash, activatedAt: new Date(), ...extra } })).id;
+      schoolP = (await p().school.create({ data: { name: 'TSA School P', location: 'Huye' } })).id;
+      const st = { gradeLevel: 'S2' as const, divisionId: ctx.ids.junior, schoolId: schoolP, homeLocation: 'Huye', dateOfBirth: new Date('2011-01-01T00:00:00Z') };
+      pupilId = await mk('pic.pupil', 'STUDENT', st);
+      await mk('pic.classmate', 'STUDENT', st);
+      teacherPId = await mk('pic.tp', 'TEACHER');
+      await mk('pic.tq', 'TEACHER');
+      await mk('pic.hc', 'HEAD_COACH');
+      await p().studentSchoolAffiliation.create({ data: { studentId: pupilId, schoolId: schoolP, status: 'VERIFIED', source: 'ADMIN', createdById: ctx.ids.admin, decidedById: ctx.ids.admin, decidedAt: new Date() } });
+      await http().post('/api/v1/admin/teacher-assignments').set(bearer(admin)).send({ teacherId: teacherPId, schoolId: schoolP }).expect(201);
+      [pupil, classmate, teacherP, teacherQ, headCoach] = await Promise.all(['pic.pupil', 'pic.classmate', 'pic.tp', 'pic.tq', 'pic.hc'].map((u) => login(ctx, u)));
+      await http().put('/api/v1/me/avatar').set(bearer(pupil)).attach('file', PNG, 'me.png').expect(200);
+      await http().put('/api/v1/me/avatar').set(bearer(coach)).attach('file', PNG, 'me.png').expect(200);   // a staff picture
+    });
+
+    it('the student and Administrators see it (never cached); signed out is 401', async () => {
+      for (const token of [pupil, admin]) {
+        const r = await picture(pupilId, token).expect(200);
+        expect(r.headers['cache-control']).toBe('private, no-store');
+        expect(r.headers['content-type']).toMatch(/^image\/png/);
+      }
+      await picture(pupilId).expect(401);
+    });
+
+    it('refused (404, the same answer as "no picture") to a classmate, a coach, a Head Coach, another teacher and a teacher without the profile permission', async () => {
+      const noPicture = await picture(ctx.ids.studentSenior, admin).expect(404);   // an account without a picture
+      for (const token of [classmate, coach, headCoach, teacherQ, teacherP]) {
+        const r = await picture(pupilId, token).expect(404);
+        expect(r.body.message).toBe(noPicture.body.message);
+      }
+    });
+
+    it('a teacher with students.viewProfile covering the student sees it; not once the student is suspended (SR-1) or the permission is revoked', async () => {
+      const g = await http().post(delegations(teacherPId)).set(bearer(admin)).send({ permission: 'students.viewProfile', reason: 'Profiles', studentScope: 'SCHOOL' }).expect(201);
+      await picture(pupilId, teacherP).expect(200);
+      await http().post(`/api/v1/admin/users/${pupilId}/status-changes`).set(bearer(admin)).send({ toStatus: 'SUSPENDED', reason: 'Picture visibility check' })
+        .expect((r) => { if (r.status >= 300) throw new Error(`suspend ${r.status}`); });
+      await picture(pupilId, teacherP).expect(404);
+      await picture(pupilId, admin).expect(200);   // Administrators still see it
+      await http().post(`/api/v1/admin/users/${pupilId}/status-changes`).set(bearer(admin)).send({ toStatus: 'ACTIVE', reason: 'Picture visibility check' })
+        .expect((r) => { if (r.status >= 300) throw new Error(`reactivate ${r.status}`); });
+      await picture(pupilId, teacherP).expect(200);
+      await http().delete(`${delegations(teacherPId)}/${g.body.id}`).set(bearer(admin)).expect(200);
+      await picture(pupilId, teacherP).expect(404);   // same token: applies at once
+    });
+
+    it('staff pictures are unchanged: any signed-in user, cacheable', async () => {
+      const r = await picture(ctx.ids.mentorJunior, classmate).expect(200);
+      expect(r.headers['cache-control']).toBe('private, max-age=86400');
+    });
+  });
 });

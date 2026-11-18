@@ -11419,7 +11419,7 @@
             }
           }
         },
-        "summary": "The account's current profile picture, inline, with Cache-Control: private, max-age=86400 (the link in\navatarUrl is versioned) and X-Content-Type-Options: nosniff. 404 when the account has none.",
+        "summary": "The account's current profile picture, inline, with X-Content-Type-Options: nosniff. A staff account's picture:\nany signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned). A student's\npicture: the student, Administrators, and a Teacher who may view that student's profile (Cache-Control: private,\nno-store) — anyone else gets 404, the same as an account without a picture.",
         "tags": [
           "Users"
         ],
