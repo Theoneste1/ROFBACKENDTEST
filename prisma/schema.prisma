@@ -942,12 +942,15 @@ model TokenBlacklist {
 }
 
 /// Staging table for mentor applications. Approval creates the User.
+/// One row per application attempt: a reapplication after a rejection is a new row (its own questions, answers and
+/// decision). At most one application that is not REJECTED per username and per e-mail: partial unique indexes
+/// (MentorRequest_active_username_key / _active_email_key, WHERE status <> 'REJECTED').
 model MentorRequest {
   id           String              @id @default(uuid())
   firstName    String
   lastName     String
-  username     String              @unique
-  email        String              @unique
+  username     String
+  email        String
   /// Cleared once the request is decided.
   passwordHash String?
   status       MentorRequestStatus @default(PENDING)
@@ -974,6 +977,8 @@ model MentorRequest {
   updatedAt    DateTime            @updatedAt
 
   @@index([status])
+  @@index([username])
+  @@index([email])
 }
 
 /// "Request more information" on a Teacher or Coach application (ADR-009, REG-10). The application stays PENDING;

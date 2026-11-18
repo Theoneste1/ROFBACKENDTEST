@@ -171,18 +171,67 @@ describe('Application details and requests for more information (e2e)', () => {
     await http().get('/api/v1/applications/info-requests/short').expect(410);
   });
 
-  it('a reapplication never returns the earlier questions and answers (anonymous caller reusing a rejected username)', async () => {
-    const victim = coachBody();
-    const app = (await http().post('/api/v1/mentor-requests').send(victim).expect(201)).body.id as string;
-    await http().post(`/api/v1/mentor-requests/${app}/request-info`).set(bearer(admin)).send({ question: 'What is your home address?' }).expect(200);
-    await http().post(`/api/v1/applications/info-requests/${await tokenFor(victim.email)}`).send({ answer: 'House 12 KG 5 Ave, private' }).expect(200);
-    await http().patch(`/api/v1/mentor-requests/${app}/reject`).set(bearer(admin)).send({ reason: 'Not this year.' }).expect(200);
-    // Someone else applies with the same username (and another e-mail): the rejected row is reused.
-    const again = await http().post('/api/v1/mentor-requests').send({ ...coachBody(), username: victim.username }).expect(201);
-    expect(again.body.id).toBe(app);
-    expect(again.body).not.toHaveProperty('infoRequests');
-    const text = JSON.stringify(again.body);
-    for (const secret of ['House 12 KG 5 Ave', 'home address', 'requestedBy']) expect(text).not.toContain(secret);
+  describe('reapplication after a rejection: every attempt is its own application (final review 2026-11-18)', () => {
+    const SECRETS = ['House 12 KG 5 Ave', 'What is your home address?'];
+    const noSecret = (value: unknown) => { const t = JSON.stringify(value); for (const s of SECRETS) expect(t).not.toContain(s); };
+    const listed = async (status: string) => (await http().get('/api/v1/mentor-requests').query({ status, limit: 100 }).set(bearer(admin)).expect(200)).body.data as any[];
+    let victim: Record<string, string>, victimId: string;
+
+    beforeAll(async () => {
+      // The first applicant is asked a private question, answers it, and is rejected.
+      victim = coachBody({ firstName: 'Victoria' });
+      victimId = (await http().post('/api/v1/mentor-requests').send(victim).expect(201)).body.id;
+      await http().post(`/api/v1/mentor-requests/${victimId}/request-info`).set(bearer(admin)).send({ question: SECRETS[1] }).expect(200);
+      await http().post(`/api/v1/applications/info-requests/${await tokenFor(victim.email)}`).send({ answer: `${SECRETS[0]}, private` }).expect(200);
+      await http().patch(`/api/v1/mentor-requests/${victimId}/reject`).set(bearer(admin)).send({ reason: 'Not this year.' }).expect(200);
+    });
+
+    /** A new attempt: a new row; nothing of the victim's history in the public response, the admin list or admin answers. */
+    const expectIsolated = async (body: Record<string, string>) => {
+      const res = await http().post('/api/v1/mentor-requests').send(body).expect(201);
+      expect(res.body.id).not.toBe(victimId);
+      expect(res.body).not.toHaveProperty('infoRequests');
+      noSecret(res.body);
+      const row = (await listed('PENDING')).find((r) => r.id === res.body.id);
+      expect(row).toMatchObject({ username: body.username, email: body.email, status: 'PENDING', infoRequests: [] });
+      noSecret(row);
+      // An Administrator's own question on the new application: its answer shape (the admin detail) has only that question.
+      const asked = await http().post(`/api/v1/mentor-requests/${res.body.id}/request-info`).set(bearer(admin)).send({ question: 'Which club do you coach?' }).expect(200);
+      expect(asked.body.infoRequests.map((q: any) => q.question)).toEqual(['Which club do you coach?']);
+      noSecret(asked.body);
+      return res.body.id as string;
+    };
+
+    it('same username, another e-mail: a new application; the earlier history is not attached to it', async () => {
+      const id = await expectIsolated(coachBody({ username: victim.username }));
+      await http().patch(`/api/v1/mentor-requests/${id}/reject`).set(bearer(admin)).send({}).expect(200);
+    });
+
+    it('same e-mail, another username: a new application; the earlier history is not attached to it', async () => {
+      const id = await expectIsolated(coachBody({ email: victim.email }));
+      await http().patch(`/api/v1/mentor-requests/${id}/reject`).set(bearer(admin)).send({}).expect(200);
+    });
+
+    it('both identifiers: a new application; while it is pending the username and e-mail are taken (generic answer)', async () => {
+      const id = await expectIsolated(coachBody({ username: victim.username, email: victim.email }));
+      const taken = await http().post('/api/v1/mentor-requests').send(coachBody({ username: victim.username })).expect(409);
+      expect(taken.body.code).toBe('IDENTITY_TAKEN');
+      expect((await http().post('/api/v1/mentor-requests').send(coachBody({ email: victim.email })).expect(409)).body.code).toBe('IDENTITY_TAKEN');
+      await http().patch(`/api/v1/mentor-requests/${id}/reject`).set(bearer(admin)).send({}).expect(200);
+    });
+
+    it('the first applicant\'s attempt keeps its own details, question and answer, and is listed separately', async () => {
+      const row = await p().mentorRequest.findUniqueOrThrow({ where: { id: victimId }, include: { infoRequests: true } });
+      expect(row).toMatchObject({ firstName: 'Victoria', username: victim.username, email: victim.email, status: 'REJECTED', rejectionReason: 'Not this year.' });
+      expect(row.infoRequests.map((q) => [q.question, q.answer])).toEqual([[SECRETS[1], `${SECRETS[0]}, private`]]);
+      const rejected = await listed('REJECTED');
+      expect(rejected.find((r) => r.id === victimId)?.infoRequests.map((q: any) => q.answer)).toEqual([`${SECRETS[0]}, private`]);
+      // Four attempts share an identifier with the first one; the private answer belongs to exactly one of them.
+      const attempts = await p().mentorRequest.findMany({ where: { OR: [{ username: victim.username }, { email: victim.email }] }, include: { infoRequests: true } });
+      expect(attempts).toHaveLength(4);
+      expect(attempts.filter((a) => a.infoRequests.some((q) => q.answer?.includes(SECRETS[0]))).map((a) => a.id)).toEqual([victimId]);
+      expect(await p().auditLog.count({ where: { action: 'SUBMIT_MENTOR_REQUEST', metadata: { path: ['reapplication'], equals: true } } })).toBeGreaterThanOrEqual(3);
+    });
   });
 
   it('an expired link is refused', async () => {
