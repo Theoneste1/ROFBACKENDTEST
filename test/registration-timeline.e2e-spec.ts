@@ -63,7 +63,7 @@ describe('Registration timeline (e2e)', () => {
     await http().post(`/api/v1/admin/teacher-applications/${app.body.id}/request-info`).set(bearer(admin)).send({ question: 'Which classes do you teach?' }).expect(200);
     const mail = await p().emailDelivery.findFirstOrThrow({ where: { recipientEmail: 'tl.teacher@test.local', body: { contains: 'applications/respond?token=' } } });
     const token = /token=([A-Za-z0-9_-]+)/.exec(mail.body ?? "")![1];
-    await http().post(`/api/v1/applications/info-requests/${token}`).send({ answer: 'S1 to S3' }).expect(200);
+    await http().post('/api/v1/applications/info-requests/answer').send({ token, answer: 'S1 to S3' }).expect(200);
     await http().post(`/api/v1/admin/teacher-applications/${app.body.id}/approve`).set(bearer(admin)).send({}).expect(200);
     const user = await p().user.findUniqueOrThrow({ where: { username: 'tl.teacher' } });
 
