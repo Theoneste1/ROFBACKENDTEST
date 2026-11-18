@@ -300,3 +300,20 @@ Service `rof-backend-staging` (`srv-dbuq9fm7bikc73an3gb0`), branch `feat/teacher
 | Database = branch `ep-orange-mountain-bd28w4ro`, role `staging` | PASS | (1) `/forms` returns exactly the branch's post-check rows; production has no `FormAvailability` table and returns 404 or 500. (2) During staging traffic, the branch's `pg_stat_activity` shows 3 sessions of role `staging` through `pgbouncer`, the pooled connection. The checker connects directly, is excluded, and has `pg_read_all_stats`. |
 | `EMAIL_DRY_RUN=true`, no `RESEND_API_KEY` | NOT VERIFIABLE READ-ONLY | The API exposes neither, and the startup log is in Render. Owner to confirm on the Environment page (names only) and in the deploy log line "EMAIL_DRY_RUN=true: NO e-mail is sent (staging)". Mitigations already in place: the staging-only key is revoked, and the branch has 0 pending e-mail deliveries. |
 | Production unaffected | PASS | `/health` ok (database and storage up); 9 features = `b7ed2a3`'s "always" set; `/forms` 404. |
+
+### Synthetic accounts and isolation proof — 2026-11-18, about 16:05 UTC (§3 step 3; owner authorization after confirming e-mail safeguards)
+
+Owner-confirmed before the step, in Render for `rof-backend-staging`:
+- `EMAIL_DRY_RUN=true` and no `RESEND_API_KEY`;
+- the startup log shows "EMAIL_DRY_RUN=true: NO e-mail is sent (staging)" and not "E-mail delivery via Resend".
+
+| Check | Result | Evidence |
+|---|---|---|
+| Pre-write safety | PASS | Kit `6e78c2b`. Guard passed with no connection. Runtime connection on `ep-orange-mountain-bd28w4ro` as role `staging`. 0 existing `staging.drill.*` or `@staging.invalid` users, no accounts file. Users 13/6/2/1. Staging health ok. |
+| Accounts created (`staging-accounts.mjs create --confirm ep-orange-mountain-bd28w4ro`) | PASS | `staging.drill.admin-d37686` (ADMIN) and `staging.drill.student-d37686` (STUDENT, no date of birth). Both have `@staging.invalid` e-mail, are ACTIVE, approved and activated, have a password set, and have 0 permission overrides. Passwords are only in the git-ignored `.env.staging-accounts.local` and were never printed. Users now 14/6/3/1: exactly +1 student and +1 Administrator. |
+| **Isolation proof: Administrator sign-in on staging** | **PASS** | `POST rof-backend-staging…/auth/login` returned 200 with role ADMIN and a token. `/me` returned 200 for `staging.drill.admin-d37686` with role ADMIN. The staging Administrator user list finds both accounts. They exist only on the branch, so the staging backend reads the branch. |
+| Writes caused | PASS (as expected) | The 2 account rows, then from the sign-in: 1 `LOGIN` audit row, 1 session, and `lastLoginAt` for the Administrator. No other audit row in the 15-minute window, and 0 e-mail deliveries created. The student account has not been used. |
+| Production untouched | PASS (by construction) | Neither the production database nor the production service was accessed in this step (owner's rule). Every write went through the guarded branch connection, and production's host is only compared as a string. Last read-only production verification: 15:35 and 15:56 UTC. |
+| **Client address (finding)** | **Confirms run 1** | The sign-in's audit row records `172.68.23.129`, a **Cloudflare** address (172.64.0.0/13). On Render with `TRUST_PROXY=1`, `req.ip` is Cloudflare's edge address, not the visitor's. The client-IP probe must establish which header is the real address and whether it can be forged. |
+
+**Next:** §3 step 4, the application test with the synthetic accounts (needs the staging frontend site); step 5, the client-IP probe (needs the probe service and the Netlify site); step 6, the rollback rehearsal.
