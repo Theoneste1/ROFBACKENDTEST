@@ -27,7 +27,7 @@ trigger (`ProgrammeMembership`, `UserPermissionOverride`, `TeacherSchoolAssignme
 name. No pre-Phase-1 production dump exists; Phase 1 recovery is forward repair (runbook §5.3), not a restore.
 The file is not renamed (its SHA-256 is recorded); the release record carries the correction.
 
-## 1. The nine migrations
+## 1. The eleven migrations
 
 Prisma applies them in name order. Each is additive; none deletes a row. Data impact is for production as measured
 in §0.
@@ -43,6 +43,8 @@ in §0.
 | 7 | `20261207000000_bulk_operations` | enums `BulkOperationStatus`, `BulkItemOutcome`; tables `BulkOperation`, `BulkOperationItem`; indexes on `User.createdAt`, `User.gradeLevel` | — | none | low | `…bulk_operations.rollback.sql`; refuses while operations exist |
 | 8 | `20261207000100_bulk_membership_guard` | function + trigger `user_bulk_membership_guard`: writes to filtered `User` columns take a shared advisory lock (8152026002) | #6 (accountStatus column) | none; ordinary writes are delayed only while a bulk operation is being created | medium: a trigger on every relevant `User` write; rehearsed below | `…bulk_membership_guard.rollback.sql` (drops function + trigger; no data) |
 | 9 | `20261208000000_form_availability` | enums `FormKey`, `FormMode`; table `FormAvailability`; copies the switches | — | **STUDENT_REGISTRATION = CLOSED** (setting `false`), TEACHER_REGISTRATION = CLOSED (no setting), COACH_APPLICATION and CONTACT = OPEN — i.e. exactly today's behaviour | low | `…form_availability.rollback.sql` writes the two switches back from the forms, then drops; refuses only for schedules, custom texts or a closed coach/contact form |
+| 10 | `20261209000000_application_details` | nullable application columns (position, experience, coach phone / affiliation / expertise / rejection reason), `avatarFileId` on both applications; table `ApplicationInfoRequest` (+ partial unique: one OPEN request per application) | #1 | none (new table empty, new columns NULL) | low | `…application_details.rollback.sql`; refuses while information requests or new values exist |
+| 11 | `20261210000000_teacher_student_access` | enums `TeacherStudentSource`, `DelegationStudentScope`; tables `TeacherStudentAssignment`, `UserPermissionOverrideStudent`; `UserPermissionOverride.studentScope / reviewNeededAt / reviewReason`; teacher delegation GRANTs → `SCHOOL`; CHECKs (no self-assignment, cross-school reason, scope only on delegations) | Phase 1 M5 / M6 | **0 rows** updated (production has no teacher delegation, measured 2026-11-18) | low | `…teacher_student_access.rollback.sql`; refuses while assignments / selections / narrowed delegations exist; discard mode revokes narrowed delegations (never widens) |
 
 **Never edited by a rollback:** `_prisma_migrations`. Removing the history rows is its own reviewed step after the
 objects are confirmed gone (`rehearsal.mjs rollback-history` checks this).
@@ -69,13 +71,13 @@ Then, from the release checkout pinned to the approved SHA (`C:\rof-release-<sha
 ```
 node scripts/release/rehearsal.mjs check-target --release post-phase1                    # guard passes, no connection
 node scripts/release/rehearsal.mjs precheck     --release post-phase1                    # every MUST holds; save output
-node scripts/release/rehearsal.mjs status       --release post-phase1                    # exit 1: the nine not yet applied
+node scripts/release/rehearsal.mjs status       --release post-phase1                    # exit 1: the eleven not yet applied
 node scripts/release/rehearsal.mjs deploy       --release post-phase1 --confirm <ep-id>  # exit 0; record duration
 node scripts/release/rehearsal.mjs diff         --release post-phase1                    # exit 0: "No difference detected"
 node scripts/release/rehearsal.mjs postcheck    --release post-phase1                    # every MUST; compare lines = precheck
-node scripts/release/rehearsal.mjs rollback     --release post-phase1 --confirm <ep-id>  # all nine roll back (data still empty)
+node scripts/release/rehearsal.mjs rollback     --release post-phase1 --confirm <ep-id>  # all eleven roll back (data still empty)
 node scripts/release/rehearsal.mjs rollback-history --release post-phase1 --confirm <ep-id>
-node scripts/release/rehearsal.mjs status       --release post-phase1                    # the nine again, exit 1
+node scripts/release/rehearsal.mjs status       --release post-phase1                    # the eleven again, exit 1
 node scripts/release/rehearsal.mjs deploy       --release post-phase1 --confirm <ep-id>  # re-deploy works (AVATAR IF NOT EXISTS)
 node scripts/release/rehearsal.mjs postcheck    --release post-phase1
 ```
@@ -166,7 +168,7 @@ Each 🔒 step needs its own approval at the time. "Verify" lists the command an
 | 5 🔒 | Freeze (no account, school or setting changes); pause Render auto-deploy | — | — |
 | 6 🔒 | Backup (§3) | hash, `pg_restore --list`, encryption recorded | stop |
 | 7 🔒 | `psql -X -v ON_ERROR_STOP=1 -f scripts/release/post-phase1-precheck.sql` | every MUST holds; save output | stop |
-| 8 🔒 | `npx prisma migrate deploy` (release checkout, production `DIRECT_DATABASE_URL`) | lists exactly the nine; exit 0 | old code keeps running (all additive); investigate; rollbacks only with approval |
+| 8 🔒 | `npx prisma migrate deploy` (release checkout, production `DIRECT_DATABASE_URL`) | lists exactly the eleven; exit 0 | old code keeps running (all additive); investigate; rollbacks only with approval |
 | 9 🔒 | `post-phase1-postcheck.sql`; `npx prisma migrate status`; `migrate diff --exit-code` | MUSTs hold; "Database schema is up to date"; exit 0 | forward repair or §1 rollbacks |
 | 10 🔒 | Merge backend `develop` → `main` (the deploy); Render manual deploy if auto-deploy is paused | `GET /health` 200 `database: up`; `GET /api/v1` features add `accountStates`, `bulkUserOperations`, `formAvailability`, `profilePictures`, `studentRegistrationDetails`, `coachApplicationDetails`, `studentOlympiadInterests`, `notificationDeliveries` (`teacherSelfRegistration` only once `TEACHERS_ENABLED=true`, step 14); `git diff origin/main <approved SHA>` empty | redeploy `b7ed2a3` (schema stays: additive) |
 | 11 🔒 | Merge frontend `develop` → `main` (Netlify publishes) | Netlify Published = that SHA; sign-in; student registration shows the closed notice (closed today); admin: Forms, Bulk operations, account history visible | Netlify "Publish deploy" of `0b51dcc` |
