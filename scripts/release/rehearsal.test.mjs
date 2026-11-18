@@ -11,7 +11,7 @@ import { LAST_PHASE1_TIMESTAMP, laterMigrations, migrationDirs } from './phase1.
 import { REPO_ROOT } from '../db-drill-verify.mjs';
 import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releaseRollbackFiles } from './releases.mjs';
 
-/** This checkout as it was for Phase 1: its migrations without the nine post-Phase-1 ones (the Phase 1 tests' fixture). */
+/** This checkout as it was for Phase 1: its migrations without the eleven post-Phase-1 ones (the Phase 1 tests' fixture). */
 const phase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !POST_PHASE1_MIGRATIONS.includes(d));
 
 // ── Later-migration guard (owner decision 2026-11-13) ─────────────────────────────────────────────
@@ -178,7 +178,7 @@ test('segments: \\echo lines kept in order, other meta-commands refused, comment
 
 // ── post-Phase-1 release (--release post-phase1) ──────────────────────────────────────────────────
 
-test('post-Phase-1: the nine migrations are exactly those between M14 and form_availability in this checkout, in apply order', () => {
+test('post-Phase-1: the eleven migrations are exactly those between M14 and teacher_student_access in this checkout, in apply order', () => {
   const dirs = migrationDirs(REPO_ROOT);
   const between = dirs.filter((d) => d.slice(0, 14) > LAST_PHASE1_TIMESTAMP && d.slice(0, 14) <= RELEASES['post-phase1'].last);
   assert.deepEqual(between, POST_PHASE1_MIGRATIONS);
@@ -188,7 +188,7 @@ test('post-Phase-1: the nine migrations are exactly those between M14 and form_a
 
 const createdBy = (dirs, re) => dirs.flatMap((d) => [...readFileSync(`prisma/migrations/${d}/migration.sql`, 'utf8').matchAll(re)].map((m) => m.slice(1).join('.'))).sort();
 
-test('post-Phase-1: rollback-history checks exactly the tables, enums, columns, triggers and functions the nine migrations create', () => {
+test('post-Phase-1: rollback-history checks exactly the tables, enums, columns, triggers and functions the eleven migrations create', () => {
   const o = POST_PHASE1_OBJECTS;
   assert.deepEqual([...o.tables].sort(), createdBy(POST_PHASE1_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g));
   assert.deepEqual([...o.enums].sort(), createdBy(POST_PHASE1_MIGRATIONS, /CREATE TYPE "([A-Za-z]+)"/g));
@@ -229,7 +229,7 @@ test('post-Phase-1: the pre- and post-check SQL are read only and use only \\ech
   }
 });
 
-test('releaseFrom / afterRelease / checkoutProblem: default phase1; post-phase1 needs its nine and nothing after them', () => {
+test('releaseFrom / afterRelease / checkoutProblem: default phase1; post-phase1 needs its eleven and nothing after them', () => {
   assert.equal(releaseFrom([]).name, 'phase1');
   assert.equal(releaseFrom(['--release', 'post-phase1']).name, 'post-phase1');
   assert.equal(releaseFrom(['--release', 'phase2']), null);

@@ -44,6 +44,7 @@ import { DecisionNotificationsService } from '../../decision-notifications/decis
 import {
   activeSelectedOverride, addSelectionInTx, assignStudentInTx, endAssignmentInTx, ensureSelectedOverrideInTx, removeSelectionInTx, type ItemResult,
 } from '../../teachers/teacher-student-ops.js';
+import { activeSchoolsOf, visibilityOf } from '../../teachers/teacher-scope.js';
 import { refreshCounts } from './bulk-operations.service.js';
 
 export interface ClaimedItem { id: string; operationId: string; userId: string; claimToken: string }
@@ -242,6 +243,11 @@ export class BulkOperationsWorker {
       return toOutcome(r);
     }
     if (action === 'grantDelegation') {
+      // Visibility first: a student the teacher does not see creates nothing and tells the teacher nothing.
+      const seen = await visibilityOf(tx, teacher.id, await activeSchoolsOf(tx, teacher.id), [user.id]);
+      if (!seen.has(user.id)) {
+        return { outcome: 'FAILED', code: 'STUDENT_NOT_IN_TEACHER_SCOPE', message: 'The teacher does not see this student (not a verified student of their schools, and not assigned to them).' };
+      }
       const { override, created } = await ensureSelectedOverrideInTx(tx, this.audit, {
         teacher, permission: params.permission!, reason: op.reason ?? 'Bulk operation', actor: by, operationId: op.id,
       });

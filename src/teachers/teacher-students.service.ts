@@ -84,7 +84,7 @@ export class TeacherStudentsService {
     const { page, limit, skip, take } = pageArgs(q);
     const contains = q.q ? { contains: q.q, mode: 'insensitive' as const } : undefined;
     const inScope = q.access === 'SCHOOL' ? schoolStudentsWhere(q.schoolId ? [q.schoolId] : schools)
-      : q.access === 'ASSIGNED' ? assignedStudentsWhere(user.id)
+      : q.access === 'ASSIGNED' ? assignedStudentsWhere(user.id, schools)
       : teacherStudentsWhere(user.id, q.schoolId ? [q.schoolId] : schools);
     const where: Prisma.UserWhereInput = {
       AND: [
@@ -118,7 +118,7 @@ export class TeacherStudentsService {
     const schools = await this.schools(user);
     const [viaSchool, viaAssignment, visible, pendingVerification] = await Promise.all([
       this.prisma.user.count({ where: schoolStudentsWhere(schools) }),
-      this.prisma.user.count({ where: assignedStudentsWhere(user.id) }),
+      this.prisma.user.count({ where: assignedStudentsWhere(user.id, schools) }),
       this.prisma.user.count({ where: teacherStudentsWhere(user.id, schools) }),
       schools.length === 0 ? 0 : this.prisma.studentSchoolAffiliation.count({
         where: { schoolId: { in: schools }, supersededAt: null, status: 'PENDING', student: { role: 'STUDENT' } },

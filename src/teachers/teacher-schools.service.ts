@@ -16,6 +16,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { lockSchoolsForUse } from '../schools/school-usage.js';
 import { CreateTeacherSchoolDto, ListTeacherSchoolsDto } from './dto/teacher.dto.js';
+import { dropStaleSelections } from './teacher-student-ops.js';
 
 const SELECT = {
   id: true, isActive: true, createdAt: true, endedAt: true,
@@ -100,6 +101,8 @@ export class TeacherSchoolsService {
         actorId: actor.id, actorRole: actor.role, action: 'UNASSIGN_TEACHER_SCHOOL', entity: 'TeacherSchoolAssignment', entityId: id,
         metadata: { teacherId: existing.teacherId, schoolId: existing.schoolId },
       }, tx);
+      // Students of that school the teacher no longer sees leave the teacher's selected-student delegations (TS-5).
+      await dropStaleSelections(tx, this.audit, { teacherId: existing.teacherId }, { actorId: actor.id, actorRole: actor.role }, 'SCHOOL_ASSIGNMENT_ENDED');
       return tx.teacherSchoolAssignment.findUniqueOrThrow({ where: { id }, select: SELECT });
     });
   }

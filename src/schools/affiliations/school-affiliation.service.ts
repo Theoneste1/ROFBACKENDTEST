@@ -44,6 +44,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { AcademicYearsService } from '../../academic-years/academic-years.service.js';
 import { AuditService } from '../../audit/audit.service.js';
+import { dropStaleSelections } from '../../teachers/teacher-student-ops.js';
 import type { AuthUser } from '../../common/auth-user.js';
 import { AppError } from '../../common/errors/app-error.js';
 import { pageArgs, paginated } from '../../common/pagination.js';
@@ -182,6 +183,8 @@ export class SchoolAffiliationService {
         metadata: { studentId, schoolId: current.schoolId, reason, previous: { status: current.status, current: true }, next: { current: false } },
       }, tx);
     }
+    // A replaced VERIFIED claim: teachers who saw the student through it may not any more (new claims start PENDING).
+    if (rows.some((r) => r.status === 'VERIFIED')) await dropStaleSelections(tx, this.audit, { studentId }, actor, 'SCHOOL_CLAIM_CHANGED');
   }
 
   // ─── Administrator decisions (each atomic with its audit row) ───────────────
@@ -263,6 +266,10 @@ export class SchoolAffiliationService {
         actorId: actor.id, actorRole: actor.role, action, entity: 'StudentSchoolAffiliation', entityId: id,
         metadata: { studentId: row.studentId, schoolId: row.schoolId, previous: { status: from }, next: { status: to }, reason: opts.reason },
       }, tx);
+      // A revoked VERIFIED claim: teachers who saw the student through it may not any more (TS-5).
+      if (from === 'VERIFIED') {
+        await dropStaleSelections(tx, this.audit, { studentId: row.studentId }, { actorId: actor.id, actorRole: actor.role }, 'SCHOOL_CLAIM_CHANGED');
+      }
       if (after) await after(tx, row);
       return tx.studentSchoolAffiliation.findUniqueOrThrow({ where: { id }, select: ADMIN_SELECT });
     });

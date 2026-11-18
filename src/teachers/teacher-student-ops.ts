@@ -13,7 +13,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { activeSchoolsOf, visibilityOf } from './teacher-scope.js';
 
 type Tx = Prisma.TransactionClient;
-export interface Actor { actorId: string; actorRole: string }
+export interface Actor { actorId: string | null; actorRole: string | null }
 
 export type ItemOutcome = 'ASSIGNED' | 'REACTIVATED' | 'ENDED' | 'ADDED' | 'REMOVED' | 'SKIPPED' | 'FAILED';
 export interface ItemResult { studentId: string; outcome: ItemOutcome; code?: string; message?: string; id?: string }
@@ -111,24 +111,54 @@ export async function endAssignmentInTx(
 
 /** TS-5 (see endAssignmentInTx). Also used when a role change ends assignments. */
 export async function dropSelectionsOutOfScope(tx: Tx, audit: AuditService, teacherId: string, studentId: string, actor: Actor) {
-  const schools = await activeSchoolsOf(tx, teacherId);
-  if ((await visibilityOf(tx, teacherId, schools, [studentId])).has(studentId)) return;
+  await dropStaleSelections(tx, audit, { teacherId, studentId }, actor, 'ASSIGNMENT_ENDED');
+}
+
+/**
+ * The per-teacher lock every change to a teacher's selected students takes (the same advisory lock as override
+ * creation): adding a student and removing students who left the teacher's scope never interleave, so a student can
+ * never stay listed — silently, ready to come back — after the teacher stopped seeing them.
+ */
+export async function lockTeacher(tx: Tx, teacherId: string) {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${teacherId}))::text`;
+}
+
+/**
+ * TS-5, applied whenever a teacher may stop seeing students: an assignment ends (ASSIGNMENT_ENDED), a teacher's school
+ * assignment ends (SCHOOL_ASSIGNMENT_ENDED), a student's verified claim is revoked or replaced (SCHOOL_CLAIM_CHANGED).
+ * Every listed student the teacher no longer sees is taken off the SELECTED delegation (row kept, removeReason) and the
+ * delegation is flagged for an Administrator's review — so old per-student permissions never come back silently when
+ * the student becomes visible again. Students still seen by another path (school or a cross-school assignment) stay.
+ */
+export async function dropStaleSelections(
+  tx: Tx, audit: AuditService, by: { teacherId?: string; studentId?: string }, actor: Actor, reason: string,
+) {
   const rows = await tx.userPermissionOverrideStudent.findMany({
-    where: { studentId, removedAt: null, override: { userId: teacherId, revokedAt: null } },
-    select: { id: true, overrideId: true, override: { select: { permission: true } } },
+    where: {
+      removedAt: null, ...(by.studentId && { studentId: by.studentId }),
+      override: { revokedAt: null, ...(by.teacherId && { userId: by.teacherId }) },
+    },
+    select: { id: true, overrideId: true, studentId: true, override: { select: { userId: true, permission: true } } },
   });
-  const now = new Date();
-  for (const r of rows) {
-    await tx.userPermissionOverrideStudent.updateMany({
-      where: { id: r.id, removedAt: null }, data: { removedAt: now, removedById: actor.actorId, removeReason: 'ASSIGNMENT_ENDED' },
-    });
-    await tx.userPermissionOverride.update({
-      where: { id: r.overrideId }, data: { reviewNeededAt: now, reviewReason: 'STUDENT_LEFT_SCOPE' },
-    });
-    await audit.log({
-      ...actor, action: 'DELEGATION_STUDENT_REMOVED', entity: 'UserPermissionOverride', entityId: r.overrideId,
-      metadata: { teacherId, studentId, permission: r.override.permission, reason: 'ASSIGNMENT_ENDED', reviewNeeded: true, from: 'SELECTED', to: 'REMOVED' },
-    }, tx);
+  const byTeacher = new Map<string, typeof rows>();
+  for (const r of rows) byTeacher.set(r.override.userId, [...(byTeacher.get(r.override.userId) ?? []), r]);
+  for (const teacherId of [...byTeacher.keys()].sort()) {
+    await lockTeacher(tx, teacherId);
+    const list = byTeacher.get(teacherId)!;
+    const seen = await visibilityOf(tx, teacherId, await activeSchoolsOf(tx, teacherId), list.map((r) => r.studentId));
+    const now = new Date();
+    for (const r of list) {
+      if (seen.has(r.studentId)) continue;
+      const { count } = await tx.userPermissionOverrideStudent.updateMany({
+        where: { id: r.id, removedAt: null }, data: { removedAt: now, removedById: actor.actorId, removeReason: reason },
+      });
+      if (count === 0) continue;
+      await tx.userPermissionOverride.update({ where: { id: r.overrideId }, data: { reviewNeededAt: now, reviewReason: 'STUDENT_LEFT_SCOPE' } });
+      await audit.log({
+        ...actor, action: 'DELEGATION_STUDENT_REMOVED', entity: 'UserPermissionOverride', entityId: r.overrideId,
+        metadata: { teacherId, studentId: r.studentId, permission: r.override.permission, reason, reviewNeeded: true, from: 'SELECTED', to: 'REMOVED' },
+      }, tx);
+    }
   }
 }
 
@@ -148,6 +178,7 @@ export async function addSelectionInTx(
   a: { override: { id: string; userId: string; permission: string }; studentId: string; actor: Actor; operationId?: string },
 ): Promise<ItemResult> {
   const { override, studentId } = a;
+  await lockTeacher(tx, override.userId);
   const schools = await activeSchoolsOf(tx, override.userId);
   if (!(await visibilityOf(tx, override.userId, schools, [studentId])).has(studentId)) {
     return failed(studentId, 'STUDENT_NOT_IN_TEACHER_SCOPE', 'The teacher does not see this student (not a verified student of their schools, and not assigned to them).');
@@ -220,7 +251,7 @@ export async function ensureSelectedOverrideInTx(
   a: { teacher: { id: string; role: string }; permission: string; reason: string; actor: Actor; operationId?: string },
 ) {
   if (!(TEACHER_DELEGATIONS as readonly string[]).includes(a.permission)) throw new Error(`${a.permission} is not a teacher delegation`);
-  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${a.teacher.id}))::text`;
+  await lockTeacher(tx, a.teacher.id);
   const found = await activeSelectedOverride(tx, a.teacher.id, a.permission);
   if (found) return { override: found, created: false };
   const created = await tx.userPermissionOverride.create({

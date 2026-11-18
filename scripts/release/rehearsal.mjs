@@ -5,8 +5,8 @@
  *
  * Every command takes --release <phase1|post-phase1> (default phase1, the kit's original behaviour):
  *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
- *   post-phase1  the 9 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
- *                refuses a checkout without exactly those nine, or a checkout or database with anything after them.
+ *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
+ *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
  *
  *   node scripts/release/rehearsal.mjs check-target                 guard only, no connection
  *   node scripts/release/rehearsal.mjs precheck                     the release's precheck SQL (read only)
@@ -17,7 +17,7 @@
  *   node scripts/release/rehearsal.mjs rollback --confirm <ep-id>   the release's docs/migrations rollbacks, newest first (WRITES)
  *   node scripts/release/rehearsal.mjs rollback-history --confirm <ep-id>
  *                                                                   deletes the release's history rows once its objects are
- *                                                                   gone: M9–M14 (phase1) or all nine (post-phase1) (WRITES)
+ *                                                                   gone: M9–M14 (phase1) or all eleven (post-phase1) (WRITES)
  *   node scripts/release/rehearsal.mjs dump --out <dir> --confirm <ep-id>
  *                                                                   pg_dump of the target into an EFS-encrypted
  *                                                                   folder outside the repository and OneDrive
@@ -235,8 +235,8 @@ function prisma(url, args) {
 const opt = (rest, name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
 
 /**
- * post-Phase-1 rollback-history: refuses while any table, enum, column, trigger or function the nine migrations
- * create is still there (POST_PHASE1_OBJECTS); then deletes exactly their nine history rows. Returns the exit code.
+ * post-Phase-1 rollback-history: refuses while any table, enum, column, trigger or function the eleven migrations
+ * create is still there (POST_PHASE1_OBJECTS); then deletes exactly their eleven history rows. Returns the exit code.
  */
 async function rollbackHistoryPostPhase1(url) {
   const client = new pg.Client({ connectionString: url });
@@ -288,11 +288,11 @@ async function main() {
     if (laterInCheckout.length) {
       console.error(`✗ refused: this checkout has ${laterInCheckout.length} migration(s) after M14 (${laterInCheckout.join(', ')}). `
         + 'The kit rehearses exactly the 14 Phase 1 migrations: run it from a checkout whose last migration is M14'
-        + ' (for the nine migrations after M14, use --release post-phase1).');
+        + ' (for the eleven migrations after M14, use --release post-phase1).');
       return 5;
     }
   } else {
-    // post-Phase-1: exactly its nine migrations in the checkout, nothing after them (exit 5, before any target is read).
+    // post-Phase-1: exactly its eleven migrations in the checkout, nothing after them (exit 5, before any target is read).
     const problem = checkoutProblem(release, migrationDirs(REPO_ROOT));
     if (problem) { console.error(`✗ refused: ${problem}`); return 5; }
   }
@@ -346,7 +346,7 @@ async function main() {
       }
       console.log(release.name === 'phase1'
         ? 'Next: rollback-history (M9–M14 rows), then `status` ("Following migrations have not yet been applied:" + the 14 names; exit 1).'
-        : 'Next: rollback-history --release post-phase1 (the nine rows), then `status --release post-phase1` (the nine names not yet applied; exit 1).');
+        : 'Next: rollback-history --release post-phase1 (the eleven rows), then `status --release post-phase1` (the eleven names not yet applied; exit 1).');
       break;
     }
     case 'rollback-history': {

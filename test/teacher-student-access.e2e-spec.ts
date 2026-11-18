@@ -288,4 +288,60 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     await http().patch(`/api/v1/admin/users/${t3Id}`).set(bearer(admin)).send({ role: 'MENTOR' }).expect(200);
     expect(await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t3Id, studentId: oId } })).toMatchObject({ isActive: false, endReason: 'ROLE_CHANGE' });
   });
+
+  it('review fixes: a lost school link ends same-school access and takes students off selected permissions (claim revoked, teacher school ended); a bulk grant for an unseen student creates nothing', async () => {
+    // Fixtures: school C, teacher T6 at C, students C1 and C2 verified at C.
+    const schoolC = (await p().school.create({ data: { name: 'TSA School C', location: 'Huye' } })).id;
+    const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const mk = async (username: string, role: 'TEACHER' | 'STUDENT', extra: object = {}) =>
+      (await p().user.create({ data: { username, firstName: username, lastName: 'Tsa', email: `${username}@test.local`, role, passwordHash: hash, activatedAt: new Date(), ...extra } })).id;
+    const t6Id = await mk('tsa.t6', 'TEACHER');
+    const [c1, c2] = [await mk('tsa.c1', 'STUDENT', { gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolC, homeLocation: 'Huye' }),
+      await mk('tsa.c2', 'STUDENT', { gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolC, homeLocation: 'Huye' })];
+    const claims: Record<string, string> = {};
+    for (const s of [c1, c2]) {
+      claims[s] = (await p().studentSchoolAffiliation.create({ data: {
+        studentId: s, schoolId: schoolC, status: 'VERIFIED', source: 'ADMIN', createdById: ctx.ids.admin, decidedById: ctx.ids.admin, decidedAt: new Date(),
+      } })).id;
+    }
+    const tsa = await http().post('/api/v1/admin/teacher-assignments').set(bearer(admin)).send({ teacherId: t6Id, schoolId: schoolC }).expect(201);
+    expect(outcomes(await assign({ teacherId: t6Id, studentIds: [c1] }).expect(200))).toEqual({ [c1]: ['ASSIGNED', null] });   // same school: no reason
+    const sel = await http().post(delegations(t6Id)).set(bearer(admin))
+      .send({ permission: 'students.viewProfile', reason: 'Selected pair', studentScope: 'SELECTED', studentIds: [c1, c2] }).expect(201);
+    let t6 = await login(ctx, 'tsa.t6');
+    await http().get(`/api/v1/teacher/students/${c2}`).set(bearer(t6)).expect(200);
+
+    // C2's verified claim is revoked → C2 leaves T6's selected permission (flagged), and T6 no longer sees C2.
+    await http().post(`/api/v1/admin/school-affiliations/${claims[c2]}/revoke`).set(bearer(admin)).send({ reason: 'Not a student of this school' })
+      .expect((r) => { if (r.status >= 300) throw new Error(`revoke ${r.status} ${JSON.stringify(r.body)}`); });
+    const afterRevoke = await p().userPermissionOverrideStudent.findFirstOrThrow({ where: { overrideId: sel.body.id, studentId: c2 } });
+    expect(afterRevoke).toMatchObject({ removeReason: 'SCHOOL_CLAIM_CHANGED' });
+    expect(afterRevoke.removedAt).not.toBeNull();
+    expect((await p().userPermissionOverride.findUniqueOrThrow({ where: { id: sel.body.id } })).reviewReason).toBe('STUDENT_LEFT_SCOPE');
+    t6 = await login(ctx, 'tsa.t6');
+    expect(await status(http().get(`/api/v1/teacher/students/${c2}`).set(bearer(t6)))).toEqual([404, 'NOT_FOUND']);
+
+    // T6's school assignment ends → the same-school assignment of C1 gives nothing any more (no reason was given, TS-3),
+    // C1 leaves the selected permission; the assignment row stays (history).
+    await http().delete(`/api/v1/admin/teacher-assignments/${tsa.body.id}`).set(bearer(admin)).expect(200);
+    t6 = await login(ctx, 'tsa.t6');
+    expect(await status(http().get(`/api/v1/teacher/students/${c1}`).set(bearer(t6)))).toEqual([404, 'NOT_FOUND']);
+    expect((await http().get('/api/v1/teacher/students').set(bearer(t6)).expect(200)).body.data).toEqual([]);
+    expect(await p().userPermissionOverrideStudent.findFirstOrThrow({ where: { overrideId: sel.body.id, studentId: c1 } }))
+      .toMatchObject({ removeReason: 'SCHOOL_ASSIGNMENT_ENDED' });
+    expect((await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t6Id, studentId: c1 } })).isActive).toBe(true);
+
+    // A bulk grant for a student the teacher does not see creates no delegation and sends no notice.
+    const before = await p().notificationOutbox.count({ where: { recipientUserId: t6Id, type: 'permissions.granted' } });
+    const params = { teacherId: t6Id, permission: 'students.viewProgress' };
+    const pv = await http().post('/api/v1/admin/users/bulk/preview').set(bearer(admin)).send({ action: 'grantDelegation', selection: { mode: 'ids', ids: [c1] }, params }).expect(200);
+    const run = await http().post('/api/v1/admin/users/bulk').set(bearer(admin)).send({
+      action: 'grantDelegation', selection: { mode: 'ids', ids: [c1] }, params, selectionToken: pv.body.selectionToken, expectedTotal: pv.body.total,
+      confirm: true, idempotencyKey: `tsa-l2-${Date.now()}`, reason: 'Bulk grant check',
+    }).expect(202);
+    while ((await worker.processBatch()) > 0) { /* drain */ }
+    expect(await p().bulkOperationItem.findFirstOrThrow({ where: { operationId: run.body.operation.id } })).toMatchObject({ outcome: 'FAILED', code: 'STUDENT_NOT_IN_TEACHER_SCOPE' });
+    expect(await p().userPermissionOverride.count({ where: { userId: t6Id, permission: 'students.viewProgress' } })).toBe(0);
+    expect(await p().notificationOutbox.count({ where: { recipientUserId: t6Id, type: 'permissions.granted' } })).toBe(before);
+  });
 });

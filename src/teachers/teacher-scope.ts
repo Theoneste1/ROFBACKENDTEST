@@ -6,7 +6,10 @@
  *        e-mail verification never establishes school membership), or
  *    (b) explicitly assigned to the teacher by an Administrator (an ACTIVE TeacherStudentAssignment; TS-2 several
  *        teachers per student; TS-3 another school's student only with a reason). An assignment gives that student
- *        only — never the rest of their school.
+ *        only — never the rest of their school. An assignment made WITHOUT a reason (crossSchool = false: the student
+ *        was then a verified student of the teacher's schools) counts only while that is still true — if the student
+ *        moves school, loses the verified claim, or the teacher's school assignment ends, it gives nothing, so it can
+ *        never become a cross-school assignment without a reason (TS-3). An Administrator re-assigns with a reason.
  *  Pending students of the teacher's schools are never identified to the teacher: only their number is shown.
  *
  *  A delegation (students.viewProfile, students.viewProgress, submissions.submitOnBehalf) covers a visible student
@@ -24,14 +27,22 @@ export const STUDENT_SCOPES: readonly StudentScope[] = ['SCHOOL', 'ASSIGNED', 'S
 
 type Db = Pick<Prisma.TransactionClient, 'teacherSchoolAssignment' | 'user' | 'teacherStudentAssignment' | 'userPermissionOverride'>;
 
-/** Approved, activated students explicitly assigned to the teacher (active assignment). */
-export function assignedStudentsWhere(teacherId: string): Prisma.UserWhereInput {
-  return { role: 'STUDENT', isApproved: true, activatedAt: { not: null }, teacherStudentsAsStudent: { some: { teacherId, isActive: true } } };
+/**
+ * Approved, activated students explicitly assigned to the teacher (active assignment): a cross-school assignment (made
+ * with a reason) always; a same-school one only while the student is still a verified student of the teacher's schools.
+ */
+export function assignedStudentsWhere(teacherId: string, schoolIds: readonly string[]): Prisma.UserWhereInput {
+  return {
+    OR: [
+      { role: 'STUDENT', isApproved: true, activatedAt: { not: null }, teacherStudentsAsStudent: { some: { teacherId, isActive: true, crossSchool: true } } },
+      { AND: [schoolStudentsWhere(schoolIds), { teacherStudentsAsStudent: { some: { teacherId, isActive: true, crossSchool: false } } }] },
+    ],
+  };
 }
 
 /** Every student the teacher sees: (a) ∪ (b). */
 export function teacherStudentsWhere(teacherId: string, schoolIds: readonly string[]): Prisma.UserWhereInput {
-  return { OR: [schoolStudentsWhere(schoolIds), assignedStudentsWhere(teacherId)] };
+  return { OR: [schoolStudentsWhere(schoolIds), assignedStudentsWhere(teacherId, schoolIds)] };
 }
 
 export async function activeSchoolsOf(db: Db, teacherId: string): Promise<string[]> {
@@ -46,7 +57,7 @@ export async function visibilityOf(db: Db, teacherId: string, schoolIds: readonl
   if (ids.length === 0) return out;
   const [bySchool, byAssignment] = await Promise.all([
     db.user.findMany({ where: { id: { in: ids }, ...schoolStudentsWhere(schoolIds) }, select: { id: true } }),
-    db.user.findMany({ where: { id: { in: ids }, ...assignedStudentsWhere(teacherId) }, select: { id: true } }),
+    db.user.findMany({ where: { id: { in: ids }, ...assignedStudentsWhere(teacherId, schoolIds) }, select: { id: true } }),
   ]);
   for (const { id } of bySchool) out.set(id, { viaSchool: true, viaAssignment: false });
   for (const { id } of byAssignment) out.set(id, { viaSchool: out.get(id)?.viaSchool ?? false, viaAssignment: true });

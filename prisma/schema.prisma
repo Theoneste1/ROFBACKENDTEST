@@ -2542,7 +2542,8 @@ model UserPermissionOverrideStudent {
   removedAt    DateTime?
   removedById  String?
   removedBy    User?                  @relation("OverrideStudentRemovedBy", fields: [removedById], references: [id], onDelete: SetNull)
-  /// ADMIN (removed by an Administrator) or ASSIGNMENT_ENDED (TS-5: the teacher no longer sees the student).
+  /// ADMIN (removed by an Administrator); ASSIGNMENT_ENDED, SCHOOL_ASSIGNMENT_ENDED or SCHOOL_CLAIM_CHANGED (TS-5: the
+  /// teacher no longer sees the student).
   removeReason String?
 
   @@unique([overrideId, studentId])
