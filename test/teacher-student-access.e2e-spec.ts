@@ -211,6 +211,19 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     expect((await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t1Id, studentId: pendingId } })).isActive).toBe(true);
   });
 
+  it('SR-2 (approved 2026-11-18): a student whose school claim is still PENDING is assigned only with a reason, audited; the teacher sees that one student, other teachers of the school do not', async () => {
+    // No reason → refused (the pending student is not a verified student of T2's school).
+    expect(outcomes(await assign({ teacherId: t2Id, studentIds: [pendingId] }).expect(200))).toEqual({ [pendingId]: ['FAILED', 'REASON_REQUIRED'] });
+    const row = await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t1Id, studentId: pendingId } });
+    expect(row).toMatchObject({ isActive: true, crossSchool: true, reason: 'Pending claim, camp group', assignedById: ctx.ids.admin });
+    expect((await p().auditLog.findFirstOrThrow({ where: { action: 'TEACHER_STUDENT_ASSIGNED', entityId: row.id } })).metadata)
+      .toMatchObject({ teacherId: t1Id, studentId: pendingId, crossSchool: true, reason: 'Pending claim, camp group' });
+    const t1List = (await http().get('/api/v1/teacher/students').set(bearer(t1)).expect(200)).body.data;
+    expect(t1List.find((s: any) => s.id === pendingId)).toMatchObject({ access: { school: false, assigned: true } });
+    expect((await http().get('/api/v1/teacher/students').query({ access: 'SCHOOL' }).set(bearer(t1)).expect(200)).body.data.map((s: any) => s.id)).not.toContain(pendingId);
+    expect((await http().get('/api/v1/teacher/students').set(bearer(t2)).expect(200)).body.data.map((s: any) => s.id)).not.toContain(pendingId);
+  });
+
   it('School Access: teachers with their access, counts, and students with their teachers — never contact data', async () => {
     const access = await http().get(`/api/v1/admin/schools/${schoolA}/access`).set(bearer(admin)).expect(200);
     expect(access.body.counts).toEqual({ verifiedStudents: 3, pendingStudents: 1, verifiedWithoutTeacher: 3 });
@@ -343,5 +356,77 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     expect(await p().bulkOperationItem.findFirstOrThrow({ where: { operationId: run.body.operation.id } })).toMatchObject({ outcome: 'FAILED', code: 'STUDENT_NOT_IN_TEACHER_SCOPE' });
     expect(await p().userPermissionOverride.count({ where: { userId: t6Id, permission: 'students.viewProgress' } })).toBe(0);
     expect(await p().notificationOutbox.count({ where: { recipientUserId: t6Id, type: 'permissions.granted' } })).toBe(before);
+  });
+
+  it('SR-1: a SUSPENDED, DEACTIVATED or ARCHIVED student is hidden from the teacher on every path (school and cross-school assignment); Administrators still see them; reactivation restores access', async () => {
+    // Fixtures: school D with teacher T7; D1 a verified student of D; E1 a verified student of school E assigned to T7 cross-school.
+    const [schoolD, schoolE] = [(await p().school.create({ data: { name: 'TSA School D', location: 'Huye' } })).id,
+      (await p().school.create({ data: { name: 'TSA School E', location: 'Huye' } })).id];
+    const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const mk = async (username: string, role: 'TEACHER' | 'STUDENT', extra: object = {}) =>
+      (await p().user.create({ data: { username, firstName: username, lastName: 'Tsa', email: `${username}@test.local`, role, passwordHash: hash, activatedAt: new Date(), ...extra } })).id;
+    const t7Id = await mk('tsa.t7', 'TEACHER');
+    const d1 = await mk('tsa.d1', 'STUDENT', { gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolD, homeLocation: 'Huye' });
+    const e1 = await mk('tsa.e1', 'STUDENT', { gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId: schoolE, homeLocation: 'Huye' });
+    for (const [s, school] of [[d1, schoolD], [e1, schoolE]]) {
+      await p().studentSchoolAffiliation.create({ data: { studentId: s, schoolId: school, status: 'VERIFIED', source: 'ADMIN', createdById: ctx.ids.admin, decidedById: ctx.ids.admin, decidedAt: new Date() } });
+    }
+    await http().post('/api/v1/admin/teacher-assignments').set(bearer(admin)).send({ teacherId: t7Id, schoolId: schoolD }).expect(201);
+    expect(outcomes(await assign({ teacherId: t7Id, studentIds: [e1], reason: 'Camp group, other school' }).expect(200))).toEqual({ [e1]: ['ASSIGNED', null] });
+    await http().post(delegations(t7Id)).set(bearer(admin)).send({ permission: 'students.viewProfile', reason: 'School profiles', studentScope: 'SCHOOL' }).expect(201);
+    await http().post(delegations(t7Id)).set(bearer(admin)).send({ permission: 'students.viewProgress', reason: 'Assigned progress', studentScope: 'ASSIGNED' }).expect(201);
+    const sel = await http().post(delegations(t7Id)).set(bearer(admin))
+      .send({ permission: 'submissions.submitOnBehalf', reason: 'Selected submissions', studentScope: 'SELECTED', studentIds: [d1, e1] }).expect(201);
+    const t7 = await login(ctx, 'tsa.t7');
+    const submitFor = (studentId: string) => http().post(`/api/v1/teacher/students/${studentId}/submissions`).set(bearer(t7))
+      .field('assignmentId', workId).attach('file', PDF, 'work.pdf');
+    const listed = async (q: object = {}) => (await http().get('/api/v1/teacher/students').query(q).set(bearer(t7)).expect(200)).body.data.map((s: any) => s.id).sort();
+    const setStatus = (id: string, toStatus: string) => http().post(`/api/v1/admin/users/${id}/status-changes`).set(bearer(admin))
+      .send({ toStatus, reason: 'SR-1 regression check', ...(toStatus === 'ACTIVE' && { confirm: true }) })
+      .expect((r) => { if (r.status >= 300) throw new Error(`status ${toStatus} ${r.status} ${JSON.stringify(r.body)}`); });
+    const visible = async () => {
+      expect(await listed()).toEqual([d1, e1].sort());
+      expect(await listed({ access: 'SCHOOL' })).toEqual([d1]);
+      expect(await listed({ access: 'ASSIGNED' })).toEqual([e1]);
+      expect((await http().get('/api/v1/teacher/students/summary').set(bearer(t7)).expect(200)).body).toMatchObject({ students: 2, viaSchool: 1, viaAssignment: 1 });
+      await http().get(`/api/v1/teacher/students/${d1}`).set(bearer(t7)).expect(200);
+      await http().get(`/api/v1/teacher/students/${e1}/progress`).set(bearer(t7)).expect(200);
+    };
+    await visible();
+    expect((await submitFor(d1)).status).toBe(201);
+
+    for (const state of ['SUSPENDED', 'DEACTIVATED', 'ARCHIVED']) {
+      for (const s of [d1, e1]) await setStatus(s, state);
+      // Teacher: list (every filter), summary, profile, progress, submit on behalf — both the school and the cross-school student.
+      expect(await listed()).toEqual([]);
+      expect(await listed({ access: 'SCHOOL' })).toEqual([]);
+      expect(await listed({ access: 'ASSIGNED' })).toEqual([]);
+      expect((await http().get('/api/v1/teacher/students/summary').set(bearer(t7)).expect(200)).body).toMatchObject({ students: 0, viaSchool: 0, viaAssignment: 0 });
+      for (const s of [d1, e1]) {
+        expect([state, await status(http().get(`/api/v1/teacher/students/${s}`).set(bearer(t7)))]).toEqual([state, [404, 'NOT_FOUND']]);
+        expect([state, await status(http().get(`/api/v1/teacher/students/${s}/progress`).set(bearer(t7)))]).toEqual([state, [404, 'NOT_FOUND']]);
+        expect([state, await status(submitFor(s))]).toEqual([state, [404, 'NOT_FOUND']]);
+      }
+      // A delegation cannot newly cover them, and a bulk grant creates nothing.
+      expect(await status(http().post(delegations(t7Id)).set(bearer(admin))
+        .send({ permission: 'students.viewProgress', reason: 'Selected', studentScope: 'SELECTED', studentIds: [d1] }))).toEqual([400, 'STUDENT_NOT_IN_TEACHER_SCOPE']);
+      // Administrators still see and manage them; the assignment and the selections stay (hidden is not out of scope).
+      expect((await http().get(`/api/v1/admin/users/${d1}`).set(bearer(admin)).expect(200)).body.accountStatus).toBe(state);
+      const access = await http().get(`/api/v1/admin/schools/${schoolD}/access/students`).set(bearer(admin)).expect(200);
+      expect(access.body.data.map((s: any) => s.id)).toContain(d1);
+      expect((await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t7Id, studentId: e1 } })).isActive).toBe(true);
+      expect(await p().userPermissionOverrideStudent.count({ where: { overrideId: sel.body.id, removedAt: null } })).toBe(2);
+      if (state === 'SUSPENDED') {
+        // A scope sweep while they are hidden (T7's second school ends) must not drop their selections: hidden ≠ left scope.
+        const schoolF = (await p().school.create({ data: { name: 'TSA School F', location: 'Huye' } })).id;
+        const f = await http().post('/api/v1/admin/teacher-assignments').set(bearer(admin)).send({ teacherId: t7Id, schoolId: schoolF }).expect(201);
+        await http().delete(`/api/v1/admin/teacher-assignments/${f.body.id}`).set(bearer(admin)).expect(200);
+        expect(await p().userPermissionOverrideStudent.count({ where: { overrideId: sel.body.id, removedAt: null } })).toBe(2);
+      }
+      for (const s of [d1, e1]) await setStatus(s, 'ACTIVE');
+      await visible();
+    }
+    expect((await p().userPermissionOverride.findUniqueOrThrow({ where: { id: sel.body.id } })).reviewReason).toBeNull();
+    expect((await submitFor(e1)).status).toBe(201);
   });
 });

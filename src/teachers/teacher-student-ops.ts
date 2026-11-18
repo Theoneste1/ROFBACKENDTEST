@@ -42,7 +42,7 @@ export async function assignStudentInTx(
   if (student.role !== 'STUDENT') return failed(studentId, 'NOT_A_STUDENT', 'Only Student accounts can be assigned to a teacher.');
 
   const schools = await activeSchoolsOf(tx, teacherId);
-  const crossSchool = !(await visibilityOf(tx, teacherId, schools, [studentId])).get(studentId)?.viaSchool;
+  const crossSchool = !(await visibilityOf(tx, teacherId, schools, [studentId], 'scope')).get(studentId)?.viaSchool;
   const reason = a.reason?.trim() || null;
   if (crossSchool && (!reason || reason.length < CROSS_SCHOOL_REASON_MIN)) {
     return failed(studentId, 'REASON_REQUIRED',
@@ -145,7 +145,8 @@ export async function dropStaleSelections(
   for (const teacherId of [...byTeacher.keys()].sort()) {
     await lockTeacher(tx, teacherId);
     const list = byTeacher.get(teacherId)!;
-    const seen = await visibilityOf(tx, teacherId, await activeSchoolsOf(tx, teacherId), list.map((r) => r.studentId));
+    // Scope, not account state: a suspended student has not left scope (SR-1), so their selection stays.
+    const seen = await visibilityOf(tx, teacherId, await activeSchoolsOf(tx, teacherId), list.map((r) => r.studentId), 'scope');
     const now = new Date();
     for (const r of list) {
       if (seen.has(r.studentId)) continue;

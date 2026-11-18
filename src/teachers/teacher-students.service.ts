@@ -31,8 +31,7 @@ import { CreateSubmissionDto } from '../submissions/dto/create-submission.dto.js
 import { SubmissionsService } from '../submissions/submissions.service.js';
 import { ListTeacherStudentsDto } from './dto/teacher.dto.js';
 import { TEACHER_DELEGATIONS } from '../auth/override-policy.js';
-import { activeGrantsOf, assignedStudentsWhere, delegationCovers, teacherStudentsWhere, visibilityOf } from './teacher-scope.js';
-import { schoolStudentsWhere } from '../common/access/access.service.js';
+import { activeGrantsOf, delegationCovers, teacherStudentsWhere, visibilityOf, visibleAssignedStudentsWhere, visibleSchoolStudentsWhere } from './teacher-scope.js';
 
 /** The three delegations, by the short names the list returns. */
 const DELEGATION_KEYS = { 'students.viewProfile': 'viewProfile', 'students.viewProgress': 'viewProgress', 'submissions.submitOnBehalf': 'submitOnBehalf' } as const;
@@ -83,8 +82,8 @@ export class TeacherStudentsService {
     if (q.schoolId && !schools.includes(q.schoolId)) throw new NotFoundException('School not found.');
     const { page, limit, skip, take } = pageArgs(q);
     const contains = q.q ? { contains: q.q, mode: 'insensitive' as const } : undefined;
-    const inScope = q.access === 'SCHOOL' ? schoolStudentsWhere(q.schoolId ? [q.schoolId] : schools)
-      : q.access === 'ASSIGNED' ? assignedStudentsWhere(user.id, schools)
+    const inScope = q.access === 'SCHOOL' ? visibleSchoolStudentsWhere(q.schoolId ? [q.schoolId] : schools)
+      : q.access === 'ASSIGNED' ? visibleAssignedStudentsWhere(user.id, schools)
       : teacherStudentsWhere(user.id, q.schoolId ? [q.schoolId] : schools);
     const where: Prisma.UserWhereInput = {
       AND: [
@@ -117,11 +116,11 @@ export class TeacherStudentsService {
   async summary(user: AuthUser) {
     const schools = await this.schools(user);
     const [viaSchool, viaAssignment, visible, pendingVerification] = await Promise.all([
-      this.prisma.user.count({ where: schoolStudentsWhere(schools) }),
-      this.prisma.user.count({ where: assignedStudentsWhere(user.id, schools) }),
+      this.prisma.user.count({ where: visibleSchoolStudentsWhere(schools) }),
+      this.prisma.user.count({ where: visibleAssignedStudentsWhere(user.id, schools) }),
       this.prisma.user.count({ where: teacherStudentsWhere(user.id, schools) }),
       schools.length === 0 ? 0 : this.prisma.studentSchoolAffiliation.count({
-        where: { schoolId: { in: schools }, supersededAt: null, status: 'PENDING', student: { role: 'STUDENT' } },
+        where: { schoolId: { in: schools }, supersededAt: null, status: 'PENDING', student: { role: 'STUDENT', accountStatus: 'ACTIVE' } },
       }),
     ]);
     return { schools: schools.length, students: visible, viaSchool, viaAssignment, pendingVerification };
