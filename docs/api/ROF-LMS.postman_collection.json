@@ -6894,7 +6894,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"dateOfBirth\": \"dateOfBirth\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"dateOfBirth\": \"dateOfBirth\",\n  \"guardianPhone\": \"guardianPhone\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9083,6 +9083,40 @@
               "query": []
             },
             "description": "**Access:** STUDENT"
+          }
+        },
+        {
+          "name": "PUT /me/date-of-birth",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/date-of-birth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "date-of-birth"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** STUDENT",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateOfBirth\": \"dateOfBirth\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         },
         {

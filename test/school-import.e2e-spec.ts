@@ -342,7 +342,7 @@ describe('Bulk school import (PR D)', () => {
     await upload(csvOf([R('Usable Import School', { code: '220880' })])).expect(201);
     const school = await p().school.findUniqueOrThrow({ where: { code: '220880' } });
     await http().post('/api/v1/auth/register/student').send({
-      firstName: 'U', lastName: 'Reg', username: 'si.reg', email: 'si.reg@test.local', password: 'Secret123', dateOfBirth: '2010-05-01', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220880',
+      firstName: 'U', lastName: 'Reg', username: 'si.reg', email: 'si.reg@test.local', password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220880',
     }).expect(201);
     expect((await p().user.findUniqueOrThrow({ where: { username: 'si.reg' } })).schoolId).toBe(school.id);
     const inv = await http().post('/api/v1/admin/users/invite').set(bearer(admin)).send({ firstName: 'I', lastName: 'Nv', email: 'si.inv@test.local', gradeLevel: 'S2', schoolCode: '220880' }).expect(201);

@@ -172,6 +172,7 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
         username, firstName: username, lastName: 'Test', email: `${username}@test.local`,
         passwordHash: hash, role, activatedAt: new Date(),
         ...(grade && {
+          dateOfBirth: new Date('2010-05-01T00:00:00Z'),
           gradeLevel: grade,
           divisionId: ['S1', 'S2', 'S3'].includes(grade) ? junior.id : senior.id,
           schoolId:   school.id,

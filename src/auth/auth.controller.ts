@@ -32,6 +32,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import type { ClientInfo, IssuedTokens } from './token.service.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
+import { AllowedBeforeDateOfBirth } from '../common/decorators/date-of-birth-step.decorator.js';
 
 export const REFRESH_COOKIE = 'rof_refresh';
 
@@ -128,6 +129,7 @@ export class AuthController {
   @HttpCode(200)
   @Post('logout-all')
   @Authenticated()
+  @AllowedBeforeDateOfBirth()
   async logoutAll(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
     await this.authService.logoutAll(user);
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions());

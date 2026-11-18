@@ -52,6 +52,13 @@ export const PROFILE_SELECT = {
   school:   { select: { id: true, name: true, location: true } },
 } as const;
 
+/**
+ * A profile (PROFILE_SELECT) with `dateOfBirthRequired`: true for a STUDENT without a date of birth, who must give it
+ * before anything else (owner decision 9.3, PUT /api/v1/me/date-of-birth). Returned on login and by GET /me.
+ */
+export function withProfileSteps<T extends { role: string; dateOfBirth: Date | null }>(profile: T): T & { dateOfBirthRequired: boolean } {
+  return { ...profile, dateOfBirthRequired: profile.role === 'STUDENT' && profile.dateOfBirth === null };
+}
 
 /** Consecutive wrong passwords before an account is locked, and for how long. */
 export const MAX_FAILED_LOGINS = 5;
@@ -329,7 +336,7 @@ export class AuthService {
     });
     this.activity.record(user.id, 'LOGIN');
 
-    return { ...tokens, user: profile };
+    return { ...tokens, user: withProfileSteps(profile) };
   }
 
   // ─── Refresh / Logout ──────────────────────────────────────────────────────

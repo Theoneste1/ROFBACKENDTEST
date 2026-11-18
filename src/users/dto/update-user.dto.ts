@@ -16,6 +16,7 @@ import { Transform } from 'class-transformer';
 import { GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { IsStudentDateOfBirth } from '../../auth/dto/registration-details.rules.js';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -119,6 +120,13 @@ export class ChangeAccountStatusDto {
   @IsOptional()
   @IsBoolean()
   confirm?: boolean;
+}
+
+/** PUT /me/date-of-birth: "YYYY-MM-DD", the registration rules (a real past date, age 5–30 in Rwanda). */
+export class SetDateOfBirthDto {
+  @Transform(trim)
+  @IsStudentDateOfBirth()
+  dateOfBirth: string;
 }
 
 export class UpdateMeDto {

@@ -29,6 +29,7 @@ import { ImportUsersQueryDto, InviteUserDto } from './dto/invite-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
+  SetDateOfBirthDto,
   UpdateMeDto,
   UpdateUserDto,
   UpdateUserStatusDto,
@@ -42,6 +43,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { PermissionService } from '../auth/permission.service.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
+import { AllowedBeforeDateOfBirth } from '../common/decorators/date-of-birth-step.decorator.js';
 
 @ApiTags('Admin · Users')
 @Controller('admin/users')
@@ -225,11 +227,24 @@ export class MeController {
     private readonly permissionService: PermissionService,
   ) {}
 
-  /** The current user's profile, division and school. */
+  /** The current user's profile, division and school; `dateOfBirthRequired` true: PUT /me/date-of-birth first. */
   @Get()
   @Authenticated()
+  @AllowedBeforeDateOfBirth()
   getMe(@CurrentUser() user: AuthUser) {
     return this.usersService.getMe(user.id);
+  }
+
+  /**
+   * A student who has no date of birth yet (created by an Administrator, invited or imported) gives it here; until
+   * then other routes answer 403 DATE_OF_BIRTH_REQUIRED (owner decision 9.3). 400 VALIDATION_FAILED (registration
+   * rules), 409 DATE_OF_BIRTH_ALREADY_SET. Returns the profile.
+   */
+  @Put('date-of-birth')
+  @Roles('STUDENT')
+  @AllowedBeforeDateOfBirth()
+  setDateOfBirth(@CurrentUser() user: AuthUser, @Body() body: SetDateOfBirthDto) {
+    return this.usersService.setOwnDateOfBirth(user, body.dateOfBirth);
   }
 
   @Patch()
@@ -261,6 +276,7 @@ export class MeController {
   /** What the current user's role may do (for showing/hiding UI). */
   @Get('permissions')
   @Authenticated()
+  @AllowedBeforeDateOfBirth()
   permissions(@CurrentUser() user: AuthUser) {
     return this.permissionService.describe(user);
   }

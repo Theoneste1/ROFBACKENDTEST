@@ -127,6 +127,8 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // another account's picture (users.manage + the role policy on the target account, in AvatarService)
   'PUT /api/v1/me/avatar  MeController.setAvatar':                                                             SIGNED_IN,
   'DELETE /api/v1/me/avatar  MeController.removeAvatar':                                                       SIGNED_IN,
+  // Owner decision 9.3 (2026-11-18): a student without a date of birth gives it at first sign-in
+  'PUT /api/v1/me/date-of-birth  MeController.setDateOfBirth':                                                  STUDENTS_ONLY,
   'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
   'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
   'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
