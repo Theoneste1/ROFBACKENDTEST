@@ -113,6 +113,14 @@ export function prePostPhase1Baseline({ migDirs, models, laterSql }) {
   return { migrations: migDirs.filter((d) => d.slice(0, 14) <= LAST_PHASE1_TIMESTAMP), models: models.filter((m) => !created.has(m)) };
 }
 
+/**
+ * The release's pre-switch files in docs/migrations (run BEFORE the code switch and before any rollback file, e.g.
+ * 20261210000000_teacher_student_access.pre-switch.sql), newest first.
+ */
+export function releasePreSwitchFiles(release, names) {
+  return names.filter((f) => f.endsWith('.pre-switch.sql') && release.owns(f.replace(/.pre-switch.sql$/, ''))).sort().reverse();
+}
+
 /** The release's rollback files in docs/migrations, newest first; exactly one per migration, or an error. */
 export function releaseRollbackFiles(release, names) {
   const files = names.filter((f) => f.endsWith('.rollback.sql') && release.owns(f.replace(/\.rollback\.sql$/, ''))).sort().reverse();

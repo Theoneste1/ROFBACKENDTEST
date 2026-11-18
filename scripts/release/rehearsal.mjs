@@ -48,7 +48,7 @@ import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { REPO_ROOT, VERIFIER, resolveDrillTarget, readTargetInputs } from '../db-drill-verify.mjs';
 import { PHASE1, PHASE1_COUNT, laterMigrations, migrationDirs } from './phase1.mjs';
-import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASE_NAMES, afterRelease, checkoutProblem, releaseFrom, releaseRollbackFiles } from './releases.mjs';
+import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASE_NAMES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
 
 export { PHASE1 };
 const WRITES = new Set(['deploy', 'rollback', 'rollback-history', 'dump', 'restore']);
@@ -340,7 +340,9 @@ async function main() {
     case 'diff': code = prisma(target.url, ['migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--exit-code']); break;
     case 'rollback': {
       const docs = readdirSync(join(REPO_ROOT, 'docs/migrations'));
-      for (const f of release.name === 'phase1' ? rollbackFiles(docs) : releaseRollbackFiles(release, docs)) {
+      // Pre-switch steps first (in production they run while the new release still serves; see the runbook §4).
+      const preSwitch = release.name === 'phase1' ? [] : releasePreSwitchFiles(release, docs);
+      for (const f of [...preSwitch, ...(release.name === 'phase1' ? rollbackFiles(docs) : releaseRollbackFiles(release, docs))]) {
         console.log(`=== ${f}`);
         await runSqlFile(target.url, join(REPO_ROOT, 'docs/migrations', f), { readOnly: false });
       }

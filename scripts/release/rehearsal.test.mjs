@@ -9,7 +9,7 @@ import { endpointId, segments, rollbackFiles, childEnv, checkDumpDir, conninfoFr
   PHASE1, M9_M14_TABLES, M9_M14_ENUMS } from './rehearsal.mjs';
 import { LAST_PHASE1_TIMESTAMP, laterMigrations, migrationDirs } from './phase1.mjs';
 import { REPO_ROOT } from '../db-drill-verify.mjs';
-import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releaseRollbackFiles } from './releases.mjs';
+import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
 
 /** This checkout as it was for Phase 1: its migrations without the eleven post-Phase-1 ones (the Phase 1 tests' fixture). */
 const phase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !POST_PHASE1_MIGRATIONS.includes(d));
@@ -211,6 +211,8 @@ test('post-Phase-1: one rollback file per migration, run newest first; anything 
   const files = releaseRollbackFiles(release, readdirSync('docs/migrations'));
   assert.deepEqual(files, [...POST_PHASE1_MIGRATIONS].reverse().map((m) => `${m}.rollback.sql`));
   assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 11 .* found 10/);
+  // The teacher–student pre-switch step exists, belongs to this release and is not counted as a rollback file.
+  assert.deepEqual(releasePreSwitchFiles(release, readdirSync('docs/migrations')), ['20261210000000_teacher_student_access.pre-switch.sql']);
   // The Phase 1 rollbacks are never part of it, and vice versa.
   assert.equal(rollbackFiles(readdirSync('docs/migrations')).length, 14);
   for (const f of files) assert.doesNotThrow(() => segments(readFileSync(`docs/migrations/${f}`, 'utf8')), f);
