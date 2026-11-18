@@ -16,7 +16,7 @@ list against `prisma/migrations`):
 | 8 | `20261207000100_bulk_membership_guard` | `…bulk_membership_guard.rollback.sql` |
 | 9 | `20261208000000_form_availability` | `…form_availability.rollback.sql` |
 | 10 | `20261209000000_application_details` | `…application_details.rollback.sql` |
-| 11 | `20261210000000_teacher_student_access` | `…teacher_student_access.rollback.sql` (revokes narrowed delegations, never widens) |
+| 11 | `20261210000000_teacher_student_access` | `…teacher_student_access.pre-switch.sql` **before the code switch**, then `…teacher_student_access.rollback.sql` (revokes narrowed delegations, never widens) |
 
 Everything that is the same as Phase 1 is in `RELEASE-PHASE1-RUNBOOK.md` and is not repeated here: the release
 checkout pinned to the approved SHA (§2.0), the PostgreSQL 18 tools and `pgpass.conf` (§0, §2.2), pausing Render
@@ -61,8 +61,8 @@ Backup drill: restore the pre-release dump into an empty branch, then
 3. **Pre-check (read only):** `psql -X -v ON_ERROR_STOP=1 -f scripts/release/post-phase1-precheck.sql`. Every MUST holds; keep the output.
 4. **Migrate:** `npx prisma migrate deploy`. It lists exactly the eleven names.
 5. **Post-check (read only):** `psql -X -v ON_ERROR_STOP=1 -f scripts/release/post-phase1-postcheck.sql`. Every MUST holds; the compare lines equal the pre-check.
-6. **Deploy:** merge `develop` → `main` (Phase 1 runbook §3), then smoke-test:
-   - sign-in;
+6. **Deploy frontend and backend together** (merge both `develop` → `main`; Phase 1 runbook §3). Order matters: a student without a date of birth is held by the new backend until they give it, and only the new frontend shows that step (frontend #36 no later than backend #62); Head Coach notification switches (frontend #34) need backend #61. If they cannot go out together, deploy the frontend first: it does nothing new against the old backend except the Head Coach switches, which then show an error card for a few minutes. Then smoke-test:
+   - sign-in (a student without a date of birth sees the date-of-birth step, then the portal);
    - student registration (open or closed as before);
    - the admin settings page;
    - `GET /api/v1` capabilities (now also `accountStates`, `bulkUserOperations`, `formAvailability`).
@@ -73,7 +73,7 @@ Backup drill: restore the pre-release dump into an empty branch, then
 - New nullable columns stay empty; new tables start empty.
 
 ## 4. Rollback
-Deploy the previous application release first. Then run the eleven rollbacks newest first, as the kit does:
+**First, while the NEW release is still serving:** run `docs/migrations/20261210000000_teacher_student_access.pre-switch.sql` (revokes every active ASSIGNED / SELECTED teacher delegation, audited; idempotent). The previous release has no student scope and would apply such a delegation to the teacher's whole school. Then deploy the previous application release, and run the eleven rollbacks newest first, as the kit does:
 - **Data guard:** most refuse (`…_ROLLBACK_REFUSED`) while data would be lost. Each file's header gives the explicit, session-level `SET rof.…_rollback = 'discard-…'` that accepts the loss. Only set it with approval.
 - **History:** none edits `_prisma_migrations`. Delete the eleven history rows as their own reviewed step, only after confirming every object is gone. This is what `rollback-history` checks.
 - **`AVATAR`:** the enum value stays. The migration adds it with `IF NOT EXISTS`, so a re-deploy works.
