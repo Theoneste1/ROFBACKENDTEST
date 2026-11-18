@@ -268,3 +268,41 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
     assert.match(r.stderr, /expected the 11 migrations of post-Phase-1 .* found 10/);
   }, { drop: ['20261206000000_account_states'] });
 });
+
+// ── Migration role (DRILL_MIGRATION_DATABASE_URL): the branch owner for schema changes, never production's password ──
+import { resolveMigrationTarget, MIGRATION_ROLE_COMMANDS } from './rehearsal.mjs';
+
+test('resolveMigrationTarget: unset → the application target, unchanged', () => {
+  const app = { ok: true, url: 'postgresql://staging:s3@ep-branch-1.eu.aws.neon.tech/neondb', pooled: false };
+  assert.deepEqual(resolveMigrationTarget(app, { migrationUrls: [], productionUrls: ['postgresql://owner:prodpw@ep-prod-9.eu.aws.neon.tech/neondb'], appUrls: [] }),
+    { ok: true, url: app.url, role: 'staging', separate: false });
+});
+
+test('resolveMigrationTarget: the branch owner on the same endpoint with a branch-only password is used for schema changes', () => {
+  const app = { ok: true, url: 'postgresql://staging:s3@ep-branch-1.eu.aws.neon.tech/neondb', pooled: false };
+  const r = resolveMigrationTarget(app, {
+    migrationUrls: ['postgresql://neondb_owner:branch-only-pw@ep-branch-1-pooler.eu.aws.neon.tech/neondb'],
+    productionUrls: ['postgresql://neondb_owner:prodpw@ep-prod-9.eu.aws.neon.tech/neondb'], appUrls: [],
+  });
+  assert.equal(r.ok, true);
+  assert.equal(r.role, 'neondb_owner');
+  assert.equal(r.separate, true);
+  assert.equal(new URL(r.url).hostname, 'ep-branch-1.eu.aws.neon.tech');   // direct endpoint, like the application target
+  for (const c of ['deploy', 'status', 'diff', 'rollback', 'rollback-history']) assert.ok(MIGRATION_ROLE_COMMANDS.has(c));
+  for (const c of ['precheck', 'postcheck', 'check-target']) assert.ok(!MIGRATION_ROLE_COMMANDS.has(c));
+});
+
+test('resolveMigrationTarget refuses: production host, another endpoint, a production password, no password, two entries', () => {
+  const app = { ok: true, url: 'postgresql://staging:s3@ep-branch-1.eu.aws.neon.tech/neondb', pooled: false };
+  const productionUrls = ['postgresql://neondb_owner:prodpw@ep-prod-9.eu.aws.neon.tech/neondb'];
+  const run = (m) => resolveMigrationTarget(app, { migrationUrls: m, productionUrls, appUrls: [] });
+  const prodHost = run(['postgresql://neondb_owner:other@ep-prod-9.eu.aws.neon.tech/neondb']);
+  assert.equal(prodHost.ok, false); assert.match(prodHost.reason, /production host/);
+  const other = run(['postgresql://neondb_owner:other@ep-other-2.eu.aws.neon.tech/neondb']);
+  assert.equal(other.ok, false); assert.match(other.reason, /not on the same endpoint/);
+  const copied = run(['postgresql://neondb_owner:prodpw@ep-branch-1.eu.aws.neon.tech/neondb']);
+  assert.equal(copied.ok, false); assert.match(copied.reason, /production password/);
+  assert.doesNotMatch(copied.reason, /prodpw/);
+  assert.equal(run(['postgresql://neondb_owner@ep-branch-1.eu.aws.neon.tech/neondb']).ok, false);
+  assert.equal(run(['postgresql://a:b@ep-branch-1.eu.aws.neon.tech/neondb', 'postgresql://a:c@ep-branch-1.eu.aws.neon.tech/neondb']).code, 2);
+});
