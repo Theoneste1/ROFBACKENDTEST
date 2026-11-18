@@ -10,6 +10,7 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -135,6 +136,11 @@ export class EnvironmentVariables {
   @IsOptional() @Type(() => Number) @IsInt() EMAIL_BATCH_SIZE?: number;
   /** Most e-mails sent per second (Resend's default account limit is 2). */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) EMAIL_MAX_PER_SECOND?: number;
+  /**
+   * STAGING ONLY: "true" sends no e-mail at all, even with a key (messages are logged; a warning at every start).
+   * Lets a staging service run with NODE_ENV=production on a copy of real data without a Resend key. Never in production.
+   */
+  @IsOptional() @Transform(unquoted) @IsIn(['true', 'false']) EMAIL_DRY_RUN?: string;
 
   /** Proxy hops in front of the API (default 1); "false" when clients connect directly. */
   @IsOptional()
@@ -202,10 +208,11 @@ export function validateEnv(config: Record<string, unknown>) {
   const messages = errors.flatMap((e) => Object.values(e.constraints ?? {}));
 
   if (env.NODE_ENV === NodeEnv.Production) {
-    if (!env.RESEND_API_KEY) {
+    const emailDryRun = env.EMAIL_DRY_RUN === 'true';   // staging: no e-mail key needed, nothing is sent
+    if (!env.RESEND_API_KEY && !emailDryRun) {
       messages.push('RESEND_API_KEY is required in production (e-mail would otherwise be silently dropped).');
     }
-    if (!env.EMAIL_FROM) {
+    if (!env.EMAIL_FROM && !emailDryRun) {
       messages.push('EMAIL_FROM is required in production (a sender on a domain verified in Resend).');
     }
     if (!env.APP_URL) {

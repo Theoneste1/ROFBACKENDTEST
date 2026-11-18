@@ -186,6 +186,7 @@ aligned DKIM signature (`resend._domainkey`).
 | `EMAIL_FROM` | `Rwanda Olympiad Foundation <info@rwandaolympiadfoundation.org>` | **Required**, same value (set in `render.yaml`) |
 | `EMAIL_REPLY_TO` | `info@rwandaolympiadfoundation.org` | same (set in `render.yaml`) |
 | `EMAIL_REDIRECT_TO` | **Your own inbox**, whenever a real key is set | **Unset** |
+| `EMAIL_DRY_RUN` | Unset | **Unset** in production. `true` only on a **staging** service (copy of real data): nothing is sent even with a key, no key or sender needed; warned at every start |
 | `APP_URL` | `http://localhost:3001` | **Required**: the public frontend URL, no trailing slash |
 | `EMAIL_MAX_PER_SECOND` | 2 | 2 (raise only if Resend raised your limit) |
 | `EMAIL_BATCH_SIZE` | 50 | 50 |

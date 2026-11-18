@@ -25,6 +25,16 @@ describe('MailerService', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it('EMAIL_DRY_RUN=true (staging) never calls Resend, even with a key', async () => {
+    const service = mailer({ RESEND_API_KEY: 're_x', EMAIL_FROM: 'ROF <info@rof.rw>', EMAIL_DRY_RUN: 'true' });
+    expect(service.isDryRun).toBe(true);
+    expect(await service.sendOne(mail)).toMatchObject({ accepted: true, error: null });
+    expect(send).not.toHaveBeenCalled();
+    // Any other value leaves delivery on.
+    send.mockResolvedValue({ data: { id: 're_2' }, error: null });
+    expect(mailer({ RESEND_API_KEY: 're_x', EMAIL_DRY_RUN: 'false', EMAIL_MAX_PER_SECOND: '100' }).isDryRun).toBe(false);
+  });
+
   it('sends through Resend with sender, reply-to, both bodies and the idempotency key', async () => {
     send.mockResolvedValue({ data: { id: 're_1' }, error: null });
     const service = mailer({ RESEND_API_KEY: 're_x', EMAIL_FROM: 'ROF <info@rof.rw>', EMAIL_MAX_PER_SECOND: '100' });

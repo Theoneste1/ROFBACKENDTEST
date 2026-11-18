@@ -64,6 +64,13 @@ describe('validateEnv', () => {
       expect(message).toContain('CORS_ORIGINS is required in production');
     });
 
+    it('staging: EMAIL_DRY_RUN=true allows production mode without a Resend key or sender; APP_URL and CORS are still required', () => {
+      expect(() => validateEnv(prod({ RESEND_API_KEY: undefined, EMAIL_FROM: undefined, EMAIL_DRY_RUN: 'true' }))).not.toThrow();
+      expect(() => validateEnv(prod({ RESEND_API_KEY: undefined, EMAIL_DRY_RUN: 'false' }))).toThrow(/RESEND_API_KEY/);
+      expect(() => validateEnv(prod({ EMAIL_DRY_RUN: 'yes' }))).toThrow(/EMAIL_DRY_RUN/);
+      expect(() => validateEnv(prod({ RESEND_API_KEY: undefined, EMAIL_DRY_RUN: 'true', APP_URL: undefined }))).toThrow(/APP_URL/);
+    });
+
     it.each(['RESEND_API_KEY', 'EMAIL_FROM', 'APP_URL', 'CORS_ORIGINS'])('fails without %s', (key) => {
       expect(() => validateEnv(prod({ [key]: undefined }))).toThrow(new RegExp(key));
     });
