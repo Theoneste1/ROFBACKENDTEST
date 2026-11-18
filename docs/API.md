@@ -3720,7 +3720,7 @@ Set or replace the current user's profile picture (multipart field `file`: JPEG,
 2 MB, checked from the file's bytes). Returns the profile, whose avatarUrl is the new versioned link.
 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED.
 
-Returns `200` with no body.
+Returns `200` JSON.
 
 ### DELETE `/api/v1/me/avatar`
 
@@ -3728,7 +3728,7 @@ Returns `200` with no body.
 
 Remove the current user's profile picture (idempotent). Returns the profile.
 
-Returns `200` with no body.
+Returns `200` JSON.
 
 ### GET `/api/v1/me/courses`
 
