@@ -450,6 +450,60 @@ export class UsersService {
   }
 
   /**
+   * An Administrator corrects a student's date of birth (owner approval 2026-11-18). users.manage and the right to
+   * manage the account; STUDENT accounts only (the date-of-birth rules are the students'). The row is locked, so two
+   * corrections never interleave; the audit row DATE_OF_BIRTH_CORRECTED records the old and new dates, the reason and
+   * the Administrator, in the same transaction (both or neither). 409 DATE_OF_BIRTH_UNCHANGED for the same date.
+   */
+  async correctDateOfBirth(id: string, dto: { dateOfBirth: string; reason: string }, caller: AuthUser) {
+    const target = await this.prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
+    if (!target) throw new NotFoundException('User not found.');
+    await this.roles.assertCanManage(caller, target.role);
+    if (target.role !== 'STUDENT') {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_STUDENT', 'Only a student\'s date of birth is recorded.');
+    }
+    const next = new Date(`${dto.dateOfBirth}T00:00:00Z`);
+    await this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<{ dob: Date | null }[]>`SELECT "dateOfBirth" AS dob FROM "User" WHERE "id" = ${id} FOR UPDATE`;
+      const from = row?.dob ? row.dob.toISOString().slice(0, 10) : null;
+      if (from === dto.dateOfBirth) {
+        throw new AppError(HttpStatus.CONFLICT, 'DATE_OF_BIRTH_UNCHANGED', 'This is already the recorded date of birth.');
+      }
+      await tx.user.update({ where: { id }, data: { dateOfBirth: next } });
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role, action: 'DATE_OF_BIRTH_CORRECTED', entity: 'User', entityId: id,
+        metadata: { from, to: dto.dateOfBirth, reason: dto.reason },
+      }, tx);
+    });
+    return this.prisma.user.findUniqueOrThrow({ where: { id }, select: SAFE_SELECT });
+  }
+
+  /**
+   * The date-of-birth history of an account (users.manage): every Administrator correction (old and new date, reason,
+   * who, when) and when the student gave it at first sign-in (no value is recorded for that event). Newest first.
+   */
+  async dateOfBirthHistory(id: string, caller: AuthUser) {
+    const target = await this.prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
+    if (!target) throw new NotFoundException('User not found.');
+    await this.roles.assertCanManage(caller, target.role);
+    const rows = await this.prisma.auditLog.findMany({
+      where: { entity: 'User', entityId: id, action: { in: ['DATE_OF_BIRTH_CORRECTED', 'DATE_OF_BIRTH_ADDED'] } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, action: true, actorId: true, actorRole: true, metadata: true, createdAt: true },
+    });
+    const actorIds = [...new Set(rows.map((r) => r.actorId).filter((a): a is string => !!a))];
+    const actors = new Map((await this.prisma.user.findMany({
+      where: { id: { in: actorIds } }, select: { id: true, username: true, firstName: true, lastName: true },
+    })).map((u) => [u.id, u]));
+    return rows.map((r) => {
+      const m = (r.metadata ?? {}) as { from?: string | null; to?: string; reason?: string };
+      return r.action === 'DATE_OF_BIRTH_CORRECTED'
+        ? { kind: 'CORRECTED' as const, at: r.createdAt, from: m.from ?? null, to: m.to ?? null, reason: m.reason ?? null, by: r.actorId ? actors.get(r.actorId) ?? { id: r.actorId } : null, byRole: r.actorRole }
+        : { kind: 'GIVEN_AT_FIRST_SIGN_IN' as const, at: r.createdAt, by: r.actorId ? actors.get(r.actorId) ?? { id: r.actorId } : null, byRole: r.actorRole };
+    });
+  }
+
+  /**
    * First-sign-in date of birth (owner decision 9.3): a STUDENT without one gives it once (the registration rules:
    * a real past date, age 5–30 in Rwanda). 409 DATE_OF_BIRTH_ALREADY_SET when it is already recorded — it is not
    * changed here (an Administrator corrects it). Audited without the value.
@@ -460,7 +514,7 @@ export class UsersService {
       data:  { dateOfBirth: new Date(`${dateOfBirth}T00:00:00Z`) },
     });
     if (count === 0) {
-      throw new AppError(HttpStatus.CONFLICT, 'DATE_OF_BIRTH_ALREADY_SET', 'Your date of birth is already recorded.');
+      throw new AppError(HttpStatus.CONFLICT, 'DATE_OF_BIRTH_ALREADY_SET', 'Your date of birth is already recorded. An administrator can correct it.');
     }
     await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'DATE_OF_BIRTH_ADDED', entity: 'User', entityId: user.id,

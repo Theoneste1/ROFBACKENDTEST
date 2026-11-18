@@ -184,6 +184,12 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   THROTTLE_TTL_SECONDS = 60;
+
+  /** Per-address ceiling over all requests a minute (signed-in users have their own THROTTLE_LIMIT budget each). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  THROTTLE_IP_LIMIT = 3000;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

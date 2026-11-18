@@ -9,6 +9,7 @@ import {
   IsString,
   Length,
   Matches,
+  IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { CoachEducationLevel, MentorRequestStatus, OlympiadSubject } from '../../generated/prisma/client.js';
@@ -92,6 +93,17 @@ export class CreateMentorRequestDto {
   @IsOptional()
   @IsInt() @Min(0) @Max(60)
   yearsOfExperience?: number;
+}
+
+/**
+ * PATCH /mentor-requests/:id/approve (optional body). Picture moderation (owner approval 2026-11-18): the picture
+ * sent with the application becomes the coach's picture ONLY with approvePicture true, after the Administrator saw it
+ * (GET /mentor-requests/:id/avatar). Omitted or false: discarded.
+ */
+export class ApproveMentorRequestDto {
+  @IsOptional()
+  @IsBoolean()
+  approvePicture?: boolean;
 }
 
 /** PATCH /mentor-requests/:id/reject: an optional reason, e-mailed to the applicant (REG-10). */

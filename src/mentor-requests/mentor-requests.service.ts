@@ -33,14 +33,15 @@ const PUBLIC_SELECT = {
   // REG-06 / REG-10 (2026-11-17)
   phone: true, affiliation: true, expertise: true, relevantExperience: true, yearsOfExperience: true, rejectionReason: true,
   infoRequests: { select: INFO_REQUEST_SELECT, orderBy: { requestedAt: 'desc' }, take: 10 },
+  // Whether a picture was sent (Administrators review it before approving: GET /mentor-requests/:id/avatar).
+  avatarFileId: true,
 } as const;
 
 /**
- * What the PUBLIC submit returns: the applicant's own submitted fields only. Never the info-request history — a
- * reapplication reuses a REJECTED row matched by username or e-mail, and its earlier questions and answers may belong to
- * someone else.
+ * What the PUBLIC submit returns: the applicant's own submitted fields only — never an info-request history (each
+ * attempt is its own row; defence in depth).
  */
-const { infoRequests: _history, ...SUBMIT_SELECT } = PUBLIC_SELECT;
+const { infoRequests: _history, avatarFileId: _picture, ...SUBMIT_SELECT } = PUBLIC_SELECT;
 
 @Injectable()
 export class MentorRequestsService {
@@ -148,7 +149,7 @@ export class MentorRequestsService {
   // With e-mail verification on (the production default), the account is
   // created unactivated and the applicant must confirm the address before the
   // first login — so nobody can apply in someone else's name.
-  async approve(requestId: string, caller: CallerCtx) {
+  async approve(requestId: string, caller: CallerCtx, opts: { approvePicture?: boolean } = {}) {
     await this.requireRequest(requestId);
     const verify = await this.settings.get('registration.requireEmailVerification');
 
@@ -191,14 +192,16 @@ export class MentorRequestsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
-      await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
+      // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
+      const picture = !request.avatarFileId ? 'NONE' : opts.approvePicture === true ? 'APPROVED' : 'DISCARDED';
+      if (picture === 'APPROVED') await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
       await ensureDefaultMembership(tx, mentor, caller.id);   // approved coach (P1-07, K6)
       if (verify) issued = await this.activation.issue(mentor.id, 'EMAIL_VERIFICATION', caller.id, tx);
 
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'APPROVE_MENTOR_REQUEST', entity: 'MentorRequest', entityId: requestId,
-        metadata: { newUserId: mentor.id },
+        metadata: { newUserId: mentor.id, picture },
       }, tx);
       // The one approval notice (e-mail + in-app), written with the approval (decision notifications).
       notice = await this.notices.enqueue(tx, {

@@ -8,12 +8,15 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 
 import { MentorRequestsService } from './mentor-requests.service.js';
-import { CreateMentorRequestDto, ListMentorRequestsDto, RejectMentorRequestDto } from './dto/create-mentor-request.dto.js';
+import { ApproveMentorRequestDto, CreateMentorRequestDto, ListMentorRequestsDto, RejectMentorRequestDto } from './dto/create-mentor-request.dto.js';
+import { RegistrationAvatarService } from '../users/registration-avatar.service.js';
 import { RequestApplicationInfoDto } from '../application-info-requests/application-info-requests.dto.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -23,7 +26,10 @@ import type { AuthUser } from '../common/auth-user.js';
 @ApiTags('Mentor requests')
 @Controller('mentor-requests')
 export class MentorRequestsController {
-  constructor(private readonly mentorRequestsService: MentorRequestsService) {}
+  constructor(
+    private readonly mentorRequestsService: MentorRequestsService,
+    private readonly registrationAvatar: RegistrationAvatarService,
+  ) {}
 
   // ─── Public: submit a mentor application ──────────────────────────────────
   @Public()
@@ -43,8 +49,17 @@ export class MentorRequestsController {
   // ─── ADMIN: approve (creates the mentor account) ───────────────────────────
   @Patch(':id/approve')
   @RequirePermission('mentorRequests.decide')
-  approve(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.mentorRequestsService.approve(id, user);
+  // The body is optional: { approvePicture: true } keeps the application's picture (picture moderation).
+  @ApiBody({ type: ApproveMentorRequestDto, required: false })
+  approve(@Param('id', ParseUUIDPipe) id: string, @Body() body: ApproveMentorRequestDto, @CurrentUser() user: AuthUser) {
+    return this.mentorRequestsService.approve(id, user, { approvePicture: body?.approvePicture });
+  }
+
+  /** The picture sent with the application, for review before approval (private, not cached). 404 when none. */
+  @Get(':id/avatar')
+  @RequirePermission('mentorRequests.decide')
+  async avatar(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    await this.registrationAvatar.sendApplicationAvatar('COACH', id, res);
   }
 
   // ─── ADMIN: reject ─────────────────────────────────────────────────────────

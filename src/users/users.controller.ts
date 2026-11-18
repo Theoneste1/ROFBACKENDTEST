@@ -29,6 +29,7 @@ import { ImportUsersQueryDto, InviteUserDto } from './dto/invite-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
+  CorrectDateOfBirthDto,
   SetDateOfBirthDto,
   UpdateMeDto,
   UpdateUserDto,
@@ -102,6 +103,24 @@ export class UsersController {
   @RequirePermission('users.manage')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
+  }
+
+  /**
+   * Correct a student's date of birth (owner approval 2026-11-18): { dateOfBirth: "YYYY-MM-DD", reason } — the
+   * registration rules; the reason is mandatory. Recorded with the old and new dates (GET …/date-of-birth-history).
+   * 400 VALIDATION_FAILED / NOT_A_STUDENT, 409 DATE_OF_BIRTH_UNCHANGED. Returns the account.
+   */
+  @Put(':id/date-of-birth')
+  @RequirePermission('users.manage')
+  correctDateOfBirth(@Param('id', ParseUUIDPipe) id: string, @Body() body: CorrectDateOfBirthDto, @CurrentUser() user: AuthUser) {
+    return this.usersService.correctDateOfBirth(id, body, user);
+  }
+
+  /** The date-of-birth history: Administrator corrections (old and new dates, reason, who, when) and the first-sign-in entry. */
+  @Get(':id/date-of-birth-history')
+  @RequirePermission('users.manage')
+  dateOfBirthHistory(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.usersService.dateOfBirthHistory(id, user);
   }
 
   @Patch(':id')

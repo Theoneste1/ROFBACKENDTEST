@@ -9731,6 +9731,106 @@
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/users/{id}/date-of-birth": {
+      "put": {
+        "operationId": "UsersController_correctDateOfBirth",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectDateOfBirthDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Correct a student's date of birth (owner approval 2026-11-18): { dateOfBirth: \"YYYY-MM-DD\", reason } — the\nregistration rules; the reason is mandatory. Recorded with the old and new dates (GET …/date-of-birth-history).\n400 VALIDATION_FAILED / NOT_A_STUDENT, 409 DATE_OF_BIRTH_UNCHANGED. Returns the account.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/{id}/date-of-birth-history": {
+      "get": {
+        "operationId": "UsersController_dateOfBirthHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The date-of-birth history: Administrator corrections (old and new dates, reason, who, when) and the first-sign-in entry.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users/{id}/resend-invitation": {
       "post": {
         "operationId": "UsersController_resendInvitation",
@@ -34146,6 +34246,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveMentorRequestDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success. Shape recorded from the end-to-end tests.",
@@ -34230,6 +34340,46 @@
             }
           }
         },
+        "tags": [
+          "Mentor requests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "mentorRequests.decide",
+        "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/mentor-requests/{id}/avatar": {
+      "get": {
+        "operationId": "MentorRequestsController_avatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The picture sent with the application, for review before approval (private, not cached). 404 when none.",
         "tags": [
           "Mentor requests"
         ],
@@ -34748,6 +34898,51 @@
             "bearer": []
           }
         ],
+        "tags": [
+          "Teacher applications"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-applications/{id}/avatar": {
+      "get": {
+        "operationId": "AdminTeacherApplicationsController_avatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The picture sent with the application, for review before approval (private, not cached). 404 when none.",
         "tags": [
           "Teacher applications"
         ],
@@ -46151,6 +46346,23 @@
           "email"
         ]
       },
+      "CorrectDateOfBirthDto": {
+        "type": "object",
+        "properties": {
+          "dateOfBirth": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "dateOfBirth",
+          "reason"
+        ]
+      },
       "UpdateUserDto": {
         "type": "object",
         "properties": {
@@ -47458,6 +47670,14 @@
           "password"
         ]
       },
+      "ApproveMentorRequestDto": {
+        "type": "object",
+        "properties": {
+          "approvePicture": {
+            "type": "boolean"
+          }
+        }
+      },
       "RejectMentorRequestDto": {
         "type": "object",
         "properties": {
@@ -47630,6 +47850,10 @@
           "note": {
             "type": "string",
             "maxLength": 500
+          },
+          "approvePicture": {
+            "type": "boolean",
+            "description": "Picture moderation (owner approval 2026-11-18): the picture sent with the application becomes the account's\npicture ONLY when the Administrator, having seen it (GET …/:id/avatar), sends true. Omitted or false: it is\ndiscarded and the account starts without a picture."
           }
         }
       },

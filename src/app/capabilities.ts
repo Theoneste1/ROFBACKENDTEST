@@ -129,6 +129,18 @@ export const FEATURES = {
    */
   studentDateOfBirthStep: 'always',
   /**
+   * Administrators correct a student's date of birth (owner approval 2026-11-18): PUT /api/v1/admin/users/:id/date-of-birth
+   * { dateOfBirth, reason } (users.manage; reason mandatory), GET /api/v1/admin/users/:id/date-of-birth-history (old and
+   * new dates, reason, who, when). A student still gives it only once (PUT /me/date-of-birth).
+   */
+  dateOfBirthCorrection: 'always',
+  /**
+   * Picture moderation (owner approval 2026-11-18): an application's picture is shown only to the reviewing
+   * Administrator (GET /api/v1/admin/teacher-applications/:id/avatar, GET /api/v1/mentor-requests/:id/avatar; the lists
+   * carry avatarFileId) and becomes the account's picture only when the approval sends approvePicture: true.
+   */
+  applicationPictureReview: 'always',
+  /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing
    * TEACHER accounts may still exist and use their portal.

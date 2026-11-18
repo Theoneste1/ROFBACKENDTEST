@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ipTracker, userOrIpTracker } from '../common/rate-limit.js';
 import { join } from 'path';
 
 import { validateEnv } from '../config/env.validation.js';
@@ -63,12 +64,26 @@ import { ReportsModule } from '../reports/reports.module.js';
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        throttlers: [{
-          ttl:   Number(config.get('THROTTLE_TTL_SECONDS') ?? 60) * 1000,
-          limit: Number(config.get('THROTTLE_LIMIT') ?? 120),
-        }],
-        // Only for automated tests: ignored unless NODE_ENV=test.
-        skipIf: () => config.get('NODE_ENV') === 'test' && config.get('THROTTLE_DISABLED') === 'true',
+        // Rate limits (src/common/rate-limit.ts): `default` counts a signed-in request against the user (valid access
+        // token) and anything else against the IP; `ip` is a per-address ceiling over everything (school labs share
+        // one address, so it is much higher than any one user's budget).
+        throttlers: [
+          {
+            name:  'default',
+            ttl:   Number(config.get('THROTTLE_TTL_SECONDS') ?? 60) * 1000,
+            limit: Number(config.get('THROTTLE_LIMIT') ?? 120),
+            getTracker: userOrIpTracker(config.getOrThrow<string>('JWT_SECRET')),
+          },
+          {
+            name:  'ip',
+            ttl:   60_000,
+            limit: Number(config.get('THROTTLE_IP_LIMIT') ?? 3000),
+            getTracker: ipTracker,
+          },
+        ],
+        // Only for automated tests: ignored unless NODE_ENV=test. Read per request, so one test file can turn the
+        // limits on (test/rate-limit.e2e-spec.ts).
+        skipIf: () => config.get('NODE_ENV') === 'test' && process.env.THROTTLE_DISABLED === 'true',
       }),
     }),
     EventEmitterModule.forRoot({ wildcard: false, ignoreErrors: true }),

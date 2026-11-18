@@ -8,6 +8,7 @@
  */
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
 import { StorageService } from '../common/storage/storage.service.js';
 import { AppError } from '../common/errors/app-error.js';
@@ -36,6 +37,19 @@ export class RegistrationAvatarService {
   }
 
   /** The token returned with a registration / application (it never blocks or changes the registration itself). */
+  /**
+   * The picture sent with an application, for the Administrator reviewing it (picture moderation, owner approval
+   * 2026-11-18). The caller has already been authorised for that application. 404 when there is none.
+   */
+  async sendApplicationAvatar(kind: 'TEACHER' | 'COACH', id: string, res: Response) {
+    const select = { avatarFile: { select: { storageKey: true, mimeType: true, originalName: true, size: true } } } as const;
+    const row = kind === 'TEACHER'
+      ? await this.prisma.teacherApplication.findUnique({ where: { id }, select })
+      : await this.prisma.mentorRequest.findUnique({ where: { id }, select });
+    if (!row?.avatarFile) throw new NotFoundException('This application has no picture.');
+    await this.storage.send(res, row.avatarFile, { cacheControl: 'private, no-store' });
+  }
+
   issue(kind: RegistrationAvatarKind, id: string): string {
     return issueRegistrationAvatarToken(this.secret(), kind, id);
   }

@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 306 endpoints — 25 public, 174 administrator-only.
+Totals: 310 endpoints — 25 public, 178 administrator-only.
 
 ## Academic years
 
@@ -242,6 +242,8 @@ Totals: 306 endpoints — 25 public, 174 administrator-only.
 | DELETE | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
 | PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/users/{id}/date-of-birth` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/{id}/date-of-birth-history` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/{id}/registration-timeline` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/resend-invitation` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/send-password-reset` |  |  |  | ✓ |
@@ -422,6 +424,7 @@ Totals: 306 endpoints — 25 public, 174 administrator-only.
 | GET | `/api/v1/mentor-requests` |  |  |  | ✓ |
 | POST | `/api/v1/mentor-requests` | ✓ | ✓ | ✓ | ✓ |
 | PATCH | `/api/v1/mentor-requests/{id}/approve` |  |  |  | ✓ |
+| GET | `/api/v1/mentor-requests/{id}/avatar` |  |  |  | ✓ |
 | PATCH | `/api/v1/mentor-requests/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/mentor-requests/{id}/request-info` |  |  |  | ✓ |
 
@@ -518,6 +521,7 @@ Totals: 306 endpoints — 25 public, 174 administrator-only.
 | GET | `/api/v1/admin/teacher-applications` |  |  |  | ✓ |
 | GET | `/api/v1/admin/teacher-applications/{id}` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/approve` |  |  |  | ✓ |
+| GET | `/api/v1/admin/teacher-applications/{id}/avatar` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |

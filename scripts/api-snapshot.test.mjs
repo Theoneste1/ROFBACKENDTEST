@@ -231,7 +231,9 @@ const REGISTRATION_TIMELINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-re
  * change); PUT /me/date-of-birth (first-sign-in date of birth); /me/avatar responses documented as the profile.
  */
 const APPROVED_DECISIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-approved-decisions.json';
-const CURRENT_SNAPSHOT = APPROVED_DECISIONS_SNAPSHOT;
+/** Final review (2026-11-18, owner approvals): date-of-birth corrections and application picture review — additive only. */
+const FINAL_REVIEW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-final-review.json';
+const CURRENT_SNAPSHOT = FINAL_REVIEW_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1217,6 +1219,23 @@ describe('approved API contract history', () => {
       'PUT /api/v1/me/avatar: response 200 body added',
       'PUT /api/v1/me/date-of-birth: operation added',
       'schema SetDateOfBirthDto: added',
+    ]);
+  });
+
+  test('approved decisions → final review: date-of-birth correction and history, application picture review; additive only', () => {
+    for (const f of [APPROVED_DECISIONS_SNAPSHOT, FINAL_REVIEW_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FINAL_REVIEW_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual([res.breaking, res.review], [[], []]);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/teacher-applications/{id}/avatar: operation added',
+      'GET /api/v1/admin/users/{id}/date-of-birth-history: operation added',
+      'GET /api/v1/mentor-requests/{id}/avatar: operation added',
+      'PATCH /api/v1/mentor-requests/{id}/approve: optional request body added',
+      'POST /api/v1/admin/teacher-applications/{id}/approve › request application/json.approvePicture: new optional field',
+      'PUT /api/v1/admin/users/{id}/date-of-birth: operation added',
+      'schema ApproveMentorRequestDto: added',
+      'schema CorrectDateOfBirthDto: added',
     ]);
   });
 

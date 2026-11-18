@@ -12,6 +12,7 @@ import {
   Matches,
   MaxLength,
   ValidateIf,
+  IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -125,6 +126,15 @@ export class ApproveTeacherApplicationDto {
   @IsOptional()
   @IsString() @MaxLength(500) @Transform(trim)
   note?: string;
+
+  /**
+   * Picture moderation (owner approval 2026-11-18): the picture sent with the application becomes the account's
+   * picture ONLY when the Administrator, having seen it (GET …/:id/avatar), sends true. Omitted or false: it is
+   * discarded and the account starts without a picture.
+   */
+  @IsOptional()
+  @IsBoolean()
+  approvePicture?: boolean;
 }
 
 /** POST /admin/teacher-applications/:id/reject */

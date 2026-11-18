@@ -133,6 +133,54 @@ describe('First-sign-in date of birth (decision 9.3)', () => {
     expect((await http().get('/api/v1/admin/users').set(bearer(admin))).status).toBe(200);
   });
 
+  describe('Administrator corrections (owner approval 2026-11-18)', () => {
+    let studentId: string;
+    const correct = (id: string, body: object, token = admin) => http().put(`/api/v1/admin/users/${id}/date-of-birth`).set(bearer(token)).send(body);
+    beforeAll(async () => {
+      const created = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+        firstName: 'Dob', lastName: 'Fix', username: 'dob.fix', email: 'dob.fix@test.local', password: PASSWORD, role: 'STUDENT', gradeLevel: 'S2', schoolId,
+      }).expect(201);
+      studentId = created.body.id;
+    });
+
+    it('a reason is mandatory; the date follows the registration rules; only students; refused to non-administrators', async () => {
+      for (const body of [{ dateOfBirth: bornYearsAgo(13) }, { dateOfBirth: bornYearsAgo(13), reason: '' }, { dateOfBirth: bornYearsAgo(13), reason: 'abc' },
+        { dateOfBirth: bornYearsAgo(3), reason: 'Wrong year on the form' }, { dateOfBirth: '2012-02-30', reason: 'Wrong year on the form' }]) {
+        expect([body, await status(correct(studentId, body))]).toEqual([body, [400, 'VALIDATION_FAILED']]);
+      }
+      expect(await status(correct(ctx.ids.mentorJunior, { dateOfBirth: bornYearsAgo(30), reason: 'Not a student at all' }))).toEqual([400, 'NOT_A_STUDENT']);
+      const coach = await login(ctx, 'mentor.j');
+      const student = await login(ctx, 'student.j');
+      for (const token of [coach, student]) expect((await status(correct(studentId, { dateOfBirth: bornYearsAgo(13), reason: 'Trying to change it' }, token)))[0]).toBe(403);
+      expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: studentId } })).dateOfBirth).toBeNull();
+    });
+
+    it('a correction records the old and new dates, the reason, who and when; a held student is released; history lists it', async () => {
+      const token = await login(ctx, 'dob.fix', PASSWORD);
+      expect(await status(http().get('/api/v1/courses').set(bearer(token)))).toEqual([403, 'DATE_OF_BIRTH_REQUIRED']);
+      const first = bornYearsAgo(13);
+      const res = await correct(studentId, { dateOfBirth: first, reason: 'From the school register' }).expect(200);
+      expect(String(res.body.dateOfBirth).slice(0, 10)).toBe(first);
+      await http().get('/api/v1/courses').set(bearer(token)).expect(200);   // released at once
+      const second = bornYearsAgo(14);
+      await correct(studentId, { dateOfBirth: second, reason: 'Parent sent the birth certificate' }).expect(200);
+      expect(await status(correct(studentId, { dateOfBirth: second, reason: 'Same date again' }))).toEqual([409, 'DATE_OF_BIRTH_UNCHANGED']);
+      const audit = await ctx.prisma.auditLog.findMany({ where: { action: 'DATE_OF_BIRTH_CORRECTED', entityId: studentId }, orderBy: { createdAt: 'asc' } });
+      expect(audit.map((a) => [a.actorId, a.actorRole, a.metadata])).toEqual([
+        [ctx.ids.admin, 'ADMIN', { from: null, to: first, reason: 'From the school register' }],
+        [ctx.ids.admin, 'ADMIN', { from: first, to: second, reason: 'Parent sent the birth certificate' }],
+      ]);
+      const history = (await http().get(`/api/v1/admin/users/${studentId}/date-of-birth-history`).set(bearer(admin)).expect(200)).body;
+      expect(history.map((h: any) => [h.kind, h.from, h.to, h.reason, h.by?.username])).toEqual([
+        ['CORRECTED', first, second, 'Parent sent the birth certificate', 'admin'],
+        ['CORRECTED', null, first, 'From the school register', 'admin'],
+      ]);
+      expect((await status(http().get(`/api/v1/admin/users/${studentId}/date-of-birth-history`).set(bearer(token))))[0]).toBe(403);
+      // The student still cannot change it.
+      expect(await status(http().put('/api/v1/me/date-of-birth').set(bearer(token)).send({ dateOfBirth: bornYearsAgo(12) }))).toEqual([409, 'DATE_OF_BIRTH_ALREADY_SET']);
+    });
+  });
+
   it('a held student can still sign out everywhere; an Administrator can still manage the account', async () => {
     const created = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
       firstName: 'Dob', lastName: 'Out', username: 'dob.out', email: 'dob.out@test.local', password: PASSWORD, role: 'STUDENT', gradeLevel: 'S2', schoolId,
