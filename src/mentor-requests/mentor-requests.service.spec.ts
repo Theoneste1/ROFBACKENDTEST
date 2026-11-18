@@ -30,7 +30,10 @@ function makeMocks() {
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
+    // approve() locks and re-reads the request inside its transaction.
+    $queryRaw: vi.fn().mockResolvedValue([]),
   };
+  (prisma.mentorRequest as Record<string, unknown>).findUniqueOrThrow = vi.fn((args: unknown) => prisma.mentorRequest.findUnique(args));
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
 
   const audit  = { log: vi.fn() };
@@ -145,7 +148,7 @@ describe('MentorRequestsService', () => {
 
       expect(prisma.mentorRequest.updateMany).toHaveBeenCalledWith({
         where: { id: 'mr1', status: 'PENDING' },
-        data:  { status: 'APPROVED', passwordHash: null },
+        data:  { status: 'APPROVED', passwordHash: null, avatarFileId: null },   // the picture moves to the account
       });
       expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ role: 'MENTOR', passwordHash: 'hash' });
       expect(result.request).toEqual({ id: 'mr1', status: 'APPROVED' });

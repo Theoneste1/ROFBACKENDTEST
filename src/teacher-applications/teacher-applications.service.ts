@@ -222,12 +222,17 @@ export class TeacherApplicationsService {
 
     const teacher = await this.prisma.$transaction(async (tx) => {
       const now = new Date();
-      // Claim the application: only one concurrent decision can succeed.
+      // The row as it is now, locked (an answer to a request for more information may have corrected it, e.g. the
+      // phone; the answer path locks the application first too). Read before the claim, which clears the password hash.
+      await tx.$queryRaw`SELECT 1 FROM "TeacherApplication" WHERE "id" = ${id} FOR UPDATE`;
+      const application = await tx.teacherApplication.findUniqueOrThrow({ where: { id } });
+      if (application.status !== 'PENDING' || !application.passwordHash) throw applicationAlreadyDecided();
+      // Claim the application: only one concurrent decision can succeed. The picture moves to the account (below).
       const { count } = await tx.teacherApplication.updateMany({
         where: { id, status: 'PENDING' },
         data:  {
           status: 'APPROVED', passwordHash: null, decidedAt: now, decidedById: caller.id,
-          assignedSchoolId: schoolId, decisionNote: dto.note ?? null,
+          assignedSchoolId: schoolId, decisionNote: dto.note ?? null, avatarFileId: null,
         },
       });
       if (count === 0) throw applicationAlreadyDecided();
@@ -362,7 +367,8 @@ export class TeacherApplicationsService {
       if (!existing) throw notFound();
       const { count } = await tx.teacherApplication.updateMany({
         where: { id, status: 'PENDING' },
-        data:  { status: 'REJECTED', passwordHash: null, decidedAt: new Date(), decidedById: caller.id, rejectionReason: dto.reason },
+        // A rejected application keeps no picture (the file is then cleaned up as an orphan).
+        data:  { status: 'REJECTED', passwordHash: null, decidedAt: new Date(), decidedById: caller.id, rejectionReason: dto.reason, avatarFileId: null },
       });
       if (count === 0) throw applicationAlreadyDecided();
       await this.infoRequests.cancelOpen(tx, 'TEACHER', id);

@@ -97,7 +97,8 @@ export class UsersService {
     ]);
 
     // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
-    return paginated(users.map(maskContacts), total, page, limit);
+    // Data minimisation (ACC-16 / SEC-03): phones masked and no date of birth in a list; GET /admin/users/:id has both.
+    return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(row)), total, page, limit);
   }
 
 
@@ -464,7 +465,7 @@ export class UsersService {
       data:  { dateOfBirth: new Date(`${dateOfBirth}T00:00:00Z`) },
     });
     if (count === 0) {
-      throw new AppError(HttpStatus.CONFLICT, 'DATE_OF_BIRTH_ALREADY_SET', 'Your date of birth is already recorded. Ask an administrator to correct it.');
+      throw new AppError(HttpStatus.CONFLICT, 'DATE_OF_BIRTH_ALREADY_SET', 'Your date of birth is already recorded.');
     }
     await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'DATE_OF_BIRTH_ADDED', entity: 'User', entityId: user.id,
