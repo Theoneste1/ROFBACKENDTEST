@@ -25,11 +25,12 @@ username could keep that student locked out from every address.
   a real one, response by response.
 - **The lock is scoped** to the address that made the failures. It is audited as `LOCK_ACCOUNT` with metadata
   `{ attempts: 5, scope: 'ADDRESS', ip, minutes: 15 }`. `User.lockedUntil` is no longer set.
-- **A correct password** clears that address's failures. **A password reset** clears every lock of the account.
+- **A correct password** clears that address's failures. **A password reset** clears every lock of the account,
+  including a lock recorded by the earlier release.
 - **Concurrency:** each attempt is decided and recorded synchronously, with no await between the check and the
   record. Twenty simultaneous wrong guesses from one address produce exactly one lock (e2e).
 
-## Two refinements made during implementation (please confirm)
+## Two refinements made during implementation (approved by the owner, 2026-11-18)
 
 1. **Known-address exemption.** As approved, the per-username windows count attempts from every address. An attacker
    could therefore use up a student's 5-a-minute and 20-an-hour allowance, and the student would get 429 everywhere for
@@ -40,7 +41,7 @@ username could keep that student locked out from every address.
    on a new address waits for the window to pass (at most an hour) or resets their password.
 2. **Locks from the earlier release are honoured.** An unexpired `User.lockedUntil` written before this release is
    still respected until it expires, at most 15 minutes after deployment. It is answered like a wrong password. The
-   `account-states` e2e test found that it would otherwise be dropped silently.
+   `account-states` e2e test found that it would otherwise be dropped silently. A password reset ends it.
 
 ## Limits and notes
 
@@ -51,9 +52,11 @@ username could keep that student locked out from every address.
   everyone behind that proxy address. The known-address exemption would then cover attackers too. Their guessing would
   still be capped by the lock for that username and address: 5 wrong passwords per 15 minutes, about 20 an hour. Staging
   must confirm the real client address (`operations/CLIENT-IP-VERIFICATION.md`) before release.
-- **Correction to the proposal:** there is no Administrator "clear lock" control. With address-scoped locks the student
-  can still sign in from other addresses, and a password reset clears every lock. A Super Admin break-glass credential
-  reset sets a new password but does not clear an address lock that is still running (at most 15 minutes).
+- **Remedy for a lock: a password reset.** There is no Administrator "clear lock" control, and none is added (owner,
+  2026-11-18); the proposal was wrong to mention one. With address-scoped locks the student can still sign in from other
+  addresses. A password reset through "Forgot password" ends every lock, the address locks and an earlier-release lock
+  alike (unit and e2e `auth`). A Super Admin break-glass credential reset sets a new password but does not end an
+  address lock that is still running (at most 15 minutes).
 - The account-status `LOCKED` sign-in block now reflects only the legacy `lockedUntil`.
 - Activation, password reset and resend stay at 10 a minute per address. The per-user budget of 120 a minute and the
   per-address ceiling are unchanged.
