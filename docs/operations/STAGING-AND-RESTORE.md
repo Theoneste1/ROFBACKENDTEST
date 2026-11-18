@@ -257,3 +257,33 @@ Then: §3 steps 0–2 (migrate the branch), redeploy staging at the current #63 
 
 **Next owner action:** Render → `rof-backend-staging` → **Manual Deploy → Deploy a specific commit → `6e78c2b`**. Its app code
 is identical to `9d58ebd`; only the kit changed. Do **not** use Resume. Then the developer runs §3 step 3, the synthetic accounts and the isolation proof.
+
+### Incident — 2026-11-18, about 15:05–15:32 UTC: the staging commit was deployed to the production service
+
+**What happened**
+- The manual deploy of `6e78c2b` was made on the **production** Render service (ROFBACKENDTEST, branch `main`), not on
+  `rof-backend-staging`.
+- Detected by read-only checks:
+  - the staging URL answered 503 "suspended";
+  - the production API (`rofbackendtest.onrender.com`) listed the release features (`dateOfBirthCorrection`,
+    `bulkUserOperations`, …), which do not exist on `main`;
+  - production answered 500 on `/api/v1/forms`, because the release code ran on the unmigrated production database.
+- The owner rolled production back to `b7ed2a3`; it was live again at 15:32 UTC.
+
+**Recovery verification** (read-only; no sign-in, no write; 15:35 UTC)
+
+| Check | Result |
+|---|---|
+| `/health` | `ok`; database `up`, storage `up` |
+| Features (`/api/v1`) | 9, exactly the "always" set of `b7ed2a3`; no release-only feature. `teacherAccounts` and `headCoachAccounts` are absent, so the production flags are still off. |
+| `/api/v1/forms` | 404 "Cannot GET", as expected: that version has no such route (not 500) |
+| Public endpoints | `divisions`, `public/statistics`, `schools/locations`, `schools/search`: 200 with data. `admin/settings` without sign-in: 401, as expected. |
+| Database (READ ONLY transaction; aggregates only) | Migration history: 31 applied, 0 failed, 0 post-Phase-1 entries; latest `20261121001300_school_directory_sync_approval`. None of the release's tables, columns or triggers exist. |
+| Writes during the incident (14:55–15:35 UTC) | 0 audit rows, 0 e-mail delivery attempts, 0 users created or updated. Today's only audit rows are at 04:00 and 11:00 UTC. |
+| Environment variables | Not readable from here. Deploying a commit does not change them, and the owner changed none. To be confirmed by the owner in Render (production service → Environment, and Events show no environment change). |
+
+**Prevention.** Before any staging deploy or setting change, check that the Render page header reads
+**`rof-backend-staging`** and that its URL is `rof-backend-staging.onrender.com`. Set that service's branch to
+`feat/teacher-student-access` (it currently shows `main`) and keep auto-deploy off. After a deploy, the developer checks
+that `rof-backend-staging.onrender.com/api/v1` lists the release features **and** that production's `/api/v1` still does
+not.
