@@ -103,7 +103,9 @@ migration is additive and is listed in
     address; 5 wrong passwords lock that username for that address only
     (15 minutes). The client address comes from `TRUST_PROXY` (keep `1`; see
     `operations/CLIENT-IP-VERIFICATION.md`). The counters are in memory: one
-    backend instance;
+    backend instance. `SIGNIN_TRUSTED_CLIENT_ADDRESS` stays **unset** until the
+    client address is verified to be the visitor's own (it enables the
+    "known address" exemption from the per-username limits);
   - suspending a user, changing their role or their password ends their
     sessions immediately.
 

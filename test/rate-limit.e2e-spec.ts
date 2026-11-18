@@ -93,7 +93,7 @@ describe('Rate limits for a shared school connection (e2e, throttling on)', () =
       expect(statuses.filter((s) => s !== 200)).toEqual([]);
     });
 
-    it('guesses for one student from several addresses: the 6th attempt in the minute is refused; the school address the student used before is not held', async () => {
+    it('guesses for one student from several addresses: the 6th attempt in the minute is refused; the school address the student used before is not held (only where client addresses are verified)', async () => {
       // Every attempt counts, successful ones included: lab.s1 signed in once above, so 4 guesses fill the minute.
       for (let i = 1; i <= 4; i++) {
         const r = await login('lab.s1', `guess-${i}`, `198.51.100.${i}`);
@@ -105,8 +105,15 @@ describe('Rate limits for a shared school connection (e2e, throttling on)', () =
       expect(sixth.body.code).toBe('TOO_MANY_REQUESTS');
       // The right password from an address the student never used waits too (the username window is full)…
       expect((await login('lab.s1', PASSWORD, '198.51.100.99')).status).toBe(429);
-      // …but the school address the student signed in from earlier is not held by the attacker's attempts.
-      await login('lab.s1', PASSWORD, LAB).expect(200);
+      // By default (SIGNIN_TRUSTED_CLIENT_ADDRESS unset) no address is exempt: the school address waits too…
+      expect((await login('lab.s1', PASSWORD, LAB)).status).toBe(429);
+      // …and where client addresses are verified, the school address the student signed in from earlier is not held.
+      process.env.SIGNIN_TRUSTED_CLIENT_ADDRESS = 'true';
+      try {
+        await login('lab.s1', PASSWORD, LAB).expect(200);
+      } finally {
+        delete process.env.SIGNIN_TRUSTED_CLIENT_ADDRESS;
+      }
     });
 
     it('an unknown username gets exactly the same answers as a real one', async () => {

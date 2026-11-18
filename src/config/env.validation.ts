@@ -142,6 +142,12 @@ export class EnvironmentVariables {
    */
   @IsOptional() @Transform(unquoted) @IsIn(['true', 'false']) EMAIL_DRY_RUN?: string;
 
+  /**
+   * "true" only once the deployment's client address is verified to be the visitor's own (operations/CLIENT-IP-VERIFICATION.md):
+   * enables the sign-in "known address" exemption. Default off (behind a shared proxy address it would cover attackers too).
+   */
+  @IsOptional() @Transform(unquoted) @IsIn(['true', 'false']) SIGNIN_TRUSTED_CLIENT_ADDRESS?: string;
+
   /** Proxy hops in front of the API (default 1); "false" when clients connect directly. */
   @IsOptional()
   @IsString()

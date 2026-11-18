@@ -35,6 +35,9 @@ import { LoginLimiter } from './login-limiter.js';
       useFactory: (config: ConfigService) => new LoginLimiter(
         config.getOrThrow<string>('JWT_SECRET'),
         () => config.get('NODE_ENV') === 'test' && process.env.THROTTLE_DISABLED === 'true',
+        Date.now,
+        // The known-address exemption only where client addresses are verified (staging evidence 2026-11-18).
+        () => process.env.SIGNIN_TRUSTED_CLIENT_ADDRESS === 'true',
       ),
     },
   ],

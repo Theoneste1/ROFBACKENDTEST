@@ -91,7 +91,8 @@ function makeMocks() {
 
   // Sign-in protection with a controllable clock (owner approval 2026-11-18).
   const clock = { now: Date.now() };
-  const limiter = new LoginLimiter('unit-test-secret', () => false, () => clock.now);
+  const trust = { addresses: true };   // SIGNIN_TRUSTED_CLIENT_ADDRESS (the tests below switch it off where it matters)
+  const limiter = new LoginLimiter('unit-test-secret', () => false, () => clock.now, () => trust.addresses);
   const service = new AuthService(
     prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
     academicYears as any, activity as any, activation as any, accountEmails as any,
@@ -102,7 +103,7 @@ function makeMocks() {
     limiter,
     { issue: vi.fn().mockReturnValue('avatar-token') } as any,   // registration avatar (REG-02)
   );
-  return { service, limiter, clock, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails, events, forms };
+  return { service, limiter, clock, trust, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails, events, forms };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({
@@ -200,6 +201,16 @@ describe('AuthService', () => {
         expect(prisma.auditLog.findFirst.mock.calls.at(-1)![0].where).toMatchObject({ action: 'LOGIN', entityId: 'u1', metadata: { path: ['ip'], equals: '10.9.8.7' } });
         expect(prisma.user.update).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ lockedUntil: expect.any(Date) }) }));
       });
+
+      it('without SIGNIN_TRUSTED_CLIENT_ADDRESS (default), no address is exempt: the username limits hold everywhere', async () => {
+        const { service, prisma, trust } = makeMocks();
+        trust.addresses = false;
+        prisma.user.findFirst.mockResolvedValue(activeUser());
+        prisma.auditLog.findFirst.mockResolvedValue({ id: 'login-from-other' });   // the address WOULD be known
+        for (let i = 0; i < 5; i++) await expect(service.login({ username: 'alice', password: 'wrong' }, { userAgent: 'vitest', ip: `10.1.0.${i}` })).rejects.toBeInstanceOf(UnauthorizedException);
+        await expect(service.login({ username: 'alice', password: PASSWORD }, OTHER)).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
+        expect(prisma.auditLog.findFirst).not.toHaveBeenCalled();
+      }, 30_000);
 
       it('an unknown username is counted and limited exactly like a real one (same answers)', async () => {
         const { service, prisma, audit } = makeMocks();   // findFirst → null: the account does not exist

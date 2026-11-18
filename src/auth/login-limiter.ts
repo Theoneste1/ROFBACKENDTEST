@@ -43,7 +43,18 @@ export class LoginLimiter {
     /** Test switch (NODE_ENV=test and THROTTLE_DISABLED=true): the username rate windows are not applied. Locks are. */
     private readonly windowsDisabled: () => boolean = () => false,
     private readonly now: () => number = Date.now,
+    /**
+     * Whether req.ip is the visitor's own address (SIGNIN_TRUSTED_CLIENT_ADDRESS=true, set only once the deployment's
+     * client address is verified). Off by default: behind a shared proxy (Render's Cloudflare edge, staging evidence
+     * 2026-11-18) the "known address" exemption would also cover attackers routed through the same edge.
+     */
+    private readonly addressesTrusted: () => boolean = () => false,
   ) {}
+
+  /** Whether an address may be treated as the account owner's own (the known-address exemption). */
+  get trustsClientAddresses(): boolean {
+    return this.addressesTrusted();
+  }
 
   /** HMAC of the normalised identifier (username or e-mail). */
   key(identifier: string): string {
