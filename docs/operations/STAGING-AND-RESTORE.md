@@ -38,7 +38,12 @@ Release head to stage: **backend `feat/teacher-student-access`** (PR #63, which 
    - Base it on `main` **at a point in time about 10 minutes ago**. This also exercises point-in-time restore.
    - Name it `restore-drill-<date>`.
    - Never choose "reset" or "restore" on `main`.
-2. **Neon** → the new branch → **Roles → New role** `staging`. Do not reuse the production role.
+2. **Neon** → the new branch → **Roles → New role** `staging`. Do not reuse the production role. Then, in the Neon
+   **SQL Editor with this branch selected**, run `GRANT neondb_owner TO staging;`.
+   - Tables and types belong to `neondb_owner`, and a new role may neither create in `public` nor alter them, so the
+     migrations fail without this grant (run 2).
+   - On `main` the statement fails with "role staging does not exist", because the role exists only on the branch.
+     That makes it a built-in safety stop.
 3. **Render → New → Web Service** `rof-backend-staging`, from repository `ROFBACKENDTEST`, branch
    `feat/teacher-student-access`, with **Auto-Deploy: No**. **Before the first deploy**, enter all its environment
    variables on the creation page:
@@ -193,4 +198,18 @@ Then: §3 steps 0–2 (migrate the branch), redeploy staging at the current #63 
 - **Do not "Resume" the service.** That restarts the last build, `ceae3e0`, which predates `EMAIL_DRY_RUN` and now
   refuses to start. After the branch is migrated (§3 step 2), use **Manual Deploy → Deploy a specific commit →
   `9d58ebd`**.
-- **Next owner action:** §2 step 6, `C:of-audite-ts.env.drill.local`.
+- **Next owner action:** §2 step 6, `C:of-audite-ts.env.drill.local`. Done for run 2.
+
+### Run 2 — 2026-11-18, about 14:30 UTC (branch endpoint `ep-orange-mountain-bd28w4ro`, checkout `9d58ebd`)
+
+| Step | Result | Evidence |
+|---|---|---|
+| Endpoint is the branch, not production | PASS | `.env.drill.local`: one entry, endpoint `ep-orange-mountain-bd28w4ro` (as the owner sent), direct, role `staging`, database `neondb`. Production's endpoint is `ep-orange-sun-bdrp42oo`, which is different. |
+| Production guard | PASS | `check-target`: "guard passed. No connection made." Both env files are git-ignored. |
+| Eleven pending | PASS | `status`: 42 migrations in the checkout; exactly the eleven post-Phase-1 migrations not applied. |
+| Pre-check (read-only) | PASS | All MUSTs: 14 Phase 1 migrations applied, 0 post-Phase-1, none failed; 0 of the new objects; both guard triggers enabled. Compare values: users STUDENT 13 / MENTOR 6 / ADMIN 2 / SUPER_ADMIN 1, all active; 1 active Super Administrator; `studentSelfSignup=false`; 3 coach applications. These match the production pre-check recorded on 2026-11-17, except file objects: 15 now against 16 then. |
+| Apply the eleven migrations | **FAIL, nothing applied** | The first migration (`…teacher_applications`) failed with "current transaction is aborted". Cause, from read-only queries: role `staging` owns nothing (62 tables and 45 enums belong to `neondb_owner`), has no CREATE on `public`, and is not a member of `neondb_owner`. This is a permissions problem, not a migration defect. It has full read and write access to the data, which is enough for the app at runtime. |
+| Clean-up of the failed attempt | PASS | Re-check: 0 of the new objects exist. `rollback-history` (guarded, `--confirm`) deleted the 1 failed history row. Pre-check again: every MUST holds. The branch is back to its exact pre-migration state. |
+| Post-check, drift check | NOT RUN | They follow a successful deploy. |
+
+**Next owner action:** §2 step 2's grant on the branch. Then the developer reruns `deploy`, `postcheck` and `diff`.
