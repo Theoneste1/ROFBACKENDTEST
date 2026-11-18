@@ -240,3 +240,20 @@ Then: §3 steps 0–2 (migrate the branch), redeploy staging at the current #63 
 - **Next owner action:** §2 step 2's password reset on the branch and §2 step 6's second line. Then the developer runs
   `check-target` (it must name role `neondb_owner`, the same endpoint, and "production password check passed"),
   `status`, `deploy`, `postcheck` and `diff`.
+
+### Run 3 — 2026-11-18, about 15:00 UTC (kit `6e78c2b`, CI [run 44328300738](https://github.com/Theoneste1/ROFBACKENDTEST/actions/runs/44328300738))
+
+| Step | Result | Evidence |
+|---|---|---|
+| Both connections on the branch, same endpoint | PASS | `DRILL_DATABASE_URL`: `ep-orange-mountain-bd28w4ro`, direct, role `staging`. `DRILL_MIGRATION_DATABASE_URL`: `ep-orange-mountain-bd28w4ro`, direct, role `neondb_owner`. Both use database `neondb` and have one entry each. Production is `ep-orange-sun-bdrp42oo`. |
+| Owner password is not production's | PASS | Compared in memory: false. The kit reports "production password check passed". |
+| Production guard | PASS | `check-target`: guard passed, no connection; the migration role is on the same endpoint. |
+| Pending migrations (status, as owner) | PASS | Exactly the eleven post-Phase-1 migrations not applied. |
+| Pre-check (read-only, as `staging`) | PASS | Every MUST; the values are as in runs 2 and 3. |
+| **Apply the eleven** (`deploy`, as owner, `--confirm`) | **PASS** | "All migrations have been successfully applied." Exit 0, 66 s. |
+| **Post-check** (read-only) | **PASS** | All MUSTs hold. 14 + 11 applied, nothing failed or later. New objects: 9 tables, 11 enums, 24 columns, 2 triggers, the AVATAR purpose. Account states: 0 exceptions. Users 13/6/2/1 and 1 Super Administrator, equal to the pre-check. Forms: student registration CLOSED (the old switch was `false`), teacher CLOSED, coach and contact OPEN, default texts. The new tables are empty; 0 delegations not school-wide. Four triggers enabled. |
+| **Schema drift** (`diff`) | **PASS** | "No difference detected", exit 0. `status`: "Database schema is up to date!" |
+| Runtime role on the new objects | PASS | `staging` has SELECT, INSERT, UPDATE and DELETE on all 9 new tables. 0 tables, sequences, enums or functions lack its access. The new tables belong to `neondb_owner`, as in production. |
+
+**Next owner action:** Render → `rof-backend-staging` → **Manual Deploy → Deploy a specific commit → `6e78c2b`**. Its app code
+is identical to `9d58ebd`; only the kit changed. Do **not** use Resume. Then the developer runs §3 step 3, the synthetic accounts and the isolation proof.
