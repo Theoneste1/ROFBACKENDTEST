@@ -346,7 +346,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(JSON.stringify(page)).not.toMatch(/passwordHash|\$2[aby]\$/);
       const one = (await http().get(`${ADMIN_APPS}/${listedId}`).set(bearer(superAdmin)).expect(200)).body;
       expect(Object.keys(one).sort()).toEqual([
-        'assignedSchool', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeSector',
+        'assignedSchool', 'avatarFileId', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeSector',
         'id', 'infoRequests', 'lastName', 'olympiadInterests', 'phone', 'position', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
         'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username', 'yearsOfExperience',
       ]);
