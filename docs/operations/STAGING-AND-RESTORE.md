@@ -283,7 +283,7 @@ is identical to `9d58ebd`; only the kit changed. Do **not** use Resume. Then the
 | Environment variables | Not readable from here. Deploying a commit does not change them, and the owner changed none. To be confirmed by the owner in Render (production service → Environment, and Events show no environment change). |
 
 **Prevention.** Before any staging deploy or setting change, check that the Render page header reads
-**`rof-backend-staging`** and that its URL is `rof-backend-staging.onrender.com`. Set that service's branch to
-`feat/teacher-student-access` (it currently shows `main`) and keep auto-deploy off. After a deploy, the developer checks
+**`rof-backend-staging`** and that its URL is `rof-backend-staging.onrender.com`. Check that this service's branch is
+`feat/teacher-student-access` (the `main` label in the incident came from the production service) and that auto-deploy is off. After a deploy, the developer checks
 that `rof-backend-staging.onrender.com/api/v1` lists the release features **and** that production's `/api/v1` still does
 not.
