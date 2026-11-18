@@ -435,7 +435,7 @@ describe('Decision notifications', () => {
       const username = `dn.s${++seq}`;
       const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
       const u = await p().user.create({ data: {
-        username, firstName, lastName: 'Student', email: `${username}@test.local`, role: 'STUDENT', passwordHash: hash,
+        username, firstName, lastName: 'Student', email: `${username}@test.local`, role: 'STUDENT', passwordHash: hash, dateOfBirth: new Date('2010-05-01T00:00:00Z'), 
         activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior,
       } });
       await p().studentEnrollment.create({ data: { studentId: u.id, academicYearId: ctx.ids.year, gradeLevel: 'S2', divisionId: ctx.ids.junior } });

@@ -68,7 +68,7 @@ describe('School claims (PR C)', () => {
     const username = `sc.s${n}`;
     const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
     const u = await p().user.create({ data: {
-      username, firstName: 'Sc', lastName: `S${n}`, email: `${username}@test.local`, role: 'STUDENT', passwordHash: hash,
+      username, firstName: 'Sc', lastName: `S${n}`, email: `${username}@test.local`, role: 'STUDENT', passwordHash: hash, dateOfBirth: new Date('2010-05-01T00:00:00Z'), 
       activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId,
     } });
     await p().studentEnrollment.create({ data: { studentId: u.id, academicYearId: ctx.ids.year, gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId } });
