@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
+import { refreshTracker } from '../common/rate-limit.js';
 
 import { AuthService } from './auth.service.js';
 import { ActivationService } from './activation.service.js';
@@ -38,6 +39,8 @@ export const REFRESH_COOKIE = 'rof_refresh';
 
 /** Strict limit for credential endpoints: 10 requests per minute per IP. */
 const CREDENTIAL_LIMIT = { default: { limit: 10, ttl: 60_000 } };
+/** Session refreshes per minute from one address (a school lab: one refresh per page load per student). */
+export const REFRESH_IP_LIMIT = 300;
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -85,7 +88,9 @@ export class AuthController {
 
   // ─── Refresh (public — authenticated by the refresh token itself) ──────────
   @Public()
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  // 30 a minute per refresh token (not per address: a school lab shares one), and at most REFRESH_IP_LIMIT a minute
+  // per address, which bounds refresh calls with invented tokens (src/common/rate-limit.ts).
+  @Throttle({ default: { limit: 30, ttl: 60_000, getTracker: refreshTracker }, ip: { limit: REFRESH_IP_LIMIT, ttl: 60_000 } })
   @HttpCode(200)
   @Post('refresh')
   async refresh(

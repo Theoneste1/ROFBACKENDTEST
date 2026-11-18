@@ -90,7 +90,12 @@ describe('Optional profile picture at registration (e2e)', () => {
     expect(app.avatarFileId).not.toBeNull();
 
     await http().post(`/api/v1/admin/teacher-applications/${without.body.id}/approve`).set(bearer(admin)).send({}).expect(200);
-    await http().post(`/api/v1/admin/teacher-applications/${withPic.body.id}/approve`).set(bearer(admin)).send({}).expect(200);
+    // The Administrator sees the picture first, then approves it explicitly (picture moderation).
+    const seen = await http().get(`/api/v1/admin/teacher-applications/${withPic.body.id}/avatar`).set(bearer(admin)).expect(200);
+    expect(seen.headers['content-type']).toMatch(/^image\/png/);
+    expect(seen.headers['cache-control']).toBe('private, no-store');
+    await http().get(`/api/v1/admin/teacher-applications/${without.body.id}/avatar`).set(bearer(admin)).expect(404);
+    await http().post(`/api/v1/admin/teacher-applications/${withPic.body.id}/approve`).set(bearer(admin)).send({ approvePicture: true }).expect(200);
     expect((await p().user.findUniqueOrThrow({ where: { username: 'ra.t1' } })).avatarFileId).toBeNull();
     const t2 = await p().user.findUniqueOrThrow({ where: { username: 'ra.t2' } });
     expect(t2.avatarFileId).toBe(app.avatarFileId);
@@ -107,7 +112,8 @@ describe('Optional profile picture at registration (e2e)', () => {
     const withPic = await http().post('/api/v1/mentor-requests').send({ firstName: 'Cam', lastName: 'Coach', username: 'ra.c2', email: 'ra.c2@test.local', password: 'Mentor123' }).expect(201);
     await upload(withPic.body.avatarUploadToken, PNG).expect(200);
     await http().patch(`/api/v1/mentor-requests/${without.body.id}/approve`).set(bearer(admin)).expect(200);
-    await http().patch(`/api/v1/mentor-requests/${withPic.body.id}/approve`).set(bearer(admin)).expect(200);
+    await http().get(`/api/v1/mentor-requests/${withPic.body.id}/avatar`).set(bearer(admin)).expect(200);
+    await http().patch(`/api/v1/mentor-requests/${withPic.body.id}/approve`).set(bearer(admin)).send({ approvePicture: true }).expect(200);
     expect((await p().user.findUniqueOrThrow({ where: { username: 'ra.c1' } })).avatarFileId).toBeNull();
     expect((await p().user.findUniqueOrThrow({ where: { username: 'ra.c2' } })).avatarFileId).not.toBeNull();
     expect((await p().mentorRequest.findUniqueOrThrow({ where: { id: withPic.body.id } })).avatarFileId).toBeNull();
@@ -117,7 +123,7 @@ describe('Optional profile picture at registration (e2e)', () => {
     const appr = await http().post('/api/v1/mentor-requests').send({ firstName: 'Rem', lastName: 'Ove', username: 'ra.c5', email: 'ra.c5@test.local', password: 'Mentor123' }).expect(201);
     await upload(appr.body.avatarUploadToken, PNG).expect(200);
     const fileA = (await p().mentorRequest.findUniqueOrThrow({ where: { id: appr.body.id } })).avatarFileId!;
-    await http().patch(`/api/v1/mentor-requests/${appr.body.id}/approve`).set(bearer(admin)).expect(200);
+    await http().patch(`/api/v1/mentor-requests/${appr.body.id}/approve`).set(bearer(admin)).send({ approvePicture: true }).expect(200);
     await p().user.update({ where: { username: 'ra.c5' }, data: { activatedAt: new Date() } });
     const t = await login(ctx, 'ra.c5', 'Mentor123');
     await http().delete('/api/v1/me/avatar').set(bearer(t)).expect(200);
@@ -130,6 +136,39 @@ describe('Optional profile picture at registration (e2e)', () => {
       expect(await p().mentorRequest.count({ where: { avatarFileId: fileId } })).toBe(0);
       expect(await p().teacherApplication.count({ where: { avatarFileId: fileId } })).toBe(0);
     }
+  });
+
+  it('picture moderation: without the Administrator\'s explicit approval the picture is discarded; only reviewers can see it', async () => {
+    const coachBody = (u: string) => ({ firstName: 'Mo', lastName: 'Derate', username: u, email: `${u}@test.local`, password: 'Mentor123' });
+    const a = await http().post('/api/v1/mentor-requests').send(coachBody('ra.m1')).expect(201);
+    await upload(a.body.avatarUploadToken, PNG).expect(200);
+    const fileId = (await p().mentorRequest.findUniqueOrThrow({ where: { id: a.body.id } })).avatarFileId!;
+    // The review list says a picture was sent; the public submit response never did.
+    const listed = (await http().get('/api/v1/mentor-requests').query({ status: 'PENDING', limit: 100 }).set(bearer(admin)).expect(200)).body.data;
+    expect(listed.find((r: any) => r.id === a.body.id).avatarFileId).toBe(fileId);
+    expect(a.body).not.toHaveProperty('avatarFileId');
+    // Nobody but a reviewer can see it before the decision.
+    const coach = await login(ctx, 'mentor.j');
+    const student = await login(ctx, 'student.j');
+    for (const token of [coach, student]) await http().get(`/api/v1/mentor-requests/${a.body.id}/avatar`).set(bearer(token)).expect(403);
+    await http().get(`/api/v1/mentor-requests/${a.body.id}/avatar`).expect(401);
+    // Approved without approvePicture (older client, or the Administrator did not approve it): no picture.
+    await http().patch(`/api/v1/mentor-requests/${a.body.id}/approve`).set(bearer(admin)).expect(200);
+    const u = await p().user.findUniqueOrThrow({ where: { username: 'ra.m1' } });
+    expect(u).toMatchObject({ avatarFileId: null, avatarUrl: null });
+    expect(await p().mentorRequest.count({ where: { avatarFileId: fileId } })).toBe(0);   // unreferenced: cleaned up
+    expect((await p().auditLog.findFirstOrThrow({ where: { action: 'APPROVE_MENTOR_REQUEST', entityId: a.body.id } })).metadata).toMatchObject({ picture: 'DISCARDED' });
+    // Same rule for teachers: approvePicture false discards.
+    const t = await http().post('/api/v1/auth/register/teacher').send({
+      firstName: 'Tess', lastName: 'Teacher', username: 'ra.m2', email: 'ra.m2@test.local', password: 'Secret123', confirmPassword: 'Secret123',
+      country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
+      schoolId: ngoma, homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
+    }).expect(201);
+    await upload(t.body.avatarUploadToken, PNG).expect(200);
+    await http().get(`/api/v1/admin/teacher-applications/${t.body.id}/avatar`).set(bearer(coach)).expect(403);
+    await http().post(`/api/v1/admin/teacher-applications/${t.body.id}/approve`).set(bearer(admin)).send({ approvePicture: false }).expect(200);
+    expect((await p().user.findUniqueOrThrow({ where: { username: 'ra.m2' } })).avatarFileId).toBeNull();
+    expect((await p().auditLog.findFirstOrThrow({ where: { action: 'APPROVE_TEACHER_APPLICATION', entityId: t.body.id } })).metadata).toMatchObject({ picture: 'DISCARDED' });
   });
 
   it('the orphan-file cleanup keeps a pending application\'s picture', async () => {

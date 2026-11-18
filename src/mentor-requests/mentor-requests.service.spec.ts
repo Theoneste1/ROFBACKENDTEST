@@ -25,6 +25,7 @@ function makeMocks() {
       create:     vi.fn().mockResolvedValue({ id: 'mr-new', updatedAt: new Date('2026-11-14T10:00:00.000Z') }),
       update:     vi.fn().mockResolvedValue({ id: 'mr-old', updatedAt: new Date('2026-11-14T10:00:00.000Z') }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      count:      vi.fn().mockResolvedValue(0),
     },
     teacherApplication:  { findFirst: vi.fn().mockResolvedValue(null) },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
@@ -101,19 +102,20 @@ describe('MentorRequestsService', () => {
       });
     });
 
-    it('reuses a previously REJECTED request instead of creating a new one', async () => {
+    it('a reapplication after a rejection is a NEW request; the rejected attempt is never updated', async () => {
       const { service, prisma, audit, events } = makeMocks();
-      prisma.mentorRequest.findFirst.mockResolvedValue(pending({ id: 'mr-old', status: 'REJECTED' }));
+      prisma.mentorRequest.findFirst.mockResolvedValue(null);   // no PENDING or APPROVED application holds the identity
+      prisma.mentorRequest.count.mockResolvedValue(1);          // a REJECTED attempt with the same username or e-mail
 
       await service.create(dto);
 
-      expect(prisma.mentorRequest.create).not.toHaveBeenCalled();
-      expect(prisma.mentorRequest.update).toHaveBeenCalledOnce();
-      const call = prisma.mentorRequest.update.mock.calls[0][0];
-      expect(call.where).toEqual({ id: 'mr-old' });
-      expect(call.data.status).toBe('PENDING');
+      // Only applications that are not REJECTED block the identity.
+      expect(prisma.mentorRequest.findFirst.mock.calls[0][0].where).toMatchObject({ status: { not: 'REJECTED' } });
+      expect(prisma.mentorRequest.update).not.toHaveBeenCalled();
+      expect(prisma.mentorRequest.create).toHaveBeenCalledOnce();
+      expect(prisma.mentorRequest.create.mock.calls[0][0].data.status).toBe('PENDING');
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ metadata: { reapplication: true } }));
-      expect(events.emit).toHaveBeenCalledWith(Events.MentorRequestSubmitted, expect.objectContaining({ requestId: 'mr-old', reapplication: true }));
+      expect(events.emit).toHaveBeenCalledWith(Events.MentorRequestSubmitted, expect.objectContaining({ requestId: 'mr-new', reapplication: true }));
     });
   });
 

@@ -84,3 +84,14 @@ ALTER TABLE "MentorRequest" ADD CONSTRAINT "MentorRequest_yearsOfExperience_chec
   CHECK ("yearsOfExperience" IS NULL OR "yearsOfExperience" BETWEEN 0 AND 60);
 
 COMMIT;
+
+-- One coach application per attempt (2026-11-18, final review): a reapplication after a rejection is a NEW row, so an
+-- earlier attempt's questions and answers stay with that attempt and never appear as another applicant's history.
+-- The username and e-mail stay unique among applications that are not REJECTED (at most one PENDING or APPROVED
+-- application per username and per e-mail), like TeacherApplication's partial unique indexes.
+DROP INDEX IF EXISTS "MentorRequest_username_key";
+DROP INDEX IF EXISTS "MentorRequest_email_key";
+CREATE UNIQUE INDEX "MentorRequest_active_username_key" ON "MentorRequest"("username") WHERE "status" <> 'REJECTED';
+CREATE UNIQUE INDEX "MentorRequest_active_email_key" ON "MentorRequest"("email") WHERE "status" <> 'REJECTED';
+CREATE INDEX "MentorRequest_username_idx" ON "MentorRequest"("username");
+CREATE INDEX "MentorRequest_email_idx" ON "MentorRequest"("email");

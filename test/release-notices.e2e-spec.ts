@@ -102,11 +102,14 @@ describe('Release notices (e2e)', () => {
     expect(await count(where)).toBe(1);
 
     await ctx.http().patch(`/api/v1/mentor-requests/${apply.body.id}/reject`).set(bearer(admin)).expect(200);
-    await ctx.http().post('/api/v1/mentor-requests')
+    const again2 = await ctx.http().post('/api/v1/mentor-requests')
       .send({ firstName: 'Eric', lastName: 'Mugisha', username: 'eric.m', email: 'eric.m@example.com', password: 'Mentor123' })
       .expect(201);
     await waitForEvents();
-    expect(await count(where)).toBe(2);
+    // The re-application is its own application (one row per attempt): one new notice, for the new request.
+    expect(again2.body.id).not.toBe(apply.body.id);
+    expect(await count(where)).toBe(1);
+    expect(await count({ ...where, data: { path: ['mentorRequestId'], equals: again2.body.id } })).toBe(1);
   });
 
   it('administrators can switch the registration notices off', async () => {

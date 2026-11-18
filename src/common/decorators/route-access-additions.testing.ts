@@ -158,6 +158,11 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // mentorRequests.decide); the applicant (no account) answers through the one-time link.
   'POST /api/v1/admin/teacher-applications/:id/request-info  AdminTeacherApplicationsController.requestInfo':  ADMINISTRATORS,
   'POST /api/v1/mentor-requests/:id/request-info  MentorRequestsController.requestInfo':                      ADMINISTRATORS,
+  // Final review 2026-11-18 (owner approvals): date-of-birth corrections (users.manage) and application picture review
+  'PUT /api/v1/admin/users/:id/date-of-birth  UsersController.correctDateOfBirth':                              ADMINISTRATORS,
+  'GET /api/v1/admin/users/:id/date-of-birth-history  UsersController.dateOfBirthHistory':                      ADMINISTRATORS,
+  'GET /api/v1/admin/teacher-applications/:id/avatar  AdminTeacherApplicationsController.avatar':              ADMINISTRATORS,
+  'GET /api/v1/mentor-requests/:id/avatar  MentorRequestsController.avatar':                                    ADMINISTRATORS,
   'GET /api/v1/applications/info-requests/:token  ApplicationInfoRequestsController.view':                    PUBLIC,
   'POST /api/v1/applications/info-requests/:token  ApplicationInfoRequestsController.answer':                 PUBLIC,
   // Optional profile picture right after registering (REG-02): the one-time token is the authorization.

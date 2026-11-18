@@ -54,6 +54,8 @@ export const APPLICATION_SELECT = {
   rejectionReason: true, decisionNote: true, userId: true,
   assignedSchool: { select: { id: true, name: true, code: true } },
   schoolVerifiedAt: true,
+  // Whether a picture was sent (reviewed before approval: GET /admin/teacher-applications/:id/avatar).
+  avatarFileId: true,
   schoolVerifiedBy: { select: { id: true, firstName: true, lastName: true } },
   position: true, yearsOfExperience: true,
   // "Request more information" (ADR-009): newest first; the open one (answeredAt and cancelledAt null) is the current question.
@@ -258,7 +260,9 @@ export class TeacherApplicationsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
-      await carryApplicationAvatar(tx, user.id, application.avatarFileId);   // REG-02
+      // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
+      const picture = !application.avatarFileId ? 'NONE' : dto.approvePicture === true ? 'APPROVED' : 'DISCARDED';
+      if (picture === 'APPROVED') await carryApplicationAvatar(tx, user.id, application.avatarFileId);   // REG-02
       const assignment = await tx.teacherSchoolAssignment.create({
         data: { teacherId: user.id, schoolId, assignedById: caller.id }, select: { id: true },
       });
@@ -275,7 +279,7 @@ export class TeacherApplicationsService {
         actorId: caller.id, actorRole: caller.role,
         action: 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
         metadata: {
-          newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null,
+          newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null, picture,
           approvalNotice: notice ? 'QUEUED' : 'NOT_SENT_SELF_REGISTRATION_OFF',
         },
       }, tx);

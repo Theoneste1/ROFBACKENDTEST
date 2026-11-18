@@ -33,14 +33,15 @@ const PUBLIC_SELECT = {
   // REG-06 / REG-10 (2026-11-17)
   phone: true, affiliation: true, expertise: true, relevantExperience: true, yearsOfExperience: true, rejectionReason: true,
   infoRequests: { select: INFO_REQUEST_SELECT, orderBy: { requestedAt: 'desc' }, take: 10 },
+  // Whether a picture was sent (Administrators review it before approving: GET /mentor-requests/:id/avatar).
+  avatarFileId: true,
 } as const;
 
 /**
- * What the PUBLIC submit returns: the applicant's own submitted fields only. Never the info-request history — a
- * reapplication reuses a REJECTED row matched by username or e-mail, and its earlier questions and answers may belong to
- * someone else.
+ * What the PUBLIC submit returns: the applicant's own submitted fields only — never an info-request history (each
+ * attempt is its own row; defence in depth).
  */
-const { infoRequests: _history, ...SUBMIT_SELECT } = PUBLIC_SELECT;
+const { infoRequests: _history, avatarFileId: _picture, ...SUBMIT_SELECT } = PUBLIC_SELECT;
 
 @Injectable()
 export class MentorRequestsService {
@@ -58,8 +59,9 @@ export class MentorRequestsService {
 
   // ─── Submit a mentor application (public) ─────────────────────────────────
   //
-  // A previously REJECTED applicant may apply again with the same details;
-  // the old request is reused.
+  // A previously REJECTED applicant may apply again with the same details. Every attempt is its own row: the
+  // rejected attempt (with its questions, answers and decision) is kept as it was, and never becomes part of the new
+  // application — whoever submits it.
   async create(data: CreateMentorRequestDto) {
     // The COACH_APPLICATION form: 403 FORM_CLOSED with its closed message while it is not open.
     await this.forms.assertOpen('COACH_APPLICATION');
@@ -68,8 +70,10 @@ export class MentorRequestsService {
         where:  { OR: [{ username: data.username }, { email: data.email }] },
         select: { id: true },
       }),
+      // Only an application that is not REJECTED holds the username and e-mail (partial unique indexes).
       this.prisma.mentorRequest.findFirst({
-        where: { OR: [{ username: data.username }, { email: data.email }] },
+        where: { OR: [{ username: data.username }, { email: data.email }], status: { not: 'REJECTED' } },
+        select: { id: true },
       }),
       // A pending Teacher application holds its username and e-mail too (teacher self-registration).
       this.prisma.teacherApplication.findFirst({
@@ -83,7 +87,10 @@ export class MentorRequestsService {
       new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
 
     if (existingUser || pendingTeacherApplication) throw taken();
-    if (existingRequest && existingRequest.status !== 'REJECTED') throw taken();
+    if (existingRequest) throw taken();
+    const reapplication = (await this.prisma.mentorRequest.count({
+      where: { OR: [{ username: data.username }, { email: data.email }], status: 'REJECTED' },
+    })) > 0;
 
     const phone = data.phone === undefined ? null : normalisePhone(data.phone);
     if (data.phone !== undefined && !phone) {
@@ -105,21 +112,21 @@ export class MentorRequestsService {
       phone, affiliation: data.affiliation ?? null, expertise: data.expertise ?? null,
       relevantExperience: data.relevantExperience ?? null, yearsOfExperience: data.yearsOfExperience ?? null,
       rejectionReason: null,
-      // A reapplication starts without the earlier picture (a new one may be added; the old file is cleaned up).
-      avatarFileId: null,
     };
 
-    const request = existingRequest
-      ? await this.prisma.mentorRequest.update({ where: { id: existingRequest.id }, data: fields, select: SUBMIT_SELECT })
-      : await this.prisma.mentorRequest.create({ data: fields, select: SUBMIT_SELECT });
+    // A concurrent submission with the same username or e-mail loses on the partial unique index: the same answer.
+    const request = await this.prisma.mentorRequest.create({ data: fields, select: SUBMIT_SELECT }).catch((e: unknown) => {
+      if ((e as { code?: string })?.code === 'P2002') throw taken();
+      throw e;
+    });
 
     await this.audit.log({
       actorId: null, actorRole: 'ANONYMOUS',
       action: 'SUBMIT_MENTOR_REQUEST', entity: 'MentorRequest', entityId: request.id,
-      metadata: { reapplication: !!existingRequest },
+      metadata: { reapplication },
     });
     this.events.emit(Events.MentorRequestSubmitted, {
-      requestId: request.id, submittedAt: request.updatedAt.toISOString(), reapplication: !!existingRequest,
+      requestId: request.id, submittedAt: request.updatedAt.toISOString(), reapplication,
     });
 
     // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes.
@@ -142,7 +149,7 @@ export class MentorRequestsService {
   // With e-mail verification on (the production default), the account is
   // created unactivated and the applicant must confirm the address before the
   // first login — so nobody can apply in someone else's name.
-  async approve(requestId: string, caller: CallerCtx) {
+  async approve(requestId: string, caller: CallerCtx, opts: { approvePicture?: boolean } = {}) {
     await this.requireRequest(requestId);
     const verify = await this.settings.get('registration.requireEmailVerification');
 
@@ -185,14 +192,16 @@ export class MentorRequestsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
-      await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
+      // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
+      const picture = !request.avatarFileId ? 'NONE' : opts.approvePicture === true ? 'APPROVED' : 'DISCARDED';
+      if (picture === 'APPROVED') await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
       await ensureDefaultMembership(tx, mentor, caller.id);   // approved coach (P1-07, K6)
       if (verify) issued = await this.activation.issue(mentor.id, 'EMAIL_VERIFICATION', caller.id, tx);
 
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'APPROVE_MENTOR_REQUEST', entity: 'MentorRequest', entityId: requestId,
-        metadata: { newUserId: mentor.id },
+        metadata: { newUserId: mentor.id, picture },
       }, tx);
       // The one approval notice (e-mail + in-app), written with the approval (decision notifications).
       notice = await this.notices.enqueue(tx, {
