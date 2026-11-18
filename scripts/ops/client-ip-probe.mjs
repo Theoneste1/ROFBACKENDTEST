@@ -18,7 +18,9 @@ const require = createRequire(import.meta.url);
 const proxyaddr = require('proxy-addr');
 
 const CANDIDATES = { false: () => false, 1: 1, 2: 2, 3: 3, true: () => true };
-const HEADERS = ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-real-ip', 'forwarded', 'x-nf-client-connection-ip', 'true-client-ip', 'cf-connecting-ip', 'via'];
+const HEADERS = ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-real-ip', 'forwarded', 'x-nf-client-connection-ip', 'true-client-ip', 'cf-connecting-ip', 'via',
+  // Hop markers only (identify no one): Cloudflare's request id and Netlify's request id prove which proxies a call crossed.
+  'cf-ray', 'x-nf-request-id'];
 
 const server = http.createServer((req, res) => {
   const reqIp = {};
