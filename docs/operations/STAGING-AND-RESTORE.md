@@ -172,3 +172,25 @@ could not be reached. Nothing was written anywhere.
 - Deploy the probe and the Netlify staging site, and send their URLs.
 
 Then: §3 steps 0–2 (migrate the branch), redeploy staging at the current #63 head, and steps 3–7.
+
+### Run 1 follow-up — 2026-11-18, after the owner's changes
+
+- **Owner (done):**
+  - the staging service is suspended;
+  - `RESEND_API_KEY` is removed and `EMAIL_DRY_RUN=true` added;
+  - the staging-only Resend key is revoked;
+  - production's key and services are untouched.
+- **Deploy target verified:** branch `feat/teacher-student-access`, commit **`9d58ebdbaba9ef329945df2a39bda1253e3040d9`**.
+  - It is the remote head and contains the dry-run fix `c1fad79`.
+  - GitHub CI passed ([run 44316601659](https://github.com/Theoneste1/ROFBACKENDTEST/actions/runs/44316601659)), and the CI replica passes every step.
+- **Startup verified locally on that build.** The environment was production mode, `TRUST_PROXY=1`, local storage,
+  `EMAIL_DRY_RUN=true` and no `RESEND_API_KEY`, run once with and once without `EMAIL_FROM`.
+  - It started with health ok and logged the warning "EMAIL_DRY_RUN=true: NO e-mail is sent".
+  - It never initialised Resend, and logged no errors.
+  - Control: the same environment without `EMAIL_DRY_RUN` refuses to start.
+- **Start-up runs no migrations.** The Dockerfile's default stage runs `node dist/main.js` only; `render.yaml` is the
+  production service on `main` and is not used by staging.
+- **Do not "Resume" the service.** That restarts the last build, `ceae3e0`, which predates `EMAIL_DRY_RUN` and now
+  refuses to start. After the branch is migrated (§3 step 2), use **Manual Deploy → Deploy a specific commit →
+  `9d58ebd`**.
+- **Next owner action:** §2 step 6, `C:of-audite-ts.env.drill.local`.
