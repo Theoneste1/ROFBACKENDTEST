@@ -51,7 +51,8 @@ flowchart LR
   address lock that username for 15 minutes *from that address only*, also
   when they arrive at the same moment; the student can still sign in from
   school or home. The response never reveals the lock, and unknown usernames
-  get the same answers.
+  get the same answers. A password reset ends every lock (there is no
+  Administrator unlock).
 
 ## 2. Academic year
 

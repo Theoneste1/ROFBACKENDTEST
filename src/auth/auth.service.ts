@@ -489,7 +489,9 @@ export class AuthService {
         data:  { usedAt: new Date() },
       });
       if (count === 0) return false;
-      await tx.user.update({ where: { id: record.userId }, data: { passwordHash } });
+      // A password reset is the remedy for sign-in locks (no Administrator control): it also ends a lock recorded by
+      // the earlier release (User.lockedUntil); the address locks are cleared below.
+      await tx.user.update({ where: { id: record.userId }, data: { passwordHash, failedLoginCount: 0, lockedUntil: null } });
       // Every session ends in the same transaction as the password change.
       await this.tokens.revokeAllForUser(record.userId, tx);
       await this.audit.log({
