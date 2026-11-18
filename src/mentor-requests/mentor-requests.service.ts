@@ -35,6 +35,13 @@ const PUBLIC_SELECT = {
   infoRequests: { select: INFO_REQUEST_SELECT, orderBy: { requestedAt: 'desc' }, take: 10 },
 } as const;
 
+/**
+ * What the PUBLIC submit returns: the applicant's own submitted fields only. Never the info-request history — a
+ * reapplication reuses a REJECTED row matched by username or e-mail, and its earlier questions and answers may belong to
+ * someone else.
+ */
+const { infoRequests: _history, ...SUBMIT_SELECT } = PUBLIC_SELECT;
+
 @Injectable()
 export class MentorRequestsService {
   constructor(
@@ -103,8 +110,8 @@ export class MentorRequestsService {
     };
 
     const request = existingRequest
-      ? await this.prisma.mentorRequest.update({ where: { id: existingRequest.id }, data: fields, select: PUBLIC_SELECT })
-      : await this.prisma.mentorRequest.create({ data: fields, select: PUBLIC_SELECT });
+      ? await this.prisma.mentorRequest.update({ where: { id: existingRequest.id }, data: fields, select: SUBMIT_SELECT })
+      : await this.prisma.mentorRequest.create({ data: fields, select: SUBMIT_SELECT });
 
     await this.audit.log({
       actorId: null, actorRole: 'ANONYMOUS',
@@ -136,16 +143,20 @@ export class MentorRequestsService {
   // created unactivated and the applicant must confirm the address before the
   // first login — so nobody can apply in someone else's name.
   async approve(requestId: string, caller: CallerCtx) {
-    const request = await this.requireRequest(requestId);
+    await this.requireRequest(requestId);
     const verify = await this.settings.get('registration.requireEmailVerification');
 
     let issued: IssuedActivation | null = null;
     let notice: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
-      // Claim the request: only one concurrent approval can succeed.
+      // The row as it is now, locked (an answer to a request for more information may have corrected it; the answer
+      // path locks the application first too). Read before the claim, which clears the password hash.
+      await tx.$queryRaw`SELECT 1 FROM "MentorRequest" WHERE "id" = ${requestId} FOR UPDATE`;
+      const request = await tx.mentorRequest.findUniqueOrThrow({ where: { id: requestId } });
+      // Claim the request: only one concurrent approval can succeed. The picture moves to the account (below).
       const { count } = await tx.mentorRequest.updateMany({
         where: { id: requestId, status: 'PENDING' },
-        data:  { status: 'APPROVED', passwordHash: null },
+        data:  { status: 'APPROVED', passwordHash: null, avatarFileId: null },
       });
       if (count === 0) throw invalidState('This coach application has already been processed.');
       await this.infoRequests.cancelOpen(tx, 'COACH', requestId);
@@ -219,7 +230,8 @@ export class MentorRequestsService {
     const count = await this.prisma.$transaction(async (tx) => {
       const r = await tx.mentorRequest.updateMany({
         where: { id: requestId, status: 'PENDING' },
-        data:  { status: 'REJECTED', passwordHash: null, rejectionReason: reason ?? null },
+        // A rejected application keeps no picture (the file is then cleaned up as an orphan).
+        data:  { status: 'REJECTED', passwordHash: null, rejectionReason: reason ?? null, avatarFileId: null },
       });
       if (r.count > 0) await this.infoRequests.cancelOpen(tx, 'COACH', requestId);
       return r.count;

@@ -59,6 +59,8 @@ describe('Contact data access (e2e)', () => {
       const list = await http().get('/api/v1/admin/users').query({ search: 'cd.student' }).set(bearer(token)).expect(200);
       const row = list.body.data.find((u: any) => u.id === studentId);
       expect(row).toMatchObject({ phone: '+250••••••456', guardianPhone: '+250••••••111' });
+      expect(row).not.toHaveProperty('dateOfBirth');   // a minor's date of birth: the user page only
+      expect(String(one.body.dateOfBirth)).toMatch(/^2012-05-01/);
       expect(JSON.stringify(list.body)).not.toContain('788123456');
       expect(JSON.stringify(list.body)).not.toContain('722000111');
     }

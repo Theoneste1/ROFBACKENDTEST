@@ -97,10 +97,12 @@ export class ApplicationInfoRequestsService {
   async answer(token: string, dto: AnswerInfoRequestDto) {
     const now = new Date();
     const done = await this.prisma.$transaction(async (tx) => {
-      const r = await this.openByToken(tx, token, true);
-      const kind: ApplicationKind = r.teacherApplicationId ? 'TEACHER' : 'COACH';
-      const appId = (r.teacherApplicationId ?? r.mentorRequestId)!;
+      // Lock order everywhere: the application row, then its requests (decisions and new questions do the same).
+      const found = await this.openByToken(tx, token);
+      const kind: ApplicationKind = found.teacherApplicationId ? 'TEACHER' : 'COACH';
+      const appId = (found.teacherApplicationId ?? found.mentorRequestId)!;
       await this.lockPending(tx, kind, appId).catch(() => { throw linkGone(); });
+      const r = await this.openByToken(tx, token, true);   // re-checked under the lock
       const changes = this.corrections(kind, dto);
       if (Object.keys(changes).length) {
         if (kind === 'TEACHER') await tx.teacherApplication.update({ where: { id: appId }, data: changes });

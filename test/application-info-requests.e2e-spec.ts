@@ -171,6 +171,20 @@ describe('Application details and requests for more information (e2e)', () => {
     await http().get('/api/v1/applications/info-requests/short').expect(410);
   });
 
+  it('a reapplication never returns the earlier questions and answers (anonymous caller reusing a rejected username)', async () => {
+    const victim = coachBody();
+    const app = (await http().post('/api/v1/mentor-requests').send(victim).expect(201)).body.id as string;
+    await http().post(`/api/v1/mentor-requests/${app}/request-info`).set(bearer(admin)).send({ question: 'What is your home address?' }).expect(200);
+    await http().post(`/api/v1/applications/info-requests/${await tokenFor(victim.email)}`).send({ answer: 'House 12 KG 5 Ave, private' }).expect(200);
+    await http().patch(`/api/v1/mentor-requests/${app}/reject`).set(bearer(admin)).send({ reason: 'Not this year.' }).expect(200);
+    // Someone else applies with the same username (and another e-mail): the rejected row is reused.
+    const again = await http().post('/api/v1/mentor-requests').send({ ...coachBody(), username: victim.username }).expect(201);
+    expect(again.body.id).toBe(app);
+    expect(again.body).not.toHaveProperty('infoRequests');
+    const text = JSON.stringify(again.body);
+    for (const secret of ['House 12 KG 5 Ave', 'home address', 'requestedBy']) expect(text).not.toContain(secret);
+  });
+
   it('an expired link is refused', async () => {
     const body = coachBody();
     const app = (await http().post('/api/v1/mentor-requests').send(body).expect(201)).body.id as string;

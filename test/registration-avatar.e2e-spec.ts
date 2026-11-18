@@ -95,6 +95,8 @@ describe('Optional profile picture at registration (e2e)', () => {
     const t2 = await p().user.findUniqueOrThrow({ where: { username: 'ra.t2' } });
     expect(t2.avatarFileId).toBe(app.avatarFileId);
     expect(t2.avatarUrl).toContain(`/users/${t2.id}/avatar`);
+    // The picture moved to the account: the application no longer holds it, so removing it later lets the file go.
+    expect((await p().teacherApplication.findUniqueOrThrow({ where: { id: withPic.body.id } })).avatarFileId).toBeNull();
     // A decided application takes no picture any more.
     expect((await upload(withPic.body.avatarUploadToken, PNG)).status).toBe(401);
   });
@@ -108,6 +110,26 @@ describe('Optional profile picture at registration (e2e)', () => {
     await http().patch(`/api/v1/mentor-requests/${withPic.body.id}/approve`).set(bearer(admin)).expect(200);
     expect((await p().user.findUniqueOrThrow({ where: { username: 'ra.c1' } })).avatarFileId).toBeNull();
     expect((await p().user.findUniqueOrThrow({ where: { username: 'ra.c2' } })).avatarFileId).not.toBeNull();
+    expect((await p().mentorRequest.findUniqueOrThrow({ where: { id: withPic.body.id } })).avatarFileId).toBeNull();
+  });
+
+  it('a picture removed after approval, or sent with a rejected application, is no longer referenced (the cleanup can delete it)', async () => {
+    const appr = await http().post('/api/v1/mentor-requests').send({ firstName: 'Rem', lastName: 'Ove', username: 'ra.c5', email: 'ra.c5@test.local', password: 'Mentor123' }).expect(201);
+    await upload(appr.body.avatarUploadToken, PNG).expect(200);
+    const fileA = (await p().mentorRequest.findUniqueOrThrow({ where: { id: appr.body.id } })).avatarFileId!;
+    await http().patch(`/api/v1/mentor-requests/${appr.body.id}/approve`).set(bearer(admin)).expect(200);
+    await p().user.update({ where: { username: 'ra.c5' }, data: { activatedAt: new Date() } });
+    const t = await login(ctx, 'ra.c5', 'Mentor123');
+    await http().delete('/api/v1/me/avatar').set(bearer(t)).expect(200);
+    const rej = await http().post('/api/v1/mentor-requests').send({ firstName: 'Rej', lastName: 'Ected', username: 'ra.c6', email: 'ra.c6@test.local', password: 'Mentor123' }).expect(201);
+    await upload(rej.body.avatarUploadToken, PNG).expect(200);
+    const fileR = (await p().mentorRequest.findUniqueOrThrow({ where: { id: rej.body.id } })).avatarFileId!;
+    await http().patch(`/api/v1/mentor-requests/${rej.body.id}/reject`).set(bearer(admin)).send({}).expect(200);
+    for (const fileId of [fileA, fileR]) {
+      expect(await p().user.count({ where: { avatarFileId: fileId } })).toBe(0);
+      expect(await p().mentorRequest.count({ where: { avatarFileId: fileId } })).toBe(0);
+      expect(await p().teacherApplication.count({ where: { avatarFileId: fileId } })).toBe(0);
+    }
   });
 
   it('the orphan-file cleanup keeps a pending application\'s picture', async () => {
