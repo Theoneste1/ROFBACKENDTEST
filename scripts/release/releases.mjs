@@ -100,7 +100,7 @@ export function checkoutProblem(release, dirs) {
 /**
  * What a database looks like immediately BEFORE the post-Phase-1 release (production after Phase 1), derived from this
  * checkout alone: every repository migration up to and including M14, and the Prisma models without the tables that
- * the migrations after M14 create (`laterSql`: the nine and anything later). They create tables and never drop or
+ * the migrations after M14 create (`laterSql`: the eleven and anything later). They create tables and never drop or
  * rename one, so the subtraction is exact (checked by the tests).
  * @param {{ migDirs: string[], models: string[], laterSql: string[] }} input
  */

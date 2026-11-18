@@ -1,4 +1,4 @@
--- post-Phase-1 release post-check (AFTER `prisma migrate deploy` of the ten migrations after M14): READ ONLY.
+-- post-Phase-1 release post-check (AFTER `prisma migrate deploy` of the eleven migrations after M14): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release post-phase1    (Neon rehearsal branch; guarded)
 --   psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/release/post-phase1-postcheck.sql   (production, in the window)
