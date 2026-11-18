@@ -74,6 +74,10 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
   2 teacher routes Head Coaches pass the guard for (service refuses). Matrix: `docs/ROLE-ROUTE-MATRIX.md` (cd8f9e9).
 - 2026-11-18 Requirements matrix v2 (`docs/REQUIREMENTS-MATRIX-V2.md`, dd8a606): 102 requirements — 45 complete and verified,
   10 implemented not fully tested, 15 partial, 0 missing, 29 awaiting design approval, 1 deferred, 2 blocked (external).
+- 2026-11-18 REVIEW STAGE: FINAL-REVIEW-PACKAGE.md — PR links (none open yet; no GitHub CI yet), local CI replica passes on
+  every branch head, production read-only inspection, local rehearsal of the eleven migrations on a restored production
+  backup (deploy → rollback → re-deploy), independent security review: M1–M3 + L2 fixed (backend b5a9369, e2e 982/6/0),
+  L5 fixed (frontend b115384), SR-1 / SR-2 to the owner; frontend merge conflict removed (6166186); DECISIONS-FOR-REVIEW.md.
 - 2026-11-18 Frontend bulk page: teacher–student bulk actions (`feat/admin-bulk-user-operations` d548de3; unit 366/366).
 
 ## Outstanding — approved, to implement (in this order)

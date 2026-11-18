@@ -73,3 +73,13 @@ Ready for final review: every approved item in the execution order is implemente
 checks pass. Not yet release-ready until (1) CI runs on the PRs (including the 6 S3 tests), (2) the owner answers the open
 design decisions or confirms they stay out of this release, and (3) the Neon rehearsal and restore drill are done on a
 fresh branch. Teacher and Head Coach production flags remain off.
+
+## Review stage (2026-11-18, after this report)
+
+See `FINAL-REVIEW-PACKAGE.md`. In short: no PR is open yet, so there is no GitHub CI evidence; the same CI steps were run
+locally on every branch head and pass. An independent security review found no critical or high issue; M1–M3 and L2 were
+fixed in backend `feat/teacher-student-access` b5a9369 (full e2e 982 passed / 6 skipped / 0 failed) and L5 in frontend
+b115384; SR-1 and SR-2 went to the owner (`DECISIONS-FOR-REVIEW.md`). A merge conflict between two frontend branches was
+removed at the source (`feat/admin-user-details` 6166186). Production was inspected read-only, and the eleven migrations
+were rehearsed (deploy, rollback, re-deploy) on a restored copy of the production backup — never on production. The
+release runbook and plan now list eleven migrations.

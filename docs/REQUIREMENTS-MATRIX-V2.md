@@ -145,8 +145,8 @@ owner action outside the code: a fresh Neon branch for the restore drill (SEC-02
 
 ## Test evidence (2026-11-18, local, PostgreSQL 18)
 
-- Backend `feat/teacher-student-access`: unit 1155 + 5 sweep; e2e full suite on a clean database (see PROGRESS.md for the
-  latest run); routes 315/315 called by e2e; API snapshot history additive only; release kit 144 script tests; migration
+- Backend `feat/teacher-student-access` b5a9369: unit 1155 + 5 sweep; e2e full suite on a clean database 982 passed /
+  6 skipped (S3) / 0 failed; routes 315/315 called by e2e; API snapshot history additive only; release kit 144 script tests; migration
   deploy → rollback (refusal, discard mode) → redeploy with no drift.
 - Frontend integration (`integ/frontend-rc`): 408 unit tests, typecheck, lint, Next build.
 - Browser (Playwright, real backend + PostgreSQL): sidebar (8), teacher–student access (4), role journeys (7).
