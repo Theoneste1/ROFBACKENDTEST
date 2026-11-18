@@ -10,8 +10,8 @@ configuration changes). Every test below ran locally on disposable databases or 
 | PR | Branch → base | Head (full SHA) | GitHub CI on that head |
 |---|---|---|---|
 | [#61](https://github.com/Theoneste1/ROFBACKENDTEST/pull/61) | `fix/role-notification-settings` → `develop` | `a4016d3c8ac3c346ccf41368930e3c1260c6411a` | ✅ success — [run 44222198685](https://github.com/Theoneste1/ROFBACKENDTEST/actions/runs/44222198685) |
-| [#62](https://github.com/Theoneste1/ROFBACKENDTEST/pull/62) | `feat/applications-complete` → `fix/role-notification-settings` | `69b3552856cd6e705df6e7eced5a032c7ca6fe55` | ✅ success — [run 44302604083](https://github.com/Theoneste1/ROFBACKENDTEST/actions/runs/44302604083) |
-| [#63](https://github.com/Theoneste1/ROFBACKENDTEST/pull/63) | `feat/teacher-student-access` → `feat/applications-complete` | `ceae3e0362ed5af231d07e24c495f7be2da908b0` | ✅ success — [run 44303145891](https://github.com/Theoneste1/ROFBACKENDTEST/actions/runs/44303145891) |
+| [#62](https://github.com/Theoneste1/ROFBACKENDTEST/pull/62) | `feat/applications-complete` → `fix/role-notification-settings` | `2a75ba1f3c4d3cb2c802c538ac2e62504ab60c9d` | ✅ success — [run 44316593669](https://github.com/Theoneste1/ROFBACKENDTEST/actions/runs/44316593669) |
+| [#63](https://github.com/Theoneste1/ROFBACKENDTEST/pull/63) | `feat/teacher-student-access` → `feat/applications-complete` | `9d58ebdbaba9ef329945df2a39bda1253e3040d9` | ✅ success — [run 44316601659](https://github.com/Theoneste1/ROFBACKENDTEST/actions/runs/44316601659) |
 | [#64](https://github.com/Theoneste1/ROFBACKENDTEST/pull/64) | `docs/post-phase1-release-plan` → `develop` | this commit (branch head) | runs on push (documentation only) |
 | [#31](https://github.com/Theoneste1/ROFFRONTENDTEST/pull/31) | `chore/sync-main-into-develop` → `develop` | `6af113b82fec1ccb554027a2094e0f18d5783df6` | ✅ success — [run 44222222082](https://github.com/Theoneste1/ROFFRONTENDTEST/actions/runs/44222222082) |
 | [#32](https://github.com/Theoneste1/ROFFRONTENDTEST/pull/32) | `feat/sidebar-more-menu` → `develop` | `8edeb12e68f55990eefb06097cc0cc74453cbd6a` | ✅ success — [run 44253230742](https://github.com/Theoneste1/ROFFRONTENDTEST/actions/runs/44253230742) |
@@ -53,7 +53,14 @@ SchoolDirectoryDetail (#37 Teachers tab + #39 School Access link). Frontend #36 
 
 ## 3. Tests executed (final heads)
 
-- **Round 6 (approvals recorded; staging preparation), on the heads above:**
+- **Round 7 (first staging run), on the heads above:**
+  - #62 `2a75ba1`:
+    - `EMAIL_DRY_RUN=true` lets a staging service run in production mode with no e-mail key and never send. Unit tests for config and e-mail 48/48; e2e `email-delivery` and `auth` 37/37; a production-mode start without a key verified locally.
+    - The unknown-username sign-in unit test now has a 30-second timeout. It makes six checks against the cost-12 dummy hash and timed out under a parallel full run.
+    - Unit 1154/1154, twice.
+  - #63 `9d58ebd`: the CI replica passes every step; GitHub CI is green.
+  - Staging results: `operations/STAGING-AND-RESTORE.md` §6, run 1.
+- **Round 6 (approvals recorded; staging preparation), on the then heads `69b3552` / `ceae3e0`:**
   - #62 `69b3552`: a password reset also ends a lock recorded by the earlier release; the docs say a password reset is the only lock remedy and that there is no Administrator unlock. Unit tests for auth 295/295; e2e `auth`, `security` and `account-states` 61/61; GitHub CI green.
   - #63 `ceae3e0` (#62 merged): `scripts/release/staging-accounts.mjs` creates synthetic staging accounts on the Neon branch only. It uses the same fail-closed production guard and `--confirm` as the release kit, and passwords go only to a git-ignored file. Tests: 4 new; all release and ops script tests 152/152; a live local run (accounts created, sign in, disabled → 401). Unit tests for auth 300/300; e2e `auth`, `security` and `account-states` 61/61; GitHub CI green.
 - **Round 5 (sign-in limits), on the then heads `4051eb9` / `2ac7032`:**
@@ -75,7 +82,12 @@ SchoolDirectoryDetail (#37 Teachers tab + #39 School Access link). Frontend #36 
 1. **Client addresses behind Netlify.** Do **not** set `TRUST_PROXY=2` on assumption: locally, the Next.js rewrite passes a forged `X-Forwarded-For` through, which `2` would trust. Run the staging probe (`operations/CLIENT-IP-VERIFICATION.md`); keep `1` until then (it cannot be forged; signed-in traffic is per user anyway).
 2. **Sign-in limits.** Implemented as approved, including the two refinements (approved in round 6). Both the address-scoped lock and the known-address exemption depend on the real client address. If staging shows that Netlify presents a few shared proxy addresses, the 60-a-minute per-address limit and the address locks apply to everyone behind each one. Guessing would still be capped at about 20 an hour per username and address. The staging client-IP test is therefore part of the release gate.
 3. **Student pictures** — decided and implemented (student, Administrators, teachers with profile access). Coaches and Head Coaches see the generated avatar (initials) for students; **the owner confirmed this is acceptable (round 5)**.
-4. **Neon restore drill and staging — release gate.** The runbook is revised so that isolation is verified first (`operations/STAGING-AND-RESTORE.md`): a pre-flight before any write, synthetic accounts only, the sign-in on staging as proof of isolation, stop conditions, and clean-up. **Not run yet:** it waits for the owner's Neon, Render and Netlify actions in §2. The release is **not ready** until §6 records a pass. The client-IP probe (`operations/CLIENT-IP-VERIFICATION.md` §3) runs in the same staging session.
+4. **Neon restore drill and staging — release gate.** The runbook is revised so that isolation is verified first (`operations/STAGING-AND-RESTORE.md`): a pre-flight before any write, synthetic accounts only, the sign-in on staging as proof of isolation, stop conditions, and clean-up. **Not run yet:** it waits for the owner's Neon, Render and Netlify actions in §2. The release is **not ready** until §6 records a pass. **Run 1** (only read-only requests were possible):
+   - the staging database is **not migrated**: the backend was deployed before the migrations, so sign-in and forms return 500;
+   - staging needed a live e-mail key, which is now fixed with `EMAIL_DRY_RUN`;
+   - **on Render, `TRUST_PROXY=1` does not give the visitor's address**: 70 sign-ins from one client were never limited at 60. This also concerns production today, and the address-scoped sign-in lock depends on it.
+
+   The other gates are blocked on owner actions (§6). The client-IP probe (`operations/CLIENT-IP-VERIFICATION.md` §3) runs in the same staging session.
 
 ## 5. Release sequence (each production step separately approved)
 

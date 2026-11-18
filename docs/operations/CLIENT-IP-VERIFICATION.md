@@ -57,6 +57,20 @@ Findings:
    - Every call shows a Netlify address → as above.
 5. Delete the probe service.
 
+## 3a. Staging evidence so far (2026-11-18)
+
+Direct to the staging backend on Render with `TRUST_PROXY=1`, one client making sequential requests was never held by
+the per-address limits: 70 sign-ins without a 429, where the fixed limit is 60 and the same build locally refuses the
+61st. So on Render `req.ip` is **not** the visitor's address; it varies between requests, which suggests proxy
+addresses. **This affects production as it is configured today.**
+
+- Per-address limits are weaker than designed.
+- The sign-in lock scoped to an address is scoped to a proxy address. An attacker's 5 wrong passwords could lock the
+  student out for anyone who passes through the same proxy address.
+
+The probe (§3) must establish which header carries the real address, and whether a visitor can forge it, before the
+sign-in release. Keep `TRUST_PROXY=1` until then; no other value has been shown to be safe.
+
 ## 4. Until then
 
 `TRUST_PROXY=1` (unchanged) is the safe value: it cannot be forged. At worst, unauthenticated traffic shares the

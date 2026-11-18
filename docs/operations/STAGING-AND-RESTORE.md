@@ -19,7 +19,7 @@ client-IP probe.
 | Client-IP probe | a separate Render web service `rof-client-ip-probe` (no database, no variables) | stores and logs nothing |
 | Frontend | a Netlify branch deploy, or a second site, with `API_PROXY_TARGET` set to the staging backend | its own URL |
 | File storage | `STORAGE_DRIVER=local` (temporary disk) | never the production bucket |
-| E-mail | dry run: no `RESEND_API_KEY`, so messages are logged and not sent | nobody receives anything |
+| E-mail | dry run: `EMAIL_DRY_RUN=true` and no `RESEND_API_KEY`, so messages are logged and not sent | nobody receives anything |
 
 **The branch is a copy of sensitive production data, including minors.**
 - Share the staging URLs and the branch only with the people running the drill. Use Netlify site password protection if
@@ -46,7 +46,11 @@ Release head to stage: **backend `feat/teacher-student-access`** (PR #63, which 
      the host starts with the **branch** endpoint id (`ep-…`) and not production's. Production's endpoint id is in your
      production Render service; compare them.
    - `JWT_SECRET`: a new random value of 64 characters or more. Never copy production's.
-   - `NODE_ENV=production`, `TRUST_PROXY=1`, `STORAGE_DRIVER=local`, and **no** `RESEND_API_KEY`.
+   - `NODE_ENV=production`, `TRUST_PROXY=1`, `STORAGE_DRIVER=local`, **`EMAIL_DRY_RUN=true`**, and **no** `RESEND_API_KEY`
+     or `EMAIL_FROM`. `EMAIL_DRY_RUN` needs backend #62 `c1fad79` or later, which #63 contains. Without it, production
+     mode refuses to start unless an e-mail key is present, and a key on a copy of real data can reach real people.
+   - **Do not deploy it yet.** The branch must be migrated first (§3 step 2): the release code fails on the old schema,
+     with sign-in and forms returning 500 (run 1).
    - `TEACHERS_ENABLED` and `HEAD_COACHES_ENABLED`: the same values as production.
    - `APP_URL` and the CORS origin: the staging site URL from step 5. Set them after step 5 if needed, then redeploy
      manually.
@@ -143,4 +147,28 @@ Stop and report, writing nothing further, if any of the following happens:
 
 ## 6. Results
 
-Filled in by the drill (date, branch endpoint id, release SHA, each step's result). Until then: **not run**.
+### Run 1 — 2026-11-18, 13:27–13:50 UTC (staging backend `rof-backend-staging.onrender.com`, deployed at `ceae3e0`)
+
+Only unauthenticated, read-only requests were possible: `.env.drill.local` was not provided, so the branch database
+could not be reached. Nothing was written anywhere.
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Staging backend reachable, release code | PASS | `/health` → `{"status":"ok","database":"up","storage":"up"}`; `/api/v1` lists the release capabilities (`dateOfBirthCorrection`, `applicationPictureReview`, …) |
+| Backend connected to branch `restore-drill-2026-11-18` with role `staging` | BLOCKED | Cannot be established from outside. The database currently has production's pre-release schema, so it is either the branch or production. The proof (§3 step 3: a synthetic account that exists only in the branch signs in) needs `.env.drill.local`. |
+| The eleven migrations applied | **FAIL** | The database is **not migrated**. `GET /api/v1/forms` → 500 (needs `FormAvailability`, migration 1208); `POST /auth/login` → 500 for every request (needs `User.accountStatus`, migration 1206). Reproduced locally with the same build: a database at production's schema gives the same two 500s ("table `public.FormAvailability` does not exist", "column `User.accountStatus` does not exist"); a migrated one gives 200. Cause: the backend was deployed **before** §3 step 2. The procedure order is correct, so this is not a code defect. |
+| Synthetic accounts only on the branch | BLOCKED | Not created; needs `.env.drill.local`, and the branch migrated first (their columns arrive with the migrations). |
+| Application and integration tests | BLOCKED | Sign-in fails until the branch is migrated. |
+| Rollback rehearsal | BLOCKED | Needs `.env.drill.local`. |
+| Client-IP probe through Netlify | BLOCKED | The service `rof-client-ip-probe.onrender.com` does not exist (404), and no staging site URL was given. |
+| Client address, direct to Render (`TRUST_PROXY=1`) | **FAIL (finding)** | One client, sequential requests: 70 sign-ins without a 429. The limit of 60 per address is fixed in code, and the same build locally refuses at the 61st. `GET /api/v1` from one client: no 429 in 125 requests; 600 requests in under a minute were first refused at about the 450th, where one address would be refused at the 121st. **On Render, `req.ip` is not the visitor's address**: it varies between requests, which suggests Render's or Cloudflare's proxy addresses. Several service instances, each with its own in-memory counters, would look the same; the probe will tell which. Forged `X-Forwarded-For` values did not raise the limits further (no evidence of forging). |
+| E-mail | **FAIL (configuration)** | `NODE_ENV=production` refuses to start without `RESEND_API_KEY` and `EMAIL_FROM`, so this staging service has a live e-mail key. Unless `EMAIL_REDIRECT_TO` is set, its e-mail worker may already have delivered e-mails from the copied outbox to real people. **Fix:** `EMAIL_DRY_RUN=true` (backend #62 `c1fad79`, in #63 `9d58ebd`): production mode with no e-mail key, nothing ever sent, a warning at every start. Verified locally. |
+| Storage | PASS (limited) | `/health` storage `up`. `STORAGE_DRIVER=local` is a temporary disk: files uploaded on staging disappear at every deploy or restart, and the production bucket's files (pictures, submissions) are **not** in staging. Downloads of existing files return 404 there; that is expected and not a defect. |
+
+**Owner actions to continue** (§2):
+- Set `EMAIL_DRY_RUN=true` and remove `RESEND_API_KEY` on the staging service.
+- Confirm that its `DATABASE_URL` host does **not** start with production's endpoint id `ep-orange-sun-bdrp42oo`.
+- Create `.env.drill.local`.
+- Deploy the probe and the Netlify staging site, and send their URLs.
+
+Then: §3 steps 0–2 (migrate the branch), redeploy staging at the current #63 head, and steps 3–7.
