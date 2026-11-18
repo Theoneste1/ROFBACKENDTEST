@@ -210,7 +210,7 @@ describe('AuthService', () => {
         // Further attempts in the same minute from anywhere: the same 429 a real username gets; no known address exists.
         await expect(service.login({ username: 'GHOST ', password: 'x' }, OTHER)).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
         expect(prisma.auditLog.findFirst).not.toHaveBeenCalled();
-      });
+      }, 30_000);   // 6 checks against the cost-12 dummy hash (timing equalised): slow under a parallel full run
 
       it('per username: 5 attempts a minute and 20 an hour, from any address (normalised: case and spaces)', async () => {
         const { service, prisma, clock } = makeMocks();
