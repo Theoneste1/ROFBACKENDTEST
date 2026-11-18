@@ -1,9 +1,14 @@
 -- Rollback for 20261210000000_teacher_student_access (teacher–student assignments, delegation student scope).
--- Run manually, with approval, after a backup, and after deploying the previous application release.
+-- Run manually, with approval, after a backup. ORDER (unlike the other rollbacks):
+--   1. With the NEW release still serving: 20261210000000_teacher_student_access.pre-switch.sql (revokes every active
+--      ASSIGNED / SELECTED delegation, audited).
+--   2. Deploy the previous application release.
+--   3. This file.
 --
 -- SECURITY: the previous release has no student scope — every teacher delegation it reads applies to EVERY student
 -- the teacher sees through their schools. A delegation narrowed to ASSIGNED or SELECTED students would therefore
--- WIDEN silently. This file never lets that happen.
+-- WIDEN as soon as the previous release is live — hence step 1 before the code switch. This file then guarantees it
+-- again under a table lock (a narrowed delegation written concurrently is revoked, never kept unscoped).
 --
 -- It REFUSES, and changes nothing, while anything exists that the previous release cannot keep: a teacher–student
 -- assignment, a selected-student row, or a delegation whose scope is not SCHOOL. To discard them knowingly, after a
@@ -20,6 +25,9 @@
 --   3. `npx prisma migrate status` must then list it as not yet applied.
 BEGIN;
 
+-- Before the check: a row written concurrently is either committed and counted, or waits and then sees the tables gone.
+LOCK TABLE "UserPermissionOverride", "UserPermissionOverrideStudent", "TeacherStudentAssignment" IN ACCESS EXCLUSIVE MODE;
+
 DO $$
 DECLARE
   assignments bigint;
@@ -35,10 +43,20 @@ BEGIN
   END IF;
 END $$;
 
--- Narrowed delegations stop for good (never widened to the whole school by the previous release).
-UPDATE "UserPermissionOverride"
-   SET "revokedAt" = now(), "revokeReason" = 'ROLLBACK'
- WHERE "studentScope" IN ('ASSIGNED', 'SELECTED') AND "revokedAt" IS NULL;
+-- Narrowed delegations stop for good (never widened to the whole school by the previous release); audited.
+WITH revoked AS (
+  UPDATE "UserPermissionOverride"
+     SET "revokedAt" = now(), "revokeReason" = 'ROLLBACK'
+   WHERE "studentScope" IN ('ASSIGNED', 'SELECTED') AND "revokedAt" IS NULL
+  RETURNING "id", "userId", "permission", "studentScope"
+)
+INSERT INTO "AuditLog" ("id", "action", "entity", "entityId", "metadata", "createdAt")
+SELECT gen_random_uuid()::text, 'PERMISSION_OVERRIDE_REVOKE', 'UserPermissionOverride', "id",
+       jsonb_build_object('targetUserId', "userId", 'permission', "permission", 'studentScope', "studentScope"::text,
+                          'reason', 'ROLLBACK', 'previous', jsonb_build_object('active', true),
+                          'next', jsonb_build_object('active', false), 'via', 'RELEASE_ROLLBACK'),
+       CURRENT_TIMESTAMP
+  FROM revoked;
 
 ALTER TABLE "UserPermissionOverride" DROP CONSTRAINT IF EXISTS "UserPermissionOverride_student_scope";
 DROP TABLE IF EXISTS "UserPermissionOverrideStudent";

@@ -6,6 +6,8 @@
  * school. Coach mentor.j and student student.j sign in to prove they are refused.
  */
 import { BulkOperationsWorker } from '../src/users/bulk/bulk-operations.worker.js';
+import { AuditService } from '../src/audit/audit.service.js';
+import { assignStudentInTx, dropStaleSelections } from '../src/teachers/teacher-student-ops.js';
 import { createTestApp, login, bearer, inDays, PDF, type TestContext } from './helpers.js';
 
 describe('Teacher–student access (TS-1…TS-6)', () => {
@@ -428,5 +430,76 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     }
     expect((await p().userPermissionOverride.findUniqueOrThrow({ where: { id: sel.body.id } })).reviewReason).toBeNull();
     expect((await submitFor(e1)).status).toBe(201);
+  });
+
+  describe('final review (2026-11-18): races, existing tokens, claim revocation, role re-check', () => {
+    let schoolR: string, tR: string, r0: string, r1: string, selId: string;
+    const claimsR: Record<string, string> = {};
+    const mkUser = async (username: string, role: 'TEACHER' | 'STUDENT', extra: object = {}) => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      return (await p().user.create({ data: { username, firstName: username, lastName: 'Rv', email: `${username}@test.local`, role, passwordHash: hash, activatedAt: new Date(), ...extra } })).id;
+    };
+    beforeAll(async () => {
+      schoolR = (await p().school.create({ data: { name: 'TSA School R', location: 'Huye' } })).id;
+      tR = await mkUser('tsa.tr', 'TEACHER');
+      const st = { gradeLevel: 'S2' as const, divisionId: ctx.ids.junior, schoolId: schoolR, homeLocation: 'Huye' };
+      [r0, r1] = [await mkUser('tsa.r0', 'STUDENT', st), await mkUser('tsa.r1', 'STUDENT', st)];
+      for (const s of [r0, r1]) claimsR[s] = (await p().studentSchoolAffiliation.create({ data: { studentId: s, schoolId: schoolR, status: 'VERIFIED', source: 'ADMIN', createdById: ctx.ids.admin, decidedById: ctx.ids.admin, decidedAt: new Date() } })).id;
+      await http().post('/api/v1/admin/teacher-assignments').set(bearer(admin)).send({ teacherId: tR, schoolId: schoolR }).expect(201);
+      selId = (await http().post(delegations(tR)).set(bearer(admin))
+        .send({ permission: 'students.viewProfile', reason: 'Selected pair', studentScope: 'SELECTED', studentIds: [r0] }).expect(201)).body.id;
+    });
+
+    it('a student added to a selected delegation while their claim is being revoked never stays listed (the add waits, then is refused)', async () => {
+      const audit = ctx.app.get(AuditService);
+      let settled = false;
+      let addRes: any;
+      await p().$transaction(async (tx) => {
+        // The revoke: claim changed and the TS-5 sweep run, not yet committed (it holds the selection lock).
+        await tx.studentSchoolAffiliation.update({ where: { id: claimsR[r1] }, data: { status: 'REVOKED', revokedAt: new Date() } });
+        await dropStaleSelections(tx, audit, { studentId: r1 }, { actorId: ctx.ids.admin, actorRole: 'ADMIN' }, 'SCHOOL_CLAIM_CHANGED');
+        // Meanwhile an Administrator adds r1 to the delegation (another connection).
+        addRes = http().post(`${delegations(tR)}/${selId}/students`).set(bearer(admin)).send({ studentIds: [r1] }).then((r) => { settled = true; return r; });
+        await new Promise((r) => setTimeout(r, 1500));
+        expect(settled).toBe(false);   // it waits for the revoke instead of reading the old, still-committed claim
+      }, { timeout: 30_000 });
+      const res = await addRes;
+      expect(outcomes(res)).toEqual({ [r1]: ['FAILED', 'STUDENT_NOT_IN_TEACHER_SCOPE'] });
+      expect(await p().userPermissionOverrideStudent.count({ where: { overrideId: selId, studentId: r1 } })).toBe(0);
+    });
+
+    it('revoking a delegation and ending access apply to a token issued before (no new sign-in)', async () => {
+      const token = await login(ctx, 'tsa.tr');
+      await http().get(`/api/v1/teacher/students/${r0}`).set(bearer(token)).expect(200);
+      await http().delete(`${delegations(tR)}/${selId}`).set(bearer(admin)).expect(200);
+      expect(await status(http().get(`/api/v1/teacher/students/${r0}`).set(bearer(token)))).toEqual([403, 'PERMISSION_REQUIRED']);
+      // A school-wide grant on the same token works at once, and so does the end of the teacher's school.
+      const g = await http().post(delegations(tR)).set(bearer(admin)).send({ permission: 'students.viewProfile', reason: 'School-wide', studentScope: 'SCHOOL' }).expect(201);
+      await http().get(`/api/v1/teacher/students/${r0}`).set(bearer(token)).expect(200);
+      expect(g.body.studentScope).toBe('SCHOOL');
+    });
+
+    it('a same-school assignment made without a reason stops counting when the student\'s verified claim is revoked', async () => {
+      const token = await login(ctx, 'tsa.tr');
+      expect(outcomes(await assign({ teacherId: tR, studentIds: [r0] }).expect(200))).toEqual({ [r0]: ['ASSIGNED', null] });
+      const assigned = async () => (await http().get('/api/v1/teacher/students').query({ access: 'ASSIGNED' }).set(bearer(token)).expect(200)).body.data.map((s: any) => s.id);
+      expect(await assigned()).toEqual([r0]);
+      await http().post(`/api/v1/admin/school-affiliations/${claimsR[r0]}/revoke`).set(bearer(admin)).send({ reason: 'Left the school' })
+        .expect((r) => { if (r.status >= 300) throw new Error(`revoke ${r.status} ${JSON.stringify(r.body)}`); });
+      expect(await assigned()).toEqual([]);
+      expect(await status(http().get(`/api/v1/teacher/students/${r0}`).set(bearer(token)))).toEqual([404, 'NOT_FOUND']);
+      expect((await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: tR, studentId: r0 } })).isActive).toBe(true);   // history kept
+    });
+
+    it('an assignment re-checks both roles inside its transaction (a role change committed in between is seen)', async () => {
+      const t9 = await mkUser('tsa.t9', 'TEACHER');
+      await p().user.update({ where: { id: t9 }, data: { role: 'MENTOR' } });   // the role change committed before the item's transaction
+      const audit = ctx.app.get(AuditService);
+      const r = await p().$transaction((tx) => assignStudentInTx(tx, audit, {
+        teacherId: t9, studentId: r1, actor: { actorId: ctx.ids.admin, actorRole: 'ADMIN' }, source: 'ADMIN', reason: 'Role re-check',
+      }));
+      expect(r).toMatchObject({ outcome: 'FAILED', code: 'NOT_A_TEACHER' });
+      expect(await p().teacherStudentAssignment.count({ where: { teacherId: t9 } })).toBe(0);
+    });
   });
 });

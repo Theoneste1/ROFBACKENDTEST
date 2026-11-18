@@ -42,7 +42,7 @@ import { UsersService } from '../users.service.js';
 import { ACTION_RULES, BATCH_SIZE, finalStatus, SKIP_CODES, statusDecision, TEACHER_STUDENT_ACTIONS, type BulkAction } from './bulk-rules.js';
 import { DecisionNotificationsService } from '../../decision-notifications/decision-notifications.service.js';
 import {
-  activeSelectedOverride, addSelectionInTx, assignStudentInTx, endAssignmentInTx, ensureSelectedOverrideInTx, removeSelectionInTx, type ItemResult,
+  activeSelectedOverride, addSelectionInTx, assignStudentInTx, endAssignmentInTx, ensureSelectedOverrideInTx, lockSelections, lockTeacher, removeSelectionInTx, type ItemResult,
 } from '../../teachers/teacher-student-ops.js';
 import { activeSchoolsOf, visibilityOf } from '../../teachers/teacher-scope.js';
 import { refreshCounts } from './bulk-operations.service.js';
@@ -243,7 +243,10 @@ export class BulkOperationsWorker {
       return toOutcome(r);
     }
     if (action === 'grantDelegation') {
-      // Visibility first: a student the teacher does not see creates nothing and tells the teacher nothing.
+      // Locks, then visibility, then the delegation: a student the teacher does not see creates nothing and tells the
+      // teacher nothing, and no sweep can interleave between this check and the insert (lock order: selection, teacher).
+      await lockSelections(tx);
+      await lockTeacher(tx, teacher.id);
       const seen = await visibilityOf(tx, teacher.id, await activeSchoolsOf(tx, teacher.id), [user.id]);
       if (!seen.has(user.id)) {
         return { outcome: 'FAILED', code: 'STUDENT_NOT_IN_TEACHER_SCOPE', message: 'The teacher does not see this student (not a verified student of their schools, and not assigned to them).' };

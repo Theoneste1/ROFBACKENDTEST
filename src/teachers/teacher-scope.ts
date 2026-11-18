@@ -78,10 +78,9 @@ export async function visibilityOf(
   const ids = [...new Set(studentIds)];
   const out = new Map<string, { viaSchool: boolean; viaAssignment: boolean }>();
   if (ids.length === 0) return out;
-  const [bySchool, byAssignment] = await Promise.all([
-    db.user.findMany({ where: { AND: [{ id: { in: ids } }, mode === 'visible' ? visibleSchoolStudentsWhere(schoolIds) : schoolStudentsWhere(schoolIds)] }, select: { id: true } }),
-    db.user.findMany({ where: { AND: [{ id: { in: ids } }, mode === 'visible' ? visibleAssignedStudentsWhere(teacherId, schoolIds) : assignedStudentsWhere(teacherId, schoolIds)] }, select: { id: true } }),
-  ]);
+  // One after the other: `db` is often a transaction client, which must not run two queries at once.
+  const bySchool = await db.user.findMany({ where: { AND: [{ id: { in: ids } }, mode === 'visible' ? visibleSchoolStudentsWhere(schoolIds) : schoolStudentsWhere(schoolIds)] }, select: { id: true } });
+  const byAssignment = await db.user.findMany({ where: { AND: [{ id: { in: ids } }, mode === 'visible' ? visibleAssignedStudentsWhere(teacherId, schoolIds) : assignedStudentsWhere(teacherId, schoolIds)] }, select: { id: true } });
   for (const { id } of bySchool) out.set(id, { viaSchool: true, viaAssignment: false });
   for (const { id } of byAssignment) out.set(id, { viaSchool: out.get(id)?.viaSchool ?? false, viaAssignment: true });
   return out;

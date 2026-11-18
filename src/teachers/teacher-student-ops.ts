@@ -24,6 +24,9 @@ export const CROSS_SCHOOL_REASON_MIN = 5;
 /** Namespace of the per-teacher advisory lock taken while creating overrides (same as PermissionOverridesService). */
 export const OVERRIDE_LOCK_NAMESPACE = 4209;
 
+/** Advisory lock (namespace, key) serialising every change to selected-student delegations with the TS-5 sweeps. */
+export const SELECTION_LOCK = [4210, 0] as const;
+
 const skipped = (studentId: string, code: string, message?: string): ItemResult => ({ studentId, outcome: 'SKIPPED', code, ...(message && { message }) });
 const failed = (studentId: string, code: string, message: string): ItemResult => ({ studentId, outcome: 'FAILED', code, message });
 
@@ -37,9 +40,13 @@ export async function assignStudentInTx(
   a: { teacherId: string; studentId: string; actor: Actor; source: 'ADMIN' | 'BULK'; reason?: string | null; operationId?: string; reassignedFrom?: string },
 ): Promise<ItemResult> {
   const { teacherId, studentId } = a;
-  const student = await tx.user.findUnique({ where: { id: studentId }, select: { id: true, role: true } });
+  // FOR SHARE: a concurrent role change of either account (whose transaction ends that account's assignments) waits for
+  // this one — or this one waits for it and sees the new role — so an assignment never outlives a role change.
+  const roles = await tx.$queryRaw<{ id: string; role: string }[]>`SELECT id, role::text AS role FROM "User" WHERE id IN (${teacherId}, ${studentId}) ORDER BY id FOR SHARE`;
+  const student = roles.find((u) => u.id === studentId);
   if (!student) return failed(studentId, 'NOT_FOUND', 'The account does not exist.');
   if (student.role !== 'STUDENT') return failed(studentId, 'NOT_A_STUDENT', 'Only Student accounts can be assigned to a teacher.');
+  if (roles.find((u) => u.id === teacherId)?.role !== 'TEACHER') return failed(studentId, 'NOT_A_TEACHER', 'The account is no longer a Teacher.');
 
   const schools = await activeSchoolsOf(tx, teacherId);
   const crossSchool = !(await visibilityOf(tx, teacherId, schools, [studentId], 'scope')).get(studentId)?.viaSchool;
@@ -115,10 +122,19 @@ export async function dropSelectionsOutOfScope(tx: Tx, audit: AuditService, teac
 }
 
 /**
- * The per-teacher lock every change to a teacher's selected students takes (the same advisory lock as override
- * creation): adding a student and removing students who left the teacher's scope never interleave, so a student can
- * never stay listed — silently, ready to come back — after the teacher stopped seeing them.
+ * The selection lock: taken FIRST — before anything is read and before any per-teacher lock — by every path that adds
+ * a student to a selected-student delegation and by every TS-5 sweep. Adding a student and removing students who left
+ * the teacher's scope therefore never interleave: either the add commits first and the sweep (which reads only after
+ * the lock) sees and removes the row, or the sweep's scope change commits first and the add (which checks visibility
+ * only after the lock) refuses. A sweep triggered by a student's claim cannot know in advance which teachers a
+ * concurrent add concerns, hence one lock rather than per-teacher ones. Selection changes are Administrator actions, so
+ * serialising them costs nothing. Lock order everywhere: selection lock, then teacher lock (no deadlock).
  */
+export async function lockSelections(tx: Tx) {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(${SELECTION_LOCK[0]}::int, ${SELECTION_LOCK[1]}::int)::text`;
+}
+
+/** The per-teacher lock of override creation (PermissionOverridesService uses the same one). */
 export async function lockTeacher(tx: Tx, teacherId: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${teacherId}))::text`;
 }
@@ -133,6 +149,7 @@ export async function lockTeacher(tx: Tx, teacherId: string) {
 export async function dropStaleSelections(
   tx: Tx, audit: AuditService, by: { teacherId?: string; studentId?: string }, actor: Actor, reason: string,
 ) {
+  await lockSelections(tx);   // before reading: a concurrent add has either committed (and is read below) or waits
   const rows = await tx.userPermissionOverrideStudent.findMany({
     where: {
       removedAt: null, ...(by.studentId && { studentId: by.studentId }),
@@ -179,6 +196,7 @@ export async function addSelectionInTx(
   a: { override: { id: string; userId: string; permission: string }; studentId: string; actor: Actor; operationId?: string },
 ): Promise<ItemResult> {
   const { override, studentId } = a;
+  await lockSelections(tx);
   await lockTeacher(tx, override.userId);
   const schools = await activeSchoolsOf(tx, override.userId);
   if (!(await visibilityOf(tx, override.userId, schools, [studentId])).has(studentId)) {
@@ -252,6 +270,7 @@ export async function ensureSelectedOverrideInTx(
   a: { teacher: { id: string; role: string }; permission: string; reason: string; actor: Actor; operationId?: string },
 ) {
   if (!(TEACHER_DELEGATIONS as readonly string[]).includes(a.permission)) throw new Error(`${a.permission} is not a teacher delegation`);
+  await lockSelections(tx);   // lock order: selection lock, then teacher lock
   await lockTeacher(tx, a.teacher.id);
   const found = await activeSelectedOverride(tx, a.teacher.id, a.permission);
   if (found) return { override: found, created: false };

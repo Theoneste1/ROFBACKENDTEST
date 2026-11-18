@@ -37,7 +37,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateOverrideDto } from './dto/create-override.dto.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 import { activeSchoolsOf, visibilityOf, type StudentScope } from '../teachers/teacher-scope.js';
-import { OVERRIDE_LOCK_NAMESPACE } from '../teachers/teacher-student-ops.js';
+import { lockSelections, OVERRIDE_LOCK_NAMESPACE } from '../teachers/teacher-student-ops.js';
 
 const SELECT = {
   id: true, permission: true, effect: true, courseId: true, divisionId: true, reason: true, expiresAt: true,
@@ -128,14 +128,7 @@ export class PermissionOverridesService {
           && !(await this.prisma.teacherStudentAssignment.count({ where: { teacherId: target.id, isActive: true } }))) {
         throw notAllowed('outside the user’s existing scope (the teacher has no active school and no assigned student)');
       }
-      if (studentScope === 'SELECTED') {
-        const seen = await visibilityOf(this.prisma, target.id, schools, selectedIds);
-        const outside = selectedIds.filter((id) => !seen.has(id));
-        if (outside.length) {
-          throw new AppError(HttpStatus.BAD_REQUEST, 'STUDENT_NOT_IN_TEACHER_SCOPE',
-            'Some students are not seen by this teacher (not verified students of their schools, and not assigned to them).', { studentIds: outside });
-        }
-      }
+      // SELECTED: the listed students are checked inside the transaction below, under the selection lock.
     } else if (dto.effect === 'GRANT') {
       // Unreachable with the approved list (every GRANT on it is a school-scoped delegation); fail closed.
       throw notAllowed('not on the approved GRANT list for this role', { role: target.role, permission: dto.permission, effect: dto.effect });
@@ -150,7 +143,18 @@ export class PermissionOverridesService {
       // check runs INSIDE the lock (after any concurrent creation has committed), so two
       // concurrent requests can never both pass it. (A unique index cannot express "active":
       // that depends on expiresAt > now, and an expired or revoked row must not block a new one.)
+      // Selected students: the selection lock first (lock order: selection, teacher), then visibility, so no TS-5
+      // sweep can interleave between the check and the insert.
+      if (studentScope === 'SELECTED') await lockSelections(tx);
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${userId}))::text`;
+      if (studentScope === 'SELECTED') {
+        const seen = await visibilityOf(tx, target.id, await activeSchoolsOf(tx, target.id), selectedIds);
+        const outside = selectedIds.filter((id) => !seen.has(id));
+        if (outside.length) {
+          throw new AppError(HttpStatus.BAD_REQUEST, 'STUDENT_NOT_IN_TEACHER_SCOPE',
+            'Some students are not seen by this teacher (not verified students of their schools, and not assigned to them).', { studentIds: outside });
+        }
+      }
       const duplicate = await tx.userPermissionOverride.findFirst({
         where: {
           userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, revokedAt: null,

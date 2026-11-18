@@ -22,9 +22,7 @@
 --   2. Back up, then mark the migration as not applied — as its own reviewed, approved step:
 --        DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261205000000_avatar_file_purpose';
 --   3. `npx prisma migrate status` must then list it as not yet applied.
--- Re-applying later: `ALTER TYPE ... ADD VALUE 'AVATAR'` fails because the value is kept. Before re-applying,
--- remove that one line from the deploy, or mark the migration applied after adding only the column, index
--- and foreign key by hand (reviewed step).
+-- Re-applying later works: the migration uses `ADD VALUE IF NOT EXISTS 'AVATAR'` (the value is kept by this file).
 BEGIN;
 
 DO $$
