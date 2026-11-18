@@ -91,7 +91,7 @@ backend branches stacked on it) → `docs/…`; frontend: any order (verified co
 7. [!] S3 tests (BLOCKED locally — runs in CI): assess the 6 skipped (need S3-compatible server); run with a local S3 server if possible, else document.
 8. [x] ACC-02 administrator user page: show the student's date of birth, phones, home place (backend returns them to users.manage).
 9. [x] Full role/route permission and security sweep; API-without-UI and UI-without-API inventory refreshed.
-10. [~] Authoritative requirements matrix v2 (done); design proposals v2 (in progress) (all columns the owner listed), design proposals v2 (11 sections each).
+10. [x] Authoritative requirements matrix v2 (REQUIREMENTS-MATRIX-V2.md); design proposals v2 (DESIGN-PROPOSALS-V2.md, 10 areas × 11 sections, 37 owner decisions) (all columns the owner listed), design proposals v2 (11 sections each).
 
 ## Notes for the next session
 
