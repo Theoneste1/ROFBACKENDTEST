@@ -294,8 +294,9 @@ export class AuthService {
       // from successfully in the last 30 days is not held by them — otherwise an attacker hammering a username could
       // keep the student out everywhere. That address still has its own lock (5 wrong passwords → 15 minutes).
       // Attackers do not sign in from the student's addresses, so for them the answer stays the same for real and
-      // unknown usernames.
-      const known = user && client.ip ? await this.signedInFrom(user.id, client.ip) : false;
+      // unknown usernames. Only where client addresses are verified (SIGNIN_TRUSTED_CLIENT_ADDRESS=true): behind a
+      // shared proxy address an attacker would share the student's "known" address.
+      const known = this.limiter.trustsClientAddresses && user && client.ip ? await this.signedInFrom(user.id, client.ip) : false;
       if (!known) {
         throw new AppError(HttpStatus.TOO_MANY_REQUESTS, 'TOO_MANY_REQUESTS', 'Too many sign-in attempts. Please wait and try again.', { retryAfter: decision.retryAfterSeconds });
       }

@@ -128,7 +128,10 @@ wrong passwords in a row for one username from one address lock that username
 password, the right password included; audited as `LOCK_ACCOUNT` with
 `scope: ADDRESS` and the address), so an attacker cannot lock a student out
 everywhere. An address the account signed in from successfully in the last 30
-days is not held by the per-username windows (its own lock still applies).
+days is not held by the per-username windows (its own lock still applies) —
+only with `SIGNIN_TRUSTED_CLIENT_ADDRESS=true`, set once the deployment's client
+address is verified to be the visitor's own (off by default: on Render the
+address is a shared Cloudflare edge address, staging evidence 2026-11-18).
 Unknown usernames are counted, limited and locked exactly like real ones. Each
 attempt is decided and recorded synchronously before the password is checked,
 so concurrent guesses cannot pass a stale check. A correct password clears that
