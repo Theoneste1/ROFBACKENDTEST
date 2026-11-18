@@ -138,6 +138,6 @@ describe('Rate limits for a shared school connection (e2e, throttling on)', () =
       expect(statuses[LOGIN_PER_ADDRESS_PER_MINUTE]).toBe(429);
       // Another address is unaffected.
       await login('lab.s3', PASSWORD, '203.0.113.62').expect(200);
-    });
+    }, 55_000);   // 61 sign-ins, each checked against the cost-12 dummy hash; must stay inside the 60 s window
   });
 });
