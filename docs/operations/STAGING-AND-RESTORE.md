@@ -317,3 +317,78 @@ Owner-confirmed before the step, in Render for `rof-backend-staging`:
 | **Client address (finding)** | **Confirms run 1** | The sign-in's audit row records `172.68.23.129`, a **Cloudflare** address (172.64.0.0/13). On Render with `TRUST_PROXY=1`, `req.ip` is Cloudflare's edge address, not the visitor's. The client-IP probe must establish which header is the real address and whether it can be forged. |
 
 **Next:** §3 step 4, the application test with the synthetic accounts (needs the staging frontend site); step 5, the client-IP probe (needs the probe service and the Netlify site); step 6, the rollback rehearsal.
+
+### Verification round — 2026-11-18, 16:08–16:16 UTC (owner request: production read-only, application test, client IP; no rollback rehearsal, no migrations)
+
+**1. Production (read-only)**
+
+| Check | Result | Evidence |
+|---|---|---|
+| Health | PASS | `ok`; database and storage `up` |
+| Still on `b7ed2a3` | PASS (consistent) | 9 features = `b7ed2a3`'s "always" set; `/api/v1/forms` 404. The API does not report a commit. |
+| Synthetic usernames absent (READ ONLY transaction) | PASS | 0 rows for `staging.drill.admin-d37686` and `staging.drill.student-d37686`; 0 `staging.drill.*` or `@staging.invalid` users. Users 13/6/2/1. 31 migrations, 0 post-Phase-1, 0 failed. **0 audit rows since 15:35 UTC.** |
+
+**2. Application test** (§3 step 4; synthetic accounts only)
+- **Netlify staging site: none exists.** Every existing branch deploy and PR preview proxies to **production**. That covers
+  `feat-teacher-student-access--`, `test-e2e-playwright--`, `develop--` and `deploy-preview-39/40--roflms.netlify.app`: all
+  show 9 features. So unmerged frontend previews talk to the production backend and its real data. **Risk to note.**
+- Instead, the integrated release frontend ran locally with `next start` and `API_PROXY_TARGET` set to the staging
+  backend. That is the same Next.js `/api` rewrite Netlify runs. It is the local `integ/frontend-rc` at `262e044`, which
+  contains PR heads #31–#39; #40 is tests only. Its routes manifest names only `rof-backend-staging.onrender.com`. Nothing
+  was deployed.
+- Result: **24/24 PASS**:
+  - the Administrator signs in through the frontend;
+  - 9 Administrator pages load without error: dashboard, users, students, forms, bulk, schools, coaches, teacher
+    applications, notification deliveries;
+  - the user list has 24 rows and no dates of birth;
+  - Forms: 4;
+  - bulk preview: read-only, 14 matched, nothing started (0 bulk operations);
+  - coach applications list: 200;
+  - the synthetic student sees **only** the date-of-birth step; a too-young date is refused in the form; after a valid
+    date the student reaches the portal; 4 student pages load;
+  - a second change gets **409 `DATE_OF_BIRTH_ALREADY_SET`**;
+  - Administrator routes give **403** to the student.
+- Phone masking was **not exercised**: no user in the restored data has a phone or guardian phone. The automated tests
+  cover it.
+- Writes (branch only): 5 `LOGIN`, 1 `DATE_OF_BIRTH_ADDED`, 1 `ADMIN_REQUEST`; 0 e-mail deliveries.
+
+**3. Client address through Cloudflare → Render → backend (`TRUST_PROXY=1`), staging only**
+
+| Test | Result |
+|---|---|
+| Visitor's public address (this machine) | `196.12.134.189` |
+| Address recorded for the Administrator's sign-ins (6 sign-ins, plain and with a forged header) | Always a **Cloudflare** address: `172.68.22.174`, `172.68.22.175` or `172.68.23.129`, **rotating** between requests. Never the visitor's. |
+| Forged `X-Forwarded-For: 6.6.6.6` | Not used: a Cloudflare address was recorded. Not forgeable. |
+| Forged `CF-Connecting-IP` / `True-Client-IP` | **Rejected by Cloudflare (403)** before reaching the backend. Cloudflare controls this header. |
+| Synthetic student: 5 wrong passwords, then the right password ×4 from the same machine | `401 ×5`, then `200 429 429 200`. **No `LOCK_ACCOUNT`**: the 5 failures were spread over rotating Cloudflare addresses. The right password was accepted at once. The last 200 came despite the per-username window, because the **known-address exemption** treated the Cloudflare address `172.68.23.129` as the student's own. |
+
+**Conclusion.** On Render with `TRUST_PROXY=1`, `req.ip` is a Cloudflare edge address shared by many visitors and rotating
+between requests. It is not forgeable, but it is not the visitor's address. Consequences for the release:
+- **The address-scoped lock does not hold an attacker.** Failures spread across edge addresses, and a lock that does
+  trigger falls on everyone behind that edge address. In Rwanda that may be most users.
+- **The known-address exemption also covers attackers** routed through the same edge.
+- **Per-address limits** (sign-in 60 a minute, the 120 and 3000 ceilings) are shared by everyone behind an edge address.
+- **Today's production** has the same issue for its 10-a-minute sign-in limit.
+
+The per-username windows (5 a minute, 20 an hour) still apply, except when the exemption applies. **The sign-in change
+should not be released until the backend uses the real visitor address.**
+
+**Proposed fix (needs the probe evidence and owner approval; not implemented).** Read the visitor address from
+`CF-Connecting-IP`. On Render every request passes through Cloudflare, and Cloudflare sets the header and rejects forged
+values (observed above). Use it only when the deployment says so, e.g. `CLIENT_IP_HEADER=cf-connecting-ip`, and keep
+`TRUST_PROXY=1`. Through the Netlify `/api` proxy, `CF-Connecting-IP` would be Netlify's address, so the probe through a
+Netlify site must show which header carries the visitor there, such as Netlify's `x-nf-client-connection-ip` or its
+`X-Forwarded-For`.
+
+**Needed for the probe (owner; reported before any change):**
+1. Render: a new web service `rof-client-ip-probe`:
+   - repository `ROFBACKENDTEST`, branch `feat/teacher-student-access`;
+   - Node runtime, build `npm ci`, start `node scripts/ops/client-ip-probe.mjs`;
+   - no environment variables, auto-deploy off.
+
+   It logs and stores nothing.
+2. Netlify: a **new, separate site**, for example `rof-lms-staging`, from the frontend repository, branch `develop` (any
+   branch with the `/api` rewrite will do), with `API_PROXY_TARGET` set to the probe URL. Do **not** change the
+   production site's branch or preview settings.
+3. Send both URLs. The developer then calls the probe directly and through Netlify, with and without forged headers,
+   and compares against the visitor's public address.
