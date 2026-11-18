@@ -38,12 +38,17 @@ Release head to stage: **backend `feat/teacher-student-access`** (PR #63, which 
    - Base it on `main` **at a point in time about 10 minutes ago**. This also exercises point-in-time restore.
    - Name it `restore-drill-<date>`.
    - Never choose "reset" or "restore" on `main`.
-2. **Neon** → the new branch → **Roles → New role** `staging`. Do not reuse the production role. Then, in the Neon
-   **SQL Editor with this branch selected**, run `GRANT neondb_owner TO staging;`.
-   - Tables and types belong to `neondb_owner`, and a new role may neither create in `public` nor alter them, so the
-     migrations fail without this grant (run 2).
-   - On `main` the statement fails with "role staging does not exist", because the role exists only on the branch.
-     That makes it a built-in safety stop.
+2. **Neon** → the new branch → **Roles → New role** `staging`. This is the application's runtime role; do not reuse the
+   production role.
+   - `staging` can read and write the data but cannot run migrations: tables and types belong to `neondb_owner`
+     (run 2). A grant is not possible either: Neon refuses to grant `neondb_owner` membership (run 2, the owner's
+     attempt).
+   - **Migrations therefore run as the branch's `neondb_owner`.** A branch copies its parent's role passwords, so first
+     reset `neondb_owner`'s password **on the branch**: in Neon, check that the branch selector shows
+     `restore-drill-…` and **not `main`**, then Roles → `neondb_owner` → Reset password.
+   - Resetting it on `main` would break production's connection, so check the branch name before confirming.
+   - The kit refuses an owner string that still carries production's password. The comparison is made in memory and
+     nothing is printed.
 3. **Render → New → Web Service** `rof-backend-staging`, from repository `ROFBACKENDTEST`, branch
    `feat/teacher-student-access`, with **Auto-Deploy: No**. **Before the first deploy**, enter all its environment
    variables on the creation page:
@@ -67,8 +72,14 @@ Release head to stage: **backend `feat/teacher-student-access`** (PR #63, which 
    - do not attach the production domain;
    - turn on password protection if available.
 6. **Hand over the database access without chat.** On the drill computer, create the file
-   `C:\rof-audit\be-ts\.env.drill.local`, which is git-ignored, containing one line:
-   `DRILL_DATABASE_URL=<the branch's direct connection string for role staging>`.
+   `C:\rof-audit\be-ts\.env.drill.local`, which is git-ignored, with two lines:
+   - `DRILL_DATABASE_URL=<the branch's direct connection string for role staging>`, used by the read-only checks and
+     the synthetic accounts;
+   - `DRILL_MIGRATION_DATABASE_URL=<the branch's direct connection string for role neondb_owner, after the reset in
+     step 2>`, used only for status, deploy, diff, rollback and rollback-history.
+
+   The kit (#63 `6e78c2b` or later) accepts the owner string only if it passes the production guard, is on the
+   **same endpoint** as the first line, and does not carry a production password.
 7. **Send the developer, in chat:**
    - the staging site URL;
    - the staging backend URL;
@@ -213,3 +224,19 @@ Then: §3 steps 0–2 (migrate the branch), redeploy staging at the current #63 
 | Post-check, drift check | NOT RUN | They follow a successful deploy. |
 
 **Next owner action:** §2 step 2's grant on the branch. Then the developer reruns `deploy`, `postcheck` and `diff`.
+
+### Run 3 preparation — after the grant was refused
+
+- The owner's `GRANT neondb_owner TO staging` was refused by Neon ("Only roles with the ADMIN option on role
+  'neondb_owner' may grant this role"). The grant is abandoned.
+- **Change:** the kit (#63 `6e78c2b`) takes an optional `DRILL_MIGRATION_DATABASE_URL`, the branch owner, used only for
+  the schema and history commands. The production guard is unchanged and applies to it too. Three checks are added:
+  - the same endpoint and host as `DRILL_DATABASE_URL`;
+  - no production password;
+  - exactly one entry.
+- Tests: 3 new; all release and ops script tests 155/155. Live `check-target` without the new line: unchanged
+  ("role: staging").
+- Read-only pre-check rerun: every MUST still holds; the values are as in run 2. **Nothing applied.**
+- **Next owner action:** §2 step 2's password reset on the branch and §2 step 6's second line. Then the developer runs
+  `check-target` (it must name role `neondb_owner`, the same endpoint, and "production password check passed"),
+  `status`, `deploy`, `postcheck` and `diff`.
