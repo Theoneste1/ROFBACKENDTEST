@@ -47,7 +47,9 @@ Use the release kit; it refuses any endpoint other than the one confirmed (`--co
 5. **Application test on the restored data** (record results): Administrator sign-in; user list (masked phones, no
    dates of birth); a student who has no date of birth gets the date-of-birth step; Forms page; a bulk preview; the
    School Access page; a teacher's My Students (verified claims only); the coach applications page; the client-IP probe
-   (CLIENT-IP-VERIFICATION.md) if not done.
+   (CLIENT-IP-VERIFICATION.md) if not done; sign-in limits with a synthetic staging account (never a real one):
+   5 wrong passwords from one network lock it there (`LOCK_ACCOUNT` audit shows that network's public address,
+   not a Netlify or Render address), and the right password still works from a second network.
 6. Rollback rehearsal: `…teacher_student_access.pre-switch.sql`, then `rehearsal.mjs rollback` (all eleven,
    newest-first), `rollback-history`, `status` (the eleven again), then `deploy` again.
 7. Sign-off record: date, branch id, backup hash, each step's result. Attach to the release record.
