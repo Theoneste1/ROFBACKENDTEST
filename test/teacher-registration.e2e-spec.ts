@@ -145,7 +145,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(res.body).toEqual({
         id: expect.any(String), status: 'PENDING', requiresApproval: true,
         school: { id: ngoma, name: 'gs ngoma official', code: '220001', province: 'Southern Province', district: 'Huye', sector: 'Ngoma' },
-        proposedSchoolName: null,
+        proposedSchoolName: null, avatarUploadToken: expect.any(String),   // the optional picture (REG-02)
       });
       expect(await p().user.count()).toBe(users);
       expect(await p().teacherSchoolAssignment.count()).toBe(0);
@@ -179,7 +179,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     it('missing school: PENDING with the proposed name and place; no school is created', async () => {
       const schools = await p().school.count();
       const res = await register(missing()).expect(201);
-      expect(res.body).toEqual({ id: expect.any(String), status: 'PENDING', requiresApproval: true, school: null, proposedSchoolName: 'GS Not Yet Listed' });
+      expect(res.body).toEqual({ id: expect.any(String), status: 'PENDING', requiresApproval: true, school: null, proposedSchoolName: 'GS Not Yet Listed', avatarUploadToken: expect.any(String) });
       expect(await p().school.count()).toBe(schools);
       expect(await p().teacherApplication.findUniqueOrThrow({ where: { id: res.body.id } }))
         .toMatchObject({ schoolId: null, proposedSchoolName: 'GS Not Yet Listed', schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolSector: 'Tumba' });
@@ -257,7 +257,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       // Student registration and coach applications treat a pending teacher application's identity as taken.
       expect(await status(http().post('/api/v1/auth/register/student').send({
         firstName: 'Stu', lastName: 'Dent', username: 'stu.dup', email: 'dup.teacher@test.local', password: 'Secret123',
-        gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220001',
+        dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220001',
       }))).toEqual([409, 'IDENTITY_TAKEN']);
       expect(await status(http().post('/api/v1/mentor-requests').send({
         firstName: 'Co', lastName: 'Dup', username: 'dup.teacher', email: 'coach.dup@test.local', password: 'Secret123',
@@ -346,9 +346,9 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(JSON.stringify(page)).not.toMatch(/passwordHash|\$2[aby]\$/);
       const one = (await http().get(`${ADMIN_APPS}/${listedId}`).set(bearer(superAdmin)).expect(200)).body;
       expect(Object.keys(one).sort()).toEqual([
-        'assignedSchool', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeSector',
-        'id', 'lastName', 'olympiadInterests', 'phone', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
-        'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username',
+        'assignedSchool', 'avatarFileId', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeSector',
+        'id', 'infoRequests', 'lastName', 'olympiadInterests', 'phone', 'position', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
+        'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username', 'yearsOfExperience',
       ]);
       expect(one).toMatchObject({
         username: 'tr.approve', phone: '+250788123456', country: 'RW', olympiadInterests: ['MATHEMATICS', 'PHYSICS'], status: 'PENDING',

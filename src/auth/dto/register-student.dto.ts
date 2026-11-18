@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsEnum,
   IsISO31661Alpha2,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -141,11 +142,13 @@ export class RegisterStudentDto {
 
   // ─── Registration details (capability studentRegistrationDetails; optional for older clients) ───
 
-  /** Date of birth, "YYYY-MM-DD": a real past date, age 5–30 on the day of registration (Rwanda). Not audited. */
-  @IsOptional()
+  /**
+   * Date of birth, "YYYY-MM-DD": a real past date, age 5–30 on the day of registration (Rwanda). Not audited.
+   * Required (owner, 2026-11-17: every student is asked their date of birth at registration).
+   */
   @Transform(trim)
   @IsStudentDateOfBirth()
-  dateOfBirth?: string;
+  dateOfBirth: string;
 
   /** The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. */
   @IsOptional()
@@ -153,11 +156,15 @@ export class RegisterStudentDto {
   @IsNormalisablePhone()
   phone?: string;
 
-  /** A close-family member's phone, stored in E.164 (teacher-application rules). The form requires it. Not audited. */
-  @IsOptional()
+  /**
+   * A close-family member's phone, stored in E.164 (teacher-application rules). Required (owner decision 9.2,
+   * 2026-11-18: the server requires it, not only the form) — missing, empty or not a valid phone number is refused.
+   * Not audited.
+   */
   @Transform(trim)
+  @IsNotEmpty({ message: 'guardianPhone (the phone number of a close-family member) is required.' })
   @IsNormalisablePhone()
-  guardianPhone?: string;
+  guardianPhone: string;
 
   /** The student's own country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. */
   @IsOptional()

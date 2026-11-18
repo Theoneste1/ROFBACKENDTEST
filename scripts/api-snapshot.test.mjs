@@ -218,7 +218,22 @@ const BULK_OPERATIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-bulk-ope
 const FORM_AVAILABILITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-form-availability.json';
 /** Notification switches for Head Coaches (2026-11-17): HEAD_COACH on the three /me/notification-settings routes; nothing else. */
 const ROLE_NOTIFICATION_SETTINGS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-role-notification-settings.json';
-const CURRENT_SNAPSHOT = ROLE_NOTIFICATION_SETTINGS_SNAPSHOT;
+/** Application details and request more information (2026-11-17, ADR-009): additive only. */
+const APPLICATION_DETAILS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-application-details.json';
+/** Student date of birth required (owner, 2026-11-17): one approved breaking change, nothing else. */
+const STUDENT_DOB_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-student-date-of-birth.json';
+/** Optional profile picture at registration (REG-02, 2026-11-18): one public upload operation; additive only. */
+const REGISTRATION_AVATAR_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-avatar.json';
+/** Registration timeline (REG-13, 2026-11-18): one administrators' read operation. */
+const REGISTRATION_TIMELINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-registration-timeline.json';
+/**
+ * Owner decisions 9.2 / 9.3 (2026-11-18): guardianPhone required at student self-registration (one approved breaking
+ * change); PUT /me/date-of-birth (first-sign-in date of birth); /me/avatar responses documented as the profile.
+ */
+const APPROVED_DECISIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-approved-decisions.json';
+/** Final review (2026-11-18, owner approvals): date-of-birth corrections and application picture review — additive only. */
+const FINAL_REVIEW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-final-review.json';
+const CURRENT_SNAPSHOT = FINAL_REVIEW_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1141,6 +1156,86 @@ describe('approved API contract history', () => {
       'GET /api/v1/me/notification-settings: roles added: HEAD_COACH',
       'PATCH /api/v1/me/notification-settings: roles added: HEAD_COACH',
       'POST /api/v1/me/notification-settings/reset: roles added: HEAD_COACH',
+    ]);
+  });
+
+  test('Head Coach notification switches → application details and request more information: additive only', () => {
+    for (const f of [ROLE_NOTIFICATION_SETTINGS_SNAPSHOT, APPLICATION_DETAILS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(ROLE_NOTIFICATION_SETTINGS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(APPLICATION_DETAILS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/applications/info-requests/{token}: operation added',
+      'PATCH /api/v1/mentor-requests/{id}/reject: optional request body added',
+      'POST /api/v1/admin/teacher-applications/{id}/request-info: operation added',
+      'POST /api/v1/applications/info-requests/{token}: operation added',
+      'POST /api/v1/auth/register/teacher › request application/json.position: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.yearsOfExperience: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.affiliation: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.expertise: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.phone: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.relevantExperience: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.yearsOfExperience: new optional field',
+      'POST /api/v1/mentor-requests/{id}/request-info: operation added',
+      'schema AnswerInfoRequestDto: added',
+      'schema RejectMentorRequestDto: added',
+      'schema RequestApplicationInfoDto: added',
+    ]);
+  });
+
+  test('application details → student date of birth required: exactly one approved breaking change (owner, 2026-11-17)', () => {
+    for (const f of [APPLICATION_DETAILS_SNAPSHOT, STUDENT_DOB_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(APPLICATION_DETAILS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(STUDENT_DOB_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['POST /api/v1/auth/register/student › request application/json.dateOfBirth: field is now required']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, []);
+  });
+
+  test('student date of birth → registration avatar: one upload operation and its request schema; nothing breaking', () => {
+    for (const f of [STUDENT_DOB_SNAPSHOT, REGISTRATION_AVATAR_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(STUDENT_DOB_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_AVATAR_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PUT /api/v1/auth/register/avatar: operation added', 'schema RegistrationAvatarDto: added']);
+  });
+
+  test('registration avatar → registration timeline: one read operation; nothing else', () => {
+    for (const f of [REGISTRATION_AVATAR_SNAPSHOT, REGISTRATION_TIMELINE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_AVATAR_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')));
+    assert.deepEqual([res.breaking, res.review, res.additive], [[], [], ['GET /api/v1/admin/users/{id}/registration-timeline: operation added']]);
+  });
+
+  test('registration timeline → approved decisions 9.2 / 9.3: exactly one approved breaking change (guardian phone), the date-of-birth step, avatar response bodies', () => {
+    for (const f of [REGISTRATION_TIMELINE_SNAPSHOT, APPROVED_DECISIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_TIMELINE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['POST /api/v1/auth/register/student › request application/json.guardianPhone: field is now required']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'DELETE /api/v1/me/avatar: response 200 body added',
+      'PUT /api/v1/me/avatar: response 200 body added',
+      'PUT /api/v1/me/date-of-birth: operation added',
+      'schema SetDateOfBirthDto: added',
+    ]);
+  });
+
+  test('approved decisions → final review: date-of-birth correction and history, application picture review; additive only', () => {
+    for (const f of [APPROVED_DECISIONS_SNAPSHOT, FINAL_REVIEW_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(APPROVED_DECISIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FINAL_REVIEW_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual([res.breaking, res.review], [[], []]);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/admin/teacher-applications/{id}/avatar: operation added',
+      'GET /api/v1/admin/users/{id}/date-of-birth-history: operation added',
+      'GET /api/v1/mentor-requests/{id}/avatar: operation added',
+      'PATCH /api/v1/mentor-requests/{id}/approve: optional request body added',
+      'POST /api/v1/admin/teacher-applications/{id}/approve › request application/json.approvePicture: new optional field',
+      'PUT /api/v1/admin/users/{id}/date-of-birth: operation added',
+      'schema ApproveMentorRequestDto: added',
+      'schema CorrectDateOfBirthDto: added',
     ]);
   });
 

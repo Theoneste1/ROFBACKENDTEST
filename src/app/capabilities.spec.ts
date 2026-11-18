@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'bulkUserOperations', 'coachApplicationDetails', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkUserOperations', 'coachApplicationDetails', 'dateOfBirthCorrection', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -21,6 +21,10 @@ const ALWAYS = ['academicYearActivation', 'accountStates', 'bulkUserOperations',
 const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>> = {
   academicYearActivation:  'always',   // appended 2026-11-13: single-flight, retry-safe year start
   coachApplicationDetails: 'always',   // appended 2026-11-15: coach application country, occupation, education, interests
+  applicationDetails:      'always',
+  applicationPictureReview: 'always',  // appended 2026-11-18: application pictures reviewed before they go live (owner approval)
+  dateOfBirthCorrection:   'always',   // appended 2026-11-18: Administrator date-of-birth corrections with a reason (owner approval)
+  registrationAvatar:      'always',   // appended 2026-11-18: optional profile picture at registration (REG-02)   // appended 2026-11-17: teacher position / experience, coach phone / affiliation / expertise / experience, request more information
   formAvailability:        'always',   // appended 2026-11-15: form availability (open, close, schedule, closed messages)
   headCoachAccounts:       'HEAD_COACH',
   notificationDeliveries:  'always',   // appended 2026-11-14: decision-notification delivery log (owner approval pending)
@@ -35,6 +39,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   schoolDirectorySync:     'always',   // appended 2026-11-14: official-directory sync released (owner decision)
   schoolReferenceRequired: 'always',
   studentAssignmentFilters: 'always',  // appended 2026-11-14: My Assignments progress/sort, staff list statuses
+  studentDateOfBirthStep:   'always',  // appended 2026-11-18: first-sign-in date of birth for staff-created students (decision 9.3)
   studentOlympiadInterests: 'always',  // appended 2026-11-14: students' Olympiad interests (owner decision 8)
   studentRegistrationDetails: 'always', // appended 2026-11-15: date of birth, phones, own country, official home place
   teacherAccounts:         'TEACHER',

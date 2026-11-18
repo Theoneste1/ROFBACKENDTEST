@@ -25,12 +25,16 @@ function makeMocks() {
       create:     vi.fn().mockResolvedValue({ id: 'mr-new', updatedAt: new Date('2026-11-14T10:00:00.000Z') }),
       update:     vi.fn().mockResolvedValue({ id: 'mr-old', updatedAt: new Date('2026-11-14T10:00:00.000Z') }),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      count:      vi.fn().mockResolvedValue(0),
     },
     teacherApplication:  { findFirst: vi.fn().mockResolvedValue(null) },
     discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
+    // approve() locks and re-reads the request inside its transaction.
+    $queryRaw: vi.fn().mockResolvedValue([]),
   };
+  (prisma.mentorRequest as Record<string, unknown>).findUniqueOrThrow = vi.fn((args: unknown) => prisma.mentorRequest.findUnique(args));
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
 
   const audit  = { log: vi.fn() };
@@ -42,7 +46,8 @@ function makeMocks() {
   const settings = { get: vi.fn().mockResolvedValue(false) }; // e-mail verification off
   const notices = { enqueue: vi.fn().mockResolvedValue('outbox-1'), dispatchAfterCommit: vi.fn() };
   const forms = { assertOpen: vi.fn().mockResolvedValue(undefined) };   // the COACH_APPLICATION form is open
-  const service = new MentorRequestsService(prisma as any, audit as any, events as any, activation as any, settings as any, notices as any, forms as any);
+  const infoRequests = { cancelOpen: vi.fn().mockResolvedValue(undefined), request: vi.fn() };
+  const service = new MentorRequestsService(prisma as any, audit as any, events as any, activation as any, settings as any, notices as any, forms as any, infoRequests as any, { issue: vi.fn().mockReturnValue('avatar-token') } as any);
   return { service, prisma, audit, events, activation, settings, notices, forms };
 }
 
@@ -97,19 +102,20 @@ describe('MentorRequestsService', () => {
       });
     });
 
-    it('reuses a previously REJECTED request instead of creating a new one', async () => {
+    it('a reapplication after a rejection is a NEW request; the rejected attempt is never updated', async () => {
       const { service, prisma, audit, events } = makeMocks();
-      prisma.mentorRequest.findFirst.mockResolvedValue(pending({ id: 'mr-old', status: 'REJECTED' }));
+      prisma.mentorRequest.findFirst.mockResolvedValue(null);   // no PENDING or APPROVED application holds the identity
+      prisma.mentorRequest.count.mockResolvedValue(1);          // a REJECTED attempt with the same username or e-mail
 
       await service.create(dto);
 
-      expect(prisma.mentorRequest.create).not.toHaveBeenCalled();
-      expect(prisma.mentorRequest.update).toHaveBeenCalledOnce();
-      const call = prisma.mentorRequest.update.mock.calls[0][0];
-      expect(call.where).toEqual({ id: 'mr-old' });
-      expect(call.data.status).toBe('PENDING');
+      // Only applications that are not REJECTED block the identity.
+      expect(prisma.mentorRequest.findFirst.mock.calls[0][0].where).toMatchObject({ status: { not: 'REJECTED' } });
+      expect(prisma.mentorRequest.update).not.toHaveBeenCalled();
+      expect(prisma.mentorRequest.create).toHaveBeenCalledOnce();
+      expect(prisma.mentorRequest.create.mock.calls[0][0].data.status).toBe('PENDING');
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ metadata: { reapplication: true } }));
-      expect(events.emit).toHaveBeenCalledWith(Events.MentorRequestSubmitted, expect.objectContaining({ requestId: 'mr-old', reapplication: true }));
+      expect(events.emit).toHaveBeenCalledWith(Events.MentorRequestSubmitted, expect.objectContaining({ requestId: 'mr-new', reapplication: true }));
     });
   });
 
@@ -144,7 +150,7 @@ describe('MentorRequestsService', () => {
 
       expect(prisma.mentorRequest.updateMany).toHaveBeenCalledWith({
         where: { id: 'mr1', status: 'PENDING' },
-        data:  { status: 'APPROVED', passwordHash: null },
+        data:  { status: 'APPROVED', passwordHash: null, avatarFileId: null },   // the picture moves to the account
       });
       expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ role: 'MENTOR', passwordHash: 'hash' });
       expect(result.request).toEqual({ id: 'mr1', status: 'APPROVED' });

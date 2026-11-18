@@ -9731,6 +9731,106 @@
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/users/{id}/date-of-birth": {
+      "put": {
+        "operationId": "UsersController_correctDateOfBirth",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorrectDateOfBirthDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Correct a student's date of birth (owner approval 2026-11-18): { dateOfBirth: \"YYYY-MM-DD\", reason } — the\nregistration rules; the reason is mandatory. Recorded with the old and new dates (GET …/date-of-birth-history).\n400 VALIDATION_FAILED / NOT_A_STUDENT, 409 DATE_OF_BIRTH_UNCHANGED. Returns the account.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/users/{id}/date-of-birth-history": {
+      "get": {
+        "operationId": "UsersController_dateOfBirthHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The date-of-birth history: Administrator corrections (old and new dates, reason, who, when) and the first-sign-in entry.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users/{id}/resend-invitation": {
       "post": {
         "operationId": "UsersController_resendInvitation",
@@ -10264,6 +10364,46 @@
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/users/{id}/registration-timeline": {
+      "get": {
+        "operationId": "UsersController_registrationTimeline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Registration timeline (REG-13): the current stages and every registration-related event, oldest first\n(registration / invitation, application, activation, approval, state and role changes, school claims).",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users/{id}/status-history": {
       "get": {
         "operationId": "UsersController_statusHistory",
@@ -10667,7 +10807,7 @@
             }
           }
         },
-        "summary": "The current user's profile, division and school.",
+        "summary": "The current user's profile, division and school; `dateOfBirthRequired` true: PUT /me/date-of-birth first.",
         "tags": [
           "Me"
         ],
@@ -10868,13 +11008,66 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/me/date-of-birth": {
+      "put": {
+        "operationId": "MeController_setDateOfBirth",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDateOfBirthDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A student who has no date of birth yet (created by an Administrator, invited or imported) gives it here; until\nthen other routes answer 403 DATE_OF_BIRTH_REQUIRED (owner decision 9.3). 400 VALIDATION_FAILED (registration\nrules), 409 DATE_OF_BIRTH_ALREADY_SET. Returns the profile.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "description": "**Access:** STUDENT"
+      }
+    },
     "/api/v1/me/avatar": {
       "put": {
         "operationId": "MeController_setAvatar",
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -10903,7 +11096,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -34046,6 +34246,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveMentorRequestDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success. Shape recorded from the end-to-end tests.",
@@ -34141,6 +34351,46 @@
         "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/mentor-requests/{id}/avatar": {
+      "get": {
+        "operationId": "MentorRequestsController_avatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The picture sent with the application, for review before approval (private, not cached). 404 when none.",
+        "tags": [
+          "Mentor requests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "mentorRequests.decide",
+        "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/mentor-requests/{id}/reject": {
       "patch": {
         "operationId": "MentorRequestsController_reject",
@@ -34154,6 +34404,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectMentorRequestDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success. Shape recorded from the end-to-end tests.",
@@ -34177,6 +34437,55 @@
                 }
               }
             }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Mentor requests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "mentorRequests.decide",
+        "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/mentor-requests/{id}/request-info": {
+      "post": {
+        "operationId": "MentorRequestsController_requestInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestApplicationInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
           },
           "default": {
             "description": "Error",
@@ -34589,6 +34898,51 @@
             "bearer": []
           }
         ],
+        "tags": [
+          "Teacher applications"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-applications/{id}/avatar": {
+      "get": {
+        "operationId": "AdminTeacherApplicationsController_avatar",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The picture sent with the application, for review before approval (private, not cached). 404 when none.",
         "tags": [
           "Teacher applications"
         ],
@@ -35310,6 +35664,61 @@
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/teacher-applications/{id}/request-info": {
+      "post": {
+        "operationId": "AdminTeacherApplicationsController_requestInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestApplicationInfoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ask the applicant for more information (ADR-009); the application stays PENDING. 409 when already decided.",
+        "tags": [
+          "Teacher applications"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/teacher-applications/{id}/reject": {
       "post": {
         "operationId": "AdminTeacherApplicationsController_reject",
@@ -35525,6 +35934,131 @@
         ],
         "x-permission": "users.manageTeachers",
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/applications/info-requests/{token}": {
+      "get": {
+        "operationId": "ApplicationInfoRequestsController_view",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The question, the application kind, and the details the applicant may correct with their current values.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      },
+      "post": {
+        "operationId": "ApplicationInfoRequestsController_answer",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerInfoRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Answer once (and optionally correct details); the administrators are told.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/register/avatar": {
+      "put": {
+        "operationId": "RegistrationAvatarController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationAvatarDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
       }
     },
     "/api/v1/admin/notification-deliveries": {
@@ -45124,7 +45658,7 @@
           },
           "guardianPhone": {
             "type": "string",
-            "description": "A close-family member's phone, stored in E.164 (teacher-application rules). The form requires it. Not audited."
+            "description": "A close-family member's phone, stored in E.164 (teacher-application rules). Required (owner decision 9.2,\n2026-11-18: the server requires it, not only the form) — missing, empty or not a valid phone number is refused.\nNot audited."
           },
           "homeCountry": {
             "type": "string",
@@ -45167,7 +45701,9 @@
           "username",
           "email",
           "password",
-          "gradeLevel"
+          "gradeLevel",
+          "dateOfBirth",
+          "guardianPhone"
         ]
       },
       "RegisterAdminDto": {
@@ -45810,6 +46346,23 @@
           "email"
         ]
       },
+      "CorrectDateOfBirthDto": {
+        "type": "object",
+        "properties": {
+          "dateOfBirth": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "dateOfBirth",
+          "reason"
+        ]
+      },
       "UpdateUserDto": {
         "type": "object",
         "properties": {
@@ -45921,6 +46474,17 @@
         },
         "required": [
           "toStatus"
+        ]
+      },
+      "SetDateOfBirthDto": {
+        "type": "object",
+        "properties": {
+          "dateOfBirth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dateOfBirth"
         ]
       },
       "UpdateMeDto": {
@@ -47066,6 +47630,36 @@
                 "PHYSICS"
               ]
             }
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone, stored in E.164 (else 400 INVALID_PHONE). REG-06.",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "affiliation": {
+            "type": "string",
+            "description": "Institution or affiliation, where applicable (2–200).",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "expertise": {
+            "type": "string",
+            "description": "Areas of expertise (2–1000).",
+            "minLength": 2,
+            "maxLength": 1000
+          },
+          "relevantExperience": {
+            "type": "string",
+            "description": "Relevant experience, e.g. Olympiad coaching, teaching, competitions (2–2000).",
+            "minLength": 2,
+            "maxLength": 2000
+          },
+          "yearsOfExperience": {
+            "type": "number",
+            "description": "Years of relevant experience, 0–60.",
+            "minimum": 0,
+            "maximum": 60
           }
         },
         "required": [
@@ -47074,6 +47668,38 @@
           "username",
           "email",
           "password"
+        ]
+      },
+      "ApproveMentorRequestDto": {
+        "type": "object",
+        "properties": {
+          "approvePicture": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RejectMentorRequestDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 500
+          }
+        }
+      },
+      "RequestApplicationInfoDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The question shown to the applicant (5–2000 characters).",
+            "minLength": 5,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "question"
         ]
       },
       "RegisterTeacherDto": {
@@ -47157,6 +47783,18 @@
             "minLength": 1,
             "maxLength": 100
           },
+          "position": {
+            "type": "string",
+            "description": "Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients.",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "yearsOfExperience": {
+            "type": "number",
+            "description": "Years of teaching experience, 0–60 (REG-05). Optional.",
+            "minimum": 0,
+            "maximum": 60
+          },
           "homeDistrict": {
             "type": "string",
             "minLength": 1,
@@ -47212,6 +47850,10 @@
           "note": {
             "type": "string",
             "maxLength": 500
+          },
+          "approvePicture": {
+            "type": "boolean",
+            "description": "Picture moderation (owner approval 2026-11-18): the picture sent with the application becomes the account's\npicture ONLY when the Administrator, having seen it (GET …/:id/avatar), sends true. Omitted or false: it is\ndiscarded and the account starts without a picture."
           }
         }
       },
@@ -47227,6 +47869,58 @@
         "required": [
           "reason"
         ]
+      },
+      "AnswerInfoRequestDto": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "position": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "yearsOfExperience": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60
+          },
+          "affiliation": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "expertise": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 1000
+          },
+          "relevantExperience": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2000
+          },
+          "occupation": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "answer"
+        ]
+      },
+      "RegistrationAvatarDto": {
+        "type": "object",
+        "properties": {}
       },
       "SendEmailDto": {
         "type": "object",

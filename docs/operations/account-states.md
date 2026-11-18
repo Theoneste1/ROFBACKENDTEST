@@ -49,7 +49,7 @@ prevents sign-in in `stillBlockedBy`:
 |---|---|---|
 | `NOT_ACTIVATED` | never activated | the activation link (re-send the invitation) |
 | `PENDING_APPROVAL` | not approved yet | an administrator's approval |
-| `LOCKED` | locked after failed sign-ins | time (15 minutes) |
+| `LOCKED` | an account lock recorded by the earlier release (`User.lockedUntil`); sign-in locks now apply to one address only and do not appear here | time (at most 15 minutes) or a password reset — there is no Administrator unlock |
 | `ROLE_DISABLED` | the role's feature flag is off (`TEACHERS_ENABLED`, `HEAD_COACHES_ENABLED`) | the flag |
 
 ## Who may change what

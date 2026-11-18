@@ -11,6 +11,8 @@ import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CookieOptions, Request, Response } from 'express';
+import { ipTracker, refreshTracker } from '../common/rate-limit.js';
+import { LOGIN_PER_ADDRESS_PER_MINUTE } from './login-limiter.js';
 
 import { AuthService } from './auth.service.js';
 import { ActivationService } from './activation.service.js';
@@ -32,11 +34,14 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import type { ClientInfo, IssuedTokens } from './token.service.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
+import { AllowedBeforeDateOfBirth } from '../common/decorators/date-of-birth-step.decorator.js';
 
 export const REFRESH_COOKIE = 'rof_refresh';
 
 /** Strict limit for credential endpoints: 10 requests per minute per IP. */
 const CREDENTIAL_LIMIT = { default: { limit: 10, ttl: 60_000 } };
+/** Session refreshes per minute from one address (a school lab: one refresh per page load per student). */
+export const REFRESH_IP_LIMIT = 300;
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -69,7 +74,9 @@ export class AuthController {
    * is also set as an httpOnly cookie for browser clients.
    */
   @Public()
-  @Throttle(CREDENTIAL_LIMIT)
+  // Per address: 60 a minute (owner approval 2026-11-18); per username 5 a minute / 20 an hour and the lock scoped to
+  // username + address are in AuthService (LoginLimiter).
+  @Throttle({ default: { limit: LOGIN_PER_ADDRESS_PER_MINUTE, ttl: 60_000, getTracker: ipTracker } })
   @HttpCode(200)
   @Post('login')
   async login(
@@ -84,7 +91,9 @@ export class AuthController {
 
   // ─── Refresh (public — authenticated by the refresh token itself) ──────────
   @Public()
-  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  // 30 a minute per refresh token (not per address: a school lab shares one), and at most REFRESH_IP_LIMIT a minute
+  // per address, which bounds refresh calls with invented tokens (src/common/rate-limit.ts).
+  @Throttle({ default: { limit: 30, ttl: 60_000, getTracker: refreshTracker }, ip: { limit: REFRESH_IP_LIMIT, ttl: 60_000 } })
   @HttpCode(200)
   @Post('refresh')
   async refresh(
@@ -128,6 +137,7 @@ export class AuthController {
   @HttpCode(200)
   @Post('logout-all')
   @Authenticated()
+  @AllowedBeforeDateOfBirth()
   async logoutAll(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
     await this.authService.logoutAll(user);
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions());

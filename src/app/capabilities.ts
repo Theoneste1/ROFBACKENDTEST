@@ -93,7 +93,7 @@ export const FEATURES = {
    * Student registration details: POST /api/v1/auth/register/student accepts `dateOfBirth` (YYYY-MM-DD, age 5–30),
    * `phone` (optional) and `guardianPhone` (close-family phone; both stored in E.164), `homeCountry` (the student's own
    * country) and the official home place `homeProvince` / `homeDistrict` / `homeSector` (Rwanda only; then
-   * `homeLocation` is optional). All optional at the API for older clients; the profile (GET /api/v1/me, admin user
+   * `homeLocation` is optional). `dateOfBirth` is required (owner, 2026-11-17); the others are optional at the API for older clients; the profile (GET /api/v1/me, admin user
    * detail) returns them. Without this feature the fields are refused (400): the sign-up form must not send them.
    */
   studentRegistrationDetails: 'always',
@@ -104,6 +104,42 @@ export const FEATURES = {
    * this feature the fields are refused (400).
    */
   coachApplicationDetails: 'always',
+  /**
+   * Application details and "request more information" (2026-11-17; ADR-009): POST /auth/register/teacher accepts
+   * `position` and `yearsOfExperience`; POST /mentor-requests accepts `phone`, `affiliation`, `expertise`,
+   * `relevantExperience` and `yearsOfExperience`; PATCH /mentor-requests/:id/reject takes an optional `reason`
+   * (e-mailed, like a Teacher rejection's); Administrators ask a question with POST
+   * /admin/teacher-applications/:id/request-info or POST /mentor-requests/:id/request-info (the application stays
+   * PENDING; `infoRequests` on the application lists the questions and answers); the applicant answers through
+   * GET / POST /applications/info-requests/:token (410 INFO_REQUEST_LINK_INVALID once used, expired or decided).
+   * Without this feature the new fields are refused (400) and the routes do not exist (404).
+   */
+  applicationDetails: 'always',
+  /**
+   * Optional profile picture at registration (REG-02): student registration and Teacher / Coach application answers
+   * carry avatarUploadToken for PUT /api/v1/auth/register/avatar (the first picture of that account / pending
+   * application, 30 minutes). Never required.
+   */
+  registrationAvatar: 'always',
+  /**
+   * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
+   * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
+   * imported) every route except GET /me, GET /me/permissions, PUT /me/date-of-birth and sign-out answers
+   * 403 DATE_OF_BIRTH_REQUIRED. PUT /api/v1/me/date-of-birth { dateOfBirth: "YYYY-MM-DD" } ends the step.
+   */
+  studentDateOfBirthStep: 'always',
+  /**
+   * Administrators correct a student's date of birth (owner approval 2026-11-18): PUT /api/v1/admin/users/:id/date-of-birth
+   * { dateOfBirth, reason } (users.manage; reason mandatory), GET /api/v1/admin/users/:id/date-of-birth-history (old and
+   * new dates, reason, who, when). A student still gives it only once (PUT /me/date-of-birth).
+   */
+  dateOfBirthCorrection: 'always',
+  /**
+   * Picture moderation (owner approval 2026-11-18): an application's picture is shown only to the reviewing
+   * Administrator (GET /api/v1/admin/teacher-applications/:id/avatar, GET /api/v1/mentor-requests/:id/avatar; the lists
+   * carry avatarFileId) and becomes the account's picture only when the approval sends approvePicture: true.
+   */
+  applicationPictureReview: 'always',
   /**
    * The TEACHER role can currently be given to an account (TEACHERS_ENABLED). The caller still
    * needs users.manageTeachers (/me/permissions). Absent: no NEW Teacher role assignments — existing

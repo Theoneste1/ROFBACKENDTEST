@@ -127,6 +127,8 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // another account's picture (users.manage + the role policy on the target account, in AvatarService)
   'PUT /api/v1/me/avatar  MeController.setAvatar':                                                             SIGNED_IN,
   'DELETE /api/v1/me/avatar  MeController.removeAvatar':                                                       SIGNED_IN,
+  // Owner decision 9.3 (2026-11-18): a student without a date of birth gives it at first sign-in
+  'PUT /api/v1/me/date-of-birth  MeController.setDateOfBirth':                                                  STUDENTS_ONLY,
   'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
   'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
   'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
@@ -152,4 +154,19 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/forms/:key/history  AdminFormsController.history':                                       ADMINISTRATORS,
   'PATCH /api/v1/admin/forms/:key/availability  AdminFormsController.availability':                           ADMINISTRATORS,
   'PATCH /api/v1/admin/forms/:key/messages  AdminFormsController.messages':                                   ADMINISTRATORS,
+  // Request more information on applications (2026-11-17, ADR-009): Administrators ask (users.manageTeachers,
+  // mentorRequests.decide); the applicant (no account) answers through the one-time link.
+  'POST /api/v1/admin/teacher-applications/:id/request-info  AdminTeacherApplicationsController.requestInfo':  ADMINISTRATORS,
+  'POST /api/v1/mentor-requests/:id/request-info  MentorRequestsController.requestInfo':                      ADMINISTRATORS,
+  // Final review 2026-11-18 (owner approvals): date-of-birth corrections (users.manage) and application picture review
+  'PUT /api/v1/admin/users/:id/date-of-birth  UsersController.correctDateOfBirth':                              ADMINISTRATORS,
+  'GET /api/v1/admin/users/:id/date-of-birth-history  UsersController.dateOfBirthHistory':                      ADMINISTRATORS,
+  'GET /api/v1/admin/teacher-applications/:id/avatar  AdminTeacherApplicationsController.avatar':              ADMINISTRATORS,
+  'GET /api/v1/mentor-requests/:id/avatar  MentorRequestsController.avatar':                                    ADMINISTRATORS,
+  'GET /api/v1/applications/info-requests/:token  ApplicationInfoRequestsController.view':                    PUBLIC,
+  'POST /api/v1/applications/info-requests/:token  ApplicationInfoRequestsController.answer':                 PUBLIC,
+  // Optional profile picture right after registering (REG-02): the one-time token is the authorization.
+  'PUT /api/v1/auth/register/avatar  RegistrationAvatarController.upload':                                   PUBLIC,
+  // Registration timeline (REG-13): users.manage, as the user page.
+  'GET /api/v1/admin/users/:id/registration-timeline  UsersController.registrationTimeline':                ADMINISTRATORS,
 };

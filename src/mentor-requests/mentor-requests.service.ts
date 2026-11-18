@@ -21,13 +21,27 @@ import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { canonicalInterests } from '../users/olympiad-interests.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 import { DecisionEvents } from '../decision-notifications/decision-content.js';
+import { ApplicationInfoRequestsService, INFO_REQUEST_SELECT } from '../application-info-requests/application-info-requests.service.js';
+import { normalisePhone } from '../schools/directory/school-contacts.js';
+import { RegistrationAvatarService, carryApplicationAvatar } from '../users/registration-avatar.service.js';
 
 const PUBLIC_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
   status: true, createdAt: true, updatedAt: true,
   // Application details (coachApplicationDetails); NULL / empty on older applications.
   country: true, occupation: true, educationLevel: true, olympiadInterests: true,
+  // REG-06 / REG-10 (2026-11-17)
+  phone: true, affiliation: true, expertise: true, relevantExperience: true, yearsOfExperience: true, rejectionReason: true,
+  infoRequests: { select: INFO_REQUEST_SELECT, orderBy: { requestedAt: 'desc' }, take: 10 },
+  // Whether a picture was sent (Administrators review it before approving: GET /mentor-requests/:id/avatar).
+  avatarFileId: true,
 } as const;
+
+/**
+ * What the PUBLIC submit returns: the applicant's own submitted fields only — never an info-request history (each
+ * attempt is its own row; defence in depth).
+ */
+const { infoRequests: _history, avatarFileId: _picture, ...SUBMIT_SELECT } = PUBLIC_SELECT;
 
 @Injectable()
 export class MentorRequestsService {
@@ -39,12 +53,15 @@ export class MentorRequestsService {
     private readonly settings:   SettingsService,
     private readonly notices:    DecisionNotificationsService,
     private readonly forms:      FormAvailabilityService,
+    private readonly infoRequests: ApplicationInfoRequestsService,
+    private readonly registrationAvatar: RegistrationAvatarService,
   ) {}
 
   // ─── Submit a mentor application (public) ─────────────────────────────────
   //
-  // A previously REJECTED applicant may apply again with the same details;
-  // the old request is reused.
+  // A previously REJECTED applicant may apply again with the same details. Every attempt is its own row: the
+  // rejected attempt (with its questions, answers and decision) is kept as it was, and never becomes part of the new
+  // application — whoever submits it.
   async create(data: CreateMentorRequestDto) {
     // The COACH_APPLICATION form: 403 FORM_CLOSED with its closed message while it is not open.
     await this.forms.assertOpen('COACH_APPLICATION');
@@ -53,8 +70,10 @@ export class MentorRequestsService {
         where:  { OR: [{ username: data.username }, { email: data.email }] },
         select: { id: true },
       }),
+      // Only an application that is not REJECTED holds the username and e-mail (partial unique indexes).
       this.prisma.mentorRequest.findFirst({
-        where: { OR: [{ username: data.username }, { email: data.email }] },
+        where: { OR: [{ username: data.username }, { email: data.email }], status: { not: 'REJECTED' } },
+        select: { id: true },
       }),
       // A pending Teacher application holds its username and e-mail too (teacher self-registration).
       this.prisma.teacherApplication.findFirst({
@@ -68,8 +87,15 @@ export class MentorRequestsService {
       new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
 
     if (existingUser || pendingTeacherApplication) throw taken();
-    if (existingRequest && existingRequest.status !== 'REJECTED') throw taken();
+    if (existingRequest) throw taken();
+    const reapplication = (await this.prisma.mentorRequest.count({
+      where: { OR: [{ username: data.username }, { email: data.email }], status: 'REJECTED' },
+    })) > 0;
 
+    const phone = data.phone === undefined ? null : normalisePhone(data.phone);
+    if (data.phone !== undefined && !phone) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_PHONE', 'Enter a valid phone number (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere: +country number).');
+    }
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
     const fields = {
       firstName: data.firstName,
@@ -83,22 +109,28 @@ export class MentorRequestsService {
       occupation:        data.occupation ?? null,
       educationLevel:    data.educationLevel ?? null,
       olympiadInterests: canonicalInterests(data.olympiadInterests),
+      phone, affiliation: data.affiliation ?? null, expertise: data.expertise ?? null,
+      relevantExperience: data.relevantExperience ?? null, yearsOfExperience: data.yearsOfExperience ?? null,
+      rejectionReason: null,
     };
 
-    const request = existingRequest
-      ? await this.prisma.mentorRequest.update({ where: { id: existingRequest.id }, data: fields, select: PUBLIC_SELECT })
-      : await this.prisma.mentorRequest.create({ data: fields, select: PUBLIC_SELECT });
+    // A concurrent submission with the same username or e-mail loses on the partial unique index: the same answer.
+    const request = await this.prisma.mentorRequest.create({ data: fields, select: SUBMIT_SELECT }).catch((e: unknown) => {
+      if ((e as { code?: string })?.code === 'P2002') throw taken();
+      throw e;
+    });
 
     await this.audit.log({
       actorId: null, actorRole: 'ANONYMOUS',
       action: 'SUBMIT_MENTOR_REQUEST', entity: 'MentorRequest', entityId: request.id,
-      metadata: { reapplication: !!existingRequest },
+      metadata: { reapplication },
     });
     this.events.emit(Events.MentorRequestSubmitted, {
-      requestId: request.id, submittedAt: request.updatedAt.toISOString(), reapplication: !!existingRequest,
+      requestId: request.id, submittedAt: request.updatedAt.toISOString(), reapplication,
     });
 
-    return request;
+    // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes.
+    return { ...request, avatarUploadToken: this.registrationAvatar.issue('COACH_APPLICATION', request.id) };
   }
 
   // ─── ADMIN: List requests ─────────────────────────────────────────────────
@@ -117,19 +149,24 @@ export class MentorRequestsService {
   // With e-mail verification on (the production default), the account is
   // created unactivated and the applicant must confirm the address before the
   // first login — so nobody can apply in someone else's name.
-  async approve(requestId: string, caller: CallerCtx) {
-    const request = await this.requireRequest(requestId);
+  async approve(requestId: string, caller: CallerCtx, opts: { approvePicture?: boolean } = {}) {
+    await this.requireRequest(requestId);
     const verify = await this.settings.get('registration.requireEmailVerification');
 
     let issued: IssuedActivation | null = null;
     let notice: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
-      // Claim the request: only one concurrent approval can succeed.
+      // The row as it is now, locked (an answer to a request for more information may have corrected it; the answer
+      // path locks the application first too). Read before the claim, which clears the password hash.
+      await tx.$queryRaw`SELECT 1 FROM "MentorRequest" WHERE "id" = ${requestId} FOR UPDATE`;
+      const request = await tx.mentorRequest.findUniqueOrThrow({ where: { id: requestId } });
+      // Claim the request: only one concurrent approval can succeed. The picture moves to the account (below).
       const { count } = await tx.mentorRequest.updateMany({
         where: { id: requestId, status: 'PENDING' },
-        data:  { status: 'APPROVED', passwordHash: null },
+        data:  { status: 'APPROVED', passwordHash: null, avatarFileId: null },
       });
       if (count === 0) throw invalidState('This coach application has already been processed.');
+      await this.infoRequests.cancelOpen(tx, 'COACH', requestId);
 
       const clash = await tx.user.findFirst({
         where:  { OR: [{ username: request.username }, { email: request.email }] },
@@ -155,13 +192,16 @@ export class MentorRequestsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
+      // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
+      const picture = !request.avatarFileId ? 'NONE' : opts.approvePicture === true ? 'APPROVED' : 'DISCARDED';
+      if (picture === 'APPROVED') await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
       await ensureDefaultMembership(tx, mentor, caller.id);   // approved coach (P1-07, K6)
       if (verify) issued = await this.activation.issue(mentor.id, 'EMAIL_VERIFICATION', caller.id, tx);
 
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'APPROVE_MENTOR_REQUEST', entity: 'MentorRequest', entityId: requestId,
-        metadata: { newUserId: mentor.id },
+        metadata: { newUserId: mentor.id, picture },
       }, tx);
       // The one approval notice (e-mail + in-app), written with the approval (decision notifications).
       notice = await this.notices.enqueue(tx, {
@@ -187,22 +227,34 @@ export class MentorRequestsService {
   }
 
   // ─── ADMIN: Reject ────────────────────────────────────────────────────────
-  async reject(requestId: string, caller: CallerCtx) {
+  /** Ask the applicant for more information (ADR-009): the application stays PENDING; e-mailed one-time link. */
+  async requestInfo(requestId: string, question: string, caller: CallerCtx) {
+    await this.infoRequests.request('COACH', requestId, question, caller);
+    return this.prisma.mentorRequest.findUniqueOrThrow({ where: { id: requestId }, select: PUBLIC_SELECT });
+  }
+
+  async reject(requestId: string, caller: CallerCtx, reason?: string) {
     const request = await this.requireRequest(requestId);
 
-    const { count } = await this.prisma.mentorRequest.updateMany({
-      where: { id: requestId, status: 'PENDING' },
-      data:  { status: 'REJECTED', passwordHash: null },
+    const count = await this.prisma.$transaction(async (tx) => {
+      const r = await tx.mentorRequest.updateMany({
+        where: { id: requestId, status: 'PENDING' },
+        // A rejected application keeps no picture (the file is then cleaned up as an orphan).
+        data:  { status: 'REJECTED', passwordHash: null, rejectionReason: reason ?? null, avatarFileId: null },
+      });
+      if (r.count > 0) await this.infoRequests.cancelOpen(tx, 'COACH', requestId);
+      return r.count;
     });
     if (count === 0) throw invalidState('This coach application has already been processed.');
 
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
       action: 'REJECT_MENTOR_REQUEST', entity: 'MentorRequest', entityId: requestId,
+      ...(reason && { metadata: { reason } }),
     });
 
     this.events.emit(Events.MentorRequestDecided, {
-      email: request.email, firstName: request.firstName, approved: false,
+      email: request.email, firstName: request.firstName, approved: false, ...(reason && { reason }),
     });
 
     return { id: requestId, status: 'REJECTED' };

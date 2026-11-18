@@ -21,6 +21,7 @@ import type { Response } from 'express';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { auditChanges } from '../audit/audit-changes.js';
 import { AccessService } from '../common/access/access.service.js';
 import { PermissionService } from '../auth/permission.service.js';
 import { StorageService } from '../common/storage/storage.service.js';
@@ -232,7 +233,10 @@ export class CourseResourcesService {
     await this.audit.log({
       actorId: user.id, actorRole: user.role,
       action: 'UPDATE_COURSE_RESOURCE', entity: 'CourseResource', entityId: resourceId,
-      metadata: { courseId, fields: Object.keys(data), filesAdded: files.length },
+      metadata: {
+        courseId, fields: Object.keys(data), filesAdded: files.length,
+        changes: auditChanges(resource, updated, ['type', 'title', 'description', 'sortOrder', 'author', 'source', 'year', 'tags']),
+      },
     });
     return updated;
   }

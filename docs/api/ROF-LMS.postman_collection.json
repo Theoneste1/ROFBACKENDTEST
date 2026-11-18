@@ -4882,6 +4882,104 @@
           }
         },
         {
+          "name": "PUT /admin/users/{id}/date-of-birth",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/date-of-birth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "date-of-birth"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateOfBirth\": \"dateOfBirth\",\n  \"reason\": \"reason reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/users/{id}/date-of-birth-history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/date-of-birth-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "date-of-birth-history"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/users/{id}/registration-timeline",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/registration-timeline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "registration-timeline"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "POST /admin/users/{id}/resend-invitation",
           "request": {
             "method": "POST",
@@ -6058,6 +6156,80 @@
       "name": "Auth",
       "item": [
         {
+          "name": "GET /applications/info-requests/{token}",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/applications/info-requests/:token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "info-requests",
+                ":token"
+              ],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
+          }
+        },
+        {
+          "name": "POST /applications/info-requests/{token}",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/info-requests/:token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "info-requests",
+                ":token"
+              ],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answer\": \"answer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "POST /auth/activate",
           "request": {
             "method": "POST",
@@ -6382,6 +6554,34 @@
           }
         },
         {
+          "name": "PUT /auth/register/avatar",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register",
+                "avatar"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "formdata",
+              "formdata": []
+            }
+          }
+        },
+        {
           "name": "POST /auth/register/student",
           "request": {
             "method": "POST",
@@ -6410,7 +6610,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"dateOfBirth\": \"dateOfBirth\",\n  \"guardianPhone\": \"guardianPhone\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8602,6 +8802,40 @@
           }
         },
         {
+          "name": "PUT /me/date-of-birth",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/date-of-birth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "date-of-birth"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** STUDENT",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateOfBirth\": \"dateOfBirth\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "GET /me/enrollments",
           "request": {
             "method": "GET",
@@ -9017,7 +9251,12 @@
           "name": "PATCH /mentor-requests/{id}/approve",
           "request": {
             "method": "PATCH",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/mentor-requests/:id/approve",
               "host": [
@@ -9037,6 +9276,42 @@
               ],
               "query": []
             },
+            "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approvePicture\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /mentor-requests/{id}/avatar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mentor-requests/:id/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mentor-requests",
+                ":id",
+                "avatar"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
             "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
           }
         },
@@ -9044,7 +9319,12 @@
           "name": "PATCH /mentor-requests/{id}/reject",
           "request": {
             "method": "PATCH",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/mentor-requests/:id/reject",
               "host": [
@@ -9064,7 +9344,57 @@
               ],
               "query": []
             },
-            "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)"
+            "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /mentor-requests/{id}/request-info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mentor-requests/:id/request-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mentor-requests",
+                ":id",
+                "request-info"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `mentorRequests.decide` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"question question\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]
@@ -10754,13 +11084,41 @@
             "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\"\n}",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\",\n  \"approvePicture\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             }
+          }
+        },
+        {
+          "name": "GET /admin/teacher-applications/{id}/avatar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications/:id/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications",
+                ":id",
+                "avatar"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -10797,6 +11155,48 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/teacher-applications/{id}/request-info",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-applications/:id/request-info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-applications",
+                ":id",
+                "request-info"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"question question\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -1,4 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { RegistrationAvatarService } from '../users/registration-avatar.service.js';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -11,6 +13,7 @@ import {
   ApproveTeacherApplicationDto, ListTeacherApplicationsDto, RegisterTeacherDto, RejectTeacherApplicationDto,
   VerifyTeacherApplicationSchoolDto,
 } from './dto/teacher-application.dto.js';
+import { RequestApplicationInfoDto } from '../application-info-requests/application-info-requests.dto.js';
 
 /** Teacher self-registration (public): availability and the application itself. */
 @ApiTags('Auth')
@@ -40,12 +43,23 @@ export class TeacherRegistrationController {
 @ApiBearerAuth()
 @Controller('admin/teacher-applications')
 export class AdminTeacherApplicationsController {
-  constructor(private readonly service: TeacherApplicationsService) {}
+  constructor(
+    private readonly service: TeacherApplicationsService,
+    private readonly registrationAvatar: RegistrationAvatarService,
+  ) {}
 
   @Get()
   @RequirePermission('users.manageTeachers')
   list(@Query() query: ListTeacherApplicationsDto, @CurrentUser() user: AuthUser) {
     return this.service.list(query, user);
+  }
+
+  /** The picture sent with the application, for review before approval (private, not cached). 404 when none. */
+  @Get(':id/avatar')
+  @RequirePermission('users.manageTeachers')
+  async avatar(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @Res() res: Response) {
+    await this.service.get(id, user);   // the same access rule as opening the application
+    await this.registrationAvatar.sendApplicationAvatar('TEACHER', id, res);
   }
 
   @Get(':id')
@@ -71,6 +85,14 @@ export class AdminTeacherApplicationsController {
   @RequirePermission('users.manageTeachers')
   approve(@Param('id', ParseUUIDPipe) id: string, @Body() body: ApproveTeacherApplicationDto, @CurrentUser() user: AuthUser) {
     return this.service.approve(id, body, user);
+  }
+
+  /** Ask the applicant for more information (ADR-009); the application stays PENDING. 409 when already decided. */
+  @Post(':id/request-info')
+  @HttpCode(200)
+  @RequirePermission('users.manageTeachers')
+  requestInfo(@Param('id', ParseUUIDPipe) id: string, @Body() body: RequestApplicationInfoDto, @CurrentUser() user: AuthUser) {
+    return this.service.requestInfo(id, body.question, user);
   }
 
   @Post(':id/reject')

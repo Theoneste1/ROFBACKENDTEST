@@ -91,6 +91,16 @@ describe('Teachers (P1-11)', () => {
       .toMatchObject({ actorId: ctx.ids.admin, metadata: { teacherId: t1Id, schoolId: schoolA } });
   });
 
+  it('teachers of a school (INT-07, the school page): filtered by school and state; names only, never contact details; Administrators only', async () => {
+    const bySchool = await http().get(ASSIGN).query({ schoolId: schoolA }).set(bearer(admin)).expect(200);
+    expect(bySchool.body.data.map((r: any) => r.teacher.id)).toEqual([t1Id]);
+    expect(Object.keys(bySchool.body.data[0].teacher).sort()).toEqual(['firstName', 'id', 'lastName', 'username']);
+    expect(JSON.stringify(bySchool.body)).not.toMatch(/email|phone/i);
+    expect((await http().get(ASSIGN).query({ schoolId: schoolB, isActive: true }).set(bearer(superAdmin)).expect(200)).body.data.map((r: any) => r.teacher.id)).toEqual([t2Id]);
+    expect((await http().get(ASSIGN).query({ schoolId: schoolA, isActive: false }).set(bearer(admin)).expect(200)).body.data).toEqual([]);
+    for (const token of [coachJ, studentJ2, t1]) expect(await status(http().get(ASSIGN).query({ schoolId: schoolA }).set(bearer(token)))).toEqual([403, 'PERMISSION_REQUIRED']);
+  });
+
   it('school isolation: a Teacher lists only students of their schools, without contact details; other schools 404; other roles refused', async () => {
     // Access follows the School relationship (schoolId), not a name: a school with a similar name stays invisible.
     const lookalike = (await p().school.create({ data: { name: 'Test School Branch', location: 'Kigali' } })).id;
@@ -325,7 +335,7 @@ describe('Teachers (P1-11)', () => {
     const coded = (await p().school.create({ data: { name: 'APPROVAL TEST SCHOOL', location: 'Kigali, Gasabo', code: '120998', province: 'Kigali City', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'approval test school' } })).id;
     await http().post(ASSIGN).set(bearer(admin)).send({ teacherId: t3Id, schoolId: coded }).expect(201);
     const reg = (username: string, extra: object = {}) => http().post('/api/v1/auth/register/student').send({
-      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', gradeLevel: 'S2',
+      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2',
       schoolCode: '120998', homeLocation: 'Kigali', ...extra,
     });
     const listed = async () => (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t3)).expect(200)).body.data.map((s: any) => s.username);

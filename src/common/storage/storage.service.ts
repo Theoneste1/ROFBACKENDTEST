@@ -80,7 +80,7 @@ export class StorageService implements OnModuleInit {
   async store(
     file: Express.Multer.File,
     purpose: FilePurpose,
-    uploadedById: string,
+    uploadedById: string | null,   // null: an applicant without an account yet (REG-02)
   ): Promise<FileObject> {
     const rule = FILE_RULES[purpose];
     const data = file.buffer;
@@ -196,6 +196,8 @@ export class StorageService implements OnModuleInit {
         submissionAttachments: { none: {} },
         reviewAttachments:     { none: {} },
         avatarOf:              { is: null },
+        teacherApplicationAvatarOf: { is: null },
+        mentorRequestAvatarOf:      { is: null },
       },
       select: { id: true, storageKey: true },
       take:   500,

@@ -541,6 +541,7 @@ model User {
   teacherApplicationsDecided        TeacherApplication[]       @relation("TeacherApplicationDecidedBy")
   teacherApplication                TeacherApplication?        @relation("TeacherApplicationUser")
   teacherApplicationSchoolsVerified TeacherApplication[]       @relation("TeacherApplicationSchoolVerifiedBy")
+  applicationInfoRequests           ApplicationInfoRequest[]   @relation("ApplicationInfoRequestedBy")
   notificationOutbox                NotificationOutbox[]
   statusChanges                     UserStatusChange[]         @relation("StatusChangeUser")
   statusChangesMade                 UserStatusChange[]         @relation("StatusChangeActor")
@@ -941,12 +942,15 @@ model TokenBlacklist {
 }
 
 /// Staging table for mentor applications. Approval creates the User.
+/// One row per application attempt: a reapplication after a rejection is a new row (its own questions, answers and
+/// decision). At most one application that is not REJECTED per username and per e-mail: partial unique indexes
+/// (MentorRequest_active_username_key / _active_email_key, WHERE status <> 'REJECTED').
 model MentorRequest {
   id           String              @id @default(uuid())
   firstName    String
   lastName     String
-  username     String              @unique
-  email        String              @unique
+  username     String
+  email        String
   /// Cleared once the request is decided.
   passwordHash String?
   status       MentorRequestStatus @default(PENDING)
@@ -956,10 +960,52 @@ model MentorRequest {
   occupation        String?
   educationLevel    CoachEducationLevel?
   olympiadInterests OlympiadSubject[]    @default([])
+  /// Coach application details (2026-11-17, REG-06): phone (E.164), institution or affiliation, areas of
+  /// expertise, relevant experience (free text) and years of experience (0–60). All optional for older clients.
+  phone              String?
+  affiliation        String?
+  expertise          String?
+  relevantExperience String?
+  yearsOfExperience  Int?
+  /// Why an Administrator rejected the application (e-mailed to the applicant).
+  rejectionReason    String?
+  infoRequests       ApplicationInfoRequest[]
+  /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
+  avatarFileId       String?              @unique
+  avatarFile         FileObject?          @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
   @@index([status])
+  @@index([username])
+  @@index([email])
+}
+
+/// "Request more information" on a Teacher or Coach application (ADR-009, REG-10). The application stays PENDING;
+/// the applicant answers through a one-time link (only the SHA-256 of its token is stored) valid 14 days. At most
+/// one open request per application (partial unique indexes, created in the migration). A decision on the
+/// application cancels an open request. Exactly one of teacherApplicationId / mentorRequestId is set (CHECK).
+model ApplicationInfoRequest {
+  id                   String              @id @default(uuid())
+  teacherApplicationId String?
+  teacherApplication   TeacherApplication? @relation(fields: [teacherApplicationId], references: [id], onDelete: Cascade)
+  mentorRequestId      String?
+  mentorRequest        MentorRequest?      @relation(fields: [mentorRequestId], references: [id], onDelete: Cascade)
+  /// The Administrator's question, shown to the applicant.
+  question             String
+  requestedById        String?
+  requestedBy          User?               @relation("ApplicationInfoRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  requestedAt          DateTime            @default(now())
+  tokenHash            String              @unique
+  expiresAt            DateTime
+  answer               String?
+  answeredAt           DateTime?
+  /// Set when the application was decided (or a new request replaced this one) before an answer.
+  cancelledAt          DateTime?
+
+  @@index([teacherApplicationId, requestedAt])
+  @@index([mentorRequestId, requestedAt])
+  @@index([requestedById])
 }
 
 /// Teacher self-registration (owner-approved): a public application, reviewed by an Administrator.
@@ -1009,6 +1055,14 @@ model TeacherApplication {
   schoolVerifiedAt   DateTime?
   schoolVerifiedById String?
   schoolVerifiedBy   User?                    @relation("TeacherApplicationSchoolVerifiedBy", fields: [schoolVerifiedById], references: [id], onDelete: SetNull)
+  /// Position or teaching role at the school (e.g. "Mathematics teacher", "Head of sciences"), as entered.
+  position           String?
+  /// Years of teaching experience (0–60), where the applicant gives it.
+  yearsOfExperience  Int?
+  infoRequests       ApplicationInfoRequest[]
+  /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
+  avatarFileId       String?                  @unique
+  avatarFile         FileObject?              @relation("TeacherApplicationAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([schoolId])
@@ -1336,6 +1390,9 @@ model FileObject {
   reviewAttachments     ReviewAttachment[]
   /// The account whose current profile picture this is (FilePurpose AVATAR); keeps it from orphan cleanup.
   avatarOf              User?                  @relation("UserAvatar")
+  /// An optional profile picture sent with a Teacher / Coach application (REG-02), moved to the account on approval.
+  teacherApplicationAvatarOf TeacherApplication? @relation("TeacherApplicationAvatar")
+  mentorRequestAvatarOf      MentorRequest?      @relation("MentorRequestAvatar")
 
   @@index([purpose])
   @@index([createdAt])

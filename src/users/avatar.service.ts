@@ -21,7 +21,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { AuditService } from '../audit/audit.service.js';
-import { PROFILE_SELECT } from '../auth/auth.service.js';
+import { PROFILE_SELECT, withProfileSteps } from '../auth/auth.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
@@ -30,7 +30,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { UsersService } from './users.service.js';
 
 /** The link stored in User.avatarUrl for the picture with this file id. */
-export const avatarUrlOf = (userId: string, fileId: string) => `/api/v1/users/${userId}/avatar?v=${fileId}`;
+import { avatarUrlOf } from './avatar-url.js';
+export { avatarUrlOf };
 
 /** Pictures are versioned by their link, so a day of private caching is safe. */
 export const AVATAR_CACHE_CONTROL = 'private, max-age=86400';
@@ -134,6 +135,7 @@ export class AvatarService {
   }
 
   private async profile(userId: string) {
-    return this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PROFILE_SELECT });
+    // The same shape as GET /me (including dateOfBirthRequired).
+    return withProfileSteps(await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PROFILE_SELECT }));
   }
 }

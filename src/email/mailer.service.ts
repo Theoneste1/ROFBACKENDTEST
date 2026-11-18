@@ -8,6 +8,8 @@
  *   EMAIL_REPLY_TO       – Reply-to address (default: the EMAIL_FROM address).
  *   EMAIL_REDIRECT_TO    – Testing safeguard: every e-mail goes to this address
  *                          instead of the real recipient.
+ *   EMAIL_DRY_RUN=true   – STAGING ONLY: nothing is sent even with a key (logged,
+ *                          warned at every start); allowed with NODE_ENV=production.
  *   EMAIL_MAX_PER_SECOND – Sending rate (default 2, Resend's default limit).
  *   EMAIL_BATCH_SIZE     – Deliveries the worker claims per batch (default 50).
  *
@@ -75,6 +77,10 @@ export class MailerService implements OnModuleInit {
 
   onModuleInit() {
     const key = this.config.get<string>('RESEND_API_KEY');
+    if (String(this.config.get('EMAIL_DRY_RUN') ?? '').toLowerCase() === 'true') {
+      this.logger.warn('EMAIL_DRY_RUN=true: NO e-mail is sent (staging). Messages are logged only. Never set this in production.');
+      return;
+    }
     if (!key) {
       this.logger.warn(
         'RESEND_API_KEY is not set: e-mail is in DRY RUN mode — messages are logged, not sent. ' +

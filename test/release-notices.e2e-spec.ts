@@ -64,7 +64,7 @@ describe('Release notices (e2e)', () => {
     const before = await ctx.prisma.emailDelivery.count();
     const res = await ctx.http().post('/api/v1/auth/register/student').send({
       firstName: 'Nadia', lastName: 'Keza', username: 'nadia.keza', email: 'nadia.keza@example.com',
-      password: 'Secret123', gradeLevel: 'S2', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
+      password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
     }).expect(201);
     await waitForEvents();
 
@@ -102,11 +102,14 @@ describe('Release notices (e2e)', () => {
     expect(await count(where)).toBe(1);
 
     await ctx.http().patch(`/api/v1/mentor-requests/${apply.body.id}/reject`).set(bearer(admin)).expect(200);
-    await ctx.http().post('/api/v1/mentor-requests')
+    const again2 = await ctx.http().post('/api/v1/mentor-requests')
       .send({ firstName: 'Eric', lastName: 'Mugisha', username: 'eric.m', email: 'eric.m@example.com', password: 'Mentor123' })
       .expect(201);
     await waitForEvents();
-    expect(await count(where)).toBe(2);
+    // The re-application is its own application (one row per attempt): one new notice, for the new request.
+    expect(again2.body.id).not.toBe(apply.body.id);
+    expect(await count(where)).toBe(1);
+    expect(await count({ ...where, data: { path: ['mentorRequestId'], equals: again2.body.id } })).toBe(1);
   });
 
   it('administrators can switch the registration notices off', async () => {
@@ -114,7 +117,7 @@ describe('Release notices (e2e)', () => {
       .send({ settings: [{ type: 'registration.student', inAppEnabled: false }] }).expect(200);
     const res = await ctx.http().post('/api/v1/auth/register/student').send({
       firstName: 'Paul', lastName: 'Habimana', username: 'paul.h', email: 'paul.h@example.com',
-      password: 'Secret123', gradeLevel: 'S5', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
+      password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S5', schoolName: 'Lycée de Kigali', schoolLocation: 'kigali', homeLocation: 'kigali',
     }).expect(201);
     await waitForEvents();
     expect(await count({ userId: ctx.ids.admin, type: 'registration.student', data: { path: ['userId'], equals: res.body.id } })).toBe(0);

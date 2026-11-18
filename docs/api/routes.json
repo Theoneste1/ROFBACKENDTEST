@@ -1145,6 +1145,33 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/admin/users/{id}/date-of-birth",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/date-of-birth-history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/registration-timeline",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/users/{id}/resend-invitation",
     "roles": [
@@ -1441,6 +1468,22 @@
     "tag": "Assignments"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/applications/info-requests/{token}",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/applications/info-requests/{token}",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/auth/activate",
     "roles": [
@@ -1514,6 +1557,14 @@
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/auth/register/avatar",
+    "roles": [
+      "PUBLIC"
     ],
     "tag": "Auth"
   },
@@ -2090,6 +2141,14 @@
     "tag": "Me"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/me/date-of-birth",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/me/enrollments",
     "roles": [
@@ -2200,8 +2259,26 @@
     "tag": "Mentor requests"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/mentor-requests/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
     "method": "PATCH",
     "path": "/api/v1/mentor-requests/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/mentor-requests/{id}/request-info",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -2712,8 +2789,26 @@
     "tag": "Teacher applications"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/teacher-applications/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/teacher-applications/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/request-info",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"

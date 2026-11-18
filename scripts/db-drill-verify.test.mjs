@@ -228,13 +228,13 @@ describe('expected state — derived from this checkout only', () => {
     const created = [...new Set([...phase1Sql, ...laterSql].flatMap((s) => [...s.matchAll(/CREATE TABLE "(\w+)"/g)].map((m) => m[1])))].sort();
     assert.deepEqual(full.models.filter((m) => !base.models.includes(m)).sort(), created);
   });
-  test('pre-post-phase1 = production after Phase 1: 31 migrations ending with M14; the six post-Phase-1 tables absent', () => {
+  test('pre-post-phase1 = production after Phase 1: 31 migrations ending with M14; the seven post-Phase-1 tables absent', () => {
     const pp = expectedState(REPO_ROOT, 'pre-post-phase1');
     assert.equal(pp.migrations.length, 31);
     assert.equal(pp.migrations.at(-1), '20261121001300_school_directory_sync_approval');
     assert.equal(pp.migrations.filter((m) => PHASE1.test(m)).length, 14);
     assert.equal(pp.migrations.some((m) => m >= '20261201000000'), false);
-    const postTables = ['BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange'];
+    const postTables = ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange'];
     assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), postTables);
   });
   test('the two baselines are distinct: pre-phase1 ⊂ pre-post-phase1 ⊂ this checkout (migrations and models)', () => {

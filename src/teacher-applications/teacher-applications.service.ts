@@ -29,6 +29,9 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 import { DecisionEvents } from '../decision-notifications/decision-content.js';
 import { Events } from '../notifications/events.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import { RegistrationAvatarService, carryApplicationAvatar } from '../users/registration-avatar.service.js';
+import { ApplicationInfoRequestsService, INFO_REQUEST_SELECT } from '../application-info-requests/application-info-requests.service.js';
 import {
   ApproveTeacherApplicationDto, ListTeacherApplicationsDto, RegisterTeacherDto, RejectTeacherApplicationDto,
   VerifyTeacherApplicationSchoolDto,
@@ -51,7 +54,12 @@ export const APPLICATION_SELECT = {
   rejectionReason: true, decisionNote: true, userId: true,
   assignedSchool: { select: { id: true, name: true, code: true } },
   schoolVerifiedAt: true,
+  // Whether a picture was sent (reviewed before approval: GET /admin/teacher-applications/:id/avatar).
+  avatarFileId: true,
   schoolVerifiedBy: { select: { id: true, firstName: true, lastName: true } },
+  position: true, yearsOfExperience: true,
+  // "Request more information" (ADR-009): newest first; the open one (answeredAt and cancelledAt null) is the current question.
+  infoRequests: { select: INFO_REQUEST_SELECT, orderBy: { requestedAt: 'desc' }, take: 10 },
 } as const satisfies Prisma.TeacherApplicationSelect;
 
 const isUniqueViolation = (e: unknown) => (e as { code?: string })?.code === 'P2002';
@@ -68,6 +76,9 @@ export class TeacherApplicationsService {
     private readonly notices:    DecisionNotificationsService,
     private readonly events:     EventEmitter2,
     private readonly forms:      FormAvailabilityService,
+    private readonly infoRequests: ApplicationInfoRequestsService,
+    private readonly notifications: NotificationsService,
+    private readonly registrationAvatar: RegistrationAvatarService,
   ) {}
 
   // ─── Public ────────────────────────────────────────────────────────────────
@@ -141,6 +152,7 @@ export class TeacherApplicationsService {
           // A listed school's sector comes from the directory.
           schoolSector: choice.kind === 'MISSING' ? choice.schoolSector : school?.sector ?? null,
           homeDistrict: dto.homeDistrict, homeSector: dto.homeSector,
+          position: dto.position ?? null, yearsOfExperience: dto.yearsOfExperience ?? null,
         },
         select: { id: true, status: true, proposedSchoolName: true },
       });
@@ -164,6 +176,8 @@ export class TeacherApplicationsService {
       requiresApproval: true as const,
       school,
       proposedSchoolName: created.proposedSchoolName,
+      // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes.
+      avatarUploadToken: this.registrationAvatar.issue('TEACHER_APPLICATION', created.id),
     };
   }
 
@@ -210,15 +224,22 @@ export class TeacherApplicationsService {
 
     const teacher = await this.prisma.$transaction(async (tx) => {
       const now = new Date();
-      // Claim the application: only one concurrent decision can succeed.
+      // The row as it is now, locked (an answer to a request for more information may have corrected it, e.g. the
+      // phone; the answer path locks the application first too). Read before the claim, which clears the password hash.
+      await tx.$queryRaw`SELECT 1 FROM "TeacherApplication" WHERE "id" = ${id} FOR UPDATE`;
+      const application = await tx.teacherApplication.findUniqueOrThrow({ where: { id } });
+      if (application.status !== 'PENDING' || !application.passwordHash) throw applicationAlreadyDecided();
+      // Claim the application: only one concurrent decision can succeed. The picture moves to the account (below).
       const { count } = await tx.teacherApplication.updateMany({
         where: { id, status: 'PENDING' },
         data:  {
           status: 'APPROVED', passwordHash: null, decidedAt: now, decidedById: caller.id,
-          assignedSchoolId: schoolId, decisionNote: dto.note ?? null,
+          assignedSchoolId: schoolId, decisionNote: dto.note ?? null, avatarFileId: null,
         },
       });
       if (count === 0) throw applicationAlreadyDecided();
+      // An unanswered request for more information stops working (ADR-009).
+      await this.infoRequests.cancelOpen(tx, 'TEACHER', id);
       // The school must still be active, and stays so until commit (a deactivation waits; PR B).
       await lockSchoolsForUse(tx, [schoolId]);
 
@@ -239,6 +260,9 @@ export class TeacherApplicationsService {
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
+      // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
+      const picture = !application.avatarFileId ? 'NONE' : dto.approvePicture === true ? 'APPROVED' : 'DISCARDED';
+      if (picture === 'APPROVED') await carryApplicationAvatar(tx, user.id, application.avatarFileId);   // REG-02
       const assignment = await tx.teacherSchoolAssignment.create({
         data: { teacherId: user.id, schoolId, assignedById: caller.id }, select: { id: true },
       });
@@ -255,7 +279,7 @@ export class TeacherApplicationsService {
         actorId: caller.id, actorRole: caller.role,
         action: 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
         metadata: {
-          newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null,
+          newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null, picture,
           approvalNotice: notice ? 'QUEUED' : 'NOT_SENT_SELF_REGISTRATION_OFF',
         },
       }, tx);
@@ -333,16 +357,25 @@ export class TeacherApplicationsService {
    * Reject: no account and no assignment; the reason and decider are recorded, the password hash cleared.
    * No rejection notice exists (decision 10 would suppress one while self-registration is off).
    */
+  /** Ask the applicant for more information (ADR-009): the application stays PENDING; e-mailed one-time link. */
+  async requestInfo(id: string, question: string, caller: CallerCtx) {
+    await this.roles.assertCanAssign(caller, 'TEACHER');
+    await this.infoRequests.request('TEACHER', id, question, caller);
+    return this.prisma.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
+  }
+
   async reject(id: string, dto: RejectTeacherApplicationDto, caller: CallerCtx) {
     await this.roles.assertCanAssign(caller, 'TEACHER');
-    return this.prisma.$transaction(async (tx) => {
+    const rejected = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.teacherApplication.findUnique({ where: { id }, select: { id: true } });
       if (!existing) throw notFound();
       const { count } = await tx.teacherApplication.updateMany({
         where: { id, status: 'PENDING' },
-        data:  { status: 'REJECTED', passwordHash: null, decidedAt: new Date(), decidedById: caller.id, rejectionReason: dto.reason },
+        // A rejected application keeps no picture (the file is then cleaned up as an orphan).
+        data:  { status: 'REJECTED', passwordHash: null, decidedAt: new Date(), decidedById: caller.id, rejectionReason: dto.reason, avatarFileId: null },
       });
       if (count === 0) throw applicationAlreadyDecided();
+      await this.infoRequests.cancelOpen(tx, 'TEACHER', id);
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
         action: 'REJECT_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
@@ -351,6 +384,12 @@ export class TeacherApplicationsService {
       }, tx);
       return tx.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
     });
+    // The applicant learns the decision and its reason (REG-10). After commit; a mail failure never undoes the decision.
+    await this.notifications.queueEmail(rejected.email, 'Your teacher application',
+      'Thank you for applying to join the Rwanda Olympiad Foundation platform as a Teacher. ' +
+      `Your application was not approved at this time.\n\nReason: ${dto.reason}`,
+      { firstName: rejected.firstName }).catch(() => undefined);
+    return rejected;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

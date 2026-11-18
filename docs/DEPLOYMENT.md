@@ -99,7 +99,13 @@ migration is additive and is listed in
     confirmation.
 - **Protection:**
   - per-IP rate limits (`THROTTLE_*`, stricter on credential endpoints);
-  - a per-account lockout after 5 wrong passwords (15 minutes);
+  - sign-in: 5 attempts a minute and 20 an hour per username, 60 a minute per
+    address; 5 wrong passwords lock that username for that address only
+    (15 minutes). The client address comes from `TRUST_PROXY` (keep `1`; see
+    `operations/CLIENT-IP-VERIFICATION.md`). The counters are in memory: one
+    backend instance. `SIGNIN_TRUSTED_CLIENT_ADDRESS` stays **unset** until the
+    client address is verified to be the visitor's own (it enables the
+    "known address" exemption from the per-username limits);
   - suspending a user, changing their role or their password ends their
     sessions immediately.
 

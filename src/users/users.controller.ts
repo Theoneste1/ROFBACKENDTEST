@@ -23,11 +23,14 @@ import type { Request, Response } from 'express';
 import { UsersService } from './users.service.js';
 import { AvatarService } from './avatar.service.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
+import { RegistrationTimelineService } from './registration-timeline.service.js';
 import { IMPORT_MAX_BYTES, UserProvisioningService } from './user-provisioning.service.js';
 import { ImportUsersQueryDto, InviteUserDto } from './dto/invite-user.dto.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import {
   ListUsersQueryDto,
+  CorrectDateOfBirthDto,
+  SetDateOfBirthDto,
   UpdateMeDto,
   UpdateUserDto,
   UpdateUserStatusDto,
@@ -41,6 +44,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { PermissionService } from '../auth/permission.service.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
+import { AllowedBeforeDateOfBirth } from '../common/decorators/date-of-birth-step.decorator.js';
 
 @ApiTags('Admin · Users')
 @Controller('admin/users')
@@ -50,6 +54,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly provisioning: UserProvisioningService,
     private readonly accountStatus: AccountStatusService,
+    private readonly registrationTimelineService: RegistrationTimelineService,
   ) {}
 
   /** List users with filters (role, division, grade, school, status, search). */
@@ -98,6 +103,24 @@ export class UsersController {
   @RequirePermission('users.manage')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
+  }
+
+  /**
+   * Correct a student's date of birth (owner approval 2026-11-18): { dateOfBirth: "YYYY-MM-DD", reason } — the
+   * registration rules; the reason is mandatory. Recorded with the old and new dates (GET …/date-of-birth-history).
+   * 400 VALIDATION_FAILED / NOT_A_STUDENT, 409 DATE_OF_BIRTH_UNCHANGED. Returns the account.
+   */
+  @Put(':id/date-of-birth')
+  @RequirePermission('users.manage')
+  correctDateOfBirth(@Param('id', ParseUUIDPipe) id: string, @Body() body: CorrectDateOfBirthDto, @CurrentUser() user: AuthUser) {
+    return this.usersService.correctDateOfBirth(id, body, user);
+  }
+
+  /** The date-of-birth history: Administrator corrections (old and new dates, reason, who, when) and the first-sign-in entry. */
+  @Get(':id/date-of-birth-history')
+  @RequirePermission('users.manage')
+  dateOfBirthHistory(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.usersService.dateOfBirthHistory(id, user);
   }
 
   @Patch(':id')
@@ -162,6 +185,16 @@ export class UsersController {
     return this.accountStatus.change(id, { toStatus: body.toStatus, reason: body.reason, confirm: body.confirm }, user, { requestId: req.id ?? null });
   }
 
+  /**
+   * Registration timeline (REG-13): the current stages and every registration-related event, oldest first
+   * (registration / invitation, application, activation, approval, state and role changes, school claims).
+   */
+  @Get(':id/registration-timeline')
+  @RequirePermission('users.manage')
+  registrationTimeline(@Param('id', ParseUUIDPipe) id: string) {
+    return this.registrationTimelineService.timeline(id);
+  }
+
   /** The account's state changes, newest first (who, when, from, to, reason). */
   @Get(':id/status-history')
   @RequirePermission('users.viewStatusHistory')
@@ -213,11 +246,24 @@ export class MeController {
     private readonly permissionService: PermissionService,
   ) {}
 
-  /** The current user's profile, division and school. */
+  /** The current user's profile, division and school; `dateOfBirthRequired` true: PUT /me/date-of-birth first. */
   @Get()
   @Authenticated()
+  @AllowedBeforeDateOfBirth()
   getMe(@CurrentUser() user: AuthUser) {
     return this.usersService.getMe(user.id);
+  }
+
+  /**
+   * A student who has no date of birth yet (created by an Administrator, invited or imported) gives it here; until
+   * then other routes answer 403 DATE_OF_BIRTH_REQUIRED (owner decision 9.3). 400 VALIDATION_FAILED (registration
+   * rules), 409 DATE_OF_BIRTH_ALREADY_SET. Returns the profile.
+   */
+  @Put('date-of-birth')
+  @Roles('STUDENT')
+  @AllowedBeforeDateOfBirth()
+  setDateOfBirth(@CurrentUser() user: AuthUser, @Body() body: SetDateOfBirthDto) {
+    return this.usersService.setOwnDateOfBirth(user, body.dateOfBirth);
   }
 
   @Patch()
@@ -249,6 +295,7 @@ export class MeController {
   /** What the current user's role may do (for showing/hiding UI). */
   @Get('permissions')
   @Authenticated()
+  @AllowedBeforeDateOfBirth()
   permissions(@CurrentUser() user: AuthUser) {
     return this.permissionService.describe(user);
   }

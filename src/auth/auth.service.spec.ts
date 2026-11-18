@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service.js';
 import { hashToken } from './token.service.js';
+import { LoginLimiter } from './login-limiter.js';
 
 const PASSWORD = 'CorrectHorse1!';
 const HASH     = bcrypt.hashSync(PASSWORD, 4);
@@ -9,6 +10,7 @@ const CLIENT   = { userAgent: 'vitest', ip: '127.0.0.1' };
 
 function makeMocks() {
   const prisma = {
+    auditLog: { findFirst: vi.fn().mockResolvedValue(null) },   // known-address check (sign-in protection)
     user: {
       findFirst:  vi.fn().mockResolvedValue(null),
       findUnique: vi.fn().mockResolvedValue(null),
@@ -87,6 +89,10 @@ function makeMocks() {
     issueAndSend: vi.fn().mockResolvedValue({}),
   };
 
+  // Sign-in protection with a controllable clock (owner approval 2026-11-18).
+  const clock = { now: Date.now() };
+  const trust = { addresses: true };   // SIGNIN_TRUSTED_CLIENT_ADDRESS (the tests below switch it off where it matters)
+  const limiter = new LoginLimiter('unit-test-secret', () => false, () => clock.now, () => trust.addresses);
   const service = new AuthService(
     prisma as any, tokens as any, audit as any, settings as any, divisions as any, notifications as any,
     academicYears as any, activity as any, activation as any, accountEmails as any,
@@ -94,8 +100,10 @@ function makeMocks() {
     { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn() } as any,   // school affiliation (claims are tested end to end)
     events as any,
     forms as any,
+    limiter,
+    { issue: vi.fn().mockReturnValue('avatar-token') } as any,   // registration avatar (REG-02)
   );
-  return { service, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails, events, forms };
+  return { service, limiter, clock, trust, prisma, tx, lockState, withLockout, tokens, audit, settings, divisions, notifications, academicYears, activity, activation, issued, accountEmails, events, forms };
 }
 
 const activeUser = (overrides: Record<string, unknown> = {}) => ({
@@ -165,79 +173,87 @@ describe('AuthService', () => {
       // The attempt reservation increments first; the success write sets lastLoginAt and resets the lockout.
       const success = prisma.user.update.mock.calls.find((c) => c[0].data.lastLoginAt);
       expect(success![0].data).toMatchObject({ lastLoginAt: expect.any(Date), failedLoginCount: 0, lockedUntil: null });
-      expect(result).toEqual({ access_token: 'a', refresh_token: 'r', user: { id: 'u1', username: 'alice' } });
+      expect(result).toEqual({ access_token: 'a', refresh_token: 'r', user: { id: 'u1', username: 'alice', dateOfBirthRequired: false } });
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'LOGIN', actorId: 'u1' }));
     });
 
-    describe('lockout (attempts are reserved before the password is checked)', () => {
+    describe('sign-in protection (owner approval 2026-11-18): per username, per address lock, identical for unknown usernames', () => {
       const locks = (audit: { log: ReturnType<typeof vi.fn> }) => audit.log.mock.calls.filter((c) => c[0].action === 'LOCK_ACCOUNT');
+      const OTHER = { userAgent: 'vitest', ip: '10.9.8.7' };
 
-      it('the fifth wrong password locks the account once, under the user row lock', async () => {
-        const { service, prisma, tx, lockState, audit } = makeMocks();
+      it('the fifth wrong password from one address locks that username for that address only; another address still signs in', async () => {
+        const { service, prisma, audit, tokens } = makeMocks();
         prisma.user.findFirst.mockResolvedValue(activeUser());
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 5; i++) {
           await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
         }
-        expect(lockState).toEqual({ failedLoginCount: 4, lockedUntil: null });
-        await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
-        expect(lockState.failedLoginCount).toBe(0);
-        expect(lockState.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
         expect(locks(audit)).toHaveLength(1);
-        expect(locks(audit)[0][0].metadata).toEqual({ attempts: 5 });
-        // Every reservation locked the row first.
-        expect(tx.$queryRaw).toHaveBeenCalledTimes(5);
-      });
-
-      it('a locked account refuses the right password and counts nothing', async () => {
-        const { service, prisma, lockState, tokens } = makeMocks();
-        prisma.user.findFirst.mockResolvedValue(activeUser());
-        lockState.lockedUntil = new Date(Date.now() + 60_000);
-        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
-        expect(lockState.failedLoginCount).toBe(0);
+        expect(locks(audit)[0][0]).toMatchObject({ entityId: 'u1', metadata: { attempts: 5, scope: 'ADDRESS', ip: '127.0.0.1', minutes: 15 } });
+        // Locked from this address: the right password gets the wrong-password answer.
+        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toThrow('Invalid username or password.');
         expect(tokens.issue).not.toHaveBeenCalled();
+        // From another address: the username's minute window is now full (6 attempts), so an unknown address waits…
+        prisma.user.update.mockResolvedValue({ id: 'u1', role: 'MENTOR', dateOfBirth: null });
+        await expect(service.login({ username: 'alice', password: PASSWORD }, OTHER)).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
+        // …but an address the student signed in from before is not held by the attacker's attempts.
+        prisma.auditLog.findFirst.mockResolvedValue({ id: 'login-from-other' });
+        await expect(service.login({ username: 'alice', password: PASSWORD }, OTHER)).resolves.toMatchObject({ access_token: 'a' });
+        expect(prisma.auditLog.findFirst.mock.calls.at(-1)![0].where).toMatchObject({ action: 'LOGIN', entityId: 'u1', metadata: { path: ['ip'], equals: '10.9.8.7' } });
+        expect(prisma.user.update).not.toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ lockedUntil: expect.any(Date) }) }));
       });
 
-      it('with every attempt already reserved, a further attempt is refused and locks the account (no permanent stall)', async () => {
-        const { service, prisma, lockState, audit, tokens } = makeMocks();
+      it('without SIGNIN_TRUSTED_CLIENT_ADDRESS (default), no address is exempt: the username limits hold everywhere', async () => {
+        const { service, prisma, trust } = makeMocks();
+        trust.addresses = false;
         prisma.user.findFirst.mockResolvedValue(activeUser());
-        lockState.failedLoginCount = 5;   // e.g. a request died between reserving and settling
-        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
-        expect(tokens.issue).not.toHaveBeenCalled();
-        expect(lockState.failedLoginCount).toBe(0);
-        expect(lockState.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
-        expect(locks(audit)).toHaveLength(1);
+        prisma.auditLog.findFirst.mockResolvedValue({ id: 'login-from-other' });   // the address WOULD be known
+        for (let i = 0; i < 5; i++) await expect(service.login({ username: 'alice', password: 'wrong' }, { userAgent: 'vitest', ip: `10.1.0.${i}` })).rejects.toBeInstanceOf(UnauthorizedException);
+        await expect(service.login({ username: 'alice', password: PASSWORD }, OTHER)).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
+        expect(prisma.auditLog.findFirst).not.toHaveBeenCalled();
+      }, 30_000);
+
+      it('an unknown username is counted and limited exactly like a real one (same answers)', async () => {
+        const { service, prisma, audit } = makeMocks();   // findFirst → null: the account does not exist
+        for (let i = 0; i < 6; i++) {
+          await expect(service.login({ username: 'ghost', password: 'wrong' }, CLIENT)).rejects.toThrow('Invalid username or password.');
+        }
+        expect(locks(audit)).toHaveLength(0);   // nothing to audit for an account that does not exist
+        // Further attempts in the same minute from anywhere: the same 429 a real username gets; no known address exists.
+        await expect(service.login({ username: 'GHOST ', password: 'x' }, OTHER)).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
+        expect(prisma.auditLog.findFirst).not.toHaveBeenCalled();
+      }, 30_000);   // 6 checks against the cost-12 dummy hash (timing equalised): slow under a parallel full run
+
+      it('per username: 5 attempts a minute and 20 an hour, from any address (normalised: case and spaces)', async () => {
+        const { service, prisma, clock } = makeMocks();
+        prisma.user.findFirst.mockResolvedValue(activeUser());
+        prisma.user.update.mockResolvedValue({ id: 'u1', role: 'MENTOR', dateOfBirth: null });
+        const ip = (i: number) => ({ userAgent: 'vitest', ip: `10.0.0.${i}` });
+        for (let i = 0; i < 5; i++) await expect(service.login({ username: i % 2 ? 'Alice' : ' alice', password: 'wrong' }, ip(i))).rejects.toBeInstanceOf(UnauthorizedException);
+        const limited = await service.login({ username: 'alice', password: PASSWORD }, ip(9)).catch((e) => e);
+        expect(limited).toMatchObject({ code: 'TOO_MANY_REQUESTS' });
+        expect((limited.getResponse() as { details: { retryAfter: number } }).details.retryAfter).toBeGreaterThan(0);
+        // The hour: 4 more minutes of 5 attempts reach 20; the 21st within the hour is refused.
+        for (let m = 1; m <= 3; m++) {
+          clock.now += 61_000;
+          for (let i = 0; i < 5; i++) await expect(service.login({ username: 'alice', password: 'wrong' }, ip(10 * m + i))).rejects.toBeInstanceOf(UnauthorizedException);
+        }
+        clock.now += 61_000;
+        await expect(service.login({ username: 'alice', password: PASSWORD }, ip(99))).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
+        clock.now += 60 * 60_000;   // an hour later
+        await expect(service.login({ username: 'alice', password: PASSWORD }, ip(98))).resolves.toMatchObject({ access_token: 'a' });
       });
 
-      it('the deciding wrong attempt does not lock or audit twice when a concurrent request already locked', async () => {
-        const { service, prisma, lockState, audit } = makeMocks();
+      it('a correct password clears that address\'s failures; a correct password on an account that cannot sign in yet still counts as correct', async () => {
+        const { service, prisma, audit, clock } = makeMocks();
         prisma.user.findFirst.mockResolvedValue(activeUser());
-        lockState.failedLoginCount = 4;
-        // This (fifth) attempt is reserved; a concurrent request then locks the
-        // account while this one's password is still being checked.
-        prisma.user.update.mockImplementationOnce(async () => {
-          const reserved = { failedLoginCount: ++lockState.failedLoginCount };
-          lockState.lockedUntil = new Date(Date.now() + 60_000);
-          return reserved;
-        });
+        prisma.user.update.mockResolvedValue({ id: 'u1', role: 'MENTOR', dateOfBirth: null });
+        for (let i = 0; i < 4; i++) await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
+        await service.login({ username: 'alice', password: PASSWORD }, CLIENT);
+        clock.now += 61_000;   // a new minute (the username window allows 5 a minute)
         await expect(service.login({ username: 'alice', password: 'wrong' }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
-        expect(lockState.failedLoginCount).toBe(5);              // the attempt was reserved
-        expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);   // it tried to lock, conditionally
-        expect(locks(audit)).toHaveLength(0);                      // but the account was already locked
-      });
-
-      it('a correct password on an account that cannot sign in yet does not count towards the lockout', async () => {
-        const { service, prisma } = makeMocks();
+        expect(locks(audit)).toHaveLength(0);   // 4 + 1 failures, separated by a success: no lock
         prisma.user.findFirst.mockResolvedValue(activeUser({ isActive: false }));
         await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toMatchObject({ code: 'ACCOUNT_SUSPENDED' });
-        expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { failedLoginCount: 0 } });
-      });
-
-      it('an unknown user or an account without a password reserves nothing', async () => {
-        const { service, prisma, tx } = makeMocks();
-        await expect(service.login({ username: 'ghost', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
-        prisma.user.findFirst.mockResolvedValue(activeUser({ passwordHash: null }));
-        await expect(service.login({ username: 'alice', password: PASSWORD }, CLIENT)).rejects.toBeInstanceOf(UnauthorizedException);
-        expect(tx.$queryRaw).not.toHaveBeenCalled();
       });
     });
 
@@ -299,7 +315,7 @@ describe('AuthService', () => {
       expect(prisma.user.create.mock.calls[0][0].data.activatedAt).toBeInstanceOf(Date);
       expect(academicYears.enrollInCurrentYear).toHaveBeenCalledWith(prisma, 'u-new', 'S2', 'sch1');
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'REGISTER', entityId: 'u-new' }), prisma);
-      expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false, requiresEmailVerification: false, schoolVerification: 'PENDING' });
+      expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false, requiresEmailVerification: false, schoolVerification: 'PENDING', avatarUploadToken: 'avatar-token' });
     });
 
     it('with e-mail verification on: not activated, token issued in the transaction, e-mail sent after commit', async () => {
@@ -430,6 +446,10 @@ describe('AuthService', () => {
       await service.resetPassword('token', 'NewPassw0rd!');
       expect(tokens.revokeAllForUser).toHaveBeenCalledTimes(1);
       expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u1', prisma);
+      // The remedy for sign-in locks: the earlier release's account lock ends too.
+      expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'u1' }, data: expect.objectContaining({ failedLoginCount: 0, lockedUntil: null }),
+      }));
     });
   });
 

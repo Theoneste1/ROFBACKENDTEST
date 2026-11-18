@@ -16,6 +16,7 @@ import { Transform } from 'class-transformer';
 import { GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { IsStudentDateOfBirth } from '../../auth/dto/registration-details.rules.js';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -119,6 +120,28 @@ export class ChangeAccountStatusDto {
   @IsOptional()
   @IsBoolean()
   confirm?: boolean;
+}
+
+/** PUT /me/date-of-birth: "YYYY-MM-DD", the registration rules (a real past date, age 5–30 in Rwanda). */
+export class SetDateOfBirthDto {
+  @Transform(trim)
+  @IsStudentDateOfBirth()
+  dateOfBirth: string;
+}
+
+/**
+ * PUT /admin/users/:id/date-of-birth (owner approval 2026-11-18): an Administrator corrects a student's date of birth.
+ * The registration rules apply; a reason is mandatory (5–500 characters) and is recorded with the old and new values.
+ */
+export class CorrectDateOfBirthDto {
+  @Transform(trim)
+  @IsStudentDateOfBirth()
+  dateOfBirth: string;
+
+  @Transform(trim)
+  @IsString()
+  @Length(5, 500, { message: 'reason must be 5 to 500 characters.' })
+  reason: string;
 }
 
 export class UpdateMeDto {

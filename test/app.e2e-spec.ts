@@ -31,9 +31,9 @@ describe('App basics (e2e)', () => {
     expect(res.body.capabilities).toEqual(capabilitiesOf(config));
     // Exactly the approved V1 features for this configuration (the directory sync since 2026-11-14).
     expect(res.body.capabilities.features).toEqual([
-      'academicYearActivation', 'accountStates', 'bulkUserOperations', 'coachApplicationDetails', 'formAvailability',
+      'academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkUserOperations', 'coachApplicationDetails', 'dateOfBirthCorrection', 'formAvailability',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
-      'notificationDeliveries', 'permissionScopes', 'profilePictures', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentOlympiadInterests', 'studentRegistrationDetails',
+      'notificationDeliveries', 'permissionScopes', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts', 'teacherSelfRegistration'] : []),
     ]);
     const again = await ctx.http().get('/api/v1').expect(200);

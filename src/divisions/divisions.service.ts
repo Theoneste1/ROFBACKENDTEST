@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { auditChanges } from '../audit/audit-changes.js';
 import { AppError } from '../common/errors/app-error.js';
 import { DIVISION_GRADES, divisionCodeForGrade } from '../common/grade-levels.js';
 import type { CallerCtx } from '../common/auth-user.js';
@@ -59,11 +60,12 @@ export class DivisionsService {
 
   /** Admin: edit name/description/active flag. Divisions cannot be created or deleted. */
   async update(id: string, dto: UpdateDivisionDto, caller: CallerCtx) {
-    await this.requireDivision(id);
+    const before = await this.requireDivision(id);
     const updated = await this.prisma.division.update({ where: { id }, data: dto });
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
-      action: 'UPDATE_DIVISION', entity: 'Division', entityId: id, metadata: { ...dto },
+      action: 'UPDATE_DIVISION', entity: 'Division', entityId: id,
+      metadata: { ...dto, changes: auditChanges(before, updated, ['name', 'description', 'isActive']) },
     });
     return { ...updated, gradeLevels: DIVISION_GRADES[updated.code] };
   }

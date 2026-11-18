@@ -68,7 +68,7 @@ describe('School claims (PR C)', () => {
     const username = `sc.s${n}`;
     const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
     const u = await p().user.create({ data: {
-      username, firstName: 'Sc', lastName: `S${n}`, email: `${username}@test.local`, role: 'STUDENT', passwordHash: hash,
+      username, firstName: 'Sc', lastName: `S${n}`, email: `${username}@test.local`, role: 'STUDENT', passwordHash: hash, dateOfBirth: new Date('2010-05-01T00:00:00Z'), 
       activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId,
     } });
     await p().studentEnrollment.create({ data: { studentId: u.id, academicYearId: ctx.ids.year, gradeLevel: 'S2', divisionId: ctx.ids.junior, schoolId } });
@@ -303,7 +303,7 @@ describe('School claims (PR C)', () => {
 
       // Legacy registration claim without a place: nothing to compare.
       const legacy = await http().post('/api/v1/auth/register/student').send({
-        firstName: 'L', lastName: 'Egacy', username: 'sc.legacy', email: 'sc.legacy@test.local', password: 'Secret123', gradeLevel: 'S2', homeLocation: 'Huye', schoolName: 'Some Old School',
+        firstName: 'L', lastName: 'Egacy', username: 'sc.legacy', email: 'sc.legacy@test.local', password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolName: 'Some Old School',
       }).expect(201);
       const legacyId = (await p().user.findUniqueOrThrow({ where: { username: 'sc.legacy' } })).id;
       const legacyClaim = await claimOf(legacyId);
@@ -388,7 +388,7 @@ describe('School claims (PR C)', () => {
 
   it('registration "not listed": the place is validated and kept on the PENDING claim; an exact unique match in that sector is linked; partial / invalid / foreign places refused; legacy name-only unchanged', async () => {
     const reg = (username: string, extra: object) => http().post('/api/v1/auth/register/student').send({
-      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', gradeLevel: 'S2', homeLocation: 'Huye', ...extra,
+      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', ...extra,
     });
     const user = (username: string) => p().user.findUniqueOrThrow({ where: { username } });
     await reg('sc.reg.nl', { schoolName: 'Unlisted Academy', ...NGOMA }).expect(201);

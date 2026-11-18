@@ -1,4 +1,4 @@
--- post-Phase-1 release post-check (AFTER `prisma migrate deploy` of the nine migrations after M14): READ ONLY.
+-- post-Phase-1 release post-check (AFTER `prisma migrate deploy` of the ten migrations after M14): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release post-phase1    (Neon rehearsal branch; guarded)
 --   psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/release/post-phase1-postcheck.sql   (production, in the window)
@@ -8,19 +8,19 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST: 14 Phase 1 + 9 post-Phase-1 migrations applied; nothing failed or rolled back; nothing after 20261208000000'
+\echo '== 1. MUST: 14 Phase 1 + 10 post-Phase-1 migrations applied; nothing failed or rolled back; nothing after 20261209000000'
 SELECT count(*) FILTER (WHERE migration_name LIKE '2026112100%' AND finished_at IS NOT NULL AND rolled_back_at IS NULL)       AS phase1_applied,
        count(*) FILTER (WHERE migration_name IN ('20261201000000_teacher_applications', '20261202000000_notification_outbox',
                           '20261203000000_student_olympiad_interests', '20261204000000_registration_details', '20261205000000_avatar_file_purpose',
                           '20261206000000_account_states', '20261207000000_bulk_operations', '20261207000100_bulk_membership_guard',
-                          '20261208000000_form_availability') AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS post_phase1_applied,
-       count(*) FILTER (WHERE migration_name > '20261208000000_form_availability')                                           AS later,
+                          '20261208000000_form_availability', '20261209000000_application_details') AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS post_phase1_applied,
+       count(*) FILTER (WHERE migration_name > '20261209000000_application_details')                                           AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                                             AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
-\echo '== 2. MUST be 6, 9, 14, 2, 1: tables, enums, columns, triggers created, and the AVATAR file purpose'
+\echo '== 2. MUST be 7, 9, 21, 2, 1: tables, enums, columns, triggers created, and the AVATAR file purpose'
 SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
-          AND table_name IN ('BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange')) AS tables,
+          AND table_name IN ('ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange')) AS tables,
        (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
           AND typname IN ('AccountStatus', 'BulkItemOutcome', 'BulkOperationStatus', 'CoachEducationLevel', 'FormKey', 'FormMode',
                           'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus')) AS enums,
@@ -28,7 +28,9 @@ SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'pub
           AND (table_name, column_name) IN (('User', 'accountStatus'), ('User', 'avatarFileId'), ('User', 'country'), ('User', 'dateOfBirth'),
                ('User', 'guardianPhone'), ('User', 'homeDistrict'), ('User', 'homeProvince'), ('User', 'homeSector'), ('User', 'olympiadInterests'),
                ('User', 'phone'), ('MentorRequest', 'country'), ('MentorRequest', 'educationLevel'), ('MentorRequest', 'occupation'),
-               ('MentorRequest', 'olympiadInterests'))) AS columns,
+               ('MentorRequest', 'olympiadInterests'),
+               ('MentorRequest', 'affiliation'), ('MentorRequest', 'expertise'), ('MentorRequest', 'phone'), ('MentorRequest', 'rejectionReason'),
+               ('MentorRequest', 'relevantExperience'), ('MentorRequest', 'yearsOfExperience'), ('MentorRequest', 'avatarFileId'))) AS columns,
        (SELECT count(*) FROM pg_trigger WHERE tgname IN ('user_account_status_sync', 'user_bulk_membership_guard') AND tgenabled = 'O') AS triggers,
        (SELECT count(*) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'FilePurpose' AND e.enumlabel = 'AVATAR') AS avatar_purpose;
 

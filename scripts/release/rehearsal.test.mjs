@@ -183,7 +183,7 @@ test('post-Phase-1: the nine migrations are exactly those between M14 and form_a
   const between = dirs.filter((d) => d.slice(0, 14) > LAST_PHASE1_TIMESTAMP && d.slice(0, 14) <= RELEASES['post-phase1'].last);
   assert.deepEqual(between, POST_PHASE1_MIGRATIONS);
   assert.deepEqual([...POST_PHASE1_MIGRATIONS].sort(), POST_PHASE1_MIGRATIONS);
-  assert.deepEqual(laterMigrations(dirs).slice(0, 9), POST_PHASE1_MIGRATIONS);
+  assert.deepEqual(laterMigrations(dirs).slice(0, POST_PHASE1_MIGRATIONS.length), POST_PHASE1_MIGRATIONS);
 });
 
 const createdBy = (dirs, re) => dirs.flatMap((d) => [...readFileSync(`prisma/migrations/${d}/migration.sql`, 'utf8').matchAll(re)].map((m) => m.slice(1).join('.'))).sort();
@@ -210,7 +210,7 @@ test('post-Phase-1: one rollback file per migration, run newest first; anything 
   const release = releaseFrom(['--release', 'post-phase1']);
   const files = releaseRollbackFiles(release, readdirSync('docs/migrations'));
   assert.deepEqual(files, [...POST_PHASE1_MIGRATIONS].reverse().map((m) => `${m}.rollback.sql`));
-  assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 9 .* found 8/);
+  assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 10 .* found 9/);
   // The Phase 1 rollbacks are never part of it, and vice versa.
   assert.equal(rollbackFiles(readdirSync('docs/migrations')).length, 14);
   for (const f of files) assert.doesNotThrow(() => segments(readFileSync(`docs/migrations/${f}`, 'utf8')), f);
@@ -236,9 +236,9 @@ test('releaseFrom / afterRelease / checkoutProblem: default phase1; post-phase1 
   const post = releaseFrom(['--release', 'post-phase1']);
   const dirs = migrationDirs(REPO_ROOT);
   assert.equal(checkoutProblem(post, dirs), null);
-  assert.match(checkoutProblem(post, [...dirs, '20261209000000_next']), /1 migration\(s\) after .* \(20261209000000_next\)/);
-  assert.match(checkoutProblem(post, dirs.filter((d) => d !== '20261204000000_registration_details')), /expected the 9 .* found 8/);
-  assert.deepEqual(afterRelease(post, ['20261208000000_form_availability', '20261209000000_x', '20261121001300_y']), ['20261209000000_x']);
+  assert.match(checkoutProblem(post, [...dirs, '20261210000000_next']), /1 migration\(s\) after .* \(20261210000000_next\)/);
+  assert.match(checkoutProblem(post, dirs.filter((d) => d !== '20261204000000_registration_details')), /expected the 10 .* found 9/);
+  assert.deepEqual(afterRelease(post, ['20261209000000_application_details', '20261210000000_x', '20261121001300_y']), ['20261210000000_x']);
   assert.deepEqual(afterRelease(releaseFrom([]), POST_PHASE1_MIGRATIONS), POST_PHASE1_MIGRATIONS);
 });
 
@@ -255,14 +255,14 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
     assert.equal(bad.status, 2);
     assert.match(bad.stderr, /--release must be one of: phase1, post-phase1/);
   });
-  withCheckoutCopy(['20261209000000_next'], (root) => {
+  withCheckoutCopy(['20261210000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /1 migration\(s\) after post-Phase-1 .*20261209000000_next/);
+    assert.match(r.stderr, /1 migration\(s\) after post-Phase-1 .*20261210000000_next/);
   });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'post-phase1');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /expected the 9 migrations of post-Phase-1 .* found 8/);
+    assert.match(r.stderr, /expected the 10 migrations of post-Phase-1 .* found 9/);
   }, { drop: ['20261206000000_account_states'] });
 });

@@ -1,5 +1,5 @@
 import {
-  ArrayNotEmpty,
+  IsInt, Max, Min, ArrayNotEmpty,
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -12,6 +12,7 @@ import {
   Matches,
   MaxLength,
   ValidateIf,
+  IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -91,6 +92,16 @@ export class RegisterTeacherDto {
   @IsString() @Length(1, 100) @Transform(trim)
   schoolSector?: string;
 
+  /** Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients. */
+  @IsOptional()
+  @IsString() @Length(2, 100) @Transform(trim)
+  position?: string;
+
+  /** Years of teaching experience, 0–60 (REG-05). Optional. */
+  @IsOptional()
+  @IsInt() @Min(0) @Max(60)
+  yearsOfExperience?: number;
+
   @IsString() @Length(1, 100) @Transform(trim)
   homeDistrict: string;
 
@@ -115,6 +126,15 @@ export class ApproveTeacherApplicationDto {
   @IsOptional()
   @IsString() @MaxLength(500) @Transform(trim)
   note?: string;
+
+  /**
+   * Picture moderation (owner approval 2026-11-18): the picture sent with the application becomes the account's
+   * picture ONLY when the Administrator, having seen it (GET …/:id/avatar), sends true. Omitted or false: it is
+   * discarded and the account starts without a picture.
+   */
+  @IsOptional()
+  @IsBoolean()
+  approvePicture?: boolean;
 }
 
 /** POST /admin/teacher-applications/:id/reject */

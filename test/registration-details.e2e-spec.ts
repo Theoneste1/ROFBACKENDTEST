@@ -35,7 +35,7 @@ describe('Registration details (e2e)', () => {
     n += 1;
     return http().post('/api/v1/auth/register/student').send({
       firstName: 'Diane', lastName: 'Details', username: `rd.s${n}`, email: `rd.s${n}@example.com`,
-      password: 'Secret123', gradeLevel: 'S3', schoolCode: '310888', homeLocation: 'Huye', ...body,
+      password: 'Secret123', gradeLevel: 'S3', schoolCode: '310888', homeLocation: 'Huye', dateOfBirth: bornYearsAgo(15), guardianPhone: '0722 000 111', ...body,
     });
   };
   const HOME = { homeCountry: 'RW', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma' };
@@ -72,9 +72,29 @@ describe('Registration details (e2e)', () => {
     expect(JSON.stringify(audit.metadata)).not.toContain(dateOfBirth);
   });
 
-  it('older clients: registered exactly as before (no details)', async () => {
-    const res = await register().expect(201);
-    expect(res.body).toMatchObject({ dateOfBirth: null, phone: null, guardianPhone: null, homeProvince: null, homeLocation: 'Huye' });
+  it('the date of birth is required (owner, 2026-11-17): without it 400 naming dateOfBirth, nothing created; the other details (except the guardian phone) stay optional', async () => {
+    const before = await ctx.prisma.user.count();
+    const res = await register({ dateOfBirth: undefined }).expect(400);
+    expect(JSON.stringify(res.body)).toContain('dateOfBirth');
+    expect(await ctx.prisma.user.count()).toBe(before);
+    const ok = await register().expect(201);
+    expect(ok.body).toMatchObject({ phone: null, guardianPhone: '+250722000111', homeProvince: null, homeLocation: 'Huye' });
+    expect(String(ok.body.dateOfBirth).slice(0, 10)).toBe(bornYearsAgo(15));
+  });
+
+  it('the close-family (guardian) phone is required by the server (owner decision 9.2, 2026-11-18): missing, empty, malformed or invalid → 400 naming guardianPhone, nothing created; the own phone of the student stays optional', async () => {
+    const cases: unknown[] = [undefined, null, '', '   ', 'my mother', '0788', '+250 688 123 456', '07881234567', 12345];
+    for (const guardianPhone of cases) {
+      const username = `rd.gp${++n}`;
+      const res = await register({ username, email: `${username}@example.com`, guardianPhone }).expect(400);
+      expect([guardianPhone, res.body.code]).toEqual([guardianPhone, 'VALIDATION_FAILED']);
+      expect(JSON.stringify(res.body)).toContain('guardianPhone');
+      expect(await ctx.prisma.user.count({ where: { username } })).toBe(0);
+    }
+    // Valid: stored in E.164; the student's own phone may be left out.
+    const ok = await register({ guardianPhone: ' 0722 123 456 ', phone: undefined }).expect(201);
+    expect(ok.body).toMatchObject({ guardianPhone: '+250722123456', phone: null });
+    expect(await ctx.prisma.user.findUniqueOrThrow({ where: { id: ok.body.id }, select: { guardianPhone: true } })).toEqual({ guardianPhone: '+250722123456' });
   });
 
   it('an international student: own country, home city as text, school abroad', async () => {
@@ -153,6 +173,8 @@ describe('Registration details (e2e)', () => {
     }
   });
 
+  // Since 2026-11-17 the date of birth is required: the payloads below are today's frontend's plus dateOfBirth (the
+  // frontend release asks for it); a payload without it is refused (see 'the date of birth is required').
   describe("backward compatibility: the payloads today's frontend sends", () => {
     /** The registration response keys before this change; the only additions are the seven detail fields. */
     const NEW_KEYS = ['country', 'dateOfBirth', 'guardianPhone', 'homeDistrict', 'homeProvince', 'homeSector', 'phone'];
@@ -168,10 +190,12 @@ describe('Registration details (e2e)', () => {
     });
     const claimOf = (userId: string) => ctx.prisma.studentSchoolAffiliation.findFirstOrThrow({ where: { studentId: userId } });
 
-    it('by school code: linked to that official school, PENDING; same response shape plus the new fields (null)', async () => {
+    it('by school code: linked to that official school, PENDING; same response shape plus the new fields (null, except the now-required date of birth and guardian phone)', async () => {
       const res = await register({ olympiadInterests: ['MATHEMATICS'] }).expect(201);
       reference = oldShape(res.body);
-      for (const k of NEW_KEYS) expect(res.body[k]).toBeNull();
+      for (const k of NEW_KEYS.filter((x) => x !== 'dateOfBirth' && x !== 'guardianPhone')) expect(res.body[k]).toBeNull();
+      expect(res.body.dateOfBirth).not.toBeNull();
+      expect(res.body.guardianPhone).toBe('+250722000111');
       expect(res.body.school).toMatchObject({ name: 'GS DETAILS' });
       expect(await claimOf(res.body.id)).toMatchObject({ status: 'PENDING', source: 'REGISTRATION' });
     });

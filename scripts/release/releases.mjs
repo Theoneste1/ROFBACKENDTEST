@@ -3,8 +3,9 @@
 import { PHASE1, PHASE1_COUNT, LAST_PHASE1_TIMESTAMP } from './phase1.mjs';
 
 /**
- * The post-Phase-1 release (develop c39df18, owner approval 2026-11-17): the nine migrations after M14, in the
- * order Prisma applies them (name order). Listed explicitly — a migration added later is never part of it.
+ * The post-Phase-1 release: the migrations after M14, in the order Prisma applies them (name order). The nine of
+ * develop c39df18 (owner approval 2026-11-17), plus application details (2026-11-17, ADR-009): the owner asked for
+ * one complete release, not partial ones. Listed explicitly — a migration added later is never part of it.
  */
 export const POST_PHASE1_MIGRATIONS = [
   '20261201000000_teacher_applications',
@@ -16,19 +17,22 @@ export const POST_PHASE1_MIGRATIONS = [
   '20261207000000_bulk_operations',
   '20261207000100_bulk_membership_guard',
   '20261208000000_form_availability',
+  '20261209000000_application_details',
 ];
 
 /**
- * What the nine migrations create (checked against their SQL by the tests). `rollback-history` refuses while any of
+ * What the post-Phase-1 migrations create (checked against their SQL by the tests). `rollback-history` refuses while any of
  * it is left. Not listed: the FilePurpose value 'AVATAR' (PostgreSQL cannot drop an enum value; the rollback keeps it,
  * unused) and indexes (dropped with their tables or columns).
  */
 export const POST_PHASE1_OBJECTS = {
-  tables: ['BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange'],
+  tables: ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication', 'UserStatusChange'],
   enums: ['AccountStatus', 'BulkItemOutcome', 'BulkOperationStatus', 'CoachEducationLevel', 'FormKey', 'FormMode',
     'NotificationOutboxStatus', 'OlympiadSubject', 'TeacherApplicationStatus'],
   columns: [
     ['MentorRequest', 'country'], ['MentorRequest', 'educationLevel'], ['MentorRequest', 'occupation'], ['MentorRequest', 'olympiadInterests'],
+    ['MentorRequest', 'affiliation'], ['MentorRequest', 'expertise'], ['MentorRequest', 'phone'], ['MentorRequest', 'rejectionReason'],
+    ['MentorRequest', 'relevantExperience'], ['MentorRequest', 'yearsOfExperience'], ['MentorRequest', 'avatarFileId'],
     ['User', 'accountStatus'], ['User', 'avatarFileId'], ['User', 'country'], ['User', 'dateOfBirth'], ['User', 'guardianPhone'],
     ['User', 'homeDistrict'], ['User', 'homeProvince'], ['User', 'homeSector'], ['User', 'olympiadInterests'], ['User', 'phone'],
   ],
@@ -50,7 +54,7 @@ export const RELEASES = {
     postcheck: 'scripts/release/phase1-postcheck.sql',
   },
   'post-phase1': {
-    label: 'post-Phase-1 (9 migrations after M14)',
+    label: `post-Phase-1 (${POST_PHASE1_MIGRATIONS.length} migrations after M14)`,
     count: POST_PHASE1_MIGRATIONS.length,
     owns: (name) => POST_PHASE1_MIGRATIONS.includes(name),
     last: POST_PHASE1_MIGRATIONS.at(-1).slice(0, 14),

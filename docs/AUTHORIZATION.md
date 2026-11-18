@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 299 endpoints — 22 public, 171 administrator-only.
+Totals: 310 endpoints — 25 public, 178 administrator-only.
 
 ## Academic years
 
@@ -242,6 +242,9 @@ Totals: 299 endpoints — 22 public, 171 administrator-only.
 | DELETE | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
 | PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/users/{id}/date-of-birth` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/{id}/date-of-birth-history` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/{id}/registration-timeline` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/resend-invitation` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/send-password-reset` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/users/{id}/status` |  |  |  | ✓ |
@@ -289,6 +292,8 @@ Totals: 299 endpoints — 22 public, 171 administrator-only.
 
 | Method | Path | Public | Student | Mentor | Admin |
 |---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/applications/info-requests/{token}` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/applications/info-requests/{token}` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/activate` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/activation/inspect` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/forgot-password` | ✓ | ✓ | ✓ | ✓ |
@@ -298,6 +303,7 @@ Totals: 299 endpoints — 22 public, 171 administrator-only.
 | PATCH | `/api/v1/auth/password` |  | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/refresh` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/register/admin` |  |  |  | ✓ |
+| PUT | `/api/v1/auth/register/avatar` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/register/student` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/register/teacher` | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/auth/register/teacher/availability` | ✓ | ✓ | ✓ | ✓ |
@@ -394,6 +400,7 @@ Totals: 299 endpoints — 22 public, 171 administrator-only.
 | PUT | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
 | DELETE | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/me/courses` |  | ✓ |  |  |
+| PUT | `/api/v1/me/date-of-birth` |  | ✓ |  |  |
 | GET | `/api/v1/me/enrollments` |  | ✓ |  |  |
 | GET | `/api/v1/me/permissions` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/me/results` |  | ✓ |  |  |
@@ -417,7 +424,9 @@ Totals: 299 endpoints — 22 public, 171 administrator-only.
 | GET | `/api/v1/mentor-requests` |  |  |  | ✓ |
 | POST | `/api/v1/mentor-requests` | ✓ | ✓ | ✓ | ✓ |
 | PATCH | `/api/v1/mentor-requests/{id}/approve` |  |  |  | ✓ |
+| GET | `/api/v1/mentor-requests/{id}/avatar` |  |  |  | ✓ |
 | PATCH | `/api/v1/mentor-requests/{id}/reject` |  |  |  | ✓ |
+| POST | `/api/v1/mentor-requests/{id}/request-info` |  |  |  | ✓ |
 
 ## Notifications
 
@@ -512,7 +521,9 @@ Totals: 299 endpoints — 22 public, 171 administrator-only.
 | GET | `/api/v1/admin/teacher-applications` |  |  |  | ✓ |
 | GET | `/api/v1/admin/teacher-applications/{id}` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/approve` |  |  |  | ✓ |
+| GET | `/api/v1/admin/teacher-applications/{id}/avatar` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
 
 ## Users

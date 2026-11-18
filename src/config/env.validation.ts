@@ -10,6 +10,7 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -135,6 +136,17 @@ export class EnvironmentVariables {
   @IsOptional() @Type(() => Number) @IsInt() EMAIL_BATCH_SIZE?: number;
   /** Most e-mails sent per second (Resend's default account limit is 2). */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) EMAIL_MAX_PER_SECOND?: number;
+  /**
+   * STAGING ONLY: "true" sends no e-mail at all, even with a key (messages are logged; a warning at every start).
+   * Lets a staging service run with NODE_ENV=production on a copy of real data without a Resend key. Never in production.
+   */
+  @IsOptional() @Transform(unquoted) @IsIn(['true', 'false']) EMAIL_DRY_RUN?: string;
+
+  /**
+   * "true" only once the deployment's client address is verified to be the visitor's own (operations/CLIENT-IP-VERIFICATION.md):
+   * enables the sign-in "known address" exemption. Default off (behind a shared proxy address it would cover attackers too).
+   */
+  @IsOptional() @Transform(unquoted) @IsIn(['true', 'false']) SIGNIN_TRUSTED_CLIENT_ADDRESS?: string;
 
   /** Proxy hops in front of the API (default 1); "false" when clients connect directly. */
   @IsOptional()
@@ -184,6 +196,12 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   THROTTLE_TTL_SECONDS = 60;
+
+  /** Per-address ceiling over all requests a minute (signed-in users have their own THROTTLE_LIMIT budget each). */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  THROTTLE_IP_LIMIT = 3000;
 }
 
 export function validateEnv(config: Record<string, unknown>) {
@@ -196,10 +214,11 @@ export function validateEnv(config: Record<string, unknown>) {
   const messages = errors.flatMap((e) => Object.values(e.constraints ?? {}));
 
   if (env.NODE_ENV === NodeEnv.Production) {
-    if (!env.RESEND_API_KEY) {
+    const emailDryRun = env.EMAIL_DRY_RUN === 'true';   // staging: no e-mail key needed, nothing is sent
+    if (!env.RESEND_API_KEY && !emailDryRun) {
       messages.push('RESEND_API_KEY is required in production (e-mail would otherwise be silently dropped).');
     }
-    if (!env.EMAIL_FROM) {
+    if (!env.EMAIL_FROM && !emailDryRun) {
       messages.push('EMAIL_FROM is required in production (a sender on a domain verified in Resend).');
     }
     if (!env.APP_URL) {

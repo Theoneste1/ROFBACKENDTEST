@@ -342,14 +342,14 @@ describe('Bulk school import (PR D)', () => {
     await upload(csvOf([R('Usable Import School', { code: '220880' })])).expect(201);
     const school = await p().school.findUniqueOrThrow({ where: { code: '220880' } });
     await http().post('/api/v1/auth/register/student').send({
-      firstName: 'U', lastName: 'Reg', username: 'si.reg', email: 'si.reg@test.local', password: 'Secret123', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220880',
+      firstName: 'U', lastName: 'Reg', username: 'si.reg', email: 'si.reg@test.local', password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220880',
     }).expect(201);
     expect((await p().user.findUniqueOrThrow({ where: { username: 'si.reg' } })).schoolId).toBe(school.id);
     const inv = await http().post('/api/v1/admin/users/invite').set(bearer(admin)).send({ firstName: 'I', lastName: 'Nv', email: 'si.inv@test.local', gradeLevel: 'S2', schoolCode: '220880' }).expect(201);
     expect(inv.body.user.school?.id ?? (await p().user.findUniqueOrThrow({ where: { email: 'si.inv@test.local' } })).schoolId).toBe(school.id);
     // A student's own claim for the imported school.
     const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
-    const s = await p().user.create({ data: { username: 'si.claimer', firstName: 'C', lastName: 'L', email: 'si.claimer@test.local', role: 'STUDENT', passwordHash: hash, activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior } });
+    const s = await p().user.create({ data: { username: 'si.claimer', firstName: 'C', lastName: 'L', email: 'si.claimer@test.local', role: 'STUDENT', passwordHash: hash, dateOfBirth: new Date('2010-05-01T00:00:00Z'),  activatedAt: new Date(), gradeLevel: 'S2', divisionId: ctx.ids.junior } });
     await p().studentEnrollment.create({ data: { studentId: s.id, academicYearId: ctx.ids.year, gradeLevel: 'S2', divisionId: ctx.ids.junior } });
     await http().post('/api/v1/me/school-affiliation').set(bearer(await login(ctx, 'si.claimer'))).send({ schoolCode: '220880' }).expect(201);
     expect((await p().user.findUniqueOrThrow({ where: { id: s.id } })).schoolId).toBe(school.id);

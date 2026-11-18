@@ -1,5 +1,5 @@
 import {
-  ArrayNotEmpty,
+  IsInt, Max, Min, ArrayNotEmpty,
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -9,6 +9,7 @@ import {
   IsString,
   Length,
   Matches,
+  IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { CoachEducationLevel, MentorRequestStatus, OlympiadSubject } from '../../generated/prisma/client.js';
@@ -67,6 +68,49 @@ export class CreateMentorRequestDto {
   @ArrayUnique()
   @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
   olympiadInterests?: OlympiadSubject[];
+
+  /** Phone, stored in E.164 (else 400 INVALID_PHONE). REG-06. */
+  @IsOptional()
+  @IsString() @Length(1, 40) @Transform(trim)
+  phone?: string;
+
+  /** Institution or affiliation, where applicable (2–200). */
+  @IsOptional()
+  @IsString() @Length(2, 200) @Transform(trim)
+  affiliation?: string;
+
+  /** Areas of expertise (2–1000). */
+  @IsOptional()
+  @IsString() @Length(2, 1000) @Transform(trim)
+  expertise?: string;
+
+  /** Relevant experience, e.g. Olympiad coaching, teaching, competitions (2–2000). */
+  @IsOptional()
+  @IsString() @Length(2, 2000) @Transform(trim)
+  relevantExperience?: string;
+
+  /** Years of relevant experience, 0–60. */
+  @IsOptional()
+  @IsInt() @Min(0) @Max(60)
+  yearsOfExperience?: number;
+}
+
+/**
+ * PATCH /mentor-requests/:id/approve (optional body). Picture moderation (owner approval 2026-11-18): the picture
+ * sent with the application becomes the coach's picture ONLY with approvePicture true, after the Administrator saw it
+ * (GET /mentor-requests/:id/avatar). Omitted or false: discarded.
+ */
+export class ApproveMentorRequestDto {
+  @IsOptional()
+  @IsBoolean()
+  approvePicture?: boolean;
+}
+
+/** PATCH /mentor-requests/:id/reject: an optional reason, e-mailed to the applicant (REG-10). */
+export class RejectMentorRequestDto {
+  @IsOptional()
+  @IsString() @Length(2, 500) @Transform(trim)
+  reason?: string;
 }
 
 export class ListMentorRequestsDto extends PaginationQueryDto {
