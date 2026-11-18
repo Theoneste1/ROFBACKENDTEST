@@ -448,11 +448,15 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
       else admitted.push(permissionOf(h));
     }
     // H4 (P1-10): the three read-only course-work views listing HEAD_COACH in @Roles;
-    // each service then requires an assigned scope or the caller's own review cycles.
+    // each service then requires an assigned scope or the caller's own review cycles. Plus the caller's own
+    // notification switches (the coaches' types: a Head Coach receives them for assigned course work).
     expect(byRole.sort()).toEqual([
       'GET /api/v1/assignments/:id/history  AssignmentsController.history',
+      'GET /api/v1/me/notification-settings  NotificationsController.settings',
       'GET /api/v1/me/teaching  MyTeachingController.findMine',
       'GET /api/v1/submissions/:id/reviews  SubmissionsController.reviews',
+      'PATCH /api/v1/me/notification-settings  NotificationsController.updateSettings',
+      'POST /api/v1/me/notification-settings/reset  NotificationsController.resetSettings',
     ]);
     // Course-work grants (services still require an Administrator-created coach
     // assignment, H4) and the programme-scoped ones whose services restrict a Head Coach

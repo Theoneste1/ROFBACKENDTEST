@@ -2187,9 +2187,10 @@
         "x-roles": [
           "ADMIN",
           "MENTOR",
+          "HEAD_COACH",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
+        "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN"
       },
       "patch": {
         "operationId": "NotificationsController_updateSettings",
@@ -2280,9 +2281,10 @@
         "x-roles": [
           "ADMIN",
           "MENTOR",
+          "HEAD_COACH",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
+        "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN"
       }
     },
     "/api/v1/me/notification-settings/reset": {
@@ -2365,9 +2367,10 @@
         "x-roles": [
           "ADMIN",
           "MENTOR",
+          "HEAD_COACH",
           "SUPER_ADMIN"
         ],
-        "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
+        "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN"
       }
     },
     "/api/v1/divisions": {

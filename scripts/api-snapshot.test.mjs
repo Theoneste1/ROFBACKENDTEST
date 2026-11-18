@@ -216,7 +216,9 @@ const PROFILE_PICTURES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-profile
 const ACCOUNT_STATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-16-account-states.json';
 const BULK_OPERATIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-bulk-operations.json';
 const FORM_AVAILABILITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-15-form-availability.json';
-const CURRENT_SNAPSHOT = FORM_AVAILABILITY_SNAPSHOT;
+/** Notification switches for Head Coaches (2026-11-17): HEAD_COACH on the three /me/notification-settings routes; nothing else. */
+const ROLE_NOTIFICATION_SETTINGS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-17-role-notification-settings.json';
+const CURRENT_SNAPSHOT = ROLE_NOTIFICATION_SETTINGS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1127,6 +1129,19 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, FORM_AVAILABILITY_ADDITIONS);
+  });
+
+  test('form availability → Head Coach notification switches: HEAD_COACH added on the three settings routes; nothing else', () => {
+    for (const f of [FORM_AVAILABILITY_SNAPSHOT, ROLE_NOTIFICATION_SETTINGS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(FORM_AVAILABILITY_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(ROLE_NOTIFICATION_SETTINGS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/me/notification-settings: roles added: HEAD_COACH',
+      'PATCH /api/v1/me/notification-settings: roles added: HEAD_COACH',
+      'POST /api/v1/me/notification-settings/reset: roles added: HEAD_COACH',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

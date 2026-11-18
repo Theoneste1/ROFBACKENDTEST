@@ -2234,6 +2234,7 @@
     "roles": [
       "ADMIN",
       "MENTOR",
+      "HEAD_COACH",
       "SUPER_ADMIN"
     ],
     "tag": "Notifications"
@@ -2244,6 +2245,7 @@
     "roles": [
       "ADMIN",
       "MENTOR",
+      "HEAD_COACH",
       "SUPER_ADMIN"
     ],
     "tag": "Notifications"
@@ -2254,6 +2256,7 @@
     "roles": [
       "ADMIN",
       "MENTOR",
+      "HEAD_COACH",
       "SUPER_ADMIN"
     ],
     "tag": "Notifications"

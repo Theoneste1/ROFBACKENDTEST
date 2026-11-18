@@ -9143,7 +9143,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
+            "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN"
           }
         },
         {
@@ -9168,7 +9168,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN",
+            "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -9198,7 +9198,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** ADMIN, MENTOR, SUPER_ADMIN"
+            "description": "**Access:** ADMIN, MENTOR, HEAD_COACH, SUPER_ADMIN"
           }
         },
         {
