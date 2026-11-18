@@ -30,7 +30,7 @@ BEGIN
    WHERE EXISTS (SELECT 1 FROM "MentorRequest" b WHERE b."id" <> a."id" AND (b."username" = a."username" OR b."email" = a."email"));
   IF (requests > 0 OR details > 0 OR attempts > 0)
      AND current_setting('rof.application_details_rollback', true) IS DISTINCT FROM 'discard-application-details' THEN
-    RAISE EXCEPTION 'APPLICATION_DETAILS_ROLLBACK_REFUSED: % information request(s), % application(s) with details and % coach application attempt(s) sharing a username or e-mail would be lost; nothing was changed. After a backup that contains them, SET rof.application_details_rollback = ''discard-application-details'' and run again.', requests, details;
+    RAISE EXCEPTION 'APPLICATION_DETAILS_ROLLBACK_REFUSED: % information request(s), % application(s) with details and % coach application attempt(s) sharing a username or e-mail would be lost; nothing was changed. After a backup that contains them, SET rof.application_details_rollback = ''discard-application-details'' and run again.', requests, details, attempts;
   END IF;
 END $$;
 DROP TABLE IF EXISTS "ApplicationInfoRequest";
