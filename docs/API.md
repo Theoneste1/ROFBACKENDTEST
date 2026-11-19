@@ -1568,6 +1568,8 @@ Every school — official, Administrator-created and legacy; active and inactive
 | `accommodation` | query | DAY \| BOARDING \| MIXED |  |  |
 | `hasCode` | query | boolean |  | false: schools without an official code. |
 | `hasSourceIssues` | query | boolean |  | true: schools whose source records report data problems. |
+| `sort` | query | name \| verifiedStudents |  | Sort (schools table, 2026-11-19): `name` (default) or `verifiedStudents` — the number of students whose CURRENT school claim an Administrator verified. Ties: name, then id. |
+| `order` | query | asc \| desc |  | asc (default) or desc. |
 
 Returns `200` with no body.
 

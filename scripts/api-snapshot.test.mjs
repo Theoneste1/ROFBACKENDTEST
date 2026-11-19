@@ -259,7 +259,9 @@ const COACH_INTERESTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-coach-in
  * Administrator's reassignment route and the teacher's own schools — additive only.
  */
 const PRIMARY_TEACHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-primary-teacher.json';
-const CURRENT_SNAPSHOT = PRIMARY_TEACHER_SNAPSHOT;
+/** Schools table (2026-11-19): GET /admin/schools sorts by name or verified students (sort, order) — additive only. */
+const SCHOOLS_TABLE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-schools-table.json';
+const CURRENT_SNAPSHOT = SCHOOLS_TABLE_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1342,6 +1344,18 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/teacher-assignments: new optional query parameter "role"',
       'GET /api/v1/teacher/schools: operation added',
       'POST /api/v1/admin/teacher-assignments/{id}/primary: operation added',
+    ]);
+  });
+
+  test('primary teacher → schools table (2026-11-19): additive only — 2 optional query parameters, no field change', () => {
+    for (const f of [PRIMARY_TEACHER_SNAPSHOT, SCHOOLS_TABLE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(PRIMARY_TEACHER_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOLS_TABLE_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/schools: new optional query parameter "order"',
+      'GET /api/v1/admin/schools: new optional query parameter "sort"',
     ]);
   });
 

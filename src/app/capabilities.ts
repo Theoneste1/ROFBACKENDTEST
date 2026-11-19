@@ -150,6 +150,12 @@ export const FEATURES = {
    */
   primaryTeacher: 'always',
   /**
+   * Schools table (2026-11-19): GET /admin/schools accepts `sort` (name | verifiedStudents) and `order` (asc | desc),
+   * kept with every filter and with pagination, and each row carries `primaryTeacher` ({ id, username, firstName,
+   * lastName } or null). `verifiedStudents` counts students whose CURRENT school claim an Administrator verified.
+   */
+  schoolsTable: 'always',
+  /**
    * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
    * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
    * imported) every route except GET /me, GET /me/permissions, PUT /me/date-of-birth and sign-out answers

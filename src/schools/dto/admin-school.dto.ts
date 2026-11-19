@@ -11,6 +11,8 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 const upper = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toUpperCase() : value);
 const cleanName = ({ value }: { value: unknown }) => (typeof value === 'string' ? cleanSchoolName(value) : value);
 const bool = ({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value);
+/** GET /admin/schools sort keys. */
+export const SCHOOL_LIST_SORTS = ['name', 'verifiedStudents'] as const;
 /** Free-text directory places (cell, village): trimmed, inner whitespace collapsed; null clears. */
 const place = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value);
 /** No control characters (names and places are shown everywhere and exported to CSV). */
@@ -35,6 +37,13 @@ export class ListAdminSchoolsDto extends PaginationQueryDto {
   @IsOptional() @Transform(bool) @IsBoolean() hasCode?: boolean;
   /** true: schools whose source records report data problems. */
   @IsOptional() @Transform(bool) @IsBoolean() hasSourceIssues?: boolean;
+  /**
+   * Sort (schools table, 2026-11-19): `name` (default) or `verifiedStudents` — the number of students whose CURRENT
+   * school claim an Administrator verified. Ties: name, then id.
+   */
+  @IsOptional() @IsIn(SCHOOL_LIST_SORTS) sort?: (typeof SCHOOL_LIST_SORTS)[number];
+  /** asc (default) or desc. */
+  @IsOptional() @IsIn(['asc', 'desc']) order?: 'asc' | 'desc';
 }
 
 /**
