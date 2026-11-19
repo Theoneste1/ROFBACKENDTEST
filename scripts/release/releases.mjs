@@ -46,20 +46,22 @@ export const POST_PHASE1_OBJECTS = {
 /**
  * The design-areas release: the migrations after the post-Phase-1 eleven. Area 1 as simplified by the owner (2026-11-19):
  * the countries reference list and the School → Country foreign key; then the primary teacher of a school (owner
- * decision 2026-11-19). Listed explicitly — a migration added later is never
+ * decision 2026-11-19); then the generic bulk engine (2026-11-19). Listed explicitly — a migration added later is never
  * part of it until it is appended here on purpose.
  */
 export const AREAS_2026_MIGRATIONS = [
   '20261211000000_countries_reference',
   // Primary teacher of a school (owner decision 2026-11-19): TeacherSchoolAssignment.role + one active primary per school.
   '20261212000000_teacher_school_primary',
+  // Generic bulk engine (2026-11-19): BulkOperation.entityType, BulkOperationItem.entityId (backfilled), userId nullable.
+  '20261213000000_bulk_operations_generic',
 ];
 
 /** What the design-areas migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
 export const AREAS_2026_OBJECTS = {
   tables: ['Country'],
   enums: ['TeacherSchoolRole'],
-  columns: [['TeacherSchoolAssignment', 'role']],
+  columns: [['TeacherSchoolAssignment', 'role'], ['BulkOperation', 'entityType'], ['BulkOperationItem', 'entityId']],
   triggers: [],
   functions: [],
 };

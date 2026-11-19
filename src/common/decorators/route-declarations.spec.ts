@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 26 @Public + 30 @Roles + 222 @RequirePermission + 56 @Authenticated = 334, none undeclared', () => {
+  it('declarations add up: 26 @Public + 30 @Roles + 230 @RequirePermission + 56 @Authenticated = 342, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 222, '@Authenticated': 56 });  // primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 230, '@Authenticated': 56 });  // generic bulk engine (2026-11-19): +8 users.bulkManage; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -193,7 +193,7 @@ describe('route declarations (P1-02 §5)', () => {
       'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
       'audit.view': 4, 'users.manage': 17,   // + 2 date-of-birth correction and history (2026-11-18); + 1 registration timeline (REG-13); + 2 profile-picture routes (another account's picture); + 1 status change (account states)
       'users.viewStatusHistory': 1,   // account states: an account's status history
-      'users.bulkManage': 6, 'users.export': 1,   // bulk user operations (2026-11-17)
+      'users.bulkManage': 14, 'users.export': 1,   // bulk user operations (2026-11-17); + 8 generic bulk routes (2026-11-19)
       'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
       'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 10, 'mentorRequests.decide': 5,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,

@@ -7,6 +7,8 @@
  *  - The selection token binds a confirmation to EXACTLY what was previewed: the action, its parameters, the
  *    normalised selection and a digest of the sorted ids of every matching account. Any difference at execution
  *    time (an account added, removed, or changed so it no longer matches) → 409 SELECTION_CHANGED.
+ *    Since 2026-11-19 the API issues the signed, 15-minute v2 confirmation instead (src/bulk/confirmation-token.ts,
+ *    which also binds the administrator); selectionToken() below is the v1 digest, kept with its tests for reference.
  */
 import { createHash } from 'node:crypto';
 
@@ -17,10 +19,14 @@ export const BULK_ACTIONS = [
   'activate', 'deactivate', 'suspend', 'archive', 'restore', 'assignRole', 'changeClassification', 'message',
   // Teacher–student access (TS approvals 2026-11-18): the selected accounts are students; params.teacherId (+ permission).
   'assignTeacher', 'unassignTeacher', 'grantDelegation', 'revokeDelegation',
+  // Move the selected students from one teacher to another (params.fromTeacherId → params.toTeacherId; 2026-11-19).
+  'reassignTeacher',
 ] as const;
 
 /** Actions on the teacher–student links of the selected students (params.teacherId). */
 export const TEACHER_STUDENT_ACTIONS: readonly BulkAction[] = ['assignTeacher', 'unassignTeacher', 'grantDelegation', 'revokeDelegation'];
+/** Every action on teacher–student links: the four above (params.teacherId) and reassignTeacher. */
+export const TEACHER_LINK_ACTIONS: readonly BulkAction[] = [...TEACHER_STUDENT_ACTIONS, 'reassignTeacher'];
 export type BulkAction = (typeof BULK_ACTIONS)[number];
 
 export const MAX_IDS = 1000;
@@ -56,14 +62,20 @@ export interface BulkParams {
   teacherId?: string;
   /** grantDelegation / revokeDelegation: students.viewProfile, students.viewProgress or submissions.submitOnBehalf. */
   permission?: string;
+  /** reassignTeacher: the students' current teacher and the teacher they move to. */
+  fromTeacherId?: string;
+  toTeacherId?: string;
 }
 
-interface ActionRule {
+export interface ActionRule {
   /** The account-state target (status actions only). */
   toStatus?: AccountStatus;
   /** States the action applies to; any other is SKIPPED (status actions only). */
   from?: readonly AccountStatus[];
-  /** Permissions the caller needs, on top of users.bulkManage (and, per account, the role policy). */
+  /**
+   * Permissions the caller needs, on top of users.bulkManage (and, per account, the role policy): exactly the single
+   * route's — users.manage for every route under /admin/users/:id (2026-11-19: bulk never needs less than one change).
+   */
   permissions: readonly Permission[];
   reason: 'required' | 'optional';
   /** One sentence for the confirmation dialog. */
@@ -71,19 +83,19 @@ interface ActionRule {
 }
 
 export const ACTION_RULES: Readonly<Record<BulkAction, ActionRule>> = {
-  activate:   { toStatus: 'ACTIVE', from: ['DEACTIVATED', 'SUSPENDED'], permissions: ['users.changeStatus', 'users.suspend'], reason: 'optional',
+  activate:   { toStatus: 'ACTIVE', from: ['DEACTIVATED', 'SUSPENDED'], permissions: ['users.manage', 'users.changeStatus', 'users.suspend'], reason: 'optional',
                 consequence: 'Deactivated and suspended accounts become active again. Archived accounts are skipped: use restore. Other blocks (not activated, not approved, locked) stay.' },
-  deactivate: { toStatus: 'DEACTIVATED', from: ['ACTIVE'], permissions: ['users.changeStatus'], reason: 'required',
+  deactivate: { toStatus: 'DEACTIVATED', from: ['ACTIVE'], permissions: ['users.manage', 'users.changeStatus'], reason: 'required',
                 consequence: 'The accounts can no longer sign in; every session ends at once. Nothing is deleted.' },
-  suspend:    { toStatus: 'SUSPENDED', from: ['ACTIVE', 'DEACTIVATED'], permissions: ['users.suspend'], reason: 'required',
+  suspend:    { toStatus: 'SUSPENDED', from: ['ACTIVE', 'DEACTIVATED'], permissions: ['users.manage', 'users.suspend'], reason: 'required',
                 consequence: 'The accounts are blocked by an administrative restriction; every session ends at once. Nothing is deleted.' },
-  archive:    { toStatus: 'ARCHIVED', from: ['ACTIVE', 'DEACTIVATED', 'SUSPENDED'], permissions: ['users.archive'], reason: 'required',
+  archive:    { toStatus: 'ARCHIVED', from: ['ACTIVE', 'DEACTIVATED', 'SUSPENDED'], permissions: ['users.manage', 'users.archive'], reason: 'required',
                 consequence: 'The accounts are kept for history only and can no longer sign in; every session ends. Submissions, results and records stay linked.' },
-  restore:    { toStatus: 'ACTIVE', from: ['DEACTIVATED', 'SUSPENDED', 'ARCHIVED'], permissions: ['users.changeStatus', 'users.suspend', 'users.archive'], reason: 'required',
+  restore:    { toStatus: 'ACTIVE', from: ['DEACTIVATED', 'SUSPENDED', 'ARCHIVED'], permissions: ['users.manage', 'users.changeStatus', 'users.suspend', 'users.archive'], reason: 'required',
                 consequence: 'The accounts become active again. Restoring never clears another block (not activated, not approved, locked, a disabled role): those are reported per account.' },
-  assignRole: { permissions: [], reason: 'optional',
+  assignRole: { permissions: ['users.manage'], reason: 'optional',
                 consequence: 'Each account gets the new role, if you may manage both its current and the new role. Sessions of changed accounts end.' },
-  changeClassification: { permissions: [], reason: 'optional',
+  changeClassification: { permissions: ['users.manage'], reason: 'optional',
                 consequence: 'Students move to the new grade, and so to its division (S1–S3 Junior, S4–S6 Senior), re-enrolled for the current year. Other roles are skipped.' },
   message:    { permissions: ['email.bulkSend'], reason: 'optional',
                 consequence: 'Each active account in the selection is e-mailed once. Blocked accounts are skipped.' },
@@ -95,6 +107,8 @@ export const ACTION_RULES: Readonly<Record<BulkAction, ActionRule>> = {
                       consequence: 'The teacher\'s permission is given for each selected student (a delegation for selected students, created if the teacher has none). Students the teacher does not see fail. The teacher is told about a new delegation.' },
   revokeDelegation: { permissions: ['users.manageTeachers'], reason: 'optional',
                       consequence: 'Each selected student is taken off the teacher\'s delegation for selected students (kept as history). Delegations for the whole school or assigned students are not changed: revoke those on the teacher\'s page.' },
+  reassignTeacher:  { permissions: ['users.manageTeachers'], reason: 'optional',
+                      consequence: 'Each selected student assigned to the first teacher moves to the second: the old assignment ends and the new one starts together, or nothing changes for that student (a student outside the new teacher\'s schools needs a reason). Students not assigned to the first teacher are skipped. School links and student ownership never change. The new teacher is told once.' },
 };
 
 /** Status of an account before a status action: SKIPPED (with why), or the transition to make. */
@@ -126,6 +140,7 @@ export function normaliseParams(action: BulkAction, p: BulkParams): BulkParams {
     case 'unassignTeacher': return { teacherId: p.teacherId };
     case 'grantDelegation':
     case 'revokeDelegation': return { teacherId: p.teacherId, permission: p.permission };
+    case 'reassignTeacher': return { fromTeacherId: p.fromTeacherId, toTeacherId: p.toTeacherId };
     default: return {};
   }
 }
@@ -143,12 +158,8 @@ export function selectionToken(action: BulkAction, params: BulkParams, selection
   return `v1.${ids.length}.${h.digest('hex')}`;
 }
 
-/** The final status of an operation from its counts. */
-export function finalStatus(c: { succeeded: number; failed: number; skipped: number; total: number }) {
-  if (c.failed === 0) return 'COMPLETED' as const;
-  if (c.succeeded === 0 && c.skipped === 0) return 'FAILED' as const;
-  return 'COMPLETED_WITH_FAILURES' as const;
-}
+/** The final status of an operation from its counts (the engine's rule, src/bulk/bulk-handler.ts). */
+export { finalStatus } from '../../bulk/bulk-handler.js';
 
 /** Refusal codes that mean "nothing to do for this account" rather than a failure. */
 export const SKIP_CODES: ReadonlySet<string> = new Set(['STATUS_UNCHANGED', 'INVALID_STATUS_TRANSITION', 'CANNOT_CHANGE_OWN_STATUS']);

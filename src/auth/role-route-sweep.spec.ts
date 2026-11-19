@@ -172,4 +172,5 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // 2026-11-19, primary teacher (owner decision): +1 POST /admin/teacher-assignments/:id/primary (users.manageTeachers:
 // Administrators, Super Admins); +1 GET /teacher/schools (students.viewScoped: Teachers; the guard also admits Head Coaches
 // and Administrators, whom the service refuses — TEACHER_ROUTES_GUARD_ONLY).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 83, MENTOR: 110, HEAD_COACH: 119, ADMIN: 289, SUPER_ADMIN: 295 };
+// 2026-11-19, generic bulk engine: +8 /admin/bulk/* routes (users.bulkManage: Administrators and Super Admins only).
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 83, MENTOR: 110, HEAD_COACH: 119, ADMIN: 297, SUPER_ADMIN: 303 };

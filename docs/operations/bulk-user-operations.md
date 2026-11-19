@@ -1,6 +1,8 @@
 # Bulk user operations (runbook)
 
-Since 2026-11-17 administrators can act on many accounts at once. Capability: `bulkUserOperations`.
+Since 2026-11-17 administrators can act on many accounts at once. Capability: `bulkUserOperations`. Since 2026-11-19
+these routes are the USER record type of the generic engine ([bulk-operations.md](bulk-operations.md): the engine
+contract, the signed confirmation, and `/admin/bulk/USER/*`, which behaves identically).
 
 ## How it works
 
@@ -19,8 +21,10 @@ Since 2026-11-17 administrators can act on many accounts at once. Capability: `b
 
 ### The confirmation is bound to the exact accounts
 
-The `selectionToken` is a digest of the action, its parameters, the normalised selection and **the sorted ids of every
-matching account**. At execution the server resolves the selection again and recomputes it. If anything differs — an
+The `selectionToken` — since 2026-11-19 a signed confirmation valid 15 minutes for the administrator who previewed
+([bulk-operations.md](bulk-operations.md); expired → `410 CONFIRMATION_EXPIRED`, another administrator → `403
+CONFIRMATION_WRONG_ADMINISTRATOR`, altered → `400 CONFIRMATION_INVALID`) — binds the action, its parameters, the
+normalised selection and **the sorted ids of every matching account**. At execution the server resolves the selection again and recomputes it. If anything differs — an
 account added, removed, or swapped for another (even with the same total) — the request is refused with
 `409 SELECTION_CHANGED` and nothing is created: preview again and confirm the new selection. `expectedTotal` is checked
 as well.
@@ -67,13 +71,15 @@ milliseconds. Production hardware and load will differ; create very large operat
 
 | Action | What it does | Needs (besides `users.bulkManage`) | Reason |
 |---|---|---|---|
-| `activate` | deactivated and suspended accounts → active (archived: skipped, use `restore`) | `users.changeStatus`, `users.suspend` | optional |
-| `deactivate` | active → deactivated; sessions end | `users.changeStatus` | **required** |
-| `suspend` | active or deactivated → suspended; sessions end | `users.suspend` | **required** |
-| `archive` | → archived; sessions end; nothing deleted | `users.archive` | **required** |
-| `restore` | deactivated, suspended or archived → active. Sets the state only: each account's result lists what still blocks sign-in (`stillBlockedBy`) | `users.changeStatus`, `users.suspend`, `users.archive` | **required** |
-| `assignRole` `{ role }` | each account gets the role, if you may manage its current and the new role (`RoleAssignmentPolicy`). **Never `SUPER_ADMIN`** (`400 ROLE_NOT_ALLOWED_IN_BULK`). Administrator roles need your `currentPassword` (checked once, never stored) | the role policy | optional |
-| `changeClassification` `{ gradeLevel }` | students move to the grade, and so to its division (S1–S3 Junior, S4–S6 Senior), re-enrolled for the current year; other roles skipped | `users.manageStudents` (via the user update) | optional |
+| `activate` | deactivated and suspended accounts → active (archived: skipped, use `restore`) | `users.manage`, `users.changeStatus`, `users.suspend` | optional |
+| `deactivate` | active → deactivated; sessions end | `users.manage`, `users.changeStatus` | **required** |
+| `suspend` | active or deactivated → suspended; sessions end | `users.manage`, `users.suspend` | **required** |
+| `archive` | → archived; sessions end; nothing deleted | `users.manage`, `users.archive` | **required** |
+| `restore` | deactivated, suspended or archived → active. Sets the state only: each account's result lists what still blocks sign-in (`stillBlockedBy`) | `users.manage`, `users.changeStatus`, `users.suspend`, `users.archive` | **required** |
+| `assignRole` `{ role }` | each account gets the role, if you may manage its current and the new role (`RoleAssignmentPolicy`). **Never `SUPER_ADMIN`** (`400 ROLE_NOT_ALLOWED_IN_BULK`). Administrator roles need your `currentPassword` (checked once, never stored) | `users.manage` and the role policy | optional |
+| `changeClassification` `{ gradeLevel }` | students move to the grade, and so to its division (S1–S3 Junior, S4–S6 Senior), re-enrolled for the current year; other roles skipped | `users.manage` (as `PATCH /admin/users/:id`) and the user update's checks | optional |
+| `assignTeacher`, `unassignTeacher` `{ teacherId }`; `grantDelegation`, `revokeDelegation` `{ teacherId, permission }` | teacher–student links and selected-student delegations, as `POST /admin/teacher-students` and the delegation student routes; non-students skipped | `users.manageTeachers` | grant: **required** |
+| `reassignTeacher` `{ fromTeacherId, toTeacherId }` | as `POST /admin/teacher-students/reassign`, per student: the new assignment starts and the old one ends together, or nothing changes (a student outside the new teacher's schools needs a reason → `FAILED REASON_REQUIRED`). Students not actively assigned to `fromTeacherId` → `SKIPPED NOT_ASSIGNED_TO_SOURCE`; already assigned to the new teacher → the old one ends, `SUCCEEDED ALREADY_ASSIGNED_TO_NEW_TEACHER`. School links, school claims and student ownership never change. The new teacher gets one notice per operation | `users.manageTeachers` | optional |
 | `message` `{ subject, body }` | one e-mail to each **active** account (blocked accounts skipped) through the existing e-mail queue | `email.bulkSend` | optional |
 | export | `POST /admin/users/bulk/export { selection }` → CSV: first name, last name, username, e-mail, role, state, school, grade, created. **Never** dates of birth or phone numbers. Audited (`USERS_EXPORTED`) | `users.export` | — |
 
@@ -81,7 +87,10 @@ milliseconds. Production hardware and load will differ; create very large operat
 (`S1`–`S6`), which fixes `User.divisionId` (Junior / Senior) and the year's `StudentEnrollment`. The user record has no
 other classification field; programme membership is managed by its own routes and is not a bulk action.
 
-Every account is processed with the same services and checks as a single change. An action never grants a
+Every account is processed with the same services and checks as a single change, and every action needs the single
+route's permissions: since 2026-11-19 the status, role and grade actions also require `users.manage` (the permission of
+`POST /admin/users/:id/status-changes` and `PATCH /admin/users/:id`), so an Administrator denied `users.manage` cannot
+change accounts in bulk either. An action never grants a
 permission: an administrator who can select an account can only do to it what they could do one at a time.
 Your own account is always skipped (`SELF`).
 
@@ -118,7 +127,8 @@ Measured locally: 5 000 accounts selected by filter — preview and creation ≈
 
 `400` `CONFIRMATION_REQUIRED`, `REASON_REQUIRED`, `EMPTY_SELECTION`, `SELECTION_TOO_LARGE`,
 `ROLE_NOT_ALLOWED_IN_BULK`, `VALIDATION_FAILED`; `403` `PERMISSION_REQUIRED`, `STEP_UP_REQUIRED`; `404` unknown
-operation (or not yours, without `audit.view`); `409` `SELECTION_CHANGED`, `OPERATION_FINISHED` (cancel); `503` `BULK_BUSY`
+operation (or not yours, without `audit.view`); `409` `SELECTION_CHANGED`, `OPERATION_FINISHED` (cancel), `IDEMPOTENCY_KEY_REUSED`;
+`400` `CONFIRMATION_INVALID`, `403` `CONFIRMATION_WRONG_ADMINISTRATOR`, `410` `CONFIRMATION_EXPIRED` (preview again); `503` `BULK_BUSY`
 (a deadlock during creation persisted after three tries — try again).
 
 Item codes: `SELF`, `ALREADY_IN_STATE`, `NOT_APPLICABLE`, `USE_RESTORE`, `ALREADY_SET`, `ACCOUNT_NOT_ACTIVE`,

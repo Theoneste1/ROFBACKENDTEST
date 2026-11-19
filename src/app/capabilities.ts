@@ -211,6 +211,16 @@ export const FEATURES = {
    */
   bulkUserOperations: 'always',
   /**
+   * Generic bulk engine (2026-11-19; docs/operations/bulk-operations.md): GET /api/v1/admin/bulk/actions (the record
+   * types and actions the caller may run, with requiresReason and consequence), POST /api/v1/admin/bulk/{entityType}/preview,
+   * POST /api/v1/admin/bulk/{entityType} (202; idempotent per idempotencyKey), POST /api/v1/admin/bulk/{entityType}/export,
+   * GET /api/v1/admin/bulk/operations[/{id}[/items]] (items carry entityId) and POST …/operations/{id}/cancel. Record
+   * types: USER (the same actions as /admin/users/bulk, plus reassignTeacher there too). The preview's selectionToken is
+   * now a signed confirmation valid 15 minutes for the administrator who previewed (confirmationExpiresAt): execute
+   * answers 410 CONFIRMATION_EXPIRED, 403 CONFIRMATION_WRONG_ADMINISTRATOR or 400 CONFIRMATION_INVALID — preview again.
+   */
+  bulkOperationsGeneric: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

@@ -190,4 +190,14 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // the teacher's own schools and role: students.viewScoped (ADMIN holds it — the service answers 403 ROLE_NOT_SUPPORTED).
   'POST /api/v1/admin/teacher-assignments/:id/primary  TeacherSchoolsController.makePrimary':                  ADMINISTRATORS,
   'GET /api/v1/teacher/schools  TeacherOwnSchoolsController.list':                                            ADMINISTRATORS,
+  // Generic bulk engine (2026-11-19): users.bulkManage on every route (Administrators, Super Admins); each action's own
+  // permission(s) and each record's single-route policy are checked in BulkOperationsService / BulkOperationsWorker
+  'GET /api/v1/admin/bulk/actions  BulkController.actions':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations  BulkController.list':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations/:id  BulkController.get':                                                ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations/:id/items  BulkController.items':                                        ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/operations/:id/cancel  BulkController.cancel':                                     ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType/preview  BulkController.preview':                                      ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType/export  BulkController.export':                                        ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType  BulkController.execute':                                              ADMINISTRATORS,
 };

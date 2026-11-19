@@ -23296,6 +23296,426 @@
         "description": "**Access:** STUDENT"
       }
     },
+    "/api/v1/admin/bulk/actions": {
+      "get": {
+        "operationId": "BulkController_actions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The record types and actions YOU may run (from your effective permissions), with reason and consequence.",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/bulk/operations": {
+      "get": {
+        "operationId": "BulkController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "RUNNING",
+                "CANCELLING",
+                "COMPLETED",
+                "COMPLETED_WITH_FAILURES",
+                "FAILED",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[A-Z][A-Z_]{0,39}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Your operations of every record type (all operations with audit.view), newest first (?status=, ?entityType=).",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/bulk/operations/{id}": {
+      "get": {
+        "operationId": "BulkController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Progress: status, total, succeeded, failed, skipped, pending, processing.",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/bulk/operations/{id}/items": {
+      "get": {
+        "operationId": "BulkController_items",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "outcome",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "FAILED",
+                "PROCESSING",
+                "SUCCEEDED",
+                "SKIPPED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Per-record results (?outcome=SUCCEEDED|FAILED|SKIPPED|PENDING|PROCESSING): entityId, outcome, code, message.",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/bulk/operations/{id}/cancel": {
+      "post": {
+        "operationId": "BulkController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Stops the operation: records not yet processed are skipped (CANCELLED); processed ones keep their result.",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/bulk/{entityType}/preview": {
+      "post": {
+        "operationId": "BulkController_preview",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": true,
+            "in": "path",
+            "description": "A record type (GET /admin/bulk/actions), e.g. USER.",
+            "schema": {
+              "pattern": "^[A-Z][A-Z_]{0,39}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericBulkPreviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "What the action would do now (count, sample, warnings, consequences) and the 15-minute confirmation. Changes nothing.",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/bulk/{entityType}/export": {
+      "post": {
+        "operationId": "BulkController_export",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": true,
+            "in": "path",
+            "description": "A record type (GET /admin/bulk/actions), e.g. USER.",
+            "schema": {
+              "pattern": "^[A-Z][A-Z_]{0,39}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericBulkExportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CSV of the selected records (record types with an export; safe fields only). Audited.",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/bulk/{entityType}": {
+      "post": {
+        "operationId": "BulkController_execute",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": true,
+            "in": "path",
+            "description": "A record type (GET /admin/bulk/actions), e.g. USER.",
+            "schema": {
+              "pattern": "^[A-Z][A-Z_]{0,39}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericBulkExecuteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Starts the action on exactly the previewed records: 202 with the operation (200 with the same operation when the\nidempotencyKey was already used). 409 SELECTION_CHANGED, 410 CONFIRMATION_EXPIRED, 403 CONFIRMATION_WRONG_ADMINISTRATOR,\n400 CONFIRMATION_INVALID.",
+        "tags": [
+          "Admin · Bulk operations"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.bulkManage",
+        "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/schools/search": {
       "get": {
         "operationId": "SchoolsController_search",
@@ -46871,6 +47291,16 @@
               "students.viewProgress",
               "submissions.submitOnBehalf"
             ]
+          },
+          "fromTeacherId": {
+            "type": "string",
+            "description": "reassignTeacher: the students' current Teacher.",
+            "format": "uuid"
+          },
+          "toTeacherId": {
+            "type": "string",
+            "description": "reassignTeacher: the Teacher the students move to.",
+            "format": "uuid"
           }
         }
       },
@@ -46976,7 +47406,8 @@
               "assignTeacher",
               "unassignTeacher",
               "grantDelegation",
-              "revokeDelegation"
+              "revokeDelegation",
+              "reassignTeacher"
             ]
           },
           "params": {
@@ -47007,7 +47438,8 @@
               "assignTeacher",
               "unassignTeacher",
               "grantDelegation",
-              "revokeDelegation"
+              "revokeDelegation",
+              "reassignTeacher"
             ],
             "type": "string"
           },
@@ -47776,6 +48208,130 @@
             "maxLength": 100
           }
         }
+      },
+      "GenericBulkSelectionDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ids",
+              "filter"
+            ]
+          },
+          "ids": {
+            "description": "mode 'ids': the records chosen one by one (or the current page).",
+            "minItems": 1,
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "filter": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "mode 'filter': the record type's list filters (same names and meaning as its list endpoint)."
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "GenericBulkPreviewDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "One of the record type's actions (GET /admin/bulk/actions).",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The action's parameters (validated with the record type's parameter rules)."
+          },
+          "selection": {
+            "$ref": "#/components/schemas/GenericBulkSelectionDto"
+          }
+        },
+        "required": [
+          "action",
+          "selection"
+        ]
+      },
+      "GenericBulkExportDto": {
+        "type": "object",
+        "properties": {
+          "selection": {
+            "$ref": "#/components/schemas/GenericBulkSelectionDto"
+          }
+        },
+        "required": [
+          "selection"
+        ]
+      },
+      "GenericBulkExecuteDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "One of the record type's actions (GET /admin/bulk/actions).",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The action's parameters (validated with the record type's parameter rules)."
+          },
+          "selection": {
+            "$ref": "#/components/schemas/GenericBulkSelectionDto"
+          },
+          "selectionToken": {
+            "type": "string",
+            "description": "The confirmation from the preview (opaque; 15 minutes; bound to you, the action, its parameters and the exact records).",
+            "minLength": 10,
+            "maxLength": 200
+          },
+          "expectedTotal": {
+            "type": "number",
+            "description": "The total the administrator confirmed (secondary check).",
+            "minimum": 0
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Must be true: the administrator confirmed the action."
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "The same key returns the same operation; nothing is done twice.",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required (3–500 characters) when the action's requiresReason is true.",
+            "minLength": 0,
+            "maxLength": 500
+          },
+          "currentPassword": {
+            "type": "string",
+            "description": "Required when the preview said requiresStepUp (checked, never stored).",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "action",
+          "selection",
+          "selectionToken",
+          "expectedTotal",
+          "confirm",
+          "idempotencyKey"
+        ]
       },
       "ContactInputDto": {
         "type": "object",

@@ -261,7 +261,12 @@ const COACH_INTERESTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-coach-in
 const PRIMARY_TEACHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-primary-teacher.json';
 /** Schools table (2026-11-19): GET /admin/schools sorts by name or verified students (sort, order) — additive only. */
 const SCHOOLS_TABLE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-schools-table.json';
-const CURRENT_SNAPSHOT = SCHOOLS_TABLE_SNAPSHOT;
+/**
+ * Generic bulk engine (2026-11-19): the /admin/bulk/* routes, and reassignTeacher (with fromTeacherId / toTeacherId) on
+ * /admin/users/bulk — additive only: no existing operation's response, required field or status changes.
+ */
+const BULK_ENGINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-bulk-engine.json';
+const CURRENT_SNAPSHOT = BULK_ENGINE_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1357,6 +1362,37 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/schools: new optional query parameter "order"',
       'GET /api/v1/admin/schools: new optional query parameter "sort"',
     ]);
+  });
+
+  test('schools table → generic bulk engine (2026-11-19): additive only — 8 routes, reassignTeacher on /admin/users/bulk, nothing breaking or for review', () => {
+    for (const f of [SCHOOLS_TABLE_SNAPSHOT, BULK_ENGINE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOLS_TABLE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/bulk/actions: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}: operation added',
+      'GET /api/v1/admin/bulk/operations: operation added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/export: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: operation added',
+      'POST /api/v1/admin/bulk/{entityType}: operation added',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk › request application/json.params.toTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.toTeacherId: new optional field',
+      'schema GenericBulkExecuteDto: added',
+      'schema GenericBulkExportDto: added',
+      'schema GenericBulkPreviewDto: added',
+      'schema GenericBulkSelectionDto: added',
+    ]);
+    // The direct teacher–student routes and every other /admin/users/bulk operation are untouched.
+    const touched = [...res.breaking, ...res.review, ...res.additive].filter((c) => /teacher-students|teachers\/\{id\}\/delegations/.test(c));
+    assert.deepEqual(touched, []);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

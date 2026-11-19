@@ -130,6 +130,78 @@
     "tag": "Admin · Audit"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/{entityType}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/{entityType}/export",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/{entityType}/preview",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/actions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/operations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/operations/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/operations/{id}/cancel",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/operations/{id}/items",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/contact-messages",
     "roles": [

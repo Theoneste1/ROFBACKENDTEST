@@ -1,5 +1,6 @@
 -- Design-areas release pre-check (BEFORE `prisma migrate deploy` of the design-area migrations: the countries reference
--- list, area 1 as simplified by the owner, 2026-11-19; the primary teacher of a school, owner decision 2026-11-19):
+-- list, area 1 as simplified by the owner, 2026-11-19; the primary teacher of a school, owner decision 2026-11-19; the
+-- generic bulk engine, 2026-11-19):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs precheck --release areas-2026     (Neon rehearsal branch; guarded)
@@ -18,13 +19,17 @@ SELECT count(*) FILTER (WHERE migration_name LIKE '2026112100%' AND finished_at 
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                                        AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
-\echo '== 2. MUST all be 0: nothing made by the design-area migrations exists yet (countries; primary teacher)'
+\echo '== 2. MUST all be 0: nothing made by the design-area migrations exists yet (countries; primary teacher; generic bulk engine)'
 SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('Country')) AS tables,
        (SELECT count(*) FROM pg_constraint WHERE conname = 'School_countryCode_fkey') AS school_country_fk,
        (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = 'TeacherSchoolRole') AS teacher_school_role_enum,
        (SELECT count(*) FROM information_schema.columns
          WHERE table_schema = 'public' AND table_name = 'TeacherSchoolAssignment' AND column_name = 'role') AS teacher_school_role_column,
-       (SELECT count(*) FROM pg_indexes WHERE indexname = 'TeacherSchoolAssignment_one_primary_per_school') AS one_primary_index;
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'TeacherSchoolAssignment_one_primary_per_school') AS one_primary_index,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'BulkOperation' AND column_name = 'entityType') AS bulk_entity_type_column,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId') AS bulk_entity_id_column;
 
 \echo '== 3. MUST be empty: school country codes that are not two upper-case letters (the School → Country foreign key refuses any code that is not ISO 3166-1 alpha-2; the migration names them)'
 SELECT DISTINCT "countryCode" FROM "School" WHERE "countryCode" !~ '^[A-Z]{2}$' ORDER BY 1;
@@ -64,5 +69,15 @@ SELECT count(*)                                                                 
           SELECT count(*) FROM "TeacherSchoolAssignment" t JOIN "User" u ON u."id" = t."teacherId"
            WHERE t."schoolId" = p."id" AND t."isActive" AND u."accountStatus" = 'ACTIVE' AND t."createdAt" = p.first_at) > 1) AS ties_resolved_by_id
   FROM per;
+
+\echo '== 7. compare: bulk operations and their items (MUST be unchanged after the migration: every existing one becomes a USER operation, items keep userId and gain entityId = userId)'
+SELECT count(*) AS operations, count(*) FILTER (WHERE "emailJobId" IS NOT NULL) AS with_email_job,
+       count(DISTINCT "action") AS actions, md5(string_agg("id" || ':' || "action" || ':' || "status"::text || ':' || "total" || ':' || coalesce("emailJobId", '-'), ',' ORDER BY "id")) AS fingerprint
+  FROM "BulkOperation";
+SELECT "outcome"::text, count(*) AS items, md5(string_agg("operationId" || ':' || "userId", ',' ORDER BY "id")) AS fingerprint
+  FROM "BulkOperationItem" GROUP BY "outcome" ORDER BY 1;
+
+\echo '== 8. MUST be 0: items whose userId is missing (the migration backfills entityId from it and makes entityId NOT NULL)'
+SELECT count(*) AS items_without_user FROM "BulkOperationItem" WHERE "userId" IS NULL;
 
 ROLLBACK;

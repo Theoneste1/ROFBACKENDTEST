@@ -1,4 +1,5 @@
--- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher):
+-- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher;
+-- generic bulk engine):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
@@ -9,10 +10,11 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 2, 0, 0: both design-area migrations applied; nothing failed or rolled back; nothing after 20261212000000'
-SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary')
+\echo '== 1. MUST be 3, 0, 0: the three design-area migrations applied; nothing failed or rolled back; nothing after 20261213000000'
+SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary',
+                                                 '20261213000000_bulk_operations_generic')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261212000000_teacher_school_primary')         AS later,
+       count(*) FILTER (WHERE migration_name > '20261213000000_bulk_operations_generic')        AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -71,5 +73,24 @@ SELECT count(*)                                                AS schools_examin
        count(*) FILTER (WHERE active_links = 0)               AS schools_without_teachers,
        count(*) FILTER (WHERE active_links > 0 AND primaries = 0) AS exceptions
   FROM per;
+
+\echo '== 11. MUST be 1, 1, 1, 0: BulkOperation.entityType, BulkOperationItem.entityId (NOT NULL), the (operationId, entityId) unique index; USER items whose userId differs from entityId'
+SELECT (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'BulkOperation' AND column_name = 'entityType') AS bulk_entity_type_column,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId' AND is_nullable = 'NO') AS bulk_entity_id_column,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperationItem_operationId_entityId_key') AS bulk_entity_unique_index,
+       (SELECT count(*) FROM "BulkOperationItem" i JOIN "BulkOperation" o ON o."id" = i."operationId"
+         WHERE o."entityType" = 'USER' AND i."userId" IS DISTINCT FROM i."entityId") AS user_items_not_backfilled;
+
+\echo '== 12. MUST be 0 right after the migration: operations of another record type than USER'
+SELECT count(*) AS non_user_operations FROM "BulkOperation" WHERE "entityType" <> 'USER';
+
+\echo '== 13. compare: bulk operations and their items (MUST equal pre-check section 7)'
+SELECT count(*) AS operations, count(*) FILTER (WHERE "emailJobId" IS NOT NULL) AS with_email_job,
+       count(DISTINCT "action") AS actions, md5(string_agg("id" || ':' || "action" || ':' || "status"::text || ':' || "total" || ':' || coalesce("emailJobId", '-'), ',' ORDER BY "id")) AS fingerprint
+  FROM "BulkOperation";
+SELECT "outcome"::text, count(*) AS items, md5(string_agg("operationId" || ':' || "userId", ',' ORDER BY "id")) AS fingerprint
+  FROM "BulkOperationItem" GROUP BY "outcome" ORDER BY 1;
 
 ROLLBACK;
