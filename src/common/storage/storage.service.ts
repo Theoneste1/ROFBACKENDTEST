@@ -176,8 +176,9 @@ export class StorageService implements OnModuleInit {
   /**
    * Nightly: delete files no record refers to any more (detached resource
    * files, uploads whose request failed after storing, …). Every reference to
-   * a file goes through an attachment table or is an account's current profile
-   * picture, so a file is an orphan only when nothing of either kind points to it. Submission files stay attached to
+   * a file goes through an attachment table (a test's paper or marking guide
+   * included) or is an account's current profile picture, so a file is an orphan
+   * only when nothing of either kind points to it. Submission files stay attached to
    * their revision history and are never removed here.
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'storage-orphan-cleanup' })
@@ -198,6 +199,7 @@ export class StorageService implements OnModuleInit {
         avatarOf:              { is: null },
         teacherApplicationAvatarOf: { is: null },
         mentorRequestAvatarOf:      { is: null },
+        testFiles:                  { none: {} },   // a test's paper or marking guide (Test Management)
       },
       select: { id: true, storageKey: true },
       take:   500,

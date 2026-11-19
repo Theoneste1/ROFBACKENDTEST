@@ -190,4 +190,26 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // the teacher's own schools and role: students.viewScoped (ADMIN holds it — the service answers 403 ROLE_NOT_SUPPORTED).
   'POST /api/v1/admin/teacher-assignments/:id/primary  TeacherSchoolsController.makePrimary':                  ADMINISTRATORS,
   'GET /api/v1/teacher/schools  TeacherOwnSchoolsController.list':                                            ADMINISTRATORS,
+  // Test Management, Phase 1 (WS3, owner-approved plan 2026-11-19): tests.view / tests.manage / tests.manageMarkers —
+  // Administrators (every subject) and Head Coaches (HEAD_COACH is not a baseline caller; the subjects they head, checked
+  // by the service). Coaches, Students and unknown roles: 403.
+  'GET /api/v1/admin/tests/subjects  TestsController.subjects':                                                 ADMINISTRATORS,
+  'GET /api/v1/admin/tests  TestsController.list':                                                              ADMINISTRATORS,
+  'POST /api/v1/admin/tests  TestsController.create':                                                           ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id  TestsController.get':                                                           ADMINISTRATORS,
+  'PATCH /api/v1/admin/tests/:id  TestsController.update':                                                      ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id  TestsController.remove':                                                     ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/publish  TestsController.publish':                                              ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish':                                          ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion':                                        ADMINISTRATORS,
+  'PUT /api/v1/admin/tests/:id/questions/order  TestsController.reorderQuestions':                              ADMINISTRATORS,
+  'PATCH /api/v1/admin/tests/:id/questions/:questionId  TestsController.updateQuestion':                        ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id/questions/:questionId  TestsController.removeQuestion':                       ADMINISTRATORS,
+  'PUT /api/v1/admin/tests/:id/files/:kind  TestsController.putFile':                                           ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id/files/:kind  TestsController.removeFile':                                     ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/files/:kind  TestsController.file':                                              ADMINISTRATORS,
+  'GET /api/v1/admin/test-markers  TestMarkersController.list':                                                 ADMINISTRATORS,
+  'GET /api/v1/admin/test-markers/candidates  TestMarkersController.candidates':                                ADMINISTRATORS,
+  'POST /api/v1/admin/test-markers  TestMarkersController.grant':                                               ADMINISTRATORS,
+  'POST /api/v1/admin/test-markers/:id/revoke  TestMarkersController.revoke':                                   ADMINISTRATORS,
 };

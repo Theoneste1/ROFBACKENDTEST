@@ -92,6 +92,12 @@ export const PERMISSIONS = [
   'forms.editMessages',          // closed-form message, instructions, contact e-mail and support link
   // ── Countries (design area 1 as simplified by the owner, 2026-11-19; Administrators, Super Admins, global) ──
   'reference.manage',            // correct a country's name or calling code
+  // ── Test Management (WS3, owner spec and plan approved 2026-11-19): Administrators (every subject) and Head Coaches
+  //    (the subjects they head, programme scope — checked by the service on every request). Coaches, Teachers and
+  //    Students hold none in Phase 1. Marking (Phase 3) will be a separate permission in ADMIN_PROHIBITED (G4). ──
+  'tests.view',                  // list and read tests, their questions and files (incl. the marking guide)
+  'tests.manage',                // create, edit, publish, delete tests; questions; the paper and the marking guide
+  'tests.manageMarkers',         // authorise / revoke coaches as markers of a subject (reason on revoke)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -144,6 +150,8 @@ const ADMIN_GRANTS: Grants = {
   'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
   // Countries (owner decision 2026-11-19)
   'reference.manage': 'global',
+  // Test Management (WS3, 2026-11-19): every subject
+  'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
 };
 
 /**
@@ -187,6 +195,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'users.view': 'programme', 'users.manageStudents': 'programme', 'users.manageCoaches': 'programme',
     'programmes.manageMembers': 'programme', 'mentorAssignments.manage': 'programme',
     'coaches.monitor': 'programme', 'activity.view': 'programme',
+    // Test Management (WS3, 2026-11-19): only the subjects (programmes) they head; any Head Coach of the subject may act.
+    'tests.view': 'programme', 'tests.manage': 'programme', 'tests.manageMarkers': 'programme',
   },
   ADMIN: ADMIN_GRANTS,
   SUPER_ADMIN: {
@@ -209,6 +219,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'users.bulkManage': 'global', 'users.export': 'global',
     'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
     'reference.manage': 'global',
+    'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
   },
 };
 
@@ -271,6 +282,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, countries, owner decision 2026-11-19): ADMIN holds it (ADMIN_GRANTS, global) and the country
     // administration routes require it; listed so the frontend shows the Countries screen.
     'reference.manage',
+    // Appended (additive, Test Management WS3, owner-approved plan 2026-11-19): ADMIN holds them (ADMIN_GRANTS, global) and
+    // the test-management routes require them; listed so the frontend shows the Tests screens.
+    'tests.view', 'tests.manage', 'tests.manageMarkers',
   ],
 };
 

@@ -46215,6 +46215,940 @@
         "x-permission": "reports.export",
         "description": "**Access:** permission `reports.export` (ADMIN, SUPER_ADMIN)"
       }
+    },
+    "/api/v1/admin/tests/subjects": {
+      "get": {
+        "operationId": "TestsController_subjects",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The subjects the caller manages tests in: { id, code, name }[] (Administrators: every active subject).",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.view",
+        "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests": {
+      "get": {
+        "operationId": "TestsController_list",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "required": false,
+            "in": "query",
+            "description": "One subject (Discipline id).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "division",
+            "required": false,
+            "in": "query",
+            "description": "JUNIOR, SENIOR or ALL (exact match).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "SENIOR",
+                "ALL"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "DRAFT or PUBLISHED.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PUBLISHED"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the title (1–100 characters, case-insensitive).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tests, newest window first. Filters: subjectId, division, status, q (title). Paginated.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.view",
+        "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "TestsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a DRAFT test: { title, subjectId, division, answerFormat, opensAt, closesAt, maxMarks, questions? }.\n400 INVALID_TEST_WINDOW, QUESTION_MARKS_EXCEED_TOTAL, SUBJECT_NOT_FOUND; 403 SCOPE_FORBIDDEN.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}": {
+      "get": {
+        "operationId": "TestsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A test with its questions (in order), totals and files (neutral names; the marking guide only to who may read it).",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.view",
+        "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "patch": {
+        "operationId": "TestsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change any detail. 400 NO_CHANGES, INVALID_TEST_WINDOW, TEST_MAX_MARKS_BELOW_QUESTIONS; 409 QUESTION_MARKS_MISMATCH, TEST_PUBLISHED.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "TestsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Delete a DRAFT test (409 TEST_PUBLISHED otherwise). 204.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/publish": {
+      "post": {
+        "operationId": "TestsController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "DRAFT → PUBLISHED. 409 TEST_NOT_READY { problems: NO_PAPER_OR_QUESTIONS | QUESTION_MARKS_MISMATCH | ALREADY_CLOSED }.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/unpublish": {
+      "post": {
+        "operationId": "TestsController_unpublish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "PUBLISHED → DRAFT. 409 TEST_NOT_PUBLISHED.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/questions": {
+      "post": {
+        "operationId": "TestsController_addQuestion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestQuestionInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Append a question { prompt, maxMarks }. 400 QUESTION_MARKS_EXCEED_TOTAL; 409 QUESTION_MARKS_MISMATCH (published).",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/questions/order": {
+      "put": {
+        "operationId": "TestsController_reorderQuestions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderTestQuestionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every question id once, in the new order. 400 QUESTION_ORDER_MISMATCH.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/questions/{questionId}": {
+      "patch": {
+        "operationId": "TestsController_updateQuestion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTestQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change a question's prompt or marks (same sum rule). 404 QUESTION_NOT_FOUND.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "TestsController_removeQuestion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove a question; the others are renumbered.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/files/{kind}": {
+      "put": {
+        "operationId": "TestsController_putFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "marking-guide",
+                "paper"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Upload or replace the paper or the marking guide (multipart field `file`: PDF or image incl. phone photos, at most\n20 MB). 400 FILE_REQUIRED / EMPTY_FILE, 413, 415 FILE_TYPE_NOT_ALLOWED. Private storage.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "TestsController_removeFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "marking-guide",
+                "paper"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove the paper or the marking guide. 404 TEST_FILE_NOT_FOUND.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "get": {
+        "operationId": "TestsController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "enum": [
+                "marking-guide",
+                "paper"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The file's bytes under a neutral name (test-paper.pdf, marking-guide.pdf …); ?download=1 forces a download.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.view",
+        "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/test-markers": {
+      "get": {
+        "operationId": "TestMarkersController_list",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "active (default), revoked or all.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "revoked",
+                "all"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Authorisations: ?subjectId, ?state=active (default) | revoked | all. Paginated.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manageMarkers",
+        "description": "**Access:** permission `tests.manageMarkers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "TestMarkersController_grant",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantMarkerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Authorise { coachId, subjectId, reason? }. 400 NOT_A_COACH; 409 MARKER_ALREADY_AUTHORIZED, ACCOUNT_NOT_ACTIVE.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manageMarkers",
+        "description": "**Access:** permission `tests.manageMarkers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/test-markers/candidates": {
+      "get": {
+        "operationId": "TestMarkersController_candidates",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "required": true,
+            "in": "query",
+            "description": "The subject the coaches would mark.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the first name, last name or username (1–100 characters).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Coaches who can be authorised for ?subjectId (search ?q), with authorizationId when already authorised.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manageMarkers",
+        "description": "**Access:** permission `tests.manageMarkers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/test-markers/{id}/revoke": {
+      "post": {
+        "operationId": "TestMarkersController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeMarkerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Revoke { reason } (mandatory). 409 MARKER_AUTHORIZATION_REVOKED.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manageMarkers",
+        "description": "**Access:** permission `tests.manageMarkers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
     }
   },
   "info": {
@@ -49186,6 +50120,207 @@
         },
         "required": [
           "action"
+        ]
+      },
+      "TestQuestionInputDto": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "The question as shown to students and markers (1–5000 characters).",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "maxMarks": {
+            "type": "number",
+            "description": "Whole marks (G7), at least 1.",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "prompt",
+          "maxMarks"
+        ]
+      },
+      "CreateTestDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "3–200 characters.",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "subjectId": {
+            "type": "string",
+            "description": "The subject (Discipline id): Mathematics, Physics or Computing. A Head Coach: only a subject they head.",
+            "format": "uuid"
+          },
+          "division": {
+            "type": "string",
+            "description": "JUNIOR (S1–S3), SENIOR (S4–S6) or ALL. Mandatory.",
+            "enum": [
+              "JUNIOR",
+              "SENIOR",
+              "ALL"
+            ]
+          },
+          "answerFormat": {
+            "type": "string",
+            "description": "How students answer: UPLOAD_ONLY, TYPED_ONLY or BOTH.",
+            "enum": [
+              "UPLOAD_ONLY",
+              "TYPED_ONLY",
+              "BOTH"
+            ]
+          },
+          "opensAt": {
+            "type": "string",
+            "description": "ISO 8601 date-time; before closesAt."
+          },
+          "closesAt": {
+            "type": "string",
+            "description": "ISO 8601 date-time; after opensAt."
+          },
+          "maxMarks": {
+            "type": "number",
+            "description": "Whole marks (G7), 1–1000.",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "questions": {
+            "description": "Optional questions, in order. Their marks may not exceed maxMarks (they must equal it before publishing).",
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestQuestionInputDto"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "subjectId",
+          "division",
+          "answerFormat",
+          "opensAt",
+          "closesAt",
+          "maxMarks"
+        ]
+      },
+      "UpdateTestDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "subjectId": {
+            "type": "string",
+            "description": "Move the test to another subject (a Head Coach must head both). Drafts only.",
+            "format": "uuid"
+          },
+          "division": {
+            "type": "string",
+            "enum": [
+              "JUNIOR",
+              "SENIOR",
+              "ALL"
+            ]
+          },
+          "answerFormat": {
+            "type": "string",
+            "enum": [
+              "UPLOAD_ONLY",
+              "TYPED_ONLY",
+              "BOTH"
+            ]
+          },
+          "opensAt": {
+            "type": "string"
+          },
+          "closesAt": {
+            "type": "string",
+            "description": "A new deadline. Once the test was published, originalClosesAt keeps the first one."
+          },
+          "maxMarks": {
+            "type": "number",
+            "description": "Not below the questions' total (and equal to it while the test is published and has questions).",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "ReorderTestQuestionsDto": {
+        "type": "object",
+        "properties": {
+          "questionIds": {
+            "uniqueItems": true,
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "questionIds"
+        ]
+      },
+      "UpdateTestQuestionDto": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "maxMarks": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        }
+      },
+      "GrantMarkerDto": {
+        "type": "object",
+        "properties": {
+          "coachId": {
+            "type": "string",
+            "description": "A Coach (MENTOR) account that is ACTIVE.",
+            "format": "uuid"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional note (up to 500 characters).",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "coachId",
+          "subjectId"
+        ]
+      },
+      "RevokeMarkerDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "Error": {

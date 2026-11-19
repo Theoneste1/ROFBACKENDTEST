@@ -130,12 +130,16 @@ describe('role × route sweep (all seven callers)', () => {
 
 /**
  * Reviewed 2026-11-18: /admin routes a Coach or Head Coach passes the guards for — only the Head Coach's approved
- * programme management (P1-10, HC decisions). Each service limits them to the programmes the Head Coach heads (others
+ * programme management (P1-10, HC decisions) and, from 2026-11-19, Test Management Phase 1 (tests and marker
+ * authorisations in the subjects they head; test/test-management.e2e-spec.ts). Each service limits them to the programmes the Head Coach heads (others
  * are not revealed): test/head-coach-programme, head-coach-monitoring and head-coach-course-work e2e specs.
  */
 const COACH_ADMIN_ROUTES: string[] = [
   'DELETE /api/v1/admin/mentor-assignments/:id  MentorAssignmentsController.unassign  [HEAD_COACH]',
   'DELETE /api/v1/admin/programmes/:id/members/:userId  AdminProgrammesController.endMember  [HEAD_COACH]',
+  'DELETE /api/v1/admin/tests/:id  TestsController.remove  [HEAD_COACH]',
+  'DELETE /api/v1/admin/tests/:id/files/:kind  TestsController.removeFile  [HEAD_COACH]',
+  'DELETE /api/v1/admin/tests/:id/questions/:questionId  TestsController.removeQuestion  [HEAD_COACH]',
   'GET /api/v1/admin/activity  ActivityController.list  [HEAD_COACH]',
   'GET /api/v1/admin/activity/summary  ActivityController.summary  [HEAD_COACH]',
   'GET /api/v1/admin/dashboard  DashboardController.get  [HEAD_COACH]',
@@ -146,9 +150,25 @@ const COACH_ADMIN_ROUTES: string[] = [
   'GET /api/v1/admin/reports/mentor-activity  ReportsController.mentorActivity  [HEAD_COACH]',
   'GET /api/v1/admin/reports/mentors  ReportsController.mentors  [HEAD_COACH]',
   'GET /api/v1/admin/reports/students  ReportsController.students  [HEAD_COACH]',
+  'GET /api/v1/admin/test-markers  TestMarkersController.list  [HEAD_COACH]',
+  'GET /api/v1/admin/test-markers/candidates  TestMarkersController.candidates  [HEAD_COACH]',
+  'GET /api/v1/admin/tests  TestsController.list  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id  TestsController.get  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/files/:kind  TestsController.file  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/subjects  TestsController.subjects  [HEAD_COACH]',
+  'PATCH /api/v1/admin/tests/:id  TestsController.update  [HEAD_COACH]',
+  'PATCH /api/v1/admin/tests/:id/questions/:questionId  TestsController.updateQuestion  [HEAD_COACH]',
   'POST /api/v1/admin/mentor-assignments  MentorAssignmentsController.assign  [HEAD_COACH]',
   'POST /api/v1/admin/programmes/:id/coach-invitations  AdminProgrammesController.inviteCoach  [HEAD_COACH]',
   'POST /api/v1/admin/programmes/:id/members  AdminProgrammesController.addMember  [HEAD_COACH]',
+  'POST /api/v1/admin/test-markers  TestMarkersController.grant  [HEAD_COACH]',
+  'POST /api/v1/admin/test-markers/:id/revoke  TestMarkersController.revoke  [HEAD_COACH]',
+  'POST /api/v1/admin/tests  TestsController.create  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/publish  TestsController.publish  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish  [HEAD_COACH]',
+  'PUT /api/v1/admin/tests/:id/files/:kind  TestsController.putFile  [HEAD_COACH]',
+  'PUT /api/v1/admin/tests/:id/questions/order  TestsController.reorderQuestions  [HEAD_COACH]',
 ];
 
 /**
@@ -172,4 +192,6 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // 2026-11-19, primary teacher (owner decision): +1 POST /admin/teacher-assignments/:id/primary (users.manageTeachers:
 // Administrators, Super Admins); +1 GET /teacher/schools (students.viewScoped: Teachers; the guard also admits Head Coaches
 // and Administrators, whom the service refuses — TEACHER_ROUTES_GUARD_ONLY).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 83, MENTOR: 110, HEAD_COACH: 119, ADMIN: 289, SUPER_ADMIN: 295 };
+// 2026-11-19, Test Management Phase 1 (owner-approved plan): +19 /admin/tests and /admin/test-markers routes for Head
+// Coaches (their subjects), Administrators and Super Admins; none for Coach, Teacher or Student.
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 83, MENTOR: 110, HEAD_COACH: 138, ADMIN: 308, SUPER_ADMIN: 314 };

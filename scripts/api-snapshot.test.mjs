@@ -261,7 +261,12 @@ const COACH_INTERESTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-coach-in
 const PRIMARY_TEACHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-primary-teacher.json';
 /** Schools table (2026-11-19): GET /admin/schools sorts by name or verified students (sort, order) — additive only. */
 const SCHOOLS_TABLE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-schools-table.json';
-const CURRENT_SNAPSHOT = SCHOOLS_TABLE_SNAPSHOT;
+/**
+ * Test Management, Phase 1 (WS3, owner-approved plan 2026-11-19): /admin/tests (tests, questions, paper and marking guide)
+ * and /admin/test-markers (marker authorisations) — additive only: 19 routes, 7 request schemas.
+ */
+const TEST_MANAGEMENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-management.json';
+const CURRENT_SNAPSHOT = TEST_MANAGEMENT_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1356,6 +1361,42 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive.sort(), [
       'GET /api/v1/admin/schools: new optional query parameter "order"',
       'GET /api/v1/admin/schools: new optional query parameter "sort"',
+    ]);
+  });
+
+  test('schools table → Test Management Phase 1 (2026-11-19): additive only — 19 routes, 7 request schemas, no existing field changed', () => {
+    for (const f of [SCHOOLS_TABLE_SNAPSHOT, TEST_MANAGEMENT_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOLS_TABLE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_MANAGEMENT_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/admin/tests/{id}/files/{kind}: operation added',
+      'DELETE /api/v1/admin/tests/{id}/questions/{questionId}: operation added',
+      'DELETE /api/v1/admin/tests/{id}: operation added',
+      'GET /api/v1/admin/test-markers/candidates: operation added',
+      'GET /api/v1/admin/test-markers: operation added',
+      'GET /api/v1/admin/tests/subjects: operation added',
+      'GET /api/v1/admin/tests/{id}/files/{kind}: operation added',
+      'GET /api/v1/admin/tests/{id}: operation added',
+      'GET /api/v1/admin/tests: operation added',
+      'PATCH /api/v1/admin/tests/{id}/questions/{questionId}: operation added',
+      'PATCH /api/v1/admin/tests/{id}: operation added',
+      'POST /api/v1/admin/test-markers/{id}/revoke: operation added',
+      'POST /api/v1/admin/test-markers: operation added',
+      'POST /api/v1/admin/tests/{id}/publish: operation added',
+      'POST /api/v1/admin/tests/{id}/questions: operation added',
+      'POST /api/v1/admin/tests/{id}/unpublish: operation added',
+      'POST /api/v1/admin/tests: operation added',
+      'PUT /api/v1/admin/tests/{id}/files/{kind}: operation added',
+      'PUT /api/v1/admin/tests/{id}/questions/order: operation added',
+      'schema CreateTestDto: added',
+      'schema GrantMarkerDto: added',
+      'schema ReorderTestQuestionsDto: added',
+      'schema RevokeMarkerDto: added',
+      'schema TestQuestionInputDto: added',
+      'schema UpdateTestDto: added',
+      'schema UpdateTestQuestionDto: added',
     ]);
   });
 

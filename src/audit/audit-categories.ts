@@ -63,6 +63,14 @@ export const AUDIT_CATEGORIES = {
   FORMS: ['FORM_AVAILABILITY_CHANGED', 'FORM_MESSAGES_CHANGED'],
   // Countries (owner decision 2026-11-19): a corrected name or calling code; audited, never notified.
   REFERENCE_DATA: ['COUNTRY_UPDATED'],
+  // Test Management (WS3, owner-approved plan 2026-11-19): every change to a test, its questions and files, and every
+  // marker authorisation (who acted — which Administrator or Head Coach — is the entry's actor).
+  TESTS: [
+    'TEST_CREATED', 'TEST_UPDATED', 'TEST_DELETED', 'TEST_PUBLISHED', 'TEST_UNPUBLISHED',
+    'TEST_QUESTION_ADDED', 'TEST_QUESTION_UPDATED', 'TEST_QUESTION_REMOVED', 'TEST_QUESTIONS_REORDERED',
+    'TEST_FILE_UPLOADED', 'TEST_FILE_REPLACED', 'TEST_FILE_REMOVED',
+    'MARKER_AUTHORIZED', 'MARKER_AUTHORIZATION_REVOKED',
+  ],
   ACADEMIC_YEARS: ['CREATE_ACADEMIC_YEAR', 'UPDATE_ACADEMIC_YEAR', 'ACTIVATE_ACADEMIC_YEAR', 'UPDATE_DIVISION'],
   COURSES: [
     'UPDATE_COURSE', 'ARCHIVE_COURSE', 'CREATE_COURSE_RESOURCE', 'UPDATE_COURSE_RESOURCE', 'DELETE_COURSE_RESOURCE',

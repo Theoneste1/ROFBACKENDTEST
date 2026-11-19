@@ -1191,6 +1191,196 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/test-markers",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/test-markers",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/test-markers/{id}/revoke",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/test-markers/candidates",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tests/{id}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tests/{id}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/files/{kind}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tests/{id}/files/{kind}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tests/{id}/files/{kind}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/publish",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/questions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tests/{id}/questions/{questionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tests/{id}/questions/{questionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tests/{id}/questions/order",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/unpublish",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/subjects",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/users",
     "roles": [
       "ADMIN",

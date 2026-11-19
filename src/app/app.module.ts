@@ -53,6 +53,7 @@ import { EmailModule } from '../email/email.module.js';
 import { DiscussionsModule } from '../discussions/discussions.module.js';
 import { AnalyticsModule } from '../analytics/analytics.module.js';
 import { ReportsModule } from '../reports/reports.module.js';
+import { TestManagementModule } from '../test-management/test-management.module.js';
 
 @Module({
   imports: [
@@ -131,6 +132,7 @@ import { ReportsModule } from '../reports/reports.module.js';
     DiscussionsModule,
     AnalyticsModule,
     ReportsModule,
+    TestManagementModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

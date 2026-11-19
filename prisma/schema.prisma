@@ -386,6 +386,13 @@ enum FilePurpose {
   RESOURCE
   /// A user's profile picture (JPEG, PNG or WebP, at most 2 MB).
   AVATAR
+  /// Test Management (WS3): a test's question paper (PDF or images, at most 20 MB; private).
+  TEST_PAPER
+  /// Test Management (WS3, used from Phase 2): a student's answer pages (PDF or images incl. phone photos, at most 20 MB; private).
+  TEST_ANSWER
+  /// Test Management (WS3): a test's marking guide / answer key (PDF or images, at most 20 MB; private: only
+  /// Administrators, the subject's Head Coaches and, from Phase 3, its authorised markers).
+  MARKING_GUIDE
 }
 
 /// Notification categories. Users may opt out of e-mail per category
@@ -553,6 +560,10 @@ model User {
   statusChanges                     UserStatusChange[]         @relation("StatusChangeUser")
   statusChangesMade                 UserStatusChange[]         @relation("StatusChangeActor")
   bulkOperations                    BulkOperation[]            @relation("BulkOperationActor")
+  testsCreated                      Test[]                     @relation("TestCreatedBy")
+  markerAuthorizations              MarkerAuthorization[]      @relation("MarkerCoach")
+  markerAuthorizationsGranted       MarkerAuthorization[]      @relation("MarkerGrantedBy")
+  markerAuthorizationsRevoked       MarkerAuthorization[]      @relation("MarkerRevokedBy")
 
   @@index([points])
   @@index([role])
@@ -1255,6 +1266,9 @@ model Discipline {
 
   courses     Course[]
   memberships ProgrammeMembership[]
+  /// Test Management (WS3): the subject's tests and authorised markers.
+  tests                Test[]
+  markerAuthorizations MarkerAuthorization[]
 }
 
 /// An academic year (e.g. "2026-2027"). Assignments belong to a year;
@@ -1402,6 +1416,8 @@ model FileObject {
   /// An optional profile picture sent with a Teacher / Coach application (REG-02), moved to the account on approval.
   teacherApplicationAvatarOf TeacherApplication? @relation("TeacherApplicationAvatar")
   mentorRequestAvatarOf      MentorRequest?      @relation("MentorRequestAvatar")
+  /// A test's paper or marking guide (Test Management); keeps the file from orphan cleanup.
+  testFiles                  TestFile[]
 
   @@index([purpose])
   @@index([createdAt])
@@ -2589,4 +2605,119 @@ model Country {
   updatedAt   DateTime @updatedAt
 
   schools School[]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test Management (WS3; owner spec and plan approved 2026-11-19). NEW tables — the
+// course-assignment pipeline (Assignment, Submission, MentorReview …) is untouched.
+// Migration 20261220000100_tests_core.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Who a test is for: Junior (S1–S3), Senior (S4–S6) or All. Mandatory; default ALL.
+enum TestDivision {
+  JUNIOR
+  SENIOR
+  ALL
+}
+
+/// How students answer (enforced from Phase 2): uploaded pages only, typed answers only, or both.
+enum TestAnswerFormat {
+  UPLOAD_ONLY
+  TYPED_ONLY
+  BOTH
+}
+
+/// DRAFT: being prepared (may be deleted). PUBLISHED: released to students (they see it from Phase 2).
+enum TestStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum TestFileKind {
+  PAPER
+  MARKING_GUIDE
+}
+
+/// A test of one subject (Discipline). Whole-number marks (G7). CHECK constraints: maxMarks > 0, opensAt < closesAt.
+/// originalClosesAt: the deadline when the test was first published (it follows closesAt while the test is a draft that
+/// was never published) — kept unchanged when the deadline later moves.
+model Test {
+  id               String           @id @default(uuid())
+  title            String
+  disciplineId     String
+  discipline       Discipline       @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  division         TestDivision     @default(ALL)
+  answerFormat     TestAnswerFormat
+  opensAt          DateTime
+  closesAt         DateTime
+  originalClosesAt DateTime
+  maxMarks         Int
+  status           TestStatus       @default(DRAFT)
+  /// First publication (never cleared); from then on originalClosesAt is frozen.
+  publishedAt      DateTime?
+  createdById      String?
+  createdBy        User?            @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  questions TestQuestion[]
+  files     TestFile[]
+
+  @@index([disciplineId, status])
+  @@index([createdById])
+  @@index([opensAt])
+}
+
+/// An optional question of a test. When a test has questions, their maxMarks add up exactly to Test.maxMarks before it can
+/// be published (enforced by the service; a draft may be incomplete but never exceed). CHECK: maxMarks > 0, order >= 1.
+model TestQuestion {
+  id        String   @id @default(uuid())
+  testId    String
+  test      Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  order     Int
+  prompt    String
+  maxMarks  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([testId, order])
+}
+
+/// A test's question paper or marking guide: at most one of each kind per test (replaced, not versioned).
+model TestFile {
+  id        String       @id @default(uuid())
+  testId    String
+  test      Test         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  fileId    String
+  file      FileObject   @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  kind      TestFileKind
+  createdAt DateTime     @default(now())
+
+  @@unique([testId, kind])
+  @@index([fileId])
+}
+
+/// A coach (MENTOR) authorised to mark a subject's tests, granted by an Administrator or one of the subject's Head Coaches.
+/// Separate from the coach's olympiadInterests: an interest NEVER grants marking. Revoked (with a reason), never deleted.
+/// At most one ACTIVE (revokedAt IS NULL) per coach and subject: partial unique index
+/// MarkerAuthorization_one_active_per_coach_subject. CHECK: revokedAt and revokeReason are set together.
+model MarkerAuthorization {
+  id           String     @id @default(uuid())
+  coachId      String
+  coach        User       @relation("MarkerCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  disciplineId String
+  discipline   Discipline @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  grantedById  String?
+  grantedBy    User?      @relation("MarkerGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  grantedAt    DateTime   @default(now())
+  grantReason  String?
+  revokedAt    DateTime?
+  revokedById  String?
+  revokedBy    User?      @relation("MarkerRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokeReason String?
+
+  @@index([disciplineId, revokedAt])
+  @@index([coachId, revokedAt])
+  @@index([grantedById])
+  @@index([revokedById])
 }
