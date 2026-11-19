@@ -572,6 +572,9 @@ export class TestSubmissionsService {
         id: test.id, title: test.title, subject: test.discipline, division: test.division, answerFormat: test.answerFormat,
         maxMarks: test.maxMarks, opensAt: test.opensAt, deadline: deadline.deadline, window,
         hasPaper: opened && test.files.length > 0,
+        paper: opened && test.files[0]
+          ? { name: neutralFileName('PAPER', test.files[0].file.storageKey), mimeType: test.files[0].file.mimeType, size: test.files[0].file.size }
+          : null,
         questions: opened ? test.questions : [],
       },
       student: { id: student.id, username: student.username, firstName: student.firstName, lastName: student.lastName, gradeLevel: student.gradeLevel, school: student.school },
