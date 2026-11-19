@@ -244,7 +244,12 @@ const TEACHER_STUDENT_FINAL_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-te
  * to the request body (URLs reach proxy and platform access logs). The two path routes were never released.
  */
 const INFO_REQUEST_TOKEN_BODY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-info-request-token-body.json';
-const CURRENT_SNAPSHOT = INFO_REQUEST_TOKEN_BODY_SNAPSHOT;
+/**
+ * Countries (design area 1 as simplified by the owner, 2026-11-19): the public country list and its administration
+ * (reference.manage) — additive only, no response field of an existing operation changes.
+ */
+const COUNTRIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-countries.json';
+const CURRENT_SNAPSHOT = COUNTRIES_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1288,6 +1293,20 @@ describe('approved API contract history', () => {
       'schema AnswerInfoRequestDto: no longer defined (check uses above)',
       'schema AnswerInfoRequestWithTokenDto: added',
       'schema InfoRequestTokenDto: added',
+    ]);
+  });
+
+  test('info-request token in the body → countries (owner decision 2026-11-19): additive only — 3 routes, 1 schema, no field change', () => {
+    for (const f of [INFO_REQUEST_TOKEN_BODY_SNAPSHOT, COUNTRIES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(INFO_REQUEST_TOKEN_BODY_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(COUNTRIES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/countries: operation added',
+      'GET /api/v1/countries: operation added',
+      'PATCH /api/v1/admin/countries/{code}: operation added',
+      'schema UpdateCountryDto: added',
     ]);
   });
 

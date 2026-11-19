@@ -194,6 +194,13 @@ export const FEATURES = {
    * (student and teacher registration) or FORM_CLOSED (coach applications, contact form), with the form details.
    */
   formAvailability: 'always',
+  /**
+   * Countries (design area 1 as simplified by the owner, 2026-11-19): public GET /api/v1/countries (every ISO 3166-1
+   * alpha-2 country: code, name, calling code) and GET / PATCH /api/v1/admin/countries (reference.manage: correct a name
+   * or calling code; audited). No country is ever blocked: a country identifies where someone or a school is, never a
+   * level or division. Without this feature: use the built-in country list.
+   */
+  countries: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

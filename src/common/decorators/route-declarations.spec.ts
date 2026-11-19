@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 25 @Public + 30 @Roles + 218 @RequirePermission + 56 @Authenticated = 329, none undeclared', () => {
+  it('declarations add up: 26 @Public + 30 @Roles + 220 @RequirePermission + 56 @Authenticated = 332, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 25, '@Roles': 30, '@RequirePermission': 218, '@Authenticated': 56 });  // final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 220, '@Authenticated': 56 });  // countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -221,6 +221,8 @@ describe('route declarations (P1-02 §5)', () => {
       'schools.syncDirectory': 3,
       // Form availability (2026-11-15): list, form, history (forms.view); open/close/schedule; messages
       'forms.view': 3, 'forms.manageAvailability': 1, 'forms.editMessages': 1,
+      // Countries (owner decision 2026-11-19): list, correct a name or calling code
+      'reference.manage': 2,
     });
   });
 
@@ -333,7 +335,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 118 added since: 320 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 121 added since: 323 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -364,7 +366,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(25);   // registration avatar: + PUT /auth/register/avatar; request more information: + POST /applications/info-requests/view, /answer (token in the body, SEC-05); P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register; form availability: + GET /forms, /forms/:key
+      expect(handlers.filter(isPublic)).toHaveLength(26);   // countries (2026-11-19): + GET /countries; registration avatar: + PUT /auth/register/avatar; request more information: + POST /applications/info-requests/view, /answer (token in the body, SEC-05); P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register; form availability: + GET /forms, /forms/:key
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {

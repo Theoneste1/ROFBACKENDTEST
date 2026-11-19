@@ -90,6 +90,8 @@ export const PERMISSIONS = [
   'forms.view',                  // the administrators' view of every form, its schedule and its history
   'forms.manageAvailability',    // open, close and schedule a form
   'forms.editMessages',          // closed-form message, instructions, contact e-mail and support link
+  // ── Countries (design area 1 as simplified by the owner, 2026-11-19; Administrators, Super Admins, global) ──
+  'reference.manage',            // correct a country's name or calling code
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -140,6 +142,8 @@ const ADMIN_GRANTS: Grants = {
   // Bulk user operations (2026-11-17)
   'users.bulkManage': 'global', 'users.export': 'global',
   'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
+  // Countries (owner decision 2026-11-19)
+  'reference.manage': 'global',
 };
 
 /**
@@ -204,6 +208,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'users.viewStatusHistory': 'global', 'users.changeStatus': 'global', 'users.suspend': 'global', 'users.archive': 'global',
     'users.bulkManage': 'global', 'users.export': 'global',
     'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
+    'reference.manage': 'global',
   },
 };
 
@@ -263,6 +268,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, form availability 2026-11-15): ADMIN holds them (ADMIN_GRANTS, global) and the form routes
     // require them; listed so the frontend can show the form-management screen.
     'forms.view', 'forms.manageAvailability', 'forms.editMessages',
+    // Appended (additive, countries, owner decision 2026-11-19): ADMIN holds it (ADMIN_GRANTS, global) and the country
+    // administration routes require it; listed so the frontend shows the Countries screen.
+    'reference.manage',
   ],
 };
 

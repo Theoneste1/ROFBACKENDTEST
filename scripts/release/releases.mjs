@@ -44,6 +44,24 @@ export const POST_PHASE1_OBJECTS = {
 };
 
 /**
+ * The design-areas release: the migrations after the post-Phase-1 eleven. Area 1 as simplified by the owner (2026-11-19):
+ * the countries reference list and the School → Country foreign key. Listed explicitly — a migration added later is never
+ * part of it until it is appended here on purpose.
+ */
+export const AREAS_2026_MIGRATIONS = [
+  '20261211000000_countries_reference',
+];
+
+/** What the design-areas migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
+export const AREAS_2026_OBJECTS = {
+  tables: ['Country'],
+  enums: [],
+  columns: [],
+  triggers: [],
+  functions: [],
+};
+
+/**
  * Each release: `owns(name)` — the migration belongs to it; `last` — its last timestamp (a migration sorting after it
  * is never deployed by the kit for this release); the read-only SQL checks; and the rollback-history rule.
  */
@@ -63,6 +81,25 @@ export const RELEASES = {
     last: POST_PHASE1_MIGRATIONS.at(-1).slice(0, 14),
     precheck: 'scripts/release/post-phase1-precheck.sql',
     postcheck: 'scripts/release/post-phase1-postcheck.sql',
+    migrations: POST_PHASE1_MIGRATIONS,
+    objects: POST_PHASE1_OBJECTS,
+    // The target must already hold Phase 1 (production today).
+    requires: { label: 'Phase 1', count: PHASE1_COUNT, owns: (name) => PHASE1.test(name) },
+  },
+  'areas-2026': {
+    label: `design areas (${AREAS_2026_MIGRATIONS.length} migrations after post-Phase-1)`,
+    count: AREAS_2026_MIGRATIONS.length,
+    owns: (name) => AREAS_2026_MIGRATIONS.includes(name),
+    last: AREAS_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/areas-2026-precheck.sql',
+    postcheck: 'scripts/release/areas-2026-postcheck.sql',
+    migrations: AREAS_2026_MIGRATIONS,
+    objects: AREAS_2026_OBJECTS,
+    // The target must already hold Phase 1 and the eleven post-Phase-1 migrations.
+    requires: {
+      label: 'Phase 1 and post-Phase-1', count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name),
+    },
   },
 };
 

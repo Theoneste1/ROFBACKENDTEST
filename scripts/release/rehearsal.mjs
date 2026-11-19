@@ -3,10 +3,12 @@
  * Migration rehearsal on a Neon BRANCH of production — never production itself.
  * Checklist: docs/operations/REHEARSAL-NEON-CHECKLIST.md (Phase 1) and docs/operations/RELEASE-POST-PHASE1.md.
  *
- * Every command takes --release <phase1|post-phase1> (default phase1, the kit's original behaviour):
+ * Every command takes --release <phase1|post-phase1|areas-2026> (default phase1, the kit's original behaviour):
  *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
  *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
  *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
+ *   areas-2026   the design-area migrations after those eleven (area 1 as simplified by the owner 2026-11-19: countries);
+ *                the target must already hold Phase 1 and post-Phase-1; same checkout and database rules.
  *
  *   node scripts/release/rehearsal.mjs check-target                 guard only, no connection
  *   node scripts/release/rehearsal.mjs precheck                     the release's precheck SQL (read only)
@@ -53,7 +55,7 @@ import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { REPO_ROOT, VERIFIER, envValues, resolveDrillTarget, readTargetInputs } from '../db-drill-verify.mjs';
 import { PHASE1, PHASE1_COUNT, laterMigrations, migrationDirs } from './phase1.mjs';
-import { POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASE_NAMES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
+import { RELEASE_NAMES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
 
 export { PHASE1 };
 const WRITES = new Set(['deploy', 'rollback', 'rollback-history', 'dump', 'restore']);
@@ -265,14 +267,15 @@ function prisma(url, args) {
 const opt = (rest, name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
 
 /**
- * post-Phase-1 rollback-history: refuses while any table, enum, column, trigger or function the eleven migrations
- * create is still there (POST_PHASE1_OBJECTS); then deletes exactly their eleven history rows. Returns the exit code.
+ * post-Phase-1 / design-areas rollback-history: refuses while any table, enum, column, trigger or function the release's
+ * migrations create is still there (release.objects); then deletes exactly their history rows. Returns the exit code.
  */
-async function rollbackHistoryPostPhase1(url) {
+async function rollbackHistoryRelease(url, release) {
+  const label = release.name === 'post-phase1' ? 'post-Phase-1' : release.label;
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
-    const o = POST_PHASE1_OBJECTS;
+    const o = release.objects;
     const left = (await client.query(
       `SELECT (SELECT array_agg(table_name::text) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)) AS tables,
               (SELECT array_agg(typname::text) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = ANY($2)) AS enums,
@@ -284,11 +287,11 @@ async function rollbackHistoryPostPhase1(url) {
     const remaining = [...(left.tables ?? []), ...(left.enums ?? []).map((e) => `enum ${e}`), ...(left.columns ?? []).map((c) => `column ${c}`),
       ...(left.triggers ?? []).map((x) => `trigger ${x}`), ...(left.functions ?? []).map((x) => `function ${x}`)];
     if (remaining.length) {
-      console.error(`✗ refused: the post-Phase-1 rollback is not complete (${remaining.join(', ')}). Run \`rollback --release post-phase1\` first.`);
+      console.error(`✗ refused: the ${label} rollback is not complete (${remaining.join(', ')}). Run \`rollback --release ${release.name}\` first.`);
       return 1;
     }
-    const dirs = migrationDirs(REPO_ROOT).filter((d) => POST_PHASE1_MIGRATIONS.includes(d));
-    if (dirs.length !== POST_PHASE1_MIGRATIONS.length) throw new Error(`expected ${POST_PHASE1_MIGRATIONS.length} post-Phase-1 migration directories, found ${dirs.length}`);
+    const dirs = migrationDirs(REPO_ROOT).filter((d) => release.migrations.includes(d));
+    if (dirs.length !== release.migrations.length) throw new Error(`expected ${release.migrations.length} ${label} migration directories, found ${dirs.length}`);
     const names = (await client.query('SELECT migration_name FROM "_prisma_migrations" WHERE migration_name = ANY($1) ORDER BY 1', [dirs])).rows.map((r) => r.migration_name);
     const del = await client.query('DELETE FROM "_prisma_migrations" WHERE migration_name = ANY($1)', [names]);
     console.log(`deleted ${del.rowCount} history row(s): ${names.join(', ') || 'none'}`);
@@ -322,7 +325,7 @@ async function main() {
       return 5;
     }
   } else {
-    // post-Phase-1: exactly its eleven migrations in the checkout, nothing after them (exit 5, before any target is read).
+    // post-Phase-1 / design areas: exactly the release's migrations in the checkout, nothing after them (exit 5, before any target is read).
     const problem = checkoutProblem(release, migrationDirs(REPO_ROOT));
     if (problem) { console.error(`✗ refused: ${problem}`); return 5; }
   }
@@ -366,6 +369,14 @@ async function main() {
         return 5;
       }
     }
+    // The design areas build on Phase 1 and post-Phase-1: all of them must already be recorded.
+    if (release.name === 'areas-2026' && command !== 'restore') {
+      const before = applied.filter((n) => release.requires.owns(n)).length;
+      if (before !== release.requires.count) {
+        console.error(`✗ refused: the target records ${before} of the ${release.requires.count} ${release.requires.label} migrations; ${release.name} needs all of them first.`);
+        return 5;
+      }
+    }
   }
 
   switch (command) {
@@ -387,11 +398,13 @@ async function main() {
       }
       console.log(release.name === 'phase1'
         ? 'Next: rollback-history (M9–M14 rows), then `status` ("Following migrations have not yet been applied:" + the 14 names; exit 1).'
-        : 'Next: rollback-history --release post-phase1 (the eleven rows), then `status --release post-phase1` (the eleven names not yet applied; exit 1).');
+        : release.name === 'post-phase1'
+          ? 'Next: rollback-history --release post-phase1 (the eleven rows), then `status --release post-phase1` (the eleven names not yet applied; exit 1).'
+          : `Next: rollback-history --release ${release.name} (its ${release.count} rows), then \`status --release ${release.name}\` (those names not yet applied; exit 1).`);
       break;
     }
     case 'rollback-history': {
-      if (release.name === 'post-phase1') { code = await rollbackHistoryPostPhase1(schemaUrl); break; }
+      if (release.name !== 'phase1') { code = await rollbackHistoryRelease(schemaUrl, release); break; }
       const client = new pg.Client({ connectionString: schemaUrl });
       await client.connect();
       try {

@@ -165,4 +165,6 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
  * 2026-11-18, 315 registered routes. The Super Administrator's extra six: individual permission overrides (list,
  * create, revoke) and the school-directory sync's approve, apply and resolve.
  */
-const TOTALS: Record<Caller, number> = { anonymous: 25, STUDENT: 93, TEACHER: 81, MENTOR: 109, HEAD_COACH: 117, ADMIN: 284, SUPER_ADMIN: 290 };
+// 2026-11-19, countries (owner decision): +1 public list for every caller, +2 reference.manage routes for Administrators
+// and Super Admins only (none for Coach, Head Coach, Teacher or Student).
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 82, MENTOR: 110, HEAD_COACH: 118, ADMIN: 287, SUPER_ADMIN: 293 };
