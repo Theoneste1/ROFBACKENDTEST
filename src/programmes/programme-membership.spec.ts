@@ -3,9 +3,15 @@ import { join } from 'path';
 
 import { ensureDefaultMembership } from './programme-membership.js';
 
+/** A transaction whose Discipline table holds these rows (findUnique by code, as the database answers it). */
 function tx(disciplines: Array<{ id: string; code: string }>) {
   return {
-    discipline:          { findMany: vi.fn().mockResolvedValue(disciplines) },
+    discipline: {
+      findUnique: vi.fn(async ({ where }: { where: { code: string } }) => {
+        const d = disciplines.find((x) => x.code === where.code);
+        return d ? { id: d.id } : null;
+      }),
+    },
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
   };
 }
@@ -31,18 +37,26 @@ describe('ensureDefaultMembership (P1-07, K6)', () => {
   it.each(['ADMIN', 'SUPER_ADMIN', 'TEACHER', 'HEAD_COACH', 'UNKNOWN_ROLE'])('%s gets none (and the programmes are not even read)', async (role) => {
     const t = tx([MATHS]);
     await expect(ensureDefaultMembership(t as never, { id: 'u1', role }, 'admin-1')).resolves.toBeNull();
-    expect(t.discipline.findMany).not.toHaveBeenCalled();
+    expect(t.discipline.findUnique).not.toHaveBeenCalled();
     expect(t.programmeMembership.upsert).not.toHaveBeenCalled();
   });
 
   it.each([
     ['no programme', []],
-    ['two programmes', [MATHS, { id: 'd-phys', code: 'PHYSICS' }]],
-    ['one programme that is not Mathematics', [{ id: 'd-phys', code: 'PHYSICS' }]],
-  ])('%s → none (choosing a programme is later work)', async (_, disciplines) => {
+    ['only programmes that are not Mathematics', [{ id: 'd-phys', code: 'PHYSICS' }, { id: 'd-comp', code: 'COMPUTING' }]],
+  ])('%s → none (no Mathematics programme to join)', async (_, disciplines) => {
     const t = tx(disciplines);
     await expect(ensureDefaultMembership(t as never, { id: 'u1', role: 'STUDENT' }, null)).resolves.toBeNull();
     expect(t.programmeMembership.upsert).not.toHaveBeenCalled();
+  });
+
+  // G3 (Test Management plan, owner-approved 2026-11-19): Physics and Computing exist next to Mathematics from migration
+  // 20261220000100_tests_core. New students and coaches still join Mathematics — and only Mathematics.
+  it.each(['STUDENT', 'MENTOR'])('G3: with Mathematics, Physics and Computing, a new %s joins Mathematics only', async (role) => {
+    const t = tx([{ id: 'd-phys', code: 'PHYSICS' }, MATHS, { id: 'd-comp', code: 'COMPUTING' }]);
+    await expect(ensureDefaultMembership(t as never, { id: 'u1', role }, null)).resolves.toEqual({ disciplineId: 'd-math' });
+    expect(t.programmeMembership.upsert).toHaveBeenCalledTimes(1);
+    expect(t.programmeMembership.upsert.mock.calls[0][0].create).toEqual({ userId: 'u1', disciplineId: 'd-math', source: 'MANUAL', addedById: null });
   });
 });
 

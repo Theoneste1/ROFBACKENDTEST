@@ -30,7 +30,7 @@ function makeMocks() {
     // A Teacher's or Student's role change ends their teacher–student assignments (none here).
     teacherStudentAssignment: { findMany: vi.fn().mockResolvedValue([]) },
     mentorReview:      { count: vi.fn().mockResolvedValue(0) },
-    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    discipline:          { findUnique: vi.fn().mockResolvedValue({ id: 'd-math' }) },   // Mathematics, looked up by code (G3)
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     // Admin edits lock the user row first (PR A.1).
     $queryRaw: vi.fn().mockResolvedValue([{ schoolId: null }]),
