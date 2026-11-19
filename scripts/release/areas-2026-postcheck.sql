@@ -54,7 +54,7 @@ SELECT count(*) AS primary_not_earliest
 SELECT count(*) AS links, count(*) FILTER (WHERE "isActive") AS active_links, count(*) FILTER (WHERE NOT "isActive") AS ended_links
   FROM "TeacherSchoolAssignment";
 
-\echo '== 10. compare: what the migration did (MUST equal the pre-check report)'
+\echo '== 10. compare: what the migration did (MUST equal the first six values of the pre-check report; its seventh, ties resolved by id, is information only)'
 WITH per AS (
   SELECT s."id",
          count(t."id") FILTER (WHERE t."isActive")                          AS active_links,
