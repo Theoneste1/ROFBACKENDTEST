@@ -405,7 +405,8 @@ export class TestsService {
 
   /**
    * Stream the paper or the marking guide under a neutral name. The marking guide is served only to those who may read it
-   * (mayReadMarkingGuide): Administrators and the subject's Head Coaches; from Phase 3 also the subject's authorised markers.
+   * (mayReadMarkingGuide): Administrators and the subject's Head Coaches. Assigned markers read it through their own,
+   * blind route (GET /marking/submissions/:code/marking-guide: authorisation AND assignment checked).
    */
   async sendFile(id: string, kindParam: TestFileKindParam, user: AuthUser, res: Response, download: boolean) {
     const kind = KIND_OF[kindParam];
@@ -419,7 +420,7 @@ export class TestsService {
     await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey) }, { download });
   }
 
-  /** Phase 1: everyone who manages the subject's tests (Administrators, its Head Coaches). Phase 3 adds authorised markers. */
+  /** Everyone who manages the subject's tests (Administrators, its Head Coaches). Markers: test-marker.service.ts. */
   private async mayReadMarkingGuide(user: AuthUser, disciplineId: string): Promise<boolean> {
     const scope = await this.scope(user);
     return scope === 'all' || scope.includes(disciplineId);

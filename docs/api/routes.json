@@ -1191,6 +1191,124 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/assign",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/distribute",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking/history",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose",
+    "roles": [
+      "HEAD_COACH"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/test-markers",
     "roles": [
       "HEAD_COACH",
@@ -3225,6 +3343,62 @@
       "SUPER_ADMIN"
     ],
     "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/queue",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/marking/submissions/{code}/marking",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}/marking-guide",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/marking/submissions/{code}/marking/submit",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}/pages/{page}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}/paper",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
   },
   {
     "method": "GET",

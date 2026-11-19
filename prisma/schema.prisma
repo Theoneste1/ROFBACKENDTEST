@@ -575,6 +575,12 @@ model User {
   testAnswerPagesAsStudent          TestAnswerPage[]           @relation("TestAnswerPageStudent")
   testAnswerPagesUploaded           TestAnswerPage[]           @relation("TestAnswerPageUploader")
   testSubmissionStatusChanges       TestSubmissionStatusChange[] @relation("TestSubmissionStatusActor")
+  testMarkerAssignments             TestMarkerAssignment[]     @relation("TestMarkerAssignmentCoach")
+  testMarkerAssignmentsMade         TestMarkerAssignment[]     @relation("TestMarkerAssignmentAssignedBy")
+  testMarkerAssignmentsEnded        TestMarkerAssignment[]     @relation("TestMarkerAssignmentEndedBy")
+  testMarkings                      TestMarking[]              @relation("TestMarkingMarker")
+  testMarkChanges                   TestMarkChange[]           @relation("TestMarkChangeActor")
+  testReviews                       TestReview[]               @relation("TestReviewActor")
 
   @@index([points])
   @@index([role])
@@ -2696,6 +2702,9 @@ model TestQuestion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  markingScores TestMarkingScore[]
+  markChanges   TestMarkChange[]
+
   @@unique([testId, order])
 }
 
@@ -2826,8 +2835,16 @@ model TestSubmission {
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
-  versions      TestSubmissionVersion[]      @relation("TestSubmissionVersions")
-  statusChanges TestSubmissionStatusChange[]
+  /// Phase 3: the marking whose marks count (set by approval of a single marking, or by the Head Coach's choice of
+  /// first / second / adjusted marks; cleared when a marking is returned or a second marking is requested).
+  finalMarkingId   String?                @unique
+  finalMarking     TestMarking?           @relation("TestSubmissionFinalMarking", fields: [finalMarkingId], references: [id], onDelete: Restrict)
+
+  versions          TestSubmissionVersion[]      @relation("TestSubmissionVersions")
+  statusChanges     TestSubmissionStatusChange[]
+  markerAssignments TestMarkerAssignment[]
+  markings          TestMarking[]                @relation("TestSubmissionMarkings")
+  reviews           TestReview[]
 
   @@unique([testId, studentId])
   @@index([studentId])
@@ -2860,6 +2877,7 @@ model TestSubmissionVersion {
 
   currentOf TestSubmission?  @relation("TestSubmissionCurrentVersion")
   pages     TestAnswerPage[]
+  markings  TestMarking[]
 
   @@unique([submissionId, number])
   @@unique([submissionId, clientKey])
@@ -2910,5 +2928,162 @@ model TestSubmissionStatusChange {
   createdAt    DateTime              @default(now())
 
   @@index([submissionId, createdAt])
+  @@index([actorId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test Management, Phase 3 (WS3): distribution to markers, blind marking, second marking, review, approval, locking,
+// the mark-change log. Migration 20261220000300_tests_marking. Publication belongs to Phase 4.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// FIRST: the normal marking (one marker); SECOND: an independent, blind second marking requested by a reviewer;
+/// ADJUSTMENT: marks entered by the subject's Head Coach when choosing an adjusted mark (G4: never an Administrator).
+enum TestMarkingKind {
+  FIRST
+  SECOND
+  ADJUSTMENT
+}
+
+/// DRAFT (being marked) → SUBMITTED (for approval) → APPROVED (locked); RETURNED (for correction, editable again by its
+/// marker). The marks of a SUBMITTED or APPROVED marking never change (trigger test_marking_locked_guard).
+enum TestMarkingStatus {
+  DRAFT
+  SUBMITTED
+  RETURNED
+  APPROVED
+}
+
+/// What a reviewer (Administrator or the subject's Head Coach) decided. RETURNED, MARK_CHOSEN and UNLOCKED carry a
+/// mandatory comment / reason (CHECK). MARK_CHOSEN: subject Head Coach only (G4).
+enum TestReviewAction {
+  APPROVED
+  RETURNED
+  SECOND_MARKING_REQUESTED
+  MARK_CHOSEN
+  UNLOCKED
+}
+
+/// A submission given to a coach to mark (FIRST or SECOND). The current one has endedAt NULL (at most one per submission
+/// and kind: partial unique index TestMarkerAssignment_one_current); a reassignment ends it (who, when, why) and starts a
+/// new one, so the history is complete. Rows are never deleted; once ended, never changed (trigger).
+model TestMarkerAssignment {
+  id           String          @id @default(uuid())
+  submissionId String
+  submission   TestSubmission  @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  kind         TestMarkingKind
+  coachId      String
+  coach        User            @relation("TestMarkerAssignmentCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  assignedById String?
+  assignedBy   User?           @relation("TestMarkerAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedAt   DateTime
+  /// MANUAL, DISTRIBUTION, REASSIGNMENT or SECOND_MARKING, and the reason when one was given.
+  method       String
+  reason       String?
+  endedAt      DateTime?
+  endedById    String?
+  endedBy      User?           @relation("TestMarkerAssignmentEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  endReason    String?
+
+  marking TestMarking?
+
+  @@index([submissionId, kind])
+  @@index([coachId, endedAt])
+  @@index([assignedById])
+  @@index([endedById])
+}
+
+/// One marking of one submission (the version it was made on): per-question scores (TestMarkingScore) when the test has
+/// questions, otherwise one total. Whole marks (G7), never above the maxima (CHECK and triggers). version increases on
+/// every save (optimistic concurrency).
+model TestMarking {
+  id           String                @id @default(uuid())
+  submissionId String
+  submission   TestSubmission        @relation("TestSubmissionMarkings", fields: [submissionId], references: [id], onDelete: Restrict)
+  kind         TestMarkingKind
+  /// FIRST / SECOND: the assignment it belongs to (one marking per assignment); ADJUSTMENT: none.
+  assignmentId String?               @unique
+  assignment   TestMarkerAssignment? @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  markerId     String
+  marker       User                  @relation("TestMarkingMarker", fields: [markerId], references: [id], onDelete: Restrict)
+  versionId    String
+  version      TestSubmissionVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  status       TestMarkingStatus     @default(DRAFT)
+  totalMarks   Int?
+  comment      String?
+  revision     Int                   @default(1)
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  scores    TestMarkingScore[]
+  changes   TestMarkChange[]
+  reviews   TestReview[]
+  finalOf   TestSubmission?     @relation("TestSubmissionFinalMarking")
+
+  @@index([submissionId, kind])
+  @@index([markerId, status])
+  @@index([versionId])
+}
+
+/// A question's marks (and comment) in one marking.
+model TestMarkingScore {
+  id         String       @id @default(uuid())
+  markingId  String
+  marking    TestMarking  @relation(fields: [markingId], references: [id], onDelete: Restrict)
+  questionId String
+  question   TestQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  /// NULL: not marked yet (a draft may hold a comment first); a submitted marking has marks for every question.
+  marks      Int?
+  comment    String?
+  updatedAt  DateTime
+
+  @@unique([markingId, questionId])
+  @@index([questionId])
+}
+
+/// Append-only log of every mark change (trigger test_mark_change_append_only): which marking and question (NULL: the
+/// total), old and new marks, who, when, why. The only permitted change is changedById becoming NULL (account deleted).
+model TestMarkChange {
+  id            String        @id @default(uuid())
+  markingId     String
+  marking       TestMarking   @relation(fields: [markingId], references: [id], onDelete: Restrict)
+  questionId    String?
+  question      TestQuestion? @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  oldMarks      Int?
+  newMarks      Int?
+  changedById   String?
+  changedBy     User?         @relation("TestMarkChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
+  changedByRole String
+  reason        String?
+  createdAt     DateTime
+
+  @@index([markingId, createdAt])
+  @@index([questionId])
+  @@index([changedById])
+}
+
+/// Append-only review decisions (trigger test_review_append_only): approve, return (comment), request second marking,
+/// choose first / second / adjusted marks (reason), unlock (reason). clientKey makes a repeated request idempotent.
+model TestReview {
+  id           String               @id @default(uuid())
+  submissionId String
+  submission   TestSubmission       @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  action       TestReviewAction
+  markingId    String?
+  marking      TestMarking?         @relation(fields: [markingId], references: [id], onDelete: Restrict)
+  chosenKind   TestMarkingKind?
+  comment      String?
+  fromStatus   TestSubmissionStatus
+  toStatus     TestSubmissionStatus
+  actorId      String?
+  actor        User?                @relation("TestReviewActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole    String
+  clientKey    String?
+  createdAt    DateTime
+
+  @@unique([submissionId, clientKey])
+  @@index([submissionId, createdAt])
+  @@index([markingId])
   @@index([actorId])
 }

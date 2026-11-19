@@ -12,6 +12,11 @@
  * the test row FOR UPDATE: a submission (FOR SHARE) sees either the old or the new extension, never half of it. The
  * recipient of an individual (STUDENT / TEACHER) extension is told once (decision notification test.extension.granted,
  * dedupe key per extension). "Extended" is shown to Administrators and Head Coaches only — never in a marker's data.
+ *
+ * Phase 3 (G5): once marking of a submission has begun (any status after SUBMITTED), nothing can be submitted for that
+ * student any more, so a new or later deadline that would apply to it is refused (409 MARKING_STARTED): a whole-test
+ * extension once any submission of the test is being marked; a student's once their submission is; a teacher's once a
+ * submission of a student they may submit for (or did submit for) is. Shortening or cancelling stays possible.
  */
 import { HttpStatus, Injectable } from '@nestjs/common';
 
@@ -114,6 +119,7 @@ export class TestExtensionsService {
       const now = await this.deadlines.now(tx);
       assertDeadline(newDeadline, test.closesAt, now);
       const recipient = await this.requireTarget(tx, dto, test.division);
+      await assertNotInMarking(tx, testId, dto.kind, dto.studentId ?? null, dto.teacherId ?? null);
       const existing = await tx.testExtension.findFirst({
         where: {
           testId, kind: dto.kind, cancelledAt: null,
@@ -165,6 +171,7 @@ export class TestExtensionsService {
       const ext = await this.requireChangeable(tx, testId, extensionId, now);
       const newDeadline = dto.newDeadline ? new Date(dto.newDeadline) : ext.newDeadline;
       if (dto.newDeadline) assertDeadline(newDeadline, test.closesAt, now);
+      if (newDeadline.getTime() > ext.newDeadline.getTime()) await assertNotInMarking(tx, testId, ext.kind, ext.studentId, ext.teacherId);
       await tx.testExtension.update({
         where: { id: extensionId },
         data:  { newDeadline, reason: dto.reason, editedAt: now, editedById: user.id },
@@ -238,6 +245,29 @@ export class TestExtensionsService {
       throw new AppError(HttpStatus.NOT_FOUND, 'TEACHER_NOT_FOUND', 'Teacher not found.');
     }
     return u;
+  }
+}
+
+/**
+ * 409 MARKING_STARTED (G5): a submission this extension would reopen is already being marked (see the file header). Read
+ * under the test's row lock, which distribution holds too.
+ */
+async function assertNotInMarking(tx: Tx, testId: string, kind: 'TEST' | 'STUDENT' | 'TEACHER', studentId: string | null, teacherId: string | null) {
+  const teacherReach: Prisma.TestSubmissionWhereInput = {
+    OR: [
+      { versions: { some: { teacherId: teacherId ?? '' } } },
+      { student: { schoolAffiliations: { some: { status: 'VERIFIED', supersededAt: null, school: { teachers: { some: { teacherId: teacherId ?? '', isActive: true } } } } } } },
+    ],
+  };
+  const where: Prisma.TestSubmissionWhereInput = {
+    testId, status: { not: 'SUBMITTED' },
+    ...(kind === 'STUDENT' && { studentId: studentId ?? '' }),
+    ...(kind === 'TEACHER' && teacherReach),
+  };
+  const n = await tx.testSubmission.count({ where });
+  if (n > 0) {
+    throw new AppError(HttpStatus.CONFLICT, 'MARKING_STARTED',
+      'Marking has begun for submissions this extension would reopen: a later deadline can no longer apply to them.', { submissionsInMarking: n });
   }
 }
 

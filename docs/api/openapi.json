@@ -48564,6 +48564,1032 @@
         "x-permission": "tests.submitForStudents",
         "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
       }
+    },
+    "/api/v1/admin/tests/{id}/marking": {
+      "get": {
+        "operationId": "AdminTestMarkingController_overview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submissions by status, how many may be distributed now / wait for their deadline (G5), each coach's progress.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/distribute": {
+      "post": {
+        "operationId": "AdminTestMarkingController_distribute",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DistributeMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Share every unassigned, markable submission evenly between these authorised coaches: { coachIds, clientKey? }.\n400 COACH_NOT_AUTHORIZED (with each coach's problem). Submissions still within a deadline wait (waitingForDeadline).",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/assign": {
+      "post": {
+        "operationId": "AdminTestMarkingController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Give named submissions to one authorised coach: { submissionIds, coachId, reason? }. Already theirs: no change.\n400 COACH_NOT_AUTHORIZED; 404 SUBMISSION_NOT_FOUND; 409 ALREADY_ASSIGNED, NOT_YET_MARKABLE (G5), INVALID_STATUS_TRANSITION.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions": {
+      "get": {
+        "operationId": "AdminTestMarkingController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUBMITTED",
+                "ASSIGNED",
+                "MARKING_IN_PROGRESS",
+                "MARKED",
+                "APPROVED",
+                "RETURNED",
+                "AWAITING_SECOND_MARKING"
+              ]
+            }
+          },
+          {
+            "name": "coachId",
+            "required": false,
+            "in": "query",
+            "description": "Submissions whose current FIRST or SECOND assignment is this coach's.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Student name, username or submission code.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submissions with identity, status, markers and marks. Filters: status, coachId, q (name, username, code). Paginated.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}": {
+      "get": {
+        "operationId": "AdminTestMarkingController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One submission: identity, answer, every marking side by side, assignments, reviews, status history, mark changes.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign": {
+      "post": {
+        "operationId": "AdminTestMarkingController_reassign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Another authorised coach takes over a FIRST (default) or SECOND marking not yet submitted: { coachId, reason, kind? }.\n409 NOT_ASSIGNED, MARKING_ALREADY_SUBMITTED, SAME_COACH, SAME_MARKER, INVALID_STATUS_TRANSITION; 400 COACH_NOT_AUTHORIZED.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve": {
+      "post": {
+        "operationId": "AdminTestMarkingController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Approve (locks the result). 409 INVALID_STATUS_TRANSITION (not MARKED — e.g. already approved by someone else), MARK_CHOICE_REQUIRED, SUBMISSION_CHANGED.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return": {
+      "post": {
+        "operationId": "AdminTestMarkingController_returnForCorrection",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Return a marking for correction: { comment (mandatory), kind? }. 400 KIND_REQUIRED; 409 INVALID_STATUS_TRANSITION, NOTHING_TO_RETURN.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking": {
+      "post": {
+        "operationId": "AdminTestMarkingController_secondMarking",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestSecondMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Request an independent, blind second marking: { coachId, reason? }. 409 SECOND_MARKING_EXISTS, SAME_MARKER; 400 COACH_NOT_AUTHORIZED.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose": {
+      "post": {
+        "operationId": "AdminTestMarkingController_choose",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseMarkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The subject's Head Coach chooses the mark that counts: { source: FIRST | SECOND | ADJUSTMENT, reason, marks? }\n(ADJUSTMENT: the complete adjusted marks). Administrators: 403 (G4). 409 MARKING_NOT_AVAILABLE; 400 MARKS_*.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH"
+        ],
+        "x-permission": "tests.adjustMarks",
+        "description": "**Access:** permission `tests.adjustMarks` (HEAD_COACH)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock": {
+      "post": {
+        "operationId": "AdminTestMarkingController_unlock",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnlockMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Unlock an approved result: { reason (mandatory) }. 409 INVALID_STATUS_TRANSITION.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/marking/history": {
+      "get": {
+        "operationId": "AdminTestMarkingController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "status (default): status changes; marks: the mark-change log; reviews: reviewer decisions.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "status",
+                "marks",
+                "reviews"
+              ]
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test's marking history: ?type=status (default) | marks (the mark-change log) | reviews; ?submissionId. Paginated, newest first.",
+        "tags": [
+          "Admin · Test marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/marking/queue": {
+      "get": {
+        "operationId": "MarkingController_queue",
+        "parameters": [
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_STARTED",
+                "IN_PROGRESS",
+                "MARKED"
+              ]
+            }
+          },
+          {
+            "name": "testId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "My marking queue: ?state=NOT_STARTED|IN_PROGRESS|MARKED, ?testId; counts and progress per test. Paginated.",
+        "tags": [
+          "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/submissions/{code}": {
+      "get": {
+        "operationId": "MarkingController_get",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One assigned submission by its code: the test, questions, the answer (pages under neutral names) and my marking.",
+        "tags": [
+          "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/submissions/{code}/pages/{page}": {
+      "get": {
+        "operationId": "MarkingController_page",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A page of the answer (page-N.ext; ?download=1 to save it).",
+        "tags": [
+          "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/submissions/{code}/paper": {
+      "get": {
+        "operationId": "MarkingController_paper",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test paper (test-paper.ext).",
+        "tags": [
+          "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/submissions/{code}/marking-guide": {
+      "get": {
+        "operationId": "MarkingController_guide",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The marking guide (marking-guide.ext): the assigned marker may read it.",
+        "tags": [
+          "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/submissions/{code}/marking": {
+      "put": {
+        "operationId": "MarkingController_save",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Save my draft: { scores?: [{ questionId, marks?, comment? }], totalMarks?, comment?, expectedRevision? } — whole marks,\nnever above the maxima. 400 MARKS_*, QUESTION_NOT_IN_TEST, TOTAL_NOT_ALLOWED, SCORES_NOT_ALLOWED; 409 MARKING_SUBMITTED,\nMARKING_CHANGED, INVALID_STATUS_TRANSITION.",
+        "tags": [
+          "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/submissions/{code}/marking/submit": {
+      "post": {
+        "operationId": "MarkingController_submit",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitMarkingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit my marking for approval (every question marked, or the total). 400 MARKS_INCOMPLETE; 409 MARKING_SUBMITTED.",
+        "tags": [
+          "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
     }
   },
   "info": {
@@ -51831,6 +52857,369 @@
         "required": [
           "clientKey"
         ]
+      },
+      "DistributeMarkingDto": {
+        "type": "object",
+        "properties": {
+          "coachIds": {
+            "description": "The coaches to share the unassigned, markable submissions between (each must be authorised for the subject).",
+            "uniqueItems": true,
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "clientKey": {
+            "type": "string",
+            "description": "Optional idempotency key of this request: a retry notifies nobody twice.",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "coachIds"
+        ]
+      },
+      "AssignMarkingDto": {
+        "type": "object",
+        "properties": {
+          "submissionIds": {
+            "uniqueItems": true,
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "coachId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Optional (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "submissionIds",
+          "coachId"
+        ]
+      },
+      "ReassignMarkingDto": {
+        "type": "object",
+        "properties": {
+          "coachId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "kind": {
+            "type": "string",
+            "description": "Which marking moves: FIRST (default) or SECOND.",
+            "enum": [
+              "FIRST",
+              "SECOND"
+            ]
+          }
+        },
+        "required": [
+          "coachId",
+          "reason"
+        ]
+      },
+      "ApproveMarkingDto": {
+        "type": "object",
+        "properties": {
+          "clientKey": {
+            "type": "string",
+            "description": "Optional idempotency key: the same key again returns the first answer (replayed: true).",
+            "format": "uuid"
+          },
+          "expectedStatus": {
+            "type": "string",
+            "description": "Optional: the status the reviewer saw; another status now → 409 SUBMISSION_CHANGED.",
+            "enum": [
+              "SUBMITTED",
+              "ASSIGNED",
+              "MARKING_IN_PROGRESS",
+              "MARKED",
+              "APPROVED",
+              "RETURNED",
+              "AWAITING_SECOND_MARKING"
+            ]
+          }
+        }
+      },
+      "ReturnMarkingDto": {
+        "type": "object",
+        "properties": {
+          "comment": {
+            "type": "string",
+            "description": "Mandatory (3–2000 characters): what the marker must correct.",
+            "minLength": 3,
+            "maxLength": 2000
+          },
+          "kind": {
+            "type": "string",
+            "description": "Which marking (when both a first and a second marking were submitted).",
+            "enum": [
+              "FIRST",
+              "SECOND"
+            ]
+          },
+          "clientKey": {
+            "type": "string",
+            "description": "Optional idempotency key: the same key again returns the first answer (replayed: true).",
+            "format": "uuid"
+          },
+          "expectedStatus": {
+            "type": "string",
+            "description": "Optional: the status the reviewer saw; another status now → 409 SUBMISSION_CHANGED.",
+            "enum": [
+              "SUBMITTED",
+              "ASSIGNED",
+              "MARKING_IN_PROGRESS",
+              "MARKED",
+              "APPROVED",
+              "RETURNED",
+              "AWAITING_SECOND_MARKING"
+            ]
+          }
+        },
+        "required": [
+          "comment"
+        ]
+      },
+      "RequestSecondMarkingDto": {
+        "type": "object",
+        "properties": {
+          "coachId": {
+            "type": "string",
+            "description": "Another authorised coach (never the first marker).",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "clientKey": {
+            "type": "string",
+            "description": "Optional idempotency key: the same key again returns the first answer (replayed: true).",
+            "format": "uuid"
+          },
+          "expectedStatus": {
+            "type": "string",
+            "description": "Optional: the status the reviewer saw; another status now → 409 SUBMISSION_CHANGED.",
+            "enum": [
+              "SUBMITTED",
+              "ASSIGNED",
+              "MARKING_IN_PROGRESS",
+              "MARKED",
+              "APPROVED",
+              "RETURNED",
+              "AWAITING_SECOND_MARKING"
+            ]
+          }
+        },
+        "required": [
+          "coachId"
+        ]
+      },
+      "ScoreInputDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "marks": {
+            "type": "number",
+            "nullable": true,
+            "description": "Whole marks (G7), 0 to the question's maximum; null or absent: not marked yet (drafts).",
+            "minimum": 0
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "questionId"
+        ]
+      },
+      "MarksInputDto": {
+        "type": "object",
+        "properties": {
+          "scores": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreInputDto"
+            }
+          },
+          "totalMarks": {
+            "type": "number",
+            "nullable": true,
+            "description": "Tests without questions: whole marks, 0 to the test's maximum.",
+            "minimum": 0
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          }
+        }
+      },
+      "ChooseMarkDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "FIRST, SECOND, or ADJUSTMENT (the marks below).",
+            "enum": [
+              "FIRST",
+              "SECOND",
+              "ADJUSTMENT"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "marks": {
+            "description": "ADJUSTMENT only: the complete adjusted marks.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MarksInputDto"
+              }
+            ]
+          },
+          "clientKey": {
+            "type": "string",
+            "description": "Optional idempotency key: the same key again returns the first answer (replayed: true).",
+            "format": "uuid"
+          },
+          "expectedStatus": {
+            "type": "string",
+            "description": "Optional: the status the reviewer saw; another status now → 409 SUBMISSION_CHANGED.",
+            "enum": [
+              "SUBMITTED",
+              "ASSIGNED",
+              "MARKING_IN_PROGRESS",
+              "MARKED",
+              "APPROVED",
+              "RETURNED",
+              "AWAITING_SECOND_MARKING"
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "reason"
+        ]
+      },
+      "UnlockMarkingDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "clientKey": {
+            "type": "string",
+            "description": "Optional idempotency key: the same key again returns the first answer (replayed: true).",
+            "format": "uuid"
+          },
+          "expectedStatus": {
+            "type": "string",
+            "description": "Optional: the status the reviewer saw; another status now → 409 SUBMISSION_CHANGED.",
+            "enum": [
+              "SUBMITTED",
+              "ASSIGNED",
+              "MARKING_IN_PROGRESS",
+              "MARKED",
+              "APPROVED",
+              "RETURNED",
+              "AWAITING_SECOND_MARKING"
+            ]
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "SaveMarkingDto": {
+        "type": "object",
+        "properties": {
+          "scores": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreInputDto"
+            }
+          },
+          "totalMarks": {
+            "type": "number",
+            "nullable": true,
+            "description": "Tests without questions: whole marks, 0 to the test's maximum.",
+            "minimum": 0
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "expectedRevision": {
+            "type": "number",
+            "description": "Optional: the revision the marker started from; another one now → 409 MARKING_CHANGED.",
+            "minimum": 1
+          }
+        }
+      },
+      "SubmitMarkingDto": {
+        "type": "object",
+        "properties": {
+          "scores": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScoreInputDto"
+            }
+          },
+          "totalMarks": {
+            "type": "number",
+            "nullable": true,
+            "description": "Tests without questions: whole marks, 0 to the test's maximum.",
+            "minimum": 0
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "expectedRevision": {
+            "type": "number",
+            "description": "Optional: the revision the marker started from; another one now → 409 MARKING_CHANGED.",
+            "minimum": 1
+          }
+        }
       },
       "Error": {
         "type": "object",

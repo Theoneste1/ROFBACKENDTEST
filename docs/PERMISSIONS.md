@@ -26,7 +26,8 @@ from `/me/permissions`, and is refused by every `@RequirePermission` route (leas
 ## Matrix
 
 Scope: **own** = own records · **division** = own division · **course × division** = assigned
-course × division · **programme** = own programme(s) · **all** = global · **—** = not granted.
+course × division · **programme** = own programme(s) · **authorised subjects (assigned)** = the subjects the coach is
+authorised to mark, only the submissions assigned to them · **all** = global · **—** = not granted.
 The scope says *where* a grant applies. The services enforce it (AccessService), not the
 permission guard.
 
@@ -100,13 +101,17 @@ permission guard.
 | `tests.viewSubmissions` | — | — | — | programme | all | all |
 | `tests.submit` | own | — | — | — | — | — |
 | `tests.submitForStudents` | — | school | — | — | — | — |
+| `tests.distribute` | — | — | — | programme | all | all |
+| `tests.review` | — | — | — | programme | all | all |
+| `tests.adjustMarks` | — | — | — | programme | — | — |
+| `tests.mark` | — | — | authorised subjects (assigned) | — | — | — |
 
 ## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
 
 `tests.view`, `tests.manage`, `tests.manageMarkers`: Administrators and Super Admins in every subject; Head Coaches only in
 the subjects (programmes) they head — any Head Coach of the subject may act, and the audit log records which one did. The
 service checks the subject on every request (another subject: 403 `SCOPE_FORBIDDEN`). Coaches, Teachers and Students hold
-none of them (authorised markers arrive in Phase 3; marking will be a separate permission in `ADMIN_PROHIBITED`, so
+none of them (authorised markers mark from Phase 3 with the separate permission `tests.mark`, in `ADMIN_PROHIBITED`, so
 Administrators never mark or adjust marks, G4). A marker authorisation is separate from a coach's Olympiad interests: an
 interest never grants marking. The marking guide is served only to holders of `tests.view` for the test's subject. Every
 change is audited in the TESTS category, in the same transaction. Appended to the frozen ADMIN list additively.
@@ -125,6 +130,21 @@ change is audited in the TESTS category, in the same transaction. Appended to th
 - Deadlines come from one service, in database time; a student or teacher sees the deadline that applies to them, never
   an "extended" mark (Administrators and Head Coaches only — never markers). All new; none is in `ADMIN_PROHIBITED` or
   `NEVER_GRANTABLE`; like every default, each can be denied to an individual.
+
+### Phase 3: distribution, blind marking, second marking, review, approval, locking
+
+- `tests.distribute` (distribute evenly, assign, reassign with a reason; progress per coach) and `tests.review` (review
+  with identity: approve — which locks —, return with a comment, request an independent blind second marking, unlock with
+  a reason; status history and the mark-change log): Administrators and Super Admins in every subject; Head Coaches in
+  the subjects they head. Appended to the frozen ADMIN list additively.
+- `tests.adjustMarks` (choose the first, the second or an adjusted mark, with a mandatory reason): the subject's Head
+  Coaches only — owner decision G4: Administrators never edit or adjust marks. In `ADMIN_PROHIBITED`.
+- `tests.mark` (Coaches; scope **authorised subjects (assigned)**): blind marking of the submissions currently assigned
+  to the coach, in a subject the coach holds an ACTIVE marker authorisation for — both checked on every request (403
+  `MARKER_NOT_AUTHORIZED`, `MARKING_NOT_ASSIGNED`). Appended to the frozen MENTOR list additively, so the coach portal
+  shows the marking queue. In `ADMIN_PROHIBITED` (Administrators never mark). An Olympiad interest never grants it.
+- None is in `NEVER_GRANTABLE`; the course-assignment grading permissions (`reviews.grade`, `submissions.distribute`,
+  `results.approve`) are unchanged.
 
 ## Countries (owner decision 2026-11-19)
 

@@ -9,3 +9,10 @@ describe('transactionMaxWaitMs', () => {
     expect(transactionMaxWaitMs('abc')).toBe(10_000);
   });
 });
+
+describe('queryEventsEnabled (test-only instrumentation)', () => {
+  it('is on only for exactly "true" (never by default)', async () => {
+    const { queryEventsEnabled } = await import('./prisma.service.js');
+    expect([undefined, '', '1', 'TRUE', 'false', 'true'].map((v) => queryEventsEnabled(v))).toEqual([false, false, false, false, false, true]);
+  });
+});

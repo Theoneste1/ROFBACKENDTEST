@@ -46,7 +46,7 @@ export const POST_PHASE1_OBJECTS = {
 /**
  * The design-areas release: the migrations after the post-Phase-1 eleven. Area 1 as simplified by the owner (2026-11-19):
  * the countries reference list and the School → Country foreign key; then the primary teacher of a school (owner
- * decision 2026-11-19); then Test Management Phases 1 and 2 (owner-approved plan 2026-11-19). Listed explicitly — a migration added later is never
+ * decision 2026-11-19); then Test Management Phases 1 to 3 (owner-approved plan 2026-11-19). Listed explicitly — a migration added later is never
  * part of it until it is appended here on purpose.
  */
 export const AREAS_2026_MIGRATIONS = [
@@ -61,19 +61,25 @@ export const AREAS_2026_MIGRATIONS = [
   // Test Management, Phase 2: M-c TestExtension, TestSubmission, TestSubmissionVersion (append-only), TestAnswerPage and
   // TestSubmissionStatusChange (append-only), their enums and guard triggers.
   '20261220000200_tests_submissions',
+  // Test Management, Phase 3: M-d (part 1) TestMarkerAssignment, TestMarking, TestMarkingScore, TestMarkChange
+  // (append-only), TestReview (append-only), TestSubmission.finalMarkingId, their enums and guard triggers.
+  '20261220000300_tests_marking',
 ];
 
 /** What the design-areas migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
 export const AREAS_2026_OBJECTS = {
   // Not listed: the FilePurpose values TEST_PAPER, TEST_ANSWER, MARKING_GUIDE (PostgreSQL cannot drop an enum value; the
   // rollback keeps them, unused) and the Physics / Computing Discipline rows (data, removed by the tests_core rollback).
-  tables: ['Country', 'MarkerAuthorization', 'Test', 'TestAnswerPage', 'TestExtension', 'TestFile', 'TestQuestion', 'TestSubmission',
-    'TestSubmissionStatusChange', 'TestSubmissionVersion'],
-  enums: ['TeacherSchoolRole', 'TestAnswerFormat', 'TestDivision', 'TestExtensionKind', 'TestFileKind', 'TestStatus', 'TestSubmissionStatus',
-    'TestSubmitterRole'],
+  tables: ['Country', 'MarkerAuthorization', 'Test', 'TestAnswerPage', 'TestExtension', 'TestFile', 'TestMarkChange', 'TestMarkerAssignment',
+    'TestMarking', 'TestMarkingScore', 'TestQuestion', 'TestReview', 'TestSubmission', 'TestSubmissionStatusChange', 'TestSubmissionVersion'],
+  enums: ['TeacherSchoolRole', 'TestAnswerFormat', 'TestDivision', 'TestExtensionKind', 'TestFileKind', 'TestMarkingKind', 'TestMarkingStatus',
+    'TestReviewAction', 'TestStatus', 'TestSubmissionStatus', 'TestSubmitterRole'],
+  // TestSubmission.finalMarkingId (Phase 3) is a column of a table this release creates: dropped with it.
   columns: [['TeacherSchoolAssignment', 'role']],
-  triggers: ['test_answer_page_committed_guard', 'test_submission_status_append_only', 'test_submission_version_append_only'],
-  functions: ['test_answer_page_committed_guard', 'test_submission_status_append_only', 'test_submission_version_append_only'],
+  triggers: ['test_answer_page_committed_guard', 'test_mark_change_append_only', 'test_marker_assignment_guard', 'test_marking_guard',
+    'test_marking_score_guard', 'test_review_append_only', 'test_submission_status_append_only', 'test_submission_version_append_only'],
+  functions: ['test_answer_page_committed_guard', 'test_mark_change_append_only', 'test_marker_assignment_guard', 'test_marking_guard',
+    'test_marking_score_guard', 'test_review_append_only', 'test_submission_status_append_only', 'test_submission_version_append_only'],
 };
 
 /**

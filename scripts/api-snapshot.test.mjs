@@ -272,7 +272,13 @@ const TEST_MANAGEMENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-man
  * additive only: 25 routes, 4 request schemas.
  */
 const TEST_SUBMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-submissions.json';
-const CURRENT_SNAPSHOT = TEST_SUBMISSIONS_SNAPSHOT;
+/**
+ * Test Management, Phase 3 (WS3, owner-approved plan 2026-11-19): distribution, blind marking, second marking, review,
+ * approval, locking, the mark-change log — /admin/tests/:id/marking… and /marking… — additive only: 19 routes, 12 request
+ * schemas.
+ */
+const TEST_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-marking.json';
+const CURRENT_SNAPSHOT = TEST_MARKING_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1442,6 +1448,47 @@ describe('approved API contract history', () => {
       'schema CreateTestExtensionDto: added',
       'schema SubmitTestAnswerDto: added',
       'schema UpdateTestExtensionDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 2 → Phase 3 (2026-11-19): additive only — 19 routes, 12 request schemas, no existing field changed', () => {
+    for (const f of [TEST_SUBMISSIONS_SNAPSHOT, TEST_MARKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_SUBMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_MARKING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/tests/{id}/marking/history: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions/{submissionId}: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions: operation added',
+      'GET /api/v1/admin/tests/{id}/marking: operation added',
+      'GET /api/v1/marking/queue: operation added',
+      'GET /api/v1/marking/submissions/{code}/marking-guide: operation added',
+      'GET /api/v1/marking/submissions/{code}/pages/{page}: operation added',
+      'GET /api/v1/marking/submissions/{code}/paper: operation added',
+      'GET /api/v1/marking/submissions/{code}: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/assign: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/distribute: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock: operation added',
+      'POST /api/v1/marking/submissions/{code}/marking/submit: operation added',
+      'PUT /api/v1/marking/submissions/{code}/marking: operation added',
+      'schema ApproveMarkingDto: added',
+      'schema AssignMarkingDto: added',
+      'schema ChooseMarkDto: added',
+      'schema DistributeMarkingDto: added',
+      'schema MarksInputDto: added',
+      'schema ReassignMarkingDto: added',
+      'schema RequestSecondMarkingDto: added',
+      'schema ReturnMarkingDto: added',
+      'schema SaveMarkingDto: added',
+      'schema ScoreInputDto: added',
+      'schema SubmitMarkingDto: added',
+      'schema UnlockMarkingDto: added',
     ]);
   });
 

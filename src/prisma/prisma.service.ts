@@ -8,6 +8,11 @@ export function transactionMaxWaitMs(raw = process.env.DATABASE_TX_MAX_WAIT_MS):
   return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 2_000), 20_000) : 10_000;
 }
 
+/** PRISMA_QUERY_EVENTS=true (tests only): per-statement 'query' events for query counting. */
+export function queryEventsEnabled(raw = process.env.PRISMA_QUERY_EVENTS): boolean {
+  return raw === 'true';
+}
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
@@ -22,7 +27,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     // 2 s). Long publications, rollovers and exports hold connections for tens of seconds at scale, so
     // short reads that use a batch transaction (list + count) must be able to queue for longer instead
     // of failing; a wait that still runs out answers 503 DATABASE_BUSY (all-exceptions.filter.ts).
-    super({ adapter, transactionOptions: { maxWait: transactionMaxWaitMs() } });
+    super({
+      adapter, transactionOptions: { maxWait: transactionMaxWaitMs() },
+      // Test-only instrumentation (PRISMA_QUERY_EVENTS=true, never set in deployments): emit a 'query' event per SQL
+      // statement so the e2e suite can show a list reads a constant number of queries whatever its size (no N+1).
+      ...(queryEventsEnabled() && { log: [{ emit: 'event' as const, level: 'query' as const }] }),
+    });
   }
 
   async onModuleInit() {
