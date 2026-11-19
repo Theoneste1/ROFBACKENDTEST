@@ -330,7 +330,7 @@ test('--acknowledge / --stop-after: refused before any target is read when unkno
     const ok = run(root, 'rollback', '--release', 'post-phase1', '--acknowledge', 'registration-details', '--stop-after', '3', '--confirm', 'ep-x');
     assert.notEqual(ok.status, 0);
     assert.match(ok.stderr, /DRILL_DATABASE_URL not found/, ok.stderr);
-  }, { drop: AREAS_2026_MIGRATIONS });
+  });
 });
 
 test('a newer checkout: post-phase1 rollback, rollback-history, precheck, postcheck, check-target, dump, restore pass the checkout rule; deploy, diff, status do not', () => {
