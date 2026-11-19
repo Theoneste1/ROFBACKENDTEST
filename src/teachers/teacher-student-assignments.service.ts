@@ -151,7 +151,7 @@ export class TeacherStudentAssignmentsService {
       where: { schoolId, isActive: true },
       orderBy: [{ teacher: { lastName: 'asc' } }, { teacher: { firstName: 'asc' } }, { id: 'asc' }],
       select: {
-        id: true, createdAt: true,
+        id: true, createdAt: true, role: true,
         teacher: {
           select: {
             id: true, username: true, firstName: true, lastName: true, accountStatus: true,
@@ -178,7 +178,7 @@ export class TeacherStudentAssignmentsService {
     ]);
     const assignedOf = new Map(assignedCounts.map((c) => [c.teacherId, c._count._all]));
     const rows = teachers.map((t) => ({
-      teacherSchoolAssignmentId: t.id, since: t.createdAt,
+      teacherSchoolAssignmentId: t.id, since: t.createdAt, role: t.role,
       teacher: { id: t.teacher.id, username: t.teacher.username, firstName: t.teacher.firstName, lastName: t.teacher.lastName, accountStatus: t.teacher.accountStatus },
       assignedStudents: assignedOf.get(t.teacher.id) ?? 0,
       delegations: t.teacher.permissionOverrides.map(({ _count, ...d }) => ({ ...d, selectedStudents: d.studentScope === 'SELECTED' ? _count.students : null })),

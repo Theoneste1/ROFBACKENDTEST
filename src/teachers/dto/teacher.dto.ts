@@ -3,7 +3,7 @@ import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsISO8601
 
 import { TEACHER_DELEGATIONS } from '../../auth/override-policy.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
-import { GradeLevel } from '../../generated/prisma/client.js';
+import { GradeLevel, TeacherSchoolRole } from '../../generated/prisma/client.js';
 import { STUDENT_SCOPES, type StudentScope } from '../teacher-scope.js';
 
 /** Most students one request may name (larger sets: the bulk operations). */
@@ -30,6 +30,11 @@ export class ListTeacherSchoolsDto extends PaginationQueryDto {
   @Transform(bool)
   @IsBoolean()
   isActive?: boolean;
+
+  /** PRIMARY (the school's designated main contact) or SECONDARY (owner decision 2026-11-19). */
+  @IsOptional()
+  @IsEnum(TeacherSchoolRole)
+  role?: TeacherSchoolRole;
 }
 
 /** POST /admin/teachers/:id/delegations — grant one teacher delegation. */

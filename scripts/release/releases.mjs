@@ -45,18 +45,21 @@ export const POST_PHASE1_OBJECTS = {
 
 /**
  * The design-areas release: the migrations after the post-Phase-1 eleven. Area 1 as simplified by the owner (2026-11-19):
- * the countries reference list and the School → Country foreign key. Listed explicitly — a migration added later is never
+ * the countries reference list and the School → Country foreign key; then the primary teacher of a school (owner
+ * decision 2026-11-19). Listed explicitly — a migration added later is never
  * part of it until it is appended here on purpose.
  */
 export const AREAS_2026_MIGRATIONS = [
   '20261211000000_countries_reference',
+  // Primary teacher of a school (owner decision 2026-11-19): TeacherSchoolAssignment.role + one active primary per school.
+  '20261212000000_teacher_school_primary',
 ];
 
 /** What the design-areas migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
 export const AREAS_2026_OBJECTS = {
   tables: ['Country'],
-  enums: [],
-  columns: [],
+  enums: ['TeacherSchoolRole'],
+  columns: [['TeacherSchoolAssignment', 'role']],
   triggers: [],
   functions: [],
 };

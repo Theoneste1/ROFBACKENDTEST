@@ -126,6 +126,24 @@ export class TeacherStudentsService {
     return { schools: schools.length, students: visible, viaSchool, viaAssignment, pendingVerification };
   }
 
+  /**
+   * The teacher's own schools (active assignments) and their role at each (owner decision 2026-11-19): PRIMARY — the
+   * school's designated main contact — or SECONDARY. The same rights either way. Never another teacher's details.
+   */
+  async mySchools(user: AuthUser) {
+    const schools = await this.schools(user);
+    if (schools.length === 0) return [];
+    const rows = await this.prisma.teacherSchoolAssignment.findMany({
+      where: { teacherId: user.id, isActive: true, schoolId: { in: schools } },
+      select: {
+        id: true, role: true, createdAt: true,
+        school: { select: { id: true, code: true, name: true, location: true, district: true, sector: true } },
+      },
+      orderBy: [{ school: { name: 'asc' } }, { id: 'asc' }],
+    });
+    return rows.map((r) => ({ assignmentId: r.id, role: r.role, since: r.createdAt, school: r.school }));
+  }
+
   async profile(user: AuthUser, studentId: string) {
     const s = await this.requireStudent(user, studentId, 'students.viewProfile');
     const enrolment = await this.prisma.studentEnrollment.findFirst({

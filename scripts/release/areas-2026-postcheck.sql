@@ -1,4 +1,5 @@
--- Design-areas release post-check (AFTER `prisma migrate deploy` of the countries migration): READ ONLY.
+-- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher):
+-- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
 --   psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/release/areas-2026-postcheck.sql   (production, in the window)
@@ -8,10 +9,10 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST: the countries migration applied; nothing failed or rolled back; nothing after 20261211000000'
-SELECT count(*) FILTER (WHERE migration_name = '20261211000000_countries_reference'
+\echo '== 1. MUST be 2, 0, 0: both design-area migrations applied; nothing failed or rolled back; nothing after 20261212000000'
+SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261211000000_countries_reference')            AS later,
+       count(*) FILTER (WHERE migration_name > '20261212000000_teacher_school_primary')         AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -27,5 +28,48 @@ SELECT count(*) AS schools_without_country FROM "School" s LEFT JOIN "Country" c
 
 \echo '== 5. compare: schools by country (MUST equal the pre-check)'
 SELECT "countryCode", count(*) FROM "School" GROUP BY "countryCode" ORDER BY 1;
+
+\echo '== 6. MUST be 1, 1, 1: the TeacherSchoolRole enum, the role column and the one-primary-per-school index'
+SELECT (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = 'TeacherSchoolRole') AS teacher_school_role_enum,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'TeacherSchoolAssignment' AND column_name = 'role') AS teacher_school_role_column,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'TeacherSchoolAssignment_one_primary_per_school') AS one_primary_index;
+
+\echo '== 7. MUST all be 0: two active primaries in a school; an active primary of an account that is not ACTIVE; an ended primary'
+SELECT (SELECT count(*) FROM (SELECT "schoolId" FROM "TeacherSchoolAssignment" WHERE "isActive" AND "role" = 'PRIMARY'
+                                GROUP BY "schoolId" HAVING count(*) > 1) d)                                           AS schools_with_two_primaries,
+       (SELECT count(*) FROM "TeacherSchoolAssignment" t JOIN "User" u ON u."id" = t."teacherId"
+         WHERE t."isActive" AND t."role" = 'PRIMARY' AND u."accountStatus" <> 'ACTIVE')                               AS inactive_account_primaries,
+       (SELECT count(*) FROM "TeacherSchoolAssignment" WHERE NOT "isActive" AND "role" = 'PRIMARY')                   AS ended_primaries;
+
+\echo '== 8. MUST be 0 right after the migration: schools whose primary is not their earliest active link of an ACTIVE account (createdAt, then id)'
+SELECT count(*) AS primary_not_earliest
+  FROM (SELECT DISTINCT ON (t."schoolId") t."schoolId", t."role"
+          FROM "TeacherSchoolAssignment" t JOIN "User" u ON u."id" = t."teacherId"
+         WHERE t."isActive" AND u."accountStatus" = 'ACTIVE'
+         ORDER BY t."schoolId", t."createdAt", t."id") e
+ WHERE e."role" <> 'PRIMARY';
+
+\echo '== 9. compare: teacher–school links (MUST equal the pre-check: none made, ended or removed)'
+SELECT count(*) AS links, count(*) FILTER (WHERE "isActive") AS active_links, count(*) FILTER (WHERE NOT "isActive") AS ended_links
+  FROM "TeacherSchoolAssignment";
+
+\echo '== 10. compare: what the migration did (MUST equal the pre-check report)'
+WITH per AS (
+  SELECT s."id",
+         count(t."id") FILTER (WHERE t."isActive")                          AS active_links,
+         count(t."id") FILTER (WHERE t."isActive" AND t."role" = 'PRIMARY')   AS primaries,
+         count(t."id") FILTER (WHERE t."isActive" AND t."role" = 'SECONDARY') AS secondaries
+    FROM "School" s
+    LEFT JOIN "TeacherSchoolAssignment" t ON t."schoolId" = s."id"
+   GROUP BY s."id"
+)
+SELECT count(*)                                                AS schools_examined,
+       count(*) FILTER (WHERE active_links > 0)               AS schools_with_teachers,
+       count(*) FILTER (WHERE primaries > 0)                  AS schools_assigned_a_primary,
+       count(*) FILTER (WHERE secondaries > 0)                AS schools_with_secondaries,
+       count(*) FILTER (WHERE active_links = 0)               AS schools_without_teachers,
+       count(*) FILTER (WHERE active_links > 0 AND primaries = 0) AS exceptions
+  FROM per;
 
 ROLLBACK;

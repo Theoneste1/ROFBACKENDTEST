@@ -186,4 +186,8 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/countries  CountriesController.list':                                                          PUBLIC,
   'GET /api/v1/admin/countries  AdminCountriesController.list':                                               ADMINISTRATORS,
   'PATCH /api/v1/admin/countries/:code  AdminCountriesController.update':                                     ADMINISTRATORS,
+  // Primary teacher (owner decision 2026-11-19): Administrators choose a school's primary teacher (users.manageTeachers);
+  // the teacher's own schools and role: students.viewScoped (ADMIN holds it — the service answers 403 ROLE_NOT_SUPPORTED).
+  'POST /api/v1/admin/teacher-assignments/:id/primary  TeacherSchoolsController.makePrimary':                  ADMINISTRATORS,
+  'GET /api/v1/teacher/schools  TeacherOwnSchoolsController.list':                                            ADMINISTRATORS,
 };

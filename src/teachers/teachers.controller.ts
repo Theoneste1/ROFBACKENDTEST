@@ -43,6 +43,18 @@ export class TeacherSchoolsController {
   end(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.service.end(id, user);
   }
+
+  /**
+   * Make this teacher the school's primary teacher (its designated main contact; the same rights as every other
+   * teacher). The previous primary becomes secondary in the same transaction; audited (TEACHER_PRIMARY_ASSIGNED).
+   * 409 ASSIGNMENT_ENDED, TEACHER_ACCOUNT_NOT_ACTIVE or ALREADY_PRIMARY.
+   */
+  @Post(':id/primary')
+  @HttpCode(200)
+  @RequirePermission('users.manageTeachers')
+  makePrimary(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.service.makePrimary(id, user);
+  }
 }
 
 /**
@@ -244,5 +256,24 @@ export class TeacherStudentsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.service.submit(user, id, body, filesFrom(upload));
+  }
+}
+
+/** The Teacher's own schools and their role at each (owner decision 2026-11-19: primary teacher). */
+@ApiTags('Teacher')
+@ApiBearerAuth()
+@Controller('teacher/schools')
+export class TeacherOwnSchoolsController {
+  constructor(private readonly service: TeacherStudentsService) {}
+
+  /**
+   * Teachers only: the schools an Administrator has assigned to you, and whether you are the school's primary teacher
+   * (its designated main contact; role PRIMARY) or a secondary teacher. The same rights either way. Other roles: 403.
+   */
+  @Get()
+  @RequirePermission('students.viewScoped')
+  @ApiExtension('x-served-roles', ['TEACHER'])
+  list(@CurrentUser() user: AuthUser) {
+    return this.service.mySchools(user);
   }
 }

@@ -7,7 +7,8 @@
  *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
  *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
  *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
- *   areas-2026   the design-area migrations after those eleven (area 1 as simplified by the owner 2026-11-19: countries);
+ *   areas-2026   the design-area migrations after those eleven (area 1 as simplified by the owner 2026-11-19: countries;
+ *                the primary teacher of a school, owner decision 2026-11-19);
  *                the target must already hold Phase 1 and post-Phase-1; same checkout and database rules.
  *
  *   node scripts/release/rehearsal.mjs check-target                 guard only, no connection

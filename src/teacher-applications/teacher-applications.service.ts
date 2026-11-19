@@ -25,6 +25,7 @@ import { normalisePhone } from '../schools/directory/school-contacts.js';
 import { TEACHER_SCHOOL_WHERE, directoryPlaceProblem, publicDirectoryHasPlace } from '../schools/school-directory.js';
 import { RWANDA } from '../schools/school-rules.js';
 import { lockSchoolsForUse } from '../schools/school-usage.js';
+import { lockSchoolPrimary, lockTeacherAccount, roleForNewLink } from '../teachers/primary-teacher.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 import { DecisionEvents } from '../decision-notifications/decision-content.js';
@@ -263,8 +264,13 @@ export class TeacherApplicationsService {
       // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
       const picture = !application.avatarFileId ? 'NONE' : dto.approvePicture === true ? 'APPROVED' : 'DISCARDED';
       if (picture === 'APPROVED') await carryApplicationAvatar(tx, user.id, application.avatarFileId);   // REG-02
+      // The first approved teacher of a school without an active primary becomes its primary teacher (owner decision
+      // 2026-11-19); concurrent approvals of the same school are serialised by the school's primary lock.
+      const accountStatus = await lockTeacherAccount(tx, user.id);
+      await lockSchoolPrimary(tx, [schoolId]);
+      const role = await roleForNewLink(tx, schoolId, accountStatus);
       const assignment = await tx.teacherSchoolAssignment.create({
-        data: { teacherId: user.id, schoolId, assignedById: caller.id }, select: { id: true },
+        data: { teacherId: user.id, schoolId, assignedById: caller.id, role }, select: { id: true },
       });
       await tx.teacherApplication.update({ where: { id }, data: { userId: user.id } });
       if (verify) issued = await this.activation.issue(user.id, 'EMAIL_VERIFICATION', caller.id, tx);
@@ -279,7 +285,7 @@ export class TeacherApplicationsService {
         actorId: caller.id, actorRole: caller.role,
         action: 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
         metadata: {
-          newUserId: user.id, schoolId, assignmentId: assignment.id, missingSchool: application.proposedSchoolName !== null, picture,
+          newUserId: user.id, schoolId, assignmentId: assignment.id, role, missingSchool: application.proposedSchoolName !== null, picture,
           approvalNotice: notice ? 'QUEUED' : 'NOT_SENT_SELF_REGISTRATION_OFF',
         },
       }, tx);
