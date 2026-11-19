@@ -293,7 +293,9 @@ Body (JSON):
 | `reason` | string |  | Required (3–500 characters) when the action's requiresReason is true. |
 | `currentPassword` | string |  | Required when the preview said requiresStepUp (checked, never stored). |
 
-Returns `202` with no body.
+Returns `200` JSON with:
+
+`operation` object · `alreadyExisted` boolean
 
 ### POST `/api/v1/admin/bulk/{entityType}/export`
 
@@ -311,7 +313,7 @@ Body (JSON):
 |---|---|:-:|---|
 | `selection` | object | ✓ |  |
 
-Returns `201` with no body.
+Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment; the record type decides the columns (USER: never dates of birth or phone numbers).
 
 ### POST `/api/v1/admin/bulk/{entityType}/preview`
 
@@ -331,7 +333,9 @@ Body (JSON):
 | `params` | object |  | The action's parameters (validated with the record type's parameter rules). |
 | `selection` | object | ✓ |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`action` string · `params` object · `selection` object · `total` integer · `sample` object[] · `warnings` object[] · `consequences` string[] · `requiresReason` boolean · `requiresStepUp` boolean · `selectionToken` string · `entityType` string · `confirmationExpiresAt` string (date-time)
 
 ### GET `/api/v1/admin/bulk/actions`
 
@@ -339,7 +343,9 @@ Returns `200` with no body.
 
 The record types and actions YOU may run (from your effective permissions), with reason and consequence.
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`gate` string · `entityTypes` object[]
 
 ### GET `/api/v1/admin/bulk/operations`
 
@@ -352,7 +358,9 @@ Your operations of every record type (all operations with audit.view), newest fi
 | `status` | query | PENDING \| RUNNING \| CANCELLING \| COMPLETED \| COMPLETED_WITH_FAILURES \| FAILED \| CANCELLED |  |  |
 | `entityType` | query | string |  |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### GET `/api/v1/admin/bulk/operations/{id}`
 
@@ -364,7 +372,9 @@ Progress: status, total, succeeded, failed, skipped, pending, processing.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`id` string (uuid) · `entityType` string · `action` string · `params` object · `selection` object · `reason` string or null · `status` any · `total` integer · `succeeded` integer · `failed` integer · `skipped` integer · `idempotencyKey` string · `emailJobId` string or null · `requestId` string or null · `createdAt` string (date-time) · `startedAt` string (date-time) or null · `finishedAt` string (date-time) or null · `cancelledAt` string (date-time) or null · `actorRole` string · `actor` object or null · `pending` integer · `processing` integer · `processed` integer
 
 ### POST `/api/v1/admin/bulk/operations/{id}/cancel`
 
@@ -376,7 +386,9 @@ Stops the operation: records not yet processed are skipped (CANCELLED); processe
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`id` string (uuid) · `entityType` string · `action` string · `params` object · `selection` object · `reason` string or null · `status` any · `total` integer · `succeeded` integer · `failed` integer · `skipped` integer · `idempotencyKey` string · `emailJobId` string or null · `requestId` string or null · `createdAt` string (date-time) · `startedAt` string (date-time) or null · `finishedAt` string (date-time) or null · `cancelledAt` string (date-time) or null · `actorRole` string · `actor` object or null · `pending` integer · `processing` integer · `processed` integer
 
 ### GET `/api/v1/admin/bulk/operations/{id}/items`
 
@@ -389,7 +401,9 @@ Per-record results (?outcome=SUCCEEDED|FAILED|SKIPPED|PENDING|PROCESSING): entit
 | `id` | path | string | ✓ |  |
 | `outcome` | query | PENDING \| FAILED \| PROCESSING \| SUCCEEDED \| SKIPPED |  |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ## Admin · Contact messages
 

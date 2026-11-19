@@ -23302,7 +23302,90 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkActionsView"
+                },
+                "example": {
+                  "gate": "users.bulkManage",
+                  "entityTypes": [
+                    {
+                      "entityType": "USER",
+                      "maxIds": 1000,
+                      "maxSelection": 50000,
+                      "export": {
+                        "permission": "users.export"
+                      },
+                      "actions": [
+                        {
+                          "action": "suspend",
+                          "permissions": [
+                            "users.bulkManage",
+                            "users.manage",
+                            "users.suspend"
+                          ],
+                          "requiresReason": true,
+                          "consequence": "The accounts are blocked by an administrative restriction; every session ends at once. Nothing is deleted."
+                        },
+                        {
+                          "action": "reassignTeacher",
+                          "permissions": [
+                            "users.bulkManage",
+                            "users.manageTeachers"
+                          ],
+                          "requiresReason": false,
+                          "consequence": "Each selected student assigned to the first teacher moves to the second: the old assignment ends and the new one starts together, or nothing changes for that student (a student outside the new teacher's schools needs a reason). Students not assigned to the first teacher are skipped. School links and student ownership never change. The new teacher is told once."
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -23365,7 +23448,119 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationPage"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "e2b3266d-e35d-474b-82b1-45840159a03b",
+                      "entityType": "USER",
+                      "action": "suspend",
+                      "params": {},
+                      "selection": {
+                        "mode": "filter",
+                        "filter": {
+                          "search": "ex."
+                        }
+                      },
+                      "reason": "Term ended",
+                      "status": "COMPLETED",
+                      "total": 3,
+                      "succeeded": 3,
+                      "failed": 0,
+                      "skipped": 0,
+                      "idempotencyKey": "example-key-0001",
+                      "emailJobId": null,
+                      "requestId": "2b5f021d-4b9f-4143-9d5f-9877ab75cea9",
+                      "createdAt": "2026-11-19T13:41:44.836Z",
+                      "startedAt": "2026-11-19T13:41:44.879Z",
+                      "finishedAt": "2026-11-19T13:41:44.983Z",
+                      "cancelledAt": null,
+                      "actorRole": "ADMIN",
+                      "actor": {
+                        "id": "56c6b1d8-847e-4ab1-bf81-fabc57b4b463",
+                        "username": "admin",
+                        "firstName": "admin",
+                        "lastName": "Test"
+                      }
+                    }
+                  ],
+                  "meta": {
+                    "total": 1,
+                    "page": 1,
+                    "limit": 20,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: VALIDATION_FAILED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "VALIDATION_FAILED": {
+                    "summary": "VALIDATION_FAILED",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "VALIDATION_FAILED",
+                      "message": "Request validation failed."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -23410,7 +23605,133 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationProgress"
+                },
+                "example": {
+                  "id": "e2b3266d-e35d-474b-82b1-45840159a03b",
+                  "entityType": "USER",
+                  "action": "suspend",
+                  "params": {},
+                  "selection": {
+                    "mode": "filter",
+                    "filter": {
+                      "search": "ex."
+                    }
+                  },
+                  "reason": "Term ended",
+                  "status": "COMPLETED",
+                  "total": 3,
+                  "succeeded": 3,
+                  "failed": 0,
+                  "skipped": 0,
+                  "idempotencyKey": "example-key-0001",
+                  "emailJobId": null,
+                  "requestId": "2b5f021d-4b9f-4143-9d5f-9877ab75cea9",
+                  "createdAt": "2026-11-19T13:41:44.836Z",
+                  "startedAt": "2026-11-19T13:41:44.879Z",
+                  "finishedAt": "2026-11-19T13:41:44.983Z",
+                  "cancelledAt": null,
+                  "actorRole": "ADMIN",
+                  "actor": {
+                    "id": "56c6b1d8-847e-4ab1-bf81-fabc57b4b463",
+                    "username": "admin",
+                    "firstName": "admin",
+                    "lastName": "Test"
+                  },
+                  "pending": 0,
+                  "processing": 0,
+                  "processed": 3
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: BAD_REQUEST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "BAD_REQUEST": {
+                    "summary": "BAD_REQUEST",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "BAD_REQUEST",
+                      "message": "Validation failed (uuid is expected)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "NOT_FOUND": {
+                    "summary": "NOT_FOUND",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "NOT_FOUND",
+                      "message": "Bulk operation not found."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -23470,7 +23791,134 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkItemPage"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "entityId": "66b583ed-4ce5-42b3-a88a-c883790299b9",
+                      "userId": "66b583ed-4ce5-42b3-a88a-c883790299b9",
+                      "outcome": "SUCCEEDED",
+                      "code": null,
+                      "message": null,
+                      "stillBlockedBy": [],
+                      "processedAt": "2026-11-19T13:41:44.949Z",
+                      "user": {
+                        "id": "66b583ed-4ce5-42b3-a88a-c883790299b9",
+                        "username": "ex.0",
+                        "firstName": "Ex",
+                        "lastName": "N0",
+                        "role": "MENTOR",
+                        "accountStatus": "SUSPENDED"
+                      }
+                    }
+                  ],
+                  "meta": {
+                    "total": 3,
+                    "page": 1,
+                    "limit": 2,
+                    "totalPages": 2
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: VALIDATION_FAILED, BAD_REQUEST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "VALIDATION_FAILED": {
+                    "summary": "VALIDATION_FAILED",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "VALIDATION_FAILED",
+                      "message": "Request validation failed."
+                    }
+                  },
+                  "BAD_REQUEST": {
+                    "summary": "BAD_REQUEST",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "BAD_REQUEST",
+                      "message": "Validation failed (uuid is expected)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "NOT_FOUND": {
+                    "summary": "NOT_FOUND",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "NOT_FOUND",
+                      "message": "Bulk operation not found."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -23515,7 +23963,154 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkOperationProgress"
+                },
+                "example": {
+                  "id": "e2b3266d-e35d-474b-82b1-45840159a03b",
+                  "entityType": "USER",
+                  "action": "suspend",
+                  "params": {},
+                  "selection": {
+                    "mode": "filter",
+                    "filter": {
+                      "search": "ex."
+                    }
+                  },
+                  "reason": "Term ended",
+                  "status": "CANCELLED",
+                  "total": 3,
+                  "succeeded": 0,
+                  "failed": 0,
+                  "skipped": 3,
+                  "idempotencyKey": "example-key-0001",
+                  "emailJobId": null,
+                  "requestId": "2b5f021d-4b9f-4143-9d5f-9877ab75cea9",
+                  "createdAt": "2026-11-19T13:41:44.836Z",
+                  "startedAt": null,
+                  "finishedAt": "2026-11-19T13:42:00.000Z",
+                  "cancelledAt": "2026-11-19T13:42:00.000Z",
+                  "actorRole": "ADMIN",
+                  "actor": {
+                    "id": "56c6b1d8-847e-4ab1-bf81-fabc57b4b463",
+                    "username": "admin",
+                    "firstName": "admin",
+                    "lastName": "Test"
+                  },
+                  "pending": 0,
+                  "processing": 0,
+                  "processed": 3
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: BAD_REQUEST.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "BAD_REQUEST": {
+                    "summary": "BAD_REQUEST",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "BAD_REQUEST",
+                      "message": "Validation failed (uuid is expected)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "NOT_FOUND": {
+                    "summary": "NOT_FOUND",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "NOT_FOUND",
+                      "message": "Bulk operation not found."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error codes: OPERATION_FINISHED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "OPERATION_FINISHED": {
+                    "summary": "OPERATION_FINISHED",
+                    "value": {
+                      "statusCode": 409,
+                      "error": "Conflict",
+                      "code": "OPERATION_FINISHED",
+                      "message": "This bulk operation has already finished."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -23572,7 +24167,182 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPreviewResult"
+                },
+                "example": {
+                  "action": "suspend",
+                  "params": {},
+                  "selection": {
+                    "mode": "filter",
+                    "filter": {
+                      "search": "ex."
+                    }
+                  },
+                  "total": 3,
+                  "sample": [
+                    {
+                      "id": "66b583ed-4ce5-42b3-a88a-c883790299b9",
+                      "username": "ex.0",
+                      "firstName": "Ex",
+                      "lastName": "N0",
+                      "role": "MENTOR",
+                      "accountStatus": "ACTIVE"
+                    }
+                  ],
+                  "warnings": [],
+                  "consequences": [
+                    "The accounts are blocked by an administrative restriction; every session ends at once. Nothing is deleted."
+                  ],
+                  "requiresReason": true,
+                  "requiresStepUp": false,
+                  "selectionToken": "v2.56c6b1d8-847e-4ab1-bf81-fabc57b4b463.3.1795096604.qXU5yP57r5WWO5R5Hdt9ouAlLSCktMjkMtrDc5SaGyg.aKL8dXsRQ_vHpKzy7JXs8xWCAiD9pYy65kOGUVvmuVo",
+                  "entityType": "USER",
+                  "confirmationExpiresAt": "2026-11-19T13:56:44.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: VALIDATION_FAILED, BULK_ACTION_UNKNOWN, ROLE_NOT_ALLOWED_IN_BULK, SAME_TEACHER, NOT_A_TEACHER, SELECTION_TOO_LARGE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "VALIDATION_FAILED": {
+                    "summary": "VALIDATION_FAILED",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "VALIDATION_FAILED",
+                      "message": "Request validation failed."
+                    }
+                  },
+                  "BULK_ACTION_UNKNOWN": {
+                    "summary": "BULK_ACTION_UNKNOWN",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "BULK_ACTION_UNKNOWN",
+                      "message": "USER has no bulk action delete."
+                    }
+                  },
+                  "ROLE_NOT_ALLOWED_IN_BULK": {
+                    "summary": "ROLE_NOT_ALLOWED_IN_BULK",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "ROLE_NOT_ALLOWED_IN_BULK",
+                      "message": "The Super Administrator role is never assigned in bulk."
+                    }
+                  },
+                  "SAME_TEACHER": {
+                    "summary": "SAME_TEACHER",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "SAME_TEACHER",
+                      "message": "Choose a different teacher to move the students to."
+                    }
+                  },
+                  "NOT_A_TEACHER": {
+                    "summary": "NOT_A_TEACHER",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "NOT_A_TEACHER",
+                      "message": "Only users with the TEACHER role can be given students."
+                    }
+                  },
+                  "SELECTION_TOO_LARGE": {
+                    "summary": "SELECTION_TOO_LARGE",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "SELECTION_TOO_LARGE",
+                      "message": "The selection matches 51000 accounts; at most 50000 can be changed in one operation. Narrow the filters."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: BULK_ENTITY_UNKNOWN, NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "BULK_ENTITY_UNKNOWN": {
+                    "summary": "BULK_ENTITY_UNKNOWN",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "BULK_ENTITY_UNKNOWN",
+                      "message": "There is no bulk record type NOPE."
+                    }
+                  },
+                  "NOT_FOUND": {
+                    "summary": "NOT_FOUND",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "NOT_FOUND",
+                      "message": "Bulk operation not found."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -23628,8 +24398,118 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "CSV file (UTF-8 with BOM), sent as an attachment; the record type decides the columns (USER: never dates of birth or phone numbers).",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "﻿firstName,lastName,username,email,role,accountStatus,school,gradeLevel,createdAt\r\nEx,N0,ex.0,ex.0@test.local,MENTOR,SUSPENDED,,,2026-11-19T13:41:44.700Z\r\n"
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: VALIDATION_FAILED, SELECTION_TOO_LARGE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "VALIDATION_FAILED": {
+                    "summary": "VALIDATION_FAILED",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "VALIDATION_FAILED",
+                      "message": "Request validation failed."
+                    }
+                  },
+                  "SELECTION_TOO_LARGE": {
+                    "summary": "SELECTION_TOO_LARGE",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "SELECTION_TOO_LARGE",
+                      "message": "The selection matches 51000 accounts; at most 50000 can be changed in one operation. Narrow the filters."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: BULK_ENTITY_UNKNOWN, BULK_EXPORT_UNAVAILABLE.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "BULK_ENTITY_UNKNOWN": {
+                    "summary": "BULK_ENTITY_UNKNOWN",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "BULK_ENTITY_UNKNOWN",
+                      "message": "There is no bulk record type NOPE."
+                    }
+                  },
+                  "BULK_EXPORT_UNAVAILABLE": {
+                    "summary": "BULK_EXPORT_UNAVAILABLE",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "BULK_EXPORT_UNAVAILABLE",
+                      "message": "SCHOOL records cannot be exported in bulk."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -23685,8 +24565,368 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "The idempotencyKey was already used by you: the same operation (alreadyExisted: true); nothing new.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkExecuteResult"
+                },
+                "example": {
+                  "operation": {
+                    "id": "e2b3266d-e35d-474b-82b1-45840159a03b",
+                    "entityType": "USER",
+                    "action": "suspend",
+                    "params": {},
+                    "selection": {
+                      "mode": "filter",
+                      "filter": {
+                        "search": "ex."
+                      }
+                    },
+                    "reason": "Term ended",
+                    "status": "COMPLETED",
+                    "total": 3,
+                    "succeeded": 3,
+                    "failed": 0,
+                    "skipped": 0,
+                    "idempotencyKey": "example-key-0001",
+                    "emailJobId": null,
+                    "requestId": "2b5f021d-4b9f-4143-9d5f-9877ab75cea9",
+                    "createdAt": "2026-11-19T13:41:44.836Z",
+                    "startedAt": "2026-11-19T13:41:44.879Z",
+                    "finishedAt": "2026-11-19T13:41:44.983Z",
+                    "cancelledAt": null,
+                    "actorRole": "ADMIN",
+                    "actor": {
+                      "id": "56c6b1d8-847e-4ab1-bf81-fabc57b4b463",
+                      "username": "admin",
+                      "firstName": "admin",
+                      "lastName": "Test"
+                    }
+                  },
+                  "alreadyExisted": true
+                }
+              }
+            }
+          },
           "202": {
-            "description": ""
+            "description": "Created: the operation, processed in the background.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkExecuteResult"
+                },
+                "example": {
+                  "operation": {
+                    "id": "e2b3266d-e35d-474b-82b1-45840159a03b",
+                    "entityType": "USER",
+                    "action": "suspend",
+                    "params": {},
+                    "selection": {
+                      "mode": "filter",
+                      "filter": {
+                        "search": "ex."
+                      }
+                    },
+                    "reason": "Term ended",
+                    "status": "PENDING",
+                    "total": 3,
+                    "succeeded": 0,
+                    "failed": 0,
+                    "skipped": 0,
+                    "idempotencyKey": "example-key-0001",
+                    "emailJobId": null,
+                    "requestId": "2b5f021d-4b9f-4143-9d5f-9877ab75cea9",
+                    "createdAt": "2026-11-19T13:41:44.836Z",
+                    "startedAt": null,
+                    "finishedAt": null,
+                    "cancelledAt": null,
+                    "actorRole": "ADMIN",
+                    "actor": {
+                      "id": "56c6b1d8-847e-4ab1-bf81-fabc57b4b463",
+                      "username": "admin",
+                      "firstName": "admin",
+                      "lastName": "Test"
+                    }
+                  },
+                  "alreadyExisted": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error codes: VALIDATION_FAILED, BULK_ACTION_UNKNOWN, ROLE_NOT_ALLOWED_IN_BULK, SAME_TEACHER, NOT_A_TEACHER, SELECTION_TOO_LARGE, CONFIRMATION_REQUIRED, REASON_REQUIRED, CONFIRMATION_INVALID, EMPTY_SELECTION.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "VALIDATION_FAILED": {
+                    "summary": "VALIDATION_FAILED",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "VALIDATION_FAILED",
+                      "message": "Request validation failed."
+                    }
+                  },
+                  "BULK_ACTION_UNKNOWN": {
+                    "summary": "BULK_ACTION_UNKNOWN",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "BULK_ACTION_UNKNOWN",
+                      "message": "USER has no bulk action delete."
+                    }
+                  },
+                  "ROLE_NOT_ALLOWED_IN_BULK": {
+                    "summary": "ROLE_NOT_ALLOWED_IN_BULK",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "ROLE_NOT_ALLOWED_IN_BULK",
+                      "message": "The Super Administrator role is never assigned in bulk."
+                    }
+                  },
+                  "SAME_TEACHER": {
+                    "summary": "SAME_TEACHER",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "SAME_TEACHER",
+                      "message": "Choose a different teacher to move the students to."
+                    }
+                  },
+                  "NOT_A_TEACHER": {
+                    "summary": "NOT_A_TEACHER",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "NOT_A_TEACHER",
+                      "message": "Only users with the TEACHER role can be given students."
+                    }
+                  },
+                  "SELECTION_TOO_LARGE": {
+                    "summary": "SELECTION_TOO_LARGE",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "SELECTION_TOO_LARGE",
+                      "message": "The selection matches 51000 accounts; at most 50000 can be changed in one operation. Narrow the filters."
+                    }
+                  },
+                  "CONFIRMATION_REQUIRED": {
+                    "summary": "CONFIRMATION_REQUIRED",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "CONFIRMATION_REQUIRED",
+                      "message": "Confirm the bulk action (confirm: true)."
+                    }
+                  },
+                  "REASON_REQUIRED": {
+                    "summary": "REASON_REQUIRED",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "REASON_REQUIRED",
+                      "message": "Give a reason (3–500 characters)."
+                    }
+                  },
+                  "CONFIRMATION_INVALID": {
+                    "summary": "CONFIRMATION_INVALID",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "CONFIRMATION_INVALID",
+                      "message": "The confirmation is not valid. Preview the action again and confirm."
+                    }
+                  },
+                  "EMPTY_SELECTION": {
+                    "summary": "EMPTY_SELECTION",
+                    "value": {
+                      "statusCode": 400,
+                      "error": "Bad Request",
+                      "code": "EMPTY_SELECTION",
+                      "message": "No account matches the selection."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error codes: UNAUTHORIZED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "UNAUTHORIZED": {
+                    "summary": "UNAUTHORIZED",
+                    "value": {
+                      "statusCode": 401,
+                      "error": "Unauthorized",
+                      "code": "UNAUTHORIZED",
+                      "message": "Unauthorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error codes: PERMISSION_REQUIRED, CONFIRMATION_WRONG_ADMINISTRATOR, STEP_UP_REQUIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "PERMISSION_REQUIRED": {
+                    "summary": "PERMISSION_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "PERMISSION_REQUIRED",
+                      "message": "You do not have permission to do this."
+                    }
+                  },
+                  "CONFIRMATION_WRONG_ADMINISTRATOR": {
+                    "summary": "CONFIRMATION_WRONG_ADMINISTRATOR",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "CONFIRMATION_WRONG_ADMINISTRATOR",
+                      "message": "This confirmation was issued to another administrator. Preview the action yourself."
+                    }
+                  },
+                  "STEP_UP_REQUIRED": {
+                    "summary": "STEP_UP_REQUIRED",
+                    "value": {
+                      "statusCode": 403,
+                      "error": "Forbidden",
+                      "code": "STEP_UP_REQUIRED",
+                      "message": "Confirm with your current password to change an Administrator or Super Administrator role."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error codes: BULK_ENTITY_UNKNOWN, NOT_FOUND.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "BULK_ENTITY_UNKNOWN": {
+                    "summary": "BULK_ENTITY_UNKNOWN",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "BULK_ENTITY_UNKNOWN",
+                      "message": "There is no bulk record type NOPE."
+                    }
+                  },
+                  "NOT_FOUND": {
+                    "summary": "NOT_FOUND",
+                    "value": {
+                      "statusCode": 404,
+                      "error": "Not Found",
+                      "code": "NOT_FOUND",
+                      "message": "Bulk operation not found."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error codes: SELECTION_CHANGED, CONFIRMATION_USED, IDEMPOTENCY_KEY_REUSED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "SELECTION_CHANGED": {
+                    "summary": "SELECTION_CHANGED",
+                    "value": {
+                      "statusCode": 409,
+                      "error": "Conflict",
+                      "code": "SELECTION_CHANGED",
+                      "message": "The selected accounts changed since the preview. Preview the action again and confirm the new selection."
+                    }
+                  },
+                  "CONFIRMATION_USED": {
+                    "summary": "CONFIRMATION_USED",
+                    "value": {
+                      "statusCode": 409,
+                      "error": "Conflict",
+                      "code": "CONFIRMATION_USED",
+                      "message": "This confirmation was already used; preview again."
+                    }
+                  },
+                  "IDEMPOTENCY_KEY_REUSED": {
+                    "summary": "IDEMPOTENCY_KEY_REUSED",
+                    "value": {
+                      "statusCode": 409,
+                      "error": "Conflict",
+                      "code": "IDEMPOTENCY_KEY_REUSED",
+                      "message": "This idempotencyKey was already used for another kind of bulk operation."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error codes: CONFIRMATION_EXPIRED.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "CONFIRMATION_EXPIRED": {
+                    "summary": "CONFIRMATION_EXPIRED",
+                    "value": {
+                      "statusCode": 410,
+                      "error": "Gone",
+                      "code": "CONFIRMATION_EXPIRED",
+                      "message": "This confirmation has expired (15 minutes). Preview the action again and confirm."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error codes: BULK_BUSY.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "BULK_BUSY": {
+                    "summary": "BULK_BUSY",
+                    "value": {
+                      "statusCode": 503,
+                      "error": "Service Unavailable",
+                      "code": "BULK_BUSY",
+                      "message": "The accounts are busy. Try again in a moment."
+                    }
+                  }
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -48209,6 +49449,549 @@
           }
         }
       },
+      "BulkExportView": {
+        "type": "object",
+        "properties": {
+          "permission": {
+            "type": "string",
+            "example": "users.export"
+          }
+        },
+        "required": [
+          "permission"
+        ]
+      },
+      "BulkActionView": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "example": "suspend"
+          },
+          "permissions": {
+            "description": "Everything the caller needs: users.bulkManage and the single-record route's permission(s).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiresReason": {
+            "type": "boolean"
+          },
+          "consequence": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "permissions",
+          "requiresReason",
+          "consequence"
+        ]
+      },
+      "BulkEntityTypeView": {
+        "type": "object",
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "example": "USER"
+          },
+          "maxIds": {
+            "type": "integer"
+          },
+          "maxSelection": {
+            "type": "integer"
+          },
+          "export": {
+            "nullable": true,
+            "description": "Null when the record type has no export, or the caller lacks its permission.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BulkExportView"
+              }
+            ]
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkActionView"
+            }
+          }
+        },
+        "required": [
+          "entityType",
+          "maxIds",
+          "maxSelection",
+          "export",
+          "actions"
+        ]
+      },
+      "BulkActionsView": {
+        "type": "object",
+        "properties": {
+          "gate": {
+            "type": "string",
+            "example": "users.bulkManage"
+          },
+          "entityTypes": {
+            "description": "The record types with at least one action (or an export) the caller may run now.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkEntityTypeView"
+            }
+          }
+        },
+        "required": [
+          "gate",
+          "entityTypes"
+        ]
+      },
+      "BulkOperationStatus": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "RUNNING",
+          "CANCELLING",
+          "COMPLETED",
+          "COMPLETED_WITH_FAILURES",
+          "FAILED",
+          "CANCELLED"
+        ]
+      },
+      "BulkActorSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "firstName",
+          "lastName"
+        ]
+      },
+      "BulkOperationView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entityType": {
+            "type": "string",
+            "description": "The record type (USER, …).",
+            "example": "USER"
+          },
+          "action": {
+            "type": "string",
+            "example": "suspend"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The action's normalised parameters (never a password; a message's body is kept for the e-mail job)."
+          },
+          "selection": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The confirmed selection: { mode: 'ids', ids } or { mode: 'filter', filter }."
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BulkOperationStatus"
+              }
+            ]
+          },
+          "total": {
+            "type": "integer"
+          },
+          "succeeded": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "emailJobId": {
+            "type": "string",
+            "nullable": true
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "cancelledAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "actorRole": {
+            "type": "string",
+            "example": "ADMIN"
+          },
+          "actor": {
+            "nullable": true,
+            "description": "Null when the administrator's account no longer exists.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BulkActorSummary"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "entityType",
+          "action",
+          "params",
+          "selection",
+          "reason",
+          "status",
+          "total",
+          "succeeded",
+          "failed",
+          "skipped",
+          "idempotencyKey",
+          "emailJobId",
+          "requestId",
+          "createdAt",
+          "startedAt",
+          "finishedAt",
+          "cancelledAt",
+          "actorRole",
+          "actor"
+        ]
+      },
+      "BulkPageMeta": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "BulkOperationPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkOperationView"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BulkPageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "BulkOperationProgress": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entityType": {
+            "type": "string",
+            "description": "The record type (USER, …).",
+            "example": "USER"
+          },
+          "action": {
+            "type": "string",
+            "example": "suspend"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The action's normalised parameters (never a password; a message's body is kept for the e-mail job)."
+          },
+          "selection": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The confirmed selection: { mode: 'ids', ids } or { mode: 'filter', filter }."
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BulkOperationStatus"
+              }
+            ]
+          },
+          "total": {
+            "type": "integer"
+          },
+          "succeeded": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "emailJobId": {
+            "type": "string",
+            "nullable": true
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "cancelledAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "actorRole": {
+            "type": "string",
+            "example": "ADMIN"
+          },
+          "actor": {
+            "nullable": true,
+            "description": "Null when the administrator's account no longer exists.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BulkActorSummary"
+              }
+            ]
+          },
+          "pending": {
+            "type": "integer"
+          },
+          "processing": {
+            "type": "integer"
+          },
+          "processed": {
+            "type": "integer",
+            "description": "total − pending − processing."
+          }
+        },
+        "required": [
+          "id",
+          "entityType",
+          "action",
+          "params",
+          "selection",
+          "reason",
+          "status",
+          "total",
+          "succeeded",
+          "failed",
+          "skipped",
+          "idempotencyKey",
+          "emailJobId",
+          "requestId",
+          "createdAt",
+          "startedAt",
+          "finishedAt",
+          "cancelledAt",
+          "actorRole",
+          "actor",
+          "pending",
+          "processing",
+          "processed"
+        ]
+      },
+      "BulkItemOutcome": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "PROCESSING",
+          "SUCCEEDED",
+          "FAILED",
+          "SKIPPED"
+        ]
+      },
+      "BulkUserSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "accountStatus": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "firstName",
+          "lastName",
+          "role",
+          "accountStatus"
+        ]
+      },
+      "BulkItemView": {
+        "type": "object",
+        "properties": {
+          "entityId": {
+            "type": "string",
+            "description": "The record."
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true,
+            "description": "USER items: the account (= entityId); null for other record types."
+          },
+          "outcome": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BulkItemOutcome"
+              }
+            ]
+          },
+          "code": {
+            "type": "string",
+            "nullable": true,
+            "example": "ROLE_NOT_ASSIGNABLE"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "stillBlockedBy": {
+            "description": "After restoring or reactivating: what still blocks sign-in (NOT_ACTIVATED, PENDING_APPROVAL…).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "processedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "user": {
+            "nullable": true,
+            "description": "USER items: the account as it is now (null if it no longer exists). Other record types use their own key.",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BulkUserSummary"
+              }
+            ]
+          }
+        },
+        "required": [
+          "entityId",
+          "userId",
+          "outcome",
+          "code",
+          "message",
+          "stillBlockedBy",
+          "processedAt"
+        ]
+      },
+      "BulkItemPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkItemView"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BulkPageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
       "GenericBulkSelectionDto": {
         "type": "object",
         "properties": {
@@ -48260,6 +50043,96 @@
         "required": [
           "action",
           "selection"
+        ]
+      },
+      "BulkPreviewWarning": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "INCLUDES_YOURSELF"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "count",
+          "message"
+        ]
+      },
+      "BulkPreviewResult": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "selection": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "total": {
+            "type": "integer"
+          },
+          "sample": {
+            "type": "array",
+            "description": "At most 10 matching records (USER: id, username, firstName, lastName, role, accountStatus).",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkPreviewWarning"
+            }
+          },
+          "consequences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiresReason": {
+            "type": "boolean"
+          },
+          "requiresStepUp": {
+            "type": "boolean"
+          },
+          "selectionToken": {
+            "type": "string",
+            "description": "The confirmation to execute with: opaque, 15 minutes, for you only, one operation."
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "confirmationExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "action",
+          "params",
+          "selection",
+          "total",
+          "sample",
+          "warnings",
+          "consequences",
+          "requiresReason",
+          "requiresStepUp",
+          "selectionToken",
+          "entityType",
+          "confirmationExpiresAt"
         ]
       },
       "GenericBulkExportDto": {
@@ -48331,6 +50204,22 @@
           "expectedTotal",
           "confirm",
           "idempotencyKey"
+        ]
+      },
+      "BulkExecuteResult": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "$ref": "#/components/schemas/BulkOperationView"
+          },
+          "alreadyExisted": {
+            "type": "boolean",
+            "description": "false: created now (202); true: the idempotencyKey was already used — the same operation (200)."
+          }
+        },
+        "required": [
+          "operation",
+          "alreadyExisted"
         ]
       },
       "ContactInputDto": {

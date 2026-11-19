@@ -6,7 +6,7 @@
  * /admin/users/bulk/* remain, unchanged, as the USER record type's own routes.
  */
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, Res, ValidationPipe } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
@@ -17,6 +17,9 @@ import { BulkRegistry } from './bulk-registry.js';
 import {
   EntityTypeParam, GenericBulkExecuteDto, GenericBulkExportDto, GenericBulkPreviewDto, GenericListBulkItemsDto, GenericListBulkOperationsDto,
 } from './bulk.dto.js';
+import {
+  ApiBulkErrors, BulkActionsView, BulkExecuteResult, BulkItemPage, BulkOperationPage, BulkOperationProgress, BulkPreviewResult, EXAMPLES,
+} from './bulk-responses.dto.js';
 
 const typePipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true });
 
@@ -29,6 +32,8 @@ export class BulkController {
   /** The record types and actions YOU may run (from your effective permissions), with reason and consequence. */
   @Get('actions')
   @RequirePermission('users.bulkManage')
+  @ApiResponse({ status: 200, type: BulkActionsView, example: EXAMPLES.actions })
+  @ApiBulkErrors('actions')
   actions(@CurrentUser() user: AuthUser) {
     return this.bulk.actionsFor(user);
   }
@@ -36,6 +41,8 @@ export class BulkController {
   /** Your operations of every record type (all operations with audit.view), newest first (?status=, ?entityType=). */
   @Get('operations')
   @RequirePermission('users.bulkManage')
+  @ApiResponse({ status: 200, type: BulkOperationPage, example: EXAMPLES.list })
+  @ApiBulkErrors('list')
   list(@Query() query: GenericListBulkOperationsDto, @CurrentUser() user: AuthUser) {
     return this.bulk.list(query, user);
   }
@@ -43,6 +50,8 @@ export class BulkController {
   /** Progress: status, total, succeeded, failed, skipped, pending, processing. */
   @Get('operations/:id')
   @RequirePermission('users.bulkManage')
+  @ApiResponse({ status: 200, type: BulkOperationProgress, example: EXAMPLES.progress })
+  @ApiBulkErrors('get')
   get(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.bulk.get(id, user);
   }
@@ -50,6 +59,8 @@ export class BulkController {
   /** Per-record results (?outcome=SUCCEEDED|FAILED|SKIPPED|PENDING|PROCESSING): entityId, outcome, code, message. */
   @Get('operations/:id/items')
   @RequirePermission('users.bulkManage')
+  @ApiResponse({ status: 200, type: BulkItemPage, example: EXAMPLES.items })
+  @ApiBulkErrors('items')
   items(@Param('id', ParseUUIDPipe) id: string, @Query() query: GenericListBulkItemsDto, @CurrentUser() user: AuthUser) {
     return this.bulk.items(id, query, user);
   }
@@ -58,6 +69,8 @@ export class BulkController {
   @Post('operations/:id/cancel')
   @HttpCode(200)
   @RequirePermission('users.bulkManage')
+  @ApiResponse({ status: 200, type: BulkOperationProgress, example: EXAMPLES.cancelled })
+  @ApiBulkErrors('cancel')
   cancel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     return this.bulk.cancel(id, user);
   }
@@ -66,13 +79,22 @@ export class BulkController {
   @Post(':entityType/preview')
   @HttpCode(200)
   @RequirePermission('users.bulkManage')
+  @ApiResponse({ status: 200, type: BulkPreviewResult, example: EXAMPLES.preview })
+  @ApiBulkErrors('preview')
   async preview(@Param() { entityType }: EntityTypeParam, @Body() body: GenericBulkPreviewDto, @CurrentUser() user: AuthUser) {
     return this.bulk.preview(entityType, await this.typed(entityType, body), user);
   }
 
   /** CSV of the selected records (record types with an export; safe fields only). Audited. */
   @Post(':entityType/export')
+  @HttpCode(200)
   @RequirePermission('users.bulkManage')
+  @ApiProduces('text/csv')
+  @ApiResponse({
+    status: 200, description: 'CSV file (UTF-8 with BOM), sent as an attachment; the record type decides the columns (USER: never dates of birth or phone numbers).',
+    content: { 'text/csv': { schema: { type: 'string' }, example: EXAMPLES.csv } },
+  })
+  @ApiBulkErrors('export')
   async export(@Param() { entityType }: EntityTypeParam, @Body() body: GenericBulkExportDto, @CurrentUser() user: AuthUser,
     @Req() req: Request & { id?: string }, @Res() res: Response) {
     const { selection } = await this.typed(entityType, body);
@@ -87,6 +109,9 @@ export class BulkController {
   @Post(':entityType')
   @HttpCode(202)
   @RequirePermission('users.bulkManage')
+  @ApiResponse({ status: 202, description: 'Created: the operation, processed in the background.', type: BulkExecuteResult, example: EXAMPLES.created })
+  @ApiResponse({ status: 200, description: 'The idempotencyKey was already used by you: the same operation (alreadyExisted: true); nothing new.', type: BulkExecuteResult, example: EXAMPLES.replay })
+  @ApiBulkErrors('execute')
   async execute(@Param() { entityType }: EntityTypeParam, @Body() body: GenericBulkExecuteDto, @CurrentUser() user: AuthUser,
     @Req() req: Request & { id?: string }, @Res({ passthrough: true }) res: Response) {
     const result = await this.bulk.execute(entityType, await this.typed(entityType, body), user, req.id ?? null);
