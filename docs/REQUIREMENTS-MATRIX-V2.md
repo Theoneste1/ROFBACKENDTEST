@@ -15,11 +15,11 @@ Development branches are not released: "complete" here means complete in develop
 
 | Status | Count |
 |---|---|
-| 1 Complete and verified | 58 |
+| 1 Complete and verified | 63 |
 | 2 Implemented, not fully tested | 0 |
-| 3 Partially implemented | 13 |
+| 3 Partially implemented | 11 |
 | 4 Missing | 0 |
-| 5 Awaiting design approval | 28 |
+| 5 Awaiting design approval | 25 |
 | 6 Excluded (owner) | 0 |
 | 7 Deferred (owner) | 1 |
 | 8 Blocked (external) | 2 |
@@ -36,13 +36,24 @@ tested" rows (now 1) and an automated accessibility audit for PERF-03 (now 1). T
 parts that depend on the 28 "Awaiting design approval" areas (subjects, groups, support, countries, flexible levels, enrolment
 control, school-administrator accounts) or on legal advice (guardian consent, 8.3). SEC-05 gained an automated scan (now 1).
 
+Update 2026-11-19 (owner decisions on area 1, countries; branch `feat/area1-countries`): ROF LMS is a global Olympiad
+platform with one common structure for every country — grades S1–S6, S1–S3 Junior and S4–S6 Senior, exactly as today; a
+student's country never determines their level or division, and no restriction may prevent international registration.
+Country data only identifies where a student, teacher, coach or school is. Rwanda keeps its Province → District → Sector →
+School directory and registration flow; other countries record the country and a typed school name. Built: the Country
+reference list (every ISO 3166-1 alpha-2 code, name, calling code; no active switch), an Administrator Countries screen
+(correct name and calling code; reference.manage; audited), country lists from it in every form and on the Schools list,
+and School.countryCode → Country. Not built, by decision: per-country education systems, grades, regions, P1–P6.
+INT-01 (5 → 1) and INT-02 (3 → 1) are complete; INT-03 (5 → 1), REG-03 (5 → 1) and ACA-02 (3 → 1) are satisfied by the
+decision of one common structure.
+
 ## Matrix
 
 | ID | Requirement | Original decision | Roles | Frontend | Backend | Database | Permissions / security | Tests / evidence | Status |
 |---|---|---|---|---|---|---|---|---|---|
 | REG-01 | Student, Teacher, Coach user types (+ Head Coach, Admin, Super Admin) | Phase 1 / ADR-001; six roles | all | portal per role (`app/student`, `teacher`, `mentor`, `admin`) | role enum, permission catalogue (`src/auth/permissions.ts`) | Role enum (M1) | least privilege per role; Teacher / Head Coach behind TEACHERS_ENABLED / HEAD_COACHES_ENABLED (off in production) | route-declarations, role-route sweep (7 callers × 315 routes), e2e role-allowlist / unknown-role; Playwright role-journeys (every portal) | 1 Complete and verified |
 | REG-02 | Student registration fields | consolidated req.; DOB required (owner 2026-11-17); picture OPTIONAL (owner 2026-11-18) | Student | `/register` (DOB, phones, home place, school cascade, interests, optional picture) | `POST /auth/register/student`, `PUT /auth/register/avatar` (one-time token) | `dateOfBirth`, phones, home place (M-registration_details); application `avatarFileId` (20261209000000) | public, throttled; picture token HMAC 30 min; contact data never in lists | e2e registration-avatar (6), student registration; frontend tests registration-avatar (4). **9.2 (2026-11-18):** guardian phone required by the server — e2e registration-details (missing / null / empty / blank / malformed / invalid refused). **9.3:** staff-created, invited and imported students give their DOB at first sign-in (`PUT /me/date-of-birth`, DateOfBirthGuard) — e2e date-of-birth-step, frontend unit, Playwright date-of-birth-step. No browser test of the sign-up form yet **Browser (2026-11-18, develop):** Playwright registration-forms — student sign-up without and with the optional picture (account stored with DOB, guardian phone, interests; picture attached only when given). | 1 Complete and verified |
-| REG-03 | School / grade options adapt to country | ADR-005 (Phase 2) | Student, Teacher | Rwanda cascade only | `countryCode` on schools; grades S1–S6 fixed | School.countryCode | — | — | 5 Awaiting design approval |
+| REG-03 | School / grade options adapt to country | ADR-005; owner decision 2026-11-19: one common Olympiad structure for every country | Student, Teacher | school entry follows the country: Rwanda → Province / District / Sector / School (unchanged); any other country → country + typed school name (unchanged); country lists from the reference table | grades S1–S6 and divisions common to every country (unchanged); no country blocked | School.countryCode → Country | — | existing registration e2e (auth, registration-details, school-claims); backend e2e countries-reference (17 with app: public list, admin list / search / correction audited with previous and new values, reference.manage refused to Coach, Head Coach, Teacher, Student and anonymous, registration from any country unchanged, School → Country foreign key, rollback refusal); unit reference-data, release kit areas-2026; frontend tests countries; **Browser:** Playwright countries (Administrator corrects a country; students register with a school in Rwanda and abroad), accessibility audit of /admin/countries | 1 Complete and verified |
 | REG-04 | Registration ≠ enrollment | ADR-006 (Phase 6) | Student, Admin | division courses only | division-based access | none yet | — | — | 5 Awaiting design approval |
 | REG-05 | Teacher registration fields | consolidated req.; ADR-009 | Teacher applicant | `/register/teacher` (+ position, years of experience, optional picture) | `POST /auth/register/teacher` | TeacherApplication (+ position, yearsOfExperience, avatarFileId) | public, throttled; one PENDING per username / e-mail | e2e teacher-registration, application-info-requests; frontend teacher-registration tests **Browser:** Playwright registration-forms — teacher application submitted through the form (PENDING; no account before approval). | 1 Complete and verified |
 | REG-06 | Coach registration fields | consolidated req.; ADR-009 | Coach applicant | `/apply` (country, occupation, education, interests, phone, affiliation, expertise, experience, optional picture) | `POST /mentor-requests` | MentorRequest (+ fields, avatarFileId) | public, throttled | e2e mentor requests, application-info-requests; frontend coach-application tests **Browser:** Playwright registration-forms — coach application through /apply (PENDING). | 1 Complete and verified |
@@ -54,9 +65,9 @@ control, school-administrator accounts) or on legal advice (guardian consent, 8.
 | REG-12 | Export user records | Phase 4 | Admin | bulk export CSV (branch), report CSVs | `POST /admin/users/bulk/export`, report exports | — | users.export; no DOB / phones in exports | e2e bulk-operations (export), reports **Browser:** Playwright admin-users — CSV export of a selection (only the selected account; no password hash). | 1 Complete and verified |
 | REG-13 | Registration history (timeline) | consolidated req. | Admin | user page "Registration history" card (branch `feat/admin-user-details` 4bad525) | `GET /admin/users/:id/registration-timeline` (117be91) | none (from AuditLog / applications / claims) | users.manage; safe details only (no contact data) | e2e registration-timeline (3); frontend tests (3); Playwright role-journeys (card) | 1 Complete and verified |
 | REG-14 | Prevent duplicate accounts | Phase 4 | all | form errors | unique username / e-mail; one PENDING application | unique indexes | — | e2e registration, teacher-registration | 1 Complete and verified |
-| INT-01 | Manage countries | ADR-005 (Phase 2) | Admin | — | ISO codes only | — | — | — | 5 Awaiting design approval |
-| INT-02 | Region / province / district / locality | ADR-005 | Admin | Rwanda cascade | Rwanda hierarchy (school directory) | Place tables (Rwanda) | — | e2e school-directory | 3 Partially implemented |
-| INT-03 | Education systems and grades per country | ADR-005 | Admin | — | fixed S1–S6 | — | — | — | 5 Awaiting design approval |
+| INT-01 | Manage countries | ADR-005; owner decision 2026-11-19: one common Olympiad structure for every country | Admin | Countries screen (search; correct name and calling code); country lists in student registration, teacher and coach applications and the Schools list (column and filter) | `GET /countries`, `GET` / `PATCH /admin/countries…` | Country (all 249 ISO 3166-1 alpha-2 codes, name, calling code; no active switch — no country is ever blocked); School.countryCode → Country foreign key | reference.manage (Administrator, Super Admin); audited (COUNTRY_UPDATED) | backend e2e countries-reference (17 with app: public list, admin list / search / correction audited with previous and new values, reference.manage refused to Coach, Head Coach, Teacher, Student and anonymous, registration from any country unchanged, School → Country foreign key, rollback refusal); unit reference-data, release kit areas-2026; frontend tests countries; **Browser:** Playwright countries (Administrator corrects a country; students register with a school in Rwanda and abroad), accessibility audit of /admin/countries | 1 Complete and verified |
+| INT-02 | Region / province / district / locality | ADR-005; owner decision 2026-11-19: one common Olympiad structure for every country — only Rwanda needs a geographic hierarchy; other countries record the country and the school's name | Admin | Rwanda cascade | Rwanda hierarchy (school directory); other countries: country + school name (as before) | Place tables (Rwanda) | — | e2e school-directory, registration-details (school abroad); Playwright countries | 1 Complete and verified |
+| INT-03 | Education systems and grades per country | ADR-005; owner decision 2026-11-19: one common Olympiad structure for every country — no per-country education systems: S1–S6 for everyone | Admin | grade S1–S6 at registration and in administration (unchanged) | S1–S6 enum (unchanged) | GradeLevel | — | existing registration and division e2e | 1 Complete and verified |
 | INT-04 | Schools with country, location, type | Phase 1 (M8/M11/M12) | Admin | school directory | `/admin/schools` | School | schools.manage | e2e school-admin, school-directory | 1 Complete and verified |
 | INT-05 | Add, edit, activate / deactivate schools | PR B | Admin | school page | `/admin/schools/*` | School | schools.manage; audit with previous / new values | e2e school-admin | 1 Complete and verified |
 | INT-06 | School administrators or contacts | consolidated req. | Admin | contacts tab | contacts ✅; school-administrator accounts ✗ | SchoolContact | contacts masked in history | e2e school contacts | 3 Partially implemented |
@@ -71,7 +82,7 @@ control, school-administrator accounts) or on legal advice (guardian consent, 8.
 | SUB-06 | Coaches assigned to subjects / courses / groups | ADR-007 | Admin, Head Coach | course × division assignments | mentor assignments ✅; subjects / groups ✗ | MentorAssignment | mentorAssignments.manage | e2e mentor-assignments, head-coach-programme | 3 Partially implemented |
 | SUB-07 | Existing Mathematics data preserved | Phase 1 (M3) | — | — | membership backfill | ProgrammeMembership | — | migration tests, Phase 1 release | 1 Complete and verified |
 | ACA-01 | Academic years | Phase 4 | Admin | academic years pages | years, activation (single-flight) | AcademicYear | academicYears.manage | e2e academic-year-* | 1 Complete and verified |
-| ACA-02 | Junior / Senior divisions; flexible levels | ADR-005 | Admin | divisions | divisions ✅; flexible levels ✗ | Division | — | e2e divisions | 3 Partially implemented |
+| ACA-02 | Junior / Senior divisions; flexible levels | ADR-005; owner decision 2026-11-19: one common Olympiad structure for every country — S1–S3 Junior, S4–S6 Senior for every country; a country never sets a level or division | Admin | divisions | divisions ✅ (common to all countries; no flexible levels by owner decision) | Division | — | e2e divisions | 1 Complete and verified |
 | ACA-03 | Course availability, coaches, enrollment control | ADR-006 (Phase 6) | Admin | courses pages | publish / archive ✅; enrollment control ✗ | Course | courses.manage | e2e courses | 3 Partially implemented |
 | ACA-04 | Coach assignments | Phase 1 | Admin, Head Coach | assignments | `/admin/mentor-assignments` | MentorAssignment | mentorAssignments.manage (programme scope for Head Coaches) | e2e mentor-assignments, head-coach-programme | 1 Complete and verified |
 | ACA-05 | Course enrollment separate; restricted materials | ADR-006 | Student, Admin | — | — | — | — | — | 5 Awaiting design approval |
@@ -145,7 +156,7 @@ control, school-administrator accounts) or on legal advice (guardian consent, 8.
 
 ## Not implemented here because they need the owner
 
-- Designs (status 5): Phase 2 countries / education systems, Phase 3 subjects / topics, Phase 6 course access, Phase 7 publishing
+- Designs (status 5): Phase 3 subjects / topics, Phase 6 course access, Phase 7 publishing
   and versioning, Phase 8 student support, Phase 9 groups and targeted e-mail, Phase 10 privacy / retention, REG-09 configurable
   fields, ADR-008 account states — see `DESIGN-PROPOSALS-V2.md`.
 - External (status 8): fresh Neon branch (restore drill), staging environment.

@@ -236,7 +236,9 @@ describe('expected state — derived from this checkout only', () => {
     assert.equal(pp.migrations.some((m) => m >= '20261201000000'), false);
     const postTables = ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication',
       'TeacherStudentAssignment', 'UserPermissionOverrideStudent', 'UserStatusChange'];
-    assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), postTables);
+    // The design-area table (countries, migration 20261211000000) comes after post-Phase-1, so it is absent before it too.
+    const areaTables = ['Country'];
+    assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), [...postTables, ...areaTables].sort());
   });
   test('the two baselines are distinct: pre-phase1 ⊂ pre-post-phase1 ⊂ this checkout (migrations and models)', () => {
     const pp = expectedState(REPO_ROOT, 'pre-post-phase1');

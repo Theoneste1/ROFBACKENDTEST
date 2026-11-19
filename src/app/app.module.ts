@@ -22,6 +22,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { FormsModule } from '../forms/forms.module.js';
+import { ReferenceDataModule } from '../reference-data/reference-data.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { DivisionsModule } from '../divisions/divisions.module.js';
 import { AcademicYearsModule } from '../academic-years/academic-years.module.js';
@@ -94,6 +95,7 @@ import { ReportsModule } from '../reports/reports.module.js';
     AuditModule,
     SettingsModule,
     FormsModule,
+    ReferenceDataModule,
     StorageModule,
     AccessModule,
     NotificationsModule,

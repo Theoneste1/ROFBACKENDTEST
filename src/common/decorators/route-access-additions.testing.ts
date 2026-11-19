@@ -181,4 +181,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'DELETE /api/v1/admin/teachers/:id/delegations/:overrideId/students/:studentId  TeacherDelegationsController.removeStudent': ADMINISTRATORS,
   'POST /api/v1/admin/teachers/:id/delegations/:overrideId/reviewed  TeacherDelegationsController.reviewed':  ADMINISTRATORS,
   'GET /api/v1/teacher/students/summary  TeacherStudentsController.summary':                                  ADMINISTRATORS,
+  // Countries (owner decision 2026-11-19): the public list (no sign-in; the registration forms read it) and its
+  // administration (reference.manage: Administrators and Super Admins).
+  'GET /api/v1/countries  CountriesController.list':                                                          PUBLIC,
+  'GET /api/v1/admin/countries  AdminCountriesController.list':                                               ADMINISTRATORS,
+  'PATCH /api/v1/admin/countries/:code  AdminCountriesController.update':                                     ADMINISTRATORS,
 };

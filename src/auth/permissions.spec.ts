@@ -58,6 +58,8 @@ describe('permissions', () => {
       'users.bulkManage', 'users.export',
       // appended 2026-11-15 (form availability): granted (ADMIN_GRANTS), reported so the form-management screen shows
       'forms.view', 'forms.manageAvailability', 'forms.editMessages',
+      // appended 2026-11-19 (countries, owner decision): granted (ADMIN_GRANTS), reported for the Countries screen
+      'reference.manage',
     ]);
   });
 
@@ -75,14 +77,18 @@ describe('permissions', () => {
     const D5 = ['users.manageHeadCoaches', 'programmes.manageHeads', 'programmes.manageMembers', 'coaches.monitor', 'reports.view'] as const;
     const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive', 'users.bulkManage', 'users.export'] as const;
     const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // form availability, after AS
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + AS.length + FORMS.length), -(AS.length + FORMS.length))).toEqual([...D5]);
+    const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
+    const tail = FORMS.length + REF.length;
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + AS.length + tail), -(AS.length + tail))).toEqual([...D5]);
     for (const p of D5) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    // Additive only: the 25 original entries keep their order; then 2 + D-5, the account states and bulk operations, then the forms.
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-(AS.length + FORMS.length), -FORMS.length)).toEqual([...AS]);
+    // Additive only: the 25 original entries keep their order; then 2 + D-5, the account states and bulk operations, the forms, countries.
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-(AS.length + tail), -tail)).toEqual([...AS]);
     for (const p of AS) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-FORMS.length)).toEqual([...FORMS]);
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-tail, -REF.length)).toEqual([...FORMS]);
     for (const p of FORMS) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + AS.length + FORMS.length);
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-REF.length)).toEqual([...REF]);
+    for (const p of REF) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
+    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + AS.length + FORMS.length + REF.length);
     // Never reported to ADMIN (and never granted, except users.manageAdmins / permissions.view which stay unreported).
     for (const p of ['users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
       expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
@@ -182,6 +188,8 @@ describe('permissions', () => {
       // Bulk user operations (2026-11-17)
       'users.bulkManage': G, 'users.export': G,
       'forms.view': G, 'forms.manageAvailability': G, 'forms.editMessages': G,
+      // Countries (owner decision 2026-11-19)
+      'reference.manage': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {

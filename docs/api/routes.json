@@ -148,6 +148,24 @@
     "tag": "Admin · Contact messages"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/countries",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Countries"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/countries/{code}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Countries"
+  },
+  {
     "method": "PATCH",
     "path": "/api/v1/admin/courses/{id}",
     "roles": [
@@ -1688,6 +1706,14 @@
       "PUBLIC"
     ],
     "tag": "Auth"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/countries",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Countries"
   },
   {
     "method": "GET",

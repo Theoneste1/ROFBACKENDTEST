@@ -22,6 +22,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaClient, type DivisionCode, type GradeLevel } from '../src/generated/prisma/client.js';
+import { seedReferenceData } from '../src/reference-data/seed-reference-data.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -215,6 +216,8 @@ async function seedDemo() {
 async function main() {
   const disciplineId = await seedDiscipline();
   await seedDivisions();
+  // Countries (inserted by migration 20261211000000; idempotent).
+  await seedReferenceData(prisma);
   await seedCourses(disciplineId);
   const yearId = await seedAcademicYear();
   await seedAdmin();

@@ -92,6 +92,14 @@ permission guard.
 | `forms.view` | — | — | — | — | all | all |
 | `forms.manageAvailability` | — | — | — | — | all | all |
 | `forms.editMessages` | — | — | — | — | all | all |
+| `reference.manage` | — | — | — | — | all | all |
+
+## Countries (owner decision 2026-11-19)
+
+`reference.manage` (Administrators and Super Admins, global; appended to the frozen ADMIN list additively): correct a
+country's name or calling code (`GET`, `PATCH /admin/countries…`). Never granted by an individual override. Everyone reads
+the public list (`GET /countries`). No country is blocked from registration; a country never sets a level or division.
+Every change is audited (REFERENCE_DATA, `COUNTRY_UPDATED`).
 
 ## Administrators and Head Coaches (D-5, 2026-11-14)
 

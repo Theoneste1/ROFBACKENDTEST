@@ -582,6 +582,79 @@
       ]
     },
     {
+      "name": "Admin · Countries",
+      "item": [
+        {
+          "name": "GET /admin/countries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/countries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "countries"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `reference.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PATCH /admin/countries/{code}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/countries/:code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "countries",
+                ":code"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `reference.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"name\",\n  \"phonePrefix\": \"phonePrefix\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Courses",
       "item": [
         {
@@ -7110,6 +7183,33 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Countries",
+      "item": [
+        {
+          "name": "GET /countries",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/countries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "countries"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
           }
         }
       ]
