@@ -334,17 +334,18 @@ test('--acknowledge / --stop-after: refused before any target is read when unkno
 });
 
 test('a newer checkout: post-phase1 rollback, rollback-history, precheck, postcheck, check-target, dump, restore pass the checkout rule; deploy, diff, status do not', () => {
-  // This checkout as it is: the design-area migrations come after the eleven.
+  // This checkout as it is (on develop: the design-area migrations come after the eleven), plus one more.
+  const later = [...afterRelease(releaseFrom(['--release', 'post-phase1']), migrationDirs(REPO_ROOT)), '20261299000000_later'];
   withCheckoutCopy(['20261299000000_later'], (root) => {
     for (const command of ['check-target', 'precheck', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore']) {
       const r = run(root, command, '--release', 'post-phase1', '--confirm', 'ep-x');
       assert.notEqual(r.status, 5, `${command}: ${r.stderr}`);
-      assert.match(r.stdout, /checkout: 3 later migration\(s\) present \(20261211000000_countries_reference, 20261212000000_teacher_school_primary, 20261299000000_later\)/, command);
+      assert.ok(r.stdout.includes(`checkout: ${later.length} later migration(s) present (${later.join(', ')})`), `${command}: ${r.stdout}`);
     }
     for (const command of ['deploy', 'diff', 'status']) {
       const r = run(root, command, '--release', 'post-phase1', '--confirm', 'ep-x');
       assert.equal(r.status, 5, `${command}: ${r.stderr}`);
-      assert.match(r.stderr, /3 migration\(s\) after post-Phase-1/);
+      assert.ok(r.stderr.includes(`${later.length} migration(s) after post-Phase-1`), r.stderr);
     }
     // The release's own migrations must still all be there, whatever the command.
   });
