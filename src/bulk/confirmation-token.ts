@@ -72,8 +72,11 @@ export function readConfirmation(key: Buffer, token: string): { ok: true; claims
   if (!/^\d{1,9}$/.test(count) || !/^\d{1,12}$/.test(exp) || !/^[A-Za-z0-9_-]{43}$/.test(digest) || !/^[A-Za-z0-9_-]{43}$/.test(sig)) {
     return { ok: false, reason: 'MALFORMED' };
   }
-  const expected = sign(key, parts.slice(0, 5).join('.'));
-  const given = Buffer.from(sig, 'base64url');
+  // Compare the canonical TEXT of the signature, not its decoded bytes: 32 bytes take 43 base64url characters whose last
+  // one carries 2 unused bits, so decoding would accept 4 spellings of one signature — and the token, whose single use
+  // is enforced on its text, could then be replayed by changing its last character.
+  const expected = Buffer.from(sign(key, parts.slice(0, 5).join('.')).toString('base64url'));
+  const given = Buffer.from(sig);
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return { ok: false, reason: 'BAD_SIGNATURE' };
   return { ok: true, claims: { actorId, count: Number(count), expiresAt: new Date(Number(exp) * 1000), digest } };
 }

@@ -70,6 +70,25 @@ describe('bulk confirmation token (v2)', () => {
     }
   });
 
+  it('accepts exactly one spelling of a signature: changing only the unused bits of its last character is refused', () => {
+    // 32 signature bytes take 43 base64url characters; the last one carries 2 unused bits, so four characters decode to
+    // the same bytes. Each must be refused, or one confirmation could be used twice (single use is enforced on the text).
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    for (let n = 0; n < 40; n++) {
+      const t = signConfirmation(key, { ...base, ids: [A, B, `${n}`] }, NOW).token;
+      const sig = t.slice(t.lastIndexOf('.') + 1);
+      const last = ALPHABET.indexOf(sig.at(-1)!);
+      const siblings = [0, 1, 2, 3].map((low) => ALPHABET[(last & ~3) | low]).filter((ch) => ch !== sig.at(-1));
+      expect(siblings).toHaveLength(3);
+      for (const ch of siblings) {
+        const variant = t.slice(0, -1) + ch;
+        expect(Buffer.from(variant.slice(variant.lastIndexOf('.') + 1), 'base64url')).toEqual(Buffer.from(sig, 'base64url'));   // same bytes…
+        expect(readConfirmation(key, variant)).toEqual({ ok: false, reason: 'BAD_SIGNATURE' });                                // …refused
+      }
+      expect(readConfirmation(key, t).ok).toBe(true);
+    }
+  });
+
   it('canonical JSON: key order and empty values do not matter; array order does', () => {
     expect(canonical({ b: 1, a: { d: '', c: [2, 1] }, e: null })).toEqual({ a: { c: [2, 1] }, b: 1 });
     expect(bindingDigest({ ...base, params: { b: 1, a: 2 } })).toBe(bindingDigest({ ...base, params: { a: 2, b: 1, c: undefined } }));

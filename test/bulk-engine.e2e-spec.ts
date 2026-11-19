@@ -285,6 +285,26 @@ describe('Generic bulk engine', () => {
     for (const id of ids) expect(await p().userStatusChange.count({ where: { userId: id, toStatus: 'SUSPENDED' } })).toBe(1);
   });
 
+  it('a used confirmation cannot be replayed by respelling its signature (the unused bits of its last character): 400, nothing created', async () => {
+    const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    const ids = await makeUsers('respell', 2);
+    const pv = await preview('USER', { action: 'suspend', selection: { mode: 'ids', ids } }).expect(200);
+    const body = confirmBody(pv, { reason: 'Respelled replay' });
+    await execute('USER', body).expect(202);
+    const before = await opCount();
+    const t: string = body.selectionToken;
+    const last = ALPHABET.indexOf(t.at(-1)!);
+    const respelled = [0, 1, 2, 3].map((low) => ALPHABET[(last & ~3) | low]).filter((ch) => ch !== t.at(-1)).map((ch) => t.slice(0, -1) + ch);
+    expect(respelled).toHaveLength(3);
+    for (const variant of respelled) {
+      expect(await code(execute('USER', { ...body, selectionToken: variant, idempotencyKey: key() }))).toEqual([400, 'CONFIRMATION_INVALID']);
+      expect(await code(oldExecute({ ...body, selectionToken: variant, idempotencyKey: key() }))).toEqual([400, 'CONFIRMATION_INVALID']);
+    }
+    expect(await opCount()).toBe(before);
+    await drain();
+    for (const id of ids) expect(await p().userStatusChange.count({ where: { userId: id, toStatus: 'SUSPENDED' } })).toBe(1);
+  });
+
   it('concurrent executes of one confirmation with different keys: exactly one operation, the others 409 CONFIRMATION_USED', async () => {
     const ids = await makeUsers('oncec', 4);
     const pv = await preview('USER', { action: 'suspend', selection: { mode: 'ids', ids } }).expect(200);
