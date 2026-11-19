@@ -141,6 +141,15 @@ export const FEATURES = {
    */
   teacherStudentAccess: 'always',
   /**
+   * Primary teacher of a school (owner decision 2026-11-19): every teacher–school link has `role` PRIMARY (the school's
+   * designated main contact, at most one active per school) or SECONDARY — the same rights either way. GET
+   * /admin/teacher-assignments returns `role` and filters by `?role=`; POST /admin/teacher-assignments/:id/primary makes a
+   * teacher the primary (the previous one becomes secondary; users.manageTeachers); School Access rows carry `role`;
+   * GET /admin/users TEACHER rows carry `teacherSchoolRole` (PRIMARY | SECONDARY | null); Teachers read their own schools
+   * and role at GET /teacher/schools. A school can have no primary teacher (none is promoted automatically).
+   */
+  primaryTeacher: 'always',
+  /**
    * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
    * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
    * imported) every route except GET /me, GET /me/permissions, PUT /me/date-of-birth and sign-out answers

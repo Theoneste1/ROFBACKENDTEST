@@ -2327,9 +2327,21 @@ model ContactMessage {
   @@index([ipHash, createdAt])
 }
 
+/// A teacher's role at a school (owner decision 2026-11-19). PRIMARY: the school's designated main
+/// contact (at most one active per school). Never a permission: primary and secondary teachers have
+/// exactly the same rights.
+enum TeacherSchoolRole {
+  PRIMARY
+  SECONDARY
+}
+
 /// A Teacher's school (P1-11): the teacher sees only students whose school is one of
 /// their ACTIVE assignments. Set by Administrators (users.manageTeachers); one row per
 /// (teacher, school), ended / re-activated by update (same pattern as ProgrammeMembership).
+/// `role` (owner decision 2026-11-19): PRIMARY marks the school's designated main contact — the same
+/// rights as every other teacher of the school. At most one ACTIVE PRIMARY per school: partial unique
+/// index TeacherSchoolAssignment_one_primary_per_school (schoolId) WHERE isActive AND role = 'PRIMARY'
+/// (migration 20261212000000). An ended link, or one whose account leaves ACTIVE, is SECONDARY.
 model TeacherSchoolAssignment {
   id           String    @id @default(uuid())
   teacherId    String
@@ -2337,6 +2349,7 @@ model TeacherSchoolAssignment {
   schoolId     String
   school       School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   isActive     Boolean   @default(true)
+  role         TeacherSchoolRole @default(SECONDARY)
   assignedById String?
   assignedBy   User?     @relation("TeacherSchoolAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
   createdAt    DateTime  @default(now())

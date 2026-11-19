@@ -1091,6 +1091,15 @@
     "tag": "Admin · Teachers"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-assignments/{id}/primary",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/teacher-students",
     "roles": [
@@ -2835,6 +2844,14 @@
       "PUBLIC"
     ],
     "tag": "Support"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/schools",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
   },
   {
     "method": "GET",

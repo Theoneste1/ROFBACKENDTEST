@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 323 endpoints — 26 public, 189 administrator-only.
+Totals: 325 endpoints — 26 public, 190 administrator-only.
 
 ## Academic years
 
@@ -236,6 +236,7 @@ Totals: 323 endpoints — 26 public, 189 administrator-only.
 | GET | `/api/v1/admin/teacher-assignments` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-assignments` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teacher-assignments/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/teacher-assignments/{id}/primary` |  |  |  | ✓ |
 | GET | `/api/v1/admin/teacher-students` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-students` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teacher-students/{id}` |  |  |  | ✓ |
@@ -531,6 +532,7 @@ Totals: 323 endpoints — 26 public, 189 administrator-only.
 
 | Method | Path | Public | Student | Mentor | Admin |
 |---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/schools` |  |  |  |  |
 | GET | `/api/v1/teacher/students` |  |  |  |  |
 | GET | `/api/v1/teacher/students/{id}` |  |  |  |  |
 | GET | `/api/v1/teacher/students/{id}/progress` |  |  |  |  |

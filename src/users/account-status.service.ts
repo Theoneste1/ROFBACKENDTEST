@@ -9,7 +9,8 @@
  *     and activation link, so no old link reopens a blocked account;
  *   - a UserStatusChange row (history) and a USER_STATUS_CHANGED audit row (before, after, reason, request id,
  *     bulk operation id).
- * Nothing else is touched: submissions, results, discussions, enrolments, affiliations, notifications and audit
+ * A Teacher leaving ACTIVE stops being any school's primary teacher (TEACHER_PRIMARY_CLEARED; owner decision 2026-11-19 —
+ * the links stay, as SECONDARY, and nobody is promoted). Nothing else is touched: submissions, results, discussions, enrolments, affiliations, notifications and audit
  * history stay linked to the account in every state.
  *
  * Who may: the transition's permission (users.changeStatus / users.suspend / users.archive) AND management of the
@@ -30,6 +31,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ConfigService } from '@nestjs/config';
 import { roleFlagOn } from '../auth/role-assignment.policy.js';
 import type { AppRole } from '../auth/permissions.js';
+import { clearPrimaryOfAccount } from '../teachers/primary-teacher.js';
 import { checkTransition, confirmationRequired, permissionFor, stillBlockedBy, type SignInBlock } from './account-status.js';
 
 export interface StatusChangeContext {
@@ -134,6 +136,12 @@ export class AccountStatusService {
             ...(input.confirm === true && { confirmed: true }),
           },
         }, tx);
+        // Primary teacher (owner decision 2026-11-19): an account that is not ACTIVE is never a school's primary teacher.
+        // Its schools are left without one (nobody is promoted; an Administrator chooses); reactivation restores nothing.
+        if (input.toStatus !== 'ACTIVE' && current.role === 'TEACHER') {
+          await clearPrimaryOfAccount(tx, this.audit, targetId, { actorId: caller.id, actorRole: caller.role },
+            { reason: 'ACCOUNT_STATUS', toStatus: input.toStatus, statusChangeId: change.id });
+        }
         if (ctx.inTransaction) await ctx.inTransaction(tx, { stillBlockedBy: blocks });
         return { user, change, stillBlockedBy: blocks };
       });

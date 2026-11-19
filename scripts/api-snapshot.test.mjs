@@ -254,7 +254,12 @@ const COUNTRIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-countries.json
  * coach application (one approved breaking change) and editable by an Administrator on a Coach account (one optional field).
  */
 const COACH_INTERESTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-coach-interests.json';
-const CURRENT_SNAPSHOT = COACH_INTERESTS_SNAPSHOT;
+/**
+ * Primary teacher of a school (owner decision 2026-11-19): `role` on teacher–school links (filter ?role=), an
+ * Administrator's reassignment route and the teacher's own schools — additive only.
+ */
+const PRIMARY_TEACHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-primary-teacher.json';
+const CURRENT_SNAPSHOT = PRIMARY_TEACHER_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1325,6 +1330,19 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, ['POST /api/v1/mentor-requests › request application/json.olympiadInterests: field is now required']);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive, ['PATCH /api/v1/admin/users/{id} › request application/json.olympiadInterests: new optional field']);
+  });
+
+  test('coach subject interests → primary teacher (owner decision 2026-11-19): additive only — 2 routes, 1 optional query parameter, no field change', () => {
+    for (const f of [COACH_INTERESTS_SNAPSHOT, PRIMARY_TEACHER_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(COACH_INTERESTS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(PRIMARY_TEACHER_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/teacher-assignments: new optional query parameter "role"',
+      'GET /api/v1/teacher/schools: operation added',
+      'POST /api/v1/admin/teacher-assignments/{id}/primary: operation added',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

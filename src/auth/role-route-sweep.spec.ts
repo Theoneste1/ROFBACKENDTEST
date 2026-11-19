@@ -157,6 +157,8 @@ const COACH_ADMIN_ROUTES: string[] = [
  * Administrators, who hold it too) — tested in test/teachers.e2e-spec.ts and test/teacher-student-access.e2e-spec.ts.
  */
 const TEACHER_ROUTES_GUARD_ONLY: string[] = [
+  // 2026-11-19, primary teacher: the teacher's own schools and role (same rule: 403 ROLE_NOT_SUPPORTED for non-Teachers).
+  'GET /api/v1/teacher/schools  TeacherOwnSchoolsController.list  [HEAD_COACH]',
   'GET /api/v1/teacher/students  TeacherStudentsController.list  [HEAD_COACH]',
   'GET /api/v1/teacher/students/summary  TeacherStudentsController.summary  [HEAD_COACH]',
 ];
@@ -167,4 +169,7 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
  */
 // 2026-11-19, countries (owner decision): +1 public list for every caller, +2 reference.manage routes for Administrators
 // and Super Admins only (none for Coach, Head Coach, Teacher or Student).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 82, MENTOR: 110, HEAD_COACH: 118, ADMIN: 287, SUPER_ADMIN: 293 };
+// 2026-11-19, primary teacher (owner decision): +1 POST /admin/teacher-assignments/:id/primary (users.manageTeachers:
+// Administrators, Super Admins); +1 GET /teacher/schools (students.viewScoped: Teachers; the guard also admits Head Coaches
+// and Administrators, whom the service refuses — TEACHER_ROUTES_GUARD_ONLY).
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 83, MENTOR: 110, HEAD_COACH: 119, ADMIN: 289, SUPER_ADMIN: 295 };

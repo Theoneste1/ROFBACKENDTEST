@@ -11596,6 +11596,19 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "PRIMARY (the school's designated main contact) or SECONDARY (owner decision 2026-11-19).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SECONDARY",
+                "PRIMARY"
+              ]
+            }
           }
         ],
         "responses": {
@@ -11707,6 +11720,51 @@
           }
         ],
         "summary": "End the assignment; applies on the teacher's next request.",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/teacher-assignments/{id}/primary": {
+      "post": {
+        "operationId": "TeacherSchoolsController_makePrimary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Make this teacher the school's primary teacher (its designated main contact; the same rights as every other\nteacher). The previous primary becomes secondary in the same transaction; audited (TEACHER_PRIMARY_ASSIGNED).\n409 ASSIGNMENT_ENDED, TEACHER_ACCOUNT_NOT_ACTIVE or ALREADY_PRIMARY.",
         "tags": [
           "Admin · Teachers"
         ],
@@ -12672,6 +12730,44 @@
         ],
         "x-permission": "submissions.submitOnBehalf",
         "description": "**Access:** permission `submissions.submitOnBehalf` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
+      }
+    },
+    "/api/v1/teacher/schools": {
+      "get": {
+        "operationId": "TeacherOwnSchoolsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Teachers only: the schools an Administrator has assigned to you, and whether you are the school's primary teacher\n(its designated main contact; role PRIMARY) or a secondary teacher. The same rights either way. Other roles: 403.",
+        "tags": [
+          "Teacher"
+        ],
+        "x-served-roles": [
+          "TEACHER"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "students.viewScoped",
+        "description": "**Access:** permission `students.viewScoped` (TEACHER)"
       }
     },
     "/api/v1/submissions": {

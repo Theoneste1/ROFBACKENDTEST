@@ -96,9 +96,22 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
+    // Primary teacher (owner decision 2026-11-19): each TEACHER row says whether the teacher is the primary teacher of a
+    // school (PRIMARY), only a secondary one (SECONDARY) or linked to no school (null). One grouped query per page.
+    const teacherIds = users.filter((u) => u.role === 'TEACHER').map((u) => u.id);
+    const roles = new Map<string, 'PRIMARY' | 'SECONDARY'>();
+    if (teacherIds.length > 0) {
+      const groups = await this.prisma.teacherSchoolAssignment.groupBy({
+        by: ['teacherId', 'role'], where: { teacherId: { in: teacherIds }, isActive: true }, _count: { _all: true },
+      });
+      for (const g of groups) if (g.role === 'PRIMARY' || !roles.has(g.teacherId)) roles.set(g.teacherId, g.role);
+    }
+
     // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
     // Data minimisation (ACC-16 / SEC-03): phones masked and no date of birth in a list; GET /admin/users/:id has both.
-    return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(row)), total, page, limit);
+    return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(
+      row.role === 'TEACHER' ? { ...row, teacherSchoolRole: roles.get(row.id) ?? null } : row,
+    )), total, page, limit);
   }
 
 

@@ -4606,6 +4606,12 @@
                   "value": "true",
                   "disabled": true,
                   "description": ""
+                },
+                {
+                  "key": "role",
+                  "value": "SECONDARY",
+                  "disabled": true,
+                  "description": "PRIMARY (the school's designated main contact) or SECONDARY (owner decision 2026-11-19)."
                 }
               ]
             },
@@ -4660,6 +4666,34 @@
                 "admin",
                 "teacher-assignments",
                 ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/teacher-assignments/{id}/primary",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teacher-assignments/:id/primary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teacher-assignments",
+                ":id",
+                "primary"
               ],
               "variable": [
                 {
@@ -11306,6 +11340,26 @@
     {
       "name": "Teacher",
       "item": [
+        {
+          "name": "GET /teacher/schools",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/schools",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "schools"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `students.viewScoped` (TEACHER)"
+          }
+        },
         {
           "name": "GET /teacher/students",
           "request": {
