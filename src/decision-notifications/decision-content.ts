@@ -11,6 +11,8 @@ export const DecisionEvents = {
   CoachApplicationApproved:   'coach.application.approved',
   PermissionsGranted:         'permissions.granted',
   TeacherStudentsAssigned:    'teacher.students.assigned',
+  /** Test Management Phase 2: the student or teacher an individual deadline extension was granted to (told once). */
+  TestExtensionGranted:       'test.extension.granted',
 } as const;
 
 export type DecisionEventType = (typeof DecisionEvents)[keyof typeof DecisionEvents];
@@ -34,7 +36,23 @@ export interface PermissionsGrantedPayload {
 /** count: students newly assigned by one action (absent for a bulk operation, whose items finish one by one). Never names: students are minors. */
 export interface StudentsAssignedPayload { activated: boolean; count?: number }
 
-export type DecisionPayload = SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload | StudentsAssignedPayload;
+/**
+ * test.extension.granted: the test (title, subject), the new deadline (ISO 8601) and who it is for: STUDENT (their own
+ * deadline) or TEACHER (their submissions for the students of their schools). Never another student's data.
+ */
+export interface TestExtensionPayload {
+  activated: boolean; testTitle: string; subjectName: string; deadline: string; audience: 'STUDENT' | 'TEACHER';
+}
+
+export type DecisionPayload = SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload | StudentsAssignedPayload | TestExtensionPayload;
+
+/** A deadline as people in Rwanda read it (Kigali time). */
+export function kigaliTime(iso: string): string {
+  return `${new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Kigali', dateStyle: 'full', timeStyle: 'short' }).format(new Date(iso))} (Kigali time)`;
+}
+
+/** The tests page of the recipient's portal (the in-app link and the e-mail button). */
+export const testsPageOf = (audience: 'STUDENT' | 'TEACHER') => (audience === 'STUDENT' ? '/student/tests' : '/teacher/tests');
 
 export interface DecisionEmail {
   subject:  string;
@@ -47,6 +65,8 @@ export interface DecisionEmail {
 export interface DecisionInApp {
   title: string;
   body:  string;
+  /** Frontend path the notification opens (optional). */
+  link?: string;
 }
 
 export const SCHOOL_VERIFIED_SUBJECT = 'Your school is now part of the ROF Olympiad Community!';
@@ -133,6 +153,19 @@ export function decisionEmail(type: string, firstName: string, payload: unknown,
         action: p.activated ? loginAction(appUrl) : undefined,
       };
     }
+    case DecisionEvents.TestExtensionGranted: {
+      const p = payload as TestExtensionPayload;
+      const subject = `Deadline extended: ${p.testTitle}`;
+      const whose = p.audience === 'STUDENT' ? 'your answers' : 'the answers you submit for the students of your school';
+      const base = appUrl?.trim().replace(/\/+$/, '');
+      return {
+        subject, heading: subject, greeting,
+        body:
+          `The deadline for ${whose} to the ${p.subjectName} test "${p.testTitle}" has been extended to ${kigaliTime(p.deadline)}.\n\n` +
+          `You can submit or replace them until then.\n\n${ORG}`,
+        action: p.activated && base ? { label: 'Open my tests', url: `${base}${testsPageOf(p.audience)}` } : undefined,
+      };
+    }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);
   }
@@ -165,6 +198,15 @@ export function decisionInApp(type: string, payload: unknown): DecisionInApp {
       const p = payload as StudentsAssignedPayload;
       const what = p.count === undefined ? 'students' : p.count === 1 ? 'a student' : `${p.count} students`;
       return { title: 'Students assigned to you', body: `An administrator assigned ${what} to you. See My Students.` };
+    }
+    case DecisionEvents.TestExtensionGranted: {
+      const p = payload as TestExtensionPayload;
+      const whose = p.audience === 'STUDENT' ? 'your deadline' : 'the deadline for your submissions';
+      return {
+        title: 'Deadline extended',
+        body:  `${p.subjectName} test "${p.testTitle}": ${whose} is now ${kigaliTime(p.deadline)}.`,
+        link:  testsPageOf(p.audience),
+      };
     }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);

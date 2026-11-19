@@ -98,6 +98,12 @@ export const PERMISSIONS = [
   'tests.view',                  // list and read tests, their questions and files (incl. the marking guide)
   'tests.manage',                // create, edit, publish, delete tests; questions; the paper and the marking guide
   'tests.manageMarkers',         // authorise / revoke coaches as markers of a subject (reason on revoke)
+  // ── Test Management, Phase 2 (WS3, 2026-11-19): deadlines, extensions, submissions ──
+  'tests.extensions',            // grant / edit / cancel deadline extensions (Administrators; Head Coaches: subjects they head)
+  'tests.viewSubmissions',       // submission tracking and every version, with submitter and extension status (same scope)
+  'tests.submit',                // Students: submit / replace their own answer to a test of their division (own)
+  'tests.submitForStudents',     // Teachers (G2: any teacher of the school, primary or secondary): submit for VERIFIED
+                                 // students of their own schools (school). Separate from submissions.submitOnBehalf.
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -152,6 +158,8 @@ const ADMIN_GRANTS: Grants = {
   'reference.manage': 'global',
   // Test Management (WS3, 2026-11-19): every subject
   'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
+  // Test Management, Phase 2: extensions and submission tracking, every subject
+  'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
 };
 
 /**
@@ -164,6 +172,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'courses.complete': 'own', 'submissions.submit': 'own', 'submissions.viewOwn': 'own',
     'discussions.participate': 'division', 'discussions.report': 'division',
     'leaderboard.view': 'global',
+    // Test Management, Phase 2 (2026-11-19): their own answers to tests of their division
+    'tests.submit': 'own',
   },
   TEACHER: {
     // No course access (owner decision 2026-11-14): teachers are scoped by school (P1-11) and no
@@ -176,6 +186,9 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'leaderboard.view': 'global',
     // students.viewProfile, students.viewProgress, submissions.submitOnBehalf: only by
     // an individual GRANT (Administrator or Super Admin), school scope (P1-11)
+    // Test Management, Phase 2 (G2, owner decision 2026-11-19): every teacher of a school, primary or secondary, submits
+    // test answers for the VERIFIED students of their own schools — a default, not a delegation.
+    'tests.submitForStudents': 'school',
   },
   MENTOR: {
     'courses.view': 'courseDivision', 'resources.view': 'courseDivision', 'resources.manage': 'courseDivision',
@@ -197,6 +210,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'coaches.monitor': 'programme', 'activity.view': 'programme',
     // Test Management (WS3, 2026-11-19): only the subjects (programmes) they head; any Head Coach of the subject may act.
     'tests.view': 'programme', 'tests.manage': 'programme', 'tests.manageMarkers': 'programme',
+    'tests.extensions': 'programme', 'tests.viewSubmissions': 'programme',
   },
   ADMIN: ADMIN_GRANTS,
   SUPER_ADMIN: {
@@ -220,6 +234,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
     'reference.manage': 'global',
     'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
+    'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
   },
 };
 
@@ -244,6 +259,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'courses.view', 'courses.complete', 'resources.view',
     'assignments.view', 'submissions.submit', 'submissions.viewOwn',
     'discussions.participate', 'discussions.report', 'leaderboard.view',
+    // Appended (additive, Test Management Phase 2, 2026-11-19): students hold it (own) and the /me/tests routes require
+    // it; listed so the frontend shows My tests.
+    'tests.submit',
   ],
   MENTOR: [
     'courses.view', 'resources.view', 'resources.manage',
@@ -285,6 +303,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, Test Management WS3, owner-approved plan 2026-11-19): ADMIN holds them (ADMIN_GRANTS, global) and
     // the test-management routes require them; listed so the frontend shows the Tests screens.
     'tests.view', 'tests.manage', 'tests.manageMarkers',
+    // Appended (additive, Test Management Phase 2, 2026-11-19): extensions and submission tracking.
+    'tests.extensions', 'tests.viewSubmissions',
   ],
 };
 

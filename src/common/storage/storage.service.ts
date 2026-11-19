@@ -200,6 +200,7 @@ export class StorageService implements OnModuleInit {
         teacherApplicationAvatarOf: { is: null },
         mentorRequestAvatarOf:      { is: null },
         testFiles:                  { none: {} },   // a test's paper or marking guide (Test Management)
+        testAnswerPage:             { is: null },   // a page of a test answer, pending or submitted (Test Management)
       },
       select: { id: true, storageKey: true },
       take:   500,

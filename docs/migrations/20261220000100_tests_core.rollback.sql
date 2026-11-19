@@ -1,6 +1,7 @@
 -- Rollback for 20261220000100_tests_core (Test Management Phase 1, migration M-b; owner-approved plan 2026-11-19).
 -- Run manually, with approval, after a backup, and after deploying the previous application release (the current code
--- reads and writes the Test* tables and MarkerAuthorization). Roll it back FIRST (newest), before
+-- reads and writes the Test* tables and MarkerAuthorization). Roll it back after 20261220000200_tests_submissions (Phase 2, whose tables reference
+-- these: while they exist the DROP below fails and nothing changes), before
 -- 20261220000000_test_file_purposes.
 --
 -- It drops Test, TestQuestion, TestFile and MarkerAuthorization with their enums, and removes the PHYSICS and COMPUTING

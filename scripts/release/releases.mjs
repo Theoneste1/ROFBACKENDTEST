@@ -46,7 +46,7 @@ export const POST_PHASE1_OBJECTS = {
 /**
  * The design-areas release: the migrations after the post-Phase-1 eleven. Area 1 as simplified by the owner (2026-11-19):
  * the countries reference list and the School → Country foreign key; then the primary teacher of a school (owner
- * decision 2026-11-19); then Test Management Phase 1 (owner-approved plan 2026-11-19). Listed explicitly — a migration added later is never
+ * decision 2026-11-19); then Test Management Phases 1 and 2 (owner-approved plan 2026-11-19). Listed explicitly — a migration added later is never
  * part of it until it is appended here on purpose.
  */
 export const AREAS_2026_MIGRATIONS = [
@@ -58,17 +58,22 @@ export const AREAS_2026_MIGRATIONS = [
   // and Computing subjects.
   '20261220000000_test_file_purposes',
   '20261220000100_tests_core',
+  // Test Management, Phase 2: M-c TestExtension, TestSubmission, TestSubmissionVersion (append-only), TestAnswerPage and
+  // TestSubmissionStatusChange (append-only), their enums and guard triggers.
+  '20261220000200_tests_submissions',
 ];
 
 /** What the design-areas migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
 export const AREAS_2026_OBJECTS = {
   // Not listed: the FilePurpose values TEST_PAPER, TEST_ANSWER, MARKING_GUIDE (PostgreSQL cannot drop an enum value; the
   // rollback keeps them, unused) and the Physics / Computing Discipline rows (data, removed by the tests_core rollback).
-  tables: ['Country', 'MarkerAuthorization', 'Test', 'TestFile', 'TestQuestion'],
-  enums: ['TeacherSchoolRole', 'TestAnswerFormat', 'TestDivision', 'TestFileKind', 'TestStatus'],
+  tables: ['Country', 'MarkerAuthorization', 'Test', 'TestAnswerPage', 'TestExtension', 'TestFile', 'TestQuestion', 'TestSubmission',
+    'TestSubmissionStatusChange', 'TestSubmissionVersion'],
+  enums: ['TeacherSchoolRole', 'TestAnswerFormat', 'TestDivision', 'TestExtensionKind', 'TestFileKind', 'TestStatus', 'TestSubmissionStatus',
+    'TestSubmitterRole'],
   columns: [['TeacherSchoolAssignment', 'role']],
-  triggers: [],
-  functions: [],
+  triggers: ['test_answer_page_committed_guard', 'test_submission_status_append_only', 'test_submission_version_append_only'],
+  functions: ['test_answer_page_committed_guard', 'test_submission_status_append_only', 'test_submission_version_append_only'],
 };
 
 /**

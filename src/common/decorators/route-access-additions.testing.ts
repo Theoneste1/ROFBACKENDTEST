@@ -212,4 +212,33 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/test-markers/candidates  TestMarkersController.candidates':                                ADMINISTRATORS,
   'POST /api/v1/admin/test-markers  TestMarkersController.grant':                                               ADMINISTRATORS,
   'POST /api/v1/admin/test-markers/:id/revoke  TestMarkersController.revoke':                                   ADMINISTRATORS,
+  // Test Management, Phase 2 (WS3, 2026-11-19): extensions (tests.extensions) and tracking (tests.viewSubmissions) —
+  // Administrators (every subject) and Head Coaches (not baseline callers; the subjects they head, checked by the service).
+  'GET /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.list':                                 ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/extension-targets  AdminTestExtensionsController.targets':                       ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.create':                              ADMINISTRATORS,
+  'PATCH /api/v1/admin/tests/:id/extensions/:extensionId  AdminTestExtensionsController.update':                ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/extensions/:extensionId/cancel  AdminTestExtensionsController.cancel':          ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions  AdminTestSubmissionsController.list':                               ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId  AdminTestSubmissionsController.get':                  ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId/versions/:versionId/pages/:page  AdminTestSubmissionsController.page': ADMINISTRATORS,
+  // The student's own tests (tests.submit: Students only).
+  'GET /api/v1/me/tests  MyTestsController.list':                                                               STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id  MyTestsController.get':                                                            STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id/paper  MyTestsController.paper':                                                    STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id/uploads/:uploadKey  MyTestsController.pending':                                     STUDENTS_ONLY,
+  'POST /api/v1/me/tests/:id/uploads/:uploadKey/pages/:page  MyTestsController.upload':                         STUDENTS_ONLY,
+  'DELETE /api/v1/me/tests/:id/uploads/:uploadKey/pages/:page  MyTestsController.removePage':                   STUDENTS_ONLY,
+  'POST /api/v1/me/tests/:id/submission  MyTestsController.submit':                                             STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id/versions/:versionId/pages/:page  MyTestsController.page':                           STUDENTS_ONLY,
+  // Teachers for their students (tests.submitForStudents: Teachers only — not a baseline caller, so nobody here).
+  'GET /api/v1/teacher/tests  TeacherTestsController.list':                                                     NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/paper  TeacherTestsController.paper':                                          NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students  TeacherTestsController.students':                                    NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students/:studentId  TeacherTestsController.student':                           NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students/:studentId/uploads/:uploadKey  TeacherTestsController.pending':        NOBODY_BY_DEFAULT,
+  'POST /api/v1/teacher/tests/:id/students/:studentId/uploads/:uploadKey/pages/:page  TeacherTestsController.upload': NOBODY_BY_DEFAULT,
+  'DELETE /api/v1/teacher/tests/:id/students/:studentId/uploads/:uploadKey/pages/:page  TeacherTestsController.removePage': NOBODY_BY_DEFAULT,
+  'POST /api/v1/teacher/tests/:id/students/:studentId/submission  TeacherTestsController.submit':                NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students/:studentId/versions/:versionId/pages/:page  TeacherTestsController.page': NOBODY_BY_DEFAULT,
 };

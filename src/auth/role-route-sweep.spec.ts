@@ -154,9 +154,15 @@ const COACH_ADMIN_ROUTES: string[] = [
   'GET /api/v1/admin/test-markers/candidates  TestMarkersController.candidates  [HEAD_COACH]',
   'GET /api/v1/admin/tests  TestsController.list  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id  TestsController.get  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/extension-targets  AdminTestExtensionsController.targets  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.list  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/files/:kind  TestsController.file  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/submissions  AdminTestSubmissionsController.list  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId  AdminTestSubmissionsController.get  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId/versions/:versionId/pages/:page  AdminTestSubmissionsController.page  [HEAD_COACH]',
   'GET /api/v1/admin/tests/subjects  TestsController.subjects  [HEAD_COACH]',
   'PATCH /api/v1/admin/tests/:id  TestsController.update  [HEAD_COACH]',
+  'PATCH /api/v1/admin/tests/:id/extensions/:extensionId  AdminTestExtensionsController.update  [HEAD_COACH]',
   'PATCH /api/v1/admin/tests/:id/questions/:questionId  TestsController.updateQuestion  [HEAD_COACH]',
   'POST /api/v1/admin/mentor-assignments  MentorAssignmentsController.assign  [HEAD_COACH]',
   'POST /api/v1/admin/programmes/:id/coach-invitations  AdminProgrammesController.inviteCoach  [HEAD_COACH]',
@@ -164,6 +170,8 @@ const COACH_ADMIN_ROUTES: string[] = [
   'POST /api/v1/admin/test-markers  TestMarkersController.grant  [HEAD_COACH]',
   'POST /api/v1/admin/test-markers/:id/revoke  TestMarkersController.revoke  [HEAD_COACH]',
   'POST /api/v1/admin/tests  TestsController.create  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.create  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/extensions/:extensionId/cancel  AdminTestExtensionsController.cancel  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/publish  TestsController.publish  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish  [HEAD_COACH]',
@@ -194,4 +202,7 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // and Administrators, whom the service refuses — TEACHER_ROUTES_GUARD_ONLY).
 // 2026-11-19, Test Management Phase 1 (owner-approved plan): +19 /admin/tests and /admin/test-markers routes for Head
 // Coaches (their subjects), Administrators and Super Admins; none for Coach, Teacher or Student.
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 94, TEACHER: 83, MENTOR: 110, HEAD_COACH: 138, ADMIN: 308, SUPER_ADMIN: 314 };
+// 2026-11-19, Test Management Phase 2: +8 /me/tests routes (tests.submit: Students); +9 /teacher/tests routes
+// (tests.submitForStudents: Teachers, G2); +8 /admin/tests/:id/extensions, extension-targets and submissions routes for
+// Head Coaches (their subjects), Administrators and Super Admins; none for Coaches.
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 102, TEACHER: 92, MENTOR: 110, HEAD_COACH: 146, ADMIN: 316, SUPER_ADMIN: 322 };

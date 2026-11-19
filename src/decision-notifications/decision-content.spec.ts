@@ -111,6 +111,22 @@ describe('decision notification content', () => {
     expect(() => decisionEmail('other', 'X', {}, APP)).toThrow();
   });
 
+  it('test.extension.granted (Test Management Phase 2): the test, the new deadline in Kigali time, a link to the right portal; no other student', () => {
+    const payload = { activated: true, testTitle: 'Round 2', subjectName: 'Physics', deadline: '2026-12-10T08:30:00.000Z', audience: 'STUDENT' as const };
+    const mail = decisionEmail(DecisionEvents.TestExtensionGranted, 'Aline', payload, APP);
+    expect(mail.subject).toBe('Deadline extended: Round 2');
+    expect(mail.body).toContain('The deadline for your answers to the Physics test "Round 2" has been extended to');
+    expect(mail.body).toContain('10:30 (Kigali time)');
+    expect(mail.action).toEqual({ label: 'Open my tests', url: 'https://app.example.org/student/tests' });
+    const teacher = decisionEmail(DecisionEvents.TestExtensionGranted, 'Eric', { ...payload, audience: 'TEACHER' }, APP);
+    expect(teacher.body).toContain('the answers you submit for the students of your school');
+    expect(teacher.action?.url).toBe('https://app.example.org/teacher/tests');
+    expect(decisionEmail(DecisionEvents.TestExtensionGranted, 'Aline', { ...payload, activated: false }, APP).action).toBeUndefined();
+    const inApp = decisionInApp(DecisionEvents.TestExtensionGranted, payload);
+    expect([inApp.title, inApp.link]).toEqual(['Deadline extended', '/student/tests']);
+    expect(inApp.body).toContain('Physics test "Round 2": your deadline is now');
+  });
+
   it('sanitiseError strips addresses, keys, tokens and long ids, and bounds the length', () => {
     const out = sanitiseError('Resend 422 validation_error: jean@example.org with key re_abc123XYZ Bearer eyJhbGciOi.x.y ' +
       'https://x.test/a?token=SECRET123&b=1 id 3f2b8c1e-4d5a-4b6c-9d7e-112233445566');

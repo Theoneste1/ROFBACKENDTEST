@@ -33,6 +33,8 @@ describe('permissions', () => {
       'courses.view', 'courses.complete', 'resources.view',
       'assignments.view', 'submissions.submit', 'submissions.viewOwn',
       'discussions.participate', 'discussions.report', 'leaderboard.view',
+      // appended 2026-11-19 (Test Management Phase 2): granted (own) and reported, so the student portal shows My tests
+      'tests.submit',
     ]);
     expect(ROLE_PERMISSIONS.MENTOR).toEqual([
       'courses.view', 'resources.view', 'resources.manage',
@@ -62,6 +64,8 @@ describe('permissions', () => {
       'reference.manage',
       // appended 2026-11-19 (Test Management WS3, owner-approved plan): granted (ADMIN_GRANTS), reported for the Tests screens
       'tests.view', 'tests.manage', 'tests.manageMarkers',
+      // appended 2026-11-19 (Test Management Phase 2): extensions and submission tracking
+      'tests.extensions', 'tests.viewSubmissions',
     ]);
   });
 
@@ -80,7 +84,7 @@ describe('permissions', () => {
     const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive', 'users.bulkManage', 'users.export'] as const;
     const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // form availability, after AS
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
-    const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers'] as const;   // Test Management (2026-11-19), after countries
+    const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions'] as const;   // Test Management (2026-11-19, Phases 1 and 2), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -197,16 +201,22 @@ describe('permissions', () => {
       'reference.manage': G,
       // Test Management (WS3, 2026-11-19)
       'tests.view': G, 'tests.manage': G, 'tests.manageMarkers': G,
+      // Test Management, Phase 2: extensions and submission tracking
+      'tests.extensions': G, 'tests.viewSubmissions': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {
         'courses.view': D, 'resources.view': D, 'assignments.view': D,
         'courses.complete': O, 'submissions.submit': O, 'submissions.viewOwn': O,
         'discussions.participate': D, 'discussions.report': D, 'leaderboard.view': G,
+        // Test Management, Phase 2 (2026-11-19): their own answers
+        'tests.submit': O,
       },
       // 2026-11-14: no course access (the course × division grants were dead — no TeacherAssignment exists).
       TEACHER: {
         'students.viewScoped': 'school', 'leaderboard.view': G,
+        // Test Management, Phase 2 (G2): submit for the verified students of their own schools
+        'tests.submitForStudents': 'school',
       },
       MENTOR: {
         'courses.view': CD, 'resources.view': CD, 'resources.manage': CD,
@@ -225,6 +235,7 @@ describe('permissions', () => {
         'coaches.monitor': P, 'activity.view': P,
         // Test Management (WS3, 2026-11-19): the subjects they head
         'tests.view': P, 'tests.manage': P, 'tests.manageMarkers': P,
+        'tests.extensions': P, 'tests.viewSubmissions': P,
       },
       ADMIN: ADMIN_TABLE,
       SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },
@@ -282,6 +293,23 @@ describe('permissions', () => {
         expect([p, APP_ROLES.filter((r) => p in ROLE_GRANTS[r])]).toEqual([p, ['HEAD_COACH', 'ADMIN', 'SUPER_ADMIN']]);
         expect(ROLE_GRANTS.HEAD_COACH[p]).toBe('programme');
         expect(ADMIN_PROHIBITED).not.toContain(p);   // managing tests is not marking (G4: marks are never Administrators')
+        expect(NEVER_GRANTABLE).not.toContain(p);
+      }
+    });
+
+    it('Test Management (WS3, Phase 2): extensions and tracking as Phase 1; Students submit their own; every Teacher submits for their school (G2), not a delegation', () => {
+      for (const p of ['tests.extensions', 'tests.viewSubmissions'] as const) {
+        expect([p, APP_ROLES.filter((r) => p in ROLE_GRANTS[r])]).toEqual([p, ['HEAD_COACH', 'ADMIN', 'SUPER_ADMIN']]);
+        expect(ROLE_GRANTS.HEAD_COACH[p]).toBe('programme');
+      }
+      expect(APP_ROLES.filter((r) => 'tests.submit' in ROLE_GRANTS[r])).toEqual(['STUDENT']);
+      expect(ROLE_GRANTS.STUDENT['tests.submit']).toBe('own');
+      expect(APP_ROLES.filter((r) => 'tests.submitForStudents' in ROLE_GRANTS[r])).toEqual(['TEACHER']);
+      expect(ROLE_GRANTS.TEACHER['tests.submitForStudents']).toBe('school');
+      // The course-assignment delegation stays exactly as it was: nobody holds it by default.
+      expect(APP_ROLES.filter((r) => 'submissions.submitOnBehalf' in ROLE_GRANTS[r])).toEqual([]);
+      for (const p of ['tests.extensions', 'tests.viewSubmissions', 'tests.submit', 'tests.submitForStudents'] as const) {
+        expect(ADMIN_PROHIBITED).not.toContain(p);
         expect(NEVER_GRANTABLE).not.toContain(p);
       }
     });

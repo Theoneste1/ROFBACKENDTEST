@@ -564,6 +564,17 @@ model User {
   markerAuthorizations              MarkerAuthorization[]      @relation("MarkerCoach")
   markerAuthorizationsGranted       MarkerAuthorization[]      @relation("MarkerGrantedBy")
   markerAuthorizationsRevoked       MarkerAuthorization[]      @relation("MarkerRevokedBy")
+  testExtensionsAsStudent           TestExtension[]            @relation("TestExtensionStudent")
+  testExtensionsAsTeacher           TestExtension[]            @relation("TestExtensionTeacher")
+  testExtensionsGranted             TestExtension[]            @relation("TestExtensionGrantedBy")
+  testExtensionsEdited              TestExtension[]            @relation("TestExtensionEditedBy")
+  testExtensionsCancelled           TestExtension[]            @relation("TestExtensionCancelledBy")
+  testSubmissions                   TestSubmission[]           @relation("TestSubmissionStudent")
+  testVersionsSubmitted             TestSubmissionVersion[]    @relation("TestVersionSubmitter")
+  testVersionsAsTeacher             TestSubmissionVersion[]    @relation("TestVersionTeacher")
+  testAnswerPagesAsStudent          TestAnswerPage[]           @relation("TestAnswerPageStudent")
+  testAnswerPagesUploaded           TestAnswerPage[]           @relation("TestAnswerPageUploader")
+  testSubmissionStatusChanges       TestSubmissionStatusChange[] @relation("TestSubmissionStatusActor")
 
   @@index([points])
   @@index([role])
@@ -1418,6 +1429,8 @@ model FileObject {
   mentorRequestAvatarOf      MentorRequest?      @relation("MentorRequestAvatar")
   /// A test's paper or marking guide (Test Management); keeps the file from orphan cleanup.
   testFiles                  TestFile[]
+  /// A page of a student's test answer (Test Management Phase 2); keeps the file from orphan cleanup.
+  testAnswerPage             TestAnswerPage?
 
   @@index([purpose])
   @@index([createdAt])
@@ -2660,8 +2673,11 @@ model Test {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  questions TestQuestion[]
-  files     TestFile[]
+  questions   TestQuestion[]
+  files       TestFile[]
+  extensions  TestExtension[]
+  submissions TestSubmission[]
+  answerPages TestAnswerPage[]
 
   @@index([disciplineId, status])
   @@index([createdById])
@@ -2720,4 +2736,179 @@ model MarkerAuthorization {
   @@index([coachId, revokedAt])
   @@index([grantedById])
   @@index([revokedById])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test Management, Phase 2 (WS3): deadlines, extensions, submissions and their versions.
+// Migration 20261220000200_tests_submissions. Deadlines are computed by ONE service
+// (TestDeadlineService) from database time only.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// TEST: every student of the test; STUDENT: one student (whoever submits for them); TEACHER: one teacher's own
+/// submissions for the students of their schools.
+enum TestExtensionKind {
+  TEST
+  STUDENT
+  TEACHER
+}
+
+/// The approved status flow (owner spec): SUBMITTED → ASSIGNED → MARKING_IN_PROGRESS → MARKED (awaiting approval) →
+/// APPROVED → PUBLISHED, plus RETURNED (for correction) and AWAITING_SECOND_MARKING. Phase 2 writes SUBMITTED only; the
+/// allowed transitions arrive with marking (Phase 3). Every change is kept in TestSubmissionStatusChange.
+enum TestSubmissionStatus {
+  SUBMITTED
+  ASSIGNED
+  MARKING_IN_PROGRESS
+  MARKED
+  APPROVED
+  PUBLISHED
+  RETURNED
+  AWAITING_SECOND_MARKING
+}
+
+/// Who submitted a version: the student, or a teacher of the student's school (G2).
+enum TestSubmitterRole {
+  STUDENT
+  TEACHER
+}
+
+/// A deadline extension (Administrator or the subject's Head Coach). The test's own closesAt / originalClosesAt never
+/// change. At most one ACTIVE (cancelledAt IS NULL) extension per target: partial unique indexes
+/// TestExtension_one_active_test / _student / _teacher. CHECK: the target matches the kind; a cancellation has its time
+/// and its reason. Edited or cancelled only before it expires (newDeadline, database time).
+model TestExtension {
+  id            String            @id @default(uuid())
+  testId        String
+  test          Test              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  kind          TestExtensionKind
+  studentId     String?
+  student       User?             @relation("TestExtensionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId     String?
+  teacher       User?             @relation("TestExtensionTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  newDeadline   DateTime
+  /// Mandatory; the latest reason (an edit gives a new one; the audit log keeps every one).
+  reason        String
+  grantedById   String?
+  grantedBy     User?             @relation("TestExtensionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  grantedAt     DateTime          @default(now())
+  editedAt      DateTime?
+  editedById    String?
+  editedBy      User?             @relation("TestExtensionEditedBy", fields: [editedById], references: [id], onDelete: SetNull)
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelledBy   User?             @relation("TestExtensionCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  cancelReason  String?
+
+  @@index([testId, cancelledAt])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([grantedById])
+  @@index([editedById])
+  @@index([cancelledById])
+}
+
+/// One per student per test. publicCode: opaque (random, no identity), the only identifier markers will see (Phase 3).
+/// currentVersionId: the version markers work on. Never deleted (a test with submissions cannot be deleted or
+/// unpublished; the foreign keys RESTRICT).
+model TestSubmission {
+  id               String                 @id @default(uuid())
+  testId           String
+  test             Test                   @relation(fields: [testId], references: [id], onDelete: Restrict)
+  studentId        String
+  student          User                   @relation("TestSubmissionStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  publicCode       String                 @unique
+  status           TestSubmissionStatus   @default(SUBMITTED)
+  currentVersionId String?                @unique
+  currentVersion   TestSubmissionVersion? @relation("TestSubmissionCurrentVersion", fields: [currentVersionId], references: [id], onDelete: Restrict)
+  versionCount     Int                    @default(0)
+  firstSubmittedAt DateTime?
+  lastSubmittedAt  DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  versions      TestSubmissionVersion[]      @relation("TestSubmissionVersions")
+  statusChanges TestSubmissionStatusChange[]
+
+  @@unique([testId, studentId])
+  @@index([studentId])
+  @@index([testId, status])
+}
+
+/// EVERY version of a submission, kept for ever (append-only: trigger test_submission_version_append_only). submittedAt
+/// is database time; applicableDeadline is the deadline that applied at that moment (TestDeadlineService);
+/// underExtension: accepted after the test's own closesAt thanks to an extension (extensionId). clientKey makes a repeated
+/// request idempotent (one version per key). CHECK: a TEACHER version names the teacher (the submitter); a version has a
+/// typed answer or pages.
+model TestSubmissionVersion {
+  id                 String            @id @default(uuid())
+  submissionId       String
+  submission         TestSubmission    @relation("TestSubmissionVersions", fields: [submissionId], references: [id], onDelete: Restrict)
+  number             Int
+  clientKey          String
+  submittedById      String
+  submittedBy        User              @relation("TestVersionSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  submitterRole      TestSubmitterRole
+  teacherId          String?
+  teacher            User?             @relation("TestVersionTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  submittedAt        DateTime
+  applicableDeadline DateTime
+  underExtension     Boolean
+  /// The extension that gave the applicable deadline (historical reference; no foreign key).
+  extensionId        String?
+  typedAnswer        String?
+  pageCount          Int               @default(0)
+
+  currentOf TestSubmission?  @relation("TestSubmissionCurrentVersion")
+  pages     TestAnswerPage[]
+
+  @@unique([submissionId, number])
+  @@unique([submissionId, clientKey])
+  @@index([submittedById])
+  @@index([teacherId])
+}
+
+/// One uploaded answer page (FilePurpose TEST_ANSWER: PDF or image, 20 MB). Pages are uploaded one at a time under the
+/// client's uploadKey and belong to that PENDING upload (versionId NULL) until a submission commits them: then versionId
+/// is set and the page never changes again (trigger test_answer_page_committed_guard). Re-uploading a pending page number
+/// replaces it (a weak connection retries one page).
+model TestAnswerPage {
+  id           String                 @id @default(uuid())
+  testId       String
+  test         Test                   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User                   @relation("TestAnswerPageStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  uploadKey    String
+  pageNumber   Int
+  fileId       String                 @unique
+  file         FileObject             @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  uploadedById String
+  uploadedBy   User                   @relation("TestAnswerPageUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  uploaderRole TestSubmitterRole
+  versionId    String?
+  version      TestSubmissionVersion? @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@unique([testId, studentId, uploadKey, pageNumber])
+  @@index([versionId, pageNumber])
+  @@index([studentId])
+  @@index([uploadedById])
+}
+
+/// Append-only status history of a submission (trigger test_submission_status_append_only; the only permitted change is
+/// actorId becoming NULL when the account is deleted).
+model TestSubmissionStatusChange {
+  id           String                @id @default(uuid())
+  submissionId String
+  submission   TestSubmission        @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  fromStatus   TestSubmissionStatus?
+  toStatus     TestSubmissionStatus
+  actorId      String?
+  actor        User?                 @relation("TestSubmissionStatusActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole    String
+  reason       String?
+  createdAt    DateTime              @default(now())
+
+  @@index([submissionId, createdAt])
+  @@index([actorId])
 }

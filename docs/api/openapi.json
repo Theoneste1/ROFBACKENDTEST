@@ -47149,6 +47149,1421 @@
         "x-permission": "tests.manageMarkers",
         "description": "**Access:** permission `tests.manageMarkers` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
+    },
+    "/api/v1/admin/tests/{id}/extensions": {
+      "get": {
+        "operationId": "AdminTestExtensionsController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "active (default: not cancelled), cancelled or all.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "cancelled",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TEST",
+                "STUDENT",
+                "TEACHER"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test's extensions: ?state=active (default) | cancelled | all, ?kind. Paginated.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.extensions",
+        "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "AdminTestExtensionsController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTestExtensionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Grant { kind, studentId? | teacherId?, newDeadline, reason }. 400 EXTENSION_NOT_LATER, EXTENSION_IN_PAST,\nEXTENSION_TARGET_REQUIRED, STUDENT_NOT_IN_DIVISION; 404 STUDENT_NOT_FOUND, TEACHER_NOT_FOUND; 409 EXTENSION_ALREADY_ACTIVE.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.extensions",
+        "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/extension-targets": {
+      "get": {
+        "operationId": "AdminTestExtensionsController_targets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STUDENT",
+                "TEACHER"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the first name, last name or username (1–100 characters).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Students (of the test's division) or teachers an individual extension can name: ?kind=STUDENT|TEACHER, ?q.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.extensions",
+        "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/extensions/{extensionId}": {
+      "patch": {
+        "operationId": "AdminTestExtensionsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "extensionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTestExtensionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change { newDeadline?, reason } before it expires. 409 EXTENSION_CANCELLED, EXTENSION_EXPIRED.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.extensions",
+        "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/extensions/{extensionId}/cancel": {
+      "post": {
+        "operationId": "AdminTestExtensionsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "extensionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelTestExtensionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cancel { reason } before it expires. 409 EXTENSION_CANCELLED, EXTENSION_EXPIRED.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.extensions",
+        "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/submissions": {
+      "get": {
+        "operationId": "AdminTestSubmissionsController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "SUBMITTED, NOT_SUBMITTED, LATE_BLOCKED (no submission, deadline passed) or UNDER_EXTENSION (an extension applies).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUBMITTED",
+                "NOT_SUBMITTED",
+                "LATE_BLOCKED",
+                "UNDER_EXTENSION"
+              ]
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "division",
+            "required": false,
+            "in": "query",
+            "description": "The student's division (by grade): JUNIOR (S1–S3) or SENIOR (S4–S6).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "SENIOR"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the student's first name, last name or username (1–100 characters).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tracking: ?status=SUBMITTED|NOT_SUBMITTED|LATE_BLOCKED|UNDER_EXTENSION, ?schoolId, ?division, ?q; counts. Paginated.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewSubmissions",
+        "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/submissions/{submissionId}": {
+      "get": {
+        "operationId": "AdminTestSubmissionsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One submission: every version (submitter, teacher, time, applicable deadline, under extension, pages), status history.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewSubmissions",
+        "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}": {
+      "get": {
+        "operationId": "AdminTestSubmissionsController_page",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A page of a version (page-3.jpg …).",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewSubmissions",
+        "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/me/tests": {
+      "get": {
+        "operationId": "MyTestsController_list",
+        "parameters": [
+          {
+            "name": "window",
+            "required": false,
+            "in": "query",
+            "description": "UPCOMING, OPEN or CLOSED (database time; the deadline includes any extension).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "UPCOMING",
+                "OPEN",
+                "CLOSED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "My tests: ?window=UPCOMING|OPEN|CLOSED; each with my deadline, window, submission summary and canSubmit. Paginated.",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/me/tests/{id}": {
+      "get": {
+        "operationId": "MyTestsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test (questions once open), my deadline, my submission with every version. 404 TEST_NOT_FOUND (draft, other division).",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/me/tests/{id}/paper": {
+      "get": {
+        "operationId": "MyTestsController_paper",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test paper (neutral name), once the test opened. 409 TEST_NOT_OPEN; 404 TEST_FILE_NOT_FOUND.",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/me/tests/{id}/uploads/{uploadKey}": {
+      "get": {
+        "operationId": "MyTestsController_pending",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Pages uploaded under :uploadKey and not yet submitted.",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}": {
+      "post": {
+        "operationId": "MyTestsController_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Upload ONE page (multipart field `file`; PDF or image, 20 MB) as page :page of the upload :uploadKey; the same page\nagain replaces it. 400 UPLOAD_NOT_ALLOWED (typed-only test), TOO_MANY_PAGES; 409 DEADLINE_PASSED, TEST_NOT_OPEN,\nUPLOAD_ALREADY_SUBMITTED; 415 FILE_TYPE_NOT_ALLOWED.",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      },
+      "delete": {
+        "operationId": "MyTestsController_removePage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove a pending page. 404 PAGE_NOT_FOUND (also for a submitted page: those never change).",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/me/tests/{id}/submission": {
+      "post": {
+        "operationId": "MyTestsController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitTestAnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit (first time) or replace (a new version; every version is kept): { clientKey, typedAnswer?, pageCount? }.\nThe same clientKey again returns the same version (replayed: true). 400 TYPED_ANSWER_REQUIRED, PAGES_REQUIRED,\nTYPED_ANSWER_NOT_ALLOWED, UPLOAD_NOT_ALLOWED, ANSWER_REQUIRED; 409 DEADLINE_PASSED, PAGES_INCOMPLETE, TEST_NOT_OPEN.",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/me/tests/{id}/versions/{versionId}/pages/{page}": {
+      "get": {
+        "operationId": "MyTestsController_page",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A page of one of my versions (page-3.jpg …).",
+        "tags": [
+          "Tests · Students"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/teacher/tests": {
+      "get": {
+        "operationId": "TeacherTestsController_list",
+        "parameters": [
+          {
+            "name": "window",
+            "required": false,
+            "in": "query",
+            "description": "UPCOMING, OPEN or CLOSED (database time; the deadline includes any extension).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "UPCOMING",
+                "OPEN",
+                "CLOSED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Published tests (?window), each with my general deadline, how many of my students may answer and have submitted.",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/tests/{id}/paper": {
+      "get": {
+        "operationId": "TeacherTestsController_paper",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test paper (neutral name), once the test opened.",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/tests/{id}/students": {
+      "get": {
+        "operationId": "TeacherTestsController_students",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUBMITTED",
+                "NOT_SUBMITTED",
+                "LATE_BLOCKED"
+              ]
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "My students for this test (?status, ?schoolId, ?q): deadline, state, submission; with counts. Paginated.",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/tests/{id}/students/{studentId}": {
+      "get": {
+        "operationId": "TeacherTestsController_student",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One of my students for this test: the test, the deadline when I submit, the submission's versions.",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}": {
+      "get": {
+        "operationId": "TeacherTestsController_pending",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Pages I uploaded under :uploadKey for this student and not yet submitted.",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}": {
+      "post": {
+        "operationId": "TeacherTestsController_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Upload ONE page for the student (same rules as the student's own upload).",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      },
+      "delete": {
+        "operationId": "TeacherTestsController_removePage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uploadKey",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove a pending page I uploaded.",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/tests/{id}/students/{studentId}/submission": {
+      "post": {
+        "operationId": "TeacherTestsController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitTestAnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit or replace for the student: { clientKey, typedAnswer?, pageCount? } (same rules and idempotency).",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}": {
+      "get": {
+        "operationId": "TeacherTestsController_page",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A page of one of the student's versions (page-3.jpg …).",
+        "tags": [
+          "Tests · Teachers"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
     }
   },
   "info": {
@@ -50321,6 +51736,100 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "CreateTestExtensionDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "TEST (every student), STUDENT (one student) or TEACHER (one teacher's submissions for their own-school students).",
+            "enum": [
+              "TEST",
+              "STUDENT",
+              "TEACHER"
+            ]
+          },
+          "studentId": {
+            "type": "string",
+            "description": "The student (kind STUDENT).",
+            "format": "uuid"
+          },
+          "teacherId": {
+            "type": "string",
+            "description": "The teacher (kind TEACHER).",
+            "format": "uuid"
+          },
+          "newDeadline": {
+            "type": "string",
+            "description": "ISO 8601 date-time; later than the test's deadline and than now (database time)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "kind",
+          "newDeadline",
+          "reason"
+        ]
+      },
+      "UpdateTestExtensionDto": {
+        "type": "object",
+        "properties": {
+          "newDeadline": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (3–500 characters): why it changes (it becomes the extension's reason).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "CancelTestExtensionDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "SubmitTestAnswerDto": {
+        "type": "object",
+        "properties": {
+          "clientKey": {
+            "type": "string",
+            "description": "A UUID the client generates once per attempt; also the key its pages were uploaded under.",
+            "format": "uuid"
+          },
+          "typedAnswer": {
+            "type": "string",
+            "description": "The typed answer (up to 50 000 characters), when the format allows it.",
+            "maxLength": 50000
+          },
+          "pageCount": {
+            "type": "number",
+            "description": "How many pages the client uploaded under clientKey (1…30); 409 PAGES_INCOMPLETE when some are missing.",
+            "minimum": 0,
+            "maximum": 30
+          }
+        },
+        "required": [
+          "clientKey"
         ]
       },
       "Error": {

@@ -96,6 +96,10 @@ permission guard.
 | `tests.view` | — | — | — | programme | all | all |
 | `tests.manage` | — | — | — | programme | all | all |
 | `tests.manageMarkers` | — | — | — | programme | all | all |
+| `tests.extensions` | — | — | — | programme | all | all |
+| `tests.viewSubmissions` | — | — | — | programme | all | all |
+| `tests.submit` | own | — | — | — | — | — |
+| `tests.submitForStudents` | — | school | — | — | — | — |
 
 ## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
 
@@ -106,6 +110,21 @@ none of them (authorised markers arrive in Phase 3; marking will be a separate p
 Administrators never mark or adjust marks, G4). A marker authorisation is separate from a coach's Olympiad interests: an
 interest never grants marking. The marking guide is served only to holders of `tests.view` for the test's subject. Every
 change is audited in the TESTS category, in the same transaction. Appended to the frozen ADMIN list additively.
+
+### Phase 2: deadlines, extensions, submissions
+
+- `tests.extensions` (grant / edit / cancel deadline extensions) and `tests.viewSubmissions` (submission tracking, every
+  version with its submitter, teacher and extension status): Administrators and Super Admins in every subject; Head
+  Coaches in the subjects they head (same service check). Appended to the frozen ADMIN list additively.
+- `tests.submit` (own): Students submit and replace their own answer to a published, open test of their division.
+  Appended to the frozen STUDENT list additively, so the student portal shows My tests.
+- `tests.submitForStudents` (school; owner decision G2): every Teacher of a school, primary or secondary, by default —
+  only for the VERIFIED students of their own ACTIVE schools whose account is active (another student: 403
+  `STUDENT_NOT_IN_SCOPE`). The course-assignment delegation `submissions.submitOnBehalf` is separate and unchanged
+  (individual GRANT only).
+- Deadlines come from one service, in database time; a student or teacher sees the deadline that applies to them, never
+  an "extended" mark (Administrators and Head Coaches only — never markers). All new; none is in `ADMIN_PROHIBITED` or
+  `NEVER_GRANTABLE`; like every default, each can be denied to an individual.
 
 ## Countries (owner decision 2026-11-19)
 
