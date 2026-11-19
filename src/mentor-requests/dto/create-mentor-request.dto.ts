@@ -40,7 +40,7 @@ export class CreateMentorRequestDto {
   @IsStrongPassword()
   password: string;
 
-  // ─── Application details (capability coachApplicationDetails; optional for older clients) ───
+  // ─── Application details (capability coachApplicationDetails; optional for older clients, except the subjects) ───
   // No passport or national ID: the existing system does not require one.
 
   /** The applicant's country (ISO 3166-1 alpha-2). Copied to the Coach account on approval. */
@@ -61,13 +61,16 @@ export class CreateMentorRequestDto {
   @IsEnum(CoachEducationLevel, { message: 'educationLevel must be one of SECONDARY, DIPLOMA, BACHELOR, MASTER, DOCTORATE, OTHER.' })
   educationLevel?: CoachEducationLevel;
 
-  /** One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). Copied to the Coach account on approval; information only. */
-  @IsOptional()
-  @IsArray()
+  /**
+   * The subjects the applicant would like to coach: one or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates).
+   * REQUIRED for every new application (owner decision 2026-11-19, capability coachOlympiadInterests). Copied to the Coach
+   * account on approval; information only — it never grants marking or any other permission.
+   */
+  @IsArray({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
   @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
-  @ArrayUnique()
+  @ArrayUnique({ message: 'olympiadInterests must not name a subject twice.' })
   @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
-  olympiadInterests?: OlympiadSubject[];
+  olympiadInterests: OlympiadSubject[];
 
   /** Phone, stored in E.164 (else 400 INVALID_PHONE). REG-06. */
   @IsOptional()

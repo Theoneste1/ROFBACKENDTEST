@@ -245,7 +245,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await status(register(listed({ email: 'DUP.Teacher@test.local' })))).toEqual([409, 'IDENTITY_TAKEN']);
       // An existing user or a pending coach application blocks too.
       expect(await status(register(listed({ username: 'student.j' })))).toEqual([409, 'IDENTITY_TAKEN']);
-      await http().post('/api/v1/mentor-requests').send({ firstName: 'Co', lastName: 'Ach', username: 'coach.pending', email: 'coach.pending@test.local', password: 'Secret123' }).expect(201);
+      await http().post('/api/v1/mentor-requests').send({ firstName: 'Co', lastName: 'Ach', username: 'coach.pending', email: 'coach.pending@test.local', password: 'Secret123', olympiadInterests: ['MATHEMATICS'] }).expect(201);
       expect(await status(register(listed({ email: 'coach.pending@test.local' })))).toEqual([409, 'IDENTITY_TAKEN']);
 
       // The database refuses a second PENDING row even without the application check (partial unique indexes).
@@ -260,7 +260,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
         dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220001',
       }))).toEqual([409, 'IDENTITY_TAKEN']);
       expect(await status(http().post('/api/v1/mentor-requests').send({
-        firstName: 'Co', lastName: 'Dup', username: 'dup.teacher', email: 'coach.dup@test.local', password: 'Secret123',
+        firstName: 'Co', lastName: 'Dup', username: 'dup.teacher', email: 'coach.dup@test.local', password: 'Secret123', olympiadInterests: ['MATHEMATICS'],
       }))).toEqual([409, 'IDENTITY_TAKEN']);
 
       // Rejected: the identity is free again, for a new application.

@@ -100,10 +100,19 @@ export const FEATURES = {
   /**
    * Coach application details: POST /api/v1/mentor-requests accepts `country`, `occupation`, `educationLevel`
    * (SECONDARY | DIPLOMA | BACHELOR | MASTER | DOCTORATE | OTHER) and `olympiadInterests`; the admin list returns them
-   * and approval copies country and interests to the Coach account. Optional at the API for older clients. Without
-   * this feature the fields are refused (400).
+   * and approval copies country and interests to the Coach account. Optional at the API for older clients, except
+   * `olympiadInterests`, required since 2026-11-19 (coachOlympiadInterests). Without this feature the fields are refused (400).
    */
   coachApplicationDetails: 'always',
+  /**
+   * Coaches' subject interests (owner decision 2026-11-19, Option A: the existing `olympiadInterests`, no new data):
+   * POST /api/v1/mentor-requests REQUIRES `olympiadInterests` (one or more of MATHEMATICS, COMPUTING, PHYSICS; no
+   * duplicates) and approval copies it to the Coach account; a Coach views and edits their own on GET / PATCH /api/v1/me
+   * (at least one when sent); an Administrator who may manage Coach accounts (users.manage + users.manageCoaches) edits a
+   * Coach's on PATCH /api/v1/admin/users/:id (Coach accounts only: 400 INTERESTS_COACH_ONLY). Existing coaches without
+   * interests stay valid; nothing is ever filled in automatically. Information only: never grants marking or any permission.
+   */
+  coachOlympiadInterests: 'always',
   /**
    * Application details and "request more information" (2026-11-17; ADR-009): POST /auth/register/teacher accepts
    * `position` and `yearsOfExperience`; POST /mentor-requests accepts `phone`, `affiliation`, `expertise`,

@@ -267,7 +267,7 @@ describe('Programme membership (P1-07)', () => {
 
     it('approved coach application', async () => {
       const apply = await http().post('/api/v1/mentor-requests')
-        .send({ firstName: 'K6', lastName: 'Applicant', username: 'k6.app', email: 'k6.app@test.local', password: 'Mentor123' }).expect(201);
+        .send({ firstName: 'K6', lastName: 'Applicant', username: 'k6.app', email: 'k6.app@test.local', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] }).expect(201);
       expect(await membershipOf('k6.app')).toEqual([]);   // no account yet
       await http().patch(`/api/v1/mentor-requests/${apply.body.id}/approve`).set(bearer(admin)).expect(200);
       expect(await membershipOf('k6.app')).toEqual([{ disciplineId: mathsId, source: 'MANUAL', addedById: ctx.ids.admin, isActive: true }]);

@@ -115,10 +115,13 @@ describe('student registration details (studentRegistrationDetails)', () => {
 });
 
 describe('coach application details (coachApplicationDetails)', () => {
-  const COACH = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123' };
+  // The subjects are required on every new application since 2026-11-19 (owner decision, coachOlympiadInterests).
+  const COACH = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123', olympiadInterests: ['MATHEMATICS'] };
 
-  it('older clients: none of the new fields is needed', () => {
+  it('older clients: none of the other new fields is needed; the subjects are (coachOlympiadInterests)', () => {
     expect(problems(CreateMentorRequestDto, COACH)).toEqual({});
+    const { olympiadInterests: _subjects, ...withoutSubjects } = COACH;
+    expect(Object.keys(problems(CreateMentorRequestDto, withoutSubjects))).toEqual(['olympiadInterests']);
   });
 
   it('country, occupation, education level and interests', () => {

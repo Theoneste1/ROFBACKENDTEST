@@ -182,6 +182,10 @@ export class UsersService {
     }
     // The shared seeded account is never promoted to Super Admin, nor renamed out of that rule (P1-08 hardening).
     this.roles.assertSharedAccountRules(existing, { role: data.role, username: data.username });
+    // Subject interests are edited here for Coach accounts only (coachOlympiadInterests); students edit theirs on PATCH /me.
+    if (data.olympiadInterests !== undefined && (data.role ?? existing.role) !== 'MENTOR') {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INTERESTS_COACH_ONLY', 'Olympiad interests can be edited here for Coach accounts only.');
+    }
     // schoolCode → the school's id (PR B). Not required to be active here: re-sending a student's
     // current school creates no claim; a NEW claim for an inactive school is refused by claim().
     if (data.schoolCode !== undefined) {
@@ -219,6 +223,8 @@ export class UsersService {
       email:     data.email,
       role,
       ...(data.password && { passwordHash: await bcrypt.hash(data.password, BCRYPT_COST) }),
+      // Stored in the fixed order, like the coach's own edit (PATCH /me); information only.
+      ...(data.olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(data.olympiadInterests) }),
     };
 
     const grade = role === 'STUDENT' ? (data.gradeLevel ?? existing.gradeLevel) : null;
@@ -257,6 +263,10 @@ export class UsersService {
         throw new AppError(HttpStatus.CONFLICT, 'USER_CHANGED_CONCURRENTLY',
           'This user was changed by someone else in the meantime. Reload the user and try again.');
       }
+      // The coach's interests before this edit (read under the row lock), for the audit entry.
+      const interestsBefore = data.olympiadInterests !== undefined
+        ? (await tx.user.findUniqueOrThrow({ where: { id }, select: { olympiadInterests: true } })).olympiadInterests
+        : undefined;
 
       // School affiliation follows the student's school and role, in this transaction:
       //   leaving STUDENT            → the current claim is superseded (ROLE_CHANGE);
@@ -276,7 +286,7 @@ export class UsersService {
 
       const updated = await tx.user.update({
         where: { id }, data: updateData,
-        select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true },
+        select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true, olympiadInterests: true },
       });
       if (nextClaim) await this.affiliations.claim(tx, nextClaim);
       let enrollment: 'PLACED' | 'WITHDRAWN' | null = null;
@@ -332,7 +342,11 @@ export class UsersService {
       }
 
       // The audit entries commit with the change: what changed, from what, to what.
-      const changes = diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
+      const changes: Record<string, { from: unknown; to: unknown }> =
+        diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
+      if (interestsBefore && interestsBefore.join() !== updated.olympiadInterests.join()) {
+        changes.olympiadInterests = { from: interestsBefore, to: updated.olympiadInterests };
+      }
 
       // A new e-mail address: links already e-mailed to the old address (invitation, e-mail
       // verification, password reset) stop working, in this transaction. Otherwise whoever holds

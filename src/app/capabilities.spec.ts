@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkUserOperations', 'coachApplicationDetails', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -46,6 +46,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   studentRegistrationDetails: 'always', // appended 2026-11-15: date of birth, phones, own country, official home place
   teacherAccounts:         'TEACHER',
   teacherSelfRegistration: 'TEACHER',  // appended 2026-11-13: teacher applications (owner-approved)
+  coachOlympiadInterests:  'always',   // appended 2026-11-19: coach subject interests required on applications, coach / admin edit (Option A)
 };
 
 describe('GET /api/v1 capabilities', () => {

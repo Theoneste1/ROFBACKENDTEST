@@ -47191,6 +47191,20 @@
             "type": "string",
             "minLength": 2,
             "maxLength": 200
+          },
+          "olympiadInterests": {
+            "type": "array",
+            "description": "A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of\nMATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the\nroute already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only:\ninterests never grant marking or any other permission.",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
           }
         }
       },
@@ -48473,7 +48487,7 @@
           },
           "olympiadInterests": {
             "type": "array",
-            "description": "One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). Copied to the Coach account on approval; information only.",
+            "description": "The subjects the applicant would like to coach: one or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates).\nREQUIRED for every new application (owner decision 2026-11-19, capability coachOlympiadInterests). Copied to the Coach\naccount on approval; information only — it never grants marking or any other permission.",
             "minItems": 1,
             "uniqueItems": true,
             "items": {
@@ -48521,7 +48535,8 @@
           "lastName",
           "username",
           "email",
-          "password"
+          "password",
+          "olympiadInterests"
         ]
       },
       "ApproveMentorRequestDto": {

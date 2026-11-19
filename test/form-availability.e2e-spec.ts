@@ -32,7 +32,7 @@ describe('Form availability', () => {
   };
   const applyCoach = () => {
     n++;
-    return http().post('/api/v1/mentor-requests').send({ firstName: 'Marie', lastName: 'Coach', username: `form.coach${n}`, email: `form.coach${n}@example.com`, password: 'Mentor123' });
+    return http().post('/api/v1/mentor-requests').send({ firstName: 'Marie', lastName: 'Coach', username: `form.coach${n}`, email: `form.coach${n}@example.com`, password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] });
   };
   const contact = () => {
     n++;

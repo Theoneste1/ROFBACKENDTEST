@@ -87,7 +87,7 @@ describe('Release notices (e2e)', () => {
 
   it('a coach application → administrators once per submission; a re-application is a new notice', async () => {
     const apply = await ctx.http().post('/api/v1/mentor-requests')
-      .send({ firstName: 'Eric', lastName: 'Mugisha', username: 'eric.m', email: 'eric.m@example.com', password: 'Mentor123' })
+      .send({ firstName: 'Eric', lastName: 'Mugisha', username: 'eric.m', email: 'eric.m@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] })
       .expect(201);
     await waitForEvents();
     const where = { userId: ctx.ids.admin, type: 'registration.mentor_request', data: { path: ['mentorRequestId'], equals: apply.body.id } };
@@ -103,7 +103,7 @@ describe('Release notices (e2e)', () => {
 
     await ctx.http().patch(`/api/v1/mentor-requests/${apply.body.id}/reject`).set(bearer(admin)).expect(200);
     const again2 = await ctx.http().post('/api/v1/mentor-requests')
-      .send({ firstName: 'Eric', lastName: 'Mugisha', username: 'eric.m', email: 'eric.m@example.com', password: 'Mentor123' })
+      .send({ firstName: 'Eric', lastName: 'Mugisha', username: 'eric.m', email: 'eric.m@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] })
       .expect(201);
     await waitForEvents();
     // The re-application is its own application (one row per attempt): one new notice, for the new request.
