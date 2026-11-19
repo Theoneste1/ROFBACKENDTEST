@@ -23950,6 +23950,32 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Sort (schools table, 2026-11-19): `name` (default) or `verifiedStudents` — the number of students whose CURRENT\nschool claim an Administrator verified. Ties: name, then id.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "verifiedStudents"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "description": "asc (default) or desc.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
           }
         ],
         "responses": {

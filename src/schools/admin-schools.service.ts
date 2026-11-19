@@ -82,21 +82,50 @@ export class AdminSchoolsService {
         sourceRecords: q.hasSourceIssues ? { some: { issueCount: { gt: 0 } } } : { none: { issueCount: { gt: 0 } } },
       }),
     };
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.school.findMany({
-        where, skip, take, orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        select: { ...SCHOOL_SELECT, _count: { select: { students: true } } },
+    const select = { ...SCHOOL_SELECT, _count: { select: { students: true } } } as const;
+    const order = q.order ?? 'asc';
+    let rows: Array<Prisma.SchoolGetPayload<{ select: typeof select }>>;
+    let total: number;
+    if (q.sort === 'verifiedStudents') {
+      // Sorted by the number of current VERIFIED claims (schools table, 2026-11-19): the filtered schools' ids, then ONE
+      // query that joins their grouped verified counts and returns the requested page in order (no per-school query).
+      const ids = (await this.prisma.school.findMany({ where, select: { id: true } })).map((r) => r.id);
+      total = ids.length;
+      const pageIds = ids.length === 0 ? [] : (await this.prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT s."id"
+          FROM "School" s
+          LEFT JOIN (SELECT "schoolId", count(*) AS n FROM "StudentSchoolAffiliation"
+                      WHERE "supersededAt" IS NULL AND "status" = 'VERIFIED' AND "schoolId" = ANY(${ids}::text[])
+                      GROUP BY "schoolId") v ON v."schoolId" = s."id"
+         WHERE s."id" = ANY(${ids}::text[])
+         ORDER BY COALESCE(v.n, 0) ${order === 'desc' ? Prisma.sql`DESC` : Prisma.sql`ASC`}, s."name" ASC, s."id" ASC
+         LIMIT ${take} OFFSET ${skip}`).map((r) => r.id);
+      const found = await this.prisma.school.findMany({ where: { id: { in: pageIds } }, select });
+      const byId = new Map(found.map((r) => [r.id, r]));
+      rows = pageIds.map((id) => byId.get(id)!).filter(Boolean);
+    } else {
+      [rows, total] = await this.prisma.$transaction([
+        this.prisma.school.findMany({ where, skip, take, orderBy: [{ name: order }, { id: order }], select }),
+        this.prisma.school.count({ where }),
+      ]);
+    }
+    const ids = rows.map((r) => r.id);
+    const [verified, primaries] = ids.length === 0 ? [[], []] : await Promise.all([
+      this.prisma.studentSchoolAffiliation.groupBy({
+        by: ['schoolId'], where: { schoolId: { in: ids }, supersededAt: null, status: 'VERIFIED' }, _count: { _all: true },
       }),
-      this.prisma.school.count({ where }),
+      // The school's primary teacher (owner decision 2026-11-19): at most one active PRIMARY link per school.
+      this.prisma.teacherSchoolAssignment.findMany({
+        where: { schoolId: { in: ids }, isActive: true, role: 'PRIMARY' },
+        select: { schoolId: true, teacher: { select: { id: true, username: true, firstName: true, lastName: true } } },
+      }),
     ]);
-    const verified = rows.length
-      ? await this.prisma.studentSchoolAffiliation.groupBy({
-          by: ['schoolId'], where: { schoolId: { in: rows.map((r) => r.id) }, supersededAt: null, status: 'VERIFIED' }, _count: { _all: true },
-        })
-      : [];
     const verifiedBy = new Map(verified.map((v) => [v.schoolId, v._count._all]));
+    const primaryBy = new Map(primaries.map((p) => [p.schoolId, p.teacher]));
     return paginated(
-      rows.map(({ _count, ...s }) => ({ ...s, students: _count.students, verifiedStudents: verifiedBy.get(s.id) ?? 0 })),
+      rows.map(({ _count, ...s }) => ({
+        ...s, students: _count.students, verifiedStudents: verifiedBy.get(s.id) ?? 0, primaryTeacher: primaryBy.get(s.id) ?? null,
+      })),
       total, page, limit,
     );
   }
