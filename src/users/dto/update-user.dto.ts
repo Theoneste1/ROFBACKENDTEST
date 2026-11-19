@@ -87,6 +87,19 @@ export class UpdateUserDto {
   @Length(2, 200)
   @Transform(trim)
   homeLocation?: string;
+
+  /**
+   * A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of
+   * MATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the
+   * route already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only:
+   * interests never grant marking or any other permission.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @ArrayUnique({ message: 'olympiadInterests must not name a subject twice.' })
+  @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
+  olympiadInterests?: OlympiadSubject[];
 }
 
 export class UpdateUserStatusDto {

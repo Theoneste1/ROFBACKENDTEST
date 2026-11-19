@@ -300,7 +300,7 @@ describe('Authentication (e2e)', () => {
 
   it('mentor application → approval creates a mentor who can log in', async () => {
     const apply = await ctx.http().post('/api/v1/mentor-requests')
-      .send({ firstName: 'Marie', lastName: 'Ingabire', username: 'marie', email: 'marie@example.com', password: 'Mentor123' })
+      .send({ firstName: 'Marie', lastName: 'Ingabire', username: 'marie', email: 'marie@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] })
       .expect(201);
     expect(apply.body.passwordHash).toBeUndefined();
 

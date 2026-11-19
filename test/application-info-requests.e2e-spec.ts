@@ -36,7 +36,7 @@ describe('Application details and requests for more information (e2e)', () => {
   };
   const coachBody = (over: Record<string, unknown> = {}) => {
     n += 1;
-    return { firstName: 'Eric', lastName: 'Coach', username: `air.c${n}`, email: `air.c${n}@test.local`, password: 'Mentor123', ...over };
+    return { firstName: 'Eric', lastName: 'Coach', username: `air.c${n}`, email: `air.c${n}@test.local`, password: 'Mentor123', olympiadInterests: ['MATHEMATICS'], ...over };
   };
 
   beforeAll(async () => {
@@ -175,7 +175,9 @@ describe('Application details and requests for more information (e2e)', () => {
     const SECRETS = ['House 12 KG 5 Ave', 'What is your home address?'];
     const noSecret = (value: unknown) => { const t = JSON.stringify(value); for (const s of SECRETS) expect(t).not.toContain(s); };
     const listed = async (status: string) => (await http().get('/api/v1/mentor-requests').query({ status, limit: 100 }).set(bearer(admin)).expect(200)).body.data as any[];
-    let victim: Record<string, string>, victimId: string;
+    /** A coach application body (coachBody): strings, and the subjects. */
+    type CoachBody = { username: string; email: string; password: string; olympiadInterests: string[]; [field: string]: string | string[] };
+    let victim: CoachBody, victimId: string;
 
     beforeAll(async () => {
       // The first applicant is asked a private question, answers it, and is rejected.
@@ -187,7 +189,7 @@ describe('Application details and requests for more information (e2e)', () => {
     });
 
     /** A new attempt: a new row; nothing of the victim's history in the public response, the admin list or admin answers. */
-    const expectIsolated = async (body: Record<string, string>) => {
+    const expectIsolated = async (body: CoachBody) => {
       const res = await http().post('/api/v1/mentor-requests').send(body).expect(201);
       expect(res.body.id).not.toBe(victimId);
       expect(res.body).not.toHaveProperty('infoRequests');

@@ -2153,6 +2153,7 @@ Body (JSON):
 | `schoolId` | string (uuid) |  | Omitted: the school is kept. A school id: the student moves to that school. null: the student's school is cleared (their current school claim ends; no new claim is created). |
 | `schoolCode` | string |  | A Rwandan school by its official code — an alternative to schoolId (PR B). Given together, both must name the same school. |
 | `homeLocation` | string |  |  |
+| `olympiadInterests` | string[] |  | A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the route already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only: interests never grant marking or any other permission. |
 
 Returns `200` JSON with:
 
@@ -4147,7 +4148,7 @@ Body (JSON):
 | `country` | string |  |  |
 | `occupation` | string |  | Current or most recent occupation, as entered (2–200 characters). |
 | `educationLevel` | SECONDARY \| DIPLOMA \| BACHELOR \| MASTER \| DOCTORATE \| OTHER |  | Highest education level. |
-| `olympiadInterests` | string[] |  | One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). Copied to the Coach account on approval; information only. |
+| `olympiadInterests` | string[] | ✓ | The subjects the applicant would like to coach: one or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). REQUIRED for every new application (owner decision 2026-11-19, capability coachOlympiadInterests). Copied to the Coach account on approval; information only — it never grants marking or any other permission. |
 | `phone` | string |  | Phone, stored in E.164 (else 400 INVALID_PHONE). REG-06. |
 | `affiliation` | string |  | Institution or affiliation, where applicable (2–200). |
 | `expertise` | string |  | Areas of expertise (2–1000). |

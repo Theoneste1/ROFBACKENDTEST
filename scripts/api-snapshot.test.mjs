@@ -249,7 +249,12 @@ const INFO_REQUEST_TOKEN_BODY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-18-
  * (reference.manage) — additive only, no response field of an existing operation changes.
  */
 const COUNTRIES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-countries.json';
-const CURRENT_SNAPSHOT = COUNTRIES_SNAPSHOT;
+/**
+ * Coach subject interests (owner decision 2026-11-19, Option A — the existing olympiadInterests): required on every new
+ * coach application (one approved breaking change) and editable by an Administrator on a Coach account (one optional field).
+ */
+const COACH_INTERESTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-coach-interests.json';
+const CURRENT_SNAPSHOT = COACH_INTERESTS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1308,6 +1313,18 @@ describe('approved API contract history', () => {
       'PATCH /api/v1/admin/countries/{code}: operation added',
       'schema UpdateCountryDto: added',
     ]);
+  });
+
+  // The owner approved making the subjects REQUIRED on new coach applications (2026-11-19, Option A): a newly required
+  // request field is breaking by design here, so it is pinned explicitly — with the one optional field that lets an
+  // Administrator edit a Coach's subjects — and nothing else may change.
+  test('countries → coach subject interests (owner decision 2026-11-19): the approved required field and one optional field, nothing else', () => {
+    for (const f of [COUNTRIES_SNAPSHOT, COACH_INTERESTS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(COUNTRIES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(COACH_INTERESTS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, ['POST /api/v1/mentor-requests › request application/json.olympiadInterests: field is now required']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PATCH /api/v1/admin/users/{id} › request application/json.olympiadInterests: new optional field']);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

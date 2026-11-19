@@ -232,11 +232,13 @@ describe('Registration details (e2e)', () => {
       expect(res.body.school).toMatchObject({ name: 'GS DETAILS' });
     });
 
-    it('a coach application with only the original five fields', async () => {
+    // Since 2026-11-19 (owner decision, coachOlympiadInterests) the subjects are required on every new application:
+    // the original five fields plus `olympiadInterests`; the other details stay optional for older clients.
+    it('a coach application with only the original five fields and the now-required subjects', async () => {
       const res = await http().post('/api/v1/mentor-requests').send({
-        firstName: 'Five', lastName: 'Fields', username: 'rd.five', email: 'rd.five@example.com', password: 'Mentor123',
+        firstName: 'Five', lastName: 'Fields', username: 'rd.five', email: 'rd.five@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'],
       }).expect(201);
-      expect(res.body).toMatchObject({ status: 'PENDING', country: null, occupation: null, educationLevel: null, olympiadInterests: [] });
+      expect(res.body).toMatchObject({ status: 'PENDING', country: null, occupation: null, educationLevel: null, olympiadInterests: ['MATHEMATICS'] });
       expect(res.body.passwordHash).toBeUndefined();
     });
   });
@@ -258,14 +260,15 @@ describe('Registration details (e2e)', () => {
     expect(audits.find((a) => a.action === 'SUBMIT_MENTOR_REQUEST')?.metadata).toEqual({ reapplication: false });
   });
 
+  // Older clients still work with the other details left out; the subjects are required since 2026-11-19 (coachOlympiadInterests).
   it('coach applications: older clients still work; invalid details refused; no national ID field', async () => {
     await http().post('/api/v1/mentor-requests').send({
-      firstName: 'Old', lastName: 'Client', username: 'rd.oldcoach', email: 'rd.oldcoach@example.com', password: 'Mentor123',
+      firstName: 'Old', lastName: 'Client', username: 'rd.oldcoach', email: 'rd.oldcoach@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'],
     }).expect(201);
     for (const bad of [{ country: 'Kenya' }, { occupation: 'x' }, { educationLevel: 'PHD' }, { olympiadInterests: [] }, { nationalId: '1199880012345678' }]) {
       const username = `rd.badcoach${++n}`;
       const res = await http().post('/api/v1/mentor-requests').send({
-        firstName: 'Bad', lastName: 'Coach', username, email: `${username}@example.com`, password: 'Mentor123', ...bad,
+        firstName: 'Bad', lastName: 'Coach', username, email: `${username}@example.com`, password: 'Mentor123', olympiadInterests: ['MATHEMATICS'], ...bad,
       }).expect(400);
       expect(res.body.code).toBe('VALIDATION_FAILED');
       expect(await ctx.prisma.mentorRequest.count({ where: { username } })).toBe(0);

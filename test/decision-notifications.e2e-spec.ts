@@ -299,7 +299,7 @@ describe('Decision notifications', () => {
 
   describe('coach approval', () => {
     const apply = async (username: string) => (await http().post('/api/v1/mentor-requests').send({
-      firstName: 'Claude', lastName: 'Coach', username, email: `${username}@test.local`, password: 'Secret123',
+      firstName: 'Claude', lastName: 'Coach', username, email: `${username}@test.local`, password: 'Secret123', olympiadInterests: ['MATHEMATICS'],
     }).expect(201)).body.id as string;
 
     it('exactly ONE approval notice (outbox e-mail + in-app); the former approval e-mail is not queued', async () => {
