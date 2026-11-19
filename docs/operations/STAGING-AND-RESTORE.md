@@ -138,6 +138,8 @@ The release kit and `staging-accounts.mjs` both:
 6. **Rollback rehearsal.**
    - `…teacher_student_access.pre-switch.sql`;
    - then `rehearsal.mjs rollback` (all eleven, newest first);
+     if a guard stops it (as on 2026-11-19), run the same command again — with `--acknowledge <id>` only if approved;
+     the migrations already rolled back are skipped (RELEASE-POST-PHASE1.md §1);
    - then `rollback-history`;
    - then `status` (the eleven pending again);
    - then `deploy` again and the post-check again.
@@ -209,7 +211,8 @@ Then: §3 steps 0–2 (migrate the branch), redeploy staging at the current #63 
 - **Do not "Resume" the service.** That restarts the last build, `ceae3e0`, which predates `EMAIL_DRY_RUN` and now
   refuses to start. After the branch is migrated (§3 step 2), use **Manual Deploy → Deploy a specific commit →
   `9d58ebd`**.
-- **Next owner action:** §2 step 6, `C:of-audite-ts.env.drill.local`. Done for run 2.
+- **Next owner action:** §2 step 6, `C:
+of-audite-ts.env.drill.local`. Done for run 2.
 
 ### Run 2 — 2026-11-18, about 14:30 UTC (branch endpoint `ep-orange-mountain-bd28w4ro`, checkout `9d58ebd`)
 

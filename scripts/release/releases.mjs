@@ -64,6 +64,281 @@ export const AREAS_2026_OBJECTS = {
   functions: [],
 };
 
+/** The Phase 1 migrations (M1–M14), in apply order. */
+export const PHASE1_MIGRATIONS = [
+  '20261121000000_roles_teacher_head_coach_super_admin',
+  '20261121000100_programme_membership',
+  '20261121000200_backfill_programme_membership',
+  '20261121000300_last_super_admin_guard',
+  '20261121000400_permission_overrides',
+  '20261121000500_teacher_school_assignment',
+  '20261121000600_school_codes',
+  '20261121000700_official_school_list',
+  '20261121000800_student_school_affiliation',
+  '20261121000900_school_affiliation_integrity',
+  '20261121001000_school_administration',
+  '20261121001100_school_directory_model',
+  '20261121001200_school_directory_sync',
+  '20261121001300_school_directory_sync_approval',
+];
+
+/**
+ * Everything each migration changes in the schema, per migration (derived from the migrations; the tests prove it equals
+ * the catalogue difference each migration's SQL makes, so the lists cannot drift). `rollback` uses it to tell, before
+ * running a migration's files, whether that migration is
+ *   - in place: every marker holds (run its files);
+ *   - already rolled back: no marker holds (skip it — this is what lets an interrupted rollback be resumed);
+ *   - half rolled back: some hold, some do not (refused, with the list of what remains; none of its files run).
+ * A missing table alone never counts as rolled back: every object below is checked.
+ *   creates  tables and enums it creates; columns, indexes, constraints and triggers it adds to tables it did not create
+ *            (those of a table it creates go with the table); values it adds to an enum it did not create; functions.
+ *            Marker: the object exists.
+ *   drops    objects it removes and its rollback restores (e.g. a unique index it replaces). Marker: the object is absent.
+ *   history  (Phase 1 M1–M8) the migration's _prisma_migrations row: those rollback files delete it in the same transaction
+ *            as the rest of the file — the only marker of the data-only M3 and M8 (backfilled rows, official school list).
+ *            Marker: the row exists.
+ *   kept     what the migration creates and its rollback deliberately KEEPS, so it is not a marker: the FilePurpose value
+ *            'AVATAR' (PostgreSQL cannot drop an enum value; the rollback file says so).
+ * Data a rollback restores (values written back, rows revoked) lives in objects listed here, so it is checked through them.
+ */
+export const MIGRATION_OBJECTS = {
+  '20261121000000_roles_teacher_head_coach_super_admin': {
+    creates: {
+      enumValues: [['Role', 'HEAD_COACH'], ['Role', 'SUPER_ADMIN'], ['Role', 'TEACHER']],
+    },
+    history: true,
+  },
+  '20261121000100_programme_membership': {
+    creates: {
+      enums: ['MembershipSource'],
+      tables: ['ProgrammeMembership'],
+    },
+    history: true,
+  },
+  '20261121000200_backfill_programme_membership': {
+    history: true,
+  },
+  '20261121000300_last_super_admin_guard': {
+    creates: {
+      functions: ['user_last_super_admin_guard'],
+      triggers: [['User', 'user_last_super_admin_guard']],
+    },
+    history: true,
+  },
+  '20261121000400_permission_overrides': {
+    creates: {
+      enums: ['OverrideEffect'],
+      tables: ['UserPermissionOverride'],
+    },
+    history: true,
+  },
+  '20261121000500_teacher_school_assignment': {
+    creates: {
+      tables: ['TeacherSchoolAssignment'],
+    },
+    history: true,
+  },
+  '20261121000600_school_codes': {
+    creates: {
+      columns: [['School', 'code'], ['School', 'district'], ['School', 'nameKey'], ['School', 'ownership'], ['School', 'province'], ['School', 'sector']],
+      indexes: [['School', 'School_code_key'], ['School', 'School_nameKey_idx'], ['School', 'School_province_district_sector_idx']],
+    },
+    history: true,
+  },
+  '20261121000700_official_school_list': {
+    history: true,
+  },
+  '20261121000800_student_school_affiliation': {
+    creates: {
+      enums: ['SchoolAffiliationSource', 'SchoolAffiliationStatus'],
+      tables: ['StudentSchoolAffiliation'],
+    },
+  },
+  '20261121000900_school_affiliation_integrity': {
+    creates: {
+      functions: ['school_affiliation_integrity'],
+      triggers: [['StudentSchoolAffiliation', 'school_affiliation_integrity'], ['User', 'user_school_affiliation_integrity']],
+    },
+  },
+  '20261121001000_school_administration': {
+    creates: {
+      columns: [['School', 'countryCode'], ['School', 'createdById'], ['School', 'isActive'], ['School', 'source'], ['School', 'updatedAt']],
+      constraints: [['School', 'School_createdById_fkey']],
+      enums: ['SchoolSource'],
+      indexes: [['School', 'School_countryCode_isActive_idx'], ['School', 'School_createdById_idx']],
+    },
+  },
+  '20261121001100_school_directory_model': {
+    creates: {
+      columns: [['School', 'accommodation'], ['School', 'cell'], ['School', 'lastSourceSyncAt'], ['School', 'lastVerifiedAt'], ['School', 'lastVerifiedById'], ['School', 'village']],
+      constraints: [['School', 'School_lastVerifiedById_fkey']],
+      enums: ['ProgrammeCategory', 'SchoolAccommodation', 'SchoolContactType', 'SchoolContactVisibility', 'SchoolExternalIdKind'],
+      functions: ['school_contact_keep', 'school_external_id_keep', 'school_source_record_immutable'],
+      indexes: [['School', 'School_lastVerifiedById_idx'], ['School', 'School_name_idx']],
+      tables: ['EducationLevel', 'Programme', 'SchoolContact', 'SchoolDataSource', 'SchoolEducationLevel', 'SchoolExternalId', 'SchoolProgramme', 'SchoolSourceRecord'],
+    },
+    drops: { indexes: [['School', 'School_name_key']] },
+  },
+  '20261121001200_school_directory_sync': {
+    creates: {
+      columns: [['SchoolSourceRecord', 'syncRunId']],
+      constraints: [['SchoolSourceRecord', 'SchoolSourceRecord_syncRunId_fkey']],
+      enums: ['SchoolSyncChangeKind', 'SchoolSyncConflictState', 'SchoolSyncDecision', 'SchoolSyncItemOutcome', 'SchoolSyncRunStatus'],
+      functions: ['school_sync_run_guard', 'school_sync_staging_keep'],
+      indexes: [['SchoolSourceRecord', 'SchoolSourceRecord_syncRunId_idx']],
+      tables: ['SchoolSyncChange', 'SchoolSyncItem', 'SchoolSyncRun'],
+    },
+  },
+  '20261121001300_school_directory_sync_approval': {
+    creates: {
+      columns: [['SchoolSyncChange', 'retiredAt'], ['SchoolSyncRun', 'approvalTokenId'], ['SchoolSyncRun', 'approvedAt'], ['SchoolSyncRun', 'approvedById'], ['SchoolSyncRun', 'approvedGeneration']],
+      constraints: [['SchoolSyncRun', 'SchoolSyncRun_approvedById_fkey']],
+      indexes: [['SchoolSyncChange', 'SchoolSyncChange_runId_retiredAt_idx'], ['SchoolSyncRun', 'SchoolSyncRun_approvedById_idx']],
+    },
+  },
+  '20261201000000_teacher_applications': {
+    creates: {
+      columns: [['User', 'country'], ['User', 'phone']],
+      enums: ['OlympiadSubject', 'TeacherApplicationStatus'],
+      tables: ['TeacherApplication'],
+    },
+  },
+  '20261202000000_notification_outbox': {
+    creates: {
+      columns: [['TeacherApplication', 'schoolVerifiedAt'], ['TeacherApplication', 'schoolVerifiedById']],
+      constraints: [['TeacherApplication', 'TeacherApplication_schoolVerifiedById_fkey']],
+      enums: ['NotificationOutboxStatus'],
+      indexes: [['TeacherApplication', 'TeacherApplication_schoolVerifiedById_idx']],
+      tables: ['NotificationOutbox'],
+    },
+  },
+  '20261203000000_student_olympiad_interests': {
+    creates: {
+      columns: [['User', 'olympiadInterests']],
+    },
+  },
+  '20261204000000_registration_details': {
+    creates: {
+      columns: [['MentorRequest', 'country'], ['MentorRequest', 'educationLevel'], ['MentorRequest', 'occupation'], ['MentorRequest', 'olympiadInterests'], ['User', 'dateOfBirth'], ['User', 'guardianPhone'], ['User', 'homeDistrict'], ['User', 'homeProvince'], ['User', 'homeSector']],
+      enums: ['CoachEducationLevel'],
+    },
+  },
+  '20261205000000_avatar_file_purpose': {
+    creates: {
+      columns: [['User', 'avatarFileId']],
+      constraints: [['User', 'User_avatarFileId_fkey']],
+      indexes: [['User', 'User_avatarFileId_key']],
+    },
+    kept: { enumValues: [['FilePurpose', 'AVATAR']] },
+  },
+  '20261206000000_account_states': {
+    creates: {
+      columns: [['User', 'accountStatus']],
+      enums: ['AccountStatus'],
+      functions: ['user_account_status_sync'],
+      indexes: [['User', 'User_accountStatus_idx'], ['User', 'User_role_accountStatus_idx']],
+      tables: ['UserStatusChange'],
+      triggers: [['User', 'user_account_status_sync']],
+    },
+  },
+  '20261207000000_bulk_operations': {
+    creates: {
+      enums: ['BulkItemOutcome', 'BulkOperationStatus'],
+      indexes: [['User', 'User_createdAt_idx'], ['User', 'User_gradeLevel_idx']],
+      tables: ['BulkOperation', 'BulkOperationItem'],
+    },
+  },
+  '20261207000100_bulk_membership_guard': {
+    creates: {
+      functions: ['user_bulk_membership_guard'],
+      triggers: [['User', 'user_bulk_membership_guard']],
+    },
+  },
+  '20261208000000_form_availability': {
+    creates: {
+      enums: ['FormKey', 'FormMode'],
+      tables: ['FormAvailability'],
+    },
+  },
+  '20261209000000_application_details': {
+    creates: {
+      columns: [['MentorRequest', 'affiliation'], ['MentorRequest', 'avatarFileId'], ['MentorRequest', 'expertise'], ['MentorRequest', 'phone'], ['MentorRequest', 'rejectionReason'], ['MentorRequest', 'relevantExperience'], ['MentorRequest', 'yearsOfExperience'], ['TeacherApplication', 'avatarFileId'], ['TeacherApplication', 'position'], ['TeacherApplication', 'yearsOfExperience']],
+      constraints: [['MentorRequest', 'MentorRequest_avatarFileId_fkey'], ['MentorRequest', 'MentorRequest_yearsOfExperience_check'], ['TeacherApplication', 'TeacherApplication_avatarFileId_fkey'], ['TeacherApplication', 'TeacherApplication_yearsOfExperience_check']],
+      indexes: [['MentorRequest', 'MentorRequest_active_email_key'], ['MentorRequest', 'MentorRequest_active_username_key'], ['MentorRequest', 'MentorRequest_avatarFileId_key'], ['MentorRequest', 'MentorRequest_email_idx'], ['MentorRequest', 'MentorRequest_username_idx'], ['TeacherApplication', 'TeacherApplication_avatarFileId_key']],
+      tables: ['ApplicationInfoRequest'],
+    },
+    drops: { indexes: [['MentorRequest', 'MentorRequest_email_key'], ['MentorRequest', 'MentorRequest_username_key']] },
+  },
+  '20261210000000_teacher_student_access': {
+    creates: {
+      columns: [['UserPermissionOverride', 'reviewNeededAt'], ['UserPermissionOverride', 'reviewReason'], ['UserPermissionOverride', 'studentScope']],
+      constraints: [['UserPermissionOverride', 'UserPermissionOverride_student_scope']],
+      enums: ['DelegationStudentScope', 'TeacherStudentSource'],
+      tables: ['TeacherStudentAssignment', 'UserPermissionOverrideStudent'],
+    },
+  },
+  '20261211000000_countries_reference': {
+    creates: {
+      constraints: [['School', 'School_countryCode_fkey']],
+      tables: ['Country'],
+    },
+  },
+  '20261212000000_teacher_school_primary': {
+    creates: {
+      columns: [['TeacherSchoolAssignment', 'role']],
+      enums: ['TeacherSchoolRole'],
+      indexes: [['TeacherSchoolAssignment', 'TeacherSchoolAssignment_one_primary_per_school']],
+    },
+  },
+};
+
+/**
+ * The acknowledgements `rollback --acknowledge <id>` accepts: a FIXED allow-list, each id mapped to the exact session
+ * setting and value its rollback file's data-loss guard checks (`current_setting('rof.…', true) IS DISTINCT FROM '…'`).
+ * The tests prove it equals the guards found in docs/migrations. An acknowledgement never bypasses a guard: it only sets
+ * the value the guard itself reads, on the rollback connection, as the documented `SET rof.… = '…'` would. A release
+ * accepts only the ids of its own migrations.
+ */
+export const ACKNOWLEDGEMENTS = {
+  'directory-data':             { migration: '20261121001100_school_directory_model', setting: 'rof.m12_rollback', value: 'discard-directory-data' },
+  'sync-history':               { migration: '20261121001200_school_directory_sync', setting: 'rof.m13_rollback', value: 'discard-sync-history' },
+  'approval-history':           { migration: '20261121001300_school_directory_sync_approval', setting: 'rof.m14_rollback', value: 'discard-approval-history' },
+  'teacher-applications':       { migration: '20261201000000_teacher_applications', setting: 'rof.teacher_applications_rollback', value: 'discard-teacher-applications' },
+  'notification-outbox':        { migration: '20261202000000_notification_outbox', setting: 'rof.notification_outbox_rollback', value: 'discard-notification-outbox' },
+  'student-olympiad-interests': { migration: '20261203000000_student_olympiad_interests', setting: 'rof.student_olympiad_interests_rollback', value: 'discard-student-olympiad-interests' },
+  'registration-details':       { migration: '20261204000000_registration_details', setting: 'rof.registration_details_rollback', value: 'discard-registration-details' },
+  'profile-pictures':           { migration: '20261205000000_avatar_file_purpose', setting: 'rof.avatar_file_purpose_rollback', value: 'discard-profile-pictures' },
+  'account-states':             { migration: '20261206000000_account_states', setting: 'rof.account_states_rollback', value: 'discard-account-states' },
+  'bulk-operations':            { migration: '20261207000000_bulk_operations', setting: 'rof.bulk_operations_rollback', value: 'discard-bulk-operations' },
+  'form-settings':              { migration: '20261208000000_form_availability', setting: 'rof.form_availability_rollback', value: 'discard-form-settings' },
+  'application-details':        { migration: '20261209000000_application_details', setting: 'rof.application_details_rollback', value: 'discard-application-details' },
+  'teacher-student-access':     { migration: '20261210000000_teacher_student_access', setting: 'rof.teacher_student_rollback', value: 'discard-teacher-student-access' },
+  'country-edits':              { migration: '20261211000000_countries_reference', setting: 'rof.countries_reference_rollback', value: 'discard-country-edits' },
+  'primary-teachers':           { migration: '20261212000000_teacher_school_primary', setting: 'rof.teacher_school_primary_rollback', value: 'discard-primary-teachers' },
+};
+
+/** The acknowledgement ids of a release (those of its own migrations), sorted. */
+export const releaseAcknowledgements = (release) =>
+  Object.keys(ACKNOWLEDGEMENTS).filter((id) => release.owns(ACKNOWLEDGEMENTS[id].migration)).sort();
+
+/**
+ * Resolves `--acknowledge` values (pure; before any connection). Each must be exactly one id of the release's allow-list
+ * (lower-case letters, digits and hyphens); an unknown, malformed, empty or repeated id refuses the whole command.
+ * @returns {{ ok: true, acks: { id: string, setting: string, value: string }[] } | { ok: false, reason: string }}
+ */
+export function resolveAcknowledgements(values, release) {
+  const allowed = releaseAcknowledgements(release);
+  const list = `allowed for ${release.name}: ${allowed.join(', ') || 'none'}`;
+  const acks = [];
+  for (const id of values) {
+    if (typeof id !== 'string' || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) return { ok: false, reason: `--acknowledge "${id ?? ''}" is malformed (an id such as registration-details is expected; ${list}).` };
+    if (!allowed.includes(id)) return { ok: false, reason: `--acknowledge "${id}" is not a guard of ${release.name}'s rollback files (${list}).` };
+    if (acks.some((a) => a.id === id)) return { ok: false, reason: `--acknowledge "${id}" is given twice; give each acknowledgement once.` };
+    acks.push({ id, setting: ACKNOWLEDGEMENTS[id].setting, value: ACKNOWLEDGEMENTS[id].value });
+  }
+  return { ok: true, acks };
+}
+
 /**
  * Each release: `owns(name)` — the migration belongs to it; `last` — its last timestamp (a migration sorting after it
  * is never deployed by the kit for this release); the read-only SQL checks; and the rollback-history rule.
@@ -74,6 +349,7 @@ export const RELEASES = {
     count: PHASE1_COUNT,
     owns: (name) => PHASE1.test(name),
     last: LAST_PHASE1_TIMESTAMP,
+    migrations: PHASE1_MIGRATIONS,
     precheck: 'scripts/release/phase1-precheck.sql',
     postcheck: 'scripts/release/phase1-postcheck.sql',
   },
@@ -121,12 +397,14 @@ export function afterRelease(release, names) {
 }
 
 /**
- * The checkout must contain exactly the release's migrations (for post-Phase-1: all nine, by name) and nothing after
- * them. Returns a refusal message, or null.
+ * The checkout must contain exactly the release's migrations (for post-Phase-1: all eleven, by name) and nothing after
+ * them. Returns a refusal message, or null. `allowLater`: migrations after the release's last are accepted — only for the
+ * commands that run nothing but the release's own files and checks (CHECKOUT_RELEASE_ONLY in rehearsal.mjs); `deploy`,
+ * `diff` and `status` act on every migration of the checkout and keep the strict rule.
  */
-export function checkoutProblem(release, dirs) {
+export function checkoutProblem(release, dirs, { allowLater = false } = {}) {
   const later = afterRelease(release, dirs);
-  if (later.length) {
+  if (later.length && !allowLater) {
     return `this checkout has ${later.length} migration(s) after ${release.label}'s last (${later.join(', ')}). `
       + `The kit deploys and rolls back exactly ${release.label}: run it from a checkout whose last migration is the release's last.`;
   }
