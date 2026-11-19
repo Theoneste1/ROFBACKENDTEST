@@ -513,7 +513,8 @@ export class TestMarkingService {
           where: { id: testId }, select: { maxMarks: true, questions: { select: { id: true, order: true, maxMarks: true } } },
         });
         const marks = normaliseMarks(test.questions, test.maxMarks, dto.marks, true);
-        const base = markings.find((m) => m.id === sub.finalMarkingId) ?? markings.find((m) => m.kind === 'FIRST');
+        // The marks the adjustment replaces: the final ones, else the latest independent marking (second, else first).
+        const base = markings.find((m) => m.id === sub.finalMarkingId) ?? markings.find((m) => m.kind === 'SECOND') ?? markings.find((m) => m.kind === 'FIRST');
         const adj = await tx.testMarking.create({
           data: { submissionId, kind: 'ADJUSTMENT', markerId: user.id, versionId: sub.currentVersionId, status: 'DRAFT', createdAt: now, updatedAt: now },
           select: { id: true },
