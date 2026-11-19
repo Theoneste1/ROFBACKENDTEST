@@ -2,8 +2,9 @@
 -- Run manually, with approval, after a backup, and after deploying the previous application release (the current code
 -- reads and writes BulkOperation.entityType and BulkOperationItem.entityId).
 --
--- It drops the (operationId, entityId) unique index and the two columns, and makes BulkOperationItem.userId NOT NULL
--- again. Every USER operation and item is kept unchanged (userId always equals entityId for them).
+-- It drops the trigger bulk_item_entity_from_user and its function, the single-use index on v2 confirmations
+-- (BulkOperation_selectionToken_v2_key), the (operationId, entityId) unique index and the two columns, and makes
+-- BulkOperationItem.userId NOT NULL again. Every USER operation and item is kept unchanged (userId always equals entityId for them).
 --
 -- It REFUSES, and changes nothing, while any operation of another record type exists (entityType <> 'USER'): the
 -- previous release cannot read them, and their items have no userId. To discard them knowingly — the operations and
@@ -44,6 +45,9 @@ END $$;
 -- Acknowledged above (or none exist): operations of other record types and, by cascade, their items.
 DELETE FROM "BulkOperation" WHERE "entityType" <> 'USER';
 
+DROP TRIGGER IF EXISTS bulk_item_entity_from_user ON "BulkOperationItem";
+DROP FUNCTION IF EXISTS bulk_item_entity_from_user();
+DROP INDEX IF EXISTS "BulkOperation_selectionToken_v2_key";
 DROP INDEX IF EXISTS "BulkOperationItem_operationId_entityId_key";
 ALTER TABLE "BulkOperationItem" ALTER COLUMN "userId" SET NOT NULL;
 ALTER TABLE "BulkOperationItem" DROP COLUMN IF EXISTS "entityId";

@@ -29,7 +29,10 @@ SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'pub
        (SELECT count(*) FROM information_schema.columns
          WHERE table_schema = 'public' AND table_name = 'BulkOperation' AND column_name = 'entityType') AS bulk_entity_type_column,
        (SELECT count(*) FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId') AS bulk_entity_id_column;
+         WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId') AS bulk_entity_id_column,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperation_selectionToken_v2_key') AS bulk_single_use_index,
+       (SELECT count(*) FROM pg_trigger WHERE tgname = 'bulk_item_entity_from_user') AS bulk_item_trigger,
+       (SELECT count(*) FROM pg_proc WHERE proname = 'bulk_item_entity_from_user') AS bulk_item_function;
 
 \echo '== 3. MUST be empty: school country codes that are not two upper-case letters (the School → Country foreign key refuses any code that is not ISO 3166-1 alpha-2; the migration names them)'
 SELECT DISTINCT "countryCode" FROM "School" WHERE "countryCode" !~ '^[A-Z]{2}$' ORDER BY 1;

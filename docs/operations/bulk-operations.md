@@ -53,7 +53,9 @@ At execution, in this order — nothing is created on any refusal:
 3. older than 15 minutes → `410 CONFIRMATION_EXPIRED`;
 4. under the record type's membership guard, the binding is recomputed from the request and from the records the
    selection matches **now**: another action, other parameters, another selection or another record set (even with
-   the same count), or another `expectedTotal` → `409 SELECTION_CHANGED`.
+   the same count), or another `expectedTotal` → `409 SELECTION_CHANGED`;
+5. a confirmation creates **at most one operation**: executed again with another `idempotencyKey` → `409
+   CONFIRMATION_USED` (enforced by a partial unique index on v2 confirmations); with the same key → the same operation.
 
 Clients: on any of these, preview again.
 

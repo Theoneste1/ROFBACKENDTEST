@@ -266,6 +266,82 @@ describe('Generic bulk engine', () => {
     expect(await p().auditLog.count({ where: { action: 'BULK_OPERATION_FINISHED', entityId: again.body.operation.id } })).toBe(1);
   });
 
+  // ─── Single-use confirmation ───────────────────────────────────────────────
+
+  it('a confirmation creates one operation: reused with another key → 409 CONFIRMATION_USED on both routes, nothing created; the same key → the same operation', async () => {
+    const ids = await makeUsers('once', 3);
+    const pv = await preview('USER', { action: 'suspend', selection: { mode: 'ids', ids } }).expect(200);
+    const body = confirmBody(pv, { reason: 'Single use' });
+    const first = await execute('USER', body).expect(202);
+    const before = await opCount();
+    expect(await code(execute('USER', { ...body, idempotencyKey: key() }))).toEqual([409, 'CONFIRMATION_USED']);
+    expect(await code(oldExecute({ ...body, idempotencyKey: key() }))).toEqual([409, 'CONFIRMATION_USED']);
+    expect(await opCount()).toBe(before);
+    const same = await oldExecute(body).expect(200);
+    expect(same.body.operation.id).toBe(first.body.operation.id);
+    await drain();
+    // Still refused once the first operation has finished.
+    expect(await code(execute('USER', { ...body, idempotencyKey: key() }))).toEqual([409, 'CONFIRMATION_USED']);
+    for (const id of ids) expect(await p().userStatusChange.count({ where: { userId: id, toStatus: 'SUSPENDED' } })).toBe(1);
+  });
+
+  it('concurrent executes of one confirmation with different keys: exactly one operation, the others 409 CONFIRMATION_USED', async () => {
+    const ids = await makeUsers('oncec', 4);
+    const pv = await preview('USER', { action: 'suspend', selection: { mode: 'ids', ids } }).expect(200);
+    const body = confirmBody(pv, { reason: 'Single use, concurrently' });
+    const results = await Promise.all([
+      execute('USER', { ...body, idempotencyKey: key() }), execute('USER', { ...body, idempotencyKey: key() }),
+      oldExecute({ ...body, idempotencyKey: key() }), oldExecute({ ...body, idempotencyKey: key() }),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([202, 409, 409, 409]);
+    expect(results.filter((r) => r.status === 409).map((r) => r.body.code)).toEqual(['CONFIRMATION_USED', 'CONFIRMATION_USED', 'CONFIRMATION_USED']);
+    expect(await p().bulkOperation.count({ where: { selectionToken: body.selectionToken } })).toBe(1);
+    await drain();
+    for (const id of ids) expect(await p().userStatusChange.count({ where: { userId: id, toStatus: 'SUSPENDED' } })).toBe(1);
+  });
+
+  it('message: one confirmation can never e-mail anyone twice (another key, concurrently, or after it finished)', async () => {
+    const ids = await makeUsers('oncemail', 3);
+    const subject = `Once only ${Date.now()}`;
+    const pv = await preview('USER', { action: 'message', params: { subject, body: 'Sent exactly once.' }, selection: { mode: 'ids', ids } }).expect(200);
+    const body = confirmBody(pv);
+    const results = await Promise.all([execute('USER', body), execute('USER', { ...body, idempotencyKey: key() }), oldExecute({ ...body, idempotencyKey: key() })]);
+    expect(results.map((r) => r.status).sort()).toEqual([202, 409, 409]);
+    await drain();
+    expect(await code(execute('USER', { ...body, idempotencyKey: key() }))).toEqual([409, 'CONFIRMATION_USED']);
+    // The winner's key (any of the three may have won the race) returns its operation; nothing new.
+    const winner = results.find((r) => r.status === 202)!.body.operation;
+    expect((await execute('USER', { ...body, idempotencyKey: winner.idempotencyKey }).expect(200)).body.operation.id).toBe(winner.id);
+    await drain();
+    const jobs = await p().emailJob.findMany({ where: { subject } });
+    expect(jobs).toHaveLength(1);
+    for (const id of ids) expect(await p().emailDelivery.count({ where: { jobId: jobs[0].id, recipientId: id } })).toBe(1);
+    expect(await p().emailDelivery.count({ where: { jobId: jobs[0].id } })).toBe(3);
+  });
+
+  it('the database enforces it too: a second operation row with the same v2 confirmation is refused; v1 digests may repeat', async () => {
+    const op = await p().bulkOperation.findFirstOrThrow({ where: { selectionToken: { startsWith: 'v2.' } } });
+    const row = (k: string, token: string) => ({ actorRole: 'ADMIN', action: 'suspend', params: {}, selection: {}, selectionToken: token, total: 0, idempotencyKey: k });
+    await expect(p().bulkOperation.create({ data: row(key(), op.selectionToken) })).rejects.toMatchObject({ code: 'P2002' });
+    const v1 = `v1.0.${'c'.repeat(64)}`;
+    await p().bulkOperation.create({ data: row(key(), v1) });
+    await p().bulkOperation.create({ data: row(key(), v1) });
+    await p().bulkOperation.deleteMany({ where: { selectionToken: v1 } });
+  });
+
+  it('rolling deploy: an item inserted without entityId (the previous release) gets its userId; an explicit entityId is kept', async () => {
+    const op = await p().bulkOperation.findFirstOrThrow({ where: { entityType: 'USER' } });
+    const [a, b] = await makeUsers('rolling', 2);
+    // Exactly the previous release's statement (no entityId column).
+    await p().$executeRawUnsafe(`INSERT INTO "BulkOperationItem" ("id", "operationId", "userId") SELECT gen_random_uuid()::text, $1, u FROM unnest($2::text[]) AS u ON CONFLICT ("operationId", "userId") DO NOTHING`, op.id, [a]);
+    await p().$executeRawUnsafe(`INSERT INTO "BulkOperationItem" ("id", "operationId", "entityId", "userId") VALUES (gen_random_uuid()::text, $1, 'explicit-entity', $2)`, op.id, b);
+    expect((await p().bulkOperationItem.findFirstOrThrow({ where: { operationId: op.id, userId: a } })).entityId).toBe(a);
+    expect((await p().bulkOperationItem.findFirstOrThrow({ where: { operationId: op.id, userId: b } })).entityId).toBe('explicit-entity');
+    // Neither given: still NOT NULL.
+    await expect(p().$executeRawUnsafe(`INSERT INTO "BulkOperationItem" ("id", "operationId") VALUES (gen_random_uuid()::text, $1)`, op.id)).rejects.toThrow(/entityId|null value/);
+    await p().bulkOperationItem.deleteMany({ where: { operationId: op.id, userId: { in: [a, b] } } });
+  });
+
   // ─── reassignTeacher ────────────────────────────────────────────────────────
 
   it('reassignTeacher: only students assigned to the first teacher move; others skipped; school links untouched; one notice; retry changes nothing', async () => {

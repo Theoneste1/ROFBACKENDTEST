@@ -2463,6 +2463,8 @@ model BulkOperation {
   selection      Json
   /// The confirmation the administrator executed with (v2: signed, bound to them, the action, its parameters, the
   /// selection and the exact matching record ids; v1 before 2026-11-19: an unsigned digest of the same minus the actor).
+  /// A v2 confirmation creates at most one operation: partial unique index BulkOperation_selectionToken_v2_key
+  /// (selectionToken) WHERE selectionToken LIKE 'v2.%' (migration 20261213000000; not expressible in this schema).
   selectionToken String
   reason         String?
   status         BulkOperationStatus @default(PENDING)
@@ -2491,7 +2493,8 @@ model BulkOperationItem {
   id             String          @id @default(uuid())
   operationId    String
   operation      BulkOperation   @relation(fields: [operationId], references: [id], onDelete: Cascade)
-  /// The record (its id in the operation's entityType table).
+  /// The record (its id in the operation's entityType table). An INSERT without it takes userId (trigger
+  /// bulk_item_entity_from_user: the previous release's code during a rolling deploy).
   entityId       String
   /// USER items: the account (= entityId). Null for every other record type.
   userId         String?

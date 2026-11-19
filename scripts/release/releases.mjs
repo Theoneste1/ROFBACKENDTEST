@@ -62,8 +62,8 @@ export const AREAS_2026_OBJECTS = {
   tables: ['Country'],
   enums: ['TeacherSchoolRole'],
   columns: [['TeacherSchoolAssignment', 'role'], ['BulkOperation', 'entityType'], ['BulkOperationItem', 'entityId']],
-  triggers: [],
-  functions: [],
+  triggers: ['bulk_item_entity_from_user'],
+  functions: ['bulk_item_entity_from_user'],
 };
 
 /**

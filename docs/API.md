@@ -273,7 +273,7 @@ Returns `200`: CSV file (UTF-8 with BOM), sent as an attachment.
 
 Starts the action on exactly the previewed records: 202 with the operation (200 with the same operation when the
 idempotencyKey was already used). 409 SELECTION_CHANGED, 410 CONFIRMATION_EXPIRED, 403 CONFIRMATION_WRONG_ADMINISTRATOR,
-400 CONFIRMATION_INVALID.
+400 CONFIRMATION_INVALID, 409 CONFIRMATION_USED (a confirmation creates one operation).
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|

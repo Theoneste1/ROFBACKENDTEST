@@ -107,6 +107,7 @@ export class BulkOperationsService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', `Give a reason (${REASON_MIN}–${REASON_MAX} characters).`);
     }
     const claims = this.checkToken(dto.selectionToken, caller);
+    await this.assertTokenUnused(this.prisma, dto);
 
     // Step-up first (outside the transaction: bcrypt is slow and must not hold row locks). The records are checked
     // again under the guard below; a different set fails the token check anyway.
@@ -131,6 +132,8 @@ export class BulkOperationsService {
             { total: ids.length, expectedTotal: dto.expectedTotal });
         }
         if (ids.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_SELECTION', `No ${singular(handler.noun)} matches the selection.`);
+        // Single use, re-checked under the guard (the partial unique index BulkOperation_selectionToken_v2_key enforces it).
+        await this.assertTokenUnused(tx, dto);
 
         const op = await tx.bulkOperation.create({
           data: {
@@ -178,6 +181,8 @@ export class BulkOperationsService {
           where: { actorId_idempotencyKey: { actorId: caller.id, idempotencyKey: dto.idempotencyKey } }, select: OPERATION_SELECT,
         });
         if (raced) return this.sameKey(raced, handler);
+        // Not the key: the same confirmation raced in with another key (unique index on v2 selectionToken).
+        await this.assertTokenUnused(this.prisma, dto);
       }
       throw err;
     }
@@ -312,6 +317,19 @@ export class BulkOperationsService {
       throw new AppError(HttpStatus.FORBIDDEN, 'CONFIRMATION_WRONG_ADMINISTRATOR', 'This confirmation was issued to another administrator. Preview the action yourself.');
     }
     throw new AppError(HttpStatus.BAD_REQUEST, 'CONFIRMATION_INVALID', 'The confirmation is not valid. Preview the action again and confirm.');
+  }
+
+  /**
+   * A confirmation creates at most one operation: used already (with another idempotencyKey) → 409 CONFIRMATION_USED.
+   * The same key is not refused here: it returns the existing operation (idempotency).
+   */
+  private async assertTokenUnused(db: Prisma.TransactionClient | PrismaService, dto: ExecuteInput) {
+    const used = await db.bulkOperation.findFirst({
+      where: { selectionToken: { equals: dto.selectionToken, startsWith: 'v2.' } }, select: { idempotencyKey: true },
+    });
+    if (used && used.idempotencyKey !== dto.idempotencyKey) {
+      throw new AppError(HttpStatus.CONFLICT, 'CONFIRMATION_USED', 'This confirmation was already used; preview again.');
+    }
   }
 
   /** The same idempotency key: the same operation — never a second one, and never another record type's. */

@@ -127,7 +127,8 @@ Measured locally: 5 000 accounts selected by filter — preview and creation ≈
 
 `400` `CONFIRMATION_REQUIRED`, `REASON_REQUIRED`, `EMPTY_SELECTION`, `SELECTION_TOO_LARGE`,
 `ROLE_NOT_ALLOWED_IN_BULK`, `VALIDATION_FAILED`; `403` `PERMISSION_REQUIRED`, `STEP_UP_REQUIRED`; `404` unknown
-operation (or not yours, without `audit.view`); `409` `SELECTION_CHANGED`, `OPERATION_FINISHED` (cancel), `IDEMPOTENCY_KEY_REUSED`;
+operation (or not yours, without `audit.view`); `409` `SELECTION_CHANGED`, `OPERATION_FINISHED` (cancel), `IDEMPOTENCY_KEY_REUSED`, `CONFIRMATION_USED` (a confirmation
+creates one operation);
 `400` `CONFIRMATION_INVALID`, `403` `CONFIRMATION_WRONG_ADMINISTRATOR`, `410` `CONFIRMATION_EXPIRED` (preview again); `503` `BULK_BUSY`
 (a deadlock during creation persisted after three tries — try again).
 

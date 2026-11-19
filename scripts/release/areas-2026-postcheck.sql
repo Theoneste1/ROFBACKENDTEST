@@ -74,12 +74,15 @@ SELECT count(*)                                                AS schools_examin
        count(*) FILTER (WHERE active_links > 0 AND primaries = 0) AS exceptions
   FROM per;
 
-\echo '== 11. MUST be 1, 1, 1, 0: BulkOperation.entityType, BulkOperationItem.entityId (NOT NULL), the (operationId, entityId) unique index; USER items whose userId differs from entityId'
+\echo '== 11. MUST be 1, 1, 1, 1, 1, 1, 0: BulkOperation.entityType, BulkOperationItem.entityId (NOT NULL), the (operationId, entityId) unique index, the single-use index on v2 confirmations, the trigger bulk_item_entity_from_user and its function; USER items whose userId differs from entityId'
 SELECT (SELECT count(*) FROM information_schema.columns
          WHERE table_schema = 'public' AND table_name = 'BulkOperation' AND column_name = 'entityType') AS bulk_entity_type_column,
        (SELECT count(*) FROM information_schema.columns
          WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId' AND is_nullable = 'NO') AS bulk_entity_id_column,
        (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperationItem_operationId_entityId_key') AS bulk_entity_unique_index,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperation_selectionToken_v2_key') AS bulk_single_use_index,
+       (SELECT count(*) FROM pg_trigger WHERE tgname = 'bulk_item_entity_from_user') AS bulk_item_trigger,
+       (SELECT count(*) FROM pg_proc WHERE proname = 'bulk_item_entity_from_user') AS bulk_item_function,
        (SELECT count(*) FROM "BulkOperationItem" i JOIN "BulkOperation" o ON o."id" = i."operationId"
          WHERE o."entityType" = 'USER' AND i."userId" IS DISTINCT FROM i."entityId") AS user_items_not_backfilled;
 
