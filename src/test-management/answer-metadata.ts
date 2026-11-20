@@ -11,9 +11,9 @@
  *   GIF    comment extensions and XMP application extensions are dropped.
  *   HEIC   (and HEIF) identifying Exif values are blanked IN PLACE (same length, every offset stays valid): GPS, artist,
  *          copyright, descriptions, user comment, owner name, serial numbers, maker note; XMP packets are blanked.
- *   PDF    the document information strings (Author, Title, Subject, Keywords, Creator, Producer) and XMP packets are
- *          blanked IN PLACE (same length: the cross-reference table stays valid). Information inside compressed object
- *          streams is not reachable without rewriting the file (documented limitation).
+ *   PDF    REWRITTEN for the marker (stripIdentifyingMetadataForMarker): the document information dictionary and every
+ *          XMP /Metadata stream are removed even inside compressed object streams, then the information strings and XMP
+ *          packets are also blanked in place. stripIdentifyingMetadata alone only blanks in place (same length).
  * A file that cannot be parsed is returned unchanged (it would not display either); every function is pure.
  */
 
@@ -183,7 +183,45 @@ function blankHeif(b: Buffer): Buffer {
   return out;
 }
 
-const PDF_INFO_KEYS = /\/(Author|Title|Subject|Keywords|Creator|Producer)\s*(\(|<)/g;
+/**
+ * Every answer file on its way to a marker. A PDF is REWRITTEN (pdf-lib parses compressed object streams too): the
+ * trailer's document information dictionary and every XMP /Metadata stream, wherever it sits (catalogue, pages, images,
+ * any object), are removed, /PieceInfo (application private data) is dropped, and the file is saved WITHOUT object
+ * streams and without pdf-lib adding a Producer or dates of its own. The in-place blanking then runs over the rewritten
+ * bytes as a second net. A PDF pdf-lib cannot read (encrypted, damaged) falls back to the in-place blanking alone.
+ * Images go through the synchronous strippers above.
+ */
+export async function stripIdentifyingMetadataForMarker(data: Buffer, mimeType: string): Promise<Buffer> {
+  if (mimeType !== 'application/pdf') return stripIdentifyingMetadata(data, mimeType);
+  try {
+    return blankPdf(await rewritePdf(data));
+  } catch {
+    return stripIdentifyingMetadata(data, mimeType);
+  }
+}
+
+const PDF_DROP_KEYS = ['Metadata', 'PieceInfo'];
+
+async function rewritePdf(data: Buffer): Promise<Buffer> {
+  const { PDFDocument, PDFDict, PDFName, PDFRawStream, PDFStream } = await import('pdf-lib');
+  if (!data.subarray(0, 1024).toString('latin1').includes('%PDF')) throw new Error('not a PDF');
+  const doc = await PDFDocument.load(data, { updateMetadata: false, throwOnInvalidObject: false });
+  const ctx = doc.context;
+  ctx.trailerInfo.Info = undefined;
+  const metadataType = PDFName.of('Metadata');
+  const drop: unknown[] = [];
+  for (const [ref, obj] of ctx.enumerateIndirectObjects()) {
+    const dict = obj instanceof PDFDict ? obj : (obj instanceof PDFStream || obj instanceof PDFRawStream) ? obj.dict : null;
+    if (!dict) continue;
+    for (const key of PDF_DROP_KEYS) dict.delete(PDFName.of(key));
+    // An XMP packet is its own stream object (/Type /Metadata): remove the object itself, not only the link to it.
+    if (dict.get(PDFName.of('Type')) === metadataType) drop.push(ref);
+  }
+  for (const ref of drop) ctx.delete(ref as Parameters<typeof ctx.delete>[0]);
+  return Buffer.from(await doc.save({ useObjectStreams: false, updateFieldAppearances: false }));
+}
+
+const PDF_INFO_KEYS =/\/(Author|Title|Subject|Keywords|Creator|Producer)\s*(\(|<)/g;
 
 function blankPdf(b: Buffer): Buffer {
   let s = b.toString('latin1');
