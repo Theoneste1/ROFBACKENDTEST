@@ -112,6 +112,13 @@ export const FEATURES = {
    */
   homeLocationRules: 'always',
   /**
+   * Gender step (owner, 2026-11-20): GET /me and the sign-in answer carry `genderRequired`, true for a STUDENT, TEACHER
+   * or MENTOR without a gender (accounts from before gender was asked at sign-up); the portal then asks it once:
+   * PUT /api/v1/me/gender { gender: FEMALE | MALE } (409 GENDER_ALREADY_SET). PATCH /admin/users/:id accepts `gender`
+   * to correct it.
+   */
+  genderStep: 'always',
+  /**
    * Coach application details: POST /api/v1/mentor-requests accepts `country`, `occupation`, `educationLevel`
    * (SECONDARY | DIPLOMA | BACHELOR | MASTER | DOCTORATE | OTHER) and `olympiadInterests`; the admin list returns them
    * and approval copies country and interests to the Coach account. Optional at the API for older clients, except

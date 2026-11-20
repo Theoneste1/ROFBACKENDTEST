@@ -7510,7 +7510,7 @@
             "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"role\": \"STUDENT\",\n  \"currentPassword\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"schoolCode\": \"schoolCode\",\n  \"homeLocation\": \"homeLocation\",\n  \"homeCountry\": \"homeCountry\",\n  \"homeProvince\": \"homeProvince\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"role\": \"STUDENT\",\n  \"currentPassword\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"schoolCode\": \"schoolCode\",\n  \"homeLocation\": \"homeLocation\",\n  \"homeCountry\": \"homeCountry\",\n  \"homeProvince\": \"homeProvince\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\",\n  \"gender\": \"FEMALE\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -11628,6 +11628,40 @@
               "query": []
             },
             "description": "**Access:** STUDENT"
+          }
+        },
+        {
+          "name": "PUT /me/gender",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/gender",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "gender"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gender\": \"FEMALE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         },
         {

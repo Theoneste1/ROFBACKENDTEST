@@ -11144,6 +11144,54 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/me/gender": {
+      "put": {
+        "operationId": "MeController_setGender",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetGenderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A user without a gender (an account from before gender was asked at sign-up; `genderRequired` on GET /me) gives\nit once: { gender: FEMALE | MALE }. 400 VALIDATION_FAILED, 409 GENDER_ALREADY_SET (an Administrator corrects it).\nReturns the profile.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
     "/api/v1/me/date-of-birth": {
       "put": {
         "operationId": "MeController_setDateOfBirth",
@@ -53241,6 +53289,14 @@
             "minLength": 1,
             "maxLength": 100
           },
+          "gender": {
+            "type": "string",
+            "description": "Correct the account's gender (FEMALE or MALE; capability genderStep). Not audited with its value.",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
           "olympiadInterests": {
             "type": "array",
             "description": "A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of\nMATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the\nroute already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only:\ninterests never grant marking or any other permission.",
@@ -53295,6 +53351,21 @@
         },
         "required": [
           "toStatus"
+        ]
+      },
+      "SetGenderDto": {
+        "type": "object",
+        "properties": {
+          "gender": {
+            "type": "string",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          }
+        },
+        "required": [
+          "gender"
         ]
       },
       "SetDateOfBirthDto": {

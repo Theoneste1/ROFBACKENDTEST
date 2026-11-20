@@ -31,6 +31,7 @@ import {
   ListUsersQueryDto,
   CorrectDateOfBirthDto,
   SetDateOfBirthDto,
+  SetGenderDto,
   UpdateMeDto,
   UpdateUserDto,
   UpdateUserStatusDto,
@@ -252,6 +253,17 @@ export class MeController {
   @AllowedBeforeDateOfBirth()
   getMe(@CurrentUser() user: AuthUser) {
     return this.usersService.getMe(user.id);
+  }
+
+  /**
+   * A user without a gender (an account from before gender was asked at sign-up; `genderRequired` on GET /me) gives
+   * it once: { gender: FEMALE | MALE }. 400 VALIDATION_FAILED, 409 GENDER_ALREADY_SET (an Administrator corrects it).
+   * Returns the profile.
+   */
+  @Put('gender')
+  @Authenticated()
+  setGender(@CurrentUser() user: AuthUser, @Body() body: SetGenderDto) {
+    return this.usersService.setOwnGender(user, body.gender);
   }
 
   /**

@@ -15,7 +15,7 @@
  *   former student — id of student.j, with a division on the caller.
  *   fresh          — an id that does not exist in the database.
  *
- * UR-01…UR-55 cover every REGISTERED @Authenticated route (the two dormant
+ * UR-01…UR-56 cover every REGISTERED @Authenticated route (the two dormant
  * Study Groups handlers are covered by the P1-02 declaration test only).
  * UR-37 (POST /auth/logout) is retired: logout became @Public in H1 (it is
  * authenticated by the refresh token; covered by test/auth.e2e-spec.ts). The
@@ -279,6 +279,12 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     { id: 'UR-53', route: 'PUT /api/v1/me/avatar', kind: 'same', run: (u) => c.me.setAvatar(u, undefined) },
     { id: 'UR-54', route: 'DELETE /api/v1/me/avatar', kind: 'same', run: (u) => c.me.removeAvatar(u) },
     { id: 'UR-55', route: 'GET /api/v1/users/:id/avatar', kind: 'same', run: (u, res) => c.avatars.avatar(ctx.ids.studentJunior, u, res) },
+    // Gender step (2026-11-20): role-independent, the caller's own account. Both callers are the same account, with a
+    // gender already recorded, so both get the same answer (409 GENDER_ALREADY_SET).
+    { id: 'UR-56', route: 'PUT /api/v1/me/gender', kind: 'same', run: async (u) => {
+      await ctx.prisma.user.update({ where: { id: u.id }, data: { gender: 'MALE' } });
+      return c.me.setGender(u, { gender: 'FEMALE' } as never);
+    } },
   ];
   /** Read-only role-independent cases: the unsupported caller must get exactly the same value. */
   const READ_ONLY = new Set(['UR-35', 'UR-36', 'UR-40', 'UR-41', 'UR-43', 'UR-46', 'UR-47', 'UR-52', 'UR-55']);
@@ -286,11 +292,11 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
   /** Ids of cases whose route is no longer @Authenticated; never reused. */
   const RETIRED = new Set(['UR-37']);   // POST /auth/logout → @Public (H1)
 
-  it('the UR cases cover exactly the registered @Authenticated routes (54), numbered UR-01…UR-55 without the retired UR-37', async () => {
+  it('the UR cases cover exactly the registered @Authenticated routes (55), numbered UR-01…UR-56 without the retired UR-37', async () => {
     expect(CASES.map((x) => x.id)).toEqual(
-      Array.from({ length: 55 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
+      Array.from({ length: 56 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
     );
-    expect(CASES).toHaveLength(54);
+    expect(CASES).toHaveLength(55);
     expect(CASES.map((x) => x.route).sort()).toEqual(await registeredAuthenticatedRoutes());
   });
 
