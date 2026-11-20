@@ -90,6 +90,30 @@ export const AREAS_2026_OBJECTS = {
 };
 
 /**
+ * The late-2026 release: the migrations after the design areas. The sign-up work (owner, 2026-11-20): gender at every
+ * sign-up; the home location on every registration form. Listed explicitly — a migration added later is never part of it
+ * until it is appended here on purpose.
+ */
+export const LATE_2026_MIGRATIONS = [
+  // Gender at every sign-up: the Gender enum; a nullable gender on User, MentorRequest and TeacherApplication.
+  '20261221000000_registration_gender',
+  // Home location: TeacherApplication.homeProvince (district and sector become optional); MentorRequest home place.
+  '20261221000100_home_location',
+];
+
+/** What the late-2026 migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
+export const LATE_2026_OBJECTS = {
+  tables: [],
+  enums: ['Gender'],
+  columns: [
+    ['User', 'gender'], ['MentorRequest', 'gender'], ['TeacherApplication', 'gender'],
+    ['TeacherApplication', 'homeProvince'], ['MentorRequest', 'homeDistrict'], ['MentorRequest', 'homeProvince'], ['MentorRequest', 'homeSector'],
+  ],
+  triggers: [],
+  functions: [],
+};
+
+/**
  * Each release: `owns(name)` — the migration belongs to it; `last` — its last timestamp (a migration sorting after it
  * is never deployed by the kit for this release); the read-only SQL checks; and the rollback-history rule.
  */
@@ -127,6 +151,21 @@ export const RELEASES = {
     requires: {
       label: 'Phase 1 and post-Phase-1', count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length,
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name),
+    },
+  },
+  'late-2026': {
+    label: `late 2026 (${LATE_2026_MIGRATIONS.length} migrations after the design areas)`,
+    count: LATE_2026_MIGRATIONS.length,
+    owns: (name) => LATE_2026_MIGRATIONS.includes(name),
+    last: LATE_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/late-2026-precheck.sql',
+    postcheck: 'scripts/release/late-2026-postcheck.sql',
+    migrations: LATE_2026_MIGRATIONS,
+    objects: LATE_2026_OBJECTS,
+    // The target must already hold Phase 1, post-Phase-1 and the design areas.
+    requires: {
+      label: 'Phase 1, post-Phase-1 and design areas', count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name),
     },
   },
 };

@@ -3,13 +3,15 @@
  * Migration rehearsal on a Neon BRANCH of production — never production itself.
  * Checklist: docs/operations/REHEARSAL-NEON-CHECKLIST.md (Phase 1) and docs/operations/RELEASE-POST-PHASE1.md.
  *
- * Every command takes --release <phase1|post-phase1|areas-2026> (default phase1, the kit's original behaviour):
+ * Every command takes --release <phase1|post-phase1|areas-2026|late-2026> (default phase1, the kit's original behaviour):
  *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
  *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
  *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
  *   areas-2026   the design-area migrations after those eleven (area 1 as simplified by the owner 2026-11-19: countries;
  *                the primary teacher of a school, owner decision 2026-11-19; Test Management Phases 1 to 4, 2026-11-19);
  *                the target must already hold Phase 1 and post-Phase-1; same checkout and database rules.
+ *   late-2026    the migrations after the design areas (the sign-up work, owner 2026-11-20: gender at every sign-up; the
+ *                home location on every registration form); the target must already hold the three releases before it.
  *
  *   node scripts/release/rehearsal.mjs check-target                 guard only, no connection
  *   node scripts/release/rehearsal.mjs precheck                     the release's precheck SQL (read only)
@@ -371,7 +373,7 @@ async function main() {
       }
     }
     // The design areas build on Phase 1 and post-Phase-1: all of them must already be recorded.
-    if (release.name === 'areas-2026' && command !== 'restore') {
+    if ((release.name === 'areas-2026' || release.name === 'late-2026') && command !== 'restore') {
       const before = applied.filter((n) => release.requires.owns(n)).length;
       if (before !== release.requires.count) {
         console.error(`✗ refused: the target records ${before} of the ${release.requires.count} ${release.requires.label} migrations; ${release.name} needs all of them first.`);
