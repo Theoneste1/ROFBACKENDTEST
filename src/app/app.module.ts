@@ -37,6 +37,7 @@ import { SchoolAffiliationModule } from '../schools/affiliations/school-affiliat
 import { PermissionGuard } from '../auth/guards/permission.guard.js';
 import { AdminRequestAuditMiddleware } from '../audit/admin-request-audit.middleware.js';
 import { UsersModule } from '../users/users.module.js';
+import { BulkModule } from '../bulk/bulk.module.js';
 import { SchoolsModule } from '../schools/schools.module.js';
 import { CoursesModule } from '../courses/courses.module.js';
 import { MentorAssignmentsModule } from '../mentor-assignments/mentor-assignments.module.js';
@@ -113,6 +114,7 @@ import { TestManagementModule } from '../test-management/test-management.module.
     TeachersModule,
     SchoolAffiliationModule,
     UsersModule,
+    BulkModule,
     SchoolsModule,
     CoursesModule,
     MentorAssignmentsModule,

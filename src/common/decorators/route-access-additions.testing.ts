@@ -293,4 +293,14 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/teacher/test-dashboard  TeacherTestResultsController.dashboard':                                 NOBODY_BY_DEFAULT,
   // Coaches: their own marking dashboard (tests.mark; Administrators never mark).
   'GET /api/v1/marking/dashboard  MarkingDashboardController.dashboard':                                        COACHES_ONLY,
+  // Generic bulk engine (2026-11-19): users.bulkManage on every route (Administrators, Super Admins); each action's own
+  // permission(s) and each record's single-route policy are checked in BulkOperationsService / BulkOperationsWorker
+  'GET /api/v1/admin/bulk/actions  BulkController.actions':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations  BulkController.list':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations/:id  BulkController.get':                                                ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations/:id/items  BulkController.items':                                        ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/operations/:id/cancel  BulkController.cancel':                                     ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType/preview  BulkController.preview':                                      ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType/export  BulkController.export':                                        ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType  BulkController.execute':                                              ADMINISTRATORS,
 };

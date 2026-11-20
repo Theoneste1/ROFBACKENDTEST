@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 407 endpoints — 26 public, 238 administrator-only.
+Totals: 415 endpoints — 26 public, 246 administrator-only.
 
 ## Academic years
 
@@ -50,6 +50,19 @@ Totals: 407 endpoints — 26 public, 238 administrator-only.
 | GET | `/api/v1/admin/audit-logs/{id}` |  |  |  | ✓ |
 | GET | `/api/v1/admin/audit-logs/actions` |  |  |  | ✓ |
 | GET | `/api/v1/admin/audit-logs/export.csv` |  |  |  | ✓ |
+
+## Admin · Bulk operations
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/admin/bulk/{entityType}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/bulk/{entityType}/export` |  |  |  | ✓ |
+| POST | `/api/v1/admin/bulk/{entityType}/preview` |  |  |  | ✓ |
+| GET | `/api/v1/admin/bulk/actions` |  |  |  | ✓ |
+| GET | `/api/v1/admin/bulk/operations` |  |  |  | ✓ |
+| GET | `/api/v1/admin/bulk/operations/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/bulk/operations/{id}/cancel` |  |  |  | ✓ |
+| GET | `/api/v1/admin/bulk/operations/{id}/items` |  |  |  | ✓ |
 
 ## Admin · Contact messages
 

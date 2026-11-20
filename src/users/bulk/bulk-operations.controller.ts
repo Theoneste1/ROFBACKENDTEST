@@ -1,5 +1,5 @@
 /**
- * Bulk user operations (capability bulkUserOperations; docs/operations/bulk-user-operations.md). Every route needs
+ * Bulk user operations (capability bulkUserOperations; docs/operations/bulk-operations.md). Every route needs
  * users.bulkManage (export: users.export); each action also needs its own permission (checked in the service), and
  * each account the same policies as a single change (checked per account by the worker).
  */
@@ -10,8 +10,11 @@ import type { Request, Response } from 'express';
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator.js';
 import type { AuthUser } from '../../common/auth-user.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { BulkOperationsService } from './bulk-operations.service.js';
+import { BulkOperationsService } from '../../bulk/bulk-operations.service.js';
 import { BulkExecuteDto, BulkExportDto, BulkPreviewDto, ListBulkItemsDto, ListBulkOperationsDto } from './bulk.dto.js';
+
+/** These routes are the USER record type of the generic engine (also at /admin/bulk/USER). */
+const USER = 'USER';
 
 @ApiTags('Admin · Users')
 @Controller('admin/users/bulk')
@@ -26,7 +29,7 @@ export class BulkOperationsController {
   @HttpCode(200)
   @RequirePermission('users.bulkManage')
   preview(@Body() body: BulkPreviewDto, @CurrentUser() user: AuthUser) {
-    return this.bulk.preview(body, user);
+    return this.bulk.preview(USER, body, user);
   }
 
   /**
@@ -36,7 +39,7 @@ export class BulkOperationsController {
   @Post()
   @RequirePermission('users.bulkManage')
   async execute(@Body() body: BulkExecuteDto, @CurrentUser() user: AuthUser, @Req() req: Request & { id?: string }, @Res({ passthrough: true }) res: Response) {
-    const result = await this.bulk.execute(body, user, req.id ?? null);
+    const result = await this.bulk.execute(USER, body, user, req.id ?? null);
     res.status(result.alreadyExisted ? 200 : 202);
     return result;
   }
@@ -45,28 +48,28 @@ export class BulkOperationsController {
   @Get()
   @RequirePermission('users.bulkManage')
   list(@Query() query: ListBulkOperationsDto, @CurrentUser() user: AuthUser) {
-    return this.bulk.list(query, user);
+    return this.bulk.list({ ...query, entityType: USER }, user);
   }
 
   /** CSV of the selected accounts (name, username, e-mail, role, state, school, grade, created). Audited. */
   @Post('export')
   @RequirePermission('users.export')
   async export(@Body() body: BulkExportDto, @CurrentUser() user: AuthUser, @Req() req: Request & { id?: string }, @Res() res: Response) {
-    await this.bulk.export(body, user, res, req.id ?? null);
+    await this.bulk.export(USER, body, user, res, req.id ?? null);
   }
 
   /** Progress: status, total, succeeded, failed, skipped, pending. */
   @Get(':id')
   @RequirePermission('users.bulkManage')
   get(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.bulk.get(id, user);
+    return this.bulk.get(id, user, USER);
   }
 
   /** Per-account results (?outcome=SUCCEEDED|FAILED|SKIPPED|PENDING), with the reason code of each failure or skip. */
   @Get(':id/items')
   @RequirePermission('users.bulkManage')
   items(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListBulkItemsDto, @CurrentUser() user: AuthUser) {
-    return this.bulk.items(id, query, user);
+    return this.bulk.items(id, query, user, USER);
   }
 
   /** Stops the operation: accounts not yet processed are skipped (CANCELLED); processed ones keep their result. */
@@ -74,6 +77,6 @@ export class BulkOperationsController {
   @HttpCode(200)
   @RequirePermission('users.bulkManage')
   cancel(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
-    return this.bulk.cancel(id, user);
+    return this.bulk.cancel(id, user, USER);
   }
 }

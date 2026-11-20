@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testResults', 'testSubmissions'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testResults', 'testSubmissions'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -39,6 +39,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   profilePictures:         'always',   // appended 2026-11-15: profile pictures (upload, replace, remove, view)
   accountStates:           'always',   // appended 2026-11-16: account states, status history, no permanent deletion
   bulkUserOperations:      'always',   // appended 2026-11-17: bulk user operations
+  bulkOperationsGeneric:   'always',   // appended 2026-11-19: generic bulk engine, /admin/bulk/*, signed 15-minute confirmation
   permissionScopes:        'always',
   reportExportFilters:     'always',   // appended 2026-11-14: results.csv period/year/course/division, enrolment by course
   reviewQueueFilters:      'always',   // appended 2026-11-14: coach review queue search, groups, sort, scope, counts

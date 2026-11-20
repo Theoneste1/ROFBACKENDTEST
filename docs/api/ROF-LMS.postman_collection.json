@@ -509,6 +509,284 @@
       ]
     },
     {
+      "name": "Admin · Bulk operations",
+      "item": [
+        {
+          "name": "POST /admin/bulk/{entityType}",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/:entityType",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                ":entityType"
+              ],
+              "variable": [
+                {
+                  "key": "entityType",
+                  "value": "",
+                  "description": "A record type (GET /admin/bulk/actions), e.g. USER."
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"action\",\n  \"selection\": {\n    \"mode\": \"ids\"\n  },\n  \"selectionToken\": \"selectionToken selectionToken\",\n  \"expectedTotal\": 0,\n  \"confirm\": true,\n  \"idempotencyKey\": \"idempotencyKey idempotencyKey\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/bulk/{entityType}/export",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/:entityType/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                ":entityType",
+                "export"
+              ],
+              "variable": [
+                {
+                  "key": "entityType",
+                  "value": "",
+                  "description": "A record type (GET /admin/bulk/actions), e.g. USER."
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selection\": {\n    \"mode\": \"ids\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/bulk/{entityType}/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/:entityType/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                ":entityType",
+                "preview"
+              ],
+              "variable": [
+                {
+                  "key": "entityType",
+                  "value": "",
+                  "description": "A record type (GET /admin/bulk/actions), e.g. USER."
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"action\",\n  \"selection\": {\n    \"mode\": \"ids\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/bulk/actions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/actions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                "actions"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/bulk/operations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/operations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                "operations"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "entityType",
+                  "value": "entityType",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/bulk/operations/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/operations/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                "operations",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/bulk/operations/{id}/cancel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/operations/:id/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                "operations",
+                ":id",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/bulk/operations/{id}/items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/bulk/operations/:id/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "bulk",
+                "operations",
+                ":id",
+                "items"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "outcome",
+                  "value": "PENDING",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `users.bulkManage` (ADMIN, SUPER_ADMIN)"
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Contact messages",
       "item": [
         {

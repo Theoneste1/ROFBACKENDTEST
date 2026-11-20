@@ -91,7 +91,7 @@ export const AREAS_2026_OBJECTS = {
 
 /**
  * The late-2026 release: the migrations after the design areas. The sign-up work (owner, 2026-11-20): gender at every
- * sign-up; the home location on every registration form. Listed explicitly — a migration added later is never part of it
+ * sign-up; the home location on every registration form; then the generic bulk engine (Bulk Actions). Listed explicitly — a migration added later is never part of it
  * until it is appended here on purpose.
  */
 export const LATE_2026_MIGRATIONS = [
@@ -99,6 +99,8 @@ export const LATE_2026_MIGRATIONS = [
   '20261221000000_registration_gender',
   // Home location: TeacherApplication.homeProvince (district and sector become optional); MentorRequest home place.
   '20261221000100_home_location',
+  // Generic bulk engine (2026-11-19): BulkOperation.entityType, BulkOperationItem.entityId (backfilled), userId nullable.
+  '20261222000000_bulk_operations_generic',
 ];
 
 /** What the late-2026 migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
@@ -108,9 +110,10 @@ export const LATE_2026_OBJECTS = {
   columns: [
     ['User', 'gender'], ['MentorRequest', 'gender'], ['TeacherApplication', 'gender'],
     ['TeacherApplication', 'homeProvince'], ['MentorRequest', 'homeDistrict'], ['MentorRequest', 'homeProvince'], ['MentorRequest', 'homeSector'],
+    ['BulkOperation', 'entityType'], ['BulkOperationItem', 'entityId'],
   ],
-  triggers: [],
-  functions: [],
+  triggers: ['bulk_item_entity_from_user'],
+  functions: ['bulk_item_entity_from_user'],
 };
 
 /**

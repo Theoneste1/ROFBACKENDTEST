@@ -1,5 +1,5 @@
 -- Late-2026 release post-check (AFTER `prisma migrate deploy` of the sign-up migrations: gender at every sign-up; home
--- location on every registration form): READ ONLY.
+-- location on every registration form; and the generic bulk engine): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release late-2026    (Neon rehearsal branch; guarded)
 --   psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/release/late-2026-postcheck.sql   (production, in the window)
@@ -9,10 +9,11 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 2, 0, 0: both late-2026 migrations applied; nothing failed or rolled back; nothing after 20261221000100'
-SELECT count(*) FILTER (WHERE migration_name IN ('20261221000000_registration_gender', '20261221000100_home_location')
+\echo '== 1. MUST be 3, 0, 0: the three late-2026 migrations applied; nothing failed or rolled back; nothing after 20261222000000'
+SELECT count(*) FILTER (WHERE migration_name IN ('20261221000000_registration_gender', '20261221000100_home_location',
+                                                 '20261222000000_bulk_operations_generic')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS late_applied,
-       count(*) FILTER (WHERE migration_name > '20261221000100_home_location')                  AS later,
+       count(*) FILTER (WHERE migration_name > '20261222000000_bulk_operations_generic')        AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -39,5 +40,27 @@ SELECT (SELECT count(*) FROM "User") AS users,
        (SELECT count(*) FROM "TeacherApplication") AS teacher_applications,
        (SELECT count(*) FROM "TeacherApplication" WHERE "homeDistrict" IS NOT NULL AND "homeSector" IS NOT NULL) AS teacher_applications_with_home,
        (SELECT count(*) FROM "MentorRequest") AS coach_applications;
+
+\echo '== 6. MUST be 1, 1, 1, 1, 1, 1, 0: BulkOperation.entityType, BulkOperationItem.entityId (NOT NULL), the (operationId, entityId) unique index, the single-use index on v2 confirmations, the trigger bulk_item_entity_from_user and its function; USER items whose userId differs from entityId'
+SELECT (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'BulkOperation' AND column_name = 'entityType') AS bulk_entity_type_column,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId' AND is_nullable = 'NO') AS bulk_entity_id_column,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperationItem_operationId_entityId_key') AS bulk_entity_unique_index,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperation_selectionToken_v2_key') AS bulk_single_use_index,
+       (SELECT count(*) FROM pg_trigger WHERE tgname = 'bulk_item_entity_from_user') AS bulk_item_trigger,
+       (SELECT count(*) FROM pg_proc WHERE proname = 'bulk_item_entity_from_user') AS bulk_item_function,
+       (SELECT count(*) FROM "BulkOperationItem" i JOIN "BulkOperation" o ON o."id" = i."operationId"
+         WHERE o."entityType" = 'USER' AND i."userId" IS DISTINCT FROM i."entityId") AS user_items_not_backfilled;
+
+\echo '== 7. MUST be 0 right after the migration: operations of another record type than USER'
+SELECT count(*) AS non_user_operations FROM "BulkOperation" WHERE "entityType" <> 'USER';
+
+\echo '== 8. compare: bulk operations and their items (MUST equal pre-check section 4)'
+SELECT count(*) AS operations, count(*) FILTER (WHERE "emailJobId" IS NOT NULL) AS with_email_job,
+       count(DISTINCT "action") AS actions, md5(string_agg("id" || ':' || "action" || ':' || "status"::text || ':' || "total" || ':' || coalesce("emailJobId", '-'), ',' ORDER BY "id")) AS fingerprint
+  FROM "BulkOperation";
+SELECT "outcome"::text, count(*) AS items, md5(string_agg("operationId" || ':' || "userId", ',' ORDER BY "id")) AS fingerprint
+  FROM "BulkOperationItem" GROUP BY "outcome" ORDER BY 1;
 
 ROLLBACK;

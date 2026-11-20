@@ -2510,13 +2510,18 @@ model BulkOperation {
   actorId        String?
   actor          User?               @relation("BulkOperationActor", fields: [actorId], references: [id], onDelete: SetNull)
   actorRole      String
-  /// activate | deactivate | suspend | archive | restore | assignRole | changeClassification | message
+  /// The record type (src/bulk: USER, …). Every operation before 2026-11-19 is USER.
+  entityType     String              @default("USER")
+  /// One of the record type's actions (USER: activate | deactivate | suspend | archive | restore | assignRole | …)
   action         String
   /// The action's parameters (role, gradeLevel, subject…) — never a password or other secret.
   params         Json
   /// { mode: 'ids', ids } or { mode: 'filter', filter } as confirmed by the administrator.
   selection      Json
-  /// The confirmed preview: a digest of the action, its parameters, the selection and the exact matching user ids.
+  /// The confirmation the administrator executed with (v2: signed, bound to them, the action, its parameters, the
+  /// selection and the exact matching record ids; v1 before 2026-11-19: an unsigned digest of the same minus the actor).
+  /// A v2 confirmation creates at most one operation: partial unique index BulkOperation_selectionToken_v2_key
+  /// (selectionToken) WHERE selectionToken LIKE 'v2.%' (migration 20261222000000; not expressible in this schema).
   selectionToken String
   reason         String?
   status         BulkOperationStatus @default(PENDING)
@@ -2540,12 +2545,16 @@ model BulkOperation {
   @@index([actorId, createdAt])
 }
 
-/// One account in a bulk operation: unique per (operation, user), so a user is processed — and notified — at most once.
+/// One record in a bulk operation: unique per (operation, record), so a record is processed — and notified — at most once.
 model BulkOperationItem {
   id             String          @id @default(uuid())
   operationId    String
   operation      BulkOperation   @relation(fields: [operationId], references: [id], onDelete: Cascade)
-  userId         String
+  /// The record (its id in the operation's entityType table). An INSERT without it takes userId (trigger
+  /// bulk_item_entity_from_user: the previous release's code during a rolling deploy).
+  entityId       String
+  /// USER items: the account (= entityId). Null for every other record type.
+  userId         String?
   outcome        BulkItemOutcome @default(PENDING)
   code           String?
   message        String?
@@ -2557,6 +2566,7 @@ model BulkOperationItem {
   processedAt    DateTime?
 
   @@unique([operationId, userId])
+  @@unique([operationId, entityId])
   @@index([operationId, outcome])
 }
 

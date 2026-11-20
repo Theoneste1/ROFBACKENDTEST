@@ -48,11 +48,11 @@ describe('Bulk user operations — atomicity, recovery and cancellation (review 
     const items = await p().bulkOperationItem.findMany({ where: { operationId: opId } });
     const changed = new Set((await p().userStatusChange.findMany({ where: { operationId: opId }, select: { userId: true } })).map((c) => c.userId));
     expect(items.filter((i) => i.outcome === 'PENDING' || i.outcome === 'PROCESSING')).toEqual([]);
-    for (const i of items) expect([i.userId, i.outcome === 'SUCCEEDED']).toEqual([i.userId, changed.has(i.userId)]);
+    for (const i of items) expect([i.userId, i.outcome === 'SUCCEEDED']).toEqual([i.userId, changed.has(i.userId!)]);
     const perUser = await p().userStatusChange.groupBy({ by: ['userId'], where: { operationId: opId }, _count: { _all: true } });
     expect(perUser.every((g) => g._count._all === 1)).toBe(true);
     // Cancelled accounts were not touched.
-    const cancelled = items.filter((i) => i.code === 'CANCELLED').map((i) => i.userId);
+    const cancelled = items.filter((i) => i.code === 'CANCELLED').map((i) => i.userId!);
     expect(await p().user.count({ where: { id: { in: cancelled }, accountStatus: { not: 'ACTIVE' } } })).toBe(0);
     return items;
   }
@@ -258,7 +258,7 @@ describe('Bulk user operations — atomicity, recovery and cancellation (review 
         const items = await outcomes(opId);
         const first = items.filter((i) => i.outcome === 'SUCCEEDED');
         expect(first).toHaveLength(1);
-        for (const i of items) expect([i.userId, i.outcome === 'SUCCEEDED']).toEqual([i.userId, await changed(kind, opId, i.userId)]);
+        for (const i of items) expect([i.userId, i.outcome === 'SUCCEEDED']).toEqual([i.userId, await changed(kind, opId, i.userId!)]);
         expect(items.filter((i) => i.code === 'CANCELLED')).toHaveLength(2);
         expect(ids).toContain(first[0].userId);
         expect((await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } })).status).toBe('CANCELLED');

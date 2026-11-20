@@ -234,4 +234,5 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // dashboard); +1 Coach route (marking dashboard); +9 for Head Coaches (publication, results, rankings, report, export, the
 // reporting overview, the staff dashboard — never the override); +10 for Administrators and Super Admins (the same and the
 // override).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 106, TEACHER: 97, MENTOR: 119, HEAD_COACH: 168, ADMIN: 338, SUPER_ADMIN: 344 };   // gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)
+// 2026-11-19, generic bulk engine: +8 /admin/bulk/* routes (users.bulkManage: Administrators and Super Admins only).
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 106, TEACHER: 97, MENTOR: 119, HEAD_COACH: 168, ADMIN: 346, SUPER_ADMIN: 352 };   // gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)

@@ -49,6 +49,10 @@ export class BulkParamsDto {
   @IsOptional() @IsUUID() teacherId?: string;
   /** grantDelegation, revokeDelegation: the delegation. */
   @IsOptional() @IsIn(TEACHER_DELEGATIONS as unknown as string[]) permission?: string;
+  /** reassignTeacher: the students' current Teacher. */
+  @IsOptional() @IsUUID() fromTeacherId?: string;
+  /** reassignTeacher: the Teacher the students move to. */
+  @IsOptional() @IsUUID() toTeacherId?: string;
 }
 
 export class BulkPreviewDto {

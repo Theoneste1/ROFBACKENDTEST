@@ -262,6 +262,16 @@ const PRIMARY_TEACHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-primary-
 /** Schools table (2026-11-19): GET /admin/schools sorts by name or verified students (sort, order) — additive only. */
 const SCHOOLS_TABLE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-schools-table.json';
 /**
+ * Generic bulk engine (2026-11-19): the /admin/bulk/* routes, and reassignTeacher (with fromTeacherId / toTeacherId) on
+ * /admin/users/bulk — additive only: no existing operation's response, required field or status changes.
+ */
+const BULK_ENGINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-bulk-engine.json';
+/**
+ * Generic bulk routes, documented (2026-11-19): response schemas, examples and error codes of the eight /admin/bulk/*
+ * routes (test/bulk-openapi-contract.e2e-spec.ts checks real responses against them). Documentation only.
+ */
+const BULK_ENGINE_RESPONSES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-bulk-engine-responses.json';
+/**
  * Test Management, Phase 1 (WS3, owner-approved plan 2026-11-19): /admin/tests (tests, questions, paper and marking guide)
  * and /admin/test-markers (marker authorisations) — additive only: 19 routes, 7 request schemas.
  */
@@ -296,9 +306,17 @@ const REGISTRATION_GENDER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-regi
  * the home country and place.
  */
 const HOME_LOCATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-home-location.json';
+/**
+ * The generic bulk engine on top of the sign-up work (2026-11-20): the bulk branch merged with develop (Test Management,
+ * gender, home location). Additive only against the home-location snapshot: the eight /admin/bulk/* routes, their
+ * documented responses and reassignTeacher on /admin/users/bulk.
+ */
+const BULK_ENGINE_MERGED_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-merged.json';
 /** Gender step (owner, 2026-11-20): PUT /me/gender for accounts without one; an Administrator corrects it. Additive only. */
 const GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-gender-step.json';
-const CURRENT_SNAPSHOT = GENDER_STEP_SNAPSHOT;
+/** The generic bulk engine on top of the gender step (2026-11-20): additive only against the gender-step snapshot. */
+const BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-gender-step.json';
+const CURRENT_SNAPSHOT = BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1602,6 +1620,201 @@ describe('approved API contract history', () => {
       'POST /api/v1/admin/tests/{id}/results/publish: operation added',
       'schema OverridePublicationDto: added',
       'schema PublishTestResultsDto: added',
+    ]);
+  });
+
+  test('schools table → generic bulk engine (2026-11-19): additive only — 8 routes, reassignTeacher on /admin/users/bulk, nothing breaking or for review', () => {
+    for (const f of [SCHOOLS_TABLE_SNAPSHOT, BULK_ENGINE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOLS_TABLE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/bulk/actions: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}: operation added',
+      'GET /api/v1/admin/bulk/operations: operation added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/export: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: operation added',
+      'POST /api/v1/admin/bulk/{entityType}: operation added',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk › request application/json.params.toTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.toTeacherId: new optional field',
+      'schema GenericBulkExecuteDto: added',
+      'schema GenericBulkExportDto: added',
+      'schema GenericBulkPreviewDto: added',
+      'schema GenericBulkSelectionDto: added',
+    ]);
+    // The direct teacher–student routes and every other /admin/users/bulk operation are untouched.
+    const touched = [...res.breaking, ...res.review, ...res.additive].filter((c) => /teacher-students|teachers\/\{id\}\/delegations/.test(c));
+    assert.deepEqual(touched, []);
+  });
+
+  test('bulk engine → bulk engine response documentation (2026-11-19): the generic routes document their responses and errors; nothing else changes', () => {
+    for (const f of [BULK_ENGINE_SNAPSHOT, BULK_ENGINE_RESPONSES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BULK_ENGINE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_RESPONSES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    // The one non-additive entry corrects the documentation of an unreleased route (added in the previous snapshot, same
+    // PR): POST /admin/bulk/{entityType}/export has always answered 200 with text/csv, never the 201 Swagger guessed.
+    assert.deepEqual(res.breaking, ['POST /api/v1/admin/bulk/{entityType}/export: response 201 removed']);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/bulk/actions: response 200 body added',
+      'GET /api/v1/admin/bulk/actions: response 401 added',
+      'GET /api/v1/admin/bulk/actions: response 403 added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: response 200 body added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: response 400 added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: response 401 added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: response 403 added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: response 404 added',
+      'GET /api/v1/admin/bulk/operations/{id}: response 200 body added',
+      'GET /api/v1/admin/bulk/operations/{id}: response 400 added',
+      'GET /api/v1/admin/bulk/operations/{id}: response 401 added',
+      'GET /api/v1/admin/bulk/operations/{id}: response 403 added',
+      'GET /api/v1/admin/bulk/operations/{id}: response 404 added',
+      'GET /api/v1/admin/bulk/operations: response 200 body added',
+      'GET /api/v1/admin/bulk/operations: response 400 added',
+      'GET /api/v1/admin/bulk/operations: response 401 added',
+      'GET /api/v1/admin/bulk/operations: response 403 added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: response 200 body added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: response 400 added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: response 401 added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: response 403 added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: response 404 added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: response 409 added',
+      'POST /api/v1/admin/bulk/{entityType}/export: response 200 added',
+      'POST /api/v1/admin/bulk/{entityType}/export: response 400 added',
+      'POST /api/v1/admin/bulk/{entityType}/export: response 401 added',
+      'POST /api/v1/admin/bulk/{entityType}/export: response 403 added',
+      'POST /api/v1/admin/bulk/{entityType}/export: response 404 added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: response 200 body added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: response 400 added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: response 401 added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: response 403 added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: response 404 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 200 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 202 body added',
+      'POST /api/v1/admin/bulk/{entityType}: response 400 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 401 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 403 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 404 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 409 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 410 added',
+      'POST /api/v1/admin/bulk/{entityType}: response 503 added',
+      'schema BulkActionView: added',
+      'schema BulkActionsView: added',
+      'schema BulkActorSummary: added',
+      'schema BulkEntityTypeView: added',
+      'schema BulkExecuteResult: added',
+      'schema BulkExportView: added',
+      'schema BulkItemOutcome: added',
+      'schema BulkItemPage: added',
+      'schema BulkItemView: added',
+      'schema BulkOperationPage: added',
+      'schema BulkOperationProgress: added',
+      'schema BulkOperationStatus: added',
+      'schema BulkOperationView: added',
+      'schema BulkPageMeta: added',
+      'schema BulkPreviewResult: added',
+      'schema BulkPreviewWarning: added',
+      'schema BulkUserSummary: added',
+    ]);
+    // Only the eight generic routes change: no existing operation (/admin/users/bulk, teacher–student routes…) is touched.
+    const touched = [...res.breaking, ...res.review, ...res.additive].filter((c) => !c.startsWith('schema ') && !c.includes('/api/v1/admin/bulk/'));
+    assert.deepEqual(touched, []);
+  });
+
+  test('home location → generic bulk engine (2026-11-20): additive only — the bulk routes, their responses and reassignTeacher; nothing breaking or for review', () => {
+    for (const f of [HOME_LOCATION_SNAPSHOT, BULK_ENGINE_MERGED_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(HOME_LOCATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_MERGED_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/bulk/actions: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}: operation added',
+      'GET /api/v1/admin/bulk/operations: operation added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/export: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: operation added',
+      'POST /api/v1/admin/bulk/{entityType}: operation added',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk › request application/json.params.toTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.toTeacherId: new optional field',
+      'schema BulkActionView: added',
+      'schema BulkActionsView: added',
+      'schema BulkActorSummary: added',
+      'schema BulkEntityTypeView: added',
+      'schema BulkExecuteResult: added',
+      'schema BulkExportView: added',
+      'schema BulkItemOutcome: added',
+      'schema BulkItemPage: added',
+      'schema BulkItemView: added',
+      'schema BulkOperationPage: added',
+      'schema BulkOperationProgress: added',
+      'schema BulkOperationStatus: added',
+      'schema BulkOperationView: added',
+      'schema BulkPageMeta: added',
+      'schema BulkPreviewResult: added',
+      'schema BulkPreviewWarning: added',
+      'schema BulkUserSummary: added',
+      'schema GenericBulkExecuteDto: added',
+      'schema GenericBulkExportDto: added',
+      'schema GenericBulkPreviewDto: added',
+      'schema GenericBulkSelectionDto: added',
+    ]);
+  });
+
+  test('gender step → generic bulk engine (2026-11-20): additive only — the bulk routes, their responses and reassignTeacher; nothing breaking or for review', () => {
+    for (const f of [GENDER_STEP_SNAPSHOT, BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(GENDER_STEP_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/bulk/actions: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}: operation added',
+      'GET /api/v1/admin/bulk/operations: operation added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/export: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: operation added',
+      'POST /api/v1/admin/bulk/{entityType}: operation added',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk › request application/json.params.toTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.toTeacherId: new optional field',
+      'schema BulkActionView: added',
+      'schema BulkActionsView: added',
+      'schema BulkActorSummary: added',
+      'schema BulkEntityTypeView: added',
+      'schema BulkExecuteResult: added',
+      'schema BulkExportView: added',
+      'schema BulkItemOutcome: added',
+      'schema BulkItemPage: added',
+      'schema BulkItemView: added',
+      'schema BulkOperationPage: added',
+      'schema BulkOperationProgress: added',
+      'schema BulkOperationStatus: added',
+      'schema BulkOperationView: added',
+      'schema BulkPageMeta: added',
+      'schema BulkPreviewResult: added',
+      'schema BulkPreviewWarning: added',
+      'schema BulkUserSummary: added',
+      'schema GenericBulkExecuteDto: added',
+      'schema GenericBulkExportDto: added',
+      'schema GenericBulkPreviewDto: added',
+      'schema GenericBulkSelectionDto: added',
     ]);
   });
 
