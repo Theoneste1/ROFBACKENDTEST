@@ -279,7 +279,7 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /4 migration\(s\) after post-Phase-1 .*\(20261211000000_countries_reference, 20261212000000_teacher_school_primary, 20261220000000_test_file_purposes, 20261220000100_tests_core\)/);
+    assert.match(r.stderr, /7 migration\(s\) after post-Phase-1 .*\(20261211000000_countries_reference, 20261212000000_teacher_school_primary, 20261220000000_test_file_purposes, 20261220000100_tests_core, 20261220000200_tests_submissions, 20261220000300_tests_marking, 20261220000400_tests_publishing\)/);
   });
 });
 
@@ -293,7 +293,7 @@ test('areas-2026: exactly the migrations after the post-Phase-1 eleven in this c
   assert.equal(areas.name, 'areas-2026');
   assert.equal(checkoutProblem(areas, dirs), null);
   assert.match(checkoutProblem(areas, [...dirs, '20261221000000_next']), /1 migration\(s\) after design areas .* \(20261221000000_next\)/);
-  assert.match(checkoutProblem(areas, dirs.filter((d) => d !== AREAS_2026_MIGRATIONS[0])), /expected the 4 .* found 3/);
+  assert.match(checkoutProblem(areas, dirs.filter((d) => d !== AREAS_2026_MIGRATIONS[0])), /expected the 7 .* found 6/);
   // It builds on Phase 1 and the eleven: a database is ready for it only with all 25 recorded.
   assert.equal(areas.requires.count, 14 + POST_PHASE1_MIGRATIONS.length);
   assert.equal(dirs.filter((d) => areas.requires.owns(d)).length, 25);
@@ -322,7 +322,7 @@ test('areas-2026: one rollback file per migration, newest first, each refusing w
   const docs = readdirSync('docs/migrations');
   const files = releaseRollbackFiles(release, docs);
   assert.deepEqual(files, [...AREAS_2026_MIGRATIONS].reverse().map((m) => `${m}.rollback.sql`));
-  assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 4 .* found 3/);
+  assert.throws(() => releaseRollbackFiles(release, files.slice(1)), /expected 7 .* found 6/);
   assert.deepEqual(releasePreSwitchFiles(release, docs), []);
   for (const f of files) {
     const text = readFileSync(`docs/migrations/${f}`, 'utf8');
@@ -350,7 +350,7 @@ test('the runner: areas-2026 passes the checkout guard on this checkout; a later
   withCheckoutCopy([], (root) => {
     const ok = run(root, 'deploy', '--release', 'areas-2026', '--confirm', 'ep-anything');
     assert.notEqual(ok.status, 5, ok.stderr);
-    assert.match(ok.stdout, /release: areas-2026 — design areas \(4 migrations after post-Phase-1\)/);
+    assert.match(ok.stdout, /release: areas-2026 — design areas \(7 migrations after post-Phase-1\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
   });
   withCheckoutCopy(['20261221000000_next'], (root) => {
@@ -361,7 +361,7 @@ test('the runner: areas-2026 passes the checkout guard on this checkout; a later
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'areas-2026');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /expected the 4 migrations of design areas .* found 3/);
+    assert.match(r.stderr, /expected the 7 migrations of design areas .* found 6/);
   }, { drop: ['20261211000000_countries_reference'] });
 });
 

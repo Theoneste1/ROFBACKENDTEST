@@ -63,12 +63,17 @@ export const SENDING_LEASE_MS = 5 * 60_000;
 export const backoffMs = (attempts: number) => Math.min(60_000 * 2 ** Math.max(attempts - 1, 0), 3_600_000);
 
 const DISPATCH_EVENT = 'decision-notification.dispatch';
+const DISPATCH_BATCH_EVENT = 'decision-notification.dispatch-batch';
+/** More rows than this after one action: sent one after another by one background worker, yielding between rows. */
+const BATCH_DISPATCH_THRESHOLD = 25;
 
 /** The entity of every teacher-registration notice (owner decision 10). */
 export const TEACHER_REGISTRATION_ENTITY = 'TeacherApplication';
 /** lastError of a teacher-registration notice not sent because self-registration is off. */
 export const SELF_REGISTRATION_OFF = 'Not sent: teacher self-registration is turned off.';
 const SWEEP_BATCH = 50;
+/** Outbox rows per statement in enqueueMany. */
+const ENQUEUE_CHUNK = 1_000;
 
 export interface DecisionEvent {
   type:      DecisionEventType;
@@ -123,11 +128,55 @@ export class DecisionNotificationsService {
     if (event.recipient.userId) {
       const inApp = decisionInApp(event.type, event.payload);
       const notification = await this.notifications.createInApp(tx, event.recipient.userId, {
-        category: 'ACCOUNT', type: event.type, title: inApp.title, body: inApp.body,
+        category: 'ACCOUNT', type: event.type, title: inApp.title, body: inApp.body, ...(inApp.link && { link: inApp.link }),
       });
       await tx.notificationOutbox.update({ where: { id: rowId }, data: { inAppNotificationId: notification.id } });
     }
     return rowId;
+  }
+
+  /**
+   * Many events at once, INSIDE the caller's transaction (Test Management Phase 4: thousands of students told about one
+   * publication): the outbox rows (INSERT … ON CONFLICT DO NOTHING on dedupeKey, so a repeat inserts nothing) and the
+   * in-app notifications of the rows actually inserted — three statements per chunk of 1,000 whatever the number.
+   * Returns the ids of the inserted rows (duplicates are skipped). Not for teacher-registration notices.
+   */
+  async enqueueMany(tx: Prisma.TransactionClient, events: readonly DecisionEvent[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (let i = 0; i < events.length; i += ENQUEUE_CHUNK) {
+      const chunk = events.slice(i, i + ENQUEUE_CHUNK);
+      if (chunk.some((e) => e.entity.type === TEACHER_REGISTRATION_ENTITY)) throw new Error('enqueueMany: teacher-registration notices use enqueue.');
+      const inserted = await tx.notificationOutbox.createManyAndReturn({
+        data: chunk.map((e) => ({
+          id: randomUUID(), type: e.type, dedupeKey: e.dedupeKey,
+          recipientUserId: e.recipient.userId, recipientEmail: e.recipient.email, firstName: e.recipient.firstName,
+          entityType: e.entity.type, entityId: e.entity.id,
+          payload: e.payload as unknown as Prisma.InputJsonValue,
+        })),
+        skipDuplicates: true,
+        select: { id: true, dedupeKey: true },
+      });
+      if (inserted.length === 0) continue;
+      const byKey = new Map(chunk.map((e) => [e.dedupeKey, e]));
+      const inApp = inserted
+        .map((row) => ({ row, e: byKey.get(row.dedupeKey)! }))
+        .filter(({ e }) => e.recipient.userId)
+        .map(({ row, e }) => {
+          const n = decisionInApp(e.type, e.payload);
+          return { outboxId: row.id, id: randomUUID(), userId: e.recipient.userId!, title: n.title, body: n.body, link: n.link ?? null, type: e.type };
+        });
+      if (inApp.length) {
+        await tx.notification.createMany({
+          data: inApp.map((n) => ({ id: n.id, userId: n.userId, category: 'ACCOUNT' as const, type: n.type, title: n.title, body: n.body, link: n.link })),
+        });
+        await tx.$executeRaw`
+          UPDATE "NotificationOutbox" o SET "inAppNotificationId" = x.nid
+            FROM unnest(${inApp.map((n) => n.outboxId)}::text[], ${inApp.map((n) => n.id)}::text[]) AS x(oid, nid)
+           WHERE o."id" = x.oid`;
+      }
+      ids.push(...inserted.map((r) => r.id));
+    }
+    return ids;
   }
 
   /** Teacher self-registration is enabled: TEACHERS_ENABLED and registration.teacherSelfSignup (decision 10). */
@@ -184,7 +233,24 @@ export class DecisionNotificationsService {
 
   /** Send the given rows in the background (after the response); null ids (duplicates) are skipped. */
   dispatchAfterCommit(ids: Array<string | null | undefined>): void {
-    for (const id of ids) if (id) this.events.emit(DISPATCH_EVENT, { id });
+    const rows = ids.filter((id): id is string => !!id);
+    // A large batch (Test Management Phase 4: thousands of students told about one publication) is sent by ONE
+    // background worker, one row at a time, so it never floods the database pool or the e-mail provider; a few rows are
+    // sent one event each, as before. Rows not sent yet stay PENDING for the retry sweep either way.
+    if (rows.length > BATCH_DISPATCH_THRESHOLD) {
+      this.events.emit(DISPATCH_BATCH_EVENT, { ids: rows });
+      return;
+    }
+    for (const id of rows) this.events.emit(DISPATCH_EVENT, { id });
+  }
+
+  @OnEvent(DISPATCH_BATCH_EVENT, { async: true, suppressErrors: false })
+  async onDispatchBatch(e: { ids: string[] }) {
+    for (const id of e.ids) {
+      await this.dispatch(id);
+      // Let requests run between two e-mails: a large batch never starves the API.
+      await new Promise((resolve) => setImmediate(resolve));
+    }
   }
 
   @OnEvent(DISPATCH_EVENT, { async: true, suppressErrors: false })

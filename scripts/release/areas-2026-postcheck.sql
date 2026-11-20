@@ -1,5 +1,5 @@
 -- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher;
--- Test Management Phase 1):
+-- Test Management Phases 1 to 4):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
@@ -10,11 +10,13 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 4, 0, 0: the four design-area migrations applied; nothing failed or rolled back; nothing after 20261220000100'
+\echo '== 1. MUST be 7, 0, 0: the seven design-area migrations applied; nothing failed or rolled back; nothing after 20261220000400'
 SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary',
-                                                 '20261220000000_test_file_purposes', '20261220000100_tests_core')
+                                                 '20261220000000_test_file_purposes', '20261220000100_tests_core',
+                                                 '20261220000200_tests_submissions', '20261220000300_tests_marking',
+                                                 '20261220000400_tests_publishing')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261220000100_tests_core')                     AS later,
+       count(*) FILTER (WHERE migration_name > '20261220000400_tests_publishing')               AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -101,5 +103,67 @@ SELECT (SELECT count(*) FROM "ProgrammeMembership")                       AS mem
 
 \echo '== 15. compare: files by purpose (MUST equal the pre-check)'
 SELECT "purpose", count(*) FROM "FileObject" GROUP BY "purpose" ORDER BY 1;
+
+\echo '== 16. MUST be 5, 3, 3, 3: the Test Management Phase 2 tables, enums, guard functions and their triggers'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestExtension', 'TestSubmission', 'TestSubmissionVersion', 'TestAnswerPage', 'TestSubmissionStatusChange')) AS phase2_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestExtensionKind', 'TestSubmissionStatus', 'TestSubmitterRole'))                       AS phase2_enums,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_submission_version_append_only', 'test_submission_status_append_only', 'test_answer_page_committed_guard')) AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_submission_version_append_only', 'test_submission_status_append_only', 'test_answer_page_committed_guard')) AS guard_triggers;
+
+\echo '== 17. MUST be 3: the one-active-extension indexes (whole test, student, teacher)'
+SELECT count(*) AS one_active_extension_indexes FROM pg_indexes
+ WHERE indexname IN ('TestExtension_one_active_test', 'TestExtension_one_active_student', 'TestExtension_one_active_teacher');
+
+\echo '== 18. MUST be 0, 0, 0, 0, 0: the Phase 2 tables start empty'
+SELECT (SELECT count(*) FROM "TestExtension") AS extensions, (SELECT count(*) FROM "TestSubmission") AS submissions,
+       (SELECT count(*) FROM "TestSubmissionVersion") AS versions, (SELECT count(*) FROM "TestAnswerPage") AS answer_pages,
+       (SELECT count(*) FROM "TestSubmissionStatusChange") AS status_changes;
+
+\echo '== 19. MUST be 5, 3, 1, 5, 5: the Test Management Phase 3 tables, enums, the finalMarkingId column, guard functions and their triggers'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestMarkChange', 'TestReview')) AS phase3_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestMarkingKind', 'TestMarkingStatus', 'TestReviewAction'))                              AS phase3_enums,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'TestSubmission' AND column_name = 'finalMarkingId')        AS final_marking_column,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
+                         'test_mark_change_append_only', 'test_review_append_only'))                              AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
+                          'test_mark_change_append_only', 'test_review_append_only'))                             AS guard_triggers;
+
+\echo '== 20. MUST be 1: one current assignment per submission and kind (partial unique index)'
+SELECT count(*) AS one_current_assignment_index FROM pg_indexes WHERE indexname = 'TestMarkerAssignment_one_current';
+
+\echo '== 21. MUST be 0, 0, 0, 0, 0, 0: the Phase 3 tables start empty; no submission has a final marking'
+SELECT (SELECT count(*) FROM "TestMarkerAssignment") AS assignments, (SELECT count(*) FROM "TestMarking") AS markings,
+       (SELECT count(*) FROM "TestMarkingScore") AS scores, (SELECT count(*) FROM "TestMarkChange") AS mark_changes,
+       (SELECT count(*) FROM "TestReview") AS reviews,
+       (SELECT count(*) FROM "TestSubmission" WHERE "finalMarkingId" IS NOT NULL) AS final_markings;
+
+\echo '== 22. MUST be 2, 3, 2, 2, 6: the Test Management Phase 4 tables, columns, guard functions, their triggers and CHECKs'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestPublication', 'TestResultWithdrawal'))                                           AS phase4_tables,
+       (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
+         AND ((table_name = 'TestSubmission' AND column_name IN ('publicationId', 'publishedAt'))
+           OR (table_name = 'Test' AND column_name = 'studentRankingsVisible')))                                 AS phase4_columns,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                  AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                 AS guard_triggers,
+       (SELECT count(*) FROM pg_constraint WHERE conname IN ('TestPublication_number_positive', 'TestPublication_count_nonnegative',
+         'TestPublication_override_reason', 'TestPublication_counts_object', 'TestResultWithdrawal_reason_present',
+         'TestSubmission_published_state'))                                                                      AS checks;
+
+\echo '== 23. MUST be 0, 0, 0, 0, 1: the Phase 4 tables start empty; nothing is published; rankings are never shown to students (design-only CHECK present)'
+SELECT (SELECT count(*) FROM "TestPublication") AS publications, (SELECT count(*) FROM "TestResultWithdrawal") AS withdrawals,
+       (SELECT count(*) FROM "TestSubmission" WHERE "status" = 'PUBLISHED' OR "publicationId" IS NOT NULL) AS published_results,
+       (SELECT count(*) FROM "Test" WHERE "studentRankingsVisible") AS student_rankings_on,
+       (SELECT count(*) FROM pg_constraint WHERE conname = 'Test_student_rankings_design_only') AS design_only_check;
 
 ROLLBACK;

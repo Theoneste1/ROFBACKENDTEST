@@ -423,9 +423,9 @@ model User {
   role         Role         @default(STUDENT)
 
   /// Mentor accounts and (optionally) self-registered students require approval.
-  isApproved       Boolean   @default(true)
+  isApproved       Boolean       @default(true)
   /// Suspended accounts cannot log in and lose access immediately.
-  isActive         Boolean   @default(true)
+  isActive         Boolean       @default(true)
   accountStatus    AccountStatus @default(ACTIVE)
   /// Set when the person activates the account (accepts an invitation or
   /// verifies their e-mail). NULL = invited / unverified: cannot log in.
@@ -433,7 +433,7 @@ model User {
   lastLoginAt      DateTime?
   /// Consecutive failed logins; reset on success. Five in a row lock the
   /// account for 15 minutes (lockedUntil), whatever IP they come from.
-  failedLoginCount Int       @default(0)
+  failedLoginCount Int           @default(0)
   lockedUntil      DateTime?
   /// Access tokens issued before this moment are rejected (set on password
   /// change/reset, sign-out everywhere, suspension and role change).
@@ -444,8 +444,8 @@ model User {
   avatarFileId   String?     @unique
   avatarFile     FileObject? @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
   /// Cached leaderboard total — always recomputable from published submissions.
-  points         Int     @default(0)
-  problemsSolved Int     @default(0)
+  points         Int         @default(0)
+  problemsSolved Int         @default(0)
 
   // ── Student-only fields (NULL for mentors and admins) ──────────────────────
   // Current placement. The authoritative per-year history is StudentEnrollment;
@@ -482,88 +482,107 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignmentsCreated                Assignment[]               @relation("AssignmentCreator")
-  assignmentsApproved               Assignment[]               @relation("AssignmentApprover")
+  assignmentsCreated                Assignment[]                    @relation("AssignmentCreator")
+  assignmentsApproved               Assignment[]                    @relation("AssignmentApprover")
   assignmentEvents                  AssignmentEvent[]
-  courseEnrollments                 CourseEnrollment[]         @relation("CourseEnrollments")
-  resourcesUploaded                 CourseResource[]           @relation("ResourceUploader")
+  courseEnrollments                 CourseEnrollment[]              @relation("CourseEnrollments")
+  resourcesUploaded                 CourseResource[]                @relation("ResourceUploader")
   resourceViews                     ResourceView[]
-  comments                          Comment[]                  @relation("CommentAuthor")
-  commentReactions                  CommentReaction[]          @relation("CommentReactions")
-  studyGroupsCreated                StudyGroup[]               @relation("StudyGroupCreator")
-  studyGroupMemberships             StudyGroupMember[]         @relation("StudyGroupMemberships")
-  emailJobsCreated                  EmailJob[]                 @relation("EmailJobCreator")
-  submissions                       Submission[]               @relation("StudentSubmissions")
+  comments                          Comment[]                       @relation("CommentAuthor")
+  commentReactions                  CommentReaction[]               @relation("CommentReactions")
+  studyGroupsCreated                StudyGroup[]                    @relation("StudyGroupCreator")
+  studyGroupMemberships             StudyGroupMember[]              @relation("StudyGroupMemberships")
+  emailJobsCreated                  EmailJob[]                      @relation("EmailJobCreator")
+  submissions                       Submission[]                    @relation("StudentSubmissions")
   submissionRevisions               SubmissionRevision[]
-  assignmentViews                   AssignmentView[]           @relation("AssignmentViewer")
-  auditLogs                         AuditLog[]                 @relation("AuditActor")
-  mentorAssignments                 MentorAssignment[]         @relation("MentorAssignmentMentor")
-  mentorAssignmentsMade             MentorAssignment[]         @relation("MentorAssignmentAssigner")
-  programmeMemberships              ProgrammeMembership[]      @relation("ProgrammeMember")
-  programmeMembershipsAdded         ProgrammeMembership[]      @relation("ProgrammeMemberAddedBy")
-  programmeMembershipsEnded         ProgrammeMembership[]      @relation("ProgrammeMemberEndedBy")
-  permissionOverrides               UserPermissionOverride[]   @relation("OverrideTarget")
-  permissionOverridesCreated        UserPermissionOverride[]   @relation("OverrideCreatedBy")
-  permissionOverridesRevoked        UserPermissionOverride[]   @relation("OverrideRevokedBy")
-  teacherSchools                    TeacherSchoolAssignment[]  @relation("TeacherSchool")
-  teacherStudentsAsTeacher          TeacherStudentAssignment[] @relation("TeacherStudentTeacher")
-  teacherStudentsAsStudent          TeacherStudentAssignment[] @relation("TeacherStudentStudent")
-  teacherStudentsAssigned           TeacherStudentAssignment[] @relation("TeacherStudentAssignedBy")
-  teacherStudentsEnded              TeacherStudentAssignment[] @relation("TeacherStudentEndedBy")
+  assignmentViews                   AssignmentView[]                @relation("AssignmentViewer")
+  auditLogs                         AuditLog[]                      @relation("AuditActor")
+  mentorAssignments                 MentorAssignment[]              @relation("MentorAssignmentMentor")
+  mentorAssignmentsMade             MentorAssignment[]              @relation("MentorAssignmentAssigner")
+  programmeMemberships              ProgrammeMembership[]           @relation("ProgrammeMember")
+  programmeMembershipsAdded         ProgrammeMembership[]           @relation("ProgrammeMemberAddedBy")
+  programmeMembershipsEnded         ProgrammeMembership[]           @relation("ProgrammeMemberEndedBy")
+  permissionOverrides               UserPermissionOverride[]        @relation("OverrideTarget")
+  permissionOverridesCreated        UserPermissionOverride[]        @relation("OverrideCreatedBy")
+  permissionOverridesRevoked        UserPermissionOverride[]        @relation("OverrideRevokedBy")
+  teacherSchools                    TeacherSchoolAssignment[]       @relation("TeacherSchool")
+  teacherStudentsAsTeacher          TeacherStudentAssignment[]      @relation("TeacherStudentTeacher")
+  teacherStudentsAsStudent          TeacherStudentAssignment[]      @relation("TeacherStudentStudent")
+  teacherStudentsAssigned           TeacherStudentAssignment[]      @relation("TeacherStudentAssignedBy")
+  teacherStudentsEnded              TeacherStudentAssignment[]      @relation("TeacherStudentEndedBy")
   delegationSelections              UserPermissionOverrideStudent[] @relation("OverrideSelectedStudent")
   delegationSelectionsAdded         UserPermissionOverrideStudent[] @relation("OverrideStudentAddedBy")
   delegationSelectionsRemoved       UserPermissionOverrideStudent[] @relation("OverrideStudentRemovedBy")
-  teacherSchoolsAssigned            TeacherSchoolAssignment[]  @relation("TeacherSchoolAssignedBy")
-  teacherSchoolsEnded               TeacherSchoolAssignment[]  @relation("TeacherSchoolEndedBy")
-  schoolAffiliations                StudentSchoolAffiliation[] @relation("AffiliationStudent")
-  affiliationsCreated               StudentSchoolAffiliation[] @relation("AffiliationCreatedBy")
-  affiliationsDecided               StudentSchoolAffiliation[] @relation("AffiliationDecidedBy")
-  affiliationsRevoked               StudentSchoolAffiliation[] @relation("AffiliationRevokedBy")
-  affiliationsSuperseded            StudentSchoolAffiliation[] @relation("AffiliationSupersededBy")
-  schoolsCreated                    School[]                   @relation("SchoolCreatedBy")
-  schoolsVerified                   School[]                   @relation("SchoolVerifiedBy")
-  schoolContactsVerified            SchoolContact[]            @relation("SchoolContactVerifiedBy")
-  schoolContactsRemoved             SchoolContact[]            @relation("SchoolContactRemovedBy")
-  schoolSyncRunsCreated             SchoolSyncRun[]            @relation("SchoolSyncRunCreatedBy")
-  schoolSyncRunsApplied             SchoolSyncRun[]            @relation("SchoolSyncRunAppliedBy")
-  schoolSyncRunsApproved            SchoolSyncRun[]            @relation("SchoolSyncRunApprovedBy")
-  schoolSyncProposals               SchoolSyncItem[]           @relation("SchoolSyncItemProposedBy")
-  schoolSyncResolutions             SchoolSyncItem[]           @relation("SchoolSyncItemResolvedBy")
-  schoolSyncDecisions               SchoolSyncChange[]         @relation("SchoolSyncChangeDecidedBy")
+  teacherSchoolsAssigned            TeacherSchoolAssignment[]       @relation("TeacherSchoolAssignedBy")
+  teacherSchoolsEnded               TeacherSchoolAssignment[]       @relation("TeacherSchoolEndedBy")
+  schoolAffiliations                StudentSchoolAffiliation[]      @relation("AffiliationStudent")
+  affiliationsCreated               StudentSchoolAffiliation[]      @relation("AffiliationCreatedBy")
+  affiliationsDecided               StudentSchoolAffiliation[]      @relation("AffiliationDecidedBy")
+  affiliationsRevoked               StudentSchoolAffiliation[]      @relation("AffiliationRevokedBy")
+  affiliationsSuperseded            StudentSchoolAffiliation[]      @relation("AffiliationSupersededBy")
+  schoolsCreated                    School[]                        @relation("SchoolCreatedBy")
+  schoolsVerified                   School[]                        @relation("SchoolVerifiedBy")
+  schoolContactsVerified            SchoolContact[]                 @relation("SchoolContactVerifiedBy")
+  schoolContactsRemoved             SchoolContact[]                 @relation("SchoolContactRemovedBy")
+  schoolSyncRunsCreated             SchoolSyncRun[]                 @relation("SchoolSyncRunCreatedBy")
+  schoolSyncRunsApplied             SchoolSyncRun[]                 @relation("SchoolSyncRunAppliedBy")
+  schoolSyncRunsApproved            SchoolSyncRun[]                 @relation("SchoolSyncRunApprovedBy")
+  schoolSyncProposals               SchoolSyncItem[]                @relation("SchoolSyncItemProposedBy")
+  schoolSyncResolutions             SchoolSyncItem[]                @relation("SchoolSyncItemResolvedBy")
+  schoolSyncDecisions               SchoolSyncChange[]              @relation("SchoolSyncChangeDecidedBy")
   notifications                     Notification[]
   notificationPrefs                 NotificationPreference[]
   notificationSettings              NotificationSetting[]
   refreshTokens                     RefreshToken[]
   passwordResetTokens               PasswordResetToken[]
-  activationTokens                  AccountActivationToken[]   @relation("ActivationUser")
-  invitationsSent                   AccountActivationToken[]   @relation("ActivationInviter")
-  filesUploaded                     FileObject[]               @relation("FileUploader")
+  activationTokens                  AccountActivationToken[]        @relation("ActivationUser")
+  invitationsSent                   AccountActivationToken[]        @relation("ActivationInviter")
+  filesUploaded                     FileObject[]                    @relation("FileUploader")
   settingsUpdated                   SystemSetting[]
   formAvailabilityUpdated           FormAvailability[]
   studentEnrollments                StudentEnrollment[]
-  reviews                           MentorReview[]             @relation("ReviewMentor")
-  reviewsAssigned                   MentorReview[]             @relation("ReviewAssigner")
-  reviewsDecided                    MentorReview[]             @relation("ReviewDecider")
+  reviews                           MentorReview[]                  @relation("ReviewMentor")
+  reviewsAssigned                   MentorReview[]                  @relation("ReviewAssigner")
+  reviewsDecided                    MentorReview[]                  @relation("ReviewDecider")
   reviewEvents                      ReviewEvent[]
   distributionBatches               DistributionBatch[]
   resultReleases                    ResultRelease[]
   threadsCreated                    DiscussionThread[]
-  reportsFiled                      ContentReport[]            @relation("ReportReporter")
-  reportsResolved                   ContentReport[]            @relation("ReportResolver")
+  reportsFiled                      ContentReport[]                 @relation("ReportReporter")
+  reportsResolved                   ContentReport[]                 @relation("ReportResolver")
   moderationActions                 ModerationAction[]
   activityLogs                      ActivityLog[]
-  teacherApplicationsDecided        TeacherApplication[]       @relation("TeacherApplicationDecidedBy")
-  teacherApplication                TeacherApplication?        @relation("TeacherApplicationUser")
-  teacherApplicationSchoolsVerified TeacherApplication[]       @relation("TeacherApplicationSchoolVerifiedBy")
-  applicationInfoRequests           ApplicationInfoRequest[]   @relation("ApplicationInfoRequestedBy")
+  teacherApplicationsDecided        TeacherApplication[]            @relation("TeacherApplicationDecidedBy")
+  teacherApplication                TeacherApplication?             @relation("TeacherApplicationUser")
+  teacherApplicationSchoolsVerified TeacherApplication[]            @relation("TeacherApplicationSchoolVerifiedBy")
+  applicationInfoRequests           ApplicationInfoRequest[]        @relation("ApplicationInfoRequestedBy")
   notificationOutbox                NotificationOutbox[]
-  statusChanges                     UserStatusChange[]         @relation("StatusChangeUser")
-  statusChangesMade                 UserStatusChange[]         @relation("StatusChangeActor")
-  bulkOperations                    BulkOperation[]            @relation("BulkOperationActor")
-  testsCreated                      Test[]                     @relation("TestCreatedBy")
-  markerAuthorizations              MarkerAuthorization[]      @relation("MarkerCoach")
-  markerAuthorizationsGranted       MarkerAuthorization[]      @relation("MarkerGrantedBy")
-  markerAuthorizationsRevoked       MarkerAuthorization[]      @relation("MarkerRevokedBy")
+  statusChanges                     UserStatusChange[]              @relation("StatusChangeUser")
+  statusChangesMade                 UserStatusChange[]              @relation("StatusChangeActor")
+  bulkOperations                    BulkOperation[]                 @relation("BulkOperationActor")
+  testsCreated                      Test[]                          @relation("TestCreatedBy")
+  markerAuthorizations              MarkerAuthorization[]           @relation("MarkerCoach")
+  markerAuthorizationsGranted       MarkerAuthorization[]           @relation("MarkerGrantedBy")
+  markerAuthorizationsRevoked       MarkerAuthorization[]           @relation("MarkerRevokedBy")
+  testExtensionsAsStudent           TestExtension[]                 @relation("TestExtensionStudent")
+  testExtensionsAsTeacher           TestExtension[]                 @relation("TestExtensionTeacher")
+  testExtensionsGranted             TestExtension[]                 @relation("TestExtensionGrantedBy")
+  testExtensionsEdited              TestExtension[]                 @relation("TestExtensionEditedBy")
+  testExtensionsCancelled           TestExtension[]                 @relation("TestExtensionCancelledBy")
+  testSubmissions                   TestSubmission[]                @relation("TestSubmissionStudent")
+  testVersionsSubmitted             TestSubmissionVersion[]         @relation("TestVersionSubmitter")
+  testVersionsAsTeacher             TestSubmissionVersion[]         @relation("TestVersionTeacher")
+  testAnswerPagesAsStudent          TestAnswerPage[]                @relation("TestAnswerPageStudent")
+  testAnswerPagesUploaded           TestAnswerPage[]                @relation("TestAnswerPageUploader")
+  testSubmissionStatusChanges       TestSubmissionStatusChange[]    @relation("TestSubmissionStatusActor")
+  testMarkerAssignments             TestMarkerAssignment[]          @relation("TestMarkerAssignmentCoach")
+  testMarkerAssignmentsMade         TestMarkerAssignment[]          @relation("TestMarkerAssignmentAssignedBy")
+  testMarkerAssignmentsEnded        TestMarkerAssignment[]          @relation("TestMarkerAssignmentEndedBy")
+  testMarkings                      TestMarking[]                   @relation("TestMarkingMarker")
+  testMarkChanges                   TestMarkChange[]                @relation("TestMarkChangeActor")
+  testReviews                       TestReview[]                    @relation("TestReviewActor")
+  testPublications                  TestPublication[]               @relation("TestPublicationActor")
+  testResultWithdrawals             TestResultWithdrawal[]          @relation("TestResultWithdrawalActor")
 
   @@index([points])
   @@index([role])
@@ -964,20 +983,20 @@ model TokenBlacklist {
 /// decision). At most one application that is not REJECTED per username and per e-mail: partial unique indexes
 /// (MentorRequest_active_username_key / _active_email_key, WHERE status <> 'REJECTED').
 model MentorRequest {
-  id           String              @id @default(uuid())
-  firstName    String
-  lastName     String
-  username     String
-  email        String
+  id                 String                   @id @default(uuid())
+  firstName          String
+  lastName           String
+  username           String
+  email              String
   /// Cleared once the request is decided.
-  passwordHash String?
-  status       MentorRequestStatus @default(PENDING)
+  passwordHash       String?
+  status             MentorRequestStatus      @default(PENDING)
   /// Application details (capability coachApplicationDetails); NULL / empty for older applications.
   /// country and olympiadInterests are copied to the Coach account on approval.
-  country           String?
-  occupation        String?
-  educationLevel    CoachEducationLevel?
-  olympiadInterests OlympiadSubject[]    @default([])
+  country            String?
+  occupation         String?
+  educationLevel     CoachEducationLevel?
+  olympiadInterests  OlympiadSubject[]        @default([])
   /// Coach application details (2026-11-17, REG-06): phone (E.164), institution or affiliation, areas of
   /// expertise, relevant experience (free text) and years of experience (0–60). All optional for older clients.
   phone              String?
@@ -989,10 +1008,10 @@ model MentorRequest {
   rejectionReason    String?
   infoRequests       ApplicationInfoRequest[]
   /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
-  avatarFileId       String?              @unique
-  avatarFile         FileObject?          @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  avatarFileId       String?                  @unique
+  avatarFile         FileObject?              @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
 
   @@index([status])
   @@index([username])
@@ -1264,8 +1283,8 @@ model Discipline {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  courses     Course[]
-  memberships ProgrammeMembership[]
+  courses              Course[]
+  memberships          ProgrammeMembership[]
   /// Test Management (WS3): the subject's tests and authorised markers.
   tests                Test[]
   markerAuthorizations MarkerAuthorization[]
@@ -1407,17 +1426,19 @@ model FileObject {
   uploadedBy   User?       @relation("FileUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   createdAt    DateTime    @default(now())
 
-  resourceAttachments   ResourceAttachment[]
-  assignmentAttachments AssignmentAttachment[]
-  submissionAttachments SubmissionAttachment[]
-  reviewAttachments     ReviewAttachment[]
+  resourceAttachments        ResourceAttachment[]
+  assignmentAttachments      AssignmentAttachment[]
+  submissionAttachments      SubmissionAttachment[]
+  reviewAttachments          ReviewAttachment[]
   /// The account whose current profile picture this is (FilePurpose AVATAR); keeps it from orphan cleanup.
-  avatarOf              User?                  @relation("UserAvatar")
+  avatarOf                   User?                  @relation("UserAvatar")
   /// An optional profile picture sent with a Teacher / Coach application (REG-02), moved to the account on approval.
-  teacherApplicationAvatarOf TeacherApplication? @relation("TeacherApplicationAvatar")
-  mentorRequestAvatarOf      MentorRequest?      @relation("MentorRequestAvatar")
+  teacherApplicationAvatarOf TeacherApplication?    @relation("TeacherApplicationAvatar")
+  mentorRequestAvatarOf      MentorRequest?         @relation("MentorRequestAvatar")
   /// A test's paper or marking guide (Test Management); keeps the file from orphan cleanup.
   testFiles                  TestFile[]
+  /// A page of a student's test answer (Test Management Phase 2); keeps the file from orphan cleanup.
+  testAnswerPage             TestAnswerPage?
 
   @@index([purpose])
   @@index([createdAt])
@@ -2171,7 +2192,7 @@ enum FormMode {
 /// Times are UTC instants; they are shown in Africa/Kigali. A null message, instructions or contact means the
 /// built-in default (FORM_DEFAULTS).
 model FormAvailability {
-  key           FormKey  @id
+  key           FormKey   @id
   mode          FormMode
   opensAt       DateTime?
   closesAt      DateTime?
@@ -2180,9 +2201,9 @@ model FormAvailability {
   contactEmail  String?
   supportUrl    String?
   updatedById   String?
-  updatedBy     User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  updatedBy     User?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([updatedById])
 }
@@ -2233,24 +2254,24 @@ enum OverrideEffect {
 /// (courseId × divisionId for a teacher's assignments.prepare). Never deleted:
 /// revocation is soft and the history is kept.
 model UserPermissionOverride {
-  id               String         @id @default(uuid())
+  id               String                          @id @default(uuid())
   userId           String
-  user             User           @relation("OverrideTarget", fields: [userId], references: [id], onDelete: Cascade)
+  user             User                            @relation("OverrideTarget", fields: [userId], references: [id], onDelete: Cascade)
   permission       String
   effect           OverrideEffect
   /// GRANT scope (course × division); null for DENY.
   courseId         String?
-  course           Course?        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course           Course?                         @relation(fields: [courseId], references: [id], onDelete: Cascade)
   divisionId       String?
-  division         Division?      @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  division         Division?                       @relation(fields: [divisionId], references: [id], onDelete: Cascade)
   reason           String
   expiresAt        DateTime?
   createdById      String?
-  createdBy        User?          @relation("OverrideCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt        DateTime       @default(now())
+  createdBy        User?                           @relation("OverrideCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime                        @default(now())
   revokedAt        DateTime?
   revokedById      String?
-  revokedBy        User?          @relation("OverrideRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokedBy        User?                           @relation("OverrideRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
   revokeReason     String?
   /// When the expiry was recorded in the audit log (record only; the override stopped applying at expiresAt).
   expiryRecordedAt DateTime?
@@ -2359,19 +2380,19 @@ enum TeacherSchoolRole {
 /// index TeacherSchoolAssignment_one_primary_per_school (schoolId) WHERE isActive AND role = 'PRIMARY'
 /// (migration 20261212000000). An ended link, or one whose account leaves ACTIVE, is SECONDARY.
 model TeacherSchoolAssignment {
-  id           String    @id @default(uuid())
+  id           String            @id @default(uuid())
   teacherId    String
-  teacher      User      @relation("TeacherSchool", fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher      User              @relation("TeacherSchool", fields: [teacherId], references: [id], onDelete: Cascade)
   schoolId     String
-  school       School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  isActive     Boolean   @default(true)
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  isActive     Boolean           @default(true)
   role         TeacherSchoolRole @default(SECONDARY)
   assignedById String?
-  assignedBy   User?     @relation("TeacherSchoolAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
-  createdAt    DateTime  @default(now())
+  assignedBy   User?             @relation("TeacherSchoolAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime          @default(now())
   endedAt      DateTime?
   endedById    String?
-  endedBy      User?     @relation("TeacherSchoolEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  endedBy      User?             @relation("TeacherSchoolEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
 
   @@unique([teacherId, schoolId])
   @@index([schoolId, isActive])
@@ -2444,19 +2465,19 @@ model StudentSchoolAffiliation {
 /// One change of a user's account state (2026-11-16), with its reason and who made it. Never deleted with the
 /// account's normal administration; the matching AuditLog row (USER_STATUS_CHANGED) is written in the same transaction.
 model UserStatusChange {
-  id          String         @id @default(uuid())
+  id          String        @id @default(uuid())
   userId      String
-  user        User           @relation("StatusChangeUser", fields: [userId], references: [id], onDelete: Restrict)
+  user        User          @relation("StatusChangeUser", fields: [userId], references: [id], onDelete: Restrict)
   fromStatus  AccountStatus
   toStatus    AccountStatus
   reason      String?
   actorId     String?
-  actor       User?          @relation("StatusChangeActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor       User?         @relation("StatusChangeActor", fields: [actorId], references: [id], onDelete: SetNull)
   actorRole   String
   /// The bulk operation that made this change, if any.
   operationId String?
   requestId   String?
-  createdAt   DateTime       @default(now())
+  createdAt   DateTime      @default(now())
 
   @@index([userId, createdAt])
   @@index([operationId])
@@ -2642,26 +2663,34 @@ enum TestFileKind {
 /// originalClosesAt: the deadline when the test was first published (it follows closesAt while the test is a draft that
 /// was never published) — kept unchanged when the deadline later moves.
 model Test {
-  id               String           @id @default(uuid())
-  title            String
-  disciplineId     String
-  discipline       Discipline       @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
-  division         TestDivision     @default(ALL)
-  answerFormat     TestAnswerFormat
-  opensAt          DateTime
-  closesAt         DateTime
-  originalClosesAt DateTime
-  maxMarks         Int
-  status           TestStatus       @default(DRAFT)
+  id                     String           @id @default(uuid())
+  title                  String
+  disciplineId           String
+  discipline             Discipline       @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  division               TestDivision     @default(ALL)
+  answerFormat           TestAnswerFormat
+  opensAt                DateTime
+  closesAt               DateTime
+  originalClosesAt       DateTime
+  maxMarks               Int
+  status                 TestStatus       @default(DRAFT)
   /// First publication (never cleared); from then on originalClosesAt is frozen.
-  publishedAt      DateTime?
-  createdById      String?
-  createdBy        User?            @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  publishedAt            DateTime?
+  /// Phase 4 (DESIGN ONLY, owner spec 10.3): a future option to show the internal rankings to students. Always false —
+  /// the CHECK Test_student_rankings_design_only refuses true, and no route reads or changes it; enabling it later is a
+  /// migration that drops the CHECK plus a reviewed change of the student results view (STUDENT_RANKINGS_ENABLED).
+  studentRankingsVisible Boolean          @default(false)
+  createdById            String?
+  createdBy              User?            @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
-  questions TestQuestion[]
-  files     TestFile[]
+  questions    TestQuestion[]
+  files        TestFile[]
+  extensions   TestExtension[]
+  submissions  TestSubmission[]
+  answerPages  TestAnswerPage[]
+  publications TestPublication[]
 
   @@index([disciplineId, status])
   @@index([createdById])
@@ -2679,6 +2708,9 @@ model TestQuestion {
   maxMarks  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  markingScores TestMarkingScore[]
+  markChanges   TestMarkChange[]
 
   @@unique([testId, order])
 }
@@ -2720,4 +2752,411 @@ model MarkerAuthorization {
   @@index([coachId, revokedAt])
   @@index([grantedById])
   @@index([revokedById])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test Management, Phase 2 (WS3): deadlines, extensions, submissions and their versions.
+// Migration 20261220000200_tests_submissions. Deadlines are computed by ONE service
+// (TestDeadlineService) from database time only.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// TEST: every student of the test; STUDENT: one student (whoever submits for them); TEACHER: one teacher's own
+/// submissions for the students of their schools.
+enum TestExtensionKind {
+  TEST
+  STUDENT
+  TEACHER
+}
+
+/// The approved status flow (owner spec): SUBMITTED → ASSIGNED → MARKING_IN_PROGRESS → MARKED (awaiting approval) →
+/// APPROVED → PUBLISHED, plus RETURNED (for correction) and AWAITING_SECOND_MARKING. Phase 2 writes SUBMITTED only; the
+/// allowed transitions arrive with marking (Phase 3). Every change is kept in TestSubmissionStatusChange.
+enum TestSubmissionStatus {
+  SUBMITTED
+  ASSIGNED
+  MARKING_IN_PROGRESS
+  MARKED
+  APPROVED
+  PUBLISHED
+  RETURNED
+  AWAITING_SECOND_MARKING
+}
+
+/// Who submitted a version: the student, or a teacher of the student's school (G2).
+enum TestSubmitterRole {
+  STUDENT
+  TEACHER
+}
+
+/// A deadline extension (Administrator or the subject's Head Coach). The test's own closesAt / originalClosesAt never
+/// change. At most one ACTIVE (cancelledAt IS NULL) extension per target: partial unique indexes
+/// TestExtension_one_active_test / _student / _teacher. CHECK: the target matches the kind; a cancellation has its time
+/// and its reason. Edited or cancelled only before it expires (newDeadline, database time).
+model TestExtension {
+  id            String            @id @default(uuid())
+  testId        String
+  test          Test              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  kind          TestExtensionKind
+  studentId     String?
+  student       User?             @relation("TestExtensionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId     String?
+  teacher       User?             @relation("TestExtensionTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  newDeadline   DateTime
+  /// Mandatory; the latest reason (an edit gives a new one; the audit log keeps every one).
+  reason        String
+  grantedById   String?
+  grantedBy     User?             @relation("TestExtensionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  grantedAt     DateTime          @default(now())
+  editedAt      DateTime?
+  editedById    String?
+  editedBy      User?             @relation("TestExtensionEditedBy", fields: [editedById], references: [id], onDelete: SetNull)
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelledBy   User?             @relation("TestExtensionCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  cancelReason  String?
+
+  @@index([testId, cancelledAt])
+  @@index([studentId])
+  @@index([teacherId])
+  @@index([grantedById])
+  @@index([editedById])
+  @@index([cancelledById])
+}
+
+/// One per student per test. publicCode: opaque (random, no identity), the only identifier markers will see (Phase 3).
+/// currentVersionId: the version markers work on. Never deleted (a test with submissions cannot be deleted or
+/// unpublished; the foreign keys RESTRICT).
+model TestSubmission {
+  id               String                 @id @default(uuid())
+  testId           String
+  test             Test                   @relation(fields: [testId], references: [id], onDelete: Restrict)
+  studentId        String
+  student          User                   @relation("TestSubmissionStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  publicCode       String                 @unique
+  status           TestSubmissionStatus   @default(SUBMITTED)
+  currentVersionId String?                @unique
+  currentVersion   TestSubmissionVersion? @relation("TestSubmissionCurrentVersion", fields: [currentVersionId], references: [id], onDelete: Restrict)
+  versionCount     Int                    @default(0)
+  firstSubmittedAt DateTime?
+  lastSubmittedAt  DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  /// Phase 3: the marking whose marks count (set by approval of a single marking, or by the Head Coach's choice of
+  /// first / second / adjusted marks; cleared when a marking is returned or a second marking is requested).
+  finalMarkingId String?      @unique
+  finalMarking   TestMarking? @relation("TestSubmissionFinalMarking", fields: [finalMarkingId], references: [id], onDelete: Restrict)
+
+  /// Phase 4: the publication that made this result visible to the student and their school's teachers — set exactly
+  /// while the status is PUBLISHED (CHECK); cleared when an unlock withdraws it (G6, TestResultWithdrawal).
+  publicationId String?
+  publication   TestPublication? @relation("TestSubmissionPublication", fields: [publicationId], references: [id], onDelete: Restrict)
+  publishedAt   DateTime?
+
+  versions          TestSubmissionVersion[]      @relation("TestSubmissionVersions")
+  statusChanges     TestSubmissionStatusChange[]
+  markerAssignments TestMarkerAssignment[]
+  markings          TestMarking[]                @relation("TestSubmissionMarkings")
+  reviews           TestReview[]
+  withdrawals       TestResultWithdrawal[]
+
+  @@unique([testId, studentId])
+  @@index([studentId])
+  @@index([testId, status])
+  @@index([publicationId])
+}
+
+/// EVERY version of a submission, kept for ever (append-only: trigger test_submission_version_append_only). submittedAt
+/// is database time; applicableDeadline is the deadline that applied at that moment (TestDeadlineService);
+/// underExtension: accepted after the test's own closesAt thanks to an extension (extensionId). clientKey makes a repeated
+/// request idempotent (one version per key). CHECK: a TEACHER version names the teacher (the submitter); a version has a
+/// typed answer or pages.
+model TestSubmissionVersion {
+  id                 String            @id @default(uuid())
+  submissionId       String
+  submission         TestSubmission    @relation("TestSubmissionVersions", fields: [submissionId], references: [id], onDelete: Restrict)
+  number             Int
+  clientKey          String
+  submittedById      String
+  submittedBy        User              @relation("TestVersionSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  submitterRole      TestSubmitterRole
+  teacherId          String?
+  teacher            User?             @relation("TestVersionTeacher", fields: [teacherId], references: [id], onDelete: Restrict)
+  submittedAt        DateTime
+  applicableDeadline DateTime
+  underExtension     Boolean
+  /// The extension that gave the applicable deadline (historical reference; no foreign key).
+  extensionId        String?
+  typedAnswer        String?
+  pageCount          Int               @default(0)
+
+  currentOf TestSubmission?  @relation("TestSubmissionCurrentVersion")
+  pages     TestAnswerPage[]
+  markings  TestMarking[]
+
+  @@unique([submissionId, number])
+  @@unique([submissionId, clientKey])
+  @@index([submittedById])
+  @@index([teacherId])
+}
+
+/// One uploaded answer page (FilePurpose TEST_ANSWER: PDF or image, 20 MB). Pages are uploaded one at a time under the
+/// client's uploadKey and belong to that PENDING upload (versionId NULL) until a submission commits them: then versionId
+/// is set and the page never changes again (trigger test_answer_page_committed_guard). Re-uploading a pending page number
+/// replaces it (a weak connection retries one page).
+model TestAnswerPage {
+  id           String                 @id @default(uuid())
+  testId       String
+  test         Test                   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User                   @relation("TestAnswerPageStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  uploadKey    String
+  pageNumber   Int
+  fileId       String                 @unique
+  file         FileObject             @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  uploadedById String
+  uploadedBy   User                   @relation("TestAnswerPageUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  uploaderRole TestSubmitterRole
+  versionId    String?
+  version      TestSubmissionVersion? @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@unique([testId, studentId, uploadKey, pageNumber])
+  @@index([versionId, pageNumber])
+  @@index([studentId])
+  @@index([uploadedById])
+}
+
+/// Append-only status history of a submission (trigger test_submission_status_append_only; the only permitted change is
+/// actorId becoming NULL when the account is deleted).
+model TestSubmissionStatusChange {
+  id           String                @id @default(uuid())
+  submissionId String
+  submission   TestSubmission        @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  fromStatus   TestSubmissionStatus?
+  toStatus     TestSubmissionStatus
+  actorId      String?
+  actor        User?                 @relation("TestSubmissionStatusActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole    String
+  reason       String?
+  createdAt    DateTime              @default(now())
+
+  @@index([submissionId, createdAt])
+  @@index([actorId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test Management, Phase 3 (WS3): distribution to markers, blind marking, second marking, review, approval, locking,
+// the mark-change log. Migration 20261220000300_tests_marking. Publication belongs to Phase 4.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// FIRST: the normal marking (one marker); SECOND: an independent, blind second marking requested by a reviewer;
+/// ADJUSTMENT: marks entered by the subject's Head Coach when choosing an adjusted mark (G4: never an Administrator).
+enum TestMarkingKind {
+  FIRST
+  SECOND
+  ADJUSTMENT
+}
+
+/// DRAFT (being marked) → SUBMITTED (for approval) → APPROVED (locked); RETURNED (for correction, editable again by its
+/// marker). The marks of a SUBMITTED or APPROVED marking never change (trigger test_marking_locked_guard).
+enum TestMarkingStatus {
+  DRAFT
+  SUBMITTED
+  RETURNED
+  APPROVED
+}
+
+/// What a reviewer (Administrator or the subject's Head Coach) decided. RETURNED, MARK_CHOSEN and UNLOCKED carry a
+/// mandatory comment / reason (CHECK). MARK_CHOSEN: subject Head Coach only (G4).
+enum TestReviewAction {
+  APPROVED
+  RETURNED
+  SECOND_MARKING_REQUESTED
+  MARK_CHOSEN
+  UNLOCKED
+}
+
+/// A submission given to a coach to mark (FIRST or SECOND). The current one has endedAt NULL (at most one per submission
+/// and kind: partial unique index TestMarkerAssignment_one_current); a reassignment ends it (who, when, why) and starts a
+/// new one, so the history is complete. Rows are never deleted; once ended, never changed (trigger).
+model TestMarkerAssignment {
+  id           String          @id @default(uuid())
+  submissionId String
+  submission   TestSubmission  @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  kind         TestMarkingKind
+  coachId      String
+  coach        User            @relation("TestMarkerAssignmentCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  assignedById String?
+  assignedBy   User?           @relation("TestMarkerAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedAt   DateTime
+  /// MANUAL, DISTRIBUTION, REASSIGNMENT or SECOND_MARKING, and the reason when one was given.
+  method       String
+  reason       String?
+  endedAt      DateTime?
+  endedById    String?
+  endedBy      User?           @relation("TestMarkerAssignmentEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  endReason    String?
+
+  marking TestMarking?
+
+  @@index([submissionId, kind])
+  @@index([coachId, endedAt])
+  @@index([assignedById])
+  @@index([endedById])
+}
+
+/// One marking of one submission (the version it was made on): per-question scores (TestMarkingScore) when the test has
+/// questions, otherwise one total. Whole marks (G7), never above the maxima (CHECK and triggers). version increases on
+/// every save (optimistic concurrency).
+model TestMarking {
+  id           String                @id @default(uuid())
+  submissionId String
+  submission   TestSubmission        @relation("TestSubmissionMarkings", fields: [submissionId], references: [id], onDelete: Restrict)
+  kind         TestMarkingKind
+  /// FIRST / SECOND: the assignment it belongs to (one marking per assignment); ADJUSTMENT: none.
+  assignmentId String?               @unique
+  assignment   TestMarkerAssignment? @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  markerId     String
+  marker       User                  @relation("TestMarkingMarker", fields: [markerId], references: [id], onDelete: Restrict)
+  versionId    String
+  version      TestSubmissionVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  status       TestMarkingStatus     @default(DRAFT)
+  totalMarks   Int?
+  comment      String?
+  revision     Int                   @default(1)
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  scores  TestMarkingScore[]
+  changes TestMarkChange[]
+  reviews TestReview[]
+  finalOf TestSubmission?    @relation("TestSubmissionFinalMarking")
+
+  @@index([submissionId, kind])
+  @@index([markerId, status])
+  @@index([versionId])
+}
+
+/// A question's marks (and comment) in one marking.
+model TestMarkingScore {
+  id         String       @id @default(uuid())
+  markingId  String
+  marking    TestMarking  @relation(fields: [markingId], references: [id], onDelete: Restrict)
+  questionId String
+  question   TestQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  /// NULL: not marked yet (a draft may hold a comment first); a submitted marking has marks for every question.
+  marks      Int?
+  comment    String?
+  updatedAt  DateTime
+
+  @@unique([markingId, questionId])
+  @@index([questionId])
+}
+
+/// Append-only log of every mark change (trigger test_mark_change_append_only): which marking and question (NULL: the
+/// total), old and new marks, who, when, why. The only permitted change is changedById becoming NULL (account deleted).
+model TestMarkChange {
+  id            String        @id @default(uuid())
+  markingId     String
+  marking       TestMarking   @relation(fields: [markingId], references: [id], onDelete: Restrict)
+  questionId    String?
+  question      TestQuestion? @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  oldMarks      Int?
+  newMarks      Int?
+  changedById   String?
+  changedBy     User?         @relation("TestMarkChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
+  changedByRole String
+  reason        String?
+  createdAt     DateTime
+
+  @@index([markingId, createdAt])
+  @@index([questionId])
+  @@index([changedById])
+}
+
+/// Append-only review decisions (trigger test_review_append_only): approve, return (comment), request second marking,
+/// choose first / second / adjusted marks (reason), unlock (reason). clientKey makes a repeated request idempotent.
+model TestReview {
+  id           String               @id @default(uuid())
+  submissionId String
+  submission   TestSubmission       @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  action       TestReviewAction
+  markingId    String?
+  marking      TestMarking?         @relation(fields: [markingId], references: [id], onDelete: Restrict)
+  chosenKind   TestMarkingKind?
+  comment      String?
+  fromStatus   TestSubmissionStatus
+  toStatus     TestSubmissionStatus
+  actorId      String?
+  actor        User?                @relation("TestReviewActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole    String
+  clientKey    String?
+  createdAt    DateTime
+
+  /// Phase 4 (G6): the withdrawal of a published result this unlock caused.
+  withdrawal TestResultWithdrawal?
+
+  @@unique([submissionId, clientKey])
+  @@index([submissionId, createdAt])
+  @@index([markingId])
+  @@index([actorId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test Management, Phase 4 (WS3): results publication (Admin override with a reason), withdrawal of a published result
+// on unlock (G6). Migration 20261220000400_tests_publishing.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// One publication of a test's results (append-only: trigger test_publication_append_only): who (Administrator or the
+/// subject's Head Coach), when, how many approved results it published, the counts seen at that moment (submissions by
+/// status, unapproved, active extensions) and — Administrators only — the override of unapproved results with its
+/// mandatory reason (CHECK). Only APPROVED results are published; the others stay hidden. clientKey: a retried request
+/// returns the same publication. number: 1, 2, 3 … per test (a later publication adds results approved since).
+model TestPublication {
+  id             String   @id @default(uuid())
+  testId         String
+  test           Test     @relation(fields: [testId], references: [id], onDelete: Restrict)
+  number         Int
+  publishedById  String?
+  publishedBy    User?    @relation("TestPublicationActor", fields: [publishedById], references: [id], onDelete: SetNull)
+  actorRole      String
+  override       Boolean  @default(false)
+  overrideReason String?
+  publishedCount Int
+  counts         Json
+  clientKey      String?
+  createdAt      DateTime
+
+  submissions TestSubmission[]       @relation("TestSubmissionPublication")
+  withdrawals TestResultWithdrawal[]
+
+  @@unique([testId, number])
+  @@unique([testId, clientKey])
+  @@index([publishedById])
+}
+
+/// G6: an unlock of a PUBLISHED result withdraws it from the student's and the teachers' views until it is approved and
+/// published again. Append-only (trigger test_result_withdrawal_append_only): which publication it was withdrawn from,
+/// the unlock decision (TestReview, one withdrawal per decision), who, when, why (mandatory, CHECK).
+model TestResultWithdrawal {
+  id            String          @id @default(uuid())
+  submissionId  String
+  submission    TestSubmission  @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  publicationId String
+  publication   TestPublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  reviewId      String          @unique
+  review        TestReview      @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  withdrawnById String?
+  withdrawnBy   User?           @relation("TestResultWithdrawalActor", fields: [withdrawnById], references: [id], onDelete: SetNull)
+  actorRole     String
+  reason        String
+  createdAt     DateTime
+
+  @@index([submissionId, createdAt])
+  @@index([publicationId])
+  @@index([withdrawnById])
 }

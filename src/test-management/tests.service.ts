@@ -10,6 +10,12 @@
  * number of queries (no per-row query).
  *
  * New tables only: the course-assignment pipeline (assignments, submissions, reviews, results) is not touched.
+ *
+ * Phase 2: once ANY student has submitted (TestSubmission rows; the submit transaction holds the test row FOR SHARE, so
+ * this check and a submission never race), the test keeps its subject, division, answer format, opening time, deadline
+ * (a later one is given by an extension, which never changes closesAt) and maximum; its questions keep their number,
+ * order and marks; its paper stays. 409 TEST_LOCKED_BY_SUBMISSIONS (with the fields). Unpublishing or deleting it: 409
+ * TEST_HAS_SUBMISSIONS. Still editable: the title, a question's wording, the marking guide. (submission-rules.ts)
  */
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
@@ -26,6 +32,7 @@ import type {
   CreateTestDto, ListTestsQueryDto, ReorderTestQuestionsDto, TestFileKindParam, TestQuestionInputDto, UpdateTestDto,
   UpdateTestQuestionDto,
 } from './dto/test.dto.js';
+import { lockedBySubmissions, lockedFieldsIn } from './submission-rules.js';
 import {
   MAX_QUESTIONS, assertMaxMarksCoversQuestions, assertPublishable, assertQuestionMarks, assertSubjectInScope, assertWindow,
   neutralFileName, nextOriginalClosesAt, questionTotals, subjectFilter, type SubjectScope,
@@ -150,6 +157,16 @@ export class TestsService {
 
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
+      // Only real changes count (a form sending an unchanged value is not refused).
+      const current: Record<string, unknown> = {
+        subjectId: test.disciplineId, division: test.division, answerFormat: test.answerFormat,
+        opensAt: test.opensAt.toISOString(), closesAt: test.closesAt.toISOString(), maxMarks: test.maxMarks,
+      };
+      const asked: Record<string, unknown> = {
+        ...dto, ...(dto.opensAt && { opensAt: new Date(dto.opensAt).toISOString() }), ...(dto.closesAt && { closesAt: new Date(dto.closesAt).toISOString() }),
+      };
+      const locked = lockedFieldsIn(Object.fromEntries(Object.entries(asked).filter(([k, v]) => v !== undefined && v !== current[k])));
+      if (locked.length && (await hasSubmissions(tx, id))) throw lockedBySubmissions('its ' + locked.join(', '), locked);
       if (dto.subjectId && dto.subjectId !== test.disciplineId && test.status !== 'DRAFT') {
         throw new AppError(HttpStatus.CONFLICT, 'TEST_PUBLISHED', 'A published test keeps its subject. Unpublish it first.');
       }
@@ -193,6 +210,7 @@ export class TestsService {
     await this.loadInScope(id, user);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
+      if (await hasSubmissions(tx, id)) throw hasSubmissionsError('deleted');
       if (test.status !== 'DRAFT') {
         throw new AppError(HttpStatus.CONFLICT, 'TEST_PUBLISHED', 'A published test cannot be deleted. Unpublish it first.');
       }
@@ -228,12 +246,13 @@ export class TestsService {
     return this.detail(id);
   }
 
-  /** Back to DRAFT (Phase 1: nothing depends on a test yet; Phase 2 refuses once students have submitted). */
+  /** Back to DRAFT — refused once students have submitted (409 TEST_HAS_SUBMISSIONS). */
   async unpublish(id: string, user: AuthUser) {
     await this.loadInScope(id, user);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
       if (test.status !== 'PUBLISHED') throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_PUBLISHED', 'This test is not published.');
+      if (await hasSubmissions(tx, id)) throw hasSubmissionsError('unpublished');
       await tx.test.update({ where: { id }, data: { status: 'DRAFT' } });
       await this.audit.log({
         actorId: user.id, actorRole: user.role, action: 'TEST_UNPUBLISHED', entity: 'Test', entityId: id,
@@ -249,6 +268,7 @@ export class TestsService {
     await this.loadInScope(id, user);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
+      if (await hasSubmissions(tx, id)) throw lockedBySubmissions('its questions');
       const existing = await tx.testQuestion.findMany({ where: { testId: id }, select: { order: true, maxMarks: true } });
       if (existing.length >= MAX_QUESTIONS) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_QUESTIONS', `A test has at most ${MAX_QUESTIONS} questions.`);
@@ -272,6 +292,9 @@ export class TestsService {
       const questions = await tx.testQuestion.findMany({ where: { testId: id }, select: { id: true, maxMarks: true, prompt: true } });
       const current = questions.find((q) => q.id === questionId);
       if (!current) throw questionNotFound();
+      if (dto.maxMarks !== undefined && dto.maxMarks !== current.maxMarks && (await hasSubmissions(tx, id))) {
+        throw lockedBySubmissions('its question marks', ['maxMarks']);
+      }
       if (dto.maxMarks !== undefined) {
         assertQuestionMarks(test.status, test.maxMarks, questions.map((q) => (q.id === questionId ? dto.maxMarks! : q.maxMarks)));
       }
@@ -296,6 +319,7 @@ export class TestsService {
     await this.loadInScope(id, user);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
+      if (await hasSubmissions(tx, id)) throw lockedBySubmissions('its questions');
       const questions = await tx.testQuestion.findMany({ where: { testId: id }, orderBy: { order: 'asc' }, select: { id: true, maxMarks: true, order: true } });
       const current = questions.find((q) => q.id === questionId);
       if (!current) throw questionNotFound();
@@ -318,6 +342,7 @@ export class TestsService {
     await this.loadInScope(id, user);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
+      if (await hasSubmissions(tx, id)) throw lockedBySubmissions('the order of its questions');
       const questions = await tx.testQuestion.findMany({ where: { testId: id }, orderBy: { order: 'asc' }, select: { id: true } });
       const ids = new Set(questions.map((q) => q.id));
       if (dto.questionIds.length !== ids.size || dto.questionIds.some((q) => !ids.has(q))) {
@@ -343,6 +368,7 @@ export class TestsService {
     const stored = await this.storage.store(file, PURPOSE_OF[kind], user.id);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
+      if (kind === 'PAPER' && (await hasSubmissions(tx, id))) throw lockedBySubmissions('its paper');
       const previous = await tx.testFile.findUnique({ where: { testId_kind: { testId: id, kind } }, select: { id: true, fileId: true } });
       if (previous) await tx.testFile.delete({ where: { id: previous.id } });
       const link = await tx.testFile.create({ data: { testId: id, kind, fileId: stored.id }, select: { id: true } });
@@ -364,6 +390,7 @@ export class TestsService {
       const test = await lockTest(tx, id);
       const link = await tx.testFile.findUnique({ where: { testId_kind: { testId: id, kind } }, select: { id: true, fileId: true } });
       if (!link) throw fileNotFound();
+      if (kind === 'PAPER' && (await hasSubmissions(tx, id))) throw lockedBySubmissions('its paper');
       if (kind === 'PAPER' && test.status === 'PUBLISHED' && (await tx.testQuestion.count({ where: { testId: id } })) === 0) {
         throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'A published test needs a paper or at least one question.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
       }
@@ -378,7 +405,8 @@ export class TestsService {
 
   /**
    * Stream the paper or the marking guide under a neutral name. The marking guide is served only to those who may read it
-   * (mayReadMarkingGuide): Administrators and the subject's Head Coaches; from Phase 3 also the subject's authorised markers.
+   * (mayReadMarkingGuide): Administrators and the subject's Head Coaches. Assigned markers read it through their own,
+   * blind route (GET /marking/submissions/:code/marking-guide: authorisation AND assignment checked).
    */
   async sendFile(id: string, kindParam: TestFileKindParam, user: AuthUser, res: Response, download: boolean) {
     const kind = KIND_OF[kindParam];
@@ -392,7 +420,7 @@ export class TestsService {
     await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey) }, { download });
   }
 
-  /** Phase 1: everyone who manages the subject's tests (Administrators, its Head Coaches). Phase 3 adds authorised markers. */
+  /** Everyone who manages the subject's tests (Administrators, its Head Coaches). Markers: test-marker.service.ts. */
   private async mayReadMarkingGuide(user: AuthUser, disciplineId: string): Promise<boolean> {
     const scope = await this.scope(user);
     return scope === 'all' || scope.includes(disciplineId);
@@ -400,8 +428,8 @@ export class TestsService {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
-  /** 404 TEST_NOT_FOUND, then 403 SCOPE_FORBIDDEN outside the caller's subjects. */
-  private async loadInScope(id: string, user: AuthUser, scope?: SubjectScope) {
+  /** 404 TEST_NOT_FOUND, then 403 SCOPE_FORBIDDEN outside the caller's subjects (also used by the Phase 2 services). */
+  async loadInScope(id: string, user: AuthUser, scope?: SubjectScope) {
     const test = await this.prisma.test.findUnique({ where: { id }, select: { id: true, disciplineId: true } });
     if (!test) throw testNotFound();
     assertSubjectInScope(scope ?? (await this.scope(user)), test.disciplineId);
@@ -416,22 +444,32 @@ export class TestsService {
 
   /** The full test: details, totals, files and questions in order. */
   private async detail(id: string) {
-    const [test, questions] = await Promise.all([
+    const [test, questions, submissionCount] = await Promise.all([
       this.prisma.test.findUnique({ where: { id }, include: TEST_INCLUDE }),
       this.prisma.testQuestion.findMany({ where: { testId: id }, orderBy: { order: 'asc' }, select: { id: true, order: true, prompt: true, maxMarks: true } }),
+      this.prisma.testSubmission.count({ where: { testId: id } }),
     ]);
     if (!test) throw testNotFound();
-    return { ...testView(test, questions.reduce((a, q) => a + q.maxMarks, 0)), questions };
+    // submissionCount (Phase 2): above 0, the fields in submission-rules.ts LOCKED_AFTER_SUBMISSIONS no longer change.
+    return { ...testView(test, questions.reduce((a, q) => a + q.maxMarks, 0)), questions, submissionCount };
   }
 }
 
 /** Lock the test row for the rest of the transaction (serialises every write to one test) and return it. */
-async function lockTest(tx: Tx, id: string) {
+export async function lockTest(tx: Tx, id: string) {
   await tx.$queryRaw`SELECT 1 FROM "Test" WHERE "id" = ${id} FOR UPDATE`;
   const test = await tx.test.findUnique({ where: { id } });
   if (!test) throw testNotFound();
   return test;
 }
+
+/** Whether any student has submitted to this test (Phase 2 locks; read under the test's row lock). */
+async function hasSubmissions(tx: Tx, testId: string): Promise<boolean> {
+  return (await tx.testSubmission.count({ where: { testId } })) > 0;
+}
+
+const hasSubmissionsError = (what: string) => new AppError(HttpStatus.CONFLICT, 'TEST_HAS_SUBMISSIONS',
+  `Students have already submitted to this test: it cannot be ${what}.`);
 
 async function questionMarks(tx: Tx, testId: string): Promise<number[]> {
   return (await tx.testQuestion.findMany({ where: { testId }, select: { maxMarks: true } })).map((q) => q.maxMarks);

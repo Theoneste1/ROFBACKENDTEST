@@ -146,6 +146,8 @@ describe('StorageService orphan clean-up', () => {
     for (const rel of ['resourceAttachments', 'assignmentAttachments', 'submissionAttachments', 'reviewAttachments', 'testFiles']) {
       expect(where[rel]).toEqual({ none: {} });
     }
+    // A test answer page (Test Management Phase 2), pending or submitted, keeps its file.
+    expect(where.testAnswerPage).toEqual({ is: null });
   });
 
   it('keeps going when one object cannot be deleted, and keeps that record', async () => {

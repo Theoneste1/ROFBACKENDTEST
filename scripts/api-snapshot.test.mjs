@@ -266,7 +266,25 @@ const SCHOOLS_TABLE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-schools-ta
  * and /admin/test-markers (marker authorisations) — additive only: 19 routes, 7 request schemas.
  */
 const TEST_MANAGEMENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-management.json';
-const CURRENT_SNAPSHOT = TEST_MANAGEMENT_SNAPSHOT;
+/**
+ * Test Management, Phase 2 (WS3, owner-approved plan 2026-11-19): deadlines, extensions, student and teacher submissions
+ * with every version, tracking — /me/tests, /teacher/tests, /admin/tests/:id/extensions|extension-targets|submissions —
+ * additive only: 25 routes, 4 request schemas.
+ */
+const TEST_SUBMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-submissions.json';
+/**
+ * Test Management, Phase 3 (WS3, owner-approved plan 2026-11-19): distribution, blind marking, second marking, review,
+ * approval, locking, the mark-change log — /admin/tests/:id/marking… and /marking… — additive only: 19 routes, 12 request
+ * schemas.
+ */
+const TEST_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-marking.json';
+/**
+ * Test Management, Phase 4 (WS3, owner-approved plan 2026-11-19): publication with the Administrators' override,
+ * results for students and teachers, internal rankings, reports, dashboards — additive only: 17 routes, 2 request
+ * schemas; PUBLISHED accepted as a review filter and an expected status.
+ */
+const TEST_RESULTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-test-results.json';
+const CURRENT_SNAPSHOT = TEST_RESULTS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1397,6 +1415,122 @@ describe('approved API contract history', () => {
       'schema TestQuestionInputDto: added',
       'schema UpdateTestDto: added',
       'schema UpdateTestQuestionDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 1 → Phase 2 (2026-11-19): additive only — 25 routes, 4 request schemas, no existing field changed', () => {
+    for (const f of [TEST_MANAGEMENT_SNAPSHOT, TEST_SUBMISSIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_MANAGEMENT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_SUBMISSIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}: operation added',
+      'DELETE /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}: operation added',
+      'GET /api/v1/admin/tests/{id}/extension-targets: operation added',
+      'GET /api/v1/admin/tests/{id}/extensions: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions/{submissionId}: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions: operation added',
+      'GET /api/v1/me/tests/{id}/paper: operation added',
+      'GET /api/v1/me/tests/{id}/uploads/{uploadKey}: operation added',
+      'GET /api/v1/me/tests/{id}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/me/tests/{id}: operation added',
+      'GET /api/v1/me/tests: operation added',
+      'GET /api/v1/teacher/tests/{id}/paper: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students: operation added',
+      'GET /api/v1/teacher/tests: operation added',
+      'PATCH /api/v1/admin/tests/{id}/extensions/{extensionId}: operation added',
+      'POST /api/v1/admin/tests/{id}/extensions/{extensionId}/cancel: operation added',
+      'POST /api/v1/admin/tests/{id}/extensions: operation added',
+      'POST /api/v1/me/tests/{id}/submission: operation added',
+      'POST /api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}: operation added',
+      'POST /api/v1/teacher/tests/{id}/students/{studentId}/submission: operation added',
+      'POST /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}: operation added',
+      'schema CancelTestExtensionDto: added',
+      'schema CreateTestExtensionDto: added',
+      'schema SubmitTestAnswerDto: added',
+      'schema UpdateTestExtensionDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 2 → Phase 3 (2026-11-19): additive only — 19 routes, 12 request schemas, no existing field changed', () => {
+    for (const f of [TEST_SUBMISSIONS_SNAPSHOT, TEST_MARKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_SUBMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_MARKING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/tests/{id}/marking/history: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions/{submissionId}: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions: operation added',
+      'GET /api/v1/admin/tests/{id}/marking: operation added',
+      'GET /api/v1/marking/queue: operation added',
+      'GET /api/v1/marking/submissions/{code}/marking-guide: operation added',
+      'GET /api/v1/marking/submissions/{code}/pages/{page}: operation added',
+      'GET /api/v1/marking/submissions/{code}/paper: operation added',
+      'GET /api/v1/marking/submissions/{code}: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/assign: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/distribute: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock: operation added',
+      'POST /api/v1/marking/submissions/{code}/marking/submit: operation added',
+      'PUT /api/v1/marking/submissions/{code}/marking: operation added',
+      'schema ApproveMarkingDto: added',
+      'schema AssignMarkingDto: added',
+      'schema ChooseMarkDto: added',
+      'schema DistributeMarkingDto: added',
+      'schema MarksInputDto: added',
+      'schema ReassignMarkingDto: added',
+      'schema RequestSecondMarkingDto: added',
+      'schema ReturnMarkingDto: added',
+      'schema SaveMarkingDto: added',
+      'schema ScoreInputDto: added',
+      'schema SubmitMarkingDto: added',
+      'schema UnlockMarkingDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 3 → Phase 4 (2026-11-20): additive only — 17 routes, 2 request schemas, PUBLISHED accepted; no existing field changed', () => {
+    for (const f of [TEST_MARKING_SNAPSHOT, TEST_RESULTS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_MARKING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_RESULTS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/test-dashboard: operation added',
+      'GET /api/v1/admin/test-reports: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions › query parameter status: enum values added: PUBLISHED',
+      'GET /api/v1/admin/tests/{id}/results/export.csv: operation added',
+      'GET /api/v1/admin/tests/{id}/results/preview: operation added',
+      'GET /api/v1/admin/tests/{id}/results/publications: operation added',
+      'GET /api/v1/admin/tests/{id}/results/rankings: operation added',
+      'GET /api/v1/admin/tests/{id}/results/report: operation added',
+      'GET /api/v1/admin/tests/{id}/results: operation added',
+      'GET /api/v1/marking/dashboard: operation added',
+      'GET /api/v1/me/test-dashboard: operation added',
+      'GET /api/v1/me/test-results/{testId}: operation added',
+      'GET /api/v1/me/test-results: operation added',
+      'GET /api/v1/teacher/test-dashboard: operation added',
+      'GET /api/v1/teacher/test-results/{testId}/students/{studentId}: operation added',
+      'GET /api/v1/teacher/test-results/{testId}: operation added',
+      'GET /api/v1/teacher/test-results: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/results/publish/override: operation added',
+      'POST /api/v1/admin/tests/{id}/results/publish: operation added',
+      'schema OverridePublicationDto: added',
+      'schema PublishTestResultsDto: added',
     ]);
   });
 
