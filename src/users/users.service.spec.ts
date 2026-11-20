@@ -159,13 +159,14 @@ describe('UsersService', () => {
       expect(audit.log).not.toHaveBeenCalled();
     });
 
-    it('clears student data and revokes sessions when a student becomes a mentor', async () => {
+    it('clears student data (not the home location: homeLocationRules) and revokes sessions when a student becomes a mentor', async () => {
       const { service, prisma, tokens } = makeMocks();
       prisma.user.findUnique.mockResolvedValue(existing);
       await service.update('u2', { role: 'MENTOR' } as any, ADMIN);
       expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({
-        role: 'MENTOR', gradeLevel: null, divisionId: null, schoolId: null, homeLocation: null,
+        role: 'MENTOR', gradeLevel: null, divisionId: null, schoolId: null,
       });
+      expect(prisma.user.update.mock.calls[0][0].data).not.toHaveProperty('homeLocation');
       // Revoked with the transaction client: commits together with the role change.
       expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2', prisma);
     });

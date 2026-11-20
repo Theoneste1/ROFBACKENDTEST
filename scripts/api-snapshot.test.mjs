@@ -289,7 +289,14 @@ const TEST_RESULTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-test-result
  * public sign-ups. Deliberately breaking for those three requests only; the frontend that sends it ships with it.
  */
 const REGISTRATION_GENDER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-registration-gender.json';
-const CURRENT_SNAPSHOT = REGISTRATION_GENDER_SNAPSHOT;
+/**
+ * Home location on every registration form and profile edit (owner, 2026-11-20; homeLocationRules): the home country
+ * becomes required on the student sign-up (homeCountry) and the coach application (country); the Rwandan place is
+ * required only for Rwanda (teacher homeDistrict / homeSector become optional; homeProvince added); profile edits accept
+ * the home country and place.
+ */
+const HOME_LOCATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-home-location.json';
+const CURRENT_SNAPSHOT = HOME_LOCATION_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1500,6 +1507,35 @@ describe('approved API contract history', () => {
       'schema ScoreInputDto: added',
       'schema SubmitMarkingDto: added',
       'schema UnlockMarkingDto: added',
+    ]);
+  });
+
+  test('gender at sign-up → home location (2026-11-20): the deliberate required home country on two sign-ups; the rest additive', () => {
+    // Deliberately BREAKING for two sign-up requests (owner, 2026-11-20: the home country is required on every
+    // registration form); the frontend released with this backend sends it. Everything else is additive.
+    for (const f of [REGISTRATION_GENDER_SNAPSHOT, HOME_LOCATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_GENDER_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(HOME_LOCATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking.sort(), [
+      'POST /api/v1/auth/register/student › request application/json.homeCountry: field is now required',
+      'POST /api/v1/mentor-requests › request application/json.country: field is now required',
+    ]);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeCountry: new optional field',
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeDistrict: new optional field',
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeProvince: new optional field',
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeSector: new optional field',
+      'PATCH /api/v1/me › request application/json.homeCountry: new optional field',
+      'PATCH /api/v1/me › request application/json.homeDistrict: new optional field',
+      'PATCH /api/v1/me › request application/json.homeProvince: new optional field',
+      'PATCH /api/v1/me › request application/json.homeSector: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.homeDistrict: field is now optional',
+      'POST /api/v1/auth/register/teacher › request application/json.homeProvince: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.homeSector: field is now optional',
+      'POST /api/v1/mentor-requests › request application/json.homeDistrict: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.homeProvince: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.homeSector: new optional field',
     ]);
   });
 

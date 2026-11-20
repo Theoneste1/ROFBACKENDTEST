@@ -24,7 +24,7 @@ describe('Optional profile picture at registration (e2e)', () => {
     n += 1;
     return http().post('/api/v1/auth/register/student').send({
       firstName: 'Pia', lastName: 'Picture', username: `ra.s${n}`, email: `ra.s${n}@test.local`, password: 'Secret123',
-      dateOfBirth: '2011-03-04', gender: 'FEMALE', guardianPhone: '0722000111', gradeLevel: 'S3', homeLocation: 'Huye', schoolCode: '229911', ...over,
+      dateOfBirth: '2011-03-04', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S3', homeLocation: 'Huye', schoolCode: '229911', ...over,
     });
   };
 
@@ -80,7 +80,7 @@ describe('Optional profile picture at registration (e2e)', () => {
     const body = (u: string) => ({
       firstName: 'Tess', lastName: 'Teacher', username: u, email: `${u}@test.local`, password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      schoolId: ngoma, homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
+      schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
     });
     const without = await http().post('/api/v1/auth/register/teacher').send(body('ra.t1')).expect(201);
     expect(typeof without.body.avatarUploadToken).toBe('string');
@@ -107,9 +107,9 @@ describe('Optional profile picture at registration (e2e)', () => {
   });
 
   it('Coach application: works without a picture; with one, it becomes the coach\'s picture on approval', async () => {
-    const without = await http().post('/api/v1/mentor-requests').send({ firstName: 'Cam', lastName: 'Coach', username: 'ra.c1', email: 'ra.c1@test.local', password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+    const without = await http().post('/api/v1/mentor-requests').send({ firstName: 'Cam', lastName: 'Coach', username: 'ra.c1', email: 'ra.c1@test.local', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
     expect(typeof without.body.avatarUploadToken).toBe('string');
-    const withPic = await http().post('/api/v1/mentor-requests').send({ firstName: 'Cam', lastName: 'Coach', username: 'ra.c2', email: 'ra.c2@test.local', password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+    const withPic = await http().post('/api/v1/mentor-requests').send({ firstName: 'Cam', lastName: 'Coach', username: 'ra.c2', email: 'ra.c2@test.local', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
     await upload(withPic.body.avatarUploadToken, PNG).expect(200);
     await http().patch(`/api/v1/mentor-requests/${without.body.id}/approve`).set(bearer(admin)).expect(200);
     await http().get(`/api/v1/mentor-requests/${withPic.body.id}/avatar`).set(bearer(admin)).expect(200);
@@ -120,14 +120,14 @@ describe('Optional profile picture at registration (e2e)', () => {
   });
 
   it('a picture removed after approval, or sent with a rejected application, is no longer referenced (the cleanup can delete it)', async () => {
-    const appr = await http().post('/api/v1/mentor-requests').send({ firstName: 'Rem', lastName: 'Ove', username: 'ra.c5', email: 'ra.c5@test.local', password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+    const appr = await http().post('/api/v1/mentor-requests').send({ firstName: 'Rem', lastName: 'Ove', username: 'ra.c5', email: 'ra.c5@test.local', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
     await upload(appr.body.avatarUploadToken, PNG).expect(200);
     const fileA = (await p().mentorRequest.findUniqueOrThrow({ where: { id: appr.body.id } })).avatarFileId!;
     await http().patch(`/api/v1/mentor-requests/${appr.body.id}/approve`).set(bearer(admin)).send({ approvePicture: true }).expect(200);
     await p().user.update({ where: { username: 'ra.c5' }, data: { activatedAt: new Date() } });
     const t = await login(ctx, 'ra.c5', 'Mentor123');
     await http().delete('/api/v1/me/avatar').set(bearer(t)).expect(200);
-    const rej = await http().post('/api/v1/mentor-requests').send({ firstName: 'Rej', lastName: 'Ected', username: 'ra.c6', email: 'ra.c6@test.local', password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+    const rej = await http().post('/api/v1/mentor-requests').send({ firstName: 'Rej', lastName: 'Ected', username: 'ra.c6', email: 'ra.c6@test.local', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
     await upload(rej.body.avatarUploadToken, PNG).expect(200);
     const fileR = (await p().mentorRequest.findUniqueOrThrow({ where: { id: rej.body.id } })).avatarFileId!;
     await http().patch(`/api/v1/mentor-requests/${rej.body.id}/reject`).set(bearer(admin)).send({}).expect(200);
@@ -139,7 +139,7 @@ describe('Optional profile picture at registration (e2e)', () => {
   });
 
   it('picture moderation: without the Administrator\'s explicit approval the picture is discarded; only reviewers can see it', async () => {
-    const coachBody = (u: string) => ({ firstName: 'Mo', lastName: 'Derate', username: u, email: `${u}@test.local`, password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] });
+    const coachBody = (u: string) => ({ firstName: 'Mo', lastName: 'Derate', username: u, email: `${u}@test.local`, password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] });
     const a = await http().post('/api/v1/mentor-requests').send(coachBody('ra.m1')).expect(201);
     await upload(a.body.avatarUploadToken, PNG).expect(200);
     const fileId = (await p().mentorRequest.findUniqueOrThrow({ where: { id: a.body.id } })).avatarFileId!;
@@ -162,7 +162,7 @@ describe('Optional profile picture at registration (e2e)', () => {
     const t = await http().post('/api/v1/auth/register/teacher').send({
       firstName: 'Tess', lastName: 'Teacher', username: 'ra.m2', email: 'ra.m2@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      schoolId: ngoma, homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
+      schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
     }).expect(201);
     await upload(t.body.avatarUploadToken, PNG).expect(200);
     await http().get(`/api/v1/admin/teacher-applications/${t.body.id}/avatar`).set(bearer(coach)).expect(403);
@@ -172,7 +172,7 @@ describe('Optional profile picture at registration (e2e)', () => {
   });
 
   it('the orphan-file cleanup keeps a pending application\'s picture', async () => {
-    const app = await http().post('/api/v1/mentor-requests').send({ firstName: 'Old', lastName: 'Pic', username: 'ra.c3', email: 'ra.c3@test.local', password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+    const app = await http().post('/api/v1/mentor-requests').send({ firstName: 'Old', lastName: 'Pic', username: 'ra.c3', email: 'ra.c3@test.local', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
     await upload(app.body.avatarUploadToken, PNG).expect(200);
     const fileId = (await p().mentorRequest.findUniqueOrThrow({ where: { id: app.body.id } })).avatarFileId!;
     await p().fileObject.update({ where: { id: fileId }, data: { createdAt: new Date(Date.now() - 30 * 86_400_000) } });

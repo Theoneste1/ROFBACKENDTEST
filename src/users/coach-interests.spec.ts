@@ -18,7 +18,7 @@ const problems = <T extends object>(cls: new () => T, body: object) => {
   return Object.fromEntries(errors.map((e) => [e.property, Object.values(e.constraints ?? {})]));
 };
 
-const APPLICANT = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123', gender: 'MALE' };
+const APPLICANT = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123', gender: 'MALE', country: 'KE' };
 const BAD = [[], ['CHEMISTRY'], ['MATHEMATICS', 'MATHEMATICS'], 'MATHEMATICS', [null]];
 
 describe('coach subject interests: request rules', () => {

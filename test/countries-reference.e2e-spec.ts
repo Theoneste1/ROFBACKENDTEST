@@ -35,7 +35,7 @@ describe('Countries (owner decision 2026-11-19)', () => {
     n++;
     return http().post('/api/v1/auth/register/student').send({
       firstName: 'Ada', lastName: 'Uwase', username: `cty.student${n}`, email: `cty.student${n}@example.com`,
-      password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', guardianPhone: '0722000111', gradeLevel: 'S3',
+      password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S3',
       schoolName: 'Some School', schoolLocation: 'Kigali', homeLocation: 'Kigali', ...extra,
     });
   };

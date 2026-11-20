@@ -104,6 +104,14 @@ export const FEATURES = {
    */
   registrationGender: 'always',
   /**
+   * Home location on every registration form and profile edit (owner, 2026-11-20): the home country is required
+   * (student `homeCountry`, teacher and coach `country`); with Rwanda `homeProvince`, `homeDistrict` and `homeSector` are
+   * required (official directory), with another country they are not asked (400 HOME_LOCATION_RWANDA_ONLY if sent).
+   * PATCH /me and PATCH /admin/users/:id accept `homeCountry` with the place. Approval copies a teacher's or coach's
+   * home location to the account. Separate from the school location.
+   */
+  homeLocationRules: 'always',
+  /**
    * Coach application details: POST /api/v1/mentor-requests accepts `country`, `occupation`, `educationLevel`
    * (SECONDARY | DIPLOMA | BACHELOR | MASTER | DOCTORATE | OTHER) and `olympiadInterests`; the admin list returns them
    * and approval copies country and interests to the Coach account. Optional at the API for older clients, except

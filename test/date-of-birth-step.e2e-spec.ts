@@ -115,7 +115,7 @@ describe('First-sign-in date of birth (decision 9.3)', () => {
   it('students who already have a date of birth (self-registered or seeded) and other roles are never asked', async () => {
     const reg = await http().post('/api/v1/auth/register/student').send({
       firstName: 'Dob', lastName: 'Self', username: 'dob.self', email: 'dob.self@test.local', password: 'Secret123',
-      dateOfBirth: bornYearsAgo(15), gender: 'MALE', guardianPhone: '0722000111', gradeLevel: 'S2', schoolId, homeLocation: 'Huye',
+      dateOfBirth: bornYearsAgo(15), gender: 'MALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S2', schoolId, homeLocation: 'Huye',
     });
     expect(reg.status).toBe(201);
     await ctx.prisma.user.update({ where: { id: reg.body.id }, data: { activatedAt: new Date(), isApproved: true } });
