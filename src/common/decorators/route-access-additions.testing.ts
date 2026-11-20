@@ -20,6 +20,8 @@ const PUBLIC: AddedRouteDecisions = { anonymous: 'allow', STUDENT: 'allow', MENT
 /** Granted only by an individual delegation (P1-11): no baseline caller holds it. */
 const NOBODY_BY_DEFAULT: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
+/** tests.mark (Test Management Phase 3): Coaches only — Administrators never mark (ADMIN_PROHIBITED, G4). */
+const COACHES_ONLY:     AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: '403', UNKNOWN_ROLE: '403' };
 /** @Authenticated: every signed-in caller, whatever the role (own data only, or data shown to every member). */
 const SIGNED_IN:        AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
 
@@ -241,4 +243,27 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'DELETE /api/v1/teacher/tests/:id/students/:studentId/uploads/:uploadKey/pages/:page  TeacherTestsController.removePage': NOBODY_BY_DEFAULT,
   'POST /api/v1/teacher/tests/:id/students/:studentId/submission  TeacherTestsController.submit':                NOBODY_BY_DEFAULT,
   'GET /api/v1/teacher/tests/:id/students/:studentId/versions/:versionId/pages/:page  TeacherTestsController.page': NOBODY_BY_DEFAULT,
+  // Test Management, Phase 3 (WS3, 2026-11-19): distribution (tests.distribute) and review (tests.review) — Administrators
+  // (every subject) and Head Coaches (not baseline callers; the subjects they head, checked by the service). Choosing /
+  // adjusting the mark (tests.adjustMarks): the subject's Head Coach only — no baseline caller (G4: Administrators never).
+  'GET /api/v1/admin/tests/:id/marking  AdminTestMarkingController.overview':                                   ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/distribute  AdminTestMarkingController.distribute':                     ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/assign  AdminTestMarkingController.assign':                             ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/marking/submissions  AdminTestMarkingController.list':                           ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/marking/submissions/:submissionId  AdminTestMarkingController.get':              ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/reassign  AdminTestMarkingController.reassign': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/approve  AdminTestMarkingController.approve':  ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/return  AdminTestMarkingController.returnForCorrection': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/second-marking  AdminTestMarkingController.secondMarking': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/choose  AdminTestMarkingController.choose':    NOBODY_BY_DEFAULT,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/unlock  AdminTestMarkingController.unlock':    ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/marking/history  AdminTestMarkingController.history':                            ADMINISTRATORS,
+  // Blind marking (tests.mark: Coaches only; authorisation AND assignment checked by the service on every request).
+  'GET /api/v1/marking/queue  MarkingController.queue':                                                         COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code  MarkingController.get':                                               COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code/pages/:page  MarkingController.page':                                  COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code/paper  MarkingController.paper':                                       COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code/marking-guide  MarkingController.guide':                               COACHES_ONLY,
+  'PUT /api/v1/marking/submissions/:code/marking  MarkingController.save':                                      COACHES_ONLY,
+  'POST /api/v1/marking/submissions/:code/marking/submit  MarkingController.submit':                            COACHES_ONLY,
 };

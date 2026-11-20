@@ -131,7 +131,8 @@ describe('role × route sweep (all seven callers)', () => {
 /**
  * Reviewed 2026-11-18: /admin routes a Coach or Head Coach passes the guards for — only the Head Coach's approved
  * programme management (P1-10, HC decisions) and, from 2026-11-19, Test Management Phase 1 (tests and marker
- * authorisations in the subjects they head; test/test-management.e2e-spec.ts). Each service limits them to the programmes the Head Coach heads (others
+ * authorisations in the subjects they head; test/test-management.e2e-spec.ts) and Phase 3 (distribution, review,
+ * choosing the mark; test/test-marking.e2e-spec.ts). Each service limits them to the programmes the Head Coach heads (others
  * are not revealed): test/head-coach-programme, head-coach-monitoring and head-coach-course-work e2e specs.
  */
 const COACH_ADMIN_ROUTES: string[] = [
@@ -157,6 +158,10 @@ const COACH_ADMIN_ROUTES: string[] = [
   'GET /api/v1/admin/tests/:id/extension-targets  AdminTestExtensionsController.targets  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.list  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/files/:kind  TestsController.file  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/marking  AdminTestMarkingController.overview  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/marking/history  AdminTestMarkingController.history  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/marking/submissions  AdminTestMarkingController.list  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/marking/submissions/:submissionId  AdminTestMarkingController.get  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/submissions  AdminTestSubmissionsController.list  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/submissions/:submissionId  AdminTestSubmissionsController.get  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/submissions/:submissionId/versions/:versionId/pages/:page  AdminTestSubmissionsController.page  [HEAD_COACH]',
@@ -172,6 +177,14 @@ const COACH_ADMIN_ROUTES: string[] = [
   'POST /api/v1/admin/tests  TestsController.create  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.create  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/extensions/:extensionId/cancel  AdminTestExtensionsController.cancel  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/assign  AdminTestMarkingController.assign  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/distribute  AdminTestMarkingController.distribute  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/approve  AdminTestMarkingController.approve  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/choose  AdminTestMarkingController.choose  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/reassign  AdminTestMarkingController.reassign  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/return  AdminTestMarkingController.returnForCorrection  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/second-marking  AdminTestMarkingController.secondMarking  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/unlock  AdminTestMarkingController.unlock  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/publish  TestsController.publish  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish  [HEAD_COACH]',
@@ -205,4 +218,7 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // 2026-11-19, Test Management Phase 2: +8 /me/tests routes (tests.submit: Students); +9 /teacher/tests routes
 // (tests.submitForStudents: Teachers, G2); +8 /admin/tests/:id/extensions, extension-targets and submissions routes for
 // Head Coaches (their subjects), Administrators and Super Admins; none for Coaches.
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 102, TEACHER: 92, MENTOR: 110, HEAD_COACH: 146, ADMIN: 316, SUPER_ADMIN: 322 };
+// 2026-11-19, Test Management Phase 3: +7 /marking routes (tests.mark: Coaches only — never administrators, G4); +11
+// /admin/tests/:id/marking routes (tests.distribute, tests.review) for Head Coaches (their subjects), Administrators and
+// Super Admins; +1 choose (tests.adjustMarks) for Head Coaches only (G4).
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 102, TEACHER: 92, MENTOR: 117, HEAD_COACH: 158, ADMIN: 327, SUPER_ADMIN: 333 };

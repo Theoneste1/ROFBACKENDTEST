@@ -127,6 +127,23 @@ describe('decision notification content', () => {
     expect(inApp.body).toContain('Physics test "Round 2": your deadline is now');
   });
 
+  it('test.marking.assigned / returned (Test Management Phase 3): the test and a count, a link to the marking queue — never a student', () => {
+    const payload = { activated: true, testTitle: 'Round 2', subjectName: 'Mathematics', count: 3 };
+    const mail = decisionEmail(DecisionEvents.TestMarkingAssigned, 'Jean', payload, APP);
+    expect(mail.subject).toBe('Submissions to mark: Round 2');
+    expect(mail.body).toContain('You have been given 3 submissions of the Mathematics test "Round 2" to mark.');
+    expect(mail.action).toEqual({ label: 'Open my marking queue', url: 'https://app.example.org/mentor/marking' });
+    expect(decisionEmail(DecisionEvents.TestMarkingAssigned, 'Jean', { ...payload, count: 1 }, APP).body).toContain('given a submission of');
+    const back = decisionEmail(DecisionEvents.TestMarkingReturned, 'Jean', { ...payload, count: 1 }, APP);
+    expect(back.subject).toBe('Marking returned for correction: Round 2');
+    expect(back.body).toContain('returned your marking of a submission');
+    expect(decisionInApp(DecisionEvents.TestMarkingAssigned, payload)).toEqual({
+      title: 'Submissions to mark', body: '3 submissions of the Mathematics test "Round 2" are in your marking queue.', link: '/mentor/marking',
+    });
+    expect(decisionInApp(DecisionEvents.TestMarkingReturned, payload).link).toBe('/mentor/marking');
+    expect(decisionEmail(DecisionEvents.TestMarkingAssigned, 'Jean', { ...payload, activated: false }, APP).action).toBeUndefined();
+  });
+
   it('sanitiseError strips addresses, keys, tokens and long ids, and bounds the length', () => {
     const out = sanitiseError('Resend 422 validation_error: jean@example.org with key re_abc123XYZ Bearer eyJhbGciOi.x.y ' +
       'https://x.test/a?token=SECRET123&b=1 id 3f2b8c1e-4d5a-4b6c-9d7e-112233445566');

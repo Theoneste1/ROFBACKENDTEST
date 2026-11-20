@@ -40,6 +40,8 @@ describe('permissions', () => {
       'courses.view', 'resources.view', 'resources.manage',
       'assignments.view', 'assignments.prepare', 'reviews.grade',
       'discussions.participate', 'discussions.report', 'analytics.course', 'leaderboard.view',
+      // appended 2026-11-19 (Test Management Phase 3): granted (authorised subjects, assigned submissions), reported for the marking queue
+      'tests.mark',
     ]);
     expect(ROLE_PERMISSIONS.ADMIN).toEqual([
       'courses.view', 'resources.view', 'resources.manage',
@@ -66,6 +68,8 @@ describe('permissions', () => {
       'tests.view', 'tests.manage', 'tests.manageMarkers',
       // appended 2026-11-19 (Test Management Phase 2): extensions and submission tracking
       'tests.extensions', 'tests.viewSubmissions',
+      // appended 2026-11-19 (Test Management Phase 3): distribution and review — never marking (G4)
+      'tests.distribute', 'tests.review',
     ]);
   });
 
@@ -84,7 +88,7 @@ describe('permissions', () => {
     const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive', 'users.bulkManage', 'users.export'] as const;
     const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // form availability, after AS
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
-    const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions'] as const;   // Test Management (2026-11-19, Phases 1 and 2), after countries
+    const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review'] as const;   // Test Management (2026-11-19, Phases 1–3), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -203,6 +207,8 @@ describe('permissions', () => {
       'tests.view': G, 'tests.manage': G, 'tests.manageMarkers': G,
       // Test Management, Phase 2: extensions and submission tracking
       'tests.extensions': G, 'tests.viewSubmissions': G,
+      // Test Management, Phase 3: distribution and review (never tests.mark / tests.adjustMarks, G4)
+      'tests.distribute': G, 'tests.review': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {
@@ -223,6 +229,8 @@ describe('permissions', () => {
         'assignments.view': CD, 'assignments.prepare': CD, 'reviews.grade': CD,
         'discussions.participate': CD, 'discussions.report': CD,
         'analytics.course': CD, 'leaderboard.view': G,
+        // Test Management, Phase 3 (2026-11-19): blind marking — authorised subjects, assigned submissions
+        'tests.mark': 'markerAuthorization',
       },
       HEAD_COACH: {
         'courses.view': P, 'resources.view': P, 'assignments.view': P,
@@ -236,6 +244,8 @@ describe('permissions', () => {
         // Test Management (WS3, 2026-11-19): the subjects they head
         'tests.view': P, 'tests.manage': P, 'tests.manageMarkers': P,
         'tests.extensions': P, 'tests.viewSubmissions': P,
+        // Phase 3: distribution, review, and choosing / adjusting the mark (G4: Head Coaches only)
+        'tests.distribute': P, 'tests.review': P, 'tests.adjustMarks': P,
       },
       ADMIN: ADMIN_TABLE,
       SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },
@@ -263,7 +273,8 @@ describe('permissions', () => {
 
     it('RS1: Administrator and Super Admin hold no grading or assignment-authoring permission', () => {
       expect([...ADMINISTRATIVE_ROLES].sort()).toEqual(['ADMIN', 'SUPER_ADMIN']);
-      expect([...ADMIN_PROHIBITED].sort()).toEqual(['assignments.prepare', 'reviews.grade']);
+      // + Test Management Phase 3 (G4, 2026-11-19): Administrators never mark, never edit or adjust marks.
+      expect([...ADMIN_PROHIBITED].sort()).toEqual(['assignments.prepare', 'reviews.grade', 'tests.adjustMarks', 'tests.mark']);
       for (const role of ADMINISTRATIVE_ROLES) {
         for (const p of ADMIN_PROHIBITED) expect(ROLE_GRANTS[role]).not.toHaveProperty(p);
       }
@@ -312,6 +323,20 @@ describe('permissions', () => {
         expect(ADMIN_PROHIBITED).not.toContain(p);
         expect(NEVER_GRANTABLE).not.toContain(p);
       }
+    });
+
+    it('Test Management (WS3, Phase 3): distribution and review for Administrators and Head Coaches; choosing / adjusting marks for Head Coaches only (G4); marking for Coaches only', () => {
+      for (const p of ['tests.distribute', 'tests.review'] as const) {
+        expect([p, APP_ROLES.filter((r) => p in ROLE_GRANTS[r])]).toEqual([p, ['HEAD_COACH', 'ADMIN', 'SUPER_ADMIN']]);
+        expect(ROLE_GRANTS.HEAD_COACH[p]).toBe('programme');
+      }
+      expect(APP_ROLES.filter((r) => 'tests.adjustMarks' in ROLE_GRANTS[r])).toEqual(['HEAD_COACH']);
+      expect(APP_ROLES.filter((r) => 'tests.mark' in ROLE_GRANTS[r])).toEqual(['MENTOR']);
+      expect(ROLE_GRANTS.MENTOR['tests.mark']).toBe('markerAuthorization');
+      for (const p of ['tests.mark', 'tests.adjustMarks'] as const) expect(ADMIN_PROHIBITED).toContain(p);
+      // The course-assignment grading permissions are unchanged.
+      expect(ROLE_GRANTS.MENTOR['reviews.grade']).toBe('courseDivision');
+      expect(ROLE_GRANTS.ADMIN['submissions.distribute']).toBe('global');
     });
 
     it('H7: Head Coach does not moderate discussions', () => {

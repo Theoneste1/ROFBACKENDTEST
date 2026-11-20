@@ -13,6 +13,10 @@ export const DecisionEvents = {
   TeacherStudentsAssigned:    'teacher.students.assigned',
   /** Test Management Phase 2: the student or teacher an individual deadline extension was granted to (told once). */
   TestExtensionGranted:       'test.extension.granted',
+  /** Test Management Phase 3: a coach was given submissions to mark (told once per assignment action). Blind: no student. */
+  TestMarkingAssigned:        'test.marking.assigned',
+  /** Test Management Phase 3: a reviewer returned a coach's marking for correction (told once per return). Blind. */
+  TestMarkingReturned:        'test.marking.returned',
 } as const;
 
 export type DecisionEventType = (typeof DecisionEvents)[keyof typeof DecisionEvents];
@@ -44,7 +48,17 @@ export interface TestExtensionPayload {
   activated: boolean; testTitle: string; subjectName: string; deadline: string; audience: 'STUDENT' | 'TEACHER';
 }
 
-export type DecisionPayload = SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload | StudentsAssignedPayload | TestExtensionPayload;
+/**
+ * test.marking.assigned / test.marking.returned (the coach who marks): the test (title, subject) and how many submissions
+ * (assigned) — never a student's name, school or submission code beyond what the marking queue shows. Blind marking.
+ */
+export interface TestMarkingPayload { activated: boolean; testTitle: string; subjectName: string; count: number }
+
+export type DecisionPayload =
+  SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload | StudentsAssignedPayload | TestExtensionPayload | TestMarkingPayload;
+
+/** The coach's marking queue (the in-app link and the e-mail button). */
+export const MARKING_QUEUE_PATH = '/mentor/marking';
 
 /** A deadline as people in Rwanda read it (Kigali time). */
 export function kigaliTime(iso: string): string {
@@ -166,6 +180,29 @@ export function decisionEmail(type: string, firstName: string, payload: unknown,
         action: p.activated && base ? { label: 'Open my tests', url: `${base}${testsPageOf(p.audience)}` } : undefined,
       };
     }
+    case DecisionEvents.TestMarkingAssigned:
+    case DecisionEvents.TestMarkingReturned: {
+      const p = payload as TestMarkingPayload;
+      const assigned = type === DecisionEvents.TestMarkingAssigned;
+      const subject = assigned ? `Submissions to mark: ${p.testTitle}` : `Marking returned for correction: ${p.testTitle}`;
+      const what = p.count === 1 ? 'a submission' : `${p.count} submissions`;
+      const base = appUrl?.trim().replace(/\/+$/, '');
+      return {
+        subject, heading: subject, greeting,
+        body: assigned
+          ? `You have been given ${what} of the ${p.subjectName} test "${p.testTitle}" to mark.
+
+They are in your marking queue.
+
+${ORG}`
+          : `A reviewer returned your marking of ${what} of the ${p.subjectName} test "${p.testTitle}" for correction, with a comment.
+
+It is back in your marking queue.
+
+${ORG}`,
+        action: p.activated && base ? { label: 'Open my marking queue', url: `${base}${MARKING_QUEUE_PATH}` } : undefined,
+      };
+    }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);
   }
@@ -207,6 +244,15 @@ export function decisionInApp(type: string, payload: unknown): DecisionInApp {
         body:  `${p.subjectName} test "${p.testTitle}": ${whose} is now ${kigaliTime(p.deadline)}.`,
         link:  testsPageOf(p.audience),
       };
+    }
+    case DecisionEvents.TestMarkingAssigned: {
+      const p = payload as TestMarkingPayload;
+      const what = p.count === 1 ? 'A submission' : `${p.count} submissions`;
+      return { title: 'Submissions to mark', body: `${what} of the ${p.subjectName} test "${p.testTitle}" ${p.count === 1 ? 'is' : 'are'} in your marking queue.`, link: MARKING_QUEUE_PATH };
+    }
+    case DecisionEvents.TestMarkingReturned: {
+      const p = payload as TestMarkingPayload;
+      return { title: 'Marking returned for correction', body: `${p.subjectName} test "${p.testTitle}": a reviewer returned your marking with a comment.`, link: MARKING_QUEUE_PATH };
     }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);

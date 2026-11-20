@@ -244,6 +244,15 @@ export const FEATURES = {
    * TEST_HAS_SUBMISSIONS); GET /admin/tests/:id reports submissionCount.
    */
   testSubmissions: 'always',
+  /**
+   * Test Management, Phase 3 (WS3; owner-approved plan 2026-11-19): /api/v1/admin/tests/:id/marking — distribution to
+   * authorised coaches (tests.distribute: even, manual, reassign; progress per coach; only after the latest applicable
+   * deadline incl. extensions, G5), review (tests.review: approve and lock, return with a comment, independent second
+   * marking, unlock with a reason; status history, mark-change log), choosing the first / second / adjusted mark
+   * (tests.adjustMarks: the subject's Head Coach only, G4); /api/v1/marking (tests.mark: Coaches — BLIND marking of the
+   * submissions assigned to them: queue, pages under neutral names, marking guide, drafts, submit for approval).
+   */
+  testMarking: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

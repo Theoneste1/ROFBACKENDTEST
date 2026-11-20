@@ -1,5 +1,5 @@
 -- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher;
--- Test Management Phases 1 and 2):
+-- Test Management Phases 1 to 3):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
@@ -10,12 +10,12 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 5, 0, 0: the five design-area migrations applied; nothing failed or rolled back; nothing after 20261220000200'
+\echo '== 1. MUST be 6, 0, 0: the six design-area migrations applied; nothing failed or rolled back; nothing after 20261220000300'
 SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary',
                                                  '20261220000000_test_file_purposes', '20261220000100_tests_core',
-                                                 '20261220000200_tests_submissions')
+                                                 '20261220000200_tests_submissions', '20261220000300_tests_marking')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261220000200_tests_submissions')              AS later,
+       count(*) FILTER (WHERE migration_name > '20261220000300_tests_marking')                  AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -121,5 +121,28 @@ SELECT count(*) AS one_active_extension_indexes FROM pg_indexes
 SELECT (SELECT count(*) FROM "TestExtension") AS extensions, (SELECT count(*) FROM "TestSubmission") AS submissions,
        (SELECT count(*) FROM "TestSubmissionVersion") AS versions, (SELECT count(*) FROM "TestAnswerPage") AS answer_pages,
        (SELECT count(*) FROM "TestSubmissionStatusChange") AS status_changes;
+
+\echo '== 19. MUST be 5, 3, 1, 5, 5: the Test Management Phase 3 tables, enums, the finalMarkingId column, guard functions and their triggers'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestMarkChange', 'TestReview')) AS phase3_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestMarkingKind', 'TestMarkingStatus', 'TestReviewAction'))                              AS phase3_enums,
+       (SELECT count(*) FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'TestSubmission' AND column_name = 'finalMarkingId')        AS final_marking_column,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
+                         'test_mark_change_append_only', 'test_review_append_only'))                              AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
+                          'test_mark_change_append_only', 'test_review_append_only'))                             AS guard_triggers;
+
+\echo '== 20. MUST be 1: one current assignment per submission and kind (partial unique index)'
+SELECT count(*) AS one_current_assignment_index FROM pg_indexes WHERE indexname = 'TestMarkerAssignment_one_current';
+
+\echo '== 21. MUST be 0, 0, 0, 0, 0, 0: the Phase 3 tables start empty; no submission has a final marking'
+SELECT (SELECT count(*) FROM "TestMarkerAssignment") AS assignments, (SELECT count(*) FROM "TestMarking") AS markings,
+       (SELECT count(*) FROM "TestMarkingScore") AS scores, (SELECT count(*) FROM "TestMarkChange") AS mark_changes,
+       (SELECT count(*) FROM "TestReview") AS reviews,
+       (SELECT count(*) FROM "TestSubmission" WHERE "finalMarkingId" IS NOT NULL) AS final_markings;
 
 ROLLBACK;

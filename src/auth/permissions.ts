@@ -94,7 +94,7 @@ export const PERMISSIONS = [
   'reference.manage',            // correct a country's name or calling code
   // ── Test Management (WS3, owner spec and plan approved 2026-11-19): Administrators (every subject) and Head Coaches
   //    (the subjects they head, programme scope — checked by the service on every request). Coaches, Teachers and
-  //    Students hold none in Phase 1. Marking (Phase 3) will be a separate permission in ADMIN_PROHIBITED (G4). ──
+  //    Students hold none in Phase 1. Marking (Phase 3) is a separate permission in ADMIN_PROHIBITED (G4). ──
   'tests.view',                  // list and read tests, their questions and files (incl. the marking guide)
   'tests.manage',                // create, edit, publish, delete tests; questions; the paper and the marking guide
   'tests.manageMarkers',         // authorise / revoke coaches as markers of a subject (reason on revoke)
@@ -104,6 +104,12 @@ export const PERMISSIONS = [
   'tests.submit',                // Students: submit / replace their own answer to a test of their division (own)
   'tests.submitForStudents',     // Teachers (G2: any teacher of the school, primary or secondary): submit for VERIFIED
                                  // students of their own schools (school). Separate from submissions.submitOnBehalf.
+  // ── Test Management, Phase 3 (WS3, 2026-11-19): distribution, blind marking, second marking, review, approval, locking ──
+  'tests.distribute',            // distribute submissions evenly / assign / reassign to authorised coaches; progress per coach
+  'tests.review',                // review markings with identity: approve (locks), return (comment), request second marking,
+                                 // unlock (reason); status history and the mark-change log
+  'tests.adjustMarks',           // choose the first, second or an ADJUSTED mark (reason): the subject's Head Coach only (G4)
+  'tests.mark',                  // Coaches: mark (blind) the submissions ASSIGNED to them in a subject they are AUTHORISED for
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -117,7 +123,10 @@ type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 export const APP_ROLES_MATCH_DATABASE: Same<AppRole, Role> = true;
 
 /** Where a grant applies. Enforced by the services (AccessService), not by the permission guard. */
-export type ScopeKind = 'own' | 'division' | 'courseDivision' | 'programme' | 'school' | 'global';
+export type ScopeKind = 'own' | 'division' | 'courseDivision' | 'programme' | 'school' | 'global'
+  /** Test Management, Phase 3: the subjects the coach is AUTHORISED to mark (MarkerAuthorization), and only the
+   *  submissions assigned to them — both checked by the service on every request. */
+  | 'markerAuthorization';
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   STUDENT:     'Student',
@@ -160,6 +169,8 @@ const ADMIN_GRANTS: Grants = {
   'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
   // Test Management, Phase 2: extensions and submission tracking, every subject
   'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
+  // Test Management, Phase 3: distribution and review, every subject. Never tests.mark or tests.adjustMarks (G4).
+  'tests.distribute': 'global', 'tests.review': 'global',
 };
 
 /**
@@ -195,6 +206,9 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'assignments.view': 'courseDivision', 'assignments.prepare': 'courseDivision', 'reviews.grade': 'courseDivision',
     'discussions.participate': 'courseDivision', 'discussions.report': 'courseDivision',
     'analytics.course': 'courseDivision', 'leaderboard.view': 'global',
+    // Test Management, Phase 3 (2026-11-19): blind marking of the submissions assigned to them, in the subjects they are
+    // authorised for (an interest never grants it).
+    'tests.mark': 'markerAuthorization',
   },
   HEAD_COACH: {
     'courses.view': 'programme', 'resources.view': 'programme', 'assignments.view': 'programme',
@@ -211,6 +225,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     // Test Management (WS3, 2026-11-19): only the subjects (programmes) they head; any Head Coach of the subject may act.
     'tests.view': 'programme', 'tests.manage': 'programme', 'tests.manageMarkers': 'programme',
     'tests.extensions': 'programme', 'tests.viewSubmissions': 'programme',
+    // Phase 3: distribution, review and — only the subject's Head Coaches (G4) — choosing / adjusting the mark.
+    'tests.distribute': 'programme', 'tests.review': 'programme', 'tests.adjustMarks': 'programme',
   },
   ADMIN: ADMIN_GRANTS,
   SUPER_ADMIN: {
@@ -235,12 +251,17 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'reference.manage': 'global',
     'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
     'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
+    'tests.distribute': 'global', 'tests.review': 'global',
   },
 };
 
 /** Roles that administer and must never grade or author assignments (RS1, C7) — whatever the source of a grant. */
 export const ADMINISTRATIVE_ROLES: readonly AppRole[] = ['ADMIN', 'SUPER_ADMIN'];
-export const ADMIN_PROHIBITED: readonly Permission[] = ['reviews.grade', 'assignments.prepare'];
+export const ADMIN_PROHIBITED: readonly Permission[] = [
+  'reviews.grade', 'assignments.prepare',
+  // Test Management, Phase 3 (G4): Administrators never mark, and never edit or adjust marks.
+  'tests.mark', 'tests.adjustMarks',
+];
 
 /** Never grantable to anyone by an individual override (plan §6.3; used by P1-09). */
 export const NEVER_GRANTABLE: readonly Permission[] = [
@@ -267,6 +288,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'courses.view', 'resources.view', 'resources.manage',
     'assignments.view', 'assignments.prepare', 'reviews.grade',
     'discussions.participate', 'discussions.report', 'analytics.course', 'leaderboard.view',
+    // Appended (additive, Test Management Phase 3, 2026-11-19): coaches hold it (authorised subjects, assigned
+    // submissions) and the /marking routes require it; listed so the coach portal shows the marking queue.
+    'tests.mark',
   ],
   ADMIN: [
     'courses.view', 'resources.view', 'resources.manage',
@@ -305,6 +329,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'tests.view', 'tests.manage', 'tests.manageMarkers',
     // Appended (additive, Test Management Phase 2, 2026-11-19): extensions and submission tracking.
     'tests.extensions', 'tests.viewSubmissions',
+    // Appended (additive, Test Management Phase 3, 2026-11-19): distribution and review (never marking, G4).
+    'tests.distribute', 'tests.review',
   ],
 };
 

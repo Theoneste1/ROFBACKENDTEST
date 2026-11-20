@@ -5092,6 +5092,550 @@
       ]
     },
     {
+      "name": "Admin · Test marking",
+      "item": [
+        {
+          "name": "GET /admin/tests/{id}/marking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "assign"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"submissionIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ],\n  \"coachId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/distribute",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/distribute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "distribute"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coachIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/marking/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "history"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "status",
+                  "disabled": true,
+                  "description": "status (default): status changes; marks: the mark-change log; reviews: reviewer decisions."
+                },
+                {
+                  "key": "submissionId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/marking/submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SUBMITTED",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "coachId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "Submissions whose current FIRST or SECOND assignment is this coach's."
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Student name, username or submission code."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/marking/submissions/{submissionId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions/:submissionId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions",
+                ":submissionId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/submissions/{submissionId}/approve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions/:submissionId/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions",
+                ":submissionId",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientKey\": \"00000000-0000-4000-8000-000000000000\",\n  \"expectedStatus\": \"SUBMITTED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/submissions/{submissionId}/choose",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions/:submissionId/choose",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions",
+                ":submissionId",
+                "choose"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.adjustMarks` (HEAD_COACH)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"FIRST\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/submissions/{submissionId}/reassign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions/:submissionId/reassign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions",
+                ":submissionId",
+                "reassign"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coachId\": \"00000000-0000-4000-8000-000000000000\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/submissions/{submissionId}/return",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions/:submissionId/return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions",
+                ":submissionId",
+                "return"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment\": \"comment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/submissions/{submissionId}/second-marking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions/:submissionId/second-marking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions",
+                ":submissionId",
+                "second-marking"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coachId\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/marking/submissions/{submissionId}/unlock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/marking/submissions/:submissionId/unlock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "marking",
+                "submissions",
+                ":submissionId",
+                "unlock"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Tests",
       "item": [
         {
@@ -12832,6 +13376,267 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tests · Marking",
+      "item": [
+        {
+          "name": "GET /marking/queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "queue"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "NOT_STARTED",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "testId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /marking/submissions/{code}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/submissions/:code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "submissions",
+                ":code"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "PUT /marking/submissions/{code}/marking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/marking/submissions/:code/marking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "submissions",
+                ":code",
+                "marking"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scores\": [\n    {\n      \"questionId\": \"00000000-0000-4000-8000-000000000000\"\n    }\n  ],\n  \"totalMarks\": 0,\n  \"comment\": \"comment\",\n  \"expectedRevision\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /marking/submissions/{code}/marking-guide",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/submissions/:code/marking-guide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "submissions",
+                ":code",
+                "marking-guide"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "POST /marking/submissions/{code}/marking/submit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/marking/submissions/:code/marking/submit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "submissions",
+                ":code",
+                "marking",
+                "submit"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scores\": [\n    {\n      \"questionId\": \"00000000-0000-4000-8000-000000000000\"\n    }\n  ],\n  \"totalMarks\": 0,\n  \"comment\": \"comment\",\n  \"expectedRevision\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /marking/submissions/{code}/pages/{page}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/submissions/:code/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "submissions",
+                ":code",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /marking/submissions/{code}/paper",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/submissions/:code/paper",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "submissions",
+                ":code",
+                "paper"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
           }
         }
       ]

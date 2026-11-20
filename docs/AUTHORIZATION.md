@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 369 endpoints — 26 public, 217 administrator-only.
+Totals: 388 endpoints — 26 public, 228 administrator-only.
 
 ## Academic years
 
@@ -247,6 +247,23 @@ Totals: 369 endpoints — 26 public, 217 administrator-only.
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  | ✓ |
+
+## Admin · Test marking
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/tests/{id}/marking` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/assign` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/distribute` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/history` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/submissions` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose` |  |  |  |  |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock` |  |  |  | ✓ |
 
 ## Admin · Tests
 
@@ -582,6 +599,18 @@ Totals: 369 endpoints — 26 public, 217 administrator-only.
 | POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
+
+## Tests · Marking
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/marking/queue` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}` |  |  | ✓ |  |
+| PUT | `/api/v1/marking/submissions/{code}/marking` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}/marking-guide` |  |  | ✓ |  |
+| POST | `/api/v1/marking/submissions/{code}/marking/submit` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}/pages/{page}` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}/paper` |  |  | ✓ |  |
 
 ## Tests · Students
 

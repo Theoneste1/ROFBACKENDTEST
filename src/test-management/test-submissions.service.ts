@@ -380,6 +380,7 @@ export class TestSubmissionsService {
 
       const now = await this.deadlines.now(tx);
       assertEligible(test, student, now);
+      // Phase 3 (G5): once marking began (any later status) nothing replaces the answer — whatever deadline still applies.
       if (sub.status !== 'SUBMITTED') {
         throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED', 'This submission is being marked; it can no longer be replaced.', { status: sub.status });
       }

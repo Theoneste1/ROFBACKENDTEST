@@ -1,6 +1,7 @@
 -- Rollback for 20261220000200_tests_submissions (Test Management Phase 2, migration M-c; owner-approved plan 2026-11-19).
 -- Run manually, with approval, after a backup, and after deploying the previous application release (the current code
--- reads and writes these tables). Roll it back FIRST (newest), before 20261220000100_tests_core.
+-- reads and writes these tables). Roll it back after 20261220000300_tests_marking (Phase 3, whose tables reference these:
+-- while they exist the DROP below fails and nothing changes), before 20261220000100_tests_core.
 --
 -- It drops TestExtension, TestSubmission, TestSubmissionVersion, TestAnswerPage and TestSubmissionStatusChange, their enums
 -- (TestExtensionKind, TestSubmissionStatus, TestSubmitterRole), the three guard triggers and their functions. Every Test,
