@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
+import { AffiliationBulkHandler } from './bulk/affiliation-bulk.handler.js';
 import { AdminSchoolAffiliationsController, MySchoolAffiliationController } from './school-affiliation.controller.js';
 import { SchoolAffiliationService } from './school-affiliation.service.js';
 
@@ -7,7 +8,7 @@ import { SchoolAffiliationService } from './school-affiliation.service.js';
 @Global()
 @Module({
   controllers: [AdminSchoolAffiliationsController, MySchoolAffiliationController],
-  providers:   [SchoolAffiliationService],
+  providers:   [SchoolAffiliationService, AffiliationBulkHandler],
   exports:     [SchoolAffiliationService],
 })
 export class SchoolAffiliationModule {}

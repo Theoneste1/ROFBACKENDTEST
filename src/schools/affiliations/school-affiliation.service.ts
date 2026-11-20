@@ -190,12 +190,21 @@ export class SchoolAffiliationService {
   // ─── Administrator decisions (each atomic with its audit row) ───────────────
 
   async verify(id: string, actor: AuthUser, note?: string) {
-    let notice: string | null = null;
-    const result = await this.decide(id, actor, 'PENDING', 'VERIFIED', 'SCHOOL_AFFILIATION_VERIFIED',
-      { decidedAt: new Date(), decidedById: actor.id, decisionReason: note ?? null }, { requireSchool: true, reason: note ?? null },
-      async (tx, row) => { notice = await this.enqueueSchoolVerified(tx, row); });
+    const { result, notice } = await this.prisma.$transaction((tx) => this.verifyInTx(tx, id, actor, note));
     this.notices.dispatchAfterCommit([notice]);
     return result;
+  }
+
+  /**
+   * verify() inside the caller's transaction (also each record of a SCHOOL_AFFILIATION bulk verify). Returns the claim
+   * and the decision notice to dispatch once the transaction committed.
+   */
+  async verifyInTx(tx: Prisma.TransactionClient, id: string, actor: AuthUser, note?: string, ctx: DecisionCtx = {}) {
+    let notice: string | null = null;
+    const result = await this.decideInTx(tx, id, actor, 'PENDING', 'VERIFIED', 'SCHOOL_AFFILIATION_VERIFIED',
+      { decidedAt: new Date(), decidedById: actor.id, decisionReason: note ?? null }, { requireSchool: true, reason: note ?? null, ...ctx },
+      async (t, row) => { notice = await this.enqueueSchoolVerified(t, row); });
+    return { result, notice: notice as string | null };
   }
 
   /**
@@ -226,53 +235,59 @@ export class SchoolAffiliationService {
   }
 
   reject(id: string, actor: AuthUser, reason: string) {
-    return this.decide(id, actor, 'PENDING', 'REJECTED', 'SCHOOL_AFFILIATION_REJECTED',
-      { decidedAt: new Date(), decidedById: actor.id, decisionReason: reason }, { reason });
+    return this.prisma.$transaction((tx) => this.rejectInTx(tx, id, actor, reason));
+  }
+
+  /** reject() inside the caller's transaction (also each record of a SCHOOL_AFFILIATION bulk reject). */
+  rejectInTx(tx: Prisma.TransactionClient, id: string, actor: AuthUser, reason: string, ctx: DecisionCtx = {}) {
+    return this.decideInTx(tx, id, actor, 'PENDING', 'REJECTED', 'SCHOOL_AFFILIATION_REJECTED',
+      { decidedAt: new Date(), decidedById: actor.id, decisionReason: reason }, { reason, ...ctx });
   }
 
   revoke(id: string, actor: AuthUser, reason: string) {
-    return this.decide(id, actor, 'VERIFIED', 'REVOKED', 'SCHOOL_AFFILIATION_REVOKED',
-      { revokedAt: new Date(), revokedById: actor.id, revokeReason: reason }, { reason });
+    return this.prisma.$transaction((tx) => this.decideInTx(tx, id, actor, 'VERIFIED', 'REVOKED', 'SCHOOL_AFFILIATION_REVOKED',
+      { revokedAt: new Date(), revokedById: actor.id, revokeReason: reason }, { reason }));
   }
 
-  private async decide(
-    id: string, actor: AuthUser, from: SchoolAffiliationStatus, to: SchoolAffiliationStatus, action: string,
-    data: Prisma.StudentSchoolAffiliationUncheckedUpdateManyInput, opts: { requireSchool?: boolean; reason: string | null },
+  private async decideInTx(
+    tx: Prisma.TransactionClient, id: string, actor: AuthUser, from: SchoolAffiliationStatus, to: SchoolAffiliationStatus, action: string,
+    data: Prisma.StudentSchoolAffiliationUncheckedUpdateManyInput, opts: { requireSchool?: boolean; reason: string | null } & DecisionCtx,
     /** Runs in the same transaction, after the change and its audit row (decision notifications). */
     after?: (tx: Prisma.TransactionClient, row: { id: string; studentId: string; schoolId: string | null }) => Promise<void>,
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      // The claim row first (FOR UPDATE: a concurrent decision or supersession waits here), then
-      // — for a verification — the school: the same order as claim() takes them.
-      const [row] = await tx.$queryRaw<Array<{ id: string; studentId: string; schoolId: string | null; status: SchoolAffiliationStatus; supersededAt: Date | null }>>`
-        SELECT "id", "studentId", "schoolId", "status"::text AS "status", "supersededAt"
-          FROM "StudentSchoolAffiliation" WHERE "id" = ${id} FOR UPDATE`;
-      if (!row) throw new NotFoundException('Affiliation not found.');
-      if (row.supersededAt) throw conflict('AFFILIATION_SUPERSEDED', 'This claim has been replaced by a newer one.');
-      if (row.status !== from) throw conflict('AFFILIATION_STATUS_CONFLICT', `Only a ${from} claim can become ${to}.`, { status: row.status });
-      if (opts.requireSchool && !row.schoolId) {
-        throw conflict('AFFILIATION_SCHOOL_REQUIRED', 'The claim has no school yet; resolve the school before verifying membership.');
-      }
-      // Verifying membership of an inactive school is refused (rejecting / revoking is not).
-      if (opts.requireSchool) await lockSchoolsForUse(tx, [row.schoolId!]);
-      // Atomic: only the still-current claim in the expected status changes; a concurrent
-      // decision or a new claim makes this update nothing → 409, and nothing is audited.
-      const { count } = await tx.studentSchoolAffiliation.updateMany({
-        where: { id, status: from, supersededAt: null, ...(opts.requireSchool && { schoolId: { not: null } }) },
-        data:  { ...data, status: to },
-      });
-      if (count === 0) throw conflict('AFFILIATION_STATUS_CONFLICT', 'The claim changed meanwhile; refresh and try again.');
-      await this.audit.log({
-        actorId: actor.id, actorRole: actor.role, action, entity: 'StudentSchoolAffiliation', entityId: id,
-        metadata: { studentId: row.studentId, schoolId: row.schoolId, previous: { status: from }, next: { status: to }, reason: opts.reason },
-      }, tx);
-      // A revoked VERIFIED claim: teachers who saw the student through it may not any more (TS-5).
-      if (from === 'VERIFIED') {
-        await dropStaleSelections(tx, this.audit, { studentId: row.studentId }, { actorId: actor.id, actorRole: actor.role }, 'SCHOOL_CLAIM_CHANGED');
-      }
-      if (after) await after(tx, row);
-      return tx.studentSchoolAffiliation.findUniqueOrThrow({ where: { id }, select: ADMIN_SELECT });
+    // The claim row first (FOR UPDATE: a concurrent decision or supersession waits here), then
+    // — for a verification — the school: the same order as claim() takes them.
+    const [row] = await tx.$queryRaw<Array<{ id: string; studentId: string; schoolId: string | null; status: SchoolAffiliationStatus; supersededAt: Date | null }>>`
+      SELECT "id", "studentId", "schoolId", "status"::text AS "status", "supersededAt"
+        FROM "StudentSchoolAffiliation" WHERE "id" = ${id} FOR UPDATE`;
+    if (!row) throw new NotFoundException('Affiliation not found.');
+    if (row.supersededAt) throw conflict('AFFILIATION_SUPERSEDED', 'This claim has been replaced by a newer one.');
+    if (row.status !== from) throw conflict('AFFILIATION_STATUS_CONFLICT', `Only a ${from} claim can become ${to}.`, { status: row.status });
+    if (opts.requireSchool && !row.schoolId) {
+      throw conflict('AFFILIATION_SCHOOL_REQUIRED', 'The claim has no school yet; resolve the school before verifying membership.');
+    }
+    // Verifying membership of an inactive school is refused (rejecting / revoking is not).
+    if (opts.requireSchool) await lockSchoolsForUse(tx, [row.schoolId!]);
+    // Atomic: only the still-current claim in the expected status changes; a concurrent
+    // decision or a new claim makes this update nothing → 409, and nothing is audited.
+    const { count } = await tx.studentSchoolAffiliation.updateMany({
+      where: { id, status: from, supersededAt: null, ...(opts.requireSchool && { schoolId: { not: null } }) },
+      data:  { ...data, status: to },
     });
+    if (count === 0) throw conflict('AFFILIATION_STATUS_CONFLICT', 'The claim changed meanwhile; refresh and try again.');
+    await this.audit.log({
+      actorId: actor.id, actorRole: actor.role, action, entity: 'StudentSchoolAffiliation', entityId: id,
+      metadata: {
+        studentId: row.studentId, schoolId: row.schoolId, previous: { status: from }, next: { status: to }, reason: opts.reason,
+        ...(opts.operationId && { operationId: opts.operationId }),
+      },
+    }, tx);
+    // A revoked VERIFIED claim: teachers who saw the student through it may not any more (TS-5).
+    if (from === 'VERIFIED') {
+      await dropStaleSelections(tx, this.audit, { studentId: row.studentId }, { actorId: actor.id, actorRole: actor.role }, 'SCHOOL_CLAIM_CHANGED');
+    }
+    if (after) await after(tx, row);
+    return tx.studentSchoolAffiliation.findUniqueOrThrow({ where: { id }, select: ADMIN_SELECT });
   }
 
   // ─── PR C: the student's own claim ──────────────────────────────────────────
@@ -481,13 +496,7 @@ export class SchoolAffiliationService {
 
   async list(q: ListAffiliationsDto) {
     const { page, limit, skip, take } = pageArgs(q);
-    const where: Prisma.StudentSchoolAffiliationWhereInput = {
-      ...((q.current ?? true) && { supersededAt: null }),
-      ...(q.status    && { status: q.status }),
-      ...(q.schoolId ? { schoolId: q.schoolId } : q.hasSchool !== undefined && { schoolId: q.hasSchool ? { not: null } : null }),
-      ...(q.studentId && { studentId: q.studentId }),
-      ...(q.country   && { OR: [{ claimedCountry: q.country }, ...(q.country === 'RW' ? [{ schoolId: { not: null } }] : [])] }),
-    };
+    const where = affiliationListWhere(q);
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.studentSchoolAffiliation.findMany({ where, select: ADMIN_SELECT, skip, take, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
       this.prisma.studentSchoolAffiliation.count({ where }),
@@ -528,6 +537,23 @@ export class SchoolAffiliationService {
     };
   }
 }
+
+/** The list filters (ListAffiliationsDto without paging). */
+export type AffiliationListFilter = Omit<ListAffiliationsDto, 'page' | 'limit'>;
+
+/** The filters of GET /admin/school-affiliations (and of the SCHOOL_AFFILIATION bulk selection): one where clause for both. */
+export function affiliationListWhere(q: AffiliationListFilter): Prisma.StudentSchoolAffiliationWhereInput {
+  return {
+    ...((q.current ?? true) && { supersededAt: null }),
+    ...(q.status    && { status: q.status }),
+    ...(q.schoolId ? { schoolId: q.schoolId } : q.hasSchool !== undefined && { schoolId: q.hasSchool ? { not: null } : null }),
+    ...(q.studentId && { studentId: q.studentId }),
+    ...(q.country   && { OR: [{ claimedCountry: q.country }, ...(q.country === 'RW' ? [{ schoolId: { not: null } }] : [])] }),
+  };
+}
+
+/** Bulk context: the operation id, written into the decision's audit row like the USER bulk actions do. */
+export interface DecisionCtx { operationId?: string }
 
 function conflict(code: string, message: string, details?: unknown) {
   return new AppError(HttpStatus.CONFLICT, code, message, details);

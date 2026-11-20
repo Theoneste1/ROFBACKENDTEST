@@ -55,6 +55,31 @@ const SCHOOL_SELECT = {
   lastVerifiedBy: { select: { id: true, username: true } },
 } as const;
 
+/** The filters of GET /admin/schools (and of the SCHOOL bulk selection): one where clause for both. */
+export function schoolListWhere(q: SchoolListFilter): Prisma.SchoolWhereInput {
+  return {
+    ...(q.q && { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { code: { startsWith: q.q } }] }),
+    ...(q.countryCode && { countryCode: q.countryCode }),
+    ...(q.province && { province: q.province }),
+    ...(q.district && { district: q.district }),
+    ...(q.sector && { sector: q.sector }),
+    ...(q.isActive !== undefined && { isActive: q.isActive }),
+    ...(q.source && { source: q.source }),
+    ...(q.accommodation && { accommodation: q.accommodation }),
+    ...(q.hasCode !== undefined && { code: q.hasCode ? { not: null } : null }),
+    ...(q.level && { levels: { some: { levelCode: q.level } } }),
+    ...(q.programme && { programmes: { some: { programmeId: q.programme } } }),
+    ...(q.hasSourceIssues !== undefined && {
+      sourceRecords: q.hasSourceIssues ? { some: { issueCount: { gt: 0 } } } : { none: { issueCount: { gt: 0 } } },
+    }),
+  };
+}
+
+/** The list filters (ListAdminSchoolsDto without paging and sorting). */
+export type SchoolListFilter = Omit<ListAdminSchoolsDto, 'page' | 'limit' | 'sort' | 'order'>;
+/** Bulk context: the operation id, written into the audit row like the USER bulk actions do. */
+export interface SchoolChangeCtx { operationId?: string }
+
 @Injectable()
 export class AdminSchoolsService {
   constructor(
@@ -66,22 +91,7 @@ export class AdminSchoolsService {
 
   async list(q: ListAdminSchoolsDto) {
     const { page, limit, skip, take } = pageArgs(q);
-    const where: Prisma.SchoolWhereInput = {
-      ...(q.q && { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { code: { startsWith: q.q } }] }),
-      ...(q.countryCode && { countryCode: q.countryCode }),
-      ...(q.province && { province: q.province }),
-      ...(q.district && { district: q.district }),
-      ...(q.sector && { sector: q.sector }),
-      ...(q.isActive !== undefined && { isActive: q.isActive }),
-      ...(q.source && { source: q.source }),
-      ...(q.accommodation && { accommodation: q.accommodation }),
-      ...(q.hasCode !== undefined && { code: q.hasCode ? { not: null } : null }),
-      ...(q.level && { levels: { some: { levelCode: q.level } } }),
-      ...(q.programme && { programmes: { some: { programmeId: q.programme } } }),
-      ...(q.hasSourceIssues !== undefined && {
-        sourceRecords: q.hasSourceIssues ? { some: { issueCount: { gt: 0 } } } : { none: { issueCount: { gt: 0 } } },
-      }),
-    };
+    const where = schoolListWhere(q);
     const select = { ...SCHOOL_SELECT, _count: { select: { students: true } } } as const;
     const order = q.order ?? 'asc';
     let rows: Array<Prisma.SchoolGetPayload<{ select: typeof select }>>;
@@ -249,21 +259,27 @@ export class AdminSchoolsService {
 
   /** Record an administrator's check of the school (active Rwandan schools only); audited. */
   async verify(id: string, dto: VerifySchoolDto, caller: CallerCtx) {
-    return this.write(async (tx) => {
-      const current = await this.lockSchool(tx, id);
-      if (!current.isActive) throw schoolInactive(id);
-      if (current.countryCode !== RWANDA) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY', 'Only schools of the Rwandan directory are verified.');
-      }
-      const school = await tx.school.update({
-        where: { id }, data: { lastVerifiedAt: new Date(), lastVerifiedById: caller.id }, select: SCHOOL_SELECT,
-      });
-      await this.audit.log({
-        actorId: caller.id, actorRole: caller.role, action: 'VERIFY_SCHOOL', entity: 'School', entityId: id,
-        metadata: { note: dto.note ?? null, previousVerifiedAt: current.lastVerifiedAt, code: current.code, source: current.source },
-      }, tx);
-      return school;
+    return this.write((tx) => this.verifyInTx(tx, id, dto, caller));
+  }
+
+  /** verify() inside the caller's transaction (also each record of a SCHOOL bulk verify; ctx.operationId audited). */
+  async verifyInTx(tx: Tx, id: string, dto: VerifySchoolDto, caller: CallerCtx, ctx: SchoolChangeCtx = {}) {
+    const current = await this.lockSchool(tx, id);
+    if (!current.isActive) throw schoolInactive(id);
+    if (current.countryCode !== RWANDA) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY', 'Only schools of the Rwandan directory are verified.');
+    }
+    const school = await tx.school.update({
+      where: { id }, data: { lastVerifiedAt: new Date(), lastVerifiedById: caller.id }, select: SCHOOL_SELECT,
     });
+    await this.audit.log({
+      actorId: caller.id, actorRole: caller.role, action: 'VERIFY_SCHOOL', entity: 'School', entityId: id,
+      metadata: {
+        note: dto.note ?? null, previousVerifiedAt: current.lastVerifiedAt, code: current.code, source: current.source,
+        ...(ctx.operationId && { operationId: ctx.operationId }),
+      },
+    }, tx);
+    return school;
   }
 
   // ─── Deactivating / reactivating ────────────────────────────────────────────
@@ -274,31 +290,37 @@ export class AdminSchoolsService {
    * Setting the state it already has changes nothing and writes no audit record.
    */
   async setActive(id: string, dto: SetSchoolActiveDto, caller: CallerCtx) {
-    return this.write(async (tx) => {
-      await lockSchoolDirectory(tx, 'shared');
-      const current = await this.lockSchool(tx, id);
-      const fields = { name: current.name, code: current.code, countryCode: current.countryCode, district: current.district };
-      await lockSchoolKeys(tx, schoolLockPlan([{
-        before: { ...fields, isActive: current.isActive }, after: { ...fields, isActive: dto.isActive },
-      }]));
-      const impact = await this.impact(tx, id);
-      if (current.isActive === dto.isActive) {
-        return { school: await tx.school.findUniqueOrThrow({ where: { id }, select: SCHOOL_SELECT }), changed: false, impact };
-      }
-      const school = await tx.school.update({ where: { id }, data: { isActive: dto.isActive }, select: SCHOOL_SELECT });
-      await this.audit.log({
-        actorId: caller.id, actorRole: caller.role, action: dto.isActive ? 'SCHOOL_REACTIVATED' : 'SCHOOL_DEACTIVATED',
-        entity: 'School', entityId: id,
-        metadata: { reason: dto.reason, previous: { isActive: current.isActive }, next: { isActive: dto.isActive }, impact },
-      }, tx);
-      return {
-        school, changed: true, impact,
-        ...(!dto.isActive && {
-          warning: 'Existing students, verified claims, enrolments and Teacher access are kept. ' +
-            'The school accepts no new registrations, claims, verifications or Teacher assignments until reactivated.',
-        }),
-      };
-    });
+    return this.write((tx) => this.setActiveInTx(tx, id, dto, caller));
+  }
+
+  /** setActive() inside the caller's transaction (also each record of a SCHOOL bulk activate / deactivate). */
+  async setActiveInTx(tx: Tx, id: string, dto: SetSchoolActiveDto, caller: CallerCtx, ctx: SchoolChangeCtx = {}) {
+    await lockSchoolDirectory(tx, 'shared');
+    const current = await this.lockSchool(tx, id);
+    const fields = { name: current.name, code: current.code, countryCode: current.countryCode, district: current.district };
+    await lockSchoolKeys(tx, schoolLockPlan([{
+      before: { ...fields, isActive: current.isActive }, after: { ...fields, isActive: dto.isActive },
+    }]));
+    const impact = await this.impact(tx, id);
+    if (current.isActive === dto.isActive) {
+      return { school: await tx.school.findUniqueOrThrow({ where: { id }, select: SCHOOL_SELECT }), changed: false, impact };
+    }
+    const school = await tx.school.update({ where: { id }, data: { isActive: dto.isActive }, select: SCHOOL_SELECT });
+    await this.audit.log({
+      actorId: caller.id, actorRole: caller.role, action: dto.isActive ? 'SCHOOL_REACTIVATED' : 'SCHOOL_DEACTIVATED',
+      entity: 'School', entityId: id,
+      metadata: {
+        reason: dto.reason, previous: { isActive: current.isActive }, next: { isActive: dto.isActive }, impact,
+        ...(ctx.operationId && { operationId: ctx.operationId }),
+      },
+    }, tx);
+    return {
+      school, changed: true, impact,
+      ...(!dto.isActive && {
+        warning: 'Existing students, verified claims, enrolments and Teacher access are kept. ' +
+          'The school accepts no new registrations, claims, verifications or Teacher assignments until reactivated.',
+      }),
+    };
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────

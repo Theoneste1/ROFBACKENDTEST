@@ -185,7 +185,7 @@ export class TeacherApplicationsService {
   async list(q: ListTeacherApplicationsDto, caller: CallerCtx) {
     await this.roles.assertCanAssign(caller, 'TEACHER');
     const { page, limit, skip, take } = pageArgs(q);
-    const where = q.status ? { status: q.status } : {};
+    const where = teacherApplicationListWhere(q);
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.teacherApplication.findMany({ where, select: APPLICATION_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], skip, take }),
       this.prisma.teacherApplication.count({ where }),
@@ -373,30 +373,41 @@ export class TeacherApplicationsService {
 
   async reject(id: string, dto: RejectTeacherApplicationDto, caller: CallerCtx) {
     await this.roles.assertCanAssign(caller, 'TEACHER');
-    const rejected = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.teacherApplication.findUnique({ where: { id }, select: { id: true } });
-      if (!existing) throw notFound();
-      const { count } = await tx.teacherApplication.updateMany({
-        where: { id, status: 'PENDING' },
-        // A rejected application keeps no picture (the file is then cleaned up as an orphan).
-        data:  { status: 'REJECTED', passwordHash: null, decidedAt: new Date(), decidedById: caller.id, rejectionReason: dto.reason, avatarFileId: null },
-      });
-      if (count === 0) throw applicationAlreadyDecided();
-      await this.infoRequests.cancelOpen(tx, 'TEACHER', id);
-      await this.audit.log({
-        actorId: caller.id, actorRole: caller.role,
-        action: 'REJECT_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
-        // The append-only record of the decision (L2): who decided and why, as stored on the application.
-        metadata: { reason: dto.reason, decidedById: caller.id },
-      }, tx);
-      return tx.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
-    });
+    const rejected = await this.prisma.$transaction((tx) => this.rejectInTx(tx, id, dto, caller));
     // The applicant learns the decision and its reason (REG-10). After commit; a mail failure never undoes the decision.
-    await this.notifications.queueEmail(rejected.email, 'Your teacher application',
-      'Thank you for applying to join the Rwanda Olympiad Foundation platform as a Teacher. ' +
-      `Your application was not approved at this time.\n\nReason: ${dto.reason}`,
-      { firstName: rejected.firstName }).catch(() => undefined);
+    await this.rejectionEmail(rejected, dto.reason);
     return rejected;
+  }
+
+  /**
+   * reject() inside the caller's transaction, after the caller checked assertCanAssign(caller, 'TEACHER') (also each
+   * record of a TEACHER_APPLICATION bulk reject; ctx.operationId audited). The e-mail is the caller's, after commit.
+   */
+  async rejectInTx(tx: Prisma.TransactionClient, id: string, dto: RejectTeacherApplicationDto, caller: CallerCtx, ctx: { operationId?: string } = {}) {
+    const existing = await tx.teacherApplication.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) throw notFound();
+    const { count } = await tx.teacherApplication.updateMany({
+      where: { id, status: 'PENDING' },
+      // A rejected application keeps no picture (the file is then cleaned up as an orphan).
+      data:  { status: 'REJECTED', passwordHash: null, decidedAt: new Date(), decidedById: caller.id, rejectionReason: dto.reason, avatarFileId: null },
+    });
+    if (count === 0) throw applicationAlreadyDecided();
+    await this.infoRequests.cancelOpen(tx, 'TEACHER', id);
+    await this.audit.log({
+      actorId: caller.id, actorRole: caller.role,
+      action: 'REJECT_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
+      // The append-only record of the decision (L2): who decided and why, as stored on the application.
+      metadata: { reason: dto.reason, decidedById: caller.id, ...(ctx.operationId && { operationId: ctx.operationId }) },
+    }, tx);
+    return tx.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT });
+  }
+
+  /** The rejection e-mail (REG-10), queued after the decision committed; a failure is ignored. */
+  rejectionEmail(rejected: { email: string; firstName: string }, reason: string) {
+    return this.notifications.queueEmail(rejected.email, 'Your teacher application',
+      'Thank you for applying to join the Rwanda Olympiad Foundation platform as a Teacher. ' +
+      `Your application was not approved at this time.\n\nReason: ${reason}`,
+      { firstName: rejected.firstName }).catch(() => undefined);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -411,6 +422,11 @@ export class TeacherApplicationsService {
     ]);
     if (user || mentorRequest || teacherApplication) throw identityTaken();
   }
+}
+
+/** The filters of GET /admin/teacher-applications (and of the TEACHER_APPLICATION bulk selection). */
+export function teacherApplicationListWhere(q: { status?: Prisma.TeacherApplicationWhereInput['status'] & string }): Prisma.TeacherApplicationWhereInput {
+  return q.status ? { status: q.status } : {};
 }
 
 const notFound = () => new NotFoundException('Teacher application not found.');

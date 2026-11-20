@@ -3,13 +3,55 @@
 Since 2026-11-19 every bulk action runs on one engine (`src/bulk/`). Capability: `bulkOperationsGeneric` (the USER
 routes of 2026-11-17 keep `bulkUserOperations`). The USER record type — its actions, filters, codes and limits — is
 described in [bulk-user-operations.md](bulk-user-operations.md); this document is the contract every record type
-(USER today; the next record types extend it, never a separate processing path) follows.
+(USER, SCHOOL, SCHOOL_AFFILIATION, TEACHER_APPLICATION, COACH_APPLICATION; the next record types extend it, never a separate processing path) follows.
 
 ## Supported record types
 
 | Record type | Routes | Selection filters | Limits | Export |
 |---|---|---|---|---|
 | `USER` | `/admin/bulk/USER/*` and, unchanged, `/admin/users/bulk/*` | those of `GET /admin/users` | ids ≤ 1 000; filter ≤ 50 000 | `users.export` (CSV, never dates of birth or phone numbers) |
+| `SCHOOL` | `/admin/bulk/SCHOOL/*` | those of `GET /admin/schools` (`q`, `countryCode`, `province`, `district`, `sector`, `isActive`, `source`, `level`, `programme`, `accommodation`, `hasCode`, `hasSourceIssues`; no paging or sorting) | ids ≤ 1 000; filter ≤ 10 000 | — |
+| `SCHOOL_AFFILIATION` (students' school claims) | `/admin/bulk/SCHOOL_AFFILIATION/*` | those of `GET /admin/school-affiliations` (`status`, `schoolId`, `studentId`, `country`, `hasSchool`, `current` — current claims by default) | ids ≤ 1 000; filter ≤ 10 000 | — |
+| `TEACHER_APPLICATION` | `/admin/bulk/TEACHER_APPLICATION/*` | that of `GET /admin/teacher-applications` (`status`) | ids ≤ 1 000; filter ≤ 10 000 | — |
+| `COACH_APPLICATION` (mentor requests) | `/admin/bulk/COACH_APPLICATION/*` | that of `GET /mentor-requests` (`status`) | ids ≤ 1 000; filter ≤ 10 000 | — |
+
+None of the four types since 2026-11-20 takes `params` (any key → `400 VALIDATION_FAILED`); the operation's `reason` is
+the single route's reason or note.
+
+### Actions of the record types added on 2026-11-20
+
+Each action calls the **same service method** as its single-record route, refactored into an `…InTx(tx, …)` variant
+that the route and the bulk item share (same locks, checks, notices, e-mails and audit row; the bulk audit row also
+carries `operationId`). Permissions are the single route's, on top of `users.bulkManage`.
+
+| Type · action | Single route (shared code) | Permissions | Reason | Item outcomes besides `SUCCEEDED` |
+|---|---|---|---|---|
+| `SCHOOL` · `activate` | `PATCH /admin/schools/:id/active` (`AdminSchoolsService.setActiveInTx`) | `schools.manage` | required (as the single route) | `SKIPPED ALREADY_IN_STATE` (already active: no change, no audit row), `SKIPPED NOT_FOUND` |
+| `SCHOOL` · `deactivate` | same | `schools.manage` | required | `SKIPPED ALREADY_IN_STATE` (already inactive), `SKIPPED NOT_FOUND` |
+| `SCHOOL` · `verify` | `POST /admin/schools/:id/verify` (`verifyInTx`; the reason is the note) | `schools.manage` | optional | `SKIPPED ALREADY_IN_STATE` (already verified), `FAILED SCHOOL_INACTIVE`, `FAILED SCHOOL_DIRECTORY_RWANDA_ONLY` |
+| `SCHOOL_AFFILIATION` · `verify` | `POST /admin/school-affiliations/:id/verify` (`SchoolAffiliationService.verifyInTx`; the reason is the note; the `school.request.verified` notice as the single route) | `schools.manage` | optional | `SKIPPED ALREADY_IN_STATE`, `SKIPPED NOT_APPLICABLE` (not pending), `SKIPPED AFFILIATION_SUPERSEDED`, `FAILED AFFILIATION_SCHOOL_REQUIRED`, `FAILED SCHOOL_INACTIVE` |
+| `SCHOOL_AFFILIATION` · `reject` | `POST /admin/school-affiliations/:id/reject` (`rejectInTx`; the student sees the reason) | `schools.manage` | required | `SKIPPED ALREADY_IN_STATE`, `SKIPPED NOT_APPLICABLE`, `SKIPPED AFFILIATION_SUPERSEDED` |
+| `TEACHER_APPLICATION` · `reject` | `POST /admin/teacher-applications/:id/reject` (`TeacherApplicationsService.rejectInTx`; rejection e-mail after commit) | `users.manageTeachers`, and per record the TEACHER role policy (`ROLE_NOT_ASSIGNABLE` / `TEACHERS_DISABLED`, also at preview) | required | `SKIPPED ALREADY_IN_STATE` (rejected), `SKIPPED ALREADY_DECIDED` (approved) |
+| `COACH_APPLICATION` · `approve` | `PATCH /mentor-requests/:id/approve` (`MentorRequestsService.approveInTx`; approval notice; activation e-mail after commit) | `mentorRequests.decide` | optional | `SKIPPED ALREADY_IN_STATE`, `SKIPPED ALREADY_DECIDED` (rejected), `FAILED IDENTITY_TAKEN` |
+| `COACH_APPLICATION` · `reject` | `PATCH /mentor-requests/:id/reject` (`rejectInTx`; the applicant's e-mail after commit) | `mentorRequests.decide` | optional (as the single route) | `SKIPPED ALREADY_IN_STATE`, `SKIPPED ALREADY_DECIDED` (approved) |
+
+- **No bulk approve of Teacher applications**: an approval needs a per-application school decision.
+- **Pictures are never approved in bulk**: a coach approved in bulk gets no picture (`approvePicture: false`; the audit
+  row says `picture: DISCARDED` when one was sent; the preview warns `PICTURE_DISCARDED`). Approve one by one to keep it.
+- Skip codes (a refusal of the single route meaning "nothing to do", recorded `SKIPPED`): `SCHOOL_AFFILIATION` —
+  `AFFILIATION_SUPERSEDED`, `AFFILIATION_STATUS_CONFLICT` (decided meanwhile); `TEACHER_APPLICATION` —
+  `APPLICATION_ALREADY_DECIDED`; `COACH_APPLICATION` — `INVALID_STATE_TRANSITION`. Every other refusal is `FAILED`.
+- Membership guard: `LOCK TABLE … IN SHARE MODE` on the tables the filter reads — `SCHOOL`: `School`,
+  `SchoolEducationLevel`, `SchoolProgramme`, `SchoolSourceRecord`; `SCHOOL_AFFILIATION`: `StudentSchoolAffiliation`;
+  `TEACHER_APPLICATION`: `TeacherApplication`; `COACH_APPLICATION`: `MentorRequest`.
+- Preview `sample` (≤ 10) and each item's summary (`school`, `affiliation`, `application`): `SCHOOL` — id, name, code,
+  countryCode, district, sector, isActive, lastVerifiedAt; `SCHOOL_AFFILIATION` — id, status, supersededAt, claimedName,
+  claimedCountry, createdAt, student (id, username, names), school (id, name, code, isActive); `TEACHER_APPLICATION` — id,
+  names, username, email, status, createdAt, proposedSchoolName, school; `COACH_APPLICATION` — id, names, username,
+  email, status, createdAt, country, olympiadInterests. Never a password hash.
+- Preview `warnings` count what will be skipped (`ALREADY_IN_STATE`, `ALREADY_DECIDED`, `NOT_APPLICABLE`,
+  `AFFILIATION_SUPERSEDED`) and what will fail (`SCHOOL_INACTIVE`, `SCHOOL_DIRECTORY_RWANDA_ONLY`,
+  `AFFILIATION_SCHOOL_REQUIRED`), and `PICTURE_DISCARDED`.
 
 `GET /api/v1/admin/bulk/actions` returns the record types and the actions **the caller** may run now.
 
