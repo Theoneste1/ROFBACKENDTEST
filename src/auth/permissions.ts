@@ -110,6 +110,14 @@ export const PERMISSIONS = [
                                  // unlock (reason); status history and the mark-change log
   'tests.adjustMarks',           // choose the first, second or an ADJUSTED mark (reason): the subject's Head Coach only (G4)
   'tests.mark',                  // Coaches: mark (blind) the submissions ASSIGNED to them in a subject they are AUTHORISED for
+  // ── Test Management, Phase 4 (WS3, 2026-11-19): publication, results, rankings, reports ──
+  'tests.publishResults',        // preview and publish the APPROVED results of a test (blocked while any is unapproved)
+  'tests.overridePublication',   // Administrators only: publish although results are unapproved (mandatory reason, audited);
+                                 // never a Head Coach (not in their grants; never grantable by an individual override)
+  'tests.viewResults',           // results with identity, the results report and its CSV exports, the reporting overview
+  'tests.viewRankings',          // internal rankings: overall, by division, by school (never students or teachers)
+  'tests.viewOwnResults',        // Students: their own PUBLISHED results (marks per question, total, comments; no ranks)
+  'tests.viewSchoolResults',     // Teachers: PUBLISHED results of the verified students of their own schools (no ranks)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -171,6 +179,8 @@ const ADMIN_GRANTS: Grants = {
   'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
   // Test Management, Phase 3: distribution and review, every subject. Never tests.mark or tests.adjustMarks (G4).
   'tests.distribute': 'global', 'tests.review': 'global',
+  // Test Management, Phase 4: publication (and its override: Administrators only), results, rankings, reports.
+  'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
 };
 
 /**
@@ -185,6 +195,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'leaderboard.view': 'global',
     // Test Management, Phase 2 (2026-11-19): their own answers to tests of their division
     'tests.submit': 'own',
+    // Test Management, Phase 4 (2026-11-19): their own PUBLISHED results (never a rank)
+    'tests.viewOwnResults': 'own',
   },
   TEACHER: {
     // No course access (owner decision 2026-11-14): teachers are scoped by school (P1-11) and no
@@ -200,6 +212,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     // Test Management, Phase 2 (G2, owner decision 2026-11-19): every teacher of a school, primary or secondary, submits
     // test answers for the VERIFIED students of their own schools — a default, not a delegation.
     'tests.submitForStudents': 'school',
+    // Test Management, Phase 4 (2026-11-19): published results of the verified students of their own schools (no ranks)
+    'tests.viewSchoolResults': 'school',
   },
   MENTOR: {
     'courses.view': 'courseDivision', 'resources.view': 'courseDivision', 'resources.manage': 'courseDivision',
@@ -227,6 +241,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.extensions': 'programme', 'tests.viewSubmissions': 'programme',
     // Phase 3: distribution, review and — only the subject's Head Coaches (G4) — choosing / adjusting the mark.
     'tests.distribute': 'programme', 'tests.review': 'programme', 'tests.adjustMarks': 'programme',
+    // Phase 4: publication (never the override), results, rankings and reports of the subjects they head.
+    'tests.publishResults': 'programme', 'tests.viewResults': 'programme', 'tests.viewRankings': 'programme',
   },
   ADMIN: ADMIN_GRANTS,
   SUPER_ADMIN: {
@@ -252,6 +268,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
     'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
     'tests.distribute': 'global', 'tests.review': 'global',
+    'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
   },
 };
 
@@ -268,6 +285,9 @@ export const NEVER_GRANTABLE: readonly Permission[] = [
   'reviews.grade', 'results.approve', 'results.publish', 'submissions.distribute',
   'users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem',
   'schools.syncDirectory',
+  // Test Management, Phase 4 (owner spec 10.1): the publication override belongs to Administrators alone; a Head Coach can
+  // never receive it, not even by an individual override.
+  'tests.overridePublication',
 ];
 
 // ── Legacy lists, returned unchanged by GET /me/permissions (decision A1) ────
@@ -283,6 +303,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, Test Management Phase 2, 2026-11-19): students hold it (own) and the /me/tests routes require
     // it; listed so the frontend shows My tests.
     'tests.submit',
+    // Appended (additive, Test Management Phase 4, 2026-11-19): their own published results (the /me/test-results routes).
+    'tests.viewOwnResults',
   ],
   MENTOR: [
     'courses.view', 'resources.view', 'resources.manage',
@@ -331,6 +353,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'tests.extensions', 'tests.viewSubmissions',
     // Appended (additive, Test Management Phase 3, 2026-11-19): distribution and review (never marking, G4).
     'tests.distribute', 'tests.review',
+    // Appended (additive, Test Management Phase 4, 2026-11-19): publication and its override, results, rankings, reports.
+    'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
   ],
 };
 

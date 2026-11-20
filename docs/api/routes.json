@@ -1309,6 +1309,105 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/test-dashboard",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/test-reports",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/export.csv",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/preview",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/publications",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/results/publish",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/results/publish/override",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/rankings",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/report",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/test-markers",
     "roles": [
       "HEAD_COACH",
@@ -2590,6 +2689,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/marking/dashboard",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Marking"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/me",
     "roles": [
       "STUDENT",
@@ -2788,6 +2895,30 @@
       "SUPER_ADMIN"
     ],
     "tag": "Mentor requests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/test-dashboard",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "My tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/test-results",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "My tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/test-results/{testId}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "My tests"
   },
   {
     "method": "GET",
@@ -3343,6 +3474,38 @@
       "SUPER_ADMIN"
     ],
     "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-dashboard",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-results",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-results/{testId}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-results/{testId}/students/{studentId}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
   },
   {
     "method": "GET",

@@ -130,6 +130,43 @@ export class TestMarkerService {
     return out;
   }
 
+  /**
+   * Coach dashboard (spec 12.2, Phase 4): MY current assignments only — not started, in progress, marked, returned for
+   * correction, second markings, what needs my action — per test. Blind like the queue (assertBlind). Two queries.
+   */
+  async dashboard(user: AuthUser) {
+    this.coach(user);
+    const subjects = (await this.prisma.markerAuthorization.findMany({ where: { coachId: user.id, revokedAt: null }, select: { disciplineId: true } }))
+      .map((a) => a.disciplineId);
+    const rows = subjects.length ? await this.prisma.$queryRaw<Array<{ id: string; title: string; subject: string; assigned: number; notStarted: number; inProgress: number; marked: number; returned: number; second: number }>>`
+      SELECT t."id", t."title", d."name" AS "subject", count(*)::int AS "assigned",
+             count(*) FILTER (WHERE m."id" IS NULL)::int AS "notStarted",
+             count(*) FILTER (WHERE m."status" IN ('DRAFT', 'RETURNED'))::int AS "inProgress",
+             count(*) FILTER (WHERE m."status" IN ('SUBMITTED', 'APPROVED'))::int AS "marked",
+             count(*) FILTER (WHERE m."status" = 'RETURNED')::int AS "returned",
+             count(*) FILTER (WHERE a."kind" = 'SECOND')::int AS "second"
+        FROM "TestMarkerAssignment" a
+        JOIN "TestSubmission" s ON s."id" = a."submissionId"
+        JOIN "Test" t ON t."id" = s."testId"
+        JOIN "Discipline" d ON d."id" = t."disciplineId"
+        LEFT JOIN "TestMarking" m ON m."assignmentId" = a."id"
+       WHERE a."coachId" = ${user.id} AND a."endedAt" IS NULL AND t."disciplineId" = ANY(${subjects}::text[])
+       GROUP BY t."id", t."title", d."name" ORDER BY t."title", t."id"` : [];
+    const sum = (k: 'assigned' | 'notStarted' | 'inProgress' | 'marked' | 'returned' | 'second') => rows.reduce((a, r) => a + r[k], 0);
+    const out = {
+      counts: {
+        total: sum('assigned'), notStarted: sum('notStarted'), inProgress: sum('inProgress'), marked: sum('marked'),
+        returned: sum('returned'), secondMarkings: sum('second'), needsAction: sum('notStarted') + sum('inProgress'),
+      },
+      tests: rows.map((r) => ({
+        test: { id: r.id, title: r.title, subject: r.subject }, assigned: r.assigned, notStarted: r.notStarted, inProgress: r.inProgress,
+        marked: r.marked, returned: r.returned, secondMarkings: r.second,
+      })),
+    };
+    assertBlind(out);
+    return out;
+  }
+
   // ── One submission ─────────────────────────────────────────────────────────────
 
   /** What I need to mark it — and nothing that identifies the student (see the file header). */

@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testSubmissions'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testResults', 'testSubmissions'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -32,6 +32,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   testManagement:          'always',   // appended 2026-11-19: Test Management Phase 1 (tests, questions, files, marker authorisations)
   testSubmissions:         'always',   // appended 2026-11-19: Test Management Phase 2 (deadlines, extensions, submissions)
   testMarking:             'always',   // appended 2026-11-19: Test Management Phase 3 (distribution, blind marking, review)
+  testResults:             'always',   // appended 2026-11-19: Test Management Phase 4 (publication, results, rankings, reports, dashboards)
   formAvailability:        'always',   // appended 2026-11-15: form availability (open, close, schedule, closed messages)
   headCoachAccounts:       'HEAD_COACH',
   notificationDeliveries:  'always',   // appended 2026-11-14: decision-notification delivery log (owner approval pending)

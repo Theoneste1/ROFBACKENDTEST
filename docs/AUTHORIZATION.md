@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 388 endpoints — 26 public, 228 administrator-only.
+Totals: 406 endpoints — 26 public, 238 administrator-only.
 
 ## Academic years
 
@@ -265,6 +265,21 @@ Totals: 388 endpoints — 26 public, 228 administrator-only.
 | POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking` |  |  |  | ✓ |
 | POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock` |  |  |  | ✓ |
 
+## Admin · Test results
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/test-dashboard` |  |  |  | ✓ |
+| GET | `/api/v1/admin/test-reports` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/export.csv` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/preview` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/publications` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/results/publish` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/results/publish/override` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/rankings` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/report` |  |  |  | ✓ |
+
 ## Admin · Tests
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -462,6 +477,12 @@ Totals: 388 endpoints — 26 public, 228 administrator-only.
 | GET | `/api/v1/leaderboard/me` |  | ✓ |  |  |
 | GET | `/api/v1/leaderboard/schools` |  | ✓ | ✓ | ✓ |
 
+## Marking
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/marking/dashboard` |  |  | ✓ |  |
+
 ## Me
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -499,6 +520,14 @@ Totals: 388 endpoints — 26 public, 228 administrator-only.
 | GET | `/api/v1/mentor-requests/{id}/avatar` |  |  |  | ✓ |
 | PATCH | `/api/v1/mentor-requests/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/mentor-requests/{id}/request-info` |  |  |  | ✓ |
+
+## My tests
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me/test-dashboard` |  | ✓ |  |  |
+| GET | `/api/v1/me/test-results` |  | ✓ |  |  |
+| GET | `/api/v1/me/test-results/{testId}` |  | ✓ |  |  |
 
 ## Notifications
 
@@ -599,6 +628,15 @@ Totals: 388 endpoints — 26 public, 228 administrator-only.
 | POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
+
+## Teacher tests
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/test-dashboard` |  |  |  |  |
+| GET | `/api/v1/teacher/test-results` |  |  |  |  |
+| GET | `/api/v1/teacher/test-results/{testId}` |  |  |  |  |
+| GET | `/api/v1/teacher/test-results/{testId}/students/{studentId}` |  |  |  |  |
 
 ## Tests · Marking
 

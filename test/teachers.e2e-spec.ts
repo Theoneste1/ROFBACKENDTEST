@@ -169,8 +169,8 @@ describe('Teachers (P1-11)', () => {
   });
 
   it('2026-11-14: a Teacher holds no course access — /me/permissions lists only the school-scoped student list and the leaderboard; course routes stay refused', async () => {
-    // + tests.submitForStudents (Test Management Phase 2, G2): a test-answer default for verified students of their schools — still no course access.
-    expect((await http().get('/api/v1/me/permissions').set(bearer(t1)).expect(200)).body.permissions).toEqual(['leaderboard.view', 'students.viewScoped', 'tests.submitForStudents']);
+    // + tests.submitForStudents (Test Management Phase 2, G2): a test-answer default for verified students of their schools — still no course access; + tests.viewSchoolResults (Phase 4: published results of their schools' students).
+    expect((await http().get('/api/v1/me/permissions').set(bearer(t1)).expect(200)).body.permissions).toEqual(['leaderboard.view', 'students.viewScoped', 'tests.submitForStudents', 'tests.viewSchoolResults']);
     // The one route gated by courses.view (the programme list) now refuses at the permission check; the
     // signed-in course and discussion routes were already refused by their services (the grants were dead).
     expect(await status(http().get('/api/v1/programmes').set(bearer(t1)))).toEqual([403, 'PERMISSION_REQUIRED']);

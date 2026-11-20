@@ -1,6 +1,6 @@
 -- Design-areas release pre-check (BEFORE `prisma migrate deploy` of the design-area migrations: the countries reference
 -- list, area 1 as simplified by the owner, 2026-11-19; the primary teacher of a school, owner decision 2026-11-19; Test
--- Management Phases 1 to 3, owner-approved plan 2026-11-19): READ ONLY.
+-- Management Phases 1 to 4, owner-approved plan 2026-11-19): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs precheck --release areas-2026     (Neon rehearsal branch; guarded)
 --   psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/release/areas-2026-precheck.sql   (production, in the window)
@@ -50,6 +50,15 @@ SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'pub
        (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
          AND proname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
                          'test_mark_change_append_only', 'test_review_append_only'))                              AS phase3_functions;
+
+\echo '== 2e. MUST all be 0: nothing made by the Test Management Phase 4 migration exists yet (tables, columns, guard functions)'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestPublication', 'TestResultWithdrawal'))                                           AS phase4_tables,
+       (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
+         AND ((table_name = 'TestSubmission' AND column_name IN ('publicationId', 'publishedAt'))
+           OR (table_name = 'Test' AND column_name = 'studentRankingsVisible')))                                 AS phase4_columns,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                  AS phase4_functions;
 
 \echo '== 3. MUST be empty: school country codes that are not two upper-case letters (the School → Country foreign key refuses any code that is not ISO 3166-1 alpha-2; the migration names them)'
 SELECT DISTINCT "countryCode" FROM "School" WHERE "countryCode" !~ '^[A-Z]{2}$' ORDER BY 1;

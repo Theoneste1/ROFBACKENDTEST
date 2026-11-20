@@ -5636,6 +5636,394 @@
       ]
     },
     {
+      "name": "Admin · Test results",
+      "item": [
+        {
+          "name": "GET /admin/test-dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/test-dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "test-dashboard"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/test-reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/test-reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "test-reports"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "subjectId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Title contains."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "published",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: published results only; false: approved, not yet published. Default: both (every final, approved result)."
+                },
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "division",
+                  "value": "JUNIOR",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Student name, username or submission code."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/results/export.csv",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results/export.csv",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results",
+                "export.csv"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "published",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: the published results only. Default: every approved final result."
+                },
+                {
+                  "key": "type",
+                  "value": "results",
+                  "disabled": true,
+                  "description": "results (default: one row per result, with marks per question), schools, divisions or questions."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/results/preview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results",
+                "preview"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.publishResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/results/publications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results/publications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results",
+                "publications"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.publishResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/results/publish",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results/publish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results",
+                "publish"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.publishResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientKey\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/results/publish/override",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results/publish/override",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results",
+                "publish",
+                "override"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.overridePublication` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason reason reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/results/rankings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results/rankings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results",
+                "rankings"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "by",
+                  "value": "overall",
+                  "disabled": true,
+                  "description": "overall (default), by division or by school."
+                },
+                {
+                  "key": "division",
+                  "value": "JUNIOR",
+                  "disabled": true,
+                  "description": "Only this division (by=division)."
+                },
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "Only this school (by=school)."
+                },
+                {
+                  "key": "published",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: rank the published results only. Default: every approved final result (published or not)."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewRankings` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/results/report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/results/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "results",
+                "report"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "published",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: the published results only. Default: every approved final result."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Tests",
       "item": [
         {
@@ -10684,6 +11072,31 @@
       ]
     },
     {
+      "name": "Marking",
+      "item": [
+        {
+          "name": "GET /marking/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "dashboard"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        }
+      ]
+    },
+    {
       "name": "Me",
       "item": [
         {
@@ -11479,6 +11892,78 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "My tests",
+      "item": [
+        {
+          "name": "GET /me/test-dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/test-dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "test-dashboard"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        },
+        {
+          "name": "GET /me/test-results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/test-results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "test-results"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewOwnResults` (STUDENT)"
+          }
+        },
+        {
+          "name": "GET /me/test-results/{testId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/test-results/:testId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "test-results",
+                ":testId"
+              ],
+              "variable": [
+                {
+                  "key": "testId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewOwnResults` (STUDENT)"
           }
         }
       ]
@@ -13376,6 +13861,125 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teacher tests",
+      "item": [
+        {
+          "name": "GET /teacher/test-dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/test-dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "test-dashboard"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "GET /teacher/test-results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/test-results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "test-results"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewSchoolResults` (TEACHER)"
+          }
+        },
+        {
+          "name": "GET /teacher/test-results/{testId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/test-results/:testId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "test-results",
+                ":testId"
+              ],
+              "variable": [
+                {
+                  "key": "testId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "One of the teacher's schools."
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Student name or username."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewSchoolResults` (TEACHER)"
+          }
+        },
+        {
+          "name": "GET /teacher/test-results/{testId}/students/{studentId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/test-results/:testId/students/:studentId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "test-results",
+                ":testId",
+                "students",
+                ":studentId"
+              ],
+              "variable": [
+                {
+                  "key": "testId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewSchoolResults` (TEACHER)"
           }
         }
       ]

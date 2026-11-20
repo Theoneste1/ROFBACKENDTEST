@@ -17,6 +17,12 @@ export const DecisionEvents = {
   TestMarkingAssigned:        'test.marking.assigned',
   /** Test Management Phase 3: a reviewer returned a coach's marking for correction (told once per return). Blind. */
   TestMarkingReturned:        'test.marking.returned',
+  /** Test Management Phase 4: results published — the student (their own result) and each teacher of the student's school
+   *  (once per publication, however many of their students). Never another student's data. */
+  TestResultsPublished:       'test.results.published',
+  /** Test Management Phase 4 (G6): a published result was withdrawn by an unlock — the student and the teachers of their
+   *  school, once per withdrawal. */
+  TestResultWithdrawn:        'test.result.withdrawn',
 } as const;
 
 export type DecisionEventType = (typeof DecisionEvents)[keyof typeof DecisionEvents];
@@ -54,8 +60,22 @@ export interface TestExtensionPayload {
  */
 export interface TestMarkingPayload { activated: boolean; testTitle: string; subjectName: string; count: number }
 
+/**
+ * test.results.published / test.result.withdrawn: the test (id for the link, title, subject) and who it is for —
+ * STUDENT (their own result) or TEACHER (results of students of their school; a count at most). Never a mark, a rank, a
+ * name or anything else about another student.
+ */
+export interface TestResultsPayload {
+  activated: boolean; testId: string; testTitle: string; subjectName: string; audience: 'STUDENT' | 'TEACHER'; count?: number;
+}
+
 export type DecisionPayload =
-  SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload | StudentsAssignedPayload | TestExtensionPayload | TestMarkingPayload;
+  SchoolVerifiedPayload | ApprovedPayload | PermissionsGrantedPayload | StudentsAssignedPayload | TestExtensionPayload | TestMarkingPayload
+  | TestResultsPayload;
+
+/** The results page of the recipient's portal for one test (the in-app link and the e-mail button). */
+export const resultsPageOf = (audience: 'STUDENT' | 'TEACHER', testId: string) =>
+  (audience === 'STUDENT' ? `/student/results/${testId}` : `/teacher/results/${testId}`);
 
 /** The coach's marking queue (the in-app link and the e-mail button). */
 export const MARKING_QUEUE_PATH = '/mentor/marking';
@@ -203,6 +223,34 @@ ${ORG}`,
         action: p.activated && base ? { label: 'Open my marking queue', url: `${base}${MARKING_QUEUE_PATH}` } : undefined,
       };
     }
+    case DecisionEvents.TestResultsPublished:
+    case DecisionEvents.TestResultWithdrawn: {
+      const p = payload as TestResultsPayload;
+      const published = type === DecisionEvents.TestResultsPublished;
+      const base = appUrl?.trim().replace(/\/+$/, '');
+      const subject = published ? `Results published: ${p.testTitle}` : `Result withdrawn for review: ${p.testTitle}`;
+      const body = p.audience === 'STUDENT'
+        ? (published
+          ? `Your result for the ${p.subjectName} test "${p.testTitle}" has been published.
+
+You can see your marks and the markers' comments on your results page.`
+          : `Your result for the ${p.subjectName} test "${p.testTitle}" has been withdrawn for review.
+
+You will be told again when it is published.`)
+        : (published
+          ? `Results of the ${p.subjectName} test "${p.testTitle}" have been published for students of your school.
+
+You can see them on the test's results page.`
+          : `A result of the ${p.subjectName} test "${p.testTitle}" for a student of your school has been withdrawn for review.
+
+It will be shown again once it is published.`);
+      return {
+        subject, heading: subject, greeting, body: `${body}
+
+${ORG}`,
+        action: p.activated && base ? { label: 'Open the results', url: `${base}${resultsPageOf(p.audience, p.testId)}` } : undefined,
+      };
+    }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);
   }
@@ -253,6 +301,26 @@ export function decisionInApp(type: string, payload: unknown): DecisionInApp {
     case DecisionEvents.TestMarkingReturned: {
       const p = payload as TestMarkingPayload;
       return { title: 'Marking returned for correction', body: `${p.subjectName} test "${p.testTitle}": a reviewer returned your marking with a comment.`, link: MARKING_QUEUE_PATH };
+    }
+    case DecisionEvents.TestResultsPublished: {
+      const p = payload as TestResultsPayload;
+      return {
+        title: 'Results published',
+        body: p.audience === 'STUDENT'
+          ? `Your result for the ${p.subjectName} test "${p.testTitle}" is now available.`
+          : `Results of the ${p.subjectName} test "${p.testTitle}" are now available for students of your school.`,
+        link: resultsPageOf(p.audience, p.testId),
+      };
+    }
+    case DecisionEvents.TestResultWithdrawn: {
+      const p = payload as TestResultsPayload;
+      return {
+        title: 'Result withdrawn for review',
+        body: p.audience === 'STUDENT'
+          ? `Your result for the ${p.subjectName} test "${p.testTitle}" has been withdrawn for review.`
+          : `A result of the ${p.subjectName} test "${p.testTitle}" for a student of your school has been withdrawn for review.`,
+        link: resultsPageOf(p.audience, p.testId),
+      };
     }
     default:
       throw new Error(`Unknown decision notification type "${type}".`);

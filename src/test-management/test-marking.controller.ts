@@ -129,7 +129,7 @@ export class AdminTestMarkingController {
     return this.marking.choose(id, submissionId, dto, user);
   }
 
-  /** Unlock an approved result: { reason (mandatory) }. 409 INVALID_STATUS_TRANSITION. */
+  /** Unlock an approved result: { reason (mandatory) }. A PUBLISHED result is withdrawn from the student and their teachers until approved and published again (G6). 409 INVALID_STATUS_TRANSITION. */
   @Post('submissions/:submissionId/unlock')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('tests.review')
