@@ -34,7 +34,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { MarkingQueueQueryDto, SaveMarkingDto } from './dto/marking.dto.js';
 import { assertBlind, normaliseMarks, queueState, type NormalisedMarks } from './marking-rules.js';
 import { changeStatus, lockSubmission, writeMarks, type Actor, type LockedSubmission } from './marking-store.js';
-import { stripIdentifyingMetadata } from './answer-metadata.js';
+import { stripIdentifyingMetadataForMarker } from './answer-metadata.js';
 import { answerPageName } from './submission-rules.js';
 import { TestDeadlineService } from './test-deadline.service.js';
 import { neutralFileName } from './test-rules.js';
@@ -185,7 +185,7 @@ export class TestMarkerService {
     if (!page) throw new AppError(HttpStatus.NOT_FOUND, 'PAGE_NOT_FOUND', 'Page not found.');
     // Blind: identifying metadata inside the file itself (EXIF GPS / owner / serials, PDF author, XMP) is removed.
     await this.storage.send(res, { ...page.file, originalName: answerPageName(page.pageNumber, page.file.mimeType) }, {
-      download, transform: (data) => stripIdentifyingMetadata(data, page.file.mimeType),
+      download, transform: (data) => stripIdentifyingMetadataForMarker(data, page.file.mimeType),
     });
   }
 

@@ -139,7 +139,7 @@ export class StorageService implements OnModuleInit {
    */
   async send(
     res: Response, file: ServableFile,
-    opts: { download?: boolean; cacheControl?: string; transform?: (data: Buffer) => Buffer } = {},
+    opts: { download?: boolean; cacheControl?: string; transform?: (data: Buffer) => Buffer | Promise<Buffer> } = {},
   ) {
     const stream = await this.driver.getStream(file.storageKey);
     // `transform` (e.g. removing identifying metadata for a blind marker): the file is read whole (uploads are bounded)
@@ -148,7 +148,7 @@ export class StorageService implements OnModuleInit {
     if (opts.transform) {
       const chunks: Buffer[] = [];
       for await (const c of stream) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c as Uint8Array));
-      body = opts.transform(Buffer.concat(chunks));
+      body = await opts.transform(Buffer.concat(chunks));
     }
 
     const inline = !opts.download && INLINE_TYPES.has(file.mimeType);

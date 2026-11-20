@@ -1,4 +1,5 @@
-import { blankTiffIdentity, stripIdentifyingMetadata } from './answer-metadata.js';
+import { PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
+import { blankTiffIdentity, stripIdentifyingMetadata, stripIdentifyingMetadataForMarker } from './answer-metadata.js';
 
 /** A little-endian TIFF (Exif) block: IFD0 with Artist and a GPS pointer; a GPS IFD with one entry. */
 function tiff(artist: string): Buffer {
@@ -86,6 +87,46 @@ describe('blind marking of files: identifying metadata removed before a marker d
     expect(s).not.toMatch(/Aline|Uwase|Scanner|416C/);
     expect(s).toContain('/Author (');
     expect(s.startsWith('%PDF-1.4')).toBe(true);
+  });
+
+  it('PDF for a marker: the author and XMP are removed even inside COMPRESSED object streams; the pages survive', async () => {
+    const NAME = 'Alice Uwase';
+    const src = await PDFDocument.create({ updateMetadata: false });
+    src.setAuthor(NAME); src.setTitle(`${NAME} answers`); src.setCreator(`${NAME}'s phone`); src.setProducer(`Scanner of ${NAME}`);
+    const page = src.addPage([200, 200]);
+    src.addPage([200, 200]);
+    const xmp = (who: string) => src.context.register(src.context.flateStream(
+      `<?xpacket begin=""?><x:xmpmeta><dc:creator>${who}</dc:creator></x:xmpmeta><?xpacket end="w"?>`,
+      { Type: 'Metadata', Subtype: 'XML' }));
+    src.catalog.set(PDFName.of('Metadata'), xmp(NAME));
+    page.node.set(PDFName.of('Metadata'), xmp(NAME));
+    page.node.set(PDFName.of('PieceInfo'), src.context.obj({ App: { Private: `${NAME}` } }));
+    const input = Buffer.from(await src.save({ useObjectStreams: true }));
+    expect(input.toString('latin1')).not.toContain(NAME);                  // compressed: invisible to a text scan …
+
+    const blankedOnly = stripIdentifyingMetadata(input, 'application/pdf');
+    expect((await PDFDocument.load(blankedOnly, { updateMetadata: false })).getAuthor()).toBe(NAME);   // … so in-place blanking misses it
+
+    const out = await stripIdentifyingMetadataForMarker(input, 'application/pdf');
+    const doc = await PDFDocument.load(out, { updateMetadata: false });
+    expect(doc.getPageCount()).toBe(2);
+    expect([doc.getAuthor(), doc.getTitle(), doc.getCreator(), doc.getProducer()]).toEqual([undefined, undefined, undefined, undefined]);
+    expect(doc.catalog.get(PDFName.of('Metadata'))).toBeUndefined();
+    let everything = out.toString('latin1');
+    for (const [, obj] of doc.context.enumerateIndirectObjects()) {
+      if (obj instanceof PDFRawStream) everything += Buffer.from(decodePDFRawStream(obj).decode()).toString('latin1');
+    }
+    expect(everything).not.toContain(NAME);
+    expect(everything).not.toMatch(/\/(Metadata|PieceInfo)(?![A-Za-z])/);
+  });
+
+  it('PDF for a marker: an unreadable PDF falls back to in-place blanking; images take the same path as before', async () => {
+    const broken = Buffer.from('%PDF-1.4\n/Author (Bobby Kamali)\n%%EOF', 'latin1');
+    const out = await stripIdentifyingMetadataForMarker(broken, 'application/pdf');
+    expect(out.length).toBe(broken.length);
+    expect(out.toString('latin1')).not.toContain('Bobby');
+    const odd = Buffer.from('not an image');
+    expect(await stripIdentifyingMetadataForMarker(odd, 'image/jpeg')).toBe(odd);
   });
 
   it('other types and unreadable files are returned unchanged', () => {
