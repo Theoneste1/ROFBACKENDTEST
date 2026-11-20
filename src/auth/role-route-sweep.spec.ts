@@ -235,4 +235,4 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // reporting overview, the staff dashboard — never the override); +10 for Administrators and Super Admins (the same and the
 // override).
 // 2026-11-19, generic bulk engine: +8 /admin/bulk/* routes (users.bulkManage: Administrators and Super Admins only).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 105, TEACHER: 96, MENTOR: 118, HEAD_COACH: 167, ADMIN: 345, SUPER_ADMIN: 351 };
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 106, TEACHER: 97, MENTOR: 119, HEAD_COACH: 168, ADMIN: 346, SUPER_ADMIN: 352 };   // gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)

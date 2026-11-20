@@ -42,6 +42,9 @@ const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 let dummyHash: Promise<string> | null = null;
 const getDummyHash = () => (dummyHash ??= bcrypt.hash('timing-equaliser-not-a-password', BCRYPT_COST));
 
+/** The roles asked their gender once at sign-in when it is missing (the roles that sign up themselves). */
+export const GENDER_STEP_ROLES: readonly string[] = ['STUDENT', 'TEACHER', 'MENTOR'];
+
 /** Profile fields returned on login and from GET /me. */
 export const PROFILE_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
@@ -57,8 +60,14 @@ export const PROFILE_SELECT = {
  * A profile (PROFILE_SELECT) with `dateOfBirthRequired`: true for a STUDENT without a date of birth, who must give it
  * before anything else (owner decision 9.3, PUT /api/v1/me/date-of-birth). Returned on login and by GET /me.
  */
-export function withProfileSteps<T extends { role: string; dateOfBirth: Date | null }>(profile: T): T & { dateOfBirthRequired: boolean } {
-  return { ...profile, dateOfBirthRequired: profile.role === 'STUDENT' && profile.dateOfBirth === null };
+export function withProfileSteps<T extends { role: string; dateOfBirth: Date | null; gender: string | null }>(profile: T): T & { dateOfBirthRequired: boolean; genderRequired: boolean } {
+  return {
+    ...profile,
+    dateOfBirthRequired: profile.role === 'STUDENT' && profile.dateOfBirth === null,
+    // Gender step (capability genderStep; owner 2026-11-20): students, teachers and coaches without a gender (accounts
+    // created before gender was asked at sign-up, or by an Administrator) give it once (PUT /me/gender).
+    genderRequired: GENDER_STEP_ROLES.includes(profile.role) && profile.gender === null,
+  };
 }
 
 /** Consecutive wrong passwords before an account is locked, and for how long. */

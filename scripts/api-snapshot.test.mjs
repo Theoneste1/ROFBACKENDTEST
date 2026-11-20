@@ -312,7 +312,11 @@ const HOME_LOCATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-home-locat
  * documented responses and reassignTeacher on /admin/users/bulk.
  */
 const BULK_ENGINE_MERGED_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-merged.json';
-const CURRENT_SNAPSHOT = BULK_ENGINE_MERGED_SNAPSHOT;
+/** Gender step (owner, 2026-11-20): PUT /me/gender for accounts without one; an Administrator corrects it. Additive only. */
+const GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-gender-step.json';
+/** The generic bulk engine on top of the gender step (2026-11-20): additive only against the gender-step snapshot. */
+const BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-gender-step.json';
+const CURRENT_SNAPSHOT = BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1526,6 +1530,19 @@ describe('approved API contract history', () => {
     ]);
   });
 
+  test('home location → gender step (2026-11-20): additive only — PUT /me/gender and an Administrator correction', () => {
+    for (const f of [HOME_LOCATION_SNAPSHOT, GENDER_STEP_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(HOME_LOCATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(GENDER_STEP_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'PATCH /api/v1/admin/users/{id} › request application/json.gender: new optional field',
+      'PUT /api/v1/me/gender: operation added',
+      'schema SetGenderDto: added',
+    ]);
+  });
+
   test('gender at sign-up → home location (2026-11-20): the deliberate required home country on two sign-ups; the rest additive', () => {
     // Deliberately BREAKING for two sign-up requests (owner, 2026-11-20: the home country is required on every
     // registration form); the frontend released with this backend sends it. Everything else is additive.
@@ -1714,6 +1731,51 @@ describe('approved API contract history', () => {
   test('home location → generic bulk engine (2026-11-20): additive only — the bulk routes, their responses and reassignTeacher; nothing breaking or for review', () => {
     for (const f of [HOME_LOCATION_SNAPSHOT, BULK_ENGINE_MERGED_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(HOME_LOCATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_MERGED_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/bulk/actions: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}: operation added',
+      'GET /api/v1/admin/bulk/operations: operation added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/export: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: operation added',
+      'POST /api/v1/admin/bulk/{entityType}: operation added',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk › request application/json.params.toTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.toTeacherId: new optional field',
+      'schema BulkActionView: added',
+      'schema BulkActionsView: added',
+      'schema BulkActorSummary: added',
+      'schema BulkEntityTypeView: added',
+      'schema BulkExecuteResult: added',
+      'schema BulkExportView: added',
+      'schema BulkItemOutcome: added',
+      'schema BulkItemPage: added',
+      'schema BulkItemView: added',
+      'schema BulkOperationPage: added',
+      'schema BulkOperationProgress: added',
+      'schema BulkOperationStatus: added',
+      'schema BulkOperationView: added',
+      'schema BulkPageMeta: added',
+      'schema BulkPreviewResult: added',
+      'schema BulkPreviewWarning: added',
+      'schema BulkUserSummary: added',
+      'schema GenericBulkExecuteDto: added',
+      'schema GenericBulkExportDto: added',
+      'schema GenericBulkPreviewDto: added',
+      'schema GenericBulkSelectionDto: added',
+    ]);
+  });
+
+  test('gender step → generic bulk engine (2026-11-20): additive only — the bulk routes, their responses and reassignTeacher; nothing breaking or for review', () => {
+    for (const f of [GENDER_STEP_SNAPSHOT, BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(GENDER_STEP_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);

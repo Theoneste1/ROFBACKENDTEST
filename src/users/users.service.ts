@@ -241,6 +241,8 @@ export class UsersService {
       ...(data.olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(data.olympiadInterests) }),
       // Home location (homeLocationRules), any role.
       ...(await this.homeUpdate(data)),
+      // An Administrator's correction of the gender (genderStep), any role.
+      ...(data.gender !== undefined && { gender: data.gender }),
     };
 
     const grade = role === 'STUDENT' ? (data.gradeLevel ?? existing.gradeLevel) : null;
@@ -537,6 +539,22 @@ export class UsersService {
         ? { kind: 'CORRECTED' as const, at: r.createdAt, from: m.from ?? null, to: m.to ?? null, reason: m.reason ?? null, by: r.actorId ? actors.get(r.actorId) ?? { id: r.actorId } : null, byRole: r.actorRole }
         : { kind: 'GIVEN_AT_FIRST_SIGN_IN' as const, at: r.createdAt, by: r.actorId ? actors.get(r.actorId) ?? { id: r.actorId } : null, byRole: r.actorRole };
     });
+  }
+
+  /**
+   * The gender step (capability genderStep; owner 2026-11-20): a user without a gender gives it once. 409
+   * GENDER_ALREADY_SET when it is recorded (an Administrator corrects it). Audited without the value.
+   */
+  async setOwnGender(user: AuthUser, gender: 'FEMALE' | 'MALE') {
+    const { count } = await this.prisma.user.updateMany({ where: { id: user.id, gender: null }, data: { gender } });
+    if (count === 0) {
+      throw new AppError(HttpStatus.CONFLICT, 'GENDER_ALREADY_SET', 'Your gender is already recorded. An administrator can correct it.');
+    }
+    await this.audit.log({
+      actorId: user.id, actorRole: user.role, action: 'GENDER_ADDED', entity: 'User', entityId: user.id,
+      metadata: { source: 'FIRST_SIGN_IN' },
+    });
+    return this.getMe(user.id);
   }
 
   /**
