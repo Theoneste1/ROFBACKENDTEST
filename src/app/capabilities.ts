@@ -98,6 +98,20 @@ export const FEATURES = {
    */
   studentRegistrationDetails: 'always',
   /**
+   * Gender at sign-up (owner, 2026-11-20): POST /auth/register/student, /auth/register/teacher and /mentor-requests
+   * require `gender` (FEMALE or MALE); stored on the account (copied from the application on approval) and returned
+   * as `gender` by GET /api/v1/me. NULL on older accounts. Without this feature the field is refused (400).
+   */
+  registrationGender: 'always',
+  /**
+   * Home location on every registration form and profile edit (owner, 2026-11-20): the home country is required
+   * (student `homeCountry`, teacher and coach `country`); with Rwanda `homeProvince`, `homeDistrict` and `homeSector` are
+   * required (official directory), with another country they are not asked (400 HOME_LOCATION_RWANDA_ONLY if sent).
+   * PATCH /me and PATCH /admin/users/:id accept `homeCountry` with the place. Approval copies a teacher's or coach's
+   * home location to the account. Separate from the school location.
+   */
+  homeLocationRules: 'always',
+  /**
    * Coach application details: POST /api/v1/mentor-requests accepts `country`, `occupation`, `educationLevel`
    * (SECONDARY | DIPLOMA | BACHELOR | MASTER | DOCTORATE | OTHER) and `olympiadInterests`; the admin list returns them
    * and approval copies country and interests to the Coach account. Optional at the API for older clients, except
@@ -235,6 +249,43 @@ export const FEATURES = {
    * level or division. Without this feature: use the built-in country list.
    */
   countries: 'always',
+  /**
+   * Test Management, Phase 1 (WS3; owner-approved plan 2026-11-19): /api/v1/admin/tests (tests.view, tests.manage:
+   * list with subjectId / division / status / q filters, create, read, update, delete a draft, publish, unpublish;
+   * questions add / edit / reorder / remove with the sum rule; PUT / GET / DELETE :id/files/paper|marking-guide, private,
+   * neutral names) and /api/v1/admin/test-markers (tests.manageMarkers: list, candidates, grant, revoke with a reason).
+   * Administrators: every subject; Head Coaches: the subjects they head. GET /admin/tests/subjects lists the caller's
+   * subjects. Students, Teachers and Coaches see nothing of it yet (later phases).
+   */
+  testManagement: 'always',
+  /**
+   * Test Management, Phase 2 (WS3; owner-approved plan 2026-11-19): deadlines from database time incl. extensions;
+   * /api/v1/me/tests (tests.submit: Students — their tests, paper, page-by-page uploads, submit / replace with every
+   * version kept, idempotent per clientKey); /api/v1/teacher/tests (tests.submitForStudents: Teachers — verified students
+   * of their own schools, G2); /api/v1/admin/tests/:id/extensions and /extension-targets (tests.extensions) and
+   * /api/v1/admin/tests/:id/submissions (tests.viewSubmissions: tracking, every version). A test with submissions keeps its
+   * division, format, window and marks and can be neither unpublished nor deleted (409 TEST_LOCKED_BY_SUBMISSIONS,
+   * TEST_HAS_SUBMISSIONS); GET /admin/tests/:id reports submissionCount.
+   */
+  testSubmissions: 'always',
+  /**
+   * Test Management, Phase 3 (WS3; owner-approved plan 2026-11-19): /api/v1/admin/tests/:id/marking — distribution to
+   * authorised coaches (tests.distribute: even, manual, reassign; progress per coach; only after the latest applicable
+   * deadline incl. extensions, G5), review (tests.review: approve and lock, return with a comment, independent second
+   * marking, unlock with a reason; status history, mark-change log), choosing the first / second / adjusted mark
+   * (tests.adjustMarks: the subject's Head Coach only, G4); /api/v1/marking (tests.mark: Coaches — BLIND marking of the
+   * submissions assigned to them: queue, pages under neutral names, marking guide, drafts, submit for approval).
+   */
+  testMarking: 'always',
+  /**
+   * Test Management, Phase 4 (WS3; owner-approved plan 2026-11-19): /api/v1/admin/tests/:id/results: preview and
+   * publish the approved results (tests.publishResults; blocked while any is unapproved), the Administrators' override
+   * with a mandatory reason (tests.overridePublication), publications and withdrawals (G6: an unlock withdraws a published
+   * result), results with identity, the report and CSV exports (tests.viewResults), internal rankings overall / by division
+   * / by school (tests.viewRankings); /admin/test-reports, /admin/test-dashboard; /me/test-results (tests.viewOwnResults),
+   * /teacher/test-results (tests.viewSchoolResults), /me/test-dashboard, /teacher/test-dashboard, /marking/dashboard.
+   */
+  testResults: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

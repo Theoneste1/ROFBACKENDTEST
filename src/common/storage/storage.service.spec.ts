@@ -143,9 +143,11 @@ describe('StorageService orphan clean-up', () => {
     expect(driver.delete.mock.calls.map((c) => c[0])).toEqual(['a/1.pdf', 'a/2.pdf']);
     const where = prisma.fileObject.findMany.mock.calls[0][0].where;
     expect(where.createdAt.lt.getTime()).toBeLessThanOrEqual(Date.now() - 24 * 3600_000 + 1000);
-    for (const rel of ['resourceAttachments', 'assignmentAttachments', 'submissionAttachments', 'reviewAttachments']) {
+    for (const rel of ['resourceAttachments', 'assignmentAttachments', 'submissionAttachments', 'reviewAttachments', 'testFiles']) {
       expect(where[rel]).toEqual({ none: {} });
     }
+    // A test answer page (Test Management Phase 2), pending or submitted, keeps its file.
+    expect(where.testAnswerPage).toEqual({ is: null });
   });
 
   it('keeps going when one object cannot be deleted, and keeps that record', async () => {

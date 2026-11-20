@@ -38,6 +38,7 @@ export const homeLocationText = (p: HomePlace) => `${p.sector}, ${p.district}`;
 export function studentDetailColumns(data: RegisterStudentDto, home: HomePlace | null) {
   return {
     ...(data.dateOfBirth !== undefined && { dateOfBirth: new Date(`${data.dateOfBirth}T00:00:00Z`) }),
+    ...(data.gender !== undefined && { gender: data.gender }),
     ...(data.phone !== undefined && { phone: normalisePhone(data.phone) }),
     ...(data.guardianPhone !== undefined && { guardianPhone: normalisePhone(data.guardianPhone) }),
     ...(data.homeCountry !== undefined && { country: data.homeCountry }),

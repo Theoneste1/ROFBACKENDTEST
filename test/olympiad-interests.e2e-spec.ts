@@ -25,7 +25,7 @@ describe('Olympiad interests (e2e)', () => {
     n += 1;
     return http().post('/api/v1/auth/register/student').send({
       firstName: 'Ines', lastName: 'Interest', username: `oi.s${n}`, email: `oi.s${n}@example.com`,
-      password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S3', schoolCode: '310999', homeLocation: 'Huye', ...body,
+      password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S3', schoolCode: '310999', homeLocation: 'Huye', ...body,
     });
   };
   const userOf = (username: string) => ctx.prisma.user.findUniqueOrThrow({ where: { username } });

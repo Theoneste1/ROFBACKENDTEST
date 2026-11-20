@@ -65,6 +65,25 @@ export const FILE_RULES: Record<FilePurpose, FileRule> = {
     maxBytes: 2 * MB,
     folder:   'avatars',
   },
+  // ── Test Management (WS3): private like every file here (served only through authorised routes) ──
+  /** A test's question paper: a PDF or images (scans, phone photos incl. HEIC). */
+  TEST_PAPER: {
+    allowed:  new Set([MIME.PDF, ...IMAGES]),
+    maxBytes: 20 * MB,
+    folder:   'tests/papers',
+  },
+  /** A student's answer pages (used from Phase 2): a PDF or images, phone photos included. */
+  TEST_ANSWER: {
+    allowed:  new Set([MIME.PDF, ...IMAGES]),
+    maxBytes: 20 * MB,
+    folder:   'tests/answers',
+  },
+  /** A test's marking guide / answer key: only Administrators, the subject's Head Coaches (and, Phase 3, its markers). */
+  MARKING_GUIDE: {
+    allowed:  new Set([MIME.PDF, ...IMAGES]),
+    maxBytes: 20 * MB,
+    folder:   'tests/guides',
+  },
 };
 
 /** Types a browser may display inline. Everything else is forced to download. */

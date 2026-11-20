@@ -46,22 +46,72 @@ export const POST_PHASE1_OBJECTS = {
 /**
  * The design-areas release: the migrations after the post-Phase-1 eleven. Area 1 as simplified by the owner (2026-11-19):
  * the countries reference list and the School → Country foreign key; then the primary teacher of a school (owner
- * decision 2026-11-19); then the generic bulk engine (2026-11-19). Listed explicitly — a migration added later is never
+ * decision 2026-11-19); then Test Management Phases 1 to 4 (owner-approved plan 2026-11-19). Listed explicitly — a migration added later is never
  * part of it until it is appended here on purpose.
  */
 export const AREAS_2026_MIGRATIONS = [
   '20261211000000_countries_reference',
   // Primary teacher of a school (owner decision 2026-11-19): TeacherSchoolAssignment.role + one active primary per school.
   '20261212000000_teacher_school_primary',
-  // Generic bulk engine (2026-11-19): BulkOperation.entityType, BulkOperationItem.entityId (backfilled), userId nullable.
-  '20261213000000_bulk_operations_generic',
+  // Test Management, Phase 1 (WS3, owner-approved plan 2026-11-19): M-a the private file purposes TEST_PAPER, TEST_ANSWER,
+  // MARKING_GUIDE (enum values only); M-b the Test, TestQuestion, TestFile and MarkerAuthorization tables and the Physics
+  // and Computing subjects.
+  '20261220000000_test_file_purposes',
+  '20261220000100_tests_core',
+  // Test Management, Phase 2: M-c TestExtension, TestSubmission, TestSubmissionVersion (append-only), TestAnswerPage and
+  // TestSubmissionStatusChange (append-only), their enums and guard triggers.
+  '20261220000200_tests_submissions',
+  // Test Management, Phase 3: M-d (part 1) TestMarkerAssignment, TestMarking, TestMarkingScore, TestMarkChange
+  // (append-only), TestReview (append-only), TestSubmission.finalMarkingId, their enums and guard triggers.
+  '20261220000300_tests_marking',
+  // Test Management, Phase 4: M-d (part 2) TestPublication (append-only), TestResultWithdrawal (append-only, G6),
+  // TestSubmission.publicationId / publishedAt, Test.studentRankingsVisible (design only), CHECKs and guard triggers.
+  '20261220000400_tests_publishing',
 ];
 
 /** What the design-areas migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
 export const AREAS_2026_OBJECTS = {
-  tables: ['Country'],
-  enums: ['TeacherSchoolRole'],
-  columns: [['TeacherSchoolAssignment', 'role'], ['BulkOperation', 'entityType'], ['BulkOperationItem', 'entityId']],
+  // Not listed: the FilePurpose values TEST_PAPER, TEST_ANSWER, MARKING_GUIDE (PostgreSQL cannot drop an enum value; the
+  // rollback keeps them, unused) and the Physics / Computing Discipline rows (data, removed by the tests_core rollback).
+  tables: ['Country', 'MarkerAuthorization', 'Test', 'TestAnswerPage', 'TestExtension', 'TestFile', 'TestMarkChange', 'TestMarkerAssignment',
+    'TestMarking', 'TestMarkingScore', 'TestPublication', 'TestQuestion', 'TestResultWithdrawal', 'TestReview', 'TestSubmission',
+    'TestSubmissionStatusChange', 'TestSubmissionVersion'],
+  enums: ['TeacherSchoolRole', 'TestAnswerFormat', 'TestDivision', 'TestExtensionKind', 'TestFileKind', 'TestMarkingKind', 'TestMarkingStatus',
+    'TestReviewAction', 'TestStatus', 'TestSubmissionStatus', 'TestSubmitterRole'],
+  // TestSubmission.finalMarkingId (Phase 3), TestSubmission.publicationId / publishedAt and Test.studentRankingsVisible
+  // (Phase 4) are columns of tables this release creates: dropped with them.
+  columns: [['TeacherSchoolAssignment', 'role']],
+  triggers: ['test_answer_page_committed_guard', 'test_mark_change_append_only', 'test_marker_assignment_guard', 'test_marking_guard',
+    'test_marking_score_guard', 'test_publication_append_only', 'test_result_withdrawal_append_only', 'test_review_append_only',
+    'test_submission_status_append_only', 'test_submission_version_append_only'],
+  functions: ['test_answer_page_committed_guard', 'test_mark_change_append_only', 'test_marker_assignment_guard', 'test_marking_guard',
+    'test_marking_score_guard', 'test_publication_append_only', 'test_result_withdrawal_append_only', 'test_review_append_only',
+    'test_submission_status_append_only', 'test_submission_version_append_only'],
+};
+
+/**
+ * The late-2026 release: the migrations after the design areas. The sign-up work (owner, 2026-11-20): gender at every
+ * sign-up; the home location on every registration form; then the generic bulk engine (Bulk Actions). Listed explicitly — a migration added later is never part of it
+ * until it is appended here on purpose.
+ */
+export const LATE_2026_MIGRATIONS = [
+  // Gender at every sign-up: the Gender enum; a nullable gender on User, MentorRequest and TeacherApplication.
+  '20261221000000_registration_gender',
+  // Home location: TeacherApplication.homeProvince (district and sector become optional); MentorRequest home place.
+  '20261221000100_home_location',
+  // Generic bulk engine (2026-11-19): BulkOperation.entityType, BulkOperationItem.entityId (backfilled), userId nullable.
+  '20261222000000_bulk_operations_generic',
+];
+
+/** What the late-2026 migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
+export const LATE_2026_OBJECTS = {
+  tables: [],
+  enums: ['Gender'],
+  columns: [
+    ['User', 'gender'], ['MentorRequest', 'gender'], ['TeacherApplication', 'gender'],
+    ['TeacherApplication', 'homeProvince'], ['MentorRequest', 'homeDistrict'], ['MentorRequest', 'homeProvince'], ['MentorRequest', 'homeSector'],
+    ['BulkOperation', 'entityType'], ['BulkOperationItem', 'entityId'],
+  ],
   triggers: ['bulk_item_entity_from_user'],
   functions: ['bulk_item_entity_from_user'],
 };
@@ -104,6 +154,21 @@ export const RELEASES = {
     requires: {
       label: 'Phase 1 and post-Phase-1', count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length,
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name),
+    },
+  },
+  'late-2026': {
+    label: `late 2026 (${LATE_2026_MIGRATIONS.length} migrations after the design areas)`,
+    count: LATE_2026_MIGRATIONS.length,
+    owns: (name) => LATE_2026_MIGRATIONS.includes(name),
+    last: LATE_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/late-2026-precheck.sql',
+    postcheck: 'scripts/release/late-2026-postcheck.sql',
+    migrations: LATE_2026_MIGRATIONS,
+    objects: LATE_2026_OBJECTS,
+    // The target must already hold Phase 1, post-Phase-1 and the design areas.
+    requires: {
+      label: 'Phase 1, post-Phase-1 and design areas', count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name),
     },
   },
 };

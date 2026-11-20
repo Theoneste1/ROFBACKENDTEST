@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsISO31661Alpha2,
   IsOptional,
   IsString,
   IsUUID,
@@ -16,6 +17,7 @@ import { Transform } from 'class-transformer';
 import { GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { HomePlacePart } from '../../common/home-place.js';
 import { IsStudentDateOfBirth } from '../../auth/dto/registration-details.rules.js';
 
 export class UpdateUserDto {
@@ -87,6 +89,30 @@ export class UpdateUserDto {
   @Length(2, 200)
   @Transform(trim)
   homeLocation?: string;
+
+  /**
+   * Home location (homeLocationRules; owner, 2026-11-20): the home country (ISO 3166-1 alpha-2, stored in `country`);
+   * with Rwanda the home province, district and sector are required (a place of the official directory, else 400
+   * UNKNOWN_HOME_LOCATION); with another country they are not asked and the stored ones are cleared (sent anyway:
+   * 400 HOME_LOCATION_RWANDA_ONLY). The place is only accepted together with homeCountry (400 HOME_COUNTRY_REQUIRED).
+   * Separate from the school location.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsISO31661Alpha2({ message: 'homeCountry must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
+  homeCountry?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeProvince?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeDistrict?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
 
   /**
    * A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of
@@ -175,6 +201,30 @@ export class UpdateMeDto {
   @Length(2, 200)
   @Transform(trim)
   homeLocation?: string;
+
+  /**
+   * Home location (homeLocationRules; owner, 2026-11-20): the home country (ISO 3166-1 alpha-2, stored in `country`);
+   * with Rwanda the home province, district and sector are required (a place of the official directory, else 400
+   * UNKNOWN_HOME_LOCATION); with another country they are not asked and the stored ones are cleared (sent anyway:
+   * 400 HOME_LOCATION_RWANDA_ONLY). The place is only accepted together with homeCountry (400 HOME_COUNTRY_REQUIRED).
+   * Separate from the school location.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsISO31661Alpha2({ message: 'homeCountry must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
+  homeCountry?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeProvince?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeDistrict?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
 
   /**
    * The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of

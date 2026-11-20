@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'notificationDeliveries', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'homeLocationRules', 'notificationDeliveries', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testResults', 'testSubmissions'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -29,6 +29,10 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   countries:               'always',   // appended 2026-11-19: countries reference list (owner decision, simplified area 1)
   primaryTeacher:          'always',   // appended 2026-11-19: primary / secondary teacher of a school (owner decision)
   schoolsTable:            'always',   // appended 2026-11-19: schools table sort (name, verified students) and primary teacher
+  testManagement:          'always',   // appended 2026-11-19: Test Management Phase 1 (tests, questions, files, marker authorisations)
+  testSubmissions:         'always',   // appended 2026-11-19: Test Management Phase 2 (deadlines, extensions, submissions)
+  testMarking:             'always',   // appended 2026-11-19: Test Management Phase 3 (distribution, blind marking, review)
+  testResults:             'always',   // appended 2026-11-19: Test Management Phase 4 (publication, results, rankings, reports, dashboards)
   formAvailability:        'always',   // appended 2026-11-15: form availability (open, close, schedule, closed messages)
   headCoachAccounts:       'HEAD_COACH',
   notificationDeliveries:  'always',   // appended 2026-11-14: decision-notification delivery log (owner approval pending)
@@ -50,6 +54,8 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   teacherAccounts:         'TEACHER',
   teacherSelfRegistration: 'TEACHER',  // appended 2026-11-13: teacher applications (owner-approved)
   coachOlympiadInterests:  'always',   // appended 2026-11-19: coach subject interests required on applications, coach / admin edit (Option A)
+  registrationGender:      'always',   // appended 2026-11-20: gender required at every sign-up (owner)
+  homeLocationRules:       'always',   // appended 2026-11-20: home country required, Rwanda place only for Rwanda (owner)
 };
 
 describe('GET /api/v1 capabilities', () => {

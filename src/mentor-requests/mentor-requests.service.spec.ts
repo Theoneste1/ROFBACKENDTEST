@@ -5,7 +5,7 @@ import { Events } from '../notifications/events.js';
 const ADMIN = { id: 'a1', role: 'ADMIN' };
 
 const dto = {
-  firstName: 'Jean', lastName: 'Mugabo', username: 'jean', email: 'jean@x.rw', password: 'Passw0rd!!',
+  firstName: 'Jean', lastName: 'Mugabo', username: 'jean', email: 'jean@x.rw', password: 'Passw0rd!!', country: 'KE',
 } as any;
 
 const pending = (overrides: Record<string, unknown> = {}) => ({
@@ -28,7 +28,8 @@ function makeMocks() {
       count:      vi.fn().mockResolvedValue(0),
     },
     teacherApplication:  { findFirst: vi.fn().mockResolvedValue(null) },
-    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    school:              { findFirst: vi.fn().mockResolvedValue({ id: 's1' }) },   // the official directory has the home place
+    discipline:          { findUnique: vi.fn().mockResolvedValue({ id: 'd-math' }) },   // Mathematics, looked up by code (G3)
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
     // approve() locks and re-reads the request inside its transaction.
@@ -91,7 +92,20 @@ describe('MentorRequestsService', () => {
         country: 'KE', occupation: 'Teacher', educationLevel: 'MASTER', olympiadInterests: ['MATHEMATICS', 'PHYSICS'], status: 'PENDING',
       });
       await service.create(dto);
-      expect(prisma.mentorRequest.create.mock.calls[1][0].data).toMatchObject({ country: null, occupation: null, educationLevel: null, olympiadInterests: [] });
+      expect(prisma.mentorRequest.create.mock.calls[1][0].data).toMatchObject({
+        country: 'KE', homeProvince: null, homeDistrict: null, homeSector: null, occupation: null, educationLevel: null, olympiadInterests: [],
+      });
+    });
+
+    it('home location (homeLocationRules): Rwanda stores the official place; a place with another country, or unknown, is refused', async () => {
+      const { service, prisma } = makeMocks();
+      const place = { homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' };
+      await service.create({ ...dto, country: 'RW', ...place });
+      expect(prisma.mentorRequest.create.mock.calls[0][0].data).toMatchObject({ country: 'RW', ...place });
+      await expect(service.create({ ...dto, country: 'UG', ...place })).rejects.toMatchObject({ code: 'HOME_LOCATION_RWANDA_ONLY' });
+      prisma.school.findFirst.mockResolvedValueOnce(null);
+      await expect(service.create({ ...dto, country: 'RW', ...place })).rejects.toMatchObject({ code: 'UNKNOWN_HOME_LOCATION' });
+      expect(prisma.mentorRequest.create).toHaveBeenCalledOnce();
     });
 
     it('tells administrators about the application (one event per submission)', async () => {

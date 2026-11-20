@@ -63,6 +63,23 @@ export const AUDIT_CATEGORIES = {
   FORMS: ['FORM_AVAILABILITY_CHANGED', 'FORM_MESSAGES_CHANGED'],
   // Countries (owner decision 2026-11-19): a corrected name or calling code; audited, never notified.
   REFERENCE_DATA: ['COUNTRY_UPDATED'],
+  // Test Management (WS3, owner-approved plan 2026-11-19): every change to a test, its questions and files, and every
+  // marker authorisation (who acted — which Administrator or Head Coach — is the entry's actor).
+  TESTS: [
+    'TEST_CREATED', 'TEST_UPDATED', 'TEST_DELETED', 'TEST_PUBLISHED', 'TEST_UNPUBLISHED',
+    'TEST_QUESTION_ADDED', 'TEST_QUESTION_UPDATED', 'TEST_QUESTION_REMOVED', 'TEST_QUESTIONS_REORDERED',
+    'TEST_FILE_UPLOADED', 'TEST_FILE_REPLACED', 'TEST_FILE_REMOVED',
+    'MARKER_AUTHORIZED', 'MARKER_AUTHORIZATION_REVOKED',
+    // Phase 2: extensions, answer pages and submissions (the actor: Administrator, Head Coach, student or teacher)
+    'TEST_EXTENSION_GRANTED', 'TEST_EXTENSION_UPDATED', 'TEST_EXTENSION_CANCELLED',
+    'TEST_ANSWER_PAGE_UPLOADED', 'TEST_ANSWER_PAGE_REMOVED', 'TEST_SUBMITTED', 'TEST_SUBMISSION_REPLACED',
+    // Phase 3: distribution, marking and review (the actor: Administrator, Head Coach or the marking coach)
+    'TEST_MARKING_DISTRIBUTED', 'TEST_MARKER_ASSIGNED', 'TEST_MARKER_REASSIGNED',
+    'TEST_MARKING_DRAFT_SAVED', 'TEST_MARKING_SUBMITTED',
+    'TEST_MARKING_APPROVED', 'TEST_MARKING_RETURNED', 'TEST_SECOND_MARKING_REQUESTED', 'TEST_MARK_CHOSEN', 'TEST_MARKING_UNLOCKED',
+    // Phase 4: publication (the override separately), withdrawal of a published result on unlock (G6), results exports
+    'TEST_RESULTS_PUBLISHED', 'TEST_PUBLICATION_OVERRIDDEN', 'TEST_RESULT_WITHDRAWN', 'TEST_RESULTS_EXPORTED',
+  ],
   ACADEMIC_YEARS: ['CREATE_ACADEMIC_YEAR', 'UPDATE_ACADEMIC_YEAR', 'ACTIVATE_ACADEMIC_YEAR', 'UPDATE_DIVISION'],
   COURSES: [
     'UPDATE_COURSE', 'ARCHIVE_COURSE', 'CREATE_COURSE_RESOURCE', 'UPDATE_COURSE_RESOURCE', 'DELETE_COURSE_RESOURCE',

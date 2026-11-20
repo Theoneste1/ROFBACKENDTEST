@@ -1,5 +1,5 @@
 -- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher;
--- generic bulk engine):
+-- Test Management Phases 1 to 4):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
@@ -10,11 +10,13 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 3, 0, 0: the three design-area migrations applied; nothing failed or rolled back; nothing after 20261213000000'
+\echo '== 1. MUST be 7, 0, 0: the seven design-area migrations applied; nothing failed or rolled back; nothing after 20261220000400'
 SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary',
-                                                 '20261213000000_bulk_operations_generic')
+                                                 '20261220000000_test_file_purposes', '20261220000100_tests_core',
+                                                 '20261220000200_tests_submissions', '20261220000300_tests_marking',
+                                                 '20261220000400_tests_publishing')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261213000000_bulk_operations_generic')        AS later,
+       count(*) FILTER (WHERE migration_name > '20261220000400_tests_publishing')               AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -74,26 +76,94 @@ SELECT count(*)                                                AS schools_examin
        count(*) FILTER (WHERE active_links > 0 AND primaries = 0) AS exceptions
   FROM per;
 
-\echo '== 11. MUST be 1, 1, 1, 1, 1, 1, 0: BulkOperation.entityType, BulkOperationItem.entityId (NOT NULL), the (operationId, entityId) unique index, the single-use index on v2 confirmations, the trigger bulk_item_entity_from_user and its function; USER items whose userId differs from entityId'
-SELECT (SELECT count(*) FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'BulkOperation' AND column_name = 'entityType') AS bulk_entity_type_column,
+\echo '== 11. MUST be 4, 4, 3, 1: the Test Management tables, their enums, the new FilePurpose values, the one-active-marker index'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('Test', 'TestQuestion', 'TestFile', 'MarkerAuthorization'))                          AS test_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestDivision', 'TestAnswerFormat', 'TestStatus', 'TestFileKind'))                       AS test_enums,
+       (SELECT count(*) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+         WHERE t.typname = 'FilePurpose' AND e.enumlabel IN ('TEST_PAPER', 'TEST_ANSWER', 'MARKING_GUIDE'))       AS file_purposes,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'MarkerAuthorization_one_active_per_coach_subject')     AS one_active_marker_index;
+
+\echo '== 12. MUST be 0, 0, 0, 0: the new tables start empty'
+SELECT (SELECT count(*) FROM "Test") AS tests, (SELECT count(*) FROM "TestQuestion") AS questions,
+       (SELECT count(*) FROM "TestFile") AS test_files, (SELECT count(*) FROM "MarkerAuthorization") AS marker_authorizations;
+
+\echo '== 13. compare: subjects — every pre-check row unchanged; MUST now include PHYSICS and COMPUTING (and MATHEMATICS where it existed)'
+SELECT "code", "name", "isActive", "sortOrder" FROM "Discipline" ORDER BY "code";
+
+\echo '== 14. compare: what Test Management must not touch (MUST equal the pre-check)'
+SELECT (SELECT count(*) FROM "ProgrammeMembership")                       AS memberships,
+       (SELECT count(*) FROM "ProgrammeMembership" WHERE "isActive")      AS active_memberships,
+       (SELECT count(*) FROM "Course")                                    AS courses,
+       (SELECT count(*) FROM "Assignment")                                AS assignments,
+       (SELECT count(*) FROM "Submission")                                AS submissions,
+       (SELECT count(*) FROM "MentorReview")                              AS reviews,
+       (SELECT count(*) FROM "FileObject")                                AS files;
+
+\echo '== 15. compare: files by purpose (MUST equal the pre-check)'
+SELECT "purpose", count(*) FROM "FileObject" GROUP BY "purpose" ORDER BY 1;
+
+\echo '== 16. MUST be 5, 3, 3, 3: the Test Management Phase 2 tables, enums, guard functions and their triggers'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestExtension', 'TestSubmission', 'TestSubmissionVersion', 'TestAnswerPage', 'TestSubmissionStatusChange')) AS phase2_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestExtensionKind', 'TestSubmissionStatus', 'TestSubmitterRole'))                       AS phase2_enums,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_submission_version_append_only', 'test_submission_status_append_only', 'test_answer_page_committed_guard')) AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_submission_version_append_only', 'test_submission_status_append_only', 'test_answer_page_committed_guard')) AS guard_triggers;
+
+\echo '== 17. MUST be 3: the one-active-extension indexes (whole test, student, teacher)'
+SELECT count(*) AS one_active_extension_indexes FROM pg_indexes
+ WHERE indexname IN ('TestExtension_one_active_test', 'TestExtension_one_active_student', 'TestExtension_one_active_teacher');
+
+\echo '== 18. MUST be 0, 0, 0, 0, 0: the Phase 2 tables start empty'
+SELECT (SELECT count(*) FROM "TestExtension") AS extensions, (SELECT count(*) FROM "TestSubmission") AS submissions,
+       (SELECT count(*) FROM "TestSubmissionVersion") AS versions, (SELECT count(*) FROM "TestAnswerPage") AS answer_pages,
+       (SELECT count(*) FROM "TestSubmissionStatusChange") AS status_changes;
+
+\echo '== 19. MUST be 5, 3, 1, 5, 5: the Test Management Phase 3 tables, enums, the finalMarkingId column, guard functions and their triggers'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestMarkChange', 'TestReview')) AS phase3_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestMarkingKind', 'TestMarkingStatus', 'TestReviewAction'))                              AS phase3_enums,
        (SELECT count(*) FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId' AND is_nullable = 'NO') AS bulk_entity_id_column,
-       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperationItem_operationId_entityId_key') AS bulk_entity_unique_index,
-       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperation_selectionToken_v2_key') AS bulk_single_use_index,
-       (SELECT count(*) FROM pg_trigger WHERE tgname = 'bulk_item_entity_from_user') AS bulk_item_trigger,
-       (SELECT count(*) FROM pg_proc WHERE proname = 'bulk_item_entity_from_user') AS bulk_item_function,
-       (SELECT count(*) FROM "BulkOperationItem" i JOIN "BulkOperation" o ON o."id" = i."operationId"
-         WHERE o."entityType" = 'USER' AND i."userId" IS DISTINCT FROM i."entityId") AS user_items_not_backfilled;
+         WHERE table_schema = 'public' AND table_name = 'TestSubmission' AND column_name = 'finalMarkingId')        AS final_marking_column,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
+                         'test_mark_change_append_only', 'test_review_append_only'))                              AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
+                          'test_mark_change_append_only', 'test_review_append_only'))                             AS guard_triggers;
 
-\echo '== 12. MUST be 0 right after the migration: operations of another record type than USER'
-SELECT count(*) AS non_user_operations FROM "BulkOperation" WHERE "entityType" <> 'USER';
+\echo '== 20. MUST be 1: one current assignment per submission and kind (partial unique index)'
+SELECT count(*) AS one_current_assignment_index FROM pg_indexes WHERE indexname = 'TestMarkerAssignment_one_current';
 
-\echo '== 13. compare: bulk operations and their items (MUST equal pre-check section 7)'
-SELECT count(*) AS operations, count(*) FILTER (WHERE "emailJobId" IS NOT NULL) AS with_email_job,
-       count(DISTINCT "action") AS actions, md5(string_agg("id" || ':' || "action" || ':' || "status"::text || ':' || "total" || ':' || coalesce("emailJobId", '-'), ',' ORDER BY "id")) AS fingerprint
-  FROM "BulkOperation";
-SELECT "outcome"::text, count(*) AS items, md5(string_agg("operationId" || ':' || "userId", ',' ORDER BY "id")) AS fingerprint
-  FROM "BulkOperationItem" GROUP BY "outcome" ORDER BY 1;
+\echo '== 21. MUST be 0, 0, 0, 0, 0, 0: the Phase 3 tables start empty; no submission has a final marking'
+SELECT (SELECT count(*) FROM "TestMarkerAssignment") AS assignments, (SELECT count(*) FROM "TestMarking") AS markings,
+       (SELECT count(*) FROM "TestMarkingScore") AS scores, (SELECT count(*) FROM "TestMarkChange") AS mark_changes,
+       (SELECT count(*) FROM "TestReview") AS reviews,
+       (SELECT count(*) FROM "TestSubmission" WHERE "finalMarkingId" IS NOT NULL) AS final_markings;
+
+\echo '== 22. MUST be 2, 3, 2, 2, 6: the Test Management Phase 4 tables, columns, guard functions, their triggers and CHECKs'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestPublication', 'TestResultWithdrawal'))                                           AS phase4_tables,
+       (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
+         AND ((table_name = 'TestSubmission' AND column_name IN ('publicationId', 'publishedAt'))
+           OR (table_name = 'Test' AND column_name = 'studentRankingsVisible')))                                 AS phase4_columns,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                  AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                 AS guard_triggers,
+       (SELECT count(*) FROM pg_constraint WHERE conname IN ('TestPublication_number_positive', 'TestPublication_count_nonnegative',
+         'TestPublication_override_reason', 'TestPublication_counts_object', 'TestResultWithdrawal_reason_present',
+         'TestSubmission_published_state'))                                                                      AS checks;
+
+\echo '== 23. MUST be 0, 0, 0, 0, 1: the Phase 4 tables start empty; nothing is published; rankings are never shown to students (design-only CHECK present)'
+SELECT (SELECT count(*) FROM "TestPublication") AS publications, (SELECT count(*) FROM "TestResultWithdrawal") AS withdrawals,
+       (SELECT count(*) FROM "TestSubmission" WHERE "status" = 'PUBLISHED' OR "publicationId" IS NOT NULL) AS published_results,
+       (SELECT count(*) FROM "Test" WHERE "studentRankingsVisible") AS student_rankings_on,
+       (SELECT count(*) FROM pg_constraint WHERE conname = 'Test_student_rankings_design_only') AS design_only_check;
 
 ROLLBACK;

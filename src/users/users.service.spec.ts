@@ -30,7 +30,7 @@ function makeMocks() {
     // A Teacher's or Student's role change ends their teacher–student assignments (none here).
     teacherStudentAssignment: { findMany: vi.fn().mockResolvedValue([]) },
     mentorReview:      { count: vi.fn().mockResolvedValue(0) },
-    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    discipline:          { findUnique: vi.fn().mockResolvedValue({ id: 'd-math' }) },   // Mathematics, looked up by code (G3)
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     // Admin edits lock the user row first (PR A.1).
     $queryRaw: vi.fn().mockResolvedValue([{ schoolId: null }]),
@@ -159,13 +159,14 @@ describe('UsersService', () => {
       expect(audit.log).not.toHaveBeenCalled();
     });
 
-    it('clears student data and revokes sessions when a student becomes a mentor', async () => {
+    it('clears student data (not the home location: homeLocationRules) and revokes sessions when a student becomes a mentor', async () => {
       const { service, prisma, tokens } = makeMocks();
       prisma.user.findUnique.mockResolvedValue(existing);
       await service.update('u2', { role: 'MENTOR' } as any, ADMIN);
       expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({
-        role: 'MENTOR', gradeLevel: null, divisionId: null, schoolId: null, homeLocation: null,
+        role: 'MENTOR', gradeLevel: null, divisionId: null, schoolId: null,
       });
+      expect(prisma.user.update.mock.calls[0][0].data).not.toHaveProperty('homeLocation');
       // Revoked with the transaction client: commits together with the role change.
       expect(tokens.revokeAllForUser).toHaveBeenCalledWith('u2', prisma);
     });

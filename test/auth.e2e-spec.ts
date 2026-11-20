@@ -21,7 +21,7 @@ describe('Authentication (e2e)', () => {
   const register = (body: Record<string, unknown>) =>
     ctx.http().post('/api/v1/auth/register/student').send({
       firstName: 'Ada', lastName: 'Uwase', username: 'ada', email: 'Ada@Example.com',
-      password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S4', schoolName: '  lycée de kigali ',
+      password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S4', schoolName: '  lycée de kigali ',
       schoolLocation: 'kigali', homeLocation: 'kigali', ...body,
     });
 
@@ -300,7 +300,7 @@ describe('Authentication (e2e)', () => {
 
   it('mentor application → approval creates a mentor who can log in', async () => {
     const apply = await ctx.http().post('/api/v1/mentor-requests')
-      .send({ firstName: 'Marie', lastName: 'Ingabire', username: 'marie', email: 'marie@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] })
+      .send({ firstName: 'Marie', lastName: 'Ingabire', username: 'marie', email: 'marie@example.com', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] })
       .expect(201);
     expect(apply.body.passwordHash).toBeUndefined();
 

@@ -1,7 +1,6 @@
 -- Design-areas release pre-check (BEFORE `prisma migrate deploy` of the design-area migrations: the countries reference
--- list, area 1 as simplified by the owner, 2026-11-19; the primary teacher of a school, owner decision 2026-11-19; the
--- generic bulk engine, 2026-11-19):
--- READ ONLY.
+-- list, area 1 as simplified by the owner, 2026-11-19; the primary teacher of a school, owner decision 2026-11-19; Test
+-- Management Phases 1 to 4, owner-approved plan 2026-11-19): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs precheck --release areas-2026     (Neon rehearsal branch; guarded)
 --   psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/release/areas-2026-precheck.sql   (production, in the window)
@@ -19,20 +18,47 @@ SELECT count(*) FILTER (WHERE migration_name LIKE '2026112100%' AND finished_at 
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                                        AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
-\echo '== 2. MUST all be 0: nothing made by the design-area migrations exists yet (countries; primary teacher; generic bulk engine)'
+\echo '== 2. MUST all be 0: nothing made by the design-area migrations exists yet (countries; primary teacher)'
 SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('Country')) AS tables,
        (SELECT count(*) FROM pg_constraint WHERE conname = 'School_countryCode_fkey') AS school_country_fk,
        (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = 'TeacherSchoolRole') AS teacher_school_role_enum,
        (SELECT count(*) FROM information_schema.columns
          WHERE table_schema = 'public' AND table_name = 'TeacherSchoolAssignment' AND column_name = 'role') AS teacher_school_role_column,
-       (SELECT count(*) FROM pg_indexes WHERE indexname = 'TeacherSchoolAssignment_one_primary_per_school') AS one_primary_index,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'TeacherSchoolAssignment_one_primary_per_school') AS one_primary_index;
+
+\echo '== 2b. MUST all be 0: nothing made by the Test Management migrations exists yet (tables, enums)'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('Test', 'TestQuestion', 'TestFile', 'MarkerAuthorization'))                          AS test_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestDivision', 'TestAnswerFormat', 'TestStatus', 'TestFileKind'))                       AS test_enums;
+
+\echo '== 2c. MUST all be 0: nothing made by the Test Management Phase 2 migration exists yet (tables, enums, guard functions)'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestExtension', 'TestSubmission', 'TestSubmissionVersion', 'TestAnswerPage', 'TestSubmissionStatusChange')) AS phase2_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestExtensionKind', 'TestSubmissionStatus', 'TestSubmitterRole'))                       AS phase2_enums,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_submission_version_append_only', 'test_submission_status_append_only', 'test_answer_page_committed_guard')) AS phase2_functions;
+
+\echo '== 2d. MUST all be 0: nothing made by the Test Management Phase 3 migration exists yet (tables, enums, the finalMarkingId column, guard functions)'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestMarkChange', 'TestReview')) AS phase3_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestMarkingKind', 'TestMarkingStatus', 'TestReviewAction'))                              AS phase3_enums,
        (SELECT count(*) FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'BulkOperation' AND column_name = 'entityType') AS bulk_entity_type_column,
-       (SELECT count(*) FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'BulkOperationItem' AND column_name = 'entityId') AS bulk_entity_id_column,
-       (SELECT count(*) FROM pg_indexes WHERE indexname = 'BulkOperation_selectionToken_v2_key') AS bulk_single_use_index,
-       (SELECT count(*) FROM pg_trigger WHERE tgname = 'bulk_item_entity_from_user') AS bulk_item_trigger,
-       (SELECT count(*) FROM pg_proc WHERE proname = 'bulk_item_entity_from_user') AS bulk_item_function;
+         WHERE table_schema = 'public' AND table_name = 'TestSubmission' AND column_name = 'finalMarkingId')        AS final_marking_column,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard',
+                         'test_mark_change_append_only', 'test_review_append_only'))                              AS phase3_functions;
+
+\echo '== 2e. MUST all be 0: nothing made by the Test Management Phase 4 migration exists yet (tables, columns, guard functions)'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestPublication', 'TestResultWithdrawal'))                                           AS phase4_tables,
+       (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
+         AND ((table_name = 'TestSubmission' AND column_name IN ('publicationId', 'publishedAt'))
+           OR (table_name = 'Test' AND column_name = 'studentRankingsVisible')))                                 AS phase4_columns,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                  AS phase4_functions;
 
 \echo '== 3. MUST be empty: school country codes that are not two upper-case letters (the School → Country foreign key refuses any code that is not ISO 3166-1 alpha-2; the migration names them)'
 SELECT DISTINCT "countryCode" FROM "School" WHERE "countryCode" !~ '^[A-Z]{2}$' ORDER BY 1;
@@ -73,14 +99,23 @@ SELECT count(*)                                                                 
            WHERE t."schoolId" = p."id" AND t."isActive" AND u."accountStatus" = 'ACTIVE' AND t."createdAt" = p.first_at) > 1) AS ties_resolved_by_id
   FROM per;
 
-\echo '== 7. compare: bulk operations and their items (MUST be unchanged after the migration: every existing one becomes a USER operation, items keep userId and gain entityId = userId)'
-SELECT count(*) AS operations, count(*) FILTER (WHERE "emailJobId" IS NOT NULL) AS with_email_job,
-       count(DISTINCT "action") AS actions, md5(string_agg("id" || ':' || "action" || ':' || "status"::text || ':' || "total" || ':' || coalesce("emailJobId", '-'), ',' ORDER BY "id")) AS fingerprint
-  FROM "BulkOperation";
-SELECT "outcome"::text, count(*) AS items, md5(string_agg("operationId" || ':' || "userId", ',' ORDER BY "id")) AS fingerprint
-  FROM "BulkOperationItem" GROUP BY "outcome" ORDER BY 1;
+\echo '== 7. report: FilePurpose values already present (a rehearsal rolled back keeps them: PostgreSQL cannot drop an enum value)'
+SELECT e.enumlabel AS file_purpose FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+ WHERE t.typname = 'FilePurpose' AND e.enumlabel IN ('TEST_PAPER', 'TEST_ANSWER', 'MARKING_GUIDE') ORDER BY 1;
 
-\echo '== 8. MUST be 0: items whose userId is missing (the migration backfills entityId from it and makes entityId NOT NULL)'
-SELECT count(*) AS items_without_user FROM "BulkOperationItem" WHERE "userId" IS NULL;
+\echo '== 8. compare: subjects (Discipline). The migration adds PHYSICS and COMPUTING when missing; every listed row MUST be unchanged after it'
+SELECT "code", "name", "isActive", "sortOrder" FROM "Discipline" ORDER BY "code";
+
+\echo '== 9. compare: what Test Management must not touch (MUST be unchanged after the migration)'
+SELECT (SELECT count(*) FROM "ProgrammeMembership")                       AS memberships,
+       (SELECT count(*) FROM "ProgrammeMembership" WHERE "isActive")      AS active_memberships,
+       (SELECT count(*) FROM "Course")                                    AS courses,
+       (SELECT count(*) FROM "Assignment")                                AS assignments,
+       (SELECT count(*) FROM "Submission")                                AS submissions,
+       (SELECT count(*) FROM "MentorReview")                              AS reviews,
+       (SELECT count(*) FROM "FileObject")                                AS files;
+
+\echo '== 10. compare: files by purpose (MUST be unchanged after the migration)'
+SELECT "purpose", count(*) FROM "FileObject" GROUP BY "purpose" ORDER BY 1;
 
 ROLLBACK;

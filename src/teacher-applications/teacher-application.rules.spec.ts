@@ -42,9 +42,9 @@ describe('teacher self-registration rules', () => {
 
   describe('RegisterTeacherDto', () => {
     const base = {
-      firstName: ' Ada ', lastName: 'Teacher', username: ' Ada.T ', email: 'ADA@Example.com', password: 'Secret123', confirmPassword: 'Secret123',
+      firstName: ' Ada ', lastName: 'Teacher', username: ' Ada.T ', email: 'ADA@Example.com', password: 'Secret123', confirmPassword: 'Secret123', gender: 'FEMALE',
       country: ' rw ', phone: '0788 123 456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      schoolId: '7d9f2c4e-1a2b-4c3d-8e9f-0a1b2c3d4e5f', homeDistrict: 'Huye', homeSector: 'Ngoma',
+      schoolId: '7d9f2c4e-1a2b-4c3d-8e9f-0a1b2c3d4e5f', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma',
     };
     const errors = (body: object) => validateSync(plainToInstance(RegisterTeacherDto, body), { whitelist: true, forbidNonWhitelisted: true })
       .map((e) => e.property);
@@ -65,7 +65,7 @@ describe('teacher self-registration rules', () => {
 
     it('required fields: country, phone, places; a missing school needs its sector; unknown fields refused', () => {
       const without = (k: keyof typeof base) => { const b: Record<string, unknown> = { ...base }; delete b[k]; return b; };
-      for (const k of ['country', 'phone', 'schoolProvince', 'schoolDistrict', 'homeDistrict', 'homeSector', 'confirmPassword'] as const) {
+      for (const k of ['country', 'phone', 'schoolProvince', 'schoolDistrict', 'homeProvince', 'homeDistrict', 'homeSector', 'confirmPassword'] as const) {
         expect(errors(without(k))).toEqual([k]);
       }
       expect(errors({ ...base, country: 'Rwanda' })).toEqual(['country']);
@@ -73,6 +73,12 @@ describe('teacher self-registration rules', () => {
       expect(errors(missing)).toEqual(['schoolSector']);
       expect(errors({ ...missing, schoolSector: 'Ngoma' })).toEqual([]);
       expect(errors({ ...base, schoolCode: '220001' })).toEqual(['schoolCode']);
+    });
+
+    it('home location (homeLocationRules): another home country needs no province, district or sector', () => {
+      const { homeProvince: _p, homeDistrict: _d, homeSector: _s, ...abroad } = base;
+      expect(errors({ ...abroad, country: 'ug' })).toEqual([]);
+      expect(errors(abroad).sort()).toEqual(['homeDistrict', 'homeProvince', 'homeSector']);   // Rwanda: all three
     });
   });
 });

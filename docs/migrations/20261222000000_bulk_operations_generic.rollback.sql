@@ -1,4 +1,4 @@
--- Rollback for 20261213000000_bulk_operations_generic (generic bulk engine, 2026-11-19).
+-- Rollback for 20261222000000_bulk_operations_generic (generic bulk engine, 2026-11-19).
 -- Run manually, with approval, after a backup, and after deploying the previous application release (the current code
 -- reads and writes BulkOperation.entityType and BulkOperationItem.entityId).
 --
@@ -18,7 +18,7 @@
 --         WHERE (table_name = 'BulkOperation' AND column_name = 'entityType')
 --            OR (table_name = 'BulkOperationItem' AND column_name = 'entityId');                     -- expect 0
 --   2. Back up, then mark the migration as not applied — as its own reviewed, approved step:
---        DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261213000000_bulk_operations_generic';
+--        DELETE FROM "_prisma_migrations" WHERE "migration_name" = '20261222000000_bulk_operations_generic';
 --   3. `npx prisma migrate status` must then list it as not yet applied.
 BEGIN;
 

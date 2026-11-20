@@ -12,7 +12,8 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { CoachEducationLevel, MentorRequestStatus, OlympiadSubject } from '../../generated/prisma/client.js';
+import { HomePlacePart } from '../../common/home-place.js';
+import { CoachEducationLevel, Gender, MentorRequestStatus, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 
@@ -40,14 +41,36 @@ export class CreateMentorRequestDto {
   @IsStrongPassword()
   password: string;
 
+  /** FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. */
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
+
   // ─── Application details (capability coachApplicationDetails; optional for older clients, except the subjects) ───
   // No passport or national ID: the existing system does not require one.
 
-  /** The applicant's country (ISO 3166-1 alpha-2). Copied to the Coach account on approval. */
-  @IsOptional()
+  /**
+   * The applicant's home country (ISO 3166-1 alpha-2). Required (homeLocationRules, owner 2026-11-20). Copied to the
+   * Coach account on approval.
+   */
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsISO31661Alpha2({ message: 'country must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
-  country?: string;
+  country: string;
+
+  /**
+   * Home location (homeLocationRules): required when the home country is Rwanda — a place of the official directory,
+   * else 400 UNKNOWN_HOME_LOCATION; with another country not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY).
+   */
+  @HomePlacePart('country')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeProvince?: string;
+
+  @HomePlacePart('country')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeDistrict?: string;
+
+  @HomePlacePart('country')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
 
   /** Current or most recent occupation, as entered (2–200 characters). */
   @IsOptional()

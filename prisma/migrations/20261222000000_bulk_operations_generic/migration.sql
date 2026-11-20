@@ -10,7 +10,7 @@
 --                                 partial unique index on selectionToken for v2 tokens only (v1 digests may repeat).
 --   bulk_item_entity_from_user    rolling-deploy safety: an INSERT without entityId (the previous release's code)
 --                                 gets entityId = userId (BEFORE INSERT trigger), so the column stays NOT NULL.
--- No row is created, removed or otherwise changed. Rollback: docs/migrations/20261213000000_bulk_operations_generic.rollback.sql
+-- No row is created, removed or otherwise changed. Rollback: docs/migrations/20261222000000_bulk_operations_generic.rollback.sql
 
 -- AlterTable
 ALTER TABLE "BulkOperation" ADD COLUMN     "entityType" TEXT NOT NULL DEFAULT 'USER';

@@ -111,6 +111,66 @@ describe('decision notification content', () => {
     expect(() => decisionEmail('other', 'X', {}, APP)).toThrow();
   });
 
+  it('test.extension.granted (Test Management Phase 2): the test, the new deadline in Kigali time, a link to the right portal; no other student', () => {
+    const payload = { activated: true, testTitle: 'Round 2', subjectName: 'Physics', deadline: '2026-12-10T08:30:00.000Z', audience: 'STUDENT' as const };
+    const mail = decisionEmail(DecisionEvents.TestExtensionGranted, 'Aline', payload, APP);
+    expect(mail.subject).toBe('Deadline extended: Round 2');
+    expect(mail.body).toContain('The deadline for your answers to the Physics test "Round 2" has been extended to');
+    expect(mail.body).toContain('10:30 (Kigali time)');
+    expect(mail.action).toEqual({ label: 'Open my tests', url: 'https://app.example.org/student/tests' });
+    const teacher = decisionEmail(DecisionEvents.TestExtensionGranted, 'Eric', { ...payload, audience: 'TEACHER' }, APP);
+    expect(teacher.body).toContain('the answers you submit for the students of your school');
+    expect(teacher.action?.url).toBe('https://app.example.org/teacher/tests');
+    expect(decisionEmail(DecisionEvents.TestExtensionGranted, 'Aline', { ...payload, activated: false }, APP).action).toBeUndefined();
+    const inApp = decisionInApp(DecisionEvents.TestExtensionGranted, payload);
+    expect([inApp.title, inApp.link]).toEqual(['Deadline extended', '/student/tests']);
+    expect(inApp.body).toContain('Physics test "Round 2": your deadline is now');
+  });
+
+  it('test.marking.assigned / returned (Test Management Phase 3): the test and a count, a link to the marking queue — never a student', () => {
+    const payload = { activated: true, testTitle: 'Round 2', subjectName: 'Mathematics', count: 3 };
+    const mail = decisionEmail(DecisionEvents.TestMarkingAssigned, 'Jean', payload, APP);
+    expect(mail.subject).toBe('Submissions to mark: Round 2');
+    expect(mail.body).toContain('You have been given 3 submissions of the Mathematics test "Round 2" to mark.');
+    expect(mail.action).toEqual({ label: 'Open my marking queue', url: 'https://app.example.org/mentor/marking' });
+    expect(decisionEmail(DecisionEvents.TestMarkingAssigned, 'Jean', { ...payload, count: 1 }, APP).body).toContain('given a submission of');
+    const back = decisionEmail(DecisionEvents.TestMarkingReturned, 'Jean', { ...payload, count: 1 }, APP);
+    expect(back.subject).toBe('Marking returned for correction: Round 2');
+    expect(back.body).toContain('returned your marking of a submission');
+    expect(decisionInApp(DecisionEvents.TestMarkingAssigned, payload)).toEqual({
+      title: 'Submissions to mark', body: '3 submissions of the Mathematics test "Round 2" are in your marking queue.', link: '/mentor/marking',
+    });
+    expect(decisionInApp(DecisionEvents.TestMarkingReturned, payload).link).toBe('/mentor/marking');
+    expect(decisionEmail(DecisionEvents.TestMarkingAssigned, 'Jean', { ...payload, activated: false }, APP).action).toBeUndefined();
+  });
+
+  it('test.results.published / test.result.withdrawn (Test Management Phase 4): the test and a link to the results page — never a mark, a rank or another student', () => {
+    const payload = { activated: true, testId: 't-1', testTitle: 'Round 2', subjectName: 'Physics', audience: 'STUDENT' as const };
+    const mail = decisionEmail(DecisionEvents.TestResultsPublished, 'Aline', payload, APP);
+    expect(mail.subject).toBe('Results published: Round 2');
+    expect(mail.body).toContain('Your result for the Physics test "Round 2" has been published.');
+    expect(mail.action).toEqual({ label: 'Open the results', url: 'https://app.example.org/student/results/t-1' });
+    expect(decisionInApp(DecisionEvents.TestResultsPublished, payload)).toEqual({
+      title: 'Results published', body: 'Your result for the Physics test "Round 2" is now available.', link: '/student/results/t-1',
+    });
+    const teacher = { ...payload, audience: 'TEACHER' as const, count: 12 };
+    const tm = decisionEmail(DecisionEvents.TestResultsPublished, 'Jean', teacher, APP);
+    expect(tm.body).toContain('have been published for students of your school');
+    expect(tm.action?.url).toBe('https://app.example.org/teacher/results/t-1');
+    expect(decisionInApp(DecisionEvents.TestResultsPublished, teacher).link).toBe('/teacher/results/t-1');
+    const w = decisionEmail(DecisionEvents.TestResultWithdrawn, 'Aline', payload, APP);
+    expect(w.subject).toBe('Result withdrawn for review: Round 2');
+    expect(w.body).toContain('has been withdrawn for review');
+    expect(decisionInApp(DecisionEvents.TestResultWithdrawn, teacher).body).toContain('a student of your school');
+    // Nothing about any student: no number that could be a mark, no name, no rank — only the test and the recipient.
+    for (const t of [mail, tm, w]) {
+      const text = `${t.subject} ${t.heading} ${t.body}`;
+      expect(text).not.toMatch(/(rank|ranked|position|marks? of|\d+ ?\/ ?\d+)/i);
+      expect(text).not.toContain('12');
+    }
+    expect(decisionEmail(DecisionEvents.TestResultsPublished, 'Aline', { ...payload, activated: false }, APP).action).toBeUndefined();
+  });
+
   it('sanitiseError strips addresses, keys, tokens and long ids, and bounds the length', () => {
     const out = sanitiseError('Resend 422 validation_error: jean@example.org with key re_abc123XYZ Bearer eyJhbGciOi.x.y ' +
       'https://x.test/a?token=SECRET123&b=1 id 3f2b8c1e-4d5a-4b6c-9d7e-112233445566');

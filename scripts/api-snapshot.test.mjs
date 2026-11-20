@@ -271,7 +271,48 @@ const BULK_ENGINE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-bulk-engine.
  * routes (test/bulk-openapi-contract.e2e-spec.ts checks real responses against them). Documentation only.
  */
 const BULK_ENGINE_RESPONSES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-bulk-engine-responses.json';
-const CURRENT_SNAPSHOT = BULK_ENGINE_RESPONSES_SNAPSHOT;
+/**
+ * Test Management, Phase 1 (WS3, owner-approved plan 2026-11-19): /admin/tests (tests, questions, paper and marking guide)
+ * and /admin/test-markers (marker authorisations) — additive only: 19 routes, 7 request schemas.
+ */
+const TEST_MANAGEMENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-management.json';
+/**
+ * Test Management, Phase 2 (WS3, owner-approved plan 2026-11-19): deadlines, extensions, student and teacher submissions
+ * with every version, tracking — /me/tests, /teacher/tests, /admin/tests/:id/extensions|extension-targets|submissions —
+ * additive only: 25 routes, 4 request schemas.
+ */
+const TEST_SUBMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-submissions.json';
+/**
+ * Test Management, Phase 3 (WS3, owner-approved plan 2026-11-19): distribution, blind marking, second marking, review,
+ * approval, locking, the mark-change log — /admin/tests/:id/marking… and /marking… — additive only: 19 routes, 12 request
+ * schemas.
+ */
+const TEST_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-marking.json';
+/**
+ * Test Management, Phase 4 (WS3, owner-approved plan 2026-11-19): publication with the Administrators' override,
+ * results for students and teachers, internal rankings, reports, dashboards — additive only: 17 routes, 2 request
+ * schemas; PUBLISHED accepted as a review filter and an expected status.
+ */
+const TEST_RESULTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-test-results.json';
+/**
+ * Gender at every sign-up (owner, 2026-11-20): `gender` (FEMALE | MALE) becomes a required request field of the three
+ * public sign-ups. Deliberately breaking for those three requests only; the frontend that sends it ships with it.
+ */
+const REGISTRATION_GENDER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-registration-gender.json';
+/**
+ * Home location on every registration form and profile edit (owner, 2026-11-20; homeLocationRules): the home country
+ * becomes required on the student sign-up (homeCountry) and the coach application (country); the Rwandan place is
+ * required only for Rwanda (teacher homeDistrict / homeSector become optional; homeProvince added); profile edits accept
+ * the home country and place.
+ */
+const HOME_LOCATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-home-location.json';
+/**
+ * The generic bulk engine on top of the sign-up work (2026-11-20): the bulk branch merged with develop (Test Management,
+ * gender, home location). Additive only against the home-location snapshot: the eight /admin/bulk/* routes, their
+ * documented responses and reassignTeacher on /admin/users/bulk.
+ */
+const BULK_ENGINE_MERGED_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-merged.json';
+const CURRENT_SNAPSHOT = BULK_ENGINE_MERGED_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1369,6 +1410,202 @@ describe('approved API contract history', () => {
     ]);
   });
 
+  test('schools table → Test Management Phase 1 (2026-11-19): additive only — 19 routes, 7 request schemas, no existing field changed', () => {
+    for (const f of [SCHOOLS_TABLE_SNAPSHOT, TEST_MANAGEMENT_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOLS_TABLE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_MANAGEMENT_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/admin/tests/{id}/files/{kind}: operation added',
+      'DELETE /api/v1/admin/tests/{id}/questions/{questionId}: operation added',
+      'DELETE /api/v1/admin/tests/{id}: operation added',
+      'GET /api/v1/admin/test-markers/candidates: operation added',
+      'GET /api/v1/admin/test-markers: operation added',
+      'GET /api/v1/admin/tests/subjects: operation added',
+      'GET /api/v1/admin/tests/{id}/files/{kind}: operation added',
+      'GET /api/v1/admin/tests/{id}: operation added',
+      'GET /api/v1/admin/tests: operation added',
+      'PATCH /api/v1/admin/tests/{id}/questions/{questionId}: operation added',
+      'PATCH /api/v1/admin/tests/{id}: operation added',
+      'POST /api/v1/admin/test-markers/{id}/revoke: operation added',
+      'POST /api/v1/admin/test-markers: operation added',
+      'POST /api/v1/admin/tests/{id}/publish: operation added',
+      'POST /api/v1/admin/tests/{id}/questions: operation added',
+      'POST /api/v1/admin/tests/{id}/unpublish: operation added',
+      'POST /api/v1/admin/tests: operation added',
+      'PUT /api/v1/admin/tests/{id}/files/{kind}: operation added',
+      'PUT /api/v1/admin/tests/{id}/questions/order: operation added',
+      'schema CreateTestDto: added',
+      'schema GrantMarkerDto: added',
+      'schema ReorderTestQuestionsDto: added',
+      'schema RevokeMarkerDto: added',
+      'schema TestQuestionInputDto: added',
+      'schema UpdateTestDto: added',
+      'schema UpdateTestQuestionDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 1 → Phase 2 (2026-11-19): additive only — 25 routes, 4 request schemas, no existing field changed', () => {
+    for (const f of [TEST_MANAGEMENT_SNAPSHOT, TEST_SUBMISSIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_MANAGEMENT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_SUBMISSIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}: operation added',
+      'DELETE /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}: operation added',
+      'GET /api/v1/admin/tests/{id}/extension-targets: operation added',
+      'GET /api/v1/admin/tests/{id}/extensions: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions/{submissionId}: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions: operation added',
+      'GET /api/v1/me/tests/{id}/paper: operation added',
+      'GET /api/v1/me/tests/{id}/uploads/{uploadKey}: operation added',
+      'GET /api/v1/me/tests/{id}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/me/tests/{id}: operation added',
+      'GET /api/v1/me/tests: operation added',
+      'GET /api/v1/teacher/tests/{id}/paper: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students: operation added',
+      'GET /api/v1/teacher/tests: operation added',
+      'PATCH /api/v1/admin/tests/{id}/extensions/{extensionId}: operation added',
+      'POST /api/v1/admin/tests/{id}/extensions/{extensionId}/cancel: operation added',
+      'POST /api/v1/admin/tests/{id}/extensions: operation added',
+      'POST /api/v1/me/tests/{id}/submission: operation added',
+      'POST /api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}: operation added',
+      'POST /api/v1/teacher/tests/{id}/students/{studentId}/submission: operation added',
+      'POST /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}: operation added',
+      'schema CancelTestExtensionDto: added',
+      'schema CreateTestExtensionDto: added',
+      'schema SubmitTestAnswerDto: added',
+      'schema UpdateTestExtensionDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 2 → Phase 3 (2026-11-19): additive only — 19 routes, 12 request schemas, no existing field changed', () => {
+    for (const f of [TEST_SUBMISSIONS_SNAPSHOT, TEST_MARKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_SUBMISSIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_MARKING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/tests/{id}/marking/history: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions/{submissionId}: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions: operation added',
+      'GET /api/v1/admin/tests/{id}/marking: operation added',
+      'GET /api/v1/marking/queue: operation added',
+      'GET /api/v1/marking/submissions/{code}/marking-guide: operation added',
+      'GET /api/v1/marking/submissions/{code}/pages/{page}: operation added',
+      'GET /api/v1/marking/submissions/{code}/paper: operation added',
+      'GET /api/v1/marking/submissions/{code}: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/assign: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/distribute: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock: operation added',
+      'POST /api/v1/marking/submissions/{code}/marking/submit: operation added',
+      'PUT /api/v1/marking/submissions/{code}/marking: operation added',
+      'schema ApproveMarkingDto: added',
+      'schema AssignMarkingDto: added',
+      'schema ChooseMarkDto: added',
+      'schema DistributeMarkingDto: added',
+      'schema MarksInputDto: added',
+      'schema ReassignMarkingDto: added',
+      'schema RequestSecondMarkingDto: added',
+      'schema ReturnMarkingDto: added',
+      'schema SaveMarkingDto: added',
+      'schema ScoreInputDto: added',
+      'schema SubmitMarkingDto: added',
+      'schema UnlockMarkingDto: added',
+    ]);
+  });
+
+  test('gender at sign-up → home location (2026-11-20): the deliberate required home country on two sign-ups; the rest additive', () => {
+    // Deliberately BREAKING for two sign-up requests (owner, 2026-11-20: the home country is required on every
+    // registration form); the frontend released with this backend sends it. Everything else is additive.
+    for (const f of [REGISTRATION_GENDER_SNAPSHOT, HOME_LOCATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REGISTRATION_GENDER_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(HOME_LOCATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking.sort(), [
+      'POST /api/v1/auth/register/student › request application/json.homeCountry: field is now required',
+      'POST /api/v1/mentor-requests › request application/json.country: field is now required',
+    ]);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeCountry: new optional field',
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeDistrict: new optional field',
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeProvince: new optional field',
+      'PATCH /api/v1/admin/users/{id} › request application/json.homeSector: new optional field',
+      'PATCH /api/v1/me › request application/json.homeCountry: new optional field',
+      'PATCH /api/v1/me › request application/json.homeDistrict: new optional field',
+      'PATCH /api/v1/me › request application/json.homeProvince: new optional field',
+      'PATCH /api/v1/me › request application/json.homeSector: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.homeDistrict: field is now optional',
+      'POST /api/v1/auth/register/teacher › request application/json.homeProvince: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.homeSector: field is now optional',
+      'POST /api/v1/mentor-requests › request application/json.homeDistrict: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.homeProvince: new optional field',
+      'POST /api/v1/mentor-requests › request application/json.homeSector: new optional field',
+    ]);
+  });
+
+  test('Test Management Phase 4 → gender at sign-up (2026-11-20): exactly the deliberate required gender on the three public sign-ups; nothing else', () => {
+    // Deliberately BREAKING for the three sign-up requests (owner, 2026-11-20: gender is required at every sign-up).
+    // A client that does not send it is refused (400); the frontend released with this backend sends it.
+    for (const f of [TEST_RESULTS_SNAPSHOT, REGISTRATION_GENDER_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_RESULTS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_GENDER_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking.sort(), [
+      'POST /api/v1/auth/register/student › request application/json.gender: new required field',
+      'POST /api/v1/auth/register/teacher › request application/json.gender: new required field',
+      'POST /api/v1/mentor-requests › request application/json.gender: new required field',
+    ]);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, []);
+  });
+
+  test('Test Management Phase 3 → Phase 4 (2026-11-20): additive only — 17 routes, 2 request schemas, PUBLISHED accepted; no existing field changed', () => {
+    for (const f of [TEST_MARKING_SNAPSHOT, TEST_RESULTS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_MARKING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_RESULTS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/test-dashboard: operation added',
+      'GET /api/v1/admin/test-reports: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions › query parameter status: enum values added: PUBLISHED',
+      'GET /api/v1/admin/tests/{id}/results/export.csv: operation added',
+      'GET /api/v1/admin/tests/{id}/results/preview: operation added',
+      'GET /api/v1/admin/tests/{id}/results/publications: operation added',
+      'GET /api/v1/admin/tests/{id}/results/rankings: operation added',
+      'GET /api/v1/admin/tests/{id}/results/report: operation added',
+      'GET /api/v1/admin/tests/{id}/results: operation added',
+      'GET /api/v1/marking/dashboard: operation added',
+      'GET /api/v1/me/test-dashboard: operation added',
+      'GET /api/v1/me/test-results/{testId}: operation added',
+      'GET /api/v1/me/test-results: operation added',
+      'GET /api/v1/teacher/test-dashboard: operation added',
+      'GET /api/v1/teacher/test-results/{testId}/students/{studentId}: operation added',
+      'GET /api/v1/teacher/test-results/{testId}: operation added',
+      'GET /api/v1/teacher/test-results: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/results/publish/override: operation added',
+      'POST /api/v1/admin/tests/{id}/results/publish: operation added',
+      'schema OverridePublicationDto: added',
+      'schema PublishTestResultsDto: added',
+    ]);
+  });
+
   test('schools table → generic bulk engine (2026-11-19): additive only — 8 routes, reassignTeacher on /admin/users/bulk, nothing breaking or for review', () => {
     for (const f of [SCHOOLS_TABLE_SNAPSHOT, BULK_ENGINE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(SCHOOLS_TABLE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_SNAPSHOT, 'utf8')));
@@ -1472,6 +1709,51 @@ describe('approved API contract history', () => {
     // Only the eight generic routes change: no existing operation (/admin/users/bulk, teacher–student routes…) is touched.
     const touched = [...res.breaking, ...res.review, ...res.additive].filter((c) => !c.startsWith('schema ') && !c.includes('/api/v1/admin/bulk/'));
     assert.deepEqual(touched, []);
+  });
+
+  test('home location → generic bulk engine (2026-11-20): additive only — the bulk routes, their responses and reassignTeacher; nothing breaking or for review', () => {
+    for (const f of [HOME_LOCATION_SNAPSHOT, BULK_ENGINE_MERGED_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(HOME_LOCATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BULK_ENGINE_MERGED_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/bulk/actions: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}/items: operation added',
+      'GET /api/v1/admin/bulk/operations/{id}: operation added',
+      'GET /api/v1/admin/bulk/operations: operation added',
+      'POST /api/v1/admin/bulk/operations/{id}/cancel: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/export: operation added',
+      'POST /api/v1/admin/bulk/{entityType}/preview: operation added',
+      'POST /api/v1/admin/bulk/{entityType}: operation added',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk › request application/json.params.toTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: reassignTeacher',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.fromTeacherId: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.toTeacherId: new optional field',
+      'schema BulkActionView: added',
+      'schema BulkActionsView: added',
+      'schema BulkActorSummary: added',
+      'schema BulkEntityTypeView: added',
+      'schema BulkExecuteResult: added',
+      'schema BulkExportView: added',
+      'schema BulkItemOutcome: added',
+      'schema BulkItemPage: added',
+      'schema BulkItemView: added',
+      'schema BulkOperationPage: added',
+      'schema BulkOperationProgress: added',
+      'schema BulkOperationStatus: added',
+      'schema BulkOperationView: added',
+      'schema BulkPageMeta: added',
+      'schema BulkPreviewResult: added',
+      'schema BulkPreviewWarning: added',
+      'schema BulkUserSummary: added',
+      'schema GenericBulkExecuteDto: added',
+      'schema GenericBulkExportDto: added',
+      'schema GenericBulkPreviewDto: added',
+      'schema GenericBulkSelectionDto: added',
+    ]);
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

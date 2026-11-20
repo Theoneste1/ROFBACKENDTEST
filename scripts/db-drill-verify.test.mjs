@@ -237,7 +237,10 @@ describe('expected state — derived from this checkout only', () => {
     const postTables = ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication',
       'TeacherStudentAssignment', 'UserPermissionOverrideStudent', 'UserStatusChange'];
     // The design-area table (countries, migration 20261211000000) comes after post-Phase-1, so it is absent before it too.
-    const areaTables = ['Country'];
+    const areaTables = ['Country', 'MarkerAuthorization', 'Test', 'TestFile', 'TestQuestion',   // + Test Management Phase 1 (20261220000100)
+      'TestAnswerPage', 'TestExtension', 'TestSubmission', 'TestSubmissionStatusChange', 'TestSubmissionVersion',   // + Phase 2 (20261220000200)
+      'TestMarkChange', 'TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestReview',   // + Phase 3 (20261220000300)
+      'TestPublication', 'TestResultWithdrawal'];   // + Phase 4 (20261220000400)
     assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), [...postTables, ...areaTables].sort());
   });
   test('the two baselines are distinct: pre-phase1 ⊂ pre-post-phase1 ⊂ this checkout (migrations and models)', () => {

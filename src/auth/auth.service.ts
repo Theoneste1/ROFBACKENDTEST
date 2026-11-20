@@ -47,7 +47,7 @@ export const PROFILE_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
   role: true, avatarUrl: true, gradeLevel: true, homeLocation: true, olympiadInterests: true,
   // Registration details (studentRegistrationDetails): the account holder's own data.
-  dateOfBirth: true, phone: true, guardianPhone: true, country: true, homeProvince: true, homeDistrict: true, homeSector: true,
+  dateOfBirth: true, gender: true, phone: true, guardianPhone: true, country: true, homeProvince: true, homeDistrict: true, homeSector: true,
   points: true, problemsSolved: true, createdAt: true, lastLoginAt: true,
   division: { select: { id: true, code: true, name: true } },
   school:   { select: { id: true, name: true, location: true } },

@@ -14,7 +14,8 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
+import { HomePlacePart } from '../../common/home-place.js';
+import { Gender, GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from './password.rules.js';
 import { IsNormalisablePhone, IsStudentDateOfBirth } from './registration-details.rules.js';
 
@@ -131,10 +132,10 @@ export class RegisterStudentDto {
   schoolLocation?: string;
 
   /**
-   * Student's home city / region. Required unless the official home place (homeProvince, homeDistrict,
-   * homeSector) is sent; then it is optional and stored as "Sector, District".
+   * Student's home city / region (optional free text, kept for older clients). With the official home place it is
+   * stored as "Sector, District" when not sent. Home location rules (homeLocationRules): homeCountry decides.
    */
-  @ValidateIf((o: RegisterStudentDto) => o.homeLocation !== undefined || !hasHomePlace(o))
+  @IsOptional()
   @IsString()
   @Length(2, 200)
   @Transform(titleCase)
@@ -149,6 +150,10 @@ export class RegisterStudentDto {
   @Transform(trim)
   @IsStudentDateOfBirth()
   dateOfBirth: string;
+
+  /** FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. */
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
 
   /** The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. */
   @IsOptional()
@@ -166,25 +171,27 @@ export class RegisterStudentDto {
   @IsNormalisablePhone()
   guardianPhone: string;
 
-  /** The student's own country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. */
-  @IsOptional()
+  /**
+   * The student's home country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's.
+   * Required (owner, 2026-11-20: home location on every registration form, homeLocationRules).
+   */
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsISO31661Alpha2({ message: 'homeCountry must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
-  homeCountry?: string;
+  homeCountry: string;
 
   /**
-   * The official home place (Rwanda only; a place of GET /schools/locations, else 400 UNKNOWN_HOME_LOCATION;
-   * with another homeCountry 400 HOME_LOCATION_RWANDA_ONLY). All three together.
+   * The official home place: required when homeCountry is Rwanda (a place of GET /schools/locations, else 400
+   * UNKNOWN_HOME_LOCATION); with another homeCountry not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY).
    */
-  @ValidateIf((o: RegisterStudentDto) => hasHomePlace(o))
+  @HomePlacePart('homeCountry')
   @IsString() @Length(1, 100) @Transform(trim)
   homeProvince?: string;
 
-  @ValidateIf((o: RegisterStudentDto) => hasHomePlace(o))
+  @HomePlacePart('homeCountry')
   @IsString() @Length(1, 100) @Transform(trim)
   homeDistrict?: string;
 
-  @ValidateIf((o: RegisterStudentDto) => hasHomePlace(o))
+  @HomePlacePart('homeCountry')
   @IsString() @Length(1, 100) @Transform(trim)
   homeSector?: string;
 

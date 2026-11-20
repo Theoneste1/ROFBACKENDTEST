@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 333 endpoints — 26 public, 198 administrator-only.
+Totals: 414 endpoints — 26 public, 246 administrator-only.
 
 ## Academic years
 
@@ -261,6 +261,70 @@ Totals: 333 endpoints — 26 public, 198 administrator-only.
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  | ✓ |
 
+## Admin · Test marking
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/tests/{id}/marking` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/assign` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/distribute` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/history` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/submissions` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose` |  |  |  |  |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock` |  |  |  | ✓ |
+
+## Admin · Test results
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/test-dashboard` |  |  |  | ✓ |
+| GET | `/api/v1/admin/test-reports` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/export.csv` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/preview` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/publications` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/results/publish` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/results/publish/override` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/rankings` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/report` |  |  |  | ✓ |
+
+## Admin · Tests
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/test-markers` |  |  |  | ✓ |
+| POST | `/api/v1/admin/test-markers` |  |  |  | ✓ |
+| POST | `/api/v1/admin/test-markers/{id}/revoke` |  |  |  | ✓ |
+| GET | `/api/v1/admin/test-markers/candidates` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/extension-targets` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/extensions` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/extensions` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}/extensions/{extensionId}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/extensions/{extensionId}/cancel` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/publish` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/questions` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/unpublish` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/subjects` |  |  |  | ✓ |
+
 ## Admin · Users
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -426,6 +490,12 @@ Totals: 333 endpoints — 26 public, 198 administrator-only.
 | GET | `/api/v1/leaderboard/me` |  | ✓ |  |  |
 | GET | `/api/v1/leaderboard/schools` |  | ✓ | ✓ | ✓ |
 
+## Marking
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/marking/dashboard` |  |  | ✓ |  |
+
 ## Me
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -463,6 +533,14 @@ Totals: 333 endpoints — 26 public, 198 administrator-only.
 | GET | `/api/v1/mentor-requests/{id}/avatar` |  |  |  | ✓ |
 | PATCH | `/api/v1/mentor-requests/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/mentor-requests/{id}/request-info` |  |  |  | ✓ |
+
+## My tests
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me/test-dashboard` |  | ✓ |  |  |
+| GET | `/api/v1/me/test-results` |  | ✓ |  |  |
+| GET | `/api/v1/me/test-results/{testId}` |  | ✓ |  |  |
 
 ## Notifications
 
@@ -563,6 +641,54 @@ Totals: 333 endpoints — 26 public, 198 administrator-only.
 | POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
+
+## Teacher tests
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/test-dashboard` |  |  |  |  |
+| GET | `/api/v1/teacher/test-results` |  |  |  |  |
+| GET | `/api/v1/teacher/test-results/{testId}` |  |  |  |  |
+| GET | `/api/v1/teacher/test-results/{testId}/students/{studentId}` |  |  |  |  |
+
+## Tests · Marking
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/marking/queue` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}` |  |  | ✓ |  |
+| PUT | `/api/v1/marking/submissions/{code}/marking` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}/marking-guide` |  |  | ✓ |  |
+| POST | `/api/v1/marking/submissions/{code}/marking/submit` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}/pages/{page}` |  |  | ✓ |  |
+| GET | `/api/v1/marking/submissions/{code}/paper` |  |  | ✓ |  |
+
+## Tests · Students
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me/tests` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}/paper` |  | ✓ |  |  |
+| POST | `/api/v1/me/tests/{id}/submission` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}/uploads/{uploadKey}` |  | ✓ |  |  |
+| POST | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |
+| DELETE | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}/versions/{versionId}/pages/{page}` |  | ✓ |  |  |
+
+## Tests · Teachers
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/tests` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/paper` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}` |  |  |  |  |
+| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/submission` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}` |  |  |  |  |
+| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  |  |  |
+| DELETE | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}` |  |  |  |  |
 
 ## Users
 
