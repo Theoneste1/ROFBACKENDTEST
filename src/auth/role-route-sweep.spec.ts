@@ -151,8 +151,10 @@ const COACH_ADMIN_ROUTES: string[] = [
   'GET /api/v1/admin/reports/mentor-activity  ReportsController.mentorActivity  [HEAD_COACH]',
   'GET /api/v1/admin/reports/mentors  ReportsController.mentors  [HEAD_COACH]',
   'GET /api/v1/admin/reports/students  ReportsController.students  [HEAD_COACH]',
+  'GET /api/v1/admin/test-dashboard  AdminTestReportsController.dashboard  [HEAD_COACH]',
   'GET /api/v1/admin/test-markers  TestMarkersController.list  [HEAD_COACH]',
   'GET /api/v1/admin/test-markers/candidates  TestMarkersController.candidates  [HEAD_COACH]',
+  'GET /api/v1/admin/test-reports  AdminTestReportsController.reports  [HEAD_COACH]',
   'GET /api/v1/admin/tests  TestsController.list  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id  TestsController.get  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/extension-targets  AdminTestExtensionsController.targets  [HEAD_COACH]',
@@ -162,6 +164,12 @@ const COACH_ADMIN_ROUTES: string[] = [
   'GET /api/v1/admin/tests/:id/marking/history  AdminTestMarkingController.history  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/marking/submissions  AdminTestMarkingController.list  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/marking/submissions/:submissionId  AdminTestMarkingController.get  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/results  AdminTestResultsController.list  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/results/export.csv  AdminTestResultsController.exportCsv  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/results/preview  AdminTestResultsController.preview  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/results/publications  AdminTestResultsController.publications  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/results/rankings  AdminTestResultsController.rankings  [HEAD_COACH]',
+  'GET /api/v1/admin/tests/:id/results/report  AdminTestResultsController.report  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/submissions  AdminTestSubmissionsController.list  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/submissions/:submissionId  AdminTestSubmissionsController.get  [HEAD_COACH]',
   'GET /api/v1/admin/tests/:id/submissions/:submissionId/versions/:versionId/pages/:page  AdminTestSubmissionsController.page  [HEAD_COACH]',
@@ -187,6 +195,7 @@ const COACH_ADMIN_ROUTES: string[] = [
   'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/unlock  AdminTestMarkingController.unlock  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/publish  TestsController.publish  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion  [HEAD_COACH]',
+  'POST /api/v1/admin/tests/:id/results/publish  AdminTestResultsController.publish  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish  [HEAD_COACH]',
   'PUT /api/v1/admin/tests/:id/files/:kind  TestsController.putFile  [HEAD_COACH]',
   'PUT /api/v1/admin/tests/:id/questions/order  TestsController.reorderQuestions  [HEAD_COACH]',
@@ -221,4 +230,8 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // 2026-11-19, Test Management Phase 3: +7 /marking routes (tests.mark: Coaches only — never administrators, G4); +11
 // /admin/tests/:id/marking routes (tests.distribute, tests.review) for Head Coaches (their subjects), Administrators and
 // Super Admins; +1 choose (tests.adjustMarks) for Head Coaches only (G4).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 102, TEACHER: 92, MENTOR: 117, HEAD_COACH: 158, ADMIN: 327, SUPER_ADMIN: 333 };
+// 2026-11-19, Test Management Phase 4: +3 Student routes (own results, dashboard); +4 Teacher routes (school results,
+// dashboard); +1 Coach route (marking dashboard); +9 for Head Coaches (publication, results, rankings, report, export, the
+// reporting overview, the staff dashboard — never the override); +10 for Administrators and Super Admins (the same and the
+// override).
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 105, TEACHER: 96, MENTOR: 118, HEAD_COACH: 167, ADMIN: 337, SUPER_ADMIN: 343 };

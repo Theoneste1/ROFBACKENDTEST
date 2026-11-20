@@ -253,6 +253,15 @@ export const FEATURES = {
    * submissions assigned to them: queue, pages under neutral names, marking guide, drafts, submit for approval).
    */
   testMarking: 'always',
+  /**
+   * Test Management, Phase 4 (WS3; owner-approved plan 2026-11-19): /api/v1/admin/tests/:id/results: preview and
+   * publish the approved results (tests.publishResults; blocked while any is unapproved), the Administrators' override
+   * with a mandatory reason (tests.overridePublication), publications and withdrawals (G6: an unlock withdraws a published
+   * result), results with identity, the report and CSV exports (tests.viewResults), internal rankings overall / by division
+   * / by school (tests.viewRankings); /admin/test-reports, /admin/test-dashboard; /me/test-results (tests.viewOwnResults),
+   * /teacher/test-results (tests.viewSchoolResults), /me/test-dashboard, /teacher/test-dashboard, /marking/dashboard.
+   */
+  testResults: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

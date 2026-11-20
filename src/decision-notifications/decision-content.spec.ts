@@ -144,6 +144,33 @@ describe('decision notification content', () => {
     expect(decisionEmail(DecisionEvents.TestMarkingAssigned, 'Jean', { ...payload, activated: false }, APP).action).toBeUndefined();
   });
 
+  it('test.results.published / test.result.withdrawn (Test Management Phase 4): the test and a link to the results page — never a mark, a rank or another student', () => {
+    const payload = { activated: true, testId: 't-1', testTitle: 'Round 2', subjectName: 'Physics', audience: 'STUDENT' as const };
+    const mail = decisionEmail(DecisionEvents.TestResultsPublished, 'Aline', payload, APP);
+    expect(mail.subject).toBe('Results published: Round 2');
+    expect(mail.body).toContain('Your result for the Physics test "Round 2" has been published.');
+    expect(mail.action).toEqual({ label: 'Open the results', url: 'https://app.example.org/student/results/t-1' });
+    expect(decisionInApp(DecisionEvents.TestResultsPublished, payload)).toEqual({
+      title: 'Results published', body: 'Your result for the Physics test "Round 2" is now available.', link: '/student/results/t-1',
+    });
+    const teacher = { ...payload, audience: 'TEACHER' as const, count: 12 };
+    const tm = decisionEmail(DecisionEvents.TestResultsPublished, 'Jean', teacher, APP);
+    expect(tm.body).toContain('have been published for students of your school');
+    expect(tm.action?.url).toBe('https://app.example.org/teacher/results/t-1');
+    expect(decisionInApp(DecisionEvents.TestResultsPublished, teacher).link).toBe('/teacher/results/t-1');
+    const w = decisionEmail(DecisionEvents.TestResultWithdrawn, 'Aline', payload, APP);
+    expect(w.subject).toBe('Result withdrawn for review: Round 2');
+    expect(w.body).toContain('has been withdrawn for review');
+    expect(decisionInApp(DecisionEvents.TestResultWithdrawn, teacher).body).toContain('a student of your school');
+    // Nothing about any student: no number that could be a mark, no name, no rank — only the test and the recipient.
+    for (const t of [mail, tm, w]) {
+      const text = `${t.subject} ${t.heading} ${t.body}`;
+      expect(text).not.toMatch(/(rank|ranked|position|marks? of|\d+ ?\/ ?\d+)/i);
+      expect(text).not.toContain('12');
+    }
+    expect(decisionEmail(DecisionEvents.TestResultsPublished, 'Aline', { ...payload, activated: false }, APP).action).toBeUndefined();
+  });
+
   it('sanitiseError strips addresses, keys, tokens and long ids, and bounds the length', () => {
     const out = sanitiseError('Resend 422 validation_error: jean@example.org with key re_abc123XYZ Bearer eyJhbGciOi.x.y ' +
       'https://x.test/a?token=SECRET123&b=1 id 3f2b8c1e-4d5a-4b6c-9d7e-112233445566');

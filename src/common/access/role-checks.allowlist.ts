@@ -119,6 +119,15 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     code: "isStaff(viewer) || author.role !== 'STUDENT' || author.id === viewer.id",
     reason: 'publicAuthor(): the fall-through is the anonymised student name — the less-privileged result for any other viewer.',
   },
+  // ── Test Management, Phase 4: the publication override (owner spec 10.1) ─────
+  {
+    file: 'src/test-management/test-results.service.ts', rule: 'U6', code: 'mayOverride = isAdmin(user)',
+    reason: 'preview(): only callers holding tests.publishResults reach it (Administrators, Super Admins, Head Coaches of the subject). The value only ADDS the override option for an Administrator; every other role (including an unsupported one) gets false — the less-privileged result (blocked).',
+  },
+  {
+    file: 'src/test-management/test-results.service.ts', rule: 'U6', code: 'mayOverride: isAdmin(user)',
+    reason: 'doPublish(): decidePublication refuses an override unless this is true (403 OVERRIDE_NOT_ALLOWED) and blocks unapproved results without it; any role other than ADMIN / SUPER_ADMIN gets false — the restrictive branch. The override route also requires tests.overridePublication (Administrators only, NEVER_GRANTABLE).',
+  },
   // ── Study groups (module not registered; unchanged by decision P3-4) ───────
   {
     file: 'src/study-groups/study-groups.service.ts', rule: 'U1', code: "caller.role !== 'ADMIN'",

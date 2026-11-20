@@ -35,6 +35,8 @@ describe('permissions', () => {
       'discussions.participate', 'discussions.report', 'leaderboard.view',
       // appended 2026-11-19 (Test Management Phase 2): granted (own) and reported, so the student portal shows My tests
       'tests.submit',
+      // appended 2026-11-19 (Test Management Phase 4): granted (own) and reported, so the student portal shows My results
+      'tests.viewOwnResults',
     ]);
     expect(ROLE_PERMISSIONS.MENTOR).toEqual([
       'courses.view', 'resources.view', 'resources.manage',
@@ -70,6 +72,8 @@ describe('permissions', () => {
       'tests.extensions', 'tests.viewSubmissions',
       // appended 2026-11-19 (Test Management Phase 3): distribution and review — never marking (G4)
       'tests.distribute', 'tests.review',
+      // appended 2026-11-19 (Test Management Phase 4): publication and its override, results, rankings, reports
+      'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
     ]);
   });
 
@@ -88,7 +92,8 @@ describe('permissions', () => {
     const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive', 'users.bulkManage', 'users.export'] as const;
     const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // form availability, after AS
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
-    const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review'] as const;   // Test Management (2026-11-19, Phases 1–3), after countries
+    const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review',
+      'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings'] as const;   // Test Management (2026-11-19, Phases 1–4), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -209,6 +214,8 @@ describe('permissions', () => {
       'tests.extensions': G, 'tests.viewSubmissions': G,
       // Test Management, Phase 3: distribution and review (never tests.mark / tests.adjustMarks, G4)
       'tests.distribute': G, 'tests.review': G,
+      // Test Management, Phase 4: publication and its override (Administrators only), results, rankings, reports
+      'tests.publishResults': G, 'tests.overridePublication': G, 'tests.viewResults': G, 'tests.viewRankings': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {
@@ -217,12 +224,16 @@ describe('permissions', () => {
         'discussions.participate': D, 'discussions.report': D, 'leaderboard.view': G,
         // Test Management, Phase 2 (2026-11-19): their own answers
         'tests.submit': O,
+        // Phase 4: their own published results (no ranks)
+        'tests.viewOwnResults': O,
       },
       // 2026-11-14: no course access (the course × division grants were dead — no TeacherAssignment exists).
       TEACHER: {
         'students.viewScoped': 'school', 'leaderboard.view': G,
         // Test Management, Phase 2 (G2): submit for the verified students of their own schools
         'tests.submitForStudents': 'school',
+        // Phase 4: published results of the verified students of their own schools (no ranks)
+        'tests.viewSchoolResults': 'school',
       },
       MENTOR: {
         'courses.view': CD, 'resources.view': CD, 'resources.manage': CD,
@@ -246,6 +257,8 @@ describe('permissions', () => {
         'tests.extensions': P, 'tests.viewSubmissions': P,
         // Phase 3: distribution, review, and choosing / adjusting the mark (G4: Head Coaches only)
         'tests.distribute': P, 'tests.review': P, 'tests.adjustMarks': P,
+        // Phase 4: publication (NEVER the override), results, rankings, reports of the subjects they head
+        'tests.publishResults': P, 'tests.viewResults': P, 'tests.viewRankings': P,
       },
       ADMIN: ADMIN_TABLE,
       SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },
@@ -337,6 +350,26 @@ describe('permissions', () => {
       // The course-assignment grading permissions are unchanged.
       expect(ROLE_GRANTS.MENTOR['reviews.grade']).toBe('courseDivision');
       expect(ROLE_GRANTS.ADMIN['submissions.distribute']).toBe('global');
+    });
+
+    it('Test Management (WS3, Phase 4): publication for Administrators and Head Coaches; the override for Administrators only (never a Head Coach, never by individual grant); own results for Students, school results for Teachers; rankings never for Students or Teachers', () => {
+      for (const p of ['tests.publishResults', 'tests.viewResults', 'tests.viewRankings'] as const) {
+        expect([p, APP_ROLES.filter((r) => p in ROLE_GRANTS[r])]).toEqual([p, ['HEAD_COACH', 'ADMIN', 'SUPER_ADMIN']]);
+        expect(ROLE_GRANTS.HEAD_COACH[p]).toBe('programme');
+      }
+      expect(APP_ROLES.filter((r) => 'tests.overridePublication' in ROLE_GRANTS[r])).toEqual(['ADMIN', 'SUPER_ADMIN']);
+      expect(NEVER_GRANTABLE).toContain('tests.overridePublication');
+      expect(APP_ROLES.filter((r) => 'tests.viewOwnResults' in ROLE_GRANTS[r])).toEqual(['STUDENT']);
+      expect(ROLE_GRANTS.STUDENT['tests.viewOwnResults']).toBe('own');
+      expect(APP_ROLES.filter((r) => 'tests.viewSchoolResults' in ROLE_GRANTS[r])).toEqual(['TEACHER']);
+      expect(ROLE_GRANTS.TEACHER['tests.viewSchoolResults']).toBe('school');
+      // Coaches: nothing beyond marking.
+      for (const p of ['tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings', 'tests.viewOwnResults', 'tests.viewSchoolResults'] as const) {
+        expect(ROLE_GRANTS.MENTOR).not.toHaveProperty(p);
+      }
+      // The course-assignment result permissions are unchanged and distinct.
+      expect(ROLE_GRANTS.ADMIN['results.publish']).toBe('global');
+      expect(ROLE_GRANTS.HEAD_COACH).not.toHaveProperty('results.publish');
     });
 
     it('H7: Head Coach does not moderate discussions', () => {

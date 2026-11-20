@@ -1,5 +1,5 @@
 -- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher;
--- Test Management Phases 1 to 3):
+-- Test Management Phases 1 to 4):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
@@ -10,12 +10,13 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 6, 0, 0: the six design-area migrations applied; nothing failed or rolled back; nothing after 20261220000300'
+\echo '== 1. MUST be 7, 0, 0: the seven design-area migrations applied; nothing failed or rolled back; nothing after 20261220000400'
 SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary',
                                                  '20261220000000_test_file_purposes', '20261220000100_tests_core',
-                                                 '20261220000200_tests_submissions', '20261220000300_tests_marking')
+                                                 '20261220000200_tests_submissions', '20261220000300_tests_marking',
+                                                 '20261220000400_tests_publishing')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261220000300_tests_marking')                  AS later,
+       count(*) FILTER (WHERE migration_name > '20261220000400_tests_publishing')               AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -144,5 +145,25 @@ SELECT (SELECT count(*) FROM "TestMarkerAssignment") AS assignments, (SELECT cou
        (SELECT count(*) FROM "TestMarkingScore") AS scores, (SELECT count(*) FROM "TestMarkChange") AS mark_changes,
        (SELECT count(*) FROM "TestReview") AS reviews,
        (SELECT count(*) FROM "TestSubmission" WHERE "finalMarkingId" IS NOT NULL) AS final_markings;
+
+\echo '== 22. MUST be 2, 3, 2, 2, 6: the Test Management Phase 4 tables, columns, guard functions, their triggers and CHECKs'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestPublication', 'TestResultWithdrawal'))                                           AS phase4_tables,
+       (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public'
+         AND ((table_name = 'TestSubmission' AND column_name IN ('publicationId', 'publishedAt'))
+           OR (table_name = 'Test' AND column_name = 'studentRankingsVisible')))                                 AS phase4_columns,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                  AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_publication_append_only', 'test_result_withdrawal_append_only'))                 AS guard_triggers,
+       (SELECT count(*) FROM pg_constraint WHERE conname IN ('TestPublication_number_positive', 'TestPublication_count_nonnegative',
+         'TestPublication_override_reason', 'TestPublication_counts_object', 'TestResultWithdrawal_reason_present',
+         'TestSubmission_published_state'))                                                                      AS checks;
+
+\echo '== 23. MUST be 0, 0, 0, 0, 1: the Phase 4 tables start empty; nothing is published; rankings are never shown to students (design-only CHECK present)'
+SELECT (SELECT count(*) FROM "TestPublication") AS publications, (SELECT count(*) FROM "TestResultWithdrawal") AS withdrawals,
+       (SELECT count(*) FROM "TestSubmission" WHERE "status" = 'PUBLISHED' OR "publicationId" IS NOT NULL) AS published_results,
+       (SELECT count(*) FROM "Test" WHERE "studentRankingsVisible") AS student_rankings_on,
+       (SELECT count(*) FROM pg_constraint WHERE conname = 'Test_student_rankings_design_only') AS design_only_check;
 
 ROLLBACK;

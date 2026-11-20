@@ -4,9 +4,11 @@
  * mark-change diff and the blind field list.
  *
  * Status flow (owner spec): SUBMITTED → ASSIGNED → MARKING_IN_PROGRESS → MARKED (awaiting approval) → APPROVED, plus
- * RETURNED (for correction) and AWAITING_SECOND_MARKING. PUBLISHED is reserved for Phase 4 (publication): no Phase 3
- * action reaches it or leaves it. Every change goes through `transition` — one row of TRANSITIONS — and is recorded in
- * TestSubmissionStatusChange; there is no other way to change a status, so no step can be skipped through the API.
+ * RETURNED (for correction) and AWAITING_SECOND_MARKING. Phase 4: PUBLISHED is reached only by PUBLISH from APPROVED
+ * (publication; results-rules.ts) and left only by UNLOCK (G6: the result is withdrawn from the student's and teachers'
+ * views until approved and published again). Every change goes through `transition` — one row of TRANSITIONS — and is
+ * recorded in TestSubmissionStatusChange; there is no other way to change a status, so no step can be skipped through
+ * the API (publication applies the same row to many submissions in one statement: results-store.ts).
  */
 import { HttpStatus } from '@nestjs/common';
 
@@ -30,7 +32,8 @@ export type MarkingAction =
   | 'RETURN'                  // reviewer: return a marking for correction (comment)
   | 'REQUEST_SECOND_MARKING'  // reviewer: an independent, blind second marking by another authorised coach
   | 'CHOOSE_MARK'             // subject Head Coach: first, second or adjusted mark (reason); the status stays MARKED
-  | 'UNLOCK';                 // reviewer: unlock an approved result (reason)
+  | 'UNLOCK'                  // reviewer: unlock an approved (or published: G6 withdrawal) result (reason)
+  | 'PUBLISH';                // Phase 4: publication of an approved result (subject Head Coach or Administrator)
 
 /** The ONLY allowed status changes, by action. */
 export const TRANSITIONS: Readonly<Record<MarkingAction, ReadonlyArray<readonly [SubmissionStatus, SubmissionStatus]>>> = {
@@ -43,7 +46,8 @@ export const TRANSITIONS: Readonly<Record<MarkingAction, ReadonlyArray<readonly 
   RETURN:                 [['MARKED', 'RETURNED']],
   REQUEST_SECOND_MARKING: [['MARKED', 'AWAITING_SECOND_MARKING']],
   CHOOSE_MARK:            [['MARKED', 'MARKED']],
-  UNLOCK:                 [['APPROVED', 'MARKED']],
+  UNLOCK:                 [['APPROVED', 'MARKED'], ['PUBLISHED', 'MARKED']],
+  PUBLISH:                [['APPROVED', 'PUBLISHED']],
 };
 
 /** Every allowed (from → to) pair, whatever the action ("SUBMITTED>ASSIGNED"). */

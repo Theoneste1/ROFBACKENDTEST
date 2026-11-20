@@ -42,6 +42,7 @@ import { distributeEvenly, markingEligible, normaliseMarks, transition, type Sub
 import {
   assertCoachesMayMark, assignFirst, changeStatus, lockSubmission, unassignedEligibility, writeMarks, type Actor, type LockedSubmission,
 } from './marking-store.js';
+import { activeStudents, resultNotices, schoolTeachersOf } from './results-store.js';
 import { answerPageName } from './submission-rules.js';
 import { TestDeadlineService } from './test-deadline.service.js';
 import { TestsService, lockTest } from './tests.service.js';
@@ -542,15 +543,51 @@ export class TestMarkingService {
     });
   }
 
-  /** Unlock an approved result (mandatory reason): back to MARKED, the marking back to SUBMITTED (marks unchanged). */
+  /**
+   * Unlock an approved result (mandatory reason): back to MARKED, the marking back to SUBMITTED (marks unchanged).
+   * G6 (Phase 4): unlocking a PUBLISHED result also WITHDRAWS it — it leaves the student's and their teachers' views
+   * (publicationId cleared, a TestResultWithdrawal row with the publication, the decision and the reason, audited
+   * TEST_RESULT_WITHDRAWN) until it is approved and published again; the student and their school's teachers are told
+   * once (same transaction, dedupe key per withdrawal; a replayed request adds nothing).
+   */
   async unlock(testId: string, submissionId: string, dto: UnlockMarkingDto, user: AuthUser) {
-    return this.decide(testId, submissionId, dto, user, async (tx, sub, actor, now) => {
+    const notices: Array<string | null> = [];
+    const out = await this.decide(testId, submissionId, dto, user, async (tx, sub, actor, now) => {
       const from = sub.status;
       const finalId = sub.finalMarkingId;
-      await changeStatus(tx, sub, 'UNLOCK', actor, now, dto.reason);
+      const publicationId = from === 'PUBLISHED'
+        ? (await tx.testSubmission.findUniqueOrThrow({ where: { id: sub.id }, select: { publicationId: true } })).publicationId
+        : null;
+      await changeStatus(tx, sub, 'UNLOCK', actor, now, dto.reason, from === 'PUBLISHED' ? { publicationId: null, publishedAt: null } : {});
       if (finalId) await tx.testMarking.update({ where: { id: finalId }, data: { status: 'SUBMITTED', approvedAt: null } });
-      return { review: 'UNLOCKED' as const, markingId: finalId, from, comment: dto.reason, audit: 'TEST_MARKING_UNLOCKED', meta: { markingId: finalId } };
+      return {
+        review: 'UNLOCKED' as const, markingId: finalId, from, comment: dto.reason, audit: 'TEST_MARKING_UNLOCKED',
+        meta: { markingId: finalId, withdrawn: publicationId !== null, publicationId },
+        after: publicationId === null ? undefined : async (reviewId: string) => {
+          notices.push(...await this.withdrawPublished(tx, testId, sub, publicationId, reviewId, dto.reason, user, now));
+        },
+      };
     });
+    this.notices.dispatchAfterCommit(notices);
+    return out;
+  }
+
+  /** G6: the withdrawal record, its audit entry, and the notices to the student and their school's teachers (once). */
+  private async withdrawPublished(
+    tx: Tx, testId: string, sub: LockedSubmission, publicationId: string, reviewId: string, reason: string, user: AuthUser, now: Date,
+  ): Promise<string[]> {
+    const w = await tx.testResultWithdrawal.create({
+      data: { submissionId: sub.id, publicationId, reviewId, withdrawnById: user.id, actorRole: user.role, reason, createdAt: now },
+      select: { id: true },
+    });
+    const test = await tx.test.findUniqueOrThrow({ where: { id: testId }, select: { id: true, title: true, disciplineId: true, discipline: { select: { name: true } } } });
+    await this.audit.log({
+      actorId: user.id, actorRole: user.role, action: 'TEST_RESULT_WITHDRAWN', entity: 'TestSubmission', entityId: sub.id,
+      metadata: { testId, subjectId: test.disciplineId, withdrawalId: w.id, publicationId, reviewId, reason },
+    }, tx);
+    const [students, teachers] = await Promise.all([activeStudents(tx, [sub.studentId]), schoolTeachersOf(tx, [sub.studentId])]);
+    return this.notices.enqueueMany(tx, resultNotices(DecisionEvents.TestResultWithdrawn, w.id,
+      { id: test.id, title: test.title, subjectName: test.discipline.name }, students, teachers));
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -666,7 +703,8 @@ function allowedActions(
     return: marked && submitted.some((m) => m.kind !== 'ADJUSTMENT'),
     requestSecondMarking: marked && !hasSecond,
     choose: marked,
-    unlock: status === 'APPROVED',
+    // Phase 4 (G6): a published result can be unlocked too — that withdraws it until approved and published again.
+    unlock: status === 'APPROVED' || status === 'PUBLISHED',
     reassignFirst: ['ASSIGNED', 'MARKING_IN_PROGRESS', 'RETURNED'].includes(status),
     reassignSecond: ['AWAITING_SECOND_MARKING', 'MARKING_IN_PROGRESS', 'RETURNED'].includes(status) && hasSecond,
   };

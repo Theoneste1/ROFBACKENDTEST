@@ -105,6 +105,12 @@ permission guard.
 | `tests.review` | — | — | — | programme | all | all |
 | `tests.adjustMarks` | — | — | — | programme | — | — |
 | `tests.mark` | — | — | authorised subjects (assigned) | — | — | — |
+| `tests.publishResults` | — | — | — | programme | all | all |
+| `tests.overridePublication` | — | — | — | — | all | all |
+| `tests.viewResults` | — | — | — | programme | all | all |
+| `tests.viewRankings` | — | — | — | programme | all | all |
+| `tests.viewOwnResults` | own | — | — | — | — | — |
+| `tests.viewSchoolResults` | — | school | — | — | — | — |
 
 ## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
 
@@ -145,6 +151,25 @@ change is audited in the TESTS category, in the same transaction. Appended to th
   shows the marking queue. In `ADMIN_PROHIBITED` (Administrators never mark). An Olympiad interest never grants it.
 - None is in `NEVER_GRANTABLE`; the course-assignment grading permissions (`reviews.grade`, `submissions.distribute`,
   `results.approve`) are unchanged.
+
+### Phase 4: publication, results, rankings, reports, dashboards
+
+- `tests.publishResults` (preview: counts, the unapproved results, extensions still running; publish the APPROVED
+  results — blocked with `PUBLICATION_BLOCKED` while any result is unapproved; publications and withdrawals),
+  `tests.viewResults` (results with identity, the results report, CSV exports, the reporting overview) and
+  `tests.viewRankings` (internal rankings overall, by division, by school): Administrators and Super Admins in every
+  subject; Head Coaches in the subjects they head. Appended to the frozen ADMIN list additively.
+- `tests.overridePublication` (publish although results are unapproved, with a mandatory reason; audited
+  `TEST_PUBLICATION_OVERRIDDEN`; only the approved results are published): Administrators and Super Admins only — never a
+  Head Coach (owner spec 10.1). In `NEVER_GRANTABLE`, so no individual override can give it to anyone.
+- `tests.viewOwnResults` (Students, **own**): their own PUBLISHED results — marks per question, total, the final
+  marking's comments; never who marked, never a rank. Appended to the frozen STUDENT list additively.
+- `tests.viewSchoolResults` (Teachers, **school**): PUBLISHED results of the verified, active students of their own
+  schools; never a rank, never another school's student.
+- Coaches receive none of them (nothing beyond what marking needs). Dashboards reuse `tests.view` (Administrators, Head
+  Coaches), `tests.mark` (Coaches: their own assigned work only), `tests.submit` (Students) and
+  `tests.submitForStudents` (Teachers). G6: unlocking a published result (`tests.review`) withdraws it from the student's
+  and the teachers' views until it is approved and published again.
 
 ## Countries (owner decision 2026-11-19)
 

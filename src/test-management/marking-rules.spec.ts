@@ -20,13 +20,15 @@ describe('Test Management Phase 3 — marking rules', () => {
       'MARKING_IN_PROGRESS>MARKED', 'AWAITING_SECOND_MARKING>MARKED',
       'MARKED>APPROVED', 'MARKED>RETURNED', 'MARKED>AWAITING_SECOND_MARKING', 'MARKED>MARKED',
       'APPROVED>MARKED',
+      // Phase 4: publication, and G6 — an unlock withdraws a published result.
+      'APPROVED>PUBLISHED', 'PUBLISHED>MARKED',
     ];
 
     it('every (from, to) pair of the 8 statuses: exactly the approved ones are allowed', () => {
       const allowed: string[] = [];
       for (const from of SUBMISSION_STATUSES) for (const to of SUBMISSION_STATUSES) if (ALLOWED_PAIRS.has(`${from}>${to}`)) allowed.push(`${from}>${to}`);
       expect(allowed.sort()).toEqual([...EXPECTED_PAIRS].sort());
-      expect(SUBMISSION_STATUSES.length ** 2 - allowed.length).toBe(48);   // 64 pairs, 16 allowed
+      expect(SUBMISSION_STATUSES.length ** 2 - allowed.length).toBe(46);   // 64 pairs, 18 allowed
     });
 
     it('every action from every status: the table answers, anything else is 409 INVALID_STATUS_TRANSITION', () => {
@@ -40,7 +42,8 @@ describe('Test Management Phase 3 — marking rules', () => {
         RETURN: { MARKED: 'RETURNED' },
         REQUEST_SECOND_MARKING: { MARKED: 'AWAITING_SECOND_MARKING' },
         CHOOSE_MARK: { MARKED: 'MARKED' },
-        UNLOCK: { APPROVED: 'MARKED' },
+        UNLOCK: { APPROVED: 'MARKED', PUBLISHED: 'MARKED' },
+        PUBLISH: { APPROVED: 'PUBLISHED' },
       };
       expect(Object.keys(TRANSITIONS).sort()).toEqual(Object.keys(expected).sort());
       for (const action of Object.keys(expected) as MarkingAction[]) {
@@ -64,11 +67,20 @@ describe('Test Management Phase 3 — marking rules', () => {
       expect(codeOf(() => transition('APPROVE', 'APPROVED'))).toBe('INVALID_STATUS_TRANSITION');
     });
 
-    it('PUBLISHED is reserved for Phase 4: no Phase 3 action reaches or leaves it', () => {
-      for (const rows of Object.values(TRANSITIONS)) for (const [from, to] of rows) {
-        expect(from).not.toBe('PUBLISHED');
-        expect(to).not.toBe('PUBLISHED');
+    it('PUBLISHED (Phase 4): reached only by PUBLISH from APPROVED; left only by UNLOCK back to MARKED (G6 withdrawal)', () => {
+      const into: string[] = [];
+      const out: string[] = [];
+      for (const [action, rows] of Object.entries(TRANSITIONS)) for (const [from, to] of rows) {
+        if (to === 'PUBLISHED') into.push(`${action}:${from}`);
+        if (from === 'PUBLISHED') out.push(`${action}:${to}`);
       }
+      expect(into).toEqual(['PUBLISH:APPROVED']);
+      expect(out).toEqual(['UNLOCK:MARKED']);
+      // Nothing unapproved can be published through the table (an override never changes a status: unapproved stay hidden).
+      for (const s of SUBMISSION_STATUSES.filter((x) => x !== 'APPROVED')) expect([s, nextStatus('PUBLISH', s)]).toEqual([s, null]);
+      expect(codeOf(() => transition('PUBLISH', 'PUBLISHED'))).toBe('INVALID_STATUS_TRANSITION');
+      // A published result cannot be returned, re-approved, chosen or second-marked without first being unlocked.
+      for (const a of ['APPROVE', 'RETURN', 'CHOOSE_MARK', 'REQUEST_SECOND_MARKING'] as const) expect(nextStatus(a, 'PUBLISHED')).toBeNull();
     });
   });
 

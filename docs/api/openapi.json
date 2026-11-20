@@ -48733,7 +48733,8 @@
                 "MARKED",
                 "APPROVED",
                 "RETURNED",
-                "AWAITING_SECOND_MARKING"
+                "AWAITING_SECOND_MARKING",
+                "PUBLISHED"
               ]
             }
           },
@@ -49174,7 +49175,7 @@
             }
           }
         },
-        "summary": "Unlock an approved result: { reason (mandatory) }. 409 INVALID_STATUS_TRANSITION.",
+        "summary": "Unlock an approved result: { reason (mandatory) }. A PUBLISHED result is withdrawn from the student and their teachers until approved and published again (G6). 409 INVALID_STATUS_TRANSITION.",
         "tags": [
           "Admin · Test marking"
         ],
@@ -49583,6 +49584,856 @@
         "summary": "Submit my marking for approval (every question marked, or the total). 400 MARKS_INCOMPLETE; 409 MARKING_SUBMITTED.",
         "tags": [
           "Tests · Marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results": {
+      "get": {
+        "operationId": "AdminTestResultsController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "published",
+            "required": false,
+            "in": "query",
+            "description": "true: published results only; false: approved, not yet published. Default: both (every final, approved result).",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "division",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "SENIOR",
+                "UNKNOWN"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Student name, username or submission code.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Final, approved results (published or not) with identity. Filters: published, schoolId, division, q. Paginated.",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewResults",
+        "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results/preview": {
+      "get": {
+        "operationId": "AdminTestResultsController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Before publishing: counts (by status; approved waiting; published; unapproved), the unapproved results (paginated),\nextensions still running (warning), warnings, and what the caller may do (publish / blocked / override).",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.publishResults",
+        "description": "**Access:** permission `tests.publishResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results/publish": {
+      "post": {
+        "operationId": "AdminTestResultsController_publish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishTestResultsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Publish the approved results: { clientKey? }. Blocked while any result is not approved (409 PUBLICATION_BLOCKED).\nNothing new to publish: the latest publication again (replayed: true; nothing sent twice). 409 NOTHING_TO_PUBLISH.",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.publishResults",
+        "description": "**Access:** permission `tests.publishResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results/publish/override": {
+      "post": {
+        "operationId": "AdminTestResultsController_publishWithOverride",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverridePublicationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Administrators: publish the approved results although some are not approved — { reason (10–1,000), clientKey? }.\nUnapproved results stay hidden. Audited (TEST_PUBLICATION_OVERRIDDEN). Head Coaches: 403 (never).",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.overridePublication",
+        "description": "**Access:** permission `tests.overridePublication` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results/publications": {
+      "get": {
+        "operationId": "AdminTestResultsController_publications",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every publication (who, when, override and reason, counts) and the latest withdrawals (G6).",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.publishResults",
+        "description": "**Access:** permission `tests.publishResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results/rankings": {
+      "get": {
+        "operationId": "AdminTestResultsController_rankings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "by",
+            "required": false,
+            "in": "query",
+            "description": "overall (default), by division or by school.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "overall",
+                "division",
+                "school"
+              ]
+            }
+          },
+          {
+            "name": "division",
+            "required": false,
+            "in": "query",
+            "description": "Only this division (by=division).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "SENIOR",
+                "UNKNOWN"
+              ]
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "description": "Only this school (by=school).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "published",
+            "required": false,
+            "in": "query",
+            "description": "true: rank the published results only. Default: every approved final result (published or not).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Internal ranking: by=overall|division|school (competition rank, deterministic ties); division, schoolId, published.",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewRankings",
+        "description": "**Access:** permission `tests.viewRankings` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results/report": {
+      "get": {
+        "operationId": "AdminTestResultsController_report",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "published",
+            "required": false,
+            "in": "query",
+            "description": "true: the published results only. Default: every approved final result.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Summary: counts, average / median / min / max, distribution, per question, per school, per division.",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewResults",
+        "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/results/export.csv": {
+      "get": {
+        "operationId": "AdminTestResultsController_exportCsv",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "published",
+            "required": false,
+            "in": "query",
+            "description": "true: the published results only. Default: every approved final result.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "results (default: one row per result, with marks per question), schools, divisions or questions.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "results",
+                "schools",
+                "divisions",
+                "questions"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file (UTF-8 with BOM), sent as an attachment.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "CSV download: type=results (default) | schools | divisions | questions; published. Audited.",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewResults",
+        "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/test-reports": {
+      "get": {
+        "operationId": "AdminTestReportsController_reports",
+        "parameters": [
+          {
+            "name": "subjectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Title contains.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Published tests with their counts, averages and publications. Filters: subjectId, q. Paginated.",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.viewResults",
+        "description": "**Access:** permission `tests.viewResults` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/test-dashboard": {
+      "get": {
+        "operationId": "AdminTestReportsController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Dashboard (spec 12.1 / 12.3): per subject, the latest tests' progress, progress per coach, the latest ranking.",
+        "tags": [
+          "Admin · Test results"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.view",
+        "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/me/test-results": {
+      "get": {
+        "operationId": "MyTestResultsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "My tests"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.viewOwnResults",
+        "description": "**Access:** permission `tests.viewOwnResults` (STUDENT)"
+      }
+    },
+    "/api/v1/me/test-results/{testId}": {
+      "get": {
+        "operationId": "MyTestResultsController_get",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "404 RESULT_NOT_FOUND unless published (an unapproved or withdrawn result is never revealed).",
+        "tags": [
+          "My tests"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.viewOwnResults",
+        "description": "**Access:** permission `tests.viewOwnResults` (STUDENT)"
+      }
+    },
+    "/api/v1/me/test-dashboard": {
+      "get": {
+        "operationId": "MyTestResultsController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Student dashboard (spec 12.5): open / upcoming tests with my deadline, my submissions, my published results.",
+        "tags": [
+          "My tests"
+        ],
+        "x-roles": [
+          "STUDENT"
+        ],
+        "x-permission": "tests.submit",
+        "description": "**Access:** permission `tests.submit` (STUDENT)"
+      }
+    },
+    "/api/v1/teacher/test-results": {
+      "get": {
+        "operationId": "TeacherTestResultsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Teacher tests"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.viewSchoolResults",
+        "description": "**Access:** permission `tests.viewSchoolResults` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/test-results/{testId}": {
+      "get": {
+        "operationId": "TeacherTestResultsController_results",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "description": "One of the teacher's schools.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Student name or username.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Teacher tests"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.viewSchoolResults",
+        "description": "**Access:** permission `tests.viewSchoolResults` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/test-results/{testId}/students/{studentId}": {
+      "get": {
+        "operationId": "TeacherTestResultsController_result",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "404 RESULT_NOT_FOUND for another school's student, or a result not published.",
+        "tags": [
+          "Teacher tests"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.viewSchoolResults",
+        "description": "**Access:** permission `tests.viewSchoolResults` (TEACHER)"
+      }
+    },
+    "/api/v1/teacher/test-dashboard": {
+      "get": {
+        "operationId": "TeacherTestResultsController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Teacher dashboard (spec 12.4): open tests with my students submitted / missing, extensions, published results.",
+        "tags": [
+          "Teacher tests"
+        ],
+        "x-roles": [
+          "TEACHER"
+        ],
+        "x-permission": "tests.submitForStudents",
+        "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+      }
+    },
+    "/api/v1/marking/dashboard": {
+      "get": {
+        "operationId": "MarkingDashboardController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Marking"
         ],
         "x-roles": [
           "MENTOR"
@@ -52956,7 +53807,8 @@
               "MARKED",
               "APPROVED",
               "RETURNED",
-              "AWAITING_SECOND_MARKING"
+              "AWAITING_SECOND_MARKING",
+              "PUBLISHED"
             ]
           }
         }
@@ -52993,7 +53845,8 @@
               "MARKED",
               "APPROVED",
               "RETURNED",
-              "AWAITING_SECOND_MARKING"
+              "AWAITING_SECOND_MARKING",
+              "PUBLISHED"
             ]
           }
         },
@@ -53029,7 +53882,8 @@
               "MARKED",
               "APPROVED",
               "RETURNED",
-              "AWAITING_SECOND_MARKING"
+              "AWAITING_SECOND_MARKING",
+              "PUBLISHED"
             ]
           }
         },
@@ -53124,7 +53978,8 @@
               "MARKED",
               "APPROVED",
               "RETURNED",
-              "AWAITING_SECOND_MARKING"
+              "AWAITING_SECOND_MARKING",
+              "PUBLISHED"
             ]
           }
         },
@@ -53157,7 +54012,8 @@
               "MARKED",
               "APPROVED",
               "RETURNED",
-              "AWAITING_SECOND_MARKING"
+              "AWAITING_SECOND_MARKING",
+              "PUBLISHED"
             ]
           }
         },
@@ -53220,6 +54076,34 @@
             "minimum": 1
           }
         }
+      },
+      "PublishTestResultsDto": {
+        "type": "object",
+        "properties": {
+          "clientKey": {
+            "type": "string",
+            "description": "Optional idempotency key: the same key again returns the same publication (nothing published or sent twice).",
+            "format": "uuid"
+          }
+        }
+      },
+      "OverridePublicationDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Mandatory (10–1,000 characters): why results are published while some are not approved. Audited.",
+            "minLength": 10,
+            "maxLength": 1000
+          },
+          "clientKey": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "Error": {
         "type": "object",

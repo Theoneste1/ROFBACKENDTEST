@@ -278,7 +278,13 @@ const TEST_SUBMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-su
  * schemas.
  */
 const TEST_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-marking.json';
-const CURRENT_SNAPSHOT = TEST_MARKING_SNAPSHOT;
+/**
+ * Test Management, Phase 4 (WS3, owner-approved plan 2026-11-19): publication with the Administrators' override,
+ * results for students and teachers, internal rankings, reports, dashboards — additive only: 17 routes, 2 request
+ * schemas; PUBLISHED accepted as a review filter and an expected status.
+ */
+const TEST_RESULTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-test-results.json';
+const CURRENT_SNAPSHOT = TEST_RESULTS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1489,6 +1495,42 @@ describe('approved API contract history', () => {
       'schema ScoreInputDto: added',
       'schema SubmitMarkingDto: added',
       'schema UnlockMarkingDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 3 → Phase 4 (2026-11-20): additive only — 17 routes, 2 request schemas, PUBLISHED accepted; no existing field changed', () => {
+    for (const f of [TEST_MARKING_SNAPSHOT, TEST_RESULTS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_MARKING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_RESULTS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/test-dashboard: operation added',
+      'GET /api/v1/admin/test-reports: operation added',
+      'GET /api/v1/admin/tests/{id}/marking/submissions › query parameter status: enum values added: PUBLISHED',
+      'GET /api/v1/admin/tests/{id}/results/export.csv: operation added',
+      'GET /api/v1/admin/tests/{id}/results/preview: operation added',
+      'GET /api/v1/admin/tests/{id}/results/publications: operation added',
+      'GET /api/v1/admin/tests/{id}/results/rankings: operation added',
+      'GET /api/v1/admin/tests/{id}/results/report: operation added',
+      'GET /api/v1/admin/tests/{id}/results: operation added',
+      'GET /api/v1/marking/dashboard: operation added',
+      'GET /api/v1/me/test-dashboard: operation added',
+      'GET /api/v1/me/test-results/{testId}: operation added',
+      'GET /api/v1/me/test-results: operation added',
+      'GET /api/v1/teacher/test-dashboard: operation added',
+      'GET /api/v1/teacher/test-results/{testId}/students/{studentId}: operation added',
+      'GET /api/v1/teacher/test-results/{testId}: operation added',
+      'GET /api/v1/teacher/test-results: operation added',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock › request application/json.expectedStatus: enum values added: PUBLISHED',
+      'POST /api/v1/admin/tests/{id}/results/publish/override: operation added',
+      'POST /api/v1/admin/tests/{id}/results/publish: operation added',
+      'schema OverridePublicationDto: added',
+      'schema PublishTestResultsDto: added',
     ]);
   });
 

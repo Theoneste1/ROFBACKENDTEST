@@ -266,4 +266,29 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/marking/submissions/:code/marking-guide  MarkingController.guide':                               COACHES_ONLY,
   'PUT /api/v1/marking/submissions/:code/marking  MarkingController.save':                                      COACHES_ONLY,
   'POST /api/v1/marking/submissions/:code/marking/submit  MarkingController.submit':                            COACHES_ONLY,
+  // Test Management, Phase 4 (WS3, 2026-11-19): publication (tests.publishResults), results with identity and reports
+  // (tests.viewResults), rankings (tests.viewRankings) — Administrators (every subject) and Head Coaches (not baseline
+  // callers; the subjects they head, checked by the service). The override (tests.overridePublication): Administrators only
+  // (a Head Coach never: not in their grants, NEVER_GRANTABLE).
+  'GET /api/v1/admin/tests/:id/results  AdminTestResultsController.list':                                       ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/preview  AdminTestResultsController.preview':                            ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/results/publish  AdminTestResultsController.publish':                           ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/results/publish/override  AdminTestResultsController.publishWithOverride':      ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/publications  AdminTestResultsController.publications':                  ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/rankings  AdminTestResultsController.rankings':                          ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/report  AdminTestResultsController.report':                              ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/export.csv  AdminTestResultsController.exportCsv':                       ADMINISTRATORS,
+  'GET /api/v1/admin/test-reports  AdminTestReportsController.reports':                                         ADMINISTRATORS,
+  'GET /api/v1/admin/test-dashboard  AdminTestReportsController.dashboard':                                     ADMINISTRATORS,
+  // Students: their own published results (tests.viewOwnResults) and their dashboard (tests.submit).
+  'GET /api/v1/me/test-results  MyTestResultsController.list':                                                  STUDENTS_ONLY,
+  'GET /api/v1/me/test-results/:testId  MyTestResultsController.get':                                           STUDENTS_ONLY,
+  'GET /api/v1/me/test-dashboard  MyTestResultsController.dashboard':                                           STUDENTS_ONLY,
+  // Teachers (not baseline callers): their schools' published results (tests.viewSchoolResults) and their dashboard.
+  'GET /api/v1/teacher/test-results  TeacherTestResultsController.list':                                        NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/test-results/:testId  TeacherTestResultsController.results':                             NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/test-results/:testId/students/:studentId  TeacherTestResultsController.result':          NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/test-dashboard  TeacherTestResultsController.dashboard':                                 NOBODY_BY_DEFAULT,
+  // Coaches: their own marking dashboard (tests.mark; Administrators never mark).
+  'GET /api/v1/marking/dashboard  MarkingDashboardController.dashboard':                                        COACHES_ONLY,
 };
