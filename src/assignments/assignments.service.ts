@@ -75,6 +75,13 @@ const EVENT_SELECT = {
   actor: { select: { id: true, username: true, firstName: true, lastName: true, role: true } },
 } as const;
 
+/** A change made by a bulk operation records the operation's id in its audit entry. */
+export interface AssignmentChangeCtx { operationId?: string }
+const operationOf = (ctx: AssignmentChangeCtx) => (ctx.operationId ? { operationId: ctx.operationId } : {});
+
+/** Every status an assignment may be archived from (all but ARCHIVED). */
+export const ARCHIVABLE_STATUSES: AssignmentStatus[] = ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'CLOSED', 'REJECTED'];
+
 type HistoryEntry = {
   type:     AssignmentEventType;
   actorId:  string | null;
@@ -262,7 +269,19 @@ export class AssignmentsService {
   // ═══════════════════════════════════════════════════════════════════════════
 
   async publish(assignmentId: string, user: AuthUser) {
-    const assignment = await this.findOrThrow(assignmentId);
+    await this.findOrThrow(assignmentId);
+    await this.prisma.$transaction((tx) => this.publishInTx(tx, assignmentId, user));
+    this.events.emit(Events.AssignmentPublished, { assignmentId });
+    return this.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: STAFF_DETAIL });
+  }
+
+  /**
+   * publish() inside the caller's transaction (also each record of an ASSIGNMENT bulk publish; ctx.operationId is
+   * audited). The caller emits AssignmentPublished after the commit.
+   */
+  async publishInTx(tx: Prisma.TransactionClient, assignmentId: string, user: AuthUser, ctx: AssignmentChangeCtx = {}) {
+    const assignment = await tx.assignment.findUnique({ where: { id: assignmentId }, select: { title: true, deadline: true } });
+    if (!assignment) throw new NotFoundException('Assignment not found.');
     if (assignment.deadline <= new Date()) {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
@@ -270,13 +289,11 @@ export class AssignmentsService {
         'The deadline has already passed. Reject the assignment so the coach can set a new deadline.',
       );
     }
-
-    const updated = await this.transition(assignmentId, ['PENDING_APPROVAL'], {
+    await this.transitionInTx(tx, assignmentId, ['PENDING_APPROVAL'], {
       status: 'PUBLISHED', publishedAt: new Date(), approvedById: user.id, rejectedAt: null, rejectionNote: null,
-    }, { type: 'PUBLISHED', actorId: user.id }, { action: 'PUBLISH_ASSIGNMENT', actorRole: user.role, metadata: { title: assignment.title } });
-
-    this.events.emit(Events.AssignmentPublished, { assignmentId });
-    return updated;
+    }, { type: 'PUBLISHED', actorId: user.id }, {
+      action: 'PUBLISH_ASSIGNMENT', actorRole: user.role, metadata: { title: assignment.title, ...operationOf(ctx) },
+    });
   }
 
   async reject(assignmentId: string, body: RejectAssignmentDto, user: AuthUser) {
@@ -316,12 +333,18 @@ export class AssignmentsService {
    */
   async close(assignmentId: string, body: CloseAssignmentDto, user: AuthUser) {
     await this.findOrThrow(assignmentId);
-    const updated = await this.transition(
-      assignmentId, ['PUBLISHED'], { status: 'CLOSED', closedAt: new Date() },
+    await this.prisma.$transaction((tx) => this.closeInTx(tx, assignmentId, body, user));
+    return this.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: STAFF_DETAIL });
+  }
+
+  /** close() inside the caller's transaction (also each record of an ASSIGNMENT bulk close; ctx.operationId audited). */
+  async closeInTx(tx: Prisma.TransactionClient, assignmentId: string, body: CloseAssignmentDto, user: AuthUser, ctx: AssignmentChangeCtx = {}) {
+    const metadata = { ...(body.note && { note: body.note }), ...operationOf(ctx) };
+    await this.transitionInTx(
+      tx, assignmentId, ['PUBLISHED'], { status: 'CLOSED', closedAt: new Date() },
       { type: 'CLOSED', actorId: user.id, note: body.note ?? null },
-      { action: 'CLOSE_ASSIGNMENT', actorRole: user.role, ...(body.note && { metadata: { note: body.note } }) },
+      { action: 'CLOSE_ASSIGNMENT', actorRole: user.role, ...(Object.keys(metadata).length > 0 && { metadata }) },
     );
-    return updated;
   }
 
   /**
@@ -362,13 +385,21 @@ export class AssignmentsService {
    */
   async archive(assignmentId: string, user: AuthUser) {
     await this.findOrThrow(assignmentId);
-    const updated = await this.transition(
-      assignmentId,
-      ['DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'CLOSED', 'REJECTED'],
-      { status: 'ARCHIVED', archivedAt: new Date() },
-      { type: 'ARCHIVED', actorId: user.id }, { action: 'ARCHIVE_ASSIGNMENT', actorRole: user.role },
+    await this.prisma.$transaction((tx) => this.archiveInTx(tx, assignmentId, user));
+    return this.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: STAFF_DETAIL });
+  }
+
+  /**
+   * archive() inside the caller's transaction (also each record of an ASSIGNMENT bulk archive: the operation's reason
+   * is the history note, and ctx.operationId is audited).
+   */
+  async archiveInTx(tx: Prisma.TransactionClient, assignmentId: string, user: AuthUser, ctx: AssignmentChangeCtx & { note?: string } = {}) {
+    const metadata = { ...(ctx.note && { note: ctx.note }), ...operationOf(ctx) };
+    await this.transitionInTx(
+      tx, assignmentId, ARCHIVABLE_STATUSES, { status: 'ARCHIVED', archivedAt: new Date() },
+      { type: 'ARCHIVED', actorId: user.id, ...(ctx.note && { note: ctx.note }) },
+      { action: 'ARCHIVE_ASSIGNMENT', actorRole: user.role, ...(Object.keys(metadata).length > 0 && { metadata }) },
     );
-    return updated;
   }
 
   // ─── MENTOR: brief attachments (editable statuses only) ───────────────────
@@ -443,11 +474,7 @@ export class AssignmentsService {
       const where: Prisma.AssignmentWhereInput = {
         AND: [
           scope ?? {},
-          q.status ? { status: q.status } : {},
-          q.statuses?.length ? { status: { in: q.statuses } } : {},
-          q.divisionId ? { divisionId: q.divisionId } : {},
-          q.createdById ? { createdById: q.createdById } : {},
-          this.commonFilters(q),
+          assignmentListWhere(q),
         ],
       };
       const [rows, total] = await this.prisma.$transaction([
@@ -623,36 +650,46 @@ export class AssignmentsService {
     /** The audit entry, written in the same transaction with the status before and after (AUD-02). */
     audit: { action: string; actorRole: string; metadata?: Record<string, unknown> },
   ) {
-    await this.prisma.$transaction(async (tx) => {
-      const [current] = await tx.$queryRaw<{ status: AssignmentStatus }[]>`
-        SELECT "status" FROM "Assignment" WHERE "id" = ${id} FOR UPDATE`;
-      if (!current || !from.includes(current.status)) {
-        throw invalidState(
-          `This action requires status ${from.join(' or ')}; the assignment is "${current?.status}".`,
-          { currentStatus: current?.status, allowedFrom: from },
-        );
-      }
-      await tx.assignment.update({ where: { id }, data });
-      await tx.assignmentEvent.create({
-        data: {
-          assignmentId: id,
-          type:         entry.type,
-          fromStatus:   current.status,
-          toStatus:     (data.status as AssignmentStatus | undefined) ?? current.status,
-          actorId:      entry.actorId,
-          note:         entry.note ?? null,
-          ...(entry.changes !== undefined && { changes: entry.changes }),
-        },
-      });
-      await this.audit.log({
-        actorId: entry.actorId, actorRole: audit.actorRole, action: audit.action, entity: 'Assignment', entityId: id,
-        metadata: {
-          ...audit.metadata, from: current.status, to: (data.status as AssignmentStatus | undefined) ?? current.status,
-          ...(entry.changes !== undefined && { changes: entry.changes }),
-        },
-      }, tx);
-    });
+    await this.prisma.$transaction((tx) => this.transitionInTx(tx, id, from, data, entry, audit));
     return this.prisma.assignment.findUniqueOrThrow({ where: { id }, select: STAFF_DETAIL });
+  }
+
+  /** transition() inside the caller's transaction (also each record of an ASSIGNMENT bulk operation). */
+  private async transitionInTx(
+    tx: Prisma.TransactionClient,
+    id: string,
+    from: AssignmentStatus[],
+    data: Prisma.AssignmentUncheckedUpdateManyInput,
+    entry: HistoryEntry,
+    audit: { action: string; actorRole: string; metadata?: Record<string, unknown> },
+  ) {
+    const [current] = await tx.$queryRaw<{ status: AssignmentStatus }[]>`
+      SELECT "status" FROM "Assignment" WHERE "id" = ${id} FOR UPDATE`;
+    if (!current || !from.includes(current.status)) {
+      throw invalidState(
+        `This action requires status ${from.join(' or ')}; the assignment is "${current?.status}".`,
+        { currentStatus: current?.status, allowedFrom: from },
+      );
+    }
+    await tx.assignment.update({ where: { id }, data });
+    await tx.assignmentEvent.create({
+      data: {
+        assignmentId: id,
+        type:         entry.type,
+        fromStatus:   current.status,
+        toStatus:     (data.status as AssignmentStatus | undefined) ?? current.status,
+        actorId:      entry.actorId,
+        note:         entry.note ?? null,
+        ...(entry.changes !== undefined && { changes: entry.changes }),
+      },
+    });
+    await this.audit.log({
+      actorId: entry.actorId, actorRole: audit.actorRole, action: audit.action, entity: 'Assignment', entityId: id,
+      metadata: {
+        ...audit.metadata, from: current.status, to: (data.status as AssignmentStatus | undefined) ?? current.status,
+        ...(entry.changes !== undefined && { changes: entry.changes }),
+      },
+    }, tx);
   }
 
   private async addAttachmentsInternal(assignmentId: string, files: Express.Multer.File[], user: AuthUser) {
@@ -684,21 +721,7 @@ export class AssignmentsService {
 
   /** Filters every role may use: course, year, text search, deadline window. */
   private commonFilters(q: ListAssignmentsDto): Prisma.AssignmentWhereInput {
-    return {
-      ...(q.courseId       && { courseId: q.courseId }),
-      ...(q.academicYearId && { academicYearId: q.academicYearId }),
-      ...((q.deadlineFrom || q.deadlineTo) && {
-        deadline: {
-          ...(q.deadlineFrom && { gte: new Date(q.deadlineFrom) }),
-          ...(q.deadlineTo   && { lte: new Date(q.deadlineTo) }),
-        },
-      }),
-      ...(q.q && {
-        OR: (['title', 'description', 'instructions'] as const).map((field) => ({
-          [field]: { contains: q.q, mode: 'insensitive' as const },
-        })),
-      }),
-    };
+    return commonAssignmentFilters(q);
   }
 
   /**
@@ -797,6 +820,45 @@ export function studentProgressWhere(studentId: string, progress: MyAssignmentPr
         OR: [{ status: 'CLOSED' }, { deadline: { lt: now }, allowLateSubmission: false }],
       };
   }
+}
+
+/** Filters every role may use: course, year, text search, deadline window. */
+function commonAssignmentFilters(q: AssignmentListFilter): Prisma.AssignmentWhereInput {
+  return {
+    ...(q.courseId       && { courseId: q.courseId }),
+    ...(q.academicYearId && { academicYearId: q.academicYearId }),
+    ...((q.deadlineFrom || q.deadlineTo) && {
+      deadline: {
+        ...(q.deadlineFrom && { gte: new Date(q.deadlineFrom) }),
+        ...(q.deadlineTo   && { lte: new Date(q.deadlineTo) }),
+      },
+    }),
+    ...(q.q && {
+      OR: (['title', 'description', 'instructions'] as const).map((field) => ({
+        [field]: { contains: q.q, mode: 'insensitive' as const },
+      })),
+    }),
+  };
+}
+
+/** The filters of GET /assignments without paging. */
+export type AssignmentListFilter = Omit<ListAssignmentsDto, 'page' | 'limit'>;
+
+/**
+ * Course staff's list filters (GET /assignments for coaches and administrators) without the caller's scope: status or
+ * statuses, division, author, course, year, text and deadline window. Also the ASSIGNMENT bulk selection (an
+ * Administrator's scope is every assignment).
+ */
+export function assignmentListWhere(q: AssignmentListFilter): Prisma.AssignmentWhereInput {
+  return {
+    AND: [
+      q.status ? { status: q.status } : {},
+      q.statuses?.length ? { status: { in: q.statuses } } : {},
+      q.divisionId ? { divisionId: q.divisionId } : {},
+      q.createdById ? { createdById: q.createdById } : {},
+      commonAssignmentFilters(q),
+    ],
+  };
 }
 
 /** `status` and `statuses` are alternatives; both together would be ambiguous. */
