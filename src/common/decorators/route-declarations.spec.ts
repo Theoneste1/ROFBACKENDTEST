@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 26 @Public + 30 @Roles + 303 @RequirePermission + 56 @Authenticated = 415, none undeclared', () => {
+  it('declarations add up: 26 @Public + 30 @Roles + 303 @RequirePermission + 57 @Authenticated = 416, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 303, '@Authenticated': 56 });  // Test Management Phase 4 (2026-11-19): +3 tests.publishResults, +1 tests.overridePublication, +4 tests.viewResults, +1 tests.viewRankings, +2 tests.viewOwnResults, +3 tests.viewSchoolResults, +1 tests.view, +1 tests.submit, +1 tests.submitForStudents, +1 tests.mark (dashboards); Test Management Phase 3 (2026-11-19): +4 tests.distribute, +7 tests.review, +1 tests.adjustMarks, +7 tests.mark; Test Management Phase 2 (2026-11-19): +5 tests.extensions, +3 tests.viewSubmissions, +8 tests.submit, +9 tests.submitForStudents; Test Management Phase 1 (2026-11-19): +4 tests.view, +11 tests.manage, +4 tests.manageMarkers; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 303, '@Authenticated': 57 });  // gender step (2026-11-20): +1 signed in (PUT /me/gender); Test Management Phase 4 (2026-11-19): +3 tests.publishResults, +1 tests.overridePublication, +4 tests.viewResults, +1 tests.viewRankings, +2 tests.viewOwnResults, +3 tests.viewSchoolResults, +1 tests.view, +1 tests.submit, +1 tests.submitForStudents, +1 tests.mark (dashboards); Test Management Phase 3 (2026-11-19): +4 tests.distribute, +7 tests.review, +1 tests.adjustMarks, +7 tests.mark; Test Management Phase 2 (2026-11-19): +5 tests.extensions, +3 tests.viewSubmissions, +8 tests.submit, +9 tests.submitForStudents; Test Management Phase 1 (2026-11-19): +4 tests.view, +11 tests.manage, +4 tests.manageMarkers; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -396,7 +396,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
       // signed-in-only @Authenticated ones — profile pictures — are not restricted).
       const addedRestricted = Object.values(ADDED_SINCE_BASELINE).filter((d) => d.anonymous !== 'allow' && d.UNKNOWN_ROLE !== 'allow').length;
       expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141 + addedRestricted);
-      expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(56);   // + 3 profile-picture routes (signed in)
+      expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(57);   // + 3 profile-picture routes, + PUT /me/gender (signed in)
     });
 
     it.each(['STUDENT', 'MENTOR', 'ADMIN'] as const)('%s is admitted exactly where its role is listed, it holds the required permission, or nothing is required', (role) => {
