@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TeacherApplicationBulkHandler } from './bulk/teacher-application-bulk.handler.js';
 
 import { AuthModule } from '../auth/auth.module.js';
 import { AdminTeacherApplicationsController, TeacherRegistrationController } from './teacher-applications.controller.js';
@@ -8,6 +9,6 @@ import { TeacherApplicationsService } from './teacher-applications.service.js';
 @Module({
   imports:     [AuthModule],
   controllers: [TeacherRegistrationController, AdminTeacherApplicationsController],
-  providers:   [TeacherApplicationsService],
+  providers:   [TeacherApplicationsService, TeacherApplicationBulkHandler],
 })
 export class TeacherApplicationsModule {}
