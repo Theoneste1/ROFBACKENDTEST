@@ -402,3 +402,53 @@ test('resolveMigrationTarget refuses: production host, another endpoint, a produ
   assert.equal(run(['postgresql://neondb_owner@ep-branch-1.eu.aws.neon.tech/neondb']).ok, false);
   assert.equal(run(['postgresql://a:b@ep-branch-1.eu.aws.neon.tech/neondb', 'postgresql://a:c@ep-branch-1.eu.aws.neon.tech/neondb']).code, 2);
 });
+
+// ── Resumable rollback (2026-11-19 staging rehearsal): options and the newer-checkout rule. The database scenarios are in
+//    test/release-rollback-resume.e2e-spec.ts (CI e2e job). ─────────────────────────────────────────────────────────────
+
+test('--acknowledge / --stop-after: refused before any target is read when unknown, malformed, repeated or not on rollback', () => {
+  withCheckoutCopy([], (root) => {
+    const refused = (args, re) => {
+      const r = run(root, ...args);
+      assert.equal(r.status, 2, `${args.join(' ')}: ${r.stderr}`);
+      assert.match(r.stderr, re);
+      assert.doesNotMatch(r.stderr, /DRILL_DATABASE_URL|production/);
+    };
+    refused(['rollback', '--release', 'post-phase1', '--acknowledge', 'everything', '--confirm', 'ep-x'], /not a guard of post-phase1/);
+    refused(['rollback', '--release', 'post-phase1', '--acknowledge', 'rof.registration_details_rollback=discard-registration-details'], /malformed/);
+    refused(['rollback', '--release', 'post-phase1', '--acknowledge', 'registration-details', '--acknowledge', 'registration-details'], /given twice/);
+    refused(['rollback', '--release', 'post-phase1', '--acknowledge', 'country-edits'], /not a guard of post-phase1/);
+    refused(['rollback', '--release', 'post-phase1', '--acknowledge'], /malformed/);
+    refused(['deploy', '--release', 'post-phase1', '--acknowledge', 'registration-details'], /options of `rollback` only/);
+    refused(['rollback', '--release', 'post-phase1', '--stop-after', '0'], /--stop-after takes one whole number/);
+    refused(['rollback', '--release', 'post-phase1', '--stop-after', 'x'], /--stop-after takes one whole number/);
+    // A valid id passes the option checks and goes on to the target guard (fail-closed here: no target configured).
+    const ok = run(root, 'rollback', '--release', 'post-phase1', '--acknowledge', 'registration-details', '--stop-after', '3', '--confirm', 'ep-x');
+    assert.notEqual(ok.status, 0);
+    assert.match(ok.stderr, /DRILL_DATABASE_URL not found/, ok.stderr);
+  });
+});
+
+test('a newer checkout: post-phase1 rollback, rollback-history, precheck, postcheck, check-target, dump, restore pass the checkout rule; deploy, diff, status do not', () => {
+  // This checkout as it is (on develop: the design-area migrations come after the eleven), plus one more.
+  const later = [...afterRelease(releaseFrom(['--release', 'post-phase1']), migrationDirs(REPO_ROOT)), '20261299000000_later'];
+  withCheckoutCopy(['20261299000000_later'], (root) => {
+    for (const command of ['check-target', 'precheck', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore']) {
+      const r = run(root, command, '--release', 'post-phase1', '--confirm', 'ep-x');
+      assert.notEqual(r.status, 5, `${command}: ${r.stderr}`);
+      assert.ok(r.stdout.includes(`checkout: ${later.length} later migration(s) present (${later.join(', ')})`), `${command}: ${r.stdout}`);
+    }
+    for (const command of ['deploy', 'diff', 'status']) {
+      const r = run(root, command, '--release', 'post-phase1', '--confirm', 'ep-x');
+      assert.equal(r.status, 5, `${command}: ${r.stderr}`);
+      assert.ok(r.stderr.includes(`${later.length} migration(s) after post-Phase-1`), r.stderr);
+    }
+    // The release's own migrations must still all be there, whatever the command.
+  });
+  withCheckoutCopy([], (root) => {
+    const r = run(root, 'rollback', '--release', 'post-phase1', '--confirm', 'ep-x');
+    assert.equal(r.status, 5, r.stderr);
+    assert.match(r.stderr, /expected the 11 migrations of post-Phase-1 .* found 10/);
+  }, { drop: ['20261204000000_registration_details'] });
+  // Phase 1 keeps its original rule for every command (owner decision 2026-11-13), as the test above shows.
+});

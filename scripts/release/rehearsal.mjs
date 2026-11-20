@@ -10,6 +10,26 @@
  *   areas-2026   the design-area migrations after those eleven (area 1 as simplified by the owner 2026-11-19: countries;
  *                the primary teacher of a school, owner decision 2026-11-19; Test Management Phases 1 to 4, 2026-11-19);
  *                the target must already hold Phase 1 and post-Phase-1; same checkout and database rules.
+ *   For post-phase1 and areas-2026, a NEWER checkout (later migrations after the release's) is accepted by the commands
+ *   that run only the release's own files and checks: check-target, precheck, postcheck, rollback, rollback-history,
+ *   dump, restore. deploy, diff and status act on every migration of the checkout and still refuse it (exit 5).
+ *   The DATABASE must never record a migration after the release's last (exit 5), whatever the command.
+ *
+ * rollback is resumable: before running anything it reads the catalogue and checks each migration against its complete
+ * object list (scripts/release/releases.mjs, MIGRATION_OBJECTS: tables, columns, enums and enum values, indexes,
+ * constraints, triggers, functions, objects it drops, and for M1–M8 the history row). A migration of which NOTHING remains
+ * is skipped ("already rolled back"); one of which some objects remain and some are gone is refused with the list (half
+ * rolled back — none of its files run); otherwise its pre-switch and rollback files run as before. Every data-loss guard is
+ * kept: a guard that refuses stops the run with nothing of that file applied; the same command run again continues there.
+ *   --acknowledge <id>     (rollback only; repeatable, each id once) supplies the acknowledgement one guard checks, from the
+ *                          FIXED allow-list ACKNOWLEDGEMENTS in releases.mjs (only the release's own ids), e.g.
+ *                          --acknowledge registration-details  sets rof.registration_details_rollback =
+ *                          'discard-registration-details' on the rollback connection. Unknown, malformed or repeated ids are
+ *                          refused before any connection (exit 2). Every acknowledgement in effect (from --acknowledge or from
+ *                          PGOPTIONS "-c rof.…=…", which still works) is printed.
+ *   --stop-after <n>       (rollback only) stops after n files have run — for rehearsing an interruption and its resumption.
+ * dump / restore need pg_dump and pg_restore at least as new as the server: on PATH, or in the folder PG_BIN names
+ * (PowerShell: $env:PG_BIN = "C:\Program Files\PostgreSQL\18\bin"; Git Bash: export PG_BIN="C:/Program Files/PostgreSQL/18/bin").
  *
  *   node scripts/release/rehearsal.mjs check-target                 guard only, no connection
  *   node scripts/release/rehearsal.mjs precheck                     the release's precheck SQL (read only)
@@ -56,10 +76,18 @@ import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { REPO_ROOT, VERIFIER, envValues, resolveDrillTarget, readTargetInputs } from '../db-drill-verify.mjs';
 import { PHASE1, PHASE1_COUNT, laterMigrations, migrationDirs } from './phase1.mjs';
-import { RELEASE_NAMES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
+import { ACKNOWLEDGEMENTS, MIGRATION_OBJECTS, RELEASE_NAMES, afterRelease, checkoutProblem, releaseAcknowledgements, releaseFrom, releasePreSwitchFiles,
+  releaseRollbackFiles, resolveAcknowledgements } from './releases.mjs';
+import { catalogLabels, historyLabels, markers } from './catalog.mjs';
 
 export { PHASE1 };
 const WRITES = new Set(['deploy', 'rollback', 'rollback-history', 'dump', 'restore']);
+/**
+ * Commands that run only the release's own files and checks (or none): for post-phase1 and areas-2026 they accept a
+ * checkout with later migrations. deploy, diff and status act on every migration of the checkout and keep the strict rule.
+ */
+export const CHECKOUT_RELEASE_ONLY = new Set(['check-target', 'precheck', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore']);
+const DOCS_MIGRATIONS = join(REPO_ROOT, 'docs/migrations');
 const HISTORY_ONLY = ['20261121000800', '20261121000900', '20261121001000', '20261121001100', '20261121001200', '20261121001300'];
 /** Objects M9–M14 create. Their history rows may only be removed once every one of them is gone. */
 export const M9_M14_TABLES = ['StudentSchoolAffiliation', 'EducationLevel', 'Programme', 'SchoolContact', 'SchoolDataSource',
@@ -186,11 +214,66 @@ function windowsAttributes(dir) {
   return r.status === 0 ? r.stdout.trim() : '';
 }
 
-function pgTool(name) {
-  const bin = process.env.PG_BIN ? join(process.env.PG_BIN, name) : name;
-  const v = spawnSync(bin, ['--version'], { encoding: 'utf8' });
-  if (v.status !== 0) throw new Error(`${name} not found (install the PostgreSQL 18 client tools, or set PG_BIN)`);
-  return { bin, major: toolMajor(v.stdout) };
+/** How to point the kit at the PostgreSQL client tools (printed with every PG_BIN / pg_dump problem). */
+export const PG_BIN_HINT = [
+  'Install the PostgreSQL client tools (the server\'s major version or newer) and point PG_BIN at their bin folder:',
+  '  PowerShell:  $env:PG_BIN = "C:\\Program Files\\PostgreSQL\\18\\bin"',
+  '  Git Bash:    export PG_BIN="C:/Program Files/PostgreSQL/18/bin"',
+  '  or add that folder to PATH.',
+].join('\n');
+
+/**
+ * Finds and checks pg_dump and pg_restore (pure apart from the injected `run` / `isDir` / `isFile`).
+ * PG_BIN set: an absolute path to an existing folder holding both tools (pg_dump.exe / pg_restore.exe on Windows), each
+ * answering --version with the same major version. PG_BIN unset: both must be found on PATH.
+ * @returns {{ ok: true, dir: string | null, dump: { bin: string, major: number }, restore: { bin: string, major: number } }
+ *   | { ok: false, reason: string }}
+ */
+export function findPgTools({ env = process.env, platform = process.platform, run = spawnSync,
+  isDir = (p) => existsSync(p) && statSync(p).isDirectory(), isFile = (p) => existsSync(p) && statSync(p).isFile() } = {}) {
+  const exe = (name) => (platform === 'win32' ? `${name}.exe` : name);
+  const dir = env.PG_BIN ? env.PG_BIN.trim().replace(/^"(.*)"$/, '$1') : null;
+  if (dir !== null) {
+    const absolute = platform === 'win32' ? /^([A-Za-z]:[\\/]|\\\\)/.test(dir) || isAbsolute(dir) : isAbsolute(dir);
+    if (!dir || !absolute) return { ok: false, reason: `PG_BIN must be the absolute path of the folder holding pg_dump and pg_restore (it is "${dir}").\n${PG_BIN_HINT}` };
+    if (!isDir(dir)) return { ok: false, reason: `PG_BIN names a folder that does not exist: "${dir}".\n${PG_BIN_HINT}` };
+  }
+  const tools = {};
+  for (const name of ['pg_dump', 'pg_restore']) {
+    const bin = dir !== null ? join(dir, exe(name)) : name;
+    if (dir !== null && !isFile(bin)) return { ok: false, reason: `PG_BIN ("${dir}") has no ${exe(name)}.\n${PG_BIN_HINT}` };
+    const v = run(bin, ['--version'], { encoding: 'utf8' });
+    if (v.error || v.status !== 0) {
+      return { ok: false, reason: `${name} ${dir !== null ? `in PG_BIN ("${dir}") could not be run` : 'was not found on PATH and PG_BIN is not set'}.\n${PG_BIN_HINT}` };
+    }
+    const major = toolMajor(v.stdout ?? '');
+    if (!Number.isFinite(major)) return { ok: false, reason: `${bin} --version did not report a PostgreSQL version ("${String(v.stdout ?? '').trim()}").\n${PG_BIN_HINT}` };
+    tools[name] = { bin, major };
+  }
+  if (tools.pg_dump.major !== tools.pg_restore.major) {
+    return { ok: false, reason: `pg_dump (${tools.pg_dump.major}) and pg_restore (${tools.pg_restore.major}) are from different PostgreSQL versions; use one bin folder.\n${PG_BIN_HINT}` };
+  }
+  return { ok: true, dir, dump: tools.pg_dump, restore: tools.pg_restore };
+}
+
+/** The tools must be at least as new as the server (pg_dump refuses an older client; a dump is read by pg_restore of its version or newer). */
+export function pgToolsProblem(tools, server) {
+  if (!(tools.dump.major >= server)) {
+    return `pg_dump / pg_restore ${tools.dump.major} (${tools.dir ? `PG_BIN "${tools.dir}"` : 'from PATH'}) are older than the server (PostgreSQL ${server}).\n${PG_BIN_HINT.replace(/18/g, String(server))}`;
+  }
+  return null;
+}
+
+function pgTools() {
+  const tools = findPgTools();
+  if (!tools.ok) throw new Error(`refused: ${tools.reason}`);
+  return tools;
+}
+
+async function serverVersion(url) {
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try { return serverMajor((await client.query('SHOW server_version_num')).rows[0].server_version_num); } finally { await client.end(); }
 }
 
 const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
@@ -198,17 +281,14 @@ const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest(
 async function dump(target, out) {
   const problem = checkDumpDir(out, { attributesOf: windowsAttributes });
   if (problem) throw new Error(`refused: ${problem}`);
-  const tool = pgTool('pg_dump');
-  const client = new pg.Client({ connectionString: target.url });
-  await client.connect();
-  let server;
-  try { server = serverMajor((await client.query('SHOW server_version_num')).rows[0].server_version_num); } finally { await client.end(); }
-  if (!(tool.major >= server)) throw new Error(`refused: pg_dump ${tool.major} is older than the server (${server})`);
+  const tools = pgTools();
+  const versionProblem = pgToolsProblem(tools, await serverVersion(target.url));
+  if (versionProblem) throw new Error(`refused: ${versionProblem}`);
   const file = join(out, `rehearsal-${endpointId(target.url)}-${new Date().toISOString().replace(/[:.]/g, '-')}.dump`);
-  const r = spawnSync(tool.bin, ['--format=custom', '--no-owner', '--no-acl', `--file=${file}`, `--dbname=${conninfoFrom(target.url)}`],
+  const r = spawnSync(tools.dump.bin,['--format=custom', '--no-owner', '--no-acl', `--file=${file}`, `--dbname=${conninfoFrom(target.url)}`],
     { stdio: ['ignore', 'inherit', 'inherit'], env: pgToolEnv(process.env, target.url) });
   if (r.status !== 0) { rmSync(file, { force: true }); throw new Error(`pg_dump failed (exit ${r.status}); the partial file was deleted`); }
-  const list = spawnSync(pgTool('pg_restore').bin, ['--list', file], { encoding: 'utf8' });
+  const list = spawnSync(tools.restore.bin, ['--list', file], { encoding: 'utf8' });
   if (list.status !== 0) throw new Error('pg_restore --list could not read the dump');
   const tables = list.stdout.split(/\r?\n/).filter((l) => / TABLE DATA /.test(l)).length;
   console.log(`dump: ${basename(file)} in the --out folder; ${statSync(file).size} bytes; ${tables} TABLE DATA entries; sha256 ${sha256(file)}`);
@@ -218,32 +298,196 @@ async function restore(target, file) {
   if (!file || !isAbsolute(file) || !existsSync(file)) throw new Error('give --dump as the absolute path of an existing dump');
   const problem = checkDumpDir(dirname(file), { attributesOf: windowsAttributes });
   if (problem) throw new Error(`refused: the dump's folder — ${problem}`);
+  const tools = pgTools();
+  const versionProblem = pgToolsProblem(tools, await serverVersion(target.url));
+  if (versionProblem) throw new Error(`refused: ${versionProblem}`);
   const client = new pg.Client({ connectionString: target.url });
   await client.connect();
   try {
     const n = Number((await client.query("SELECT count(*) AS n FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')")).rows[0].n);
     if (n !== 0) throw new Error(`refused: the restore target is not empty (${n} tables); create an empty database for the drill`);
   } finally { await client.end(); }
-  const r = spawnSync(pgTool('pg_restore').bin, ['--no-owner', '--no-acl', '--exit-on-error', `--dbname=${conninfoFrom(target.url)}`, file],
+  const r = spawnSync(tools.restore.bin, ['--no-owner', '--no-acl', '--exit-on-error', `--dbname=${conninfoFrom(target.url)}`, file],
     { stdio: ['ignore', 'inherit', 'inherit'], env: pgToolEnv(process.env, target.url) });
   if (r.status !== 0) throw new Error(`pg_restore failed (exit ${r.status}); drop and recreate the target database before retrying`);
   console.log('restore: complete. Next: node scripts/db-drill-verify.mjs --baseline pre-phase1 --trigger-test --json <file>');
 }
 
-async function runSqlFile(url, file, { readOnly }) {
+/**
+ * Runs a psql-style file on its own connection. `settings`: [name, value] session settings set first (the
+ * acknowledgements). A failing statement throws; closing the connection then discards the file's open transaction, so a
+ * rollback file (BEGIN … COMMIT) is applied entirely or not at all.
+ */
+async function runSqlFile(url, file, { readOnly, settings = [], log = console.log, table = console.table }) {
   const client = new pg.Client({ connectionString: url });
-  client.on('notice', (n) => console.log(`NOTICE: ${n.message}`));
+  client.on('notice', (n) => log(`NOTICE: ${n.message}`));
   await client.connect();
   try {
     if (readOnly) await client.query('SET default_transaction_read_only = on');
+    for (const [name, value] of settings) await client.query('SELECT set_config($1, $2, false)', [name, value]);
     for (const seg of segments(readFileSync(file, 'utf8'))) {
-      if (typeof seg === 'object') { console.log(seg.echo); continue; }
+      if (typeof seg === 'object') { log(seg.echo); continue; }
       const res = await client.query(seg);
-      for (const r of [res].flat()) if (r.rows?.length) console.table(r.rows);
+      for (const r of [res].flat()) if (r.rows?.length) table(r.rows);
     }
   } finally {
     await client.end();
   }
+}
+
+// ── Resumable rollback: per-migration state and acknowledgements (tested against a real database in
+//    test/release-rollback-resume.e2e-spec.ts) ─────────────────────────────────────────────────────────────────────────
+
+/** The migration a docs/migrations file belongs to. */
+export const migrationOfFile = (file) => file.replace(/\.(rollback|pre-switch)\.sql$/, '');
+
+/** The release's pre-switch files and rollback files (each newest first), from the names in docs/migrations. */
+export function releaseFiles(release, names) {
+  if (release.name === 'phase1') return { preSwitch: [], rollback: rollbackFiles(names) };
+  return { preSwitch: releasePreSwitchFiles(release, names), rollback: releaseRollbackFiles(release, names) };
+}
+
+/**
+ * The data-loss guards written in the release's files: every `current_setting('rof.…', true) IS DISTINCT FROM '…'`, as
+ * { migration, setting, value } (comments ignored). The tests compare it with the fixed allow-list ACKNOWLEDGEMENTS.
+ */
+export function guardsInFiles(release, { docsDir = DOCS_MIGRATIONS, names = readdirSync(docsDir) } = {}) {
+  const { preSwitch, rollback } = releaseFiles(release, names);
+  const out = [];
+  for (const file of [...preSwitch, ...rollback]) {
+    const sql = readFileSync(join(docsDir, file), 'utf8').replace(/--[^\n]*/g, '');
+    for (const [, setting, value] of sql.matchAll(/current_setting\(\s*'(rof\.[a-z0-9_]+)'\s*,\s*true\s*\)\s*IS DISTINCT FROM\s*'([^']*)'/gi)) {
+      if (!out.some((g) => g.setting === setting && g.value === value)) out.push({ migration: migrationOfFile(file), setting, value });
+    }
+  }
+  return out.sort((a, b) => a.setting.localeCompare(b.setting));
+}
+
+/** Every value given for a repeatable option, in order (`--acknowledge a --acknowledge b` → ['a', 'b']); a missing value is ''. */
+export function optionValues(args, name) {
+  return args.flatMap((a, i) => (a === name ? [String(args[i + 1] ?? '')] : a.startsWith(`${name}=`) ? [a.slice(name.length + 1)] : []));
+}
+
+/**
+ * Each migration's state from the catalogue labels (pure), newest first:
+ *   present — every marker of MIGRATION_OBJECTS holds; absent — none holds (already rolled back);
+ *   partial — some hold, some do not (half rolled back). `remaining`: the markers that still hold.
+ */
+export function statesFrom(labels, release) {
+  return [...release.migrations].sort().reverse().map((migration) => {
+    const o = MIGRATION_OBJECTS[migration];
+    if (!o) throw new Error(`no object list for ${migration} in scripts/release/releases.mjs (MIGRATION_OBJECTS)`);
+    const all = markers(migration, o);
+    if (!all.length) throw new Error(`the object list of ${migration} is empty`);
+    const describe = ([label, whenApplied]) => (whenApplied ? label : `${label} still dropped`);
+    const holds = all.filter(([label, whenApplied]) => labels.has(label) === whenApplied);
+    const missing = all.filter(([label, whenApplied]) => labels.has(label) !== whenApplied);
+    return { migration, state: missing.length === 0 ? 'present' : holds.length === 0 ? 'absent' : 'partial',
+      remaining: holds.map(describe), gone: missing.map(describe) };
+  });
+}
+
+/** Each of the release's migrations' state, newest first, read from the target's catalogue (read only). */
+export async function migrationStates(client, release) {
+  const labels = await catalogLabels(client);
+  for (const l of await historyLabels(client, release.migrations)) labels.add(l);
+  return statesFrom(labels, release);
+}
+
+/**
+ * What `rollback` does from these states (pure): pre-switch files first, then the rollback files, newest first; a file
+ * whose migration is in place runs, one whose migration is already rolled back is skipped. Refused (nothing runs) when a
+ * migration is half rolled back, or when an older migration is rolled back while a newer one is not.
+ * @returns {{ ok: true, steps: { file: string, migration: string, kind: 'pre-switch' | 'rollback', run: boolean }[] } | { ok: false, reason: string }}
+ */
+export function rollbackPlan(states, { preSwitch, rollback }) {
+  const partial = states.filter((s) => s.state === 'partial');
+  if (partial.length) {
+    return { ok: false, reason: `refused: half rolled back — ${partial.map((s) => `${s.migration}: still there: ${s.remaining.join(', ')}; already gone: ${s.gone.join(', ')}`).join(' | ')}. `
+      + 'A migration is skipped only when EVERY object it creates is gone; this one is neither in place nor rolled back, so none of its files run. Nothing was changed. '
+      + 'Restore the target from its backup, or complete that migration\'s rollback by hand after review, then run the command again.' };
+  }
+  const firstPresent = states.findIndex((s) => s.state === 'present');
+  const gap = firstPresent < 0 ? [] : states.slice(firstPresent).filter((s) => s.state === 'absent');
+  if (gap.length) {
+    return { ok: false, reason: `refused: ${gap.map((s) => s.migration).join(', ')} ${gap.length === 1 ? 'is' : 'are'} already rolled back while the newer `
+      + `${states[firstPresent].migration} is not. The kit rolls back newest first, so it did not leave this state. Nothing was changed.` };
+  }
+  const stateOf = new Map(states.map((s) => [s.migration, s.state]));
+  const step = (kind) => (file) => {
+    const migration = migrationOfFile(file);
+    if (!stateOf.has(migration)) throw new Error(`${file} does not belong to the release's migrations`);
+    return { file, migration, kind, run: stateOf.get(migration) === 'present' };
+  };
+  return { ok: true, steps: [...preSwitch.map(step('pre-switch')), ...rollback.map(step('rollback'))] };
+}
+
+/**
+ * The release's rollback, resumable after an interruption (see the header). Throws on a refusal or a failing file (a
+ * failing file changes nothing); returns what ran. `acknowledgements` come from resolveAcknowledgements (releases.mjs).
+ * @param {string} url the target (the migration role's connection)
+ * @param {object} release from releaseFrom()
+ * @param {{ acknowledgements?: { id: string, setting: string, value: string }[], stopAfter?: number,
+ *   log?: (line: string) => void, table?: (rows: object[]) => void, docsDir?: string }} [options]
+ * @returns {Promise<{ ran: string[], skipped: string[], stopped: boolean }>}
+ */
+export async function rollbackRelease(url, release, { acknowledgements = [], stopAfter, log = console.log, table = console.table, docsDir = DOCS_MIGRATIONS } = {}) {
+  const files = releaseFiles(release, readdirSync(docsDir));
+  const settings = acknowledgements.map((a) => [a.setting, a.value]);
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  let plan;
+  try {
+    // Every acknowledgement in effect on the rollback connection, whatever its source (--acknowledge, or PGOPTIONS "-c …").
+    for (const [name, value] of settings) await client.query('SELECT set_config($1, $2, false)', [name, value]);
+    let any = false;
+    for (const id of releaseAcknowledgements(release)) {
+      const { setting, value } = ACKNOWLEDGEMENTS[id];
+      const current = (await client.query('SELECT current_setting($1, true) AS v', [setting])).rows[0].v;
+      if (!current) continue;
+      any = true;
+      const source = settings.some(([n]) => n === setting) ? `--acknowledge ${id}` : 'PGOPTIONS or a role/database setting';
+      log(`acknowledgement: ${setting} = '${current}' (${source}) — ${current === value
+        ? 'that guard will let the data it protects be DISCARDED' : `not '${value}': that guard still refuses`}`);
+    }
+    if (!any) log('acknowledgements: none (every data-loss guard refuses while its data exists)');
+    plan = rollbackPlan(await migrationStates(client, release), files);
+  } finally {
+    await client.end();
+  }
+  if (!plan.ok) throw new Error(plan.reason);
+  const ran = [];
+  const skipped = [];
+  for (const s of plan.steps) {
+    if (!s.run) {
+      log(`=== ${s.file} — skipped: ${s.migration} is already rolled back (every object it creates is gone)`);
+      skipped.push(s.file);
+      continue;
+    }
+    if (stopAfter !== undefined && ran.length >= stopAfter) {
+      log(`stopped after ${ran.length} file(s) as asked (--stop-after ${stopAfter}). Run the same command again to continue.`);
+      return { ran, skipped, stopped: true };
+    }
+    log(`=== ${s.file}`);
+    try {
+      await runSqlFile(url, join(docsDir, s.file), { readOnly: false, settings, log, table });
+    } catch (e) {
+      throw new Error(`${s.file}: ${e.message}\n  Nothing of this file was applied (its transaction was discarded); ${ran.length} file(s) ran before it in this run. `
+        + 'Run the same command again to continue from here — with --acknowledge <id> if a guard refused, after a backup that holds the data.');
+    }
+    ran.push(s.file);
+    if (s.kind === 'rollback') {
+      const check = new pg.Client({ connectionString: url });
+      await check.connect();
+      try {
+        const after = (await migrationStates(check, release)).find((x) => x.migration === s.migration);
+        if (after.state !== 'absent') throw new Error(`${s.file} ran, but ${s.migration} is not fully rolled back (still there: ${after.remaining.join(', ')}). Stopped; investigate before going on.`);
+      } finally {
+        await check.end();
+      }
+    }
+  }
+  return { ran, skipped, stopped: false };
 }
 
 /** migration_name of every row in _prisma_migrations (none when the table does not exist yet). Read only. */
@@ -267,11 +511,21 @@ function prisma(url, args) {
 
 const opt = (rest, name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
 
+/** Deletes the history rows of `names` that exist (none when there is no history table) and says which. */
+async function deleteHistory(client, names, log) {
+  const has = (await client.query(`SELECT to_regclass('public."_prisma_migrations"') IS NOT NULL AS ok`)).rows[0].ok;
+  const found = has ? (await client.query('SELECT migration_name FROM "_prisma_migrations" WHERE migration_name = ANY($1) ORDER BY 1', [names])).rows.map((r) => r.migration_name) : [];
+  const del = found.length ? await client.query('DELETE FROM "_prisma_migrations" WHERE migration_name = ANY($1)', [found]) : { rowCount: 0 };
+  log(`deleted ${del.rowCount} history row(s): ${found.join(', ') || 'none'}`);
+}
+
 /**
  * post-Phase-1 / design-areas rollback-history: refuses while any table, enum, column, trigger or function the release's
- * migrations create is still there (release.objects); then deletes exactly their history rows. Returns the exit code.
+ * migrations create is still there (release.objects), or while any of its migrations is not fully rolled back by its
+ * complete object list (MIGRATION_OBJECTS); then deletes exactly their history rows (none left: "deleted 0", exit 0 —
+ * running it again is harmless). Returns the exit code.
  */
-async function rollbackHistoryRelease(url, release) {
+export async function rollbackHistoryRelease(url, release, { log = console.log, error = console.error, root = REPO_ROOT } = {}) {
   const label = release.name === 'post-phase1' ? 'post-Phase-1' : release.label;
   const client = new pg.Client({ connectionString: url });
   await client.connect();
@@ -287,15 +541,46 @@ async function rollbackHistoryRelease(url, release) {
       [o.tables, o.enums, o.columns.map(([t, c]) => `${t}.${c}`), o.triggers, o.functions])).rows[0];
     const remaining = [...(left.tables ?? []), ...(left.enums ?? []).map((e) => `enum ${e}`), ...(left.columns ?? []).map((c) => `column ${c}`),
       ...(left.triggers ?? []).map((x) => `trigger ${x}`), ...(left.functions ?? []).map((x) => `function ${x}`)];
+    for (const st of await migrationStates(client, release)) for (const r of st.remaining) remaining.push(`${r} (${st.migration})`);
     if (remaining.length) {
-      console.error(`✗ refused: the ${label} rollback is not complete (${remaining.join(', ')}). Run \`rollback --release ${release.name}\` first.`);
+      error(`✗ refused: the ${label} rollback is not complete (${[...new Set(remaining)].join(', ')}). Run \`rollback --release ${release.name}\` first.`);
       return 1;
     }
-    const dirs = migrationDirs(REPO_ROOT).filter((d) => release.migrations.includes(d));
+    const dirs = migrationDirs(root).filter((d) => release.migrations.includes(d));
     if (dirs.length !== release.migrations.length) throw new Error(`expected ${release.migrations.length} ${label} migration directories, found ${dirs.length}`);
-    const names = (await client.query('SELECT migration_name FROM "_prisma_migrations" WHERE migration_name = ANY($1) ORDER BY 1', [dirs])).rows.map((r) => r.migration_name);
-    const del = await client.query('DELETE FROM "_prisma_migrations" WHERE migration_name = ANY($1)', [names]);
-    console.log(`deleted ${del.rowCount} history row(s): ${names.join(', ') || 'none'}`);
+    await deleteHistory(client, dirs, log);
+    return 0;
+  } finally {
+    await client.end();
+  }
+}
+
+/** Phase 1 rollback-history: as before (M9–M14 objects gone, School_name_key restored), plus their complete object lists. */
+export async function rollbackHistoryPhase1(url, release, { log = console.log, error = console.error, root = REPO_ROOT } = {}) {
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    const left = (await client.query(
+      `SELECT (SELECT array_agg(table_name::text) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)) AS tables,
+              (SELECT array_agg(typname::text) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = ANY($2)) AS enums,
+              EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'user_school_affiliation_integrity') AS m10_trigger,
+              EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'School' AND column_name = 'source') AS m11_column,
+              NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'School_name_key') AS m12_name_key_missing`,
+      [M9_M14_TABLES, M9_M14_ENUMS])).rows[0];
+    const remaining = [...(left.tables ?? []), ...(left.enums ?? []).map((e) => `enum ${e}`),
+      left.m10_trigger && 'trigger user_school_affiliation_integrity', left.m11_column && 'column School.source',
+      left.m12_name_key_missing && 'School_name_key not restored'].filter(Boolean);
+    for (const st of await migrationStates(client, release)) {
+      if (!HISTORY_ONLY.some((p) => st.migration.startsWith(`${p}_`))) continue;
+      for (const r of st.remaining) remaining.push(`${r} (${st.migration})`);
+    }
+    if (remaining.length) {
+      error(`✗ refused: the M9–M14 rollback is not complete (${remaining.join(', ')}). Run \`rollback\` first.`);
+      return 1;
+    }
+    const exact = readdirSync(join(root, 'prisma/migrations')).filter((d) => HISTORY_ONLY.some((p) => d.startsWith(`${p}_`)));
+    if (exact.length !== HISTORY_ONLY.length) throw new Error(`expected ${HISTORY_ONLY.length} M9–M14 migration directories, found ${exact.length}`);
+    await deleteHistory(client, exact, log);
     return 0;
   } finally {
     await client.end();
@@ -315,6 +600,21 @@ async function main() {
   console.log(`verifier guard: ${VERIFIER}`);
   console.log(`release: ${release.name} — ${release.label}`);
 
+  // --acknowledge and --stop-after: rollback only; checked against the fixed allow-list before anything is read or connected.
+  const ackValues = optionValues(rest, '--acknowledge');
+  const stopValues = optionValues(rest, '--stop-after');
+  if ((ackValues.length || stopValues.length) && command !== 'rollback') {
+    console.error('✗ --acknowledge and --stop-after are options of `rollback` only.');
+    return 2;
+  }
+  const acks = resolveAcknowledgements(ackValues, release);
+  if (!acks.ok) { console.error(`✗ refused: ${acks.reason}`); return 2; }
+  if (stopValues.length > 1 || (stopValues.length && !/^[1-9]\d{0,3}$/.test(stopValues[0]))) {
+    console.error('✗ --stop-after takes one whole number of files (1 or more).');
+    return 2;
+  }
+  const stopAfter = stopValues.length ? Number(stopValues[0]) : undefined;
+
   if (release.name === 'phase1') {
     // Phase 1 only: a checkout with migrations after M14 would make `deploy` apply them too and leave them
     // behind on `rollback` (exit 5, before any target is read).
@@ -326,9 +626,18 @@ async function main() {
       return 5;
     }
   } else {
-    // post-Phase-1 / design areas: exactly the release's migrations in the checkout, nothing after them (exit 5, before any target is read).
-    const problem = checkoutProblem(release, migrationDirs(REPO_ROOT));
+    // post-Phase-1 / design areas: the release's migrations in the checkout (exit 5, before any target is read). Nothing
+    // after them for deploy / diff / status, which act on every migration of the checkout; the other commands run only
+    // the release's own files and checks, so a newer checkout is accepted for them.
+    const problem = checkoutProblem(release, migrationDirs(REPO_ROOT), { allowLater: CHECKOUT_RELEASE_ONLY.has(command) });
     if (problem) { console.error(`✗ refused: ${problem}`); return 5; }
+    const later = afterRelease(release, migrationDirs(REPO_ROOT));
+    if (later.length) console.log(`checkout: ${later.length} later migration(s) present (${later.join(', ')}); ${command} uses only ${release.label}'s files.`);
+  }
+  if (['dump', 'restore'].includes(command)) {
+    const tools = findPgTools();
+    if (!tools.ok) { console.error(`✗ refused: ${tools.reason}`); return 2; }
+    console.log(`pg tools: pg_dump / pg_restore ${tools.dump.major} (${tools.dir ? `PG_BIN ${tools.dir}` : 'from PATH'})`);
   }
 
   const target = resolveDrillTarget(readTargetInputs());
@@ -390,13 +699,10 @@ async function main() {
     case 'deploy': code = prisma(schemaUrl, ['migrate', 'deploy']); break;
     case 'diff': code = prisma(schemaUrl, ['migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--exit-code']); break;
     case 'rollback': {
-      const docs = readdirSync(join(REPO_ROOT, 'docs/migrations'));
       // Pre-switch steps first (in production they run while the new release still serves; see the runbook §4).
-      const preSwitch = release.name === 'phase1' ? [] : releasePreSwitchFiles(release, docs);
-      for (const f of [...preSwitch, ...(release.name === 'phase1' ? rollbackFiles(docs) : releaseRollbackFiles(release, docs))]) {
-        console.log(`=== ${f}`);
-        await runSqlFile(schemaUrl, join(REPO_ROOT, 'docs/migrations', f), { readOnly: false });
-      }
+      const result = await rollbackRelease(schemaUrl, release, { acknowledgements: acks.acks, stopAfter });
+      console.log(`rollback: ${result.ran.length} file(s) run, ${result.skipped.length} skipped (already rolled back)${result.stopped ? ', stopped by --stop-after' : ''}.`);
+      if (result.stopped) break;
       console.log(release.name === 'phase1'
         ? 'Next: rollback-history (M9–M14 rows), then `status` ("Following migrations have not yet been applied:" + the 14 names; exit 1).'
         : release.name === 'post-phase1'
@@ -404,35 +710,9 @@ async function main() {
           : `Next: rollback-history --release ${release.name} (its ${release.count} rows), then \`status --release ${release.name}\` (those names not yet applied; exit 1).`);
       break;
     }
-    case 'rollback-history': {
-      if (release.name !== 'phase1') { code = await rollbackHistoryRelease(schemaUrl, release); break; }
-      const client = new pg.Client({ connectionString: schemaUrl });
-      await client.connect();
-      try {
-        const left = (await client.query(
-          `SELECT (SELECT array_agg(table_name::text) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)) AS tables,
-                  (SELECT array_agg(typname::text) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = ANY($2)) AS enums,
-                  EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'user_school_affiliation_integrity') AS m10_trigger,
-                  EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'School' AND column_name = 'source') AS m11_column,
-                  NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'School_name_key') AS m12_name_key_missing`,
-          [M9_M14_TABLES, M9_M14_ENUMS])).rows[0];
-        const remaining = [...(left.tables ?? []), ...(left.enums ?? []).map((e) => `enum ${e}`),
-          left.m10_trigger && 'trigger user_school_affiliation_integrity', left.m11_column && 'column School.source',
-          left.m12_name_key_missing && 'School_name_key not restored'].filter(Boolean);
-        if (remaining.length) {
-          console.error(`✗ refused: the M9–M14 rollback is not complete (${remaining.join(', ')}). Run \`rollback\` first.`);
-          return 1;
-        }
-        const exact = readdirSync(join(REPO_ROOT, 'prisma/migrations')).filter((d) => HISTORY_ONLY.some((p) => d.startsWith(`${p}_`)));
-        if (exact.length !== HISTORY_ONLY.length) throw new Error(`expected ${HISTORY_ONLY.length} M9–M14 migration directories, found ${exact.length}`);
-        const names = (await client.query('SELECT migration_name FROM "_prisma_migrations" WHERE migration_name = ANY($1) ORDER BY 1', [exact])).rows.map((r) => r.migration_name);
-        const del = await client.query('DELETE FROM "_prisma_migrations" WHERE migration_name = ANY($1)', [names]);
-        console.log(`deleted ${del.rowCount} history row(s): ${names.join(', ') || 'none'}`);
-      } finally {
-        await client.end();
-      }
+    case 'rollback-history':
+      code = release.name === 'phase1' ? await rollbackHistoryPhase1(schemaUrl, release) : await rollbackHistoryRelease(schemaUrl, release);
       break;
-    }
   }
   console.log(`elapsed: ${((Date.now() - started) / 1000).toFixed(1)} s`);
   return code;
