@@ -14,7 +14,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
+import { Gender, GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 import { HomePlacePart } from '../../common/home-place.js';
@@ -114,6 +114,11 @@ export class UpdateUserDto {
   @IsString() @Length(1, 100) @Transform(trim)
   homeSector?: string;
 
+  /** Correct the account's gender (FEMALE or MALE; capability genderStep). Not audited with its value. */
+  @IsOptional()
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender?: Gender;
+
   /**
    * A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of
    * MATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the
@@ -162,6 +167,12 @@ export class ChangeAccountStatusDto {
 }
 
 /** PUT /me/date-of-birth: "YYYY-MM-DD", the registration rules (a real past date, age 5–30 in Rwanda). */
+/** PUT /me/gender (capability genderStep). */
+export class SetGenderDto {
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
+}
+
 export class SetDateOfBirthDto {
   @Transform(trim)
   @IsStudentDateOfBirth()

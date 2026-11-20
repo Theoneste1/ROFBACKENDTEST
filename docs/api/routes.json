@@ -2768,6 +2768,16 @@
     "tag": "Me"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/me/gender",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/me/permissions",
     "roles": [

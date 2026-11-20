@@ -296,7 +296,9 @@ const REGISTRATION_GENDER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-regi
  * the home country and place.
  */
 const HOME_LOCATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-home-location.json';
-const CURRENT_SNAPSHOT = HOME_LOCATION_SNAPSHOT;
+/** Gender step (owner, 2026-11-20): PUT /me/gender for accounts without one; an Administrator corrects it. Additive only. */
+const GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-gender-step.json';
+const CURRENT_SNAPSHOT = GENDER_STEP_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1507,6 +1509,19 @@ describe('approved API contract history', () => {
       'schema ScoreInputDto: added',
       'schema SubmitMarkingDto: added',
       'schema UnlockMarkingDto: added',
+    ]);
+  });
+
+  test('home location → gender step (2026-11-20): additive only — PUT /me/gender and an Administrator correction', () => {
+    for (const f of [HOME_LOCATION_SNAPSHOT, GENDER_STEP_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(HOME_LOCATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(GENDER_STEP_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'PATCH /api/v1/admin/users/{id} › request application/json.gender: new optional field',
+      'PUT /api/v1/me/gender: operation added',
+      'schema SetGenderDto: added',
     ]);
   });
 
