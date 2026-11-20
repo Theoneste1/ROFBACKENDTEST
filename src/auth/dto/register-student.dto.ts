@@ -14,7 +14,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
+import { Gender, GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from './password.rules.js';
 import { IsNormalisablePhone, IsStudentDateOfBirth } from './registration-details.rules.js';
 
@@ -149,6 +149,10 @@ export class RegisterStudentDto {
   @Transform(trim)
   @IsStudentDateOfBirth()
   dateOfBirth: string;
+
+  /** FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. */
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
 
   /** The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. */
   @IsOptional()

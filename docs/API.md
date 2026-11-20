@@ -3817,6 +3817,7 @@ Body (JSON):
 | `schoolLocation` | string |  | Legacy, with schoolName: city / region of the school (not stored). |
 | `homeLocation` | string |  | Student's home city / region. Required unless the official home place (homeProvince, homeDistrict, homeSector) is sent; then it is optional and stored as "Sector, District". |
 | `dateOfBirth` | string | ✓ |  |
+| `gender` | FEMALE \| MALE | ✓ | FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. |
 | `phone` | string |  | The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. |
 | `guardianPhone` | string | ✓ | A close-family member's phone, stored in E.164 (teacher-application rules). Required (owner decision 9.2, 2026-11-18: the server requires it, not only the form) — missing, empty or not a valid phone number is refused. Not audited. |
 | `homeCountry` | string |  | The student's own country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. |
@@ -3847,6 +3848,7 @@ Body (JSON):
 | `confirmPassword` | string | ✓ | Must equal password (400 PASSWORD_MISMATCH); never stored. |
 | `country` | string | ✓ | ISO 3166-1 alpha-2 (e.g. RW). |
 | `phone` | string | ✓ | Stored in E.164 (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere +country number) — else 400 INVALID_PHONE. |
+| `gender` | FEMALE \| MALE | ✓ | FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. |
 | `olympiadInterests` | string[] | ✓ | One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). |
 | `schoolProvince` | string | ✓ |  |
 | `schoolDistrict` | string | ✓ |  |
@@ -4978,6 +4980,7 @@ Body (JSON):
 | `username` | string | ✓ |  |
 | `email` | string (email) | ✓ |  |
 | `password` | string | ✓ |  |
+| `gender` | FEMALE \| MALE | ✓ | FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. |
 | `country` | string |  |  |
 | `occupation` | string |  | Current or most recent occupation, as entered (2–200 characters). |
 | `educationLevel` | SECONDARY \| DIPLOMA \| BACHELOR \| MASTER \| DOCTORATE \| OTHER |  | Highest education level. |

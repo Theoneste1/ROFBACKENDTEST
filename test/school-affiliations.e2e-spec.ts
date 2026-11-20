@@ -159,7 +159,7 @@ describe('Student–school affiliation (school administration PR A)', () => {
   describe('claims are created PENDING on every path that sets a school', () => {
     it('self-registration: by code → a claim for that school; another country → a claim without a school; response schoolVerification', async () => {
       const reg = (username: string, extra: object) => http().post('/api/v1/auth/register/student').send({
-        firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Kigali', ...extra,
+        firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Kigali', ...extra,
       });
       const byCode = await reg('aff.reg.code', { schoolCode: '220999' }).expect(201);
       expect(byCode.body.schoolVerification).toBe('PENDING');
@@ -296,7 +296,7 @@ describe('Student–school affiliation (school administration PR A)', () => {
 
   it('a student sees their own status and the reason of a rejection or revocation — never who decided', async () => {
     const res0 = await http().post('/api/v1/auth/register/student').send({
-      firstName: 'M', lastName: 'E', username: 'aff.me', email: 'aff.me@test.local', password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Kigali', schoolCode: '220999',
+      firstName: 'M', lastName: 'E', username: 'aff.me', email: 'aff.me@test.local', password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Kigali', schoolCode: '220999',
     }).expect(201);
     const token = await login(ctx, 'aff.me', 'Secret123');
     expect((await http().get('/api/v1/me/school-affiliation').set(bearer(token)).expect(200)).body.current).toMatchObject({ status: 'PENDING', school: { code: '220999' }, reason: null });

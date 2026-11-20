@@ -27,12 +27,12 @@ describe('Form availability', () => {
     n++;
     return http().post('/api/v1/auth/register/student').send({
       firstName: 'Ada', lastName: 'Uwase', username: `form.student${n}`, email: `form.student${n}@example.com`,
-      password: 'Secret123', dateOfBirth: '2010-05-01', guardianPhone: '0722000111', gradeLevel: 'S4', schoolName: 'Some School', schoolLocation: 'Kigali', homeLocation: 'Kigali', ...extra,
+      password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', guardianPhone: '0722000111', gradeLevel: 'S4', schoolName: 'Some School', schoolLocation: 'Kigali', homeLocation: 'Kigali', ...extra,
     });
   };
   const applyCoach = () => {
     n++;
-    return http().post('/api/v1/mentor-requests').send({ firstName: 'Marie', lastName: 'Coach', username: `form.coach${n}`, email: `form.coach${n}@example.com`, password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] });
+    return http().post('/api/v1/mentor-requests').send({ firstName: 'Marie', lastName: 'Coach', username: `form.coach${n}`, email: `form.coach${n}@example.com`, password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] });
   };
   const contact = () => {
     n++;
@@ -41,7 +41,7 @@ describe('Form availability', () => {
   const teacherBody = () => {
     n++;
     return {
-      firstName: 'Tea', lastName: 'Cher', username: `form.teacher${n}`, email: `form.teacher${n}@test.local`, password: 'Secret123', confirmPassword: 'Secret123',
+      firstName: 'Tea', lastName: 'Cher', username: `form.teacher${n}`, email: `form.teacher${n}@test.local`, password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Nowhere Province', schoolDistrict: 'Nowhere',
       proposedSchoolName: 'GS Somewhere', schoolSector: 'Nowhere', homeDistrict: 'Nowhere', homeSector: 'Nowhere',
     };

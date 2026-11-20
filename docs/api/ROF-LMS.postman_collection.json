@@ -9055,7 +9055,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"dateOfBirth\": \"dateOfBirth\",\n  \"guardianPhone\": \"guardianPhone\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"dateOfBirth\": \"dateOfBirth\",\n  \"gender\": \"FEMALE\",\n  \"guardianPhone\": \"guardianPhone\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9093,7 +9093,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"confirmPassword\": \"Str0ng!Passw0rd\",\n  \"country\": \"country\",\n  \"phone\": \"phone\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ],\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"confirmPassword\": \"Str0ng!Passw0rd\",\n  \"country\": \"country\",\n  \"phone\": \"phone\",\n  \"gender\": \"FEMALE\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ],\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -11735,7 +11735,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gender\": \"FEMALE\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

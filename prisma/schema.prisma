@@ -262,6 +262,12 @@ enum OlympiadSubject {
 }
 
 /// Highest education level a coach applicant reports (capability coachApplicationDetails).
+/// Gender asked at every sign-up (owner, 2026-11-20). NULL on accounts created before it.
+enum Gender {
+  FEMALE
+  MALE
+}
+
 enum CoachEducationLevel {
   SECONDARY
   DIPLOMA
@@ -474,6 +480,8 @@ model User {
   /// Date of birth (date only), a close-family phone (E.164) and the official home place (Rwanda only;
   /// homeLocation keeps "Sector, District" for existing displays). Never written to audit metadata.
   dateOfBirth   DateTime? @db.Date
+  /// Asked at every sign-up (student, teacher, coach) since 2026-11-20; NULL for older accounts and staff.
+  gender        Gender?
   guardianPhone String?
   homeProvince  String?
   homeDistrict  String?
@@ -997,6 +1005,8 @@ model MentorRequest {
   occupation         String?
   educationLevel     CoachEducationLevel?
   olympiadInterests  OlympiadSubject[]        @default([])
+  /// Required on new applications (2026-11-20); copied to the Coach account on approval. NULL for older ones.
+  gender             Gender?
   /// Coach application details (2026-11-17, REG-06): phone (E.164), institution or affiliation, areas of
   /// expertise, relevant experience (free text) and years of experience (0–60). All optional for older clients.
   phone              String?
@@ -1063,6 +1073,8 @@ model TeacherApplication {
   /// ISO 3166-1 alpha-2.
   country            String
   olympiadInterests  OlympiadSubject[]
+  /// Required on new applications (2026-11-20); copied to the Teacher account on approval. NULL for older ones.
+  gender             Gender?
   status             TeacherApplicationStatus @default(PENDING)
   /// A listed school (official directory) — or NULL with proposedSchoolName ("my school is missing").
   schoolId           String?

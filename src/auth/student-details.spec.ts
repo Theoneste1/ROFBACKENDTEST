@@ -20,7 +20,7 @@ const problems = <T extends object>(cls: new () => T, body: object) => {
 
 const STUDENT = {
   firstName: 'Aline', lastName: 'Uwase', username: 'aline.u', email: 'aline@example.rw', password: 'Secret123',
-  gradeLevel: 'S2', schoolCode: '110123', homeLocation: 'Kigali', dateOfBirth: '2012-05-01', guardianPhone: '0722 123 456',
+  gradeLevel: 'S2', schoolCode: '110123', homeLocation: 'Kigali', dateOfBirth: '2012-05-01', gender: 'FEMALE', guardianPhone: '0722 123 456',
 };
 
 describe('student registration details (studentRegistrationDetails)', () => {
@@ -98,11 +98,11 @@ describe('student registration details (studentRegistrationDetails)', () => {
     it('stores E.164 phones, the date at 00:00 UTC, the own country and "Sector, District"', () => {
       const d = dto({ homeLocation: undefined, dateOfBirth: '2012-05-01', phone: '0788 123 456', guardianPhone: '0722123456', homeCountry: 'RW', homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' });
       expect(studentDetailColumns(d, homePlaceOf(d))).toEqual({
-        dateOfBirth: new Date('2012-05-01T00:00:00Z'), phone: '+250788123456', guardianPhone: '+250722123456', country: 'RW',
+        dateOfBirth: new Date('2012-05-01T00:00:00Z'), phone: '+250788123456', guardianPhone: '+250722123456', country: 'RW', gender: 'FEMALE',
         homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera', homeLocation: 'Remera, Gasabo',
       });
       // Older clients: only homeLocation.
-      expect(studentDetailColumns(dto({ dateOfBirth: undefined, guardianPhone: undefined }), null)).toEqual({ homeLocation: 'Kigali' });
+      expect(studentDetailColumns(dto({ dateOfBirth: undefined, guardianPhone: undefined, gender: undefined }), null)).toEqual({ homeLocation: 'Kigali' });
     });
 
     it('the audit log says only whether each detail was given — never a phone or a date', () => {
@@ -116,7 +116,7 @@ describe('student registration details (studentRegistrationDetails)', () => {
 
 describe('coach application details (coachApplicationDetails)', () => {
   // The subjects are required on every new application since 2026-11-19 (owner decision, coachOlympiadInterests).
-  const COACH = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123', olympiadInterests: ['MATHEMATICS'] };
+  const COACH = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] };
 
   it('older clients: none of the other new fields is needed; the subjects are (coachOlympiadInterests)', () => {
     expect(problems(CreateMentorRequestDto, COACH)).toEqual({});

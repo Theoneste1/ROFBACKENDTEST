@@ -275,7 +275,7 @@ describe('Remaining endpoints (e2e)', () => {
   describe('administration', () => {
     it('administrators reject a mentor application', async () => {
       const apply = await http().post('/api/v1/mentor-requests')
-        .send({ firstName: 'Jean', lastName: 'Applicant', username: 'jean.app', email: 'jean.app@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+        .send({ firstName: 'Jean', lastName: 'Applicant', username: 'jean.app', email: 'jean.app@example.com', password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
       await http().patch(`/api/v1/mentor-requests/${apply.body.id}/reject`).set(bearer(mentorJ)).expect(403);
       await http().patch(`/api/v1/mentor-requests/${apply.body.id}/reject`).set(bearer(admin)).expect(200);
       await http().patch(`/api/v1/mentor-requests/${apply.body.id}/approve`).set(bearer(admin)).expect(409);
@@ -340,7 +340,7 @@ describe('Remaining endpoints (e2e)', () => {
       await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': true }).expect(200);
       try {
         const apply = await http().post('/api/v1/mentor-requests')
-          .send({ firstName: 'Vera', lastName: 'Verify', username: 'vera.verify', email: 'vera@example.com', password: 'Mentor123', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+          .send({ firstName: 'Vera', lastName: 'Verify', username: 'vera.verify', email: 'vera@example.com', password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
         const approved = await http().patch(`/api/v1/mentor-requests/${apply.body.id}/approve`).set(bearer(admin)).expect(200);
         expect(approved.body).toMatchObject({ emailVerificationRequired: true, mentor: { role: 'MENTOR' } });
 

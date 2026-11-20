@@ -284,7 +284,12 @@ const TEST_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-markin
  * schemas; PUBLISHED accepted as a review filter and an expected status.
  */
 const TEST_RESULTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-test-results.json';
-const CURRENT_SNAPSHOT = TEST_RESULTS_SNAPSHOT;
+/**
+ * Gender at every sign-up (owner, 2026-11-20): `gender` (FEMALE | MALE) becomes a required request field of the three
+ * public sign-ups. Deliberately breaking for those three requests only; the frontend that sends it ships with it.
+ */
+const REGISTRATION_GENDER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-registration-gender.json';
+const CURRENT_SNAPSHOT = REGISTRATION_GENDER_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1496,6 +1501,21 @@ describe('approved API contract history', () => {
       'schema SubmitMarkingDto: added',
       'schema UnlockMarkingDto: added',
     ]);
+  });
+
+  test('Test Management Phase 4 → gender at sign-up (2026-11-20): exactly the deliberate required gender on the three public sign-ups; nothing else', () => {
+    // Deliberately BREAKING for the three sign-up requests (owner, 2026-11-20: gender is required at every sign-up).
+    // A client that does not send it is refused (400); the frontend released with this backend sends it.
+    for (const f of [TEST_RESULTS_SNAPSHOT, REGISTRATION_GENDER_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_RESULTS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_GENDER_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking.sort(), [
+      'POST /api/v1/auth/register/student › request application/json.gender: new required field',
+      'POST /api/v1/auth/register/teacher › request application/json.gender: new required field',
+      'POST /api/v1/mentor-requests › request application/json.gender: new required field',
+    ]);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, []);
   });
 
   test('Test Management Phase 3 → Phase 4 (2026-11-20): additive only — 17 routes, 2 request schemas, PUBLISHED accepted; no existing field changed', () => {

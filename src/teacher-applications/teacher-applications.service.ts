@@ -146,7 +146,7 @@ export class TeacherApplicationsService {
       const application = await tx.teacherApplication.create({
         data: {
           firstName: dto.firstName, lastName: dto.lastName, username: dto.username, email: dto.email,
-          passwordHash, phone, country: dto.country, olympiadInterests: dto.olympiadInterests,
+          passwordHash, phone, country: dto.country, gender: dto.gender, olympiadInterests: dto.olympiadInterests,
           schoolId: school?.id ?? null,
           proposedSchoolName: choice.kind === 'MISSING' ? choice.proposedSchoolName : null,
           schoolProvince: dto.schoolProvince, schoolDistrict: dto.schoolDistrict,
@@ -255,7 +255,7 @@ export class TeacherApplicationsService {
           firstName: application.firstName, lastName: application.lastName,
           username: application.username, email: application.email,
           passwordHash: application.passwordHash, role: 'TEACHER', isApproved: true,
-          phone: application.phone, country: application.country,
+          phone: application.phone, country: application.country, gender: application.gender,
           // The applicant chose this password; the address may still need confirming.
           activatedAt: verify ? null : now,
         },

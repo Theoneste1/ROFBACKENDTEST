@@ -50736,6 +50736,14 @@
           "dateOfBirth": {
             "type": "string"
           },
+          "gender": {
+            "type": "string",
+            "description": "FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited.",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
           "phone": {
             "type": "string",
             "description": "The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited."
@@ -50787,6 +50795,7 @@
           "password",
           "gradeLevel",
           "dateOfBirth",
+          "gender",
           "guardianPhone"
         ]
       },
@@ -52812,6 +52821,14 @@
           "password": {
             "type": "string"
           },
+          "gender": {
+            "type": "string",
+            "description": "FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited.",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
           "country": {
             "type": "string"
           },
@@ -52884,6 +52901,7 @@
           "username",
           "email",
           "password",
+          "gender",
           "olympiadInterests"
         ]
       },
@@ -52959,6 +52977,14 @@
             "minLength": 1,
             "maxLength": 40
           },
+          "gender": {
+            "type": "string",
+            "description": "FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited.",
+            "enum": [
+              "FEMALE",
+              "MALE"
+            ]
+          },
           "olympiadInterests": {
             "type": "array",
             "description": "One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates).",
@@ -53032,6 +53058,7 @@
           "confirmPassword",
           "country",
           "phone",
+          "gender",
           "olympiadInterests",
           "schoolProvince",
           "schoolDistrict",

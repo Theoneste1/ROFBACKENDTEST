@@ -42,7 +42,7 @@ describe('teacher self-registration rules', () => {
 
   describe('RegisterTeacherDto', () => {
     const base = {
-      firstName: ' Ada ', lastName: 'Teacher', username: ' Ada.T ', email: 'ADA@Example.com', password: 'Secret123', confirmPassword: 'Secret123',
+      firstName: ' Ada ', lastName: 'Teacher', username: ' Ada.T ', email: 'ADA@Example.com', password: 'Secret123', confirmPassword: 'Secret123', gender: 'FEMALE',
       country: ' rw ', phone: '0788 123 456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
       schoolId: '7d9f2c4e-1a2b-4c3d-8e9f-0a1b2c3d4e5f', homeDistrict: 'Huye', homeSector: 'Ngoma',
     };
