@@ -137,18 +137,33 @@ export class StorageService implements OnModuleInit {
    * Stream a file to the client. Authorization must already have happened.
    * `cacheControl` overrides the default `private, no-store` (e.g. versioned profile pictures).
    */
-  async send(res: Response, file: ServableFile, opts: { download?: boolean; cacheControl?: string } = {}) {
+  async send(
+    res: Response, file: ServableFile,
+    opts: { download?: boolean; cacheControl?: string; transform?: (data: Buffer) => Buffer } = {},
+  ) {
     const stream = await this.driver.getStream(file.storageKey);
+    // `transform` (e.g. removing identifying metadata for a blind marker): the file is read whole (uploads are bounded)
+    // and the transformed bytes are sent with their own length.
+    let body: Buffer | null = null;
+    if (opts.transform) {
+      const chunks: Buffer[] = [];
+      for await (const c of stream) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c as Uint8Array));
+      body = opts.transform(Buffer.concat(chunks));
+    }
 
     const inline = !opts.download && INLINE_TYPES.has(file.mimeType);
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Length', String(file.size));
+    res.setHeader('Content-Length', String(body ? body.length : file.size));
     res.setHeader('Content-Disposition', contentDisposition(file.originalName, inline));
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', opts.cacheControl ?? 'private, no-store');
     // Uploaded documents must never run script in our origin.
     res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
 
+    if (body) {
+      res.end(body);
+      return;
+    }
     try {
       await pipeline(stream, res);
     } catch (err) {

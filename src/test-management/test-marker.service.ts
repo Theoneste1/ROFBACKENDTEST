@@ -13,7 +13,8 @@
  * grade, the submitter or their role, a teacher, any time of submission (which would reveal a late answer under an
  * extension), extensions, or another marker and their marks (a second marker cannot see the first marks). Files are sent
  * with neutral names and no identifying header (Content-Disposition carries page-N.ext / test-paper.ext /
- * marking-guide.ext only). Every response passes assertBlind (marking-rules.ts MARKER_FORBIDDEN_FIELDS) before it leaves.
+ * marking-guide.ext only), and an answer page's own identifying metadata (EXIF GPS / owner / serials, PDF author, XMP) is
+ * removed before it is sent (answer-metadata.ts). Every response passes assertBlind (marking-rules.ts MARKER_FORBIDDEN_FIELDS) before it leaves.
  *
  * Marks: whole numbers (G7), per question when the test has questions (else one total), never above the maxima (the
  * database refuses too). Drafts are saved as often as needed (row lock: ten parallel saves apply one after another;
@@ -33,6 +34,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { MarkingQueueQueryDto, SaveMarkingDto } from './dto/marking.dto.js';
 import { assertBlind, normaliseMarks, queueState, type NormalisedMarks } from './marking-rules.js';
 import { changeStatus, lockSubmission, writeMarks, type Actor, type LockedSubmission } from './marking-store.js';
+import { stripIdentifyingMetadata } from './answer-metadata.js';
 import { answerPageName } from './submission-rules.js';
 import { TestDeadlineService } from './test-deadline.service.js';
 import { neutralFileName } from './test-rules.js';
@@ -144,7 +146,10 @@ export class TestMarkerService {
       where: { versionId, pageNumber }, select: { pageNumber: true, file: { select: { storageKey: true, mimeType: true, size: true } } },
     }) : null;
     if (!page) throw new AppError(HttpStatus.NOT_FOUND, 'PAGE_NOT_FOUND', 'Page not found.');
-    await this.storage.send(res, { ...page.file, originalName: answerPageName(page.pageNumber, page.file.mimeType) }, { download });
+    // Blind: identifying metadata inside the file itself (EXIF GPS / owner / serials, PDF author, XMP) is removed.
+    await this.storage.send(res, { ...page.file, originalName: answerPageName(page.pageNumber, page.file.mimeType) }, {
+      download, transform: (data) => stripIdentifyingMetadata(data, page.file.mimeType),
+    });
   }
 
   /** The test paper or the marking guide (the assigned marker may read the guide), under a neutral name. */

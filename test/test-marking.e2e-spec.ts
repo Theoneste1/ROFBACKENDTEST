@@ -11,6 +11,16 @@ import { randomUUID } from 'node:crypto';
 import { createTestApp, login, bearer, PDF, waitForEvents, type TestContext } from './helpers.js';
 
 const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8ffff3f0005fe02fea7d6a4aa0000000049454e44ae426082', 'hex');
+/** The same photo carrying a PNG text chunk that names the student (as phone and scanner apps write). */
+const textChunk = (() => {
+  const data = Buffer.from(`Author${String.fromCharCode(0)}Aline Uwase, Test School`, 'latin1');
+  const b = Buffer.alloc(12 + data.length);
+  b.writeUInt32BE(data.length, 0); b.write('tEXt', 4, 'latin1'); data.copy(b, 8);
+  return b;
+})();
+/** A complete 1×1 PNG (signature, IHDR, IDAT, IEND), and the same with the naming text chunk after IHDR. */
+const PNG_OK = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+const PNG_NAMED = Buffer.concat([PNG_OK.subarray(0, 33), textChunk, PNG_OK.subarray(33)]);
 const minutes = (m: number) => new Date(Date.now() + m * 60_000).toISOString();
 
 describe('Test Management Phase 3 — distribution, blind marking, review (e2e)', () => {
@@ -43,7 +53,7 @@ describe('Test Management Phase 3 — distribution, blind marking, review (e2e)'
     http().post(`${ME}/${id}/submission`).set(bearer(token)).send({ clientKey: randomUUID(), typedAnswer: text }).expect(201);
   const submitWithPage = async (token: string, id: string) => {
     const key = randomUUID();
-    await http().post(`${ME}/${id}/uploads/${key}/pages/1`).set(bearer(token)).attach('file', PNG, 'IMG_0042 Aline Uwase Test School.png').expect(201);
+    await http().post(`${ME}/${id}/uploads/${key}/pages/1`).set(bearer(token)).attach('file', PNG_NAMED, 'IMG_0042 Aline Uwase Test School.png').expect(201);
     await http().post(`${ME}/${id}/submission`).set(bearer(token)).send({ clientKey: key, typedAnswer: 'see page', pageCount: 1 }).expect(201);
   };
   const subOf = (testId: string, studentId: string) => p().testSubmission.findUniqueOrThrow({ where: { testId_studentId: { testId, studentId } } });
@@ -214,7 +224,7 @@ describe('Test Management Phase 3 — distribution, blind marking, review (e2e)'
       expect(detail).toMatchObject({ code: codeS, state: 'NOT_STARTED', canEdit: true, myMarking: null });
       expect(detail.test.questions.map((x: any) => x.maxMarks)).toEqual([5, 15]);
       expect(detail.test.markingGuide).toMatchObject({ name: 'marking-guide.pdf' });
-      expect(detail.answer.pages).toEqual([{ page: 1, name: 'page-1.png', mimeType: 'image/png', size: PNG.length }]);
+      expect(detail.answer.pages).toEqual([{ page: 1, name: 'page-1.png', mimeType: 'image/png', size: PNG_NAMED.length }]);
       const json = JSON.stringify([queue, detail]);
       for (const leak of ['student.s', 'student.j', stS, stJ, 'Test School', school, 'Uwase', 'IMG_0042', 'underExtension', '"extended"', 'submittedBy',
         'submitterRole', 'teacher', 'Guide by', 'email', 'lastName', 'submittedAt', 'deadline']) {
@@ -227,6 +237,14 @@ describe('Test Management Phase 3 — distribution, blind marking, review (e2e)'
         expect(headers).toMatch(/page-1\.png|marking-guide\.pdf/);
         for (const leak of ['student', 'Uwase', 'IMG_0042', 'Test School', stS, 'Kamali', 'Guide by']) expect([path, leak, headers.includes(leak)]).toEqual([path, leak, false]);
       }
+      // The file itself: the marker's copy has no identifying metadata; the stored original (staff) is unchanged.
+      const asBytes = (req: any) => req.buffer(true).parse((res: any, cb: any) => { const c: Buffer[] = []; res.on('data', (d: Buffer) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });
+      const markerCopy: Buffer = (await asBytes(http().get(`${MK}/submissions/${codeS}/pages/1`).set(bearer(c1)))).body;
+      expect(markerCopy.equals(PNG_OK)).toBe(true);
+      expect(markerCopy.toString('latin1')).not.toContain('Uwase');
+      const versionId = (await subOf(id, stS)).currentVersionId!;
+      const original: Buffer = (await asBytes(http().get(`${T}/${id}/submissions/${subS}/versions/${versionId}/pages/1`).set(bearer(hm)))).body;
+      expect(original.equals(PNG_NAMED)).toBe(true);
       // The reviewer sees who it is.
       const review = (await http().get(`${M(id)}/submissions/${subS}`).set(bearer(hm)).expect(200)).body;
       expect(review.student).toMatchObject({ id: stS, username: 'student.s', school: { name: 'Test School' } });
