@@ -1,5 +1,5 @@
 -- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher;
--- Test Management Phase 1):
+-- Test Management Phases 1 and 2):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
@@ -10,11 +10,12 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 4, 0, 0: the four design-area migrations applied; nothing failed or rolled back; nothing after 20261220000100'
+\echo '== 1. MUST be 5, 0, 0: the five design-area migrations applied; nothing failed or rolled back; nothing after 20261220000200'
 SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary',
-                                                 '20261220000000_test_file_purposes', '20261220000100_tests_core')
+                                                 '20261220000000_test_file_purposes', '20261220000100_tests_core',
+                                                 '20261220000200_tests_submissions')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261220000100_tests_core')                     AS later,
+       count(*) FILTER (WHERE migration_name > '20261220000200_tests_submissions')              AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -101,5 +102,24 @@ SELECT (SELECT count(*) FROM "ProgrammeMembership")                       AS mem
 
 \echo '== 15. compare: files by purpose (MUST equal the pre-check)'
 SELECT "purpose", count(*) FROM "FileObject" GROUP BY "purpose" ORDER BY 1;
+
+\echo '== 16. MUST be 5, 3, 3, 3: the Test Management Phase 2 tables, enums, guard functions and their triggers'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('TestExtension', 'TestSubmission', 'TestSubmissionVersion', 'TestAnswerPage', 'TestSubmissionStatusChange')) AS phase2_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestExtensionKind', 'TestSubmissionStatus', 'TestSubmitterRole'))                       AS phase2_enums,
+       (SELECT count(*) FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('test_submission_version_append_only', 'test_submission_status_append_only', 'test_answer_page_committed_guard')) AS guard_functions,
+       (SELECT count(DISTINCT tgname) FROM pg_trigger
+         WHERE tgname IN ('test_submission_version_append_only', 'test_submission_status_append_only', 'test_answer_page_committed_guard')) AS guard_triggers;
+
+\echo '== 17. MUST be 3: the one-active-extension indexes (whole test, student, teacher)'
+SELECT count(*) AS one_active_extension_indexes FROM pg_indexes
+ WHERE indexname IN ('TestExtension_one_active_test', 'TestExtension_one_active_student', 'TestExtension_one_active_teacher');
+
+\echo '== 18. MUST be 0, 0, 0, 0, 0: the Phase 2 tables start empty'
+SELECT (SELECT count(*) FROM "TestExtension") AS extensions, (SELECT count(*) FROM "TestSubmission") AS submissions,
+       (SELECT count(*) FROM "TestSubmissionVersion") AS versions, (SELECT count(*) FROM "TestAnswerPage") AS answer_pages,
+       (SELECT count(*) FROM "TestSubmissionStatusChange") AS status_changes;
 
 ROLLBACK;

@@ -266,7 +266,13 @@ const SCHOOLS_TABLE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-schools-ta
  * and /admin/test-markers (marker authorisations) — additive only: 19 routes, 7 request schemas.
  */
 const TEST_MANAGEMENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-management.json';
-const CURRENT_SNAPSHOT = TEST_MANAGEMENT_SNAPSHOT;
+/**
+ * Test Management, Phase 2 (WS3, owner-approved plan 2026-11-19): deadlines, extensions, student and teacher submissions
+ * with every version, tracking — /me/tests, /teacher/tests, /admin/tests/:id/extensions|extension-targets|submissions —
+ * additive only: 25 routes, 4 request schemas.
+ */
+const TEST_SUBMISSIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-19-test-submissions.json';
+const CURRENT_SNAPSHOT = TEST_SUBMISSIONS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1397,6 +1403,45 @@ describe('approved API contract history', () => {
       'schema TestQuestionInputDto: added',
       'schema UpdateTestDto: added',
       'schema UpdateTestQuestionDto: added',
+    ]);
+  });
+
+  test('Test Management Phase 1 → Phase 2 (2026-11-19): additive only — 25 routes, 4 request schemas, no existing field changed', () => {
+    for (const f of [TEST_MANAGEMENT_SNAPSHOT, TEST_SUBMISSIONS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEST_MANAGEMENT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEST_SUBMISSIONS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}: operation added',
+      'DELETE /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}: operation added',
+      'GET /api/v1/admin/tests/{id}/extension-targets: operation added',
+      'GET /api/v1/admin/tests/{id}/extensions: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions/{submissionId}: operation added',
+      'GET /api/v1/admin/tests/{id}/submissions: operation added',
+      'GET /api/v1/me/tests/{id}/paper: operation added',
+      'GET /api/v1/me/tests/{id}/uploads/{uploadKey}: operation added',
+      'GET /api/v1/me/tests/{id}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/me/tests/{id}: operation added',
+      'GET /api/v1/me/tests: operation added',
+      'GET /api/v1/teacher/tests/{id}/paper: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students/{studentId}: operation added',
+      'GET /api/v1/teacher/tests/{id}/students: operation added',
+      'GET /api/v1/teacher/tests: operation added',
+      'PATCH /api/v1/admin/tests/{id}/extensions/{extensionId}: operation added',
+      'POST /api/v1/admin/tests/{id}/extensions/{extensionId}/cancel: operation added',
+      'POST /api/v1/admin/tests/{id}/extensions: operation added',
+      'POST /api/v1/me/tests/{id}/submission: operation added',
+      'POST /api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}: operation added',
+      'POST /api/v1/teacher/tests/{id}/students/{studentId}/submission: operation added',
+      'POST /api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}: operation added',
+      'schema CancelTestExtensionDto: added',
+      'schema CreateTestExtensionDto: added',
+      'schema SubmitTestAnswerDto: added',
+      'schema UpdateTestExtensionDto: added',
     ]);
   });
 

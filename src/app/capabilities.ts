@@ -234,6 +234,16 @@ export const FEATURES = {
    * subjects. Students, Teachers and Coaches see nothing of it yet (later phases).
    */
   testManagement: 'always',
+  /**
+   * Test Management, Phase 2 (WS3; owner-approved plan 2026-11-19): deadlines from database time incl. extensions;
+   * /api/v1/me/tests (tests.submit: Students — their tests, paper, page-by-page uploads, submit / replace with every
+   * version kept, idempotent per clientKey); /api/v1/teacher/tests (tests.submitForStudents: Teachers — verified students
+   * of their own schools, G2); /api/v1/admin/tests/:id/extensions and /extension-targets (tests.extensions) and
+   * /api/v1/admin/tests/:id/submissions (tests.viewSubmissions: tracking, every version). A test with submissions keeps its
+   * division, format, window and marks and can be neither unpublished nor deleted (409 TEST_LOCKED_BY_SUBMISSIONS,
+   * TEST_HAS_SUBMISSIONS); GET /admin/tests/:id reports submissionCount.
+   */
+  testSubmissions: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

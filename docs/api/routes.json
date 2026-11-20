@@ -1281,6 +1281,56 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/extension-targets",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/extensions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/extensions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tests/{id}/extensions/{extensionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/extensions/{extensionId}/cancel",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/tests/{id}/files/{kind}",
     "roles": [
       "HEAD_COACH",
@@ -1352,6 +1402,36 @@
   {
     "method": "PUT",
     "path": "/api/v1/admin/tests/{id}/questions/order",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}",
     "roles": [
       "HEAD_COACH",
       "ADMIN",
@@ -3145,6 +3225,142 @@
       "SUPER_ADMIN"
     ],
     "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}/paper",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/tests/{id}/submission",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}/uploads/{uploadKey}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}/versions/{versionId}/pages/{page}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/paper",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/submission",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
   },
   {
     "method": "GET",

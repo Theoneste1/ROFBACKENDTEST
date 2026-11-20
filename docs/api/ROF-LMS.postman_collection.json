@@ -5412,6 +5412,227 @@
           }
         },
         {
+          "name": "GET /admin/tests/{id}/extension-targets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/extension-targets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "extension-targets"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "kind",
+                  "value": "STUDENT",
+                  "disabled": false,
+                  "description": ""
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Part of the first name, last name or username (1–100 characters)."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/extensions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/extensions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "extensions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "state",
+                  "value": "active",
+                  "disabled": true,
+                  "description": "active (default: not cancelled), cancelled or all."
+                },
+                {
+                  "key": "kind",
+                  "value": "TEST",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/extensions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/extensions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "extensions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"TEST\",\n  \"newDeadline\": \"newDeadline\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PATCH /admin/tests/{id}/extensions/{extensionId}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/extensions/:extensionId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "extensions",
+                ":extensionId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "extensionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/extensions/{extensionId}/cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/extensions/:extensionId/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "extensions",
+                ":extensionId",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "extensionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "GET /admin/tests/{id}/files/{kind}",
           "request": {
             "method": "GET",
@@ -5713,6 +5934,148 @@
                 }
               }
             }
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SUBMITTED",
+                  "disabled": true,
+                  "description": "SUBMITTED, NOT_SUBMITTED, LATE_BLOCKED (no submission, deadline passed) or UNDER_EXTENSION (an extension applies)."
+                },
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "division",
+                  "value": "JUNIOR",
+                  "disabled": true,
+                  "description": "The student's division (by grade): JUNIOR (S1–S3) or SENIOR (S4–S6)."
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Part of the student's first name, last name or username (1–100 characters)."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/submissions/{submissionId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions/:submissionId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions",
+                ":submissionId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions/:submissionId/versions/:versionId/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions",
+                ":submissionId",
+                "versions",
+                ":versionId",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "versionId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -12469,6 +12832,695 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tests · Students",
+      "item": [
+        {
+          "name": "GET /me/tests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "window",
+                  "value": "UPCOMING",
+                  "disabled": true,
+                  "description": "UPCOMING, OPEN or CLOSED (database time; the deadline includes any extension)."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        },
+        {
+          "name": "GET /me/tests/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        },
+        {
+          "name": "GET /me/tests/{id}/paper",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests/:id/paper",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests",
+                ":id",
+                "paper"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        },
+        {
+          "name": "POST /me/tests/{id}/submission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests/:id/submission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests",
+                ":id",
+                "submission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientKey\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /me/tests/{id}/uploads/{uploadKey}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests/:id/uploads/:uploadKey",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests",
+                ":id",
+                "uploads",
+                ":uploadKey"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "uploadKey",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        },
+        {
+          "name": "POST /me/tests/{id}/uploads/{uploadKey}/pages/{page}",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests/:id/uploads/:uploadKey/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests",
+                ":id",
+                "uploads",
+                ":uploadKey",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "uploadKey",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        },
+        {
+          "name": "DELETE /me/tests/{id}/uploads/{uploadKey}/pages/{page}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests/:id/uploads/:uploadKey/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests",
+                ":id",
+                "uploads",
+                ":uploadKey",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "uploadKey",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        },
+        {
+          "name": "GET /me/tests/{id}/versions/{versionId}/pages/{page}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/tests/:id/versions/:versionId/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "tests",
+                ":id",
+                "versions",
+                ":versionId",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "versionId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.submit` (STUDENT)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tests · Teachers",
+      "item": [
+        {
+          "name": "GET /teacher/tests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "window",
+                  "value": "UPCOMING",
+                  "disabled": true,
+                  "description": "UPCOMING, OPEN or CLOSED (database time; the deadline includes any extension)."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "GET /teacher/tests/{id}/paper",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/paper",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "paper"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "GET /teacher/tests/{id}/students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "students"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "SUBMITTED",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "GET /teacher/tests/{id}/students/{studentId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/students/:studentId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "students",
+                ":studentId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "POST /teacher/tests/{id}/students/{studentId}/submission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/students/:studentId/submission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "students",
+                ":studentId",
+                "submission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientKey\": \"00000000-0000-4000-8000-000000000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/students/:studentId/uploads/:uploadKey",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "students",
+                ":studentId",
+                "uploads",
+                ":uploadKey"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "uploadKey",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "POST /teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/students/:studentId/uploads/:uploadKey/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "students",
+                ":studentId",
+                "uploads",
+                ":uploadKey",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "uploadKey",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "DELETE /teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/students/:studentId/uploads/:uploadKey/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "students",
+                ":studentId",
+                "uploads",
+                ":uploadKey",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "uploadKey",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
+          }
+        },
+        {
+          "name": "GET /teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/teacher/tests/:id/students/:studentId/versions/:versionId/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teacher",
+                "tests",
+                ":id",
+                "students",
+                ":studentId",
+                "versions",
+                ":versionId",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "versionId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
           }
         }
       ]

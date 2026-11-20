@@ -118,7 +118,8 @@ describe('PermissionService', () => {
     it('TEACHER: no course grants are listed (2026-11-14) — only the school-scoped student list and the leaderboard', async () => {
       const { service: svc } = make();
       const { permissions } = await svc.describe(user('TEACHER'));
-      expect(permissions).toEqual(['leaderboard.view', 'students.viewScoped']);
+      // + tests.submitForStudents (Test Management Phase 2, G2: a default, school scope)
+      expect(permissions).toEqual(['leaderboard.view', 'students.viewScoped', 'tests.submitForStudents']);
     });
 
     it('SUPER_ADMIN keeps its full effective list, including schools.manage and schools.syncDirectory', async () => {

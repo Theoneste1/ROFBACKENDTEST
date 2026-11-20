@@ -123,7 +123,7 @@ export class DecisionNotificationsService {
     if (event.recipient.userId) {
       const inApp = decisionInApp(event.type, event.payload);
       const notification = await this.notifications.createInApp(tx, event.recipient.userId, {
-        category: 'ACCOUNT', type: event.type, title: inApp.title, body: inApp.body,
+        category: 'ACCOUNT', type: event.type, title: inApp.title, body: inApp.body, ...(inApp.link && { link: inApp.link }),
       });
       await tx.notificationOutbox.update({ where: { id: rowId }, data: { inAppNotificationId: notification.id } });
     }

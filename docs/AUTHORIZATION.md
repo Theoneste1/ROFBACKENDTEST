@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 344 endpoints — 26 public, 209 administrator-only.
+Totals: 369 endpoints — 26 public, 217 administrator-only.
 
 ## Academic years
 
@@ -261,6 +261,11 @@ Totals: 344 endpoints — 26 public, 209 administrator-only.
 | GET | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/extension-targets` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/extensions` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/extensions` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}/extensions/{extensionId}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/extensions/{extensionId}/cancel` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
 | PUT | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
@@ -269,6 +274,9 @@ Totals: 344 endpoints — 26 public, 209 administrator-only.
 | PATCH | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
 | PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}` |  |  |  | ✓ |
 | POST | `/api/v1/admin/tests/{id}/unpublish` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/subjects` |  |  |  | ✓ |
 
@@ -574,6 +582,33 @@ Totals: 344 endpoints — 26 public, 209 administrator-only.
 | POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
+
+## Tests · Students
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me/tests` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}/paper` |  | ✓ |  |  |
+| POST | `/api/v1/me/tests/{id}/submission` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}/uploads/{uploadKey}` |  | ✓ |  |  |
+| POST | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |
+| DELETE | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |
+| GET | `/api/v1/me/tests/{id}/versions/{versionId}/pages/{page}` |  | ✓ |  |  |
+
+## Tests · Teachers
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/tests` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/paper` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}` |  |  |  |  |
+| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/submission` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}` |  |  |  |  |
+| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  |  |  |
+| DELETE | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}` |  |  |  |  |
 
 ## Users
 
