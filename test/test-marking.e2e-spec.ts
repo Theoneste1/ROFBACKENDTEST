@@ -10,7 +10,6 @@ import { randomUUID } from 'node:crypto';
 
 import { createTestApp, login, bearer, PDF, waitForEvents, type TestContext } from './helpers.js';
 
-const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8ffff3f0005fe02fea7d6a4aa0000000049454e44ae426082', 'hex');
 /** The same photo carrying a PNG text chunk that names the student (as phone and scanner apps write). */
 const textChunk = (() => {
   const data = Buffer.from(`Author${String.fromCharCode(0)}Aline Uwase, Test School`, 'latin1');
