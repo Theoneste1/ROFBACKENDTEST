@@ -273,15 +273,28 @@ describe('Programme membership (P1-07)', () => {
       expect(await membershipOf('k6.app')).toEqual([{ disciplineId: mathsId, source: 'MANUAL', addedById: ctx.ids.admin, isActive: true }]);
     });
 
-    it('with more than one programme, new accounts get none (choosing one is later work)', async () => {
-      const physics = await p().discipline.create({ data: { code: 'PHYSICS', name: 'Physics' } });
+    // G3 (Test Management plan, owner-approved 2026-11-19; replaces "with more than one programme, new accounts get
+    // none"): migration 20261220000100_tests_core adds Physics and Computing next to Mathematics. New students and coaches
+    // still get exactly the Mathematics membership — never Physics or Computing.
+    it('G3: with Mathematics, Physics and Computing, a new student and a new coach join Mathematics only', async () => {
+      const physics = await p().discipline.create({ data: { code: 'PHYSICS', name: 'Physics', sortOrder: 1 } });
+      const computing = await p().discipline.create({ data: { code: 'COMPUTING', name: 'Computing', sortOrder: 2 } });
       try {
-        await http().post('/api/v1/admin/users').set(bearer(admin)).send({
-          firstName: 'K6', lastName: 'Two', username: 'k6.two', email: 'k6.two@test.local', password: 'Str0ng!Passw0rd', role: 'MENTOR',
+        for (const [username, role, extra] of [['k6.two', 'MENTOR', {}], ['k6.three', 'STUDENT', { gradeLevel: 'S4' }]] as const) {
+          await http().post('/api/v1/admin/users').set(bearer(admin)).send({
+            firstName: 'K6', lastName: 'Two', username, email: `${username}@test.local`, password: 'Str0ng!Passw0rd', role, ...extra,
+          }).expect(201);
+          expect(await membershipOf(username)).toEqual([{ disciplineId: mathsId, source: 'MANUAL', addedById: ctx.ids.admin, isActive: true }]);
+        }
+        await http().post('/api/v1/auth/register/student').send({
+          firstName: 'Reg', lastName: 'Three', username: 'k6.reg3', email: 'k6.reg3@test.local', password: 'Secret123',
+          dateOfBirth: '2010-05-01', guardianPhone: '0722000112', gradeLevel: 'S2', schoolName: 'Test School', schoolLocation: 'Kigali', homeLocation: 'Kigali',
         }).expect(201);
-        expect(await membershipOf('k6.two')).toEqual([]);
+        expect(await membershipOf('k6.reg3')).toEqual([{ disciplineId: mathsId, source: 'MANUAL', addedById: null, isActive: true }]);
+        expect(await p().programmeMembership.count({ where: { disciplineId: { in: [physics.id, computing.id] } } })).toBe(0);
       } finally {
-        await p().discipline.delete({ where: { id: physics.id } });
+        await p().programmeMembership.deleteMany({ where: { disciplineId: { in: [physics.id, computing.id] } } });
+        await p().discipline.deleteMany({ where: { id: { in: [physics.id, computing.id] } } });
       }
     });
   });

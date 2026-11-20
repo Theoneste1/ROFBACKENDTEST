@@ -225,6 +225,15 @@ export const FEATURES = {
    * level or division. Without this feature: use the built-in country list.
    */
   countries: 'always',
+  /**
+   * Test Management, Phase 1 (WS3; owner-approved plan 2026-11-19): /api/v1/admin/tests (tests.view, tests.manage:
+   * list with subjectId / division / status / q filters, create, read, update, delete a draft, publish, unpublish;
+   * questions add / edit / reorder / remove with the sum rule; PUT / GET / DELETE :id/files/paper|marking-guide, private,
+   * neutral names) and /api/v1/admin/test-markers (tests.manageMarkers: list, candidates, grant, revoke with a reason).
+   * Administrators: every subject; Head Coaches: the subjects they head. GET /admin/tests/subjects lists the caller's
+   * subjects. Students, Teachers and Coaches see nothing of it yet (later phases).
+   */
+  testManagement: 'always',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole>;

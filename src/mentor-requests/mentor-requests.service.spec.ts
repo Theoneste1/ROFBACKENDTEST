@@ -28,7 +28,7 @@ function makeMocks() {
       count:      vi.fn().mockResolvedValue(0),
     },
     teacherApplication:  { findFirst: vi.fn().mockResolvedValue(null) },
-    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    discipline:          { findUnique: vi.fn().mockResolvedValue({ id: 'd-math' }) },   // Mathematics, looked up by code (G3)
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
     // approve() locks and re-reads the request inside its transaction.

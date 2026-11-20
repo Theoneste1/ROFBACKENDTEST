@@ -60,6 +60,8 @@ describe('permissions', () => {
       'forms.view', 'forms.manageAvailability', 'forms.editMessages',
       // appended 2026-11-19 (countries, owner decision): granted (ADMIN_GRANTS), reported for the Countries screen
       'reference.manage',
+      // appended 2026-11-19 (Test Management WS3, owner-approved plan): granted (ADMIN_GRANTS), reported for the Tests screens
+      'tests.view', 'tests.manage', 'tests.manageMarkers',
     ]);
   });
 
@@ -78,17 +80,20 @@ describe('permissions', () => {
     const AS = ['users.viewStatusHistory', 'users.changeStatus', 'users.suspend', 'users.archive', 'users.bulkManage', 'users.export'] as const;
     const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // form availability, after AS
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
-    const tail = FORMS.length + REF.length;
+    const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers'] as const;   // Test Management (2026-11-19), after countries
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
+    for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
+    const tail = FORMS.length + REF.length + TM.length;
     expect(ROLE_PERMISSIONS.ADMIN.slice(-(D5.length + AS.length + tail), -(AS.length + tail))).toEqual([...D5]);
     for (const p of D5) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     // Additive only: the 25 original entries keep their order; then 2 + D-5, the account states and bulk operations, the forms, countries.
     expect(ROLE_PERMISSIONS.ADMIN.slice(-(AS.length + tail), -tail)).toEqual([...AS]);
     for (const p of AS) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-tail, -REF.length)).toEqual([...FORMS]);
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-tail, -(REF.length + TM.length))).toEqual([...FORMS]);
     for (const p of FORMS) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    expect(ROLE_PERMISSIONS.ADMIN.slice(-REF.length)).toEqual([...REF]);
+    expect(ROLE_PERMISSIONS.ADMIN.slice(-(REF.length + TM.length), -TM.length)).toEqual([...REF]);
     for (const p of REF) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
-    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + AS.length + FORMS.length + REF.length);
+    expect(ROLE_PERMISSIONS.ADMIN).toHaveLength(25 + 2 + D5.length + AS.length + FORMS.length + REF.length + TM.length);
     // Never reported to ADMIN (and never granted, except users.manageAdmins / permissions.view which stay unreported).
     for (const p of ['users.manageAdmins', 'permissions.view', 'permissions.manageOverrides', 'settings.manageSystem', 'schools.syncDirectory'] as const) {
       expect(ROLE_PERMISSIONS.ADMIN).not.toContain(p);
@@ -190,6 +195,8 @@ describe('permissions', () => {
       'forms.view': G, 'forms.manageAvailability': G, 'forms.editMessages': G,
       // Countries (owner decision 2026-11-19)
       'reference.manage': G,
+      // Test Management (WS3, 2026-11-19)
+      'tests.view': G, 'tests.manage': G, 'tests.manageMarkers': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {
@@ -216,6 +223,8 @@ describe('permissions', () => {
         'users.view': P, 'users.manageStudents': P, 'users.manageCoaches': P,
         'programmes.manageMembers': P, 'mentorAssignments.manage': P,
         'coaches.monitor': P, 'activity.view': P,
+        // Test Management (WS3, 2026-11-19): the subjects they head
+        'tests.view': P, 'tests.manage': P, 'tests.manageMarkers': P,
       },
       ADMIN: ADMIN_TABLE,
       SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },
@@ -266,6 +275,15 @@ describe('permissions', () => {
     it('H4: Head Coach grades and prepares only at course × division scope', () => {
       expect(ROLE_GRANTS.HEAD_COACH['reviews.grade']).toBe('courseDivision');
       expect(ROLE_GRANTS.HEAD_COACH['assignments.prepare']).toBe('courseDivision');
+    });
+
+    it('Test Management (WS3, Phase 1): Administrators everywhere, Head Coaches in the subjects they head; no Coach, Teacher or Student; RS1 unchanged', () => {
+      for (const p of ['tests.view', 'tests.manage', 'tests.manageMarkers'] as const) {
+        expect([p, APP_ROLES.filter((r) => p in ROLE_GRANTS[r])]).toEqual([p, ['HEAD_COACH', 'ADMIN', 'SUPER_ADMIN']]);
+        expect(ROLE_GRANTS.HEAD_COACH[p]).toBe('programme');
+        expect(ADMIN_PROHIBITED).not.toContain(p);   // managing tests is not marking (G4: marks are never Administrators')
+        expect(NEVER_GRANTABLE).not.toContain(p);
+      }
     });
 
     it('H7: Head Coach does not moderate discussions', () => {

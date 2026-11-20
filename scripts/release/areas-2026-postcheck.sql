@@ -1,4 +1,5 @@
--- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher):
+-- Design-areas release post-check (AFTER `prisma migrate deploy` of the design-area migrations: countries; primary teacher;
+-- Test Management Phase 1):
 -- READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs postcheck --release areas-2026    (Neon rehearsal branch; guarded)
@@ -9,10 +10,11 @@
 
 BEGIN TRANSACTION READ ONLY;
 
-\echo '== 1. MUST be 2, 0, 0: both design-area migrations applied; nothing failed or rolled back; nothing after 20261212000000'
-SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary')
+\echo '== 1. MUST be 4, 0, 0: the four design-area migrations applied; nothing failed or rolled back; nothing after 20261220000100'
+SELECT count(*) FILTER (WHERE migration_name IN ('20261211000000_countries_reference', '20261212000000_teacher_school_primary',
+                                                 '20261220000000_test_file_purposes', '20261220000100_tests_core')
                           AND finished_at IS NOT NULL AND rolled_back_at IS NULL)               AS areas_applied,
-       count(*) FILTER (WHERE migration_name > '20261212000000_teacher_school_primary')         AS later,
+       count(*) FILTER (WHERE migration_name > '20261220000100_tests_core')                     AS later,
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
@@ -71,5 +73,33 @@ SELECT count(*)                                                AS schools_examin
        count(*) FILTER (WHERE active_links = 0)               AS schools_without_teachers,
        count(*) FILTER (WHERE active_links > 0 AND primaries = 0) AS exceptions
   FROM per;
+
+\echo '== 11. MUST be 4, 4, 3, 1: the Test Management tables, their enums, the new FilePurpose values, the one-active-marker index'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+         AND table_name IN ('Test', 'TestQuestion', 'TestFile', 'MarkerAuthorization'))                          AS test_tables,
+       (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
+         AND typname IN ('TestDivision', 'TestAnswerFormat', 'TestStatus', 'TestFileKind'))                       AS test_enums,
+       (SELECT count(*) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+         WHERE t.typname = 'FilePurpose' AND e.enumlabel IN ('TEST_PAPER', 'TEST_ANSWER', 'MARKING_GUIDE'))       AS file_purposes,
+       (SELECT count(*) FROM pg_indexes WHERE indexname = 'MarkerAuthorization_one_active_per_coach_subject')     AS one_active_marker_index;
+
+\echo '== 12. MUST be 0, 0, 0, 0: the new tables start empty'
+SELECT (SELECT count(*) FROM "Test") AS tests, (SELECT count(*) FROM "TestQuestion") AS questions,
+       (SELECT count(*) FROM "TestFile") AS test_files, (SELECT count(*) FROM "MarkerAuthorization") AS marker_authorizations;
+
+\echo '== 13. compare: subjects — every pre-check row unchanged; MUST now include PHYSICS and COMPUTING (and MATHEMATICS where it existed)'
+SELECT "code", "name", "isActive", "sortOrder" FROM "Discipline" ORDER BY "code";
+
+\echo '== 14. compare: what Test Management must not touch (MUST equal the pre-check)'
+SELECT (SELECT count(*) FROM "ProgrammeMembership")                       AS memberships,
+       (SELECT count(*) FROM "ProgrammeMembership" WHERE "isActive")      AS active_memberships,
+       (SELECT count(*) FROM "Course")                                    AS courses,
+       (SELECT count(*) FROM "Assignment")                                AS assignments,
+       (SELECT count(*) FROM "Submission")                                AS submissions,
+       (SELECT count(*) FROM "MentorReview")                              AS reviews,
+       (SELECT count(*) FROM "FileObject")                                AS files;
+
+\echo '== 15. compare: files by purpose (MUST equal the pre-check)'
+SELECT "purpose", count(*) FROM "FileObject" GROUP BY "purpose" ORDER BY 1;
 
 ROLLBACK;

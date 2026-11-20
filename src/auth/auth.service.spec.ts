@@ -27,7 +27,7 @@ function makeMocks() {
       updateMany: vi.fn(),
     },
     school: { upsert: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
-    discipline:          { findMany: vi.fn().mockResolvedValue([{ id: 'd-math', code: 'MATHEMATICS' }]) },
+    discipline:          { findUnique: vi.fn().mockResolvedValue({ id: 'd-math' }) },   // Mathematics, looked up by code (G3)
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn(),
   };

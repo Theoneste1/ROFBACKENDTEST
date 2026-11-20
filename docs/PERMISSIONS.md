@@ -93,6 +93,19 @@ permission guard.
 | `forms.manageAvailability` | — | — | — | — | all | all |
 | `forms.editMessages` | — | — | — | — | all | all |
 | `reference.manage` | — | — | — | — | all | all |
+| `tests.view` | — | — | — | programme | all | all |
+| `tests.manage` | — | — | — | programme | all | all |
+| `tests.manageMarkers` | — | — | — | programme | all | all |
+
+## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
+
+`tests.view`, `tests.manage`, `tests.manageMarkers`: Administrators and Super Admins in every subject; Head Coaches only in
+the subjects (programmes) they head — any Head Coach of the subject may act, and the audit log records which one did. The
+service checks the subject on every request (another subject: 403 `SCOPE_FORBIDDEN`). Coaches, Teachers and Students hold
+none of them (authorised markers arrive in Phase 3; marking will be a separate permission in `ADMIN_PROHIBITED`, so
+Administrators never mark or adjust marks, G4). A marker authorisation is separate from a coach's Olympiad interests: an
+interest never grants marking. The marking guide is served only to holders of `tests.view` for the test's subject. Every
+change is audited in the TESTS category, in the same transaction. Appended to the frozen ADMIN list additively.
 
 ## Countries (owner decision 2026-11-19)
 

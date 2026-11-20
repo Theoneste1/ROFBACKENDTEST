@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 325 endpoints — 26 public, 190 administrator-only.
+Totals: 344 endpoints — 26 public, 209 administrator-only.
 
 ## Academic years
 
@@ -247,6 +247,30 @@ Totals: 325 endpoints — 26 public, 190 administrator-only.
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  | ✓ |
+
+## Admin · Tests
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/test-markers` |  |  |  | ✓ |
+| POST | `/api/v1/admin/test-markers` |  |  |  | ✓ |
+| POST | `/api/v1/admin/test-markers/{id}/revoke` |  |  |  | ✓ |
+| GET | `/api/v1/admin/test-markers/candidates` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/publish` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/questions` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/unpublish` |  |  |  | ✓ |
+| GET | `/api/v1/admin/tests/subjects` |  |  |  | ✓ |
 
 ## Admin · Users
 
