@@ -12,7 +12,7 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { CoachEducationLevel, MentorRequestStatus, OlympiadSubject } from '../../generated/prisma/client.js';
+import { CoachEducationLevel, Gender, MentorRequestStatus, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 
@@ -39,6 +39,10 @@ export class CreateMentorRequestDto {
 
   @IsStrongPassword()
   password: string;
+
+  /** FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. */
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
 
   // ─── Application details (capability coachApplicationDetails; optional for older clients, except the subjects) ───
   // No passport or national ID: the existing system does not require one.

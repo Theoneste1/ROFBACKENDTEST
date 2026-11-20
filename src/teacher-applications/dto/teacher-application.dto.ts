@@ -16,7 +16,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
-import { OlympiadSubject, TeacherApplicationStatus } from '../../generated/prisma/client.js';
+import { Gender, OlympiadSubject, TeacherApplicationStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 
@@ -60,6 +60,10 @@ export class RegisterTeacherDto {
   /** Stored in E.164 (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere +country number) — else 400 INVALID_PHONE. */
   @IsString() @Length(1, 40) @Transform(trim)
   phone: string;
+
+  /** FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. */
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
 
   /** One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). */
   @IsArray()

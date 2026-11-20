@@ -38,7 +38,7 @@ describe('Coach subject interests (e2e)', () => {
   const apply = (body: Record<string, unknown>) => {
     n += 1;
     return http().post('/api/v1/mentor-requests').send({
-      firstName: 'Cora', lastName: 'Coach', username: `ci.c${n}`, email: `ci.c${n}@test.local`, password: 'Mentor123', ...body,
+      firstName: 'Cora', lastName: 'Coach', username: `ci.c${n}`, email: `ci.c${n}@test.local`, password: 'Mentor123', gender: 'FEMALE', ...body,
     });
   };
   const usernameOf = () => `ci.c${n}`;

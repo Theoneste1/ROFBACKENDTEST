@@ -30,7 +30,7 @@ describe('Registration timeline (e2e)', () => {
   it('student: registered → school claim → verified → state change, in order, with stages', async () => {
     const reg = await http().post('/api/v1/auth/register/student').send({
       firstName: 'Tia', lastName: 'Line', username: 'tl.student', email: 'tl.student@test.local', password: 'Secret123',
-      dateOfBirth: '2011-01-02', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '229921', phone: '0788 111 222', guardianPhone: '0722 333 444',
+      dateOfBirth: '2011-01-02', gender: 'FEMALE', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '229921', phone: '0788 111 222', guardianPhone: '0722 333 444',
     }).expect(201);
     const claim = await p().studentSchoolAffiliation.findFirstOrThrow({ where: { studentId: reg.body.id, supersededAt: null } });
     await http().post(`/api/v1/admin/school-affiliations/${claim.id}/verify`).set(bearer(admin)).send({}).expect((r) => { if (r.status >= 300) throw new Error(`verify ${r.status} ${JSON.stringify(r.body)}`); });
@@ -56,7 +56,7 @@ describe('Registration timeline (e2e)', () => {
 
   it('teacher: the application\'s events (question, answer, decision) lead to the account', async () => {
     const app = await http().post('/api/v1/auth/register/teacher').send({
-      firstName: 'Ted', lastName: 'Line', username: 'tl.teacher', email: 'tl.teacher@test.local', password: 'Secret123', confirmPassword: 'Secret123',
+      firstName: 'Ted', lastName: 'Line', username: 'tl.teacher', email: 'tl.teacher@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
       schoolId: ngoma, homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
     }).expect(201);

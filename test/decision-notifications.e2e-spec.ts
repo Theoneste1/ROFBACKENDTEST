@@ -39,7 +39,7 @@ describe('Decision notifications', () => {
     n += 1;
     return {
       firstName: 'Aline', lastName: 'Teacher', username: `dn.t${n}`, email: `dn.t${n}@test.local`,
-      password: 'Secret123', confirmPassword: 'Secret123', country: 'RW', phone: '0788123456',
+      password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE', country: 'RW', phone: '0788123456',
       olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolId: ngoma,
       homeDistrict: 'Huye', homeSector: 'Ngoma', ...over,
     };
@@ -299,7 +299,7 @@ describe('Decision notifications', () => {
 
   describe('coach approval', () => {
     const apply = async (username: string) => (await http().post('/api/v1/mentor-requests').send({
-      firstName: 'Claude', lastName: 'Coach', username, email: `${username}@test.local`, password: 'Secret123', olympiadInterests: ['MATHEMATICS'],
+      firstName: 'Claude', lastName: 'Coach', username, email: `${username}@test.local`, password: 'Secret123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'],
     }).expect(201)).body.id as string;
 
     it('exactly ONE approval notice (outbox e-mail + in-app); the former approval e-mail is not queued', async () => {

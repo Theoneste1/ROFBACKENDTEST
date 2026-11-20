@@ -98,6 +98,12 @@ export const FEATURES = {
    */
   studentRegistrationDetails: 'always',
   /**
+   * Gender at sign-up (owner, 2026-11-20): POST /auth/register/student, /auth/register/teacher and /mentor-requests
+   * require `gender` (FEMALE or MALE); stored on the account (copied from the application on approval) and returned
+   * as `gender` by GET /api/v1/me. NULL on older accounts. Without this feature the field is refused (400).
+   */
+  registrationGender: 'always',
+  /**
    * Coach application details: POST /api/v1/mentor-requests accepts `country`, `occupation`, `educationLevel`
    * (SECONDARY | DIPLOMA | BACHELOR | MASTER | DOCTORATE | OTHER) and `olympiadInterests`; the admin list returns them
    * and approval copies country and interests to the Coach account. Optional at the API for older clients, except

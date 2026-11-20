@@ -106,6 +106,7 @@ export class MentorRequestsService {
       status:    'PENDING' as const,
       // Application details (coachApplicationDetails); a reapplication replaces the earlier ones.
       country:           data.country ?? null,
+      gender:            data.gender,
       occupation:        data.occupation ?? null,
       educationLevel:    data.educationLevel ?? null,
       olympiadInterests: canonicalInterests(data.olympiadInterests),
@@ -186,6 +187,7 @@ export class MentorRequestsService {
           role:         'MENTOR',
           // From the application (coachApplicationDetails): information only, no permissions.
           country:           request.country,
+          gender:            request.gender,
           olympiadInterests: request.olympiadInterests,
           // The applicant chose this password; the address may still need confirming.
           activatedAt:  verify ? null : new Date(),
