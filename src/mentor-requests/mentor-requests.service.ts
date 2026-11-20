@@ -1,3 +1,4 @@
+import { homePlaceText, resolveHomePlace } from '../common/home-place.js';
 import {
   HttpStatus,
   Injectable,
@@ -96,6 +97,8 @@ export class MentorRequestsService {
     if (data.phone !== undefined && !phone) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_PHONE', 'Enter a valid phone number (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere: +country number).');
     }
+    // Home location (homeLocationRules): the official place for Rwanda, nothing for another home country.
+    const home = await resolveHomePlace(this.prisma, data.country, data);
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_COST);
     const fields = {
       firstName: data.firstName,
@@ -105,7 +108,10 @@ export class MentorRequestsService {
       passwordHash,
       status:    'PENDING' as const,
       // Application details (coachApplicationDetails); a reapplication replaces the earlier ones.
-      country:           data.country ?? null,
+      country:           data.country,
+      homeProvince:      home.homeProvince,
+      homeDistrict:      home.homeDistrict,
+      homeSector:        home.homeSector,
       gender:            data.gender,
       occupation:        data.occupation ?? null,
       educationLevel:    data.educationLevel ?? null,
@@ -188,6 +194,11 @@ export class MentorRequestsService {
           // From the application (coachApplicationDetails): information only, no permissions.
           country:           request.country,
           gender:            request.gender,
+          // Home location (homeLocationRules): the place in Rwanda ("Sector, District" for existing displays).
+          homeProvince:      request.homeProvince,
+          homeDistrict:      request.homeDistrict,
+          homeSector:        request.homeSector,
+          homeLocation:      homePlaceText(request),
           olympiadInterests: request.olympiadInterests,
           // The applicant chose this password; the address may still need confirming.
           activatedAt:  verify ? null : new Date(),

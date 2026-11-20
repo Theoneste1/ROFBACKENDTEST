@@ -37,7 +37,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED off (the default)', () 
     const body = {
       firstName: 'Off', lastName: 'Flag', username: 'off.flag', email: 'off.flag@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      proposedSchoolName: 'GS Somewhere', schoolSector: 'Ngoma', homeDistrict: 'Huye', homeSector: 'Ngoma',
+      proposedSchoolName: 'GS Somewhere', schoolSector: 'Ngoma', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma',
     };
     for (const setting of [false, true]) {
       await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.teacherSelfSignup': setting }).expect(200);
@@ -50,7 +50,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED off (the default)', () 
     // An application that exists (e.g. submitted while the flag was on) cannot be decided while it is off.
     const app = await ctx.prisma.teacherApplication.create({ data: {
       firstName: 'A', lastName: 'B', username: 'off.pending', email: 'off.pending@test.local', passwordHash: 'x', phone: '+250788123456',
-      country: 'RW', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye', homeDistrict: 'Huye', homeSector: 'Ngoma',
+      country: 'RW', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma',
     } });
     expect(await status(http().get(ADMIN_APPS).set(bearer(admin)))).toEqual([403, 'TEACHERS_DISABLED']);
     expect(await status(http().post(`${ADMIN_APPS}/${app.id}/approve`).set(bearer(admin)).send({ schoolId: randomUUID() }))).toEqual([403, 'TEACHERS_DISABLED']);
@@ -76,7 +76,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       firstName: 'Grace', lastName: 'Teacher', username: `tr.listed${n}`, email: `tr.listed${n}@test.local`,
       password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE', country: 'rw', phone: '0788 123 456',
       olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolId: ngoma,
-      homeDistrict: 'Gasabo', homeSector: 'Kacyiru', ...over,
+      homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Kacyiru', ...over,
     };
   };
   const missing = (over: Record<string, unknown> = {}) => {
@@ -153,7 +153,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(row).toMatchObject({
         firstName: 'Grace', username: body.username, phone: '+250788123456', country: 'RW', status: 'PENDING',
         olympiadInterests: ['PHYSICS', 'MATHEMATICS', 'COMPUTING'], schoolId: ngoma, schoolSector: 'Ngoma', proposedSchoolName: null,
-        homeDistrict: 'Gasabo', homeSector: 'Kacyiru', userId: null,
+        homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Kacyiru', userId: null,
       });
       expect(row.passwordHash).toMatch(/^\$2/);
       expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|Secret123/);
@@ -224,7 +224,16 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await status(register(listed({ homeDistrict: 'Atlantis', homeSector: 'Ngoma' })))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);
       expect(await status(register(listed({ homeDistrict: 'Huye', homeSector: 'Nowhere' })))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);
       // The inactive school's sector still has an active school (Ngoma): a valid home.
-      expect(await status(register(listed({ homeDistrict: 'Huye', homeSector: 'Ngoma' })))).toEqual([201, null]);
+      expect(await status(register(listed({ homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma' })))).toEqual([201, null]);
+    });
+
+    it('home location (homeLocationRules): Rwanda needs province, district and sector; another home country none of them', async () => {
+      for (const k of ['homeProvince', 'homeDistrict', 'homeSector']) expect(await status(register(listed({ [k]: undefined })))).toEqual([400, 'VALIDATION_FAILED']);
+      expect(await status(register(listed({ homeProvince: 'Southern Province' })))).toEqual([400, 'UNKNOWN_HOME_LOCATION']);   // Gasabo is in Kigali City
+      expect(await status(register(listed({ country: 'UG' })))).toEqual([400, 'HOME_LOCATION_RWANDA_ONLY']);
+      const abroad = await register(listed({ country: 'ug', homeProvince: undefined, homeDistrict: undefined, homeSector: undefined })).expect(201);
+      expect(await p().teacherApplication.findUniqueOrThrow({ where: { id: abroad.body.id } }))
+        .toMatchObject({ country: 'UG', homeProvince: null, homeDistrict: null, homeSector: null });
     });
 
     it('password mismatch; missing or invalid phone (E.164 stored); missing or invalid country', async () => {
@@ -235,7 +244,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await status(register(listed({ country: undefined })))).toEqual([400, 'VALIDATION_FAILED']);
       expect(await status(register(listed({ country: 'Rwanda' })))).toEqual([400, 'VALIDATION_FAILED']);
       for (const gender of [undefined, 'OTHER']) expect(await status(register(listed({ gender })))).toEqual([400, 'VALIDATION_FAILED']);
-      const ok = await register(listed({ phone: '+254 712-345-678', country: 'ke' })).expect(201);
+      const ok = await register(listed({ phone: '+254 712-345-678', country: 'ke', homeProvince: undefined, homeDistrict: undefined, homeSector: undefined })).expect(201);
       expect(await p().teacherApplication.findUniqueOrThrow({ where: { id: ok.body.id } })).toMatchObject({ phone: '+254712345678', country: 'KE' });
     });
 
@@ -246,7 +255,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await status(register(listed({ email: 'DUP.Teacher@test.local' })))).toEqual([409, 'IDENTITY_TAKEN']);
       // An existing user or a pending coach application blocks too.
       expect(await status(register(listed({ username: 'student.j' })))).toEqual([409, 'IDENTITY_TAKEN']);
-      await http().post('/api/v1/mentor-requests').send({ firstName: 'Co', lastName: 'Ach', username: 'coach.pending', email: 'coach.pending@test.local', password: 'Secret123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
+      await http().post('/api/v1/mentor-requests').send({ firstName: 'Co', lastName: 'Ach', username: 'coach.pending', email: 'coach.pending@test.local', password: 'Secret123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
       expect(await status(register(listed({ email: 'coach.pending@test.local' })))).toEqual([409, 'IDENTITY_TAKEN']);
 
       // The database refuses a second PENDING row even without the application check (partial unique indexes).
@@ -258,10 +267,10 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       // Student registration and coach applications treat a pending teacher application's identity as taken.
       expect(await status(http().post('/api/v1/auth/register/student').send({
         firstName: 'Stu', lastName: 'Dent', username: 'stu.dup', email: 'dup.teacher@test.local', password: 'Secret123',
-        dateOfBirth: '2010-05-01', gender: 'FEMALE', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220001',
+        dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220001',
       }))).toEqual([409, 'IDENTITY_TAKEN']);
       expect(await status(http().post('/api/v1/mentor-requests').send({
-        firstName: 'Co', lastName: 'Dup', username: 'dup.teacher', email: 'coach.dup@test.local', password: 'Secret123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'],
+        firstName: 'Co', lastName: 'Dup', username: 'dup.teacher', email: 'coach.dup@test.local', password: 'Secret123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'],
       }))).toEqual([409, 'IDENTITY_TAKEN']);
 
       // Rejected: the identity is free again, for a new application.
@@ -347,7 +356,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(JSON.stringify(page)).not.toMatch(/passwordHash|\$2[aby]\$/);
       const one = (await http().get(`${ADMIN_APPS}/${listedId}`).set(bearer(superAdmin)).expect(200)).body;
       expect(Object.keys(one).sort()).toEqual([
-        'assignedSchool', 'avatarFileId', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeSector',
+        'assignedSchool', 'avatarFileId', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeProvince', 'homeSector',
         'id', 'infoRequests', 'lastName', 'olympiadInterests', 'phone', 'position', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
         'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username', 'yearsOfExperience',
       ]);
@@ -373,7 +382,8 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
         },
       });
       const user = await p().user.findUniqueOrThrow({ where: { id: res.body.teacher.id } });
-      expect(user).toMatchObject({ role: 'TEACHER', isApproved: true, phone: '+250788123456', country: 'RW', gender: 'MALE' });
+      expect(user).toMatchObject({ role: 'TEACHER', isApproved: true, phone: '+250788123456', country: 'RW', gender: 'MALE',
+        homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Kacyiru', homeLocation: 'Kacyiru, Gasabo' });
       expect(user.activatedAt).not.toBeNull();
       expect(await p().teacherSchoolAssignment.findMany({ where: { teacherId: user.id } }))
         .toEqual([expect.objectContaining({ schoolId: ngoma, isActive: true, assignedById: ctx.ids.admin })]);
@@ -432,7 +442,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     });
 
     it('a listed school deactivated before approval: refused, nothing created', async () => {
-      const id = (await register(listed({ schoolId: tumba, homeDistrict: 'Huye', homeSector: 'Tumba' })).expect(201)).body.id;
+      const id = (await register(listed({ schoolId: tumba, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Tumba' })).expect(201)).body.id;
       await p().school.update({ where: { id: tumba }, data: { isActive: false } });
       try {
         const users = await p().user.count();

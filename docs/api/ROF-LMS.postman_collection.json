@@ -7232,7 +7232,7 @@
             "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"role\": \"STUDENT\",\n  \"currentPassword\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"schoolCode\": \"schoolCode\",\n  \"homeLocation\": \"homeLocation\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"role\": \"STUDENT\",\n  \"currentPassword\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"schoolCode\": \"schoolCode\",\n  \"homeLocation\": \"homeLocation\",\n  \"homeCountry\": \"homeCountry\",\n  \"homeProvince\": \"homeProvince\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9055,7 +9055,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"dateOfBirth\": \"dateOfBirth\",\n  \"gender\": \"FEMALE\",\n  \"guardianPhone\": \"guardianPhone\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gradeLevel\": \"S1\",\n  \"dateOfBirth\": \"dateOfBirth\",\n  \"gender\": \"FEMALE\",\n  \"guardianPhone\": \"guardianPhone\",\n  \"homeCountry\": \"homeCountry\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9093,7 +9093,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"confirmPassword\": \"Str0ng!Passw0rd\",\n  \"country\": \"country\",\n  \"phone\": \"phone\",\n  \"gender\": \"FEMALE\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ],\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\"\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"confirmPassword\": \"Str0ng!Passw0rd\",\n  \"country\": \"country\",\n  \"phone\": \"phone\",\n  \"gender\": \"FEMALE\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ],\n  \"schoolProvince\": \"schoolProvince\",\n  \"schoolDistrict\": \"schoolDistrict\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -11142,7 +11142,7 @@
             "description": "**Access:** Any signed-in user",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"homeLocation\": \"homeLocation\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"homeLocation\": \"homeLocation\",\n  \"homeCountry\": \"homeCountry\",\n  \"homeProvince\": \"homeProvince\",\n  \"homeDistrict\": \"homeDistrict\",\n  \"homeSector\": \"homeSector\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -11735,7 +11735,7 @@
             "description": "**Access:** Public (no token)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gender\": \"FEMALE\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
+              "raw": "{\n  \"firstName\": \"firstName\",\n  \"lastName\": \"lastName\",\n  \"username\": \"username\",\n  \"email\": \"name@example.org\",\n  \"password\": \"Str0ng!Passw0rd\",\n  \"gender\": \"FEMALE\",\n  \"country\": \"country\",\n  \"olympiadInterests\": [\n    \"MATHEMATICS\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

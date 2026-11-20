@@ -20,7 +20,7 @@ const problems = <T extends object>(cls: new () => T, body: object) => {
 
 const STUDENT = {
   firstName: 'Aline', lastName: 'Uwase', username: 'aline.u', email: 'aline@example.rw', password: 'Secret123',
-  gradeLevel: 'S2', schoolCode: '110123', homeLocation: 'Kigali', dateOfBirth: '2012-05-01', gender: 'FEMALE', guardianPhone: '0722 123 456',
+  gradeLevel: 'S2', schoolCode: '110123', homeLocation: 'Kigali', dateOfBirth: '2012-05-01', gender: 'FEMALE', guardianPhone: '0722 123 456', homeCountry: 'KE',
 };
 
 describe('student registration details (studentRegistrationDetails)', () => {
@@ -76,10 +76,17 @@ describe('student registration details (studentRegistrationDetails)', () => {
       expect(p.dateOfBirth[0]).toMatch(/^dateOfBirth must be a real date/);
     });
 
-    it('the home place: all three together; homeLocation is optional only with it', () => {
+    it('home location (homeLocationRules): the home country is required; Rwanda needs the whole place, another country none', () => {
+      const { homeCountry: _hc, ...noCountry } = STUDENT;
+      expect(Object.keys(problems(RegisterStudentDto, noCountry))).toEqual(['homeCountry']);
+      // International: the home country alone (no province, district, sector, nor free-text home location).
+      expect(problems(RegisterStudentDto, { ...STUDENT, homeCountry: 'ug', homeLocation: undefined })).toEqual({});
+      // Rwanda: province, district and sector are each required.
+      expect(Object.keys(problems(RegisterStudentDto, { ...STUDENT, homeCountry: 'RW', homeLocation: undefined })).sort()).toEqual(['homeDistrict', 'homeProvince', 'homeSector']);
+      expect(Object.keys(problems(RegisterStudentDto, { ...STUDENT, homeCountry: 'rw', homeProvince: 'Kigali City' })).sort()).toEqual(['homeDistrict', 'homeSector']);
+      expect(problems(RegisterStudentDto, { ...STUDENT, homeCountry: 'RW', homeLocation: undefined, homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' })).toEqual({});
+      // Any part sent is validated (another country is then refused by the service: HOME_LOCATION_RWANDA_ONLY).
       expect(Object.keys(problems(RegisterStudentDto, { ...STUDENT, homeProvince: 'Kigali City' })).sort()).toEqual(['homeDistrict', 'homeSector']);
-      expect(Object.keys(problems(RegisterStudentDto, { ...STUDENT, homeLocation: undefined }))).toEqual(['homeLocation']);
-      expect(problems(RegisterStudentDto, { ...STUDENT, homeLocation: undefined, homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' })).toEqual({});
     });
   });
 
@@ -91,7 +98,7 @@ describe('student registration details (studentRegistrationDetails)', () => {
         .toEqual([400, 'HOME_LOCATION_RWANDA_ONLY']);
       expect(homePlaceOf(dto({ homeCountry: 'RW', homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' })))
         .toEqual({ province: 'Kigali City', district: 'Gasabo', sector: 'Remera' });
-      expect(homePlaceOf(dto({ homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' }))).not.toBeNull();
+      expect(homePlaceOf(dto({ homeCountry: 'RW', homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' }))).not.toBeNull();
       expect(homePlaceOf(dto({ homeCountry: 'KE' }))).toBeNull();
     });
 
@@ -102,7 +109,7 @@ describe('student registration details (studentRegistrationDetails)', () => {
         homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera', homeLocation: 'Remera, Gasabo',
       });
       // Older clients: only homeLocation.
-      expect(studentDetailColumns(dto({ dateOfBirth: undefined, guardianPhone: undefined, gender: undefined }), null)).toEqual({ homeLocation: 'Kigali' });
+      expect(studentDetailColumns(dto({ dateOfBirth: undefined, guardianPhone: undefined, gender: undefined }), null)).toEqual({ country: 'KE', homeLocation: 'Kigali' });
     });
 
     it('the audit log says only whether each detail was given — never a phone or a date', () => {
@@ -116,10 +123,14 @@ describe('student registration details (studentRegistrationDetails)', () => {
 
 describe('coach application details (coachApplicationDetails)', () => {
   // The subjects are required on every new application since 2026-11-19 (owner decision, coachOlympiadInterests).
-  const COACH = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'] };
+  const COACH = { firstName: 'Jean', lastName: 'Coach', username: 'jean.c', email: 'jean@example.rw', password: 'Secret123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] };
 
-  it('older clients: none of the other new fields is needed; the subjects are (coachOlympiadInterests)', () => {
+  it('older clients: none of the other new fields is needed; the subjects (coachOlympiadInterests) and the home country (homeLocationRules) are', () => {
     expect(problems(CreateMentorRequestDto, COACH)).toEqual({});
+    const { country: _country, ...withoutCountry } = COACH;
+    expect(Object.keys(problems(CreateMentorRequestDto, withoutCountry))).toEqual(['country']);
+    expect(Object.keys(problems(CreateMentorRequestDto, { ...COACH, country: 'rw' })).sort()).toEqual(['homeDistrict', 'homeProvince', 'homeSector']);
+    expect(problems(CreateMentorRequestDto, { ...COACH, country: 'RW', homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Remera' })).toEqual({});
     const { olympiadInterests: _subjects, ...withoutSubjects } = COACH;
     expect(Object.keys(problems(CreateMentorRequestDto, withoutSubjects))).toEqual(['olympiadInterests']);
   });

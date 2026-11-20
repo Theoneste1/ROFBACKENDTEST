@@ -31,12 +31,12 @@ describe('Application details and requests for more information (e2e)', () => {
       firstName: 'Grace', lastName: 'Teacher', username: `air.t${n}`, email: `air.t${n}@test.local`,
       password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE', country: 'RW', phone: '0788123456',
       olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolId: ngoma,
-      homeDistrict: 'Huye', homeSector: 'Ngoma', ...over,
+      homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', ...over,
     };
   };
   const coachBody = (over: Record<string, unknown> = {}) => {
     n += 1;
-    return { firstName: 'Eric', lastName: 'Coach', username: `air.c${n}`, email: `air.c${n}@test.local`, password: 'Mentor123', gender: 'FEMALE', olympiadInterests: ['MATHEMATICS'], ...over };
+    return { firstName: 'Eric', lastName: 'Coach', username: `air.c${n}`, email: `air.c${n}@test.local`, password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'], ...over };
   };
 
   beforeAll(async () => {

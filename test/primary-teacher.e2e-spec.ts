@@ -37,7 +37,7 @@ describe('Primary teacher of a school (owner decision 2026-11-19)', () => {
   const application = (username: string, schoolId: string) => p().teacherApplication.create({ data: {
     firstName: username, lastName: 'Applicant', username, email: `${username}@test.local`, passwordHash: hash, phone: '+250788123456',
     country: 'RW', olympiadInterests: ['MATHEMATICS'], schoolId, schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-    schoolSector: 'Ngoma', homeDistrict: 'Huye', homeSector: 'Ngoma',
+    schoolSector: 'Ngoma', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma',
   } }).then((a) => a.id);
   const approve = (id: string) => http().post(`${APPS}/${id}/approve`).set(bearer(admin)).send({});
 

@@ -6,6 +6,7 @@
  * of their schools). No school is ever created here: for a missing school the Administrator first creates
  * it through POST /admin/schools (or picks an existing one) and approves with its id.
  */
+import { homePlaceText, resolveHomePlace } from '../common/home-place.js';
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -50,7 +51,7 @@ export const APPLICATION_SELECT = {
   olympiadInterests: true, status: true,
   school: { select: SCHOOL_SELECT },
   proposedSchoolName: true, schoolProvince: true, schoolDistrict: true, schoolSector: true,
-  homeDistrict: true, homeSector: true, createdAt: true, decidedAt: true,
+  homeProvince: true, homeDistrict: true, homeSector: true, createdAt: true, decidedAt: true,
   decidedBy: { select: { id: true, firstName: true, lastName: true } },
   rejectionReason: true, decisionNote: true, userId: true,
   assignedSchool: { select: { id: true, name: true, code: true } },
@@ -133,11 +134,8 @@ export class TeacherApplicationsService {
       }
     }
 
-    if (!(await publicDirectoryHasPlace(this.prisma, { district: dto.homeDistrict, sector: dto.homeSector }))) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_HOME_LOCATION',
-        `${dto.homeSector}, ${dto.homeDistrict} is not a sector of that district in the official directory.`,
-        { district: dto.homeDistrict, sector: dto.homeSector });
-    }
+    // Home location (homeLocationRules): the official place for Rwanda, nothing for another home country.
+    const home = await resolveHomePlace(this.prisma, dto.country, dto);
 
     await this.assertIdentityFree(dto.username, dto.email);
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_COST);
@@ -152,7 +150,7 @@ export class TeacherApplicationsService {
           schoolProvince: dto.schoolProvince, schoolDistrict: dto.schoolDistrict,
           // A listed school's sector comes from the directory.
           schoolSector: choice.kind === 'MISSING' ? choice.schoolSector : school?.sector ?? null,
-          homeDistrict: dto.homeDistrict, homeSector: dto.homeSector,
+          homeProvince: home.homeProvince, homeDistrict: home.homeDistrict, homeSector: home.homeSector,
           position: dto.position ?? null, yearsOfExperience: dto.yearsOfExperience ?? null,
         },
         select: { id: true, status: true, proposedSchoolName: true },
@@ -256,6 +254,9 @@ export class TeacherApplicationsService {
           username: application.username, email: application.email,
           passwordHash: application.passwordHash, role: 'TEACHER', isApproved: true,
           phone: application.phone, country: application.country, gender: application.gender,
+          // Home location (homeLocationRules): the place in Rwanda ("Sector, District" for existing displays).
+          homeProvince: application.homeProvince, homeDistrict: application.homeDistrict, homeSector: application.homeSector,
+          homeLocation: homePlaceText(application),
           // The applicant chose this password; the address may still need confirming.
           activatedAt: verify ? null : now,
         },

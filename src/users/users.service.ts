@@ -1,3 +1,4 @@
+import { homePlaceText, resolveHomePlace, sendsHomePlace } from '../common/home-place.js';
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
@@ -238,6 +239,8 @@ export class UsersService {
       ...(data.password && { passwordHash: await bcrypt.hash(data.password, BCRYPT_COST) }),
       // Stored in the fixed order, like the coach's own edit (PATCH /me); information only.
       ...(data.olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(data.olympiadInterests) }),
+      // Home location (homeLocationRules), any role.
+      ...(await this.homeUpdate(data)),
     };
 
     const grade = role === 'STUDENT' ? (data.gradeLevel ?? existing.gradeLevel) : null;
@@ -249,8 +252,9 @@ export class UsersService {
         ...(data.homeLocation !== undefined && { homeLocation: data.homeLocation }),
       });
     } else {
-      // Mentors and admins carry no student data.
-      Object.assign(updateData, { gradeLevel: null, divisionId: null, schoolId: null, homeLocation: null });
+      // Mentors and admins carry no student data (their home location, homeLocationRules, is kept).
+      Object.assign(updateData, { gradeLevel: null, divisionId: null, schoolId: null,
+        ...(data.homeLocation !== undefined && { homeLocation: data.homeLocation }) });
     }
 
     const placementChanged =
@@ -572,16 +576,33 @@ export class UsersService {
     if (Object.keys(data).length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
     }
-    const { olympiadInterests, ...rest } = data;
+    const { olympiadInterests, homeCountry: _c, homeProvince: _p, homeDistrict: _d, homeSector: _s, ...rest } = data;
+    const home = await this.homeUpdate(data);
     return this.prisma.user.update({
       where: { id: userId },
       // Olympiad interests are stored in the fixed order (owner decision 8; information only).
-      data:  { ...rest, ...(olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(olympiadInterests) }) },
+      data:  { ...rest, ...home, ...(olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(olympiadInterests) }) },
       select: PROFILE_SELECT,
     });
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * The home-location columns of a profile edit (homeLocationRules), or {} when none is sent: the home country with,
+   * for Rwanda, the official place ("Sector, District" kept in homeLocation unless sent); another country clears the
+   * place. A place without the home country: 400 HOME_COUNTRY_REQUIRED.
+   */
+  private async homeUpdate(data: { homeCountry?: string; homeProvince?: string; homeDistrict?: string; homeSector?: string; homeLocation?: string }) {
+    if (data.homeCountry === undefined) {
+      if (sendsHomePlace(data)) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'HOME_COUNTRY_REQUIRED', 'Send the home country together with the home province, district and sector.');
+      }
+      return {};
+    }
+    const cols = await resolveHomePlace(this.prisma, data.homeCountry, data);
+    return { ...cols, homeLocation: data.homeLocation ?? homePlaceText(cols) };
+  }
 
   /** The id of the existing school a create / edit names by schoolId and/or schoolCode (null: none). */
   private async schoolFromReference(data: { schoolId?: string | null; schoolCode?: string }, requireActive: boolean) {

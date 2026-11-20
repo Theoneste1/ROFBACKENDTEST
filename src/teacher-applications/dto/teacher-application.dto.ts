@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
+import { HomePlacePart } from '../../common/home-place.js';
 import { Gender, OlympiadSubject, TeacherApplicationStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
@@ -52,7 +53,7 @@ export class RegisterTeacherDto {
   @IsString()
   confirmPassword: string;
 
-  /** ISO 3166-1 alpha-2 (e.g. RW). */
+  /** The applicant's home country, ISO 3166-1 alpha-2 (e.g. RW); with RW the home province, district and sector are required. */
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsISO31661Alpha2({ message: 'country must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
   country: string;
@@ -106,11 +107,21 @@ export class RegisterTeacherDto {
   @IsInt() @Min(0) @Max(60)
   yearsOfExperience?: number;
 
+  /**
+   * Home location (homeLocationRules): required when the home country (`country`) is Rwanda — a place of the official
+   * directory, else 400 UNKNOWN_HOME_LOCATION; with another country not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY).
+   */
+  @HomePlacePart('country')
   @IsString() @Length(1, 100) @Transform(trim)
-  homeDistrict: string;
+  homeProvince?: string;
 
+  @HomePlacePart('country')
   @IsString() @Length(1, 100) @Transform(trim)
-  homeSector: string;
+  homeDistrict?: string;
+
+  @HomePlacePart('country')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
 }
 
 /** GET /admin/teacher-applications */

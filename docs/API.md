@@ -2978,6 +2978,10 @@ Body (JSON):
 | `schoolId` | string (uuid) |  | Omitted: the school is kept. A school id: the student moves to that school. null: the student's school is cleared (their current school claim ends; no new claim is created). |
 | `schoolCode` | string |  | A Rwandan school by its official code — an alternative to schoolId (PR B). Given together, both must name the same school. |
 | `homeLocation` | string |  |  |
+| `homeCountry` | string |  | Home location (homeLocationRules; owner, 2026-11-20): the home country (ISO 3166-1 alpha-2, stored in `country`); with Rwanda the home province, district and sector are required (a place of the official directory, else 400 UNKNOWN_HOME_LOCATION); with another country they are not asked and the stored ones are cleared (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY). The place is only accepted together with homeCountry (400 HOME_COUNTRY_REQUIRED). Separate from the school location. |
+| `homeProvince` | string |  |  |
+| `homeDistrict` | string |  |  |
+| `homeSector` | string |  |  |
 | `olympiadInterests` | string[] |  | A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the route already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only: interests never grant marking or any other permission. |
 
 Returns `200` JSON with:
@@ -3815,13 +3819,13 @@ Body (JSON):
 | `schoolDistrict` | string |  |  |
 | `schoolSector` | string |  |  |
 | `schoolLocation` | string |  | Legacy, with schoolName: city / region of the school (not stored). |
-| `homeLocation` | string |  | Student's home city / region. Required unless the official home place (homeProvince, homeDistrict, homeSector) is sent; then it is optional and stored as "Sector, District". |
+| `homeLocation` | string |  | Student's home city / region (optional free text, kept for older clients). With the official home place it is stored as "Sector, District" when not sent. Home location rules (homeLocationRules): homeCountry decides. |
 | `dateOfBirth` | string | ✓ |  |
 | `gender` | FEMALE \| MALE | ✓ | FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. |
 | `phone` | string |  | The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. |
 | `guardianPhone` | string | ✓ | A close-family member's phone, stored in E.164 (teacher-application rules). Required (owner decision 9.2, 2026-11-18: the server requires it, not only the form) — missing, empty or not a valid phone number is refused. Not audited. |
-| `homeCountry` | string |  | The student's own country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. |
-| `homeProvince` | string |  | The official home place (Rwanda only; a place of GET /schools/locations, else 400 UNKNOWN_HOME_LOCATION; with another homeCountry 400 HOME_LOCATION_RWANDA_ONLY). All three together. |
+| `homeCountry` | string | ✓ | The student's home country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's. Required (owner, 2026-11-20: home location on every registration form, homeLocationRules). |
+| `homeProvince` | string |  | The official home place: required when homeCountry is Rwanda (a place of GET /schools/locations, else 400 UNKNOWN_HOME_LOCATION); with another homeCountry not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY). |
 | `homeDistrict` | string |  |  |
 | `homeSector` | string |  |  |
 | `olympiadInterests` | string[] |  | Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then has none); the sign-up form requires at least one. Information only: no programme membership, no permissions. |
@@ -3846,7 +3850,7 @@ Body (JSON):
 | `email` | string (email) | ✓ |  |
 | `password` | string | ✓ |  |
 | `confirmPassword` | string | ✓ | Must equal password (400 PASSWORD_MISMATCH); never stored. |
-| `country` | string | ✓ | ISO 3166-1 alpha-2 (e.g. RW). |
+| `country` | string | ✓ | The applicant's home country, ISO 3166-1 alpha-2 (e.g. RW); with RW the home province, district and sector are required. |
 | `phone` | string | ✓ | Stored in E.164 (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere +country number) — else 400 INVALID_PHONE. |
 | `gender` | FEMALE \| MALE | ✓ | FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. |
 | `olympiadInterests` | string[] | ✓ | One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). |
@@ -3857,8 +3861,9 @@ Body (JSON):
 | `schoolSector` | string |  | Required with proposedSchoolName; refused with schoolId (a listed school's sector comes from the directory — 400 SCHOOL_CHOICE_REQUIRED). |
 | `position` | string |  | Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients. |
 | `yearsOfExperience` | number |  | Years of teaching experience, 0–60 (REG-05). Optional. |
-| `homeDistrict` | string | ✓ |  |
-| `homeSector` | string | ✓ |  |
+| `homeProvince` | string |  | Home location (homeLocationRules): required when the home country (`country`) is Rwanda — a place of the official directory, else 400 UNKNOWN_HOME_LOCATION; with another country not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY). |
+| `homeDistrict` | string |  |  |
+| `homeSector` | string |  |  |
 
 Returns `201` JSON with:
 
@@ -4731,6 +4736,10 @@ Body (JSON):
 | `firstName` | string |  |  |
 | `lastName` | string |  |  |
 | `homeLocation` | string |  |  |
+| `homeCountry` | string |  | Home location (homeLocationRules; owner, 2026-11-20): the home country (ISO 3166-1 alpha-2, stored in `country`); with Rwanda the home province, district and sector are required (a place of the official directory, else 400 UNKNOWN_HOME_LOCATION); with another country they are not asked and the stored ones are cleared (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY). The place is only accepted together with homeCountry (400 HOME_COUNTRY_REQUIRED). Separate from the school location. |
+| `homeProvince` | string |  |  |
+| `homeDistrict` | string |  |  |
+| `homeSector` | string |  |  |
 | `olympiadInterests` | string[] |  | The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests). |
 
 Returns `200` JSON with:
@@ -4981,7 +4990,10 @@ Body (JSON):
 | `email` | string (email) | ✓ |  |
 | `password` | string | ✓ |  |
 | `gender` | FEMALE \| MALE | ✓ | FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. |
-| `country` | string |  |  |
+| `country` | string | ✓ |  |
+| `homeProvince` | string |  | Home location (homeLocationRules): required when the home country is Rwanda — a place of the official directory, else 400 UNKNOWN_HOME_LOCATION; with another country not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY). |
+| `homeDistrict` | string |  |  |
+| `homeSector` | string |  |  |
 | `occupation` | string |  | Current or most recent occupation, as entered (2–200 characters). |
 | `educationLevel` | SECONDARY \| DIPLOMA \| BACHELOR \| MASTER \| DOCTORATE \| OTHER |  | Highest education level. |
 | `olympiadInterests` | string[] | ✓ | The subjects the applicant would like to coach: one or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). REQUIRED for every new application (owner decision 2026-11-19, capability coachOlympiadInterests). Copied to the Coach account on approval; information only — it never grants marking or any other permission. |

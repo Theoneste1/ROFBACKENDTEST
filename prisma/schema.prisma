@@ -1007,6 +1007,11 @@ model MentorRequest {
   olympiadInterests  OlympiadSubject[]        @default([])
   /// Required on new applications (2026-11-20); copied to the Coach account on approval. NULL for older ones.
   gender             Gender?
+  /// Home location (homeLocationRules, 2026-11-20): `country` is the home country (required on new applications);
+  /// province, district and sector only for Rwanda. Copied to the Coach account on approval. NULL for older ones.
+  homeProvince       String?
+  homeDistrict       String?
+  homeSector         String?
   /// Coach application details (2026-11-17, REG-06): phone (E.164), institution or affiliation, areas of
   /// expertise, relevant experience (free text) and years of experience (0–60). All optional for older clients.
   phone              String?
@@ -1084,8 +1089,11 @@ model TeacherApplication {
   schoolProvince     String
   schoolDistrict     String
   schoolSector       String?
-  homeDistrict       String
-  homeSector         String
+  /// Home location (homeLocationRules, 2026-11-20): `country` is the home country; province, district and sector
+  /// only for Rwanda (NULL otherwise; older applications have district and sector without a province).
+  homeProvince       String?
+  homeDistrict       String?
+  homeSector         String?
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   decidedAt          DateTime?
