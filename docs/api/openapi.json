@@ -8566,6 +8566,20 @@
             }
           },
           {
+            "name": "olympiadLevel",
+            "required": false,
+            "in": "query",
+            "description": "Students of this Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "SENIOR",
+                "MIDDLE"
+              ]
+            }
+          },
+          {
             "name": "schoolId",
             "required": false,
             "in": "query",
@@ -11615,6 +11629,98 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/admin/students/{id}/olympiad-level": {
+      "get": {
+        "operationId": "OlympiadLevelController_view",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The level, whether it was set by hand, the grade's suggestion, and the history (newest first).",
+        "tags": [
+          "olympiad-levels"
+        ],
+        "x-roles": [
+          "MENTOR",
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "students.classifyLevel",
+        "description": "**Access:** permission `students.classifyLevel` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "OlympiadLevelController_set",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetOlympiadLevelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set the level by hand ({ level, reason }) or follow the grade again ({ automatic: true, reason }). Audited.",
+        "tags": [
+          "olympiad-levels"
+        ],
+        "x-roles": [
+          "MENTOR",
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "students.classifyLevel",
+        "description": "**Access:** permission `students.classifyLevel` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/teacher-assignments": {
       "get": {
         "operationId": "TeacherSchoolsController_list",
@@ -12635,6 +12741,20 @@
                 "S4",
                 "S5",
                 "S6"
+              ]
+            }
+          },
+          {
+            "name": "olympiadLevel",
+            "required": false,
+            "in": "query",
+            "description": "The students' Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "SENIOR",
+                "MIDDLE"
               ]
             }
           },
@@ -48071,11 +48191,12 @@
             "name": "division",
             "required": false,
             "in": "query",
-            "description": "JUNIOR, SENIOR or ALL (exact match).",
+            "description": "JUNIOR, MIDDLE, SENIOR or ALL (exact match).",
             "schema": {
               "type": "string",
               "enum": [
                 "JUNIOR",
+                "MIDDLE",
                 "SENIOR",
                 "ALL"
               ]
@@ -49294,11 +49415,12 @@
             "name": "division",
             "required": false,
             "in": "query",
-            "description": "The student's division (by grade): JUNIOR (S1–S3) or SENIOR (S4–S6).",
+            "description": "The student's Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR.",
             "schema": {
               "type": "string",
               "enum": [
                 "JUNIOR",
+                "MIDDLE",
                 "SENIOR"
               ]
             }
@@ -50104,6 +50226,7 @@
               "type": "string",
               "enum": [
                 "JUNIOR",
+                "MIDDLE",
                 "SENIOR"
               ]
             }
@@ -51566,6 +51689,7 @@
               "type": "string",
               "enum": [
                 "JUNIOR",
+                "MIDDLE",
                 "SENIOR",
                 "UNKNOWN"
               ]
@@ -51828,6 +51952,7 @@
               "type": "string",
               "enum": [
                 "JUNIOR",
+                "MIDDLE",
                 "SENIOR",
                 "UNKNOWN"
               ]
@@ -53057,6 +53182,16 @@
             "type": "string",
             "description": "reassignTeacher: the Teacher the students move to.",
             "format": "uuid"
+          },
+          "olympiadLevel": {
+            "type": "string",
+            "description": "setOlympiadLevel: JUNIOR, MIDDLE, SENIOR, or AUTOMATIC (the level the grade suggests).",
+            "enum": [
+              "JUNIOR",
+              "MIDDLE",
+              "SENIOR",
+              "AUTOMATIC"
+            ]
           }
         }
       },
@@ -53163,7 +53298,8 @@
               "unassignTeacher",
               "grantDelegation",
               "revokeDelegation",
-              "reassignTeacher"
+              "reassignTeacher",
+              "setOlympiadLevel"
             ]
           },
           "params": {
@@ -53195,7 +53331,8 @@
               "unassignTeacher",
               "grantDelegation",
               "revokeDelegation",
-              "reassignTeacher"
+              "reassignTeacher",
+              "setOlympiadLevel"
             ],
             "type": "string"
           },
@@ -53671,6 +53808,33 @@
             "description": "Another Olympiad named in words (\"Other\"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,\ne.g. \"Chemistry\". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).\nNever a subject: grants nothing, not part of Test Management."
           }
         }
+      },
+      "SetOlympiadLevelDto": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "description": "JUNIOR, MIDDLE or SENIOR. Required unless `automatic` is true; refused with it.",
+            "enum": [
+              "JUNIOR",
+              "SENIOR",
+              "MIDDLE"
+            ]
+          },
+          "automatic": {
+            "type": "boolean",
+            "description": "true: follow the grade again (the suggested level). Never together with a level (400 LEVEL_WITH_AUTOMATIC)."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why (3–500 characters): kept in the student's level history.",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "CreateTeacherSchoolDto": {
         "type": "object",
@@ -56319,9 +56483,10 @@
           },
           "division": {
             "type": "string",
-            "description": "JUNIOR (S1–S3), SENIOR (S4–S6) or ALL. Mandatory.",
+            "description": "The Olympiad level: JUNIOR, MIDDLE or SENIOR (the students whose level it is), or ALL. Mandatory.",
             "enum": [
               "JUNIOR",
+              "MIDDLE",
               "SENIOR",
               "ALL"
             ]
@@ -56385,6 +56550,7 @@
             "type": "string",
             "enum": [
               "JUNIOR",
+              "MIDDLE",
               "SENIOR",
               "ALL"
             ]

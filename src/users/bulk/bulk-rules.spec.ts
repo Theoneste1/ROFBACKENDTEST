@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { getMetadataStorage } from 'class-validator';
 
@@ -87,7 +88,7 @@ describe('bulk rules', () => {
     // One value per filter key (each must make userListWhere read at least one column).
     const SAMPLE: Record<string, unknown> = {
       role: 'STUDENT', divisionId: 'd', gradeLevel: 'S1', schoolId: 's', isApproved: true, isActive: true,
-      accountStatus: 'ACTIVE', isActivated: true, search: 'x',
+      accountStatus: 'ACTIVE', isActivated: true, search: 'x', olympiadLevel: 'MIDDLE',
     };
     const USER_SCALARS = new Set<string>(Object.values(Prisma.UserScalarFieldEnum));
     const LOGICAL = new Set(['AND', 'OR', 'NOT']);
@@ -103,8 +104,14 @@ describe('bulk rules', () => {
       }
       return out;
     }
+    /** The trigger's UPDATE OF list as the LAST migration that (re-)creates it defines it (20261224000000 added olympiadLevel). */
     const triggerColumns = () => {
-      const sql = readFileSync('prisma/migrations/20261207000100_bulk_membership_guard/migration.sql', 'utf8');
+      const dir = 'prisma/migrations';
+      const defining = readdirSync(dir).sort()
+        .map((d) => join(dir, d, 'migration.sql')).filter((f) => existsSync(f))
+        .filter((f) => /CREATE TRIGGER user_bulk_membership_guard/.test(readFileSync(f, 'utf8')));
+      expect(defining.map((f) => f.split(/[\\/]/).at(-2))).toEqual(['20261207000100_bulk_membership_guard', '20261224000000_olympiad_levels']);
+      const sql = readFileSync(defining.at(-1)!, 'utf8').split('CREATE TRIGGER user_bulk_membership_guard').at(-1)!;
       return [...sql.match(/UPDATE OF([\s\S]*?)\n\s*ON "User"/)![1].matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]).sort();
     };
 

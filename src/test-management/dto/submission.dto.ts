@@ -9,7 +9,7 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 export const EXTENSION_KINDS = ['TEST', 'STUDENT', 'TEACHER'] as const;
 export const EXTENSION_STATES = ['active', 'cancelled', 'all'] as const;
 export const TRACKING_STATES = ['SUBMITTED', 'NOT_SUBMITTED', 'LATE_BLOCKED', 'UNDER_EXTENSION'] as const;
-export const STUDENT_DIVISIONS = ['JUNIOR', 'SENIOR'] as const;
+export const STUDENT_DIVISIONS = ['JUNIOR', 'MIDDLE', 'SENIOR'] as const;
 
 // ── Extensions (Administrators; Head Coaches of the subject) ─────────────────────
 
@@ -84,7 +84,7 @@ export class ListTestSubmissionsQueryDto extends PaginationQueryDto {
   @IsOptional() @IsUUID()
   schoolId?: string;
 
-  /** The student's division (by grade): JUNIOR (S1–S3) or SENIOR (S4–S6). */
+  /** The student's Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR. */
   @IsOptional() @IsIn(STUDENT_DIVISIONS)
   division?: (typeof STUDENT_DIVISIONS)[number];
 
@@ -114,8 +114,8 @@ export class ListTeacherTestStudentsQueryDto extends PaginationQueryDto {
   q?: string;
 
   /** Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade. */
-  @IsOptional() @IsIn(['JUNIOR', 'SENIOR'])
-  division?: 'JUNIOR' | 'SENIOR';
+  @IsOptional() @IsIn(['JUNIOR', 'MIDDLE', 'SENIOR'])
+  division?: 'JUNIOR' | 'MIDDLE' | 'SENIOR';
 
   /** Olympiad subject (owner 2026-11-21): students who chose it among their Olympiad interests. */
   @IsOptional() @IsIn(['MATHEMATICS', 'COMPUTING', 'PHYSICS'])

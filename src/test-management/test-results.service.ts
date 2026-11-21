@@ -235,15 +235,13 @@ export class TestResultsService {
     const where: Prisma.TestSubmissionWhereInput = {
       testId, finalMarkingId: { not: null },
       status: q.published === true ? 'PUBLISHED' : q.published === false ? 'APPROVED' : { in: ['APPROVED', 'PUBLISHED'] },
-      ...((q.schoolId || q.division || contains) && {
-        student: {
-          ...(q.schoolId && { schoolId: q.schoolId }),
-          ...(q.division === 'JUNIOR' && { gradeLevel: { in: ['S1', 'S2', 'S3'] } }),
-          ...(q.division === 'SENIOR' && { gradeLevel: { in: ['S4', 'S5', 'S6'] } }),
-          ...(q.division === 'UNKNOWN' && { OR: [{ gradeLevel: null }, { gradeLevel: { notIn: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'] } }] }),
-        },
-      }),
-      ...(contains && { OR: [{ publicCode: contains }, { student: { OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] } }] }),
+      AND: [
+        ...(q.schoolId ? [{ student: { schoolId: q.schoolId } }] : []),
+        // The ranking group (owner 2026-11-21): the level at submission, else the student's level now (DIVISION_SQL).
+        ...(q.division && q.division !== 'UNKNOWN' ? [{ OR: [{ level: q.division }, { level: null, student: { olympiadLevel: q.division } }] }] : []),
+        ...(q.division === 'UNKNOWN' ? [{ level: null, student: { olympiadLevel: null } }] : []),
+        ...(contains ? [{ OR: [{ publicCode: contains }, { student: { OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] } }] }] : []),
+      ],
     };
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total, test] = await this.prisma.$transaction([

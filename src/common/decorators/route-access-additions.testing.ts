@@ -22,6 +22,8 @@ const NOBODY_BY_DEFAULT: AddedRouteDecisions = { anonymous: '401', STUDENT: '403
 const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** tests.mark (Test Management Phase 3): Coaches only — Administrators never mark (ADMIN_PROHIBITED, G4). */
 const COACHES_ONLY:     AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: '403', UNKNOWN_ROLE: '403' };
+/** students.classifyLevel (Olympiad levels, owner 2026-11-21): User Managers and Coaches (the service limits a Coach to their programmes' students). */
+const ADMINS_AND_COACHES: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** @Authenticated: every signed-in caller, whatever the role (own data only, or data shown to every member). */
 const SIGNED_IN:        AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
 
@@ -309,4 +311,7 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'DELETE /api/v1/admin/tests/:id/submissions/:submissionId/resubmission  AdminTestSubmissionsController.cancelResubmission': ADMINISTRATORS,
   'GET /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.testSubmission':              ADMINISTRATORS,
   'PUT /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.setTestSubmission':           ADMINISTRATORS,
+  // Olympiad levels (owner 2026-11-21): a student's level, its suggestion and history; set it or follow the grade again.
+  'GET /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.view':                               ADMINS_AND_COACHES,
+  'PUT /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.set':                                ADMINS_AND_COACHES,
 };

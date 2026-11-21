@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 419 endpoints — 26 public, 250 administrator-only.
+Totals: 421 endpoints — 26 public, 250 administrator-only.
 
 ## Academic years
 
@@ -563,6 +563,13 @@ Totals: 419 endpoints — 26 public, 250 administrator-only.
 | POST | `/api/v1/notifications/read` |  | ✓ | ✓ | ✓ |
 | POST | `/api/v1/notifications/read-all` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/notifications/unread-count` |  | ✓ | ✓ | ✓ |
+
+## olympiad-levels
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/students/{id}/olympiad-level` |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/students/{id}/olympiad-level` |  |  | ✓ | ✓ |
 
 ## Programmes
 

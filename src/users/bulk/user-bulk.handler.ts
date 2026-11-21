@@ -31,6 +31,7 @@ import {
 } from '../../teachers/teacher-student-ops.js';
 import { activeSchoolsOf, visibilityOf } from '../../teachers/teacher-scope.js';
 import { AccountStatusService } from '../account-status.service.js';
+import { OlympiadLevelService } from '../olympiad-level.service.js';
 import { userListWhere, UsersService } from '../users.service.js';
 import {
   ACTION_RULES, BULK_MEMBERSHIP_KEY, MAX_IDS, MAX_SELECTION, normaliseParams, normaliseSelection, SKIP_CODES, statusDecision,
@@ -63,6 +64,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     private readonly accountStatus: AccountStatusService,
     private readonly audit: AuditService,
     private readonly notices: DecisionNotificationsService,
+    private readonly levels: OlympiadLevelService,
   ) {}
 
   onModuleInit() {
@@ -112,6 +114,9 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     }
     if (action === 'changeClassification' && !p.gradeLevel) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.gradeLevel is required.');
+    }
+    if (action === 'setOlympiadLevel' && !p.olympiadLevel) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.olympiadLevel is required.');
     }
     if (action === 'message' && (!p.subject || !p.body)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.subject and params.body are required.');
@@ -164,6 +169,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     }
     if (action === 'assignRole') warn('ALREADY_IN_ROLE', count((g) => g.role === p.role), 'Accounts that already have this role will be skipped.');
     if (action === 'changeClassification') warn('NOT_STUDENTS', count((g) => g.role !== 'STUDENT'), 'Only students have a grade; other accounts will be skipped.');
+    if (action === 'setOlympiadLevel') warn('NOT_STUDENTS', count((g) => g.role !== 'STUDENT'), 'Only students have an Olympiad level; other accounts will be skipped.');
     if (action === 'message') warn('BLOCKED_ACCOUNTS', count((g) => g.accountStatus !== 'ACTIVE'), 'Accounts that are not active will not be e-mailed.');
     if (TEACHER_LINK_ACTIONS.includes(action)) warn('NOT_STUDENTS', count((g) => g.role !== 'STUDENT'), 'Only students are linked to a teacher; other accounts will be skipped.');
     if (action === 'reassignTeacher' && ids.length) {
@@ -238,6 +244,15 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
       // The outbox row is written in this transaction: a cancelled or rolled-back item never sends anything.
       await tx.emailDelivery.create({ data: { jobId: op.emailJobId!, recipientEmail: user.email, recipientId: user.id } });
       return { outcome: 'SUCCEEDED' };
+    }
+    if (action === 'setOlympiadLevel') {
+      if (user.role !== 'STUDENT') return { outcome: 'SKIPPED', code: 'NOT_A_STUDENT', message: 'Only students have an Olympiad level.' };
+      // The body of PUT /admin/students/:id/olympiad-level for this student (lock, history, audit), in the item's transaction.
+      const automatic = params.olympiadLevel === 'AUTOMATIC';
+      const r = await this.levels.setInTx(tx, user.id, {
+        ...(automatic ? { automatic: true } : { level: params.olympiadLevel as 'JUNIOR' | 'MIDDLE' | 'SENIOR' }), reason: op.reason ?? '',
+      }, actor, { operationId: op.id });
+      return r.changed ? { outcome: 'SUCCEEDED' } : { outcome: 'SKIPPED', code: 'ALREADY_SET', message: 'The student already has this level.' };
     }
     if (TEACHER_LINK_ACTIONS.includes(action)) return this.teacherStudentItem(ctx, action, params, user);
     return { outcome: 'FAILED', code: 'UNKNOWN_ACTION' };

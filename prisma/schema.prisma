@@ -460,12 +460,18 @@ model User {
   // these columns mirror the ACTIVE enrolment of the current academic year so
   // every request can scope a student without a join. Both are updated in the
   // same transaction.
-  gradeLevel   GradeLevel?
-  divisionId   String?
-  division     Division?   @relation(fields: [divisionId], references: [id])
-  schoolId     String?
-  school       School?     @relation(fields: [schoolId], references: [id])
-  homeLocation String?
+  gradeLevel            GradeLevel?
+  divisionId            String?
+  division              Division?             @relation(fields: [divisionId], references: [id])
+  /// Students: the Olympiad level (owner 2026-11-21) — kept in step with gradeLevel by the trigger
+  /// `olympiad_level_from_grade` while olympiadLevelManual is false; never touched by it once set by hand.
+  olympiadLevel         OlympiadLevel?
+  olympiadLevelManual   Boolean               @default(false)
+  olympiadLevelChanges  OlympiadLevelChange[] @relation("OlympiadLevelChangeStudent")
+  olympiadLevelsChanged OlympiadLevelChange[] @relation("OlympiadLevelChangeActor")
+  schoolId              String?
+  school                School?               @relation(fields: [schoolId], references: [id])
+  homeLocation          String?
 
   /// Contact phone (E.164) and country (ISO 3166-1 alpha-2) — set when a Teacher application is
   /// approved (teacher self-registration); NULL for every other account.
@@ -606,6 +612,7 @@ model User {
   @@index([role, accountStatus])
   @@index([createdAt])
   @@index([gradeLevel])
+  @@index([role, olympiadLevel])
 }
 
 model RefreshToken {
@@ -2677,6 +2684,29 @@ enum TestDivision {
   JUNIOR
   SENIOR
   ALL
+  /// Olympiad levels (owner 2026-11-21): a test for the students whose Olympiad level is MIDDLE.
+  MIDDLE
+}
+
+/// A student's Olympiad level (owner 2026-11-21) — separate from the school grade. Suggested from the grade
+/// (S1–S2 Junior, S3–S4 Middle, S5–S6 Senior) by the database trigger `olympiad_level_from_grade`, unless a Coach or a
+/// User Manager set it by hand. Test eligibility, the teacher's lists and the rankings use it.
+enum OlympiadLevel {
+  JUNIOR
+  MIDDLE
+  SENIOR
+}
+
+/// Why a student's Olympiad level changed.
+enum OlympiadLevelChangeSource {
+  /// Followed the school grade (sign-up, a grade change, a new academic year): written by the database trigger.
+  GRADE
+  /// Set by hand by a Coach or a User Manager, with a reason.
+  MANUAL
+  /// Back to following the grade (the suggested level), by a Coach or a User Manager.
+  AUTOMATIC
+  /// The level every student had when Olympiad levels were introduced (their former test division).
+  BACKFILL
 }
 
 /// How students answer (enforced from Phase 2): uploaded pages only, typed answers only, or both.
@@ -2879,6 +2909,9 @@ model TestSubmission {
   lastSubmittedAt  DateTime?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
+  /// The student's Olympiad level when the submission was first made (owner 2026-11-21): the ranking group, so a later
+  /// change of level never moves a result. Null for submissions made before levels existed (then: the current level).
+  level            OlympiadLevel?
 
   /// Phase 3: the marking whose marks count (set by approval of a single marking, or by the Head Coach's choice of
   /// first / second / adjusted marks; cleared when a marking is returned or a second marking is requested).
@@ -3226,4 +3259,25 @@ model TestResubmissionAuthorization {
   @@index([submissionId])
   @@index([authorizedById])
   @@index([cancelledById])
+}
+
+/// Every change of a student's Olympiad level (owner 2026-11-21): append-only history — who, when, why, from what.
+model OlympiadLevelChange {
+  id          String                    @id @default(uuid())
+  studentId   String
+  student     User                      @relation("OlympiadLevelChangeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  fromLevel   OlympiadLevel?
+  toLevel     OlympiadLevel?
+  /// The school grade at the time (the reason for a GRADE change).
+  gradeLevel  GradeLevel?
+  source      OlympiadLevelChangeSource
+  /// MANUAL / AUTOMATIC: the reason given (3–500 characters).
+  reason      String?
+  /// MANUAL / AUTOMATIC: who changed it; GRADE / BACKFILL: null (the system).
+  changedById String?
+  changedBy   User?                     @relation("OlympiadLevelChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime                  @default(now())
+
+  @@index([studentId, createdAt])
+  @@index([changedById])
 }

@@ -9,7 +9,7 @@ import { MAX_QUESTIONS, MAX_TEST_MARKS } from '../test-rules.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
-export const TEST_DIVISIONS = ['JUNIOR', 'SENIOR', 'ALL'] as const;
+export const TEST_DIVISIONS = ['JUNIOR', 'MIDDLE', 'SENIOR', 'ALL'] as const;
 export const ANSWER_FORMATS = ['UPLOAD_ONLY', 'TYPED_ONLY', 'BOTH'] as const;
 export const TEST_STATUSES = ['DRAFT', 'PUBLISHED'] as const;
 /** The file kinds as they appear in the URL. */
@@ -37,7 +37,7 @@ export class CreateTestDto {
   @IsUUID()
   subjectId: string;
 
-  /** JUNIOR (S1–S3), SENIOR (S4–S6) or ALL. Mandatory. */
+  /** The Olympiad level: JUNIOR, MIDDLE or SENIOR (the students whose level it is), or ALL. Mandatory. */
   @IsIn(TEST_DIVISIONS)
   division: (typeof TEST_DIVISIONS)[number];
 
@@ -96,7 +96,7 @@ export class ListTestsQueryDto extends PaginationQueryDto {
   @IsOptional() @IsUUID()
   subjectId?: string;
 
-  /** JUNIOR, SENIOR or ALL (exact match). */
+  /** JUNIOR, MIDDLE, SENIOR or ALL (exact match). */
   @IsOptional() @IsIn(TEST_DIVISIONS)
   division?: (typeof TEST_DIVISIONS)[number];
 

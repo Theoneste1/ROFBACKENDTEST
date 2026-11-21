@@ -85,9 +85,11 @@ describe('Test Management Phase 4 — results rules', () => {
       expect(competitionRank(twins).map((x) => [x.id, x.rank])).toEqual([['y', 1], ['z', 1]]);
     });
 
-    it('divisions for rankings: S1–S3 Junior, S4–S6 Senior, anything else unknown', () => {
-      expect(['S1', 'S3', 'S4', 'S6', null, undefined, 'P6'].map((g) => rankingDivision(g as string | null))).toEqual(
-        ['JUNIOR', 'JUNIOR', 'SENIOR', 'SENIOR', 'UNKNOWN', 'UNKNOWN', 'UNKNOWN']);
+    it('ranking groups (owner 2026-11-21): the level at submission, else the student\'s level now, else unknown — never the grade', () => {
+      expect(['JUNIOR', 'MIDDLE', 'SENIOR'].map((l) => rankingDivision(l))).toEqual(['JUNIOR', 'MIDDLE', 'SENIOR']);
+      expect(rankingDivision('MIDDLE', 'SENIOR')).toBe('MIDDLE');      // a later change of level never moves a result
+      expect(rankingDivision(null, 'SENIOR')).toBe('SENIOR');          // made before levels existed: the level now
+      for (const g of ['S1', 'S6', 'P6', null, undefined]) expect(rankingDivision(g as string | null, null)).toBe('UNKNOWN');
     });
   });
 

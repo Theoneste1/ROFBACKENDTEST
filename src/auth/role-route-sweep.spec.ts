@@ -132,7 +132,8 @@ describe('role × route sweep (all seven callers)', () => {
  * Reviewed 2026-11-18: /admin routes a Coach or Head Coach passes the guards for — only the Head Coach's approved
  * programme management (P1-10, HC decisions) and, from 2026-11-19, Test Management Phase 1 (tests and marker
  * authorisations in the subjects they head; test/test-management.e2e-spec.ts) and Phase 3 (distribution, review,
- * choosing the mark; test/test-marking.e2e-spec.ts). Each service limits them to the programmes the Head Coach heads (others
+ * choosing the mark; test/test-marking.e2e-spec.ts), and from 2026-11-21 a student's Olympiad level (Coaches and Head Coaches:
+ * the students of their programmes; test/olympiad-levels.e2e-spec.ts). Each service limits them to the programmes the Head Coach heads (others
  * are not revealed): test/head-coach-programme, head-coach-monitoring and head-coach-course-work e2e specs.
  */
 const COACH_ADMIN_ROUTES: string[] = [
@@ -151,6 +152,7 @@ const COACH_ADMIN_ROUTES: string[] = [
   'GET /api/v1/admin/reports/mentor-activity  ReportsController.mentorActivity  [HEAD_COACH]',
   'GET /api/v1/admin/reports/mentors  ReportsController.mentors  [HEAD_COACH]',
   'GET /api/v1/admin/reports/students  ReportsController.students  [HEAD_COACH]',
+  'GET /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.view  [MENTOR,HEAD_COACH]',
   'GET /api/v1/admin/test-dashboard  AdminTestReportsController.dashboard  [HEAD_COACH]',
   'GET /api/v1/admin/test-markers  TestMarkersController.list  [HEAD_COACH]',
   'GET /api/v1/admin/test-markers/candidates  TestMarkersController.candidates  [HEAD_COACH]',
@@ -197,6 +199,7 @@ const COACH_ADMIN_ROUTES: string[] = [
   'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/results/publish  AdminTestResultsController.publish  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish  [HEAD_COACH]',
+  'PUT /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.set  [MENTOR,HEAD_COACH]',
   'PUT /api/v1/admin/tests/:id/files/:kind  TestsController.putFile  [HEAD_COACH]',
   'PUT /api/v1/admin/tests/:id/questions/order  TestsController.reorderQuestions  [HEAD_COACH]',
 ];
@@ -235,4 +238,4 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // reporting overview, the staff dashboard — never the override); +10 for Administrators and Super Admins (the same and the
 // override).
 // 2026-11-19, generic bulk engine: +8 /admin/bulk/* routes (users.bulkManage: Administrators and Super Admins only).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 106, TEACHER: 97, MENTOR: 119, HEAD_COACH: 168, ADMIN: 350, SUPER_ADMIN: 356 };   // locked test submissions (2026-11-21): +4 Administrators (resubmission authorize / cancel, a teacher's test submission get / set); gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 106, TEACHER: 97, MENTOR: 121, HEAD_COACH: 170, ADMIN: 352, SUPER_ADMIN: 358 };   // Olympiad levels (2026-11-21): +2 Administrators, Coaches and Head Coaches (a student's level: view / set); locked test submissions (2026-11-21): +4 Administrators (resubmission authorize / cancel, a teacher's test submission get / set); gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)

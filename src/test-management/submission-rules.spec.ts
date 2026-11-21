@@ -5,7 +5,7 @@ import { AppError } from '../common/errors/app-error.js';
 import { CreateTestExtensionDto, SubmitTestAnswerDto } from './dto/submission.dto.js';
 import {
   CODE_ALPHABET, MAX_ANSWER_PAGES, answerPageName, answerWindow, applicableDeadline, assertAnswerFormat, assertBeforeDeadline,
-  assertEligible, assertPagesComplete, assertUploadsAllowed, beforeDeadline, divisionMatches, divisionOfGrade, eligibilityProblems,
+  assertEligible, assertPagesComplete, assertUploadsAllowed, beforeDeadline, divisionMatches, divisionOfGrade, levelOf, levelWhere, OLYMPIAD_LEVELS, suggestedLevel, eligibilityProblems,
   formatPublicCode, lockedFieldsIn, trackingState, type ExtensionLike,
 } from './submission-rules.js';
 
@@ -104,19 +104,31 @@ describe('Test Management rules (WS3, Phase 2)', () => {
     });
   });
 
-  describe('eligibility: published, opened, an ACTIVE student account, the division', () => {
+  describe('eligibility: published, opened, an ACTIVE student account, the Olympiad level', () => {
     const test = { status: 'PUBLISHED', opensAt: at(-60), division: 'JUNIOR' as const };
-    const student = { role: 'STUDENT', accountStatus: 'ACTIVE', isActive: true, isApproved: true, activatedAt: at(-1000), gradeLevel: 'S2' };
+    const student = { role: 'STUDENT', accountStatus: 'ACTIVE', isActive: true, isApproved: true, activatedAt: at(-1000), gradeLevel: 'S2', olympiadLevel: 'JUNIOR' };
 
-    it('divisions: Junior S1–S3, Senior S4–S6, All any student (incl. one without a grade)', () => {
+    it('course divisions stay two (S1–S3 Junior, S4–S6 Senior); the grade only SUGGESTS the Olympiad level: S1–S2 Junior, S3–S4 Middle, S5–S6 Senior', () => {
       expect(['S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(divisionOfGrade)).toEqual(['JUNIOR', 'JUNIOR', 'JUNIOR', 'SENIOR', 'SENIOR', 'SENIOR']);
       expect(divisionOfGrade(null)).toBeNull();
-      expect(divisionMatches('JUNIOR', 'S3')).toBe(true);
-      expect(divisionMatches('JUNIOR', 'S4')).toBe(false);
-      expect(divisionMatches('SENIOR', 'S4')).toBe(true);
-      expect(divisionMatches('ALL', null)).toBe(true);
-      expect(divisionMatches('SENIOR', null, 'SENIOR')).toBe(true);    // no grade: the division code decides
-      expect(divisionMatches('SENIOR', null, null)).toBe(false);
+      expect(['S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(suggestedLevel)).toEqual(['JUNIOR', 'JUNIOR', 'MIDDLE', 'MIDDLE', 'SENIOR', 'SENIOR']);
+      for (const g of [null, undefined, 'P6', '']) expect(suggestedLevel(g)).toBeNull();
+      expect(OLYMPIAD_LEVELS).toEqual(['JUNIOR', 'MIDDLE', 'SENIOR']);
+    });
+
+    it('a test accepts the students OF ITS LEVEL — the level, never the grade; ALL accepts anyone; no level: the course division', () => {
+      for (const level of OLYMPIAD_LEVELS) {
+        for (const t of OLYMPIAD_LEVELS) expect([t, level, divisionMatches(t, { olympiadLevel: level })]).toEqual([t, level, t === level]);
+        expect(divisionMatches('ALL', { olympiadLevel: level })).toBe(true);
+      }
+      expect(divisionMatches('ALL', {})).toBe(true);
+      // A student moved to Middle by a Coach answers Middle tests, whatever their grade.
+      expect(divisionMatches('MIDDLE', { olympiadLevel: 'MIDDLE', divisionCode: 'SENIOR' })).toBe(true);
+      expect(divisionMatches('SENIOR', { olympiadLevel: 'MIDDLE', divisionCode: 'SENIOR' })).toBe(false);
+      expect(divisionMatches('SENIOR', { olympiadLevel: null, divisionCode: 'SENIOR' })).toBe(true);    // no level: the division code decides
+      expect(divisionMatches('SENIOR', { olympiadLevel: null, divisionCode: null })).toBe(false);
+      expect(levelOf({ olympiadLevel: 'BOGUS' })).toBeNull();
+      expect(levelWhere('MIDDLE')).toEqual({ olympiadLevel: 'MIDDLE' });
     });
 
     it('an eligible student', () => expect(eligibilityProblems(test, student, at(0))).toEqual([]));
@@ -128,8 +140,12 @@ describe('Test Management rules (WS3, Phase 2)', () => {
       for (const bad of [{ accountStatus: 'SUSPENDED', isActive: false }, { accountStatus: 'ARCHIVED', isActive: false }, { isApproved: false }, { activatedAt: null }]) {
         expect(codeOf(() => assertEligible(test, { ...student, ...bad }, at(0)))).toBe('409 ACCOUNT_NOT_ACTIVE');
       }
-      expect(codeOf(() => assertEligible(test, { ...student, gradeLevel: 'S5' }, at(0)))).toBe('403 DIVISION_MISMATCH');
-      expect(codeOf(() => assertEligible({ ...test, division: 'ALL' }, { ...student, gradeLevel: 'S5' }, at(0)))).toBeNull();
+      expect(codeOf(() => assertEligible(test, { ...student, olympiadLevel: 'SENIOR' }, at(0)))).toBe('403 DIVISION_MISMATCH');
+      expect(codeOf(() => assertEligible({ ...test, division: 'ALL' }, { ...student, olympiadLevel: 'SENIOR' }, at(0)))).toBeNull();
+      // The grade alone never decides: an S5 student whose level is Junior answers Junior tests; an S2 at Middle does not.
+      expect(codeOf(() => assertEligible(test, { ...student, gradeLevel: 'S5', olympiadLevel: 'JUNIOR' }, at(0)))).toBeNull();
+      expect(codeOf(() => assertEligible(test, { ...student, olympiadLevel: 'MIDDLE' }, at(0)))).toBe('403 DIVISION_MISMATCH');
+      expect(codeOf(() => assertEligible({ ...test, division: 'MIDDLE' }, { ...student, olympiadLevel: 'MIDDLE' }, at(0)))).toBeNull();
     });
 
     it('opening boundary: at opensAt it is open', () => {

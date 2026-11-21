@@ -14,8 +14,10 @@
  *   A submission is accepted up to and including the deadline instant; one millisecond later it is refused.
  *
  *   Eligibility of a student for a test: the test is PUBLISHED and has opened (opensAt ≤ now); the student account is a
- *   STUDENT that is ACTIVE (approved, activated, not suspended / deactivated / archived); the student's division matches
- *   the test (JUNIOR = S1–S3, SENIOR = S4–S6, ALL = any student).
+ *   STUDENT that is ACTIVE (approved, activated, not suspended / deactivated / archived); the student's OLYMPIAD LEVEL
+ *   matches the test (JUNIOR, MIDDLE or SENIOR; ALL = any student). The level is the student's own (User.olympiadLevel,
+ *   owner 2026-11-21): suggested from the grade (S1–S2 Junior, S3–S4 Middle, S5–S6 Senior) unless a Coach or a User
+ *   Manager set it — never the grade itself. A student without a level (no grade): their course division decides.
  *
  *   Answer formats: UPLOAD_ONLY — pages, no typed answer; TYPED_ONLY — a typed answer, no pages; BOTH — a typed answer
  *   and/or pages (at least one).
@@ -27,7 +29,9 @@ import { AppError } from '../common/errors/app-error.js';
 export type ExtensionKind = 'TEST' | 'STUDENT' | 'TEACHER';
 export type SubmitterRole = 'STUDENT' | 'TEACHER';
 export type AnswerFormat = 'UPLOAD_ONLY' | 'TYPED_ONLY' | 'BOTH';
-export type TestDivisionValue = 'JUNIOR' | 'SENIOR' | 'ALL';
+export type OlympiadLevelValue = 'JUNIOR' | 'MIDDLE' | 'SENIOR';
+export type TestDivisionValue = OlympiadLevelValue | 'ALL';
+export const OLYMPIAD_LEVELS: readonly OlympiadLevelValue[] = ['JUNIOR', 'MIDDLE', 'SENIOR'];
 
 /** Pages of one version (photos of handwritten sheets, or PDFs). */
 export const MAX_ANSWER_PAGES = 30;
@@ -87,28 +91,48 @@ export function beforeDeadline(now: Date, deadline: Date): boolean {
   return now.getTime() <= deadline.getTime();
 }
 
-/** S1–S3 → JUNIOR, S4–S6 → SENIOR; anything else (no grade) → null. */
+/** The COURSE division of a grade (courses keep two): S1–S3 → JUNIOR, S4–S6 → SENIOR; anything else → null. */
 export function divisionOfGrade(grade: string | null | undefined): 'JUNIOR' | 'SENIOR' | null {
   if (grade === 'S1' || grade === 'S2' || grade === 'S3') return 'JUNIOR';
   if (grade === 'S4' || grade === 'S5' || grade === 'S6') return 'SENIOR';
   return null;
 }
 
-/** The test's division accepts a student of this grade (or, without a grade, of this division code). */
-export function divisionMatches(test: TestDivisionValue, grade: string | null | undefined, divisionCode?: string | null): boolean {
-  if (test === 'ALL') return true;
-  return (divisionOfGrade(grade) ?? divisionCode ?? null) === test;
+/**
+ * The Olympiad level a grade SUGGESTS (owner 2026-11-21): S1–S2 Junior, S3–S4 Middle, S5–S6 Senior; no grade → null.
+ * The same rule as the database function olympiad_level_of_grade (migration 20261224000000), which applies it.
+ */
+export function suggestedLevel(grade: string | null | undefined): OlympiadLevelValue | null {
+  if (grade === 'S1' || grade === 'S2') return 'JUNIOR';
+  if (grade === 'S3' || grade === 'S4') return 'MIDDLE';
+  if (grade === 'S5' || grade === 'S6') return 'SENIOR';
+  return null;
 }
 
-/** The grades of a division (for database filters). */
-export function gradesOf(division: 'JUNIOR' | 'SENIOR'): Array<'S1' | 'S2' | 'S3' | 'S4' | 'S5' | 'S6'> {
-  return division === 'JUNIOR' ? ['S1', 'S2', 'S3'] : ['S4', 'S5', 'S6'];
+/** Where a student's Olympiad level comes from: their level; without one (no grade), their course division. */
+export interface LevelSource { olympiadLevel?: string | null; divisionCode?: string | null }
+
+/** The student's Olympiad level, as test eligibility uses it (null: none — only ALL tests). */
+export function levelOf(s: LevelSource): OlympiadLevelValue | null {
+  const l = s.olympiadLevel ?? s.divisionCode ?? null;
+  return l === 'JUNIOR' || l === 'MIDDLE' || l === 'SENIOR' ? l : null;
+}
+
+/** The test's level accepts this student (ALL: everyone). */
+export function divisionMatches(test: TestDivisionValue, student: LevelSource): boolean {
+  if (test === 'ALL') return true;
+  return levelOf(student) === test;
+}
+
+/** Database filter: students of this Olympiad level (a test's level, or a list filter). */
+export function levelWhere(level: OlympiadLevelValue): { olympiadLevel: OlympiadLevelValue } {
+  return { olympiadLevel: level };
 }
 
 export interface EligibilityTest { status: string; opensAt: Date; division: TestDivisionValue }
 export interface EligibilityStudent {
   role: string; accountStatus: string; isActive: boolean; isApproved: boolean; activatedAt: Date | null;
-  gradeLevel: string | null; divisionCode?: string | null;
+  gradeLevel: string | null; olympiadLevel?: string | null; divisionCode?: string | null;
 }
 
 export type EligibilityProblem = 'TEST_NOT_PUBLISHED' | 'TEST_NOT_OPEN' | 'NOT_A_STUDENT' | 'ACCOUNT_NOT_ACTIVE' | 'DIVISION_MISMATCH';
@@ -120,7 +144,7 @@ export function eligibilityProblems(test: EligibilityTest, student: EligibilityS
   else if (test.opensAt.getTime() > now.getTime()) out.push('TEST_NOT_OPEN');
   if (student.role !== 'STUDENT') out.push('NOT_A_STUDENT');
   if (student.accountStatus !== 'ACTIVE' || !student.isActive || !student.isApproved || student.activatedAt === null) out.push('ACCOUNT_NOT_ACTIVE');
-  if (!divisionMatches(test.division, student.gradeLevel, student.divisionCode)) out.push('DIVISION_MISMATCH');
+  if (!divisionMatches(test.division, student)) out.push('DIVISION_MISMATCH');
   return out;
 }
 
@@ -129,7 +153,7 @@ const ELIGIBILITY_ERRORS: Record<EligibilityProblem, [HttpStatus, string]> = {
   TEST_NOT_OPEN:      [HttpStatus.CONFLICT, 'This test has not opened yet.'],
   NOT_A_STUDENT:      [HttpStatus.FORBIDDEN, 'Only student accounts submit answers to a test.'],
   ACCOUNT_NOT_ACTIVE: [HttpStatus.CONFLICT, 'The student account is not active.'],
-  DIVISION_MISMATCH:  [HttpStatus.FORBIDDEN, 'This test is for another division.'],
+  DIVISION_MISMATCH:  [HttpStatus.FORBIDDEN, 'This test is for another Olympiad level.'],
 };
 
 /** Throws the first problem: 404 TEST_NOT_PUBLISHED, 409 TEST_NOT_OPEN / ACCOUNT_NOT_ACTIVE, 403 NOT_A_STUDENT / DIVISION_MISMATCH. */

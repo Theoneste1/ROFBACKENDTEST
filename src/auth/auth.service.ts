@@ -50,6 +50,8 @@ export const GENDER_STEP_ROLES: readonly string[] = ['STUDENT', 'TEACHER', 'MENT
 export const PROFILE_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
   role: true, avatarUrl: true, gradeLevel: true, homeLocation: true, olympiadInterests: true, olympiadInterestOther: true,
+  // Students: the Olympiad level (owner 2026-11-21) — Junior, Middle or Senior; separate from the grade.
+  olympiadLevel: true,
   // Registration details (studentRegistrationDetails): the account holder's own data.
   dateOfBirth: true, gender: true, phone: true, guardianPhone: true, country: true, homeProvince: true, homeDistrict: true, homeSector: true,
   points: true, problemsSolved: true, createdAt: true, lastLoginAt: true,

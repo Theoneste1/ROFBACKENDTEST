@@ -8,7 +8,7 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 const bool = ({ value }: { value: unknown }) => (value === 'true' || value === true ? true : value === 'false' || value === false ? false : value);
 
 export const RANKING_GROUPS = ['overall', 'division', 'school'] as const;
-export const RANKING_DIVISIONS = ['JUNIOR', 'SENIOR', 'UNKNOWN'] as const;
+export const RANKING_DIVISIONS = ['JUNIOR', 'MIDDLE', 'SENIOR', 'UNKNOWN'] as const;
 export const EXPORT_TYPES = ['results', 'schools', 'divisions', 'questions'] as const;
 
 // ── Publication (tests.publishResults; override: tests.overridePublication) ────────

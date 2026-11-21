@@ -19,7 +19,6 @@ import { HttpStatus } from '@nestjs/common';
 
 import { AppError } from '../common/errors/app-error.js';
 import type { SubmissionStatus } from './marking-rules.js';
-import { divisionOfGrade } from './submission-rules.js';
 
 /**
  * DESIGN ONLY (owner spec 10.3): the future configurable option to show rankings to students. Off in this release: no
@@ -198,10 +197,15 @@ export function resultView(
   };
 }
 
-/** The division a grade belongs to for rankings and reports: S1–S3 Junior, S4–S6 Senior, anything else unknown. */
-export function rankingDivision(gradeLevel: string | null | undefined): 'JUNIOR' | 'SENIOR' | 'UNKNOWN' {
-  return divisionOfGrade(gradeLevel) ?? 'UNKNOWN';
+/**
+ * The ranking group of a result (owner 2026-11-21): the student's Olympiad level when the submission was made
+ * (TestSubmission.level), else their level now, else UNKNOWN — never the grade, so a later change of level never moves a
+ * published result.
+ */
+export function rankingDivision(submissionLevel: string | null | undefined, studentLevel?: string | null): 'JUNIOR' | 'MIDDLE' | 'SENIOR' | 'UNKNOWN' {
+  const l = submissionLevel ?? studentLevel ?? null;
+  return l === 'JUNIOR' || l === 'MIDDLE' || l === 'SENIOR' ? l : 'UNKNOWN';
 }
 
-/** The same rule in SQL (rankings and reports), for a "User" row aliased `u`. */
-export const DIVISION_SQL = `CASE WHEN u."gradeLevel" IN ('S1', 'S2', 'S3') THEN 'JUNIOR' WHEN u."gradeLevel" IN ('S4', 'S5', 'S6') THEN 'SENIOR' ELSE 'UNKNOWN' END`;
+/** The same rule in SQL (rankings and reports), for a "TestSubmission" row aliased `s` and its "User" aliased `u`. */
+export const DIVISION_SQL = `COALESCE(s."level"::text, u."olympiadLevel"::text, 'UNKNOWN')`;

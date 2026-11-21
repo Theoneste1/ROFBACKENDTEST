@@ -39,7 +39,7 @@ export class BulkSelectionDto {
   filter?: BulkFilterDto;
 }
 
-/** The action's parameters: assignRole → role; changeClassification → gradeLevel; message → subject and body. */
+/** The action's parameters: assignRole → role; changeClassification → gradeLevel; message → subject and body; setOlympiadLevel → olympiadLevel. */
 export class BulkParamsDto {
   @IsOptional() @IsEnum(Role) role?: Role;
   @IsOptional() @IsEnum(GradeLevel) gradeLevel?: GradeLevel;
@@ -53,6 +53,8 @@ export class BulkParamsDto {
   @IsOptional() @IsUUID() fromTeacherId?: string;
   /** reassignTeacher: the Teacher the students move to. */
   @IsOptional() @IsUUID() toTeacherId?: string;
+  /** setOlympiadLevel: JUNIOR, MIDDLE, SENIOR, or AUTOMATIC (the level the grade suggests). */
+  @IsOptional() @IsIn(['JUNIOR', 'MIDDLE', 'SENIOR', 'AUTOMATIC']) olympiadLevel?: 'JUNIOR' | 'MIDDLE' | 'SENIOR' | 'AUTOMATIC';
 }
 
 export class BulkPreviewDto {

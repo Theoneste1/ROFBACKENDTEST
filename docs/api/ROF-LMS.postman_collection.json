@@ -6543,7 +6543,7 @@
                   "key": "division",
                   "value": "JUNIOR",
                   "disabled": true,
-                  "description": "JUNIOR, SENIOR or ALL (exact match)."
+                  "description": "JUNIOR, MIDDLE, SENIOR or ALL (exact match)."
                 },
                 {
                   "key": "status",
@@ -7256,7 +7256,7 @@
                   "key": "division",
                   "value": "JUNIOR",
                   "disabled": true,
-                  "description": "The student's division (by grade): JUNIOR (S1–S3) or SENIOR (S4–S6)."
+                  "description": "The student's Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR."
                 },
                 {
                   "key": "q",
@@ -7535,6 +7535,12 @@
                   "value": "S1",
                   "disabled": true,
                   "description": ""
+                },
+                {
+                  "key": "olympiadLevel",
+                  "value": "JUNIOR",
+                  "disabled": true,
+                  "description": "Students of this Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR."
                 },
                 {
                   "key": "schoolId",
@@ -12742,6 +12748,81 @@
       ]
     },
     {
+      "name": "olympiad-levels",
+      "item": [
+        {
+          "name": "GET /admin/students/{id}/olympiad-level",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/students/:id/olympiad-level",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "students",
+                ":id",
+                "olympiad-level"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `students.classifyLevel` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/students/{id}/olympiad-level",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/students/:id/olympiad-level",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "students",
+                ":id",
+                "olympiad-level"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `students.classifyLevel` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Programmes",
       "item": [
         {
@@ -13932,6 +14013,12 @@
                   "value": "S1",
                   "disabled": true,
                   "description": ""
+                },
+                {
+                  "key": "olympiadLevel",
+                  "value": "JUNIOR",
+                  "disabled": true,
+                  "description": "The students' Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR."
                 },
                 {
                   "key": "q",

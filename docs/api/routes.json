@@ -3163,6 +3163,28 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/students/{id}/olympiad-level",
+    "roles": [
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "olympiad-levels"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/students/{id}/olympiad-level",
+    "roles": [
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "olympiad-levels"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/programmes",
     "roles": [
       "STUDENT",
