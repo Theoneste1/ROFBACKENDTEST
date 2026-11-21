@@ -157,3 +157,13 @@ export class DelegationStudentsDto {
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(MAX_STUDENTS_PER_REQUEST) @IsUUID('all', { each: true })
   studentIds: string[];
 }
+
+/** PUT /admin/teachers/:id/test-submission (owner 2026-11-21): revoke (allowed false, reason required) or restore. */
+export class SetTeacherTestSubmissionDto {
+  @IsBoolean()
+  allowed: boolean;
+
+  /** Required to revoke (3–500 characters); optional when restoring. Recorded in the audit log. */
+  @IsOptional() @IsString() @Length(0, 500)
+  reason?: string;
+}

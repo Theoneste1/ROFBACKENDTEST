@@ -59,7 +59,7 @@ export async function activeStudents(db: Db, studentIds: readonly string[]): Pro
 
 /**
  * The teachers who see these students' published results — ACTIVE Teacher accounts with an ACTIVE link to the school of
- * a student who is a VERIFIED, approved, activated and ACTIVE student of it (the same rule as the teacher's views:
+ * a student whose current claim (PENDING or VERIFIED) is that school, approved, activated and ACTIVE (the same rule as the teacher's views:
  * teacher-scope.ts visibleSchoolStudentsWhere) — with how many of the students each one sees. One query.
  */
 export async function schoolTeachersOf(db: Db, studentIds: readonly string[]): Promise<Array<Recipient & { students: number }>> {
@@ -67,7 +67,7 @@ export async function schoolTeachersOf(db: Db, studentIds: readonly string[]): P
   return db.$queryRaw<Array<Recipient & { students: number }>>`
     SELECT t."id", t."email", t."firstName", t."activatedAt", count(DISTINCT u."id")::int AS "students"
       FROM "User" u
-      JOIN "StudentSchoolAffiliation" f ON f."studentId" = u."id" AND f."schoolId" = u."schoolId" AND f."status" = 'VERIFIED' AND f."supersededAt" IS NULL
+      JOIN "StudentSchoolAffiliation" f ON f."studentId" = u."id" AND f."schoolId" = u."schoolId" AND f."status" IN ('PENDING', 'VERIFIED') AND f."supersededAt" IS NULL
       JOIN "TeacherSchoolAssignment" ta ON ta."schoolId" = u."schoolId" AND ta."isActive"
       JOIN "User" t ON t."id" = ta."teacherId" AND t."role" = 'TEACHER' AND t."accountStatus" = 'ACTIVE'
      WHERE u."id" = ANY(${[...studentIds]}::text[]) AND u."role" = 'STUDENT' AND u."isApproved" AND u."activatedAt" IS NOT NULL

@@ -4,7 +4,7 @@
  *
  * Who
  *   Student (tests.submit, own)           their own submission to a PUBLISHED test of their division, once it opened.
- *   Teacher (tests.submitForStudents,     any teacher of the school, primary or secondary: only VERIFIED students of
+ *   Teacher (tests.submitForStudents,     any teacher of the school, primary or secondary: only students (current PENDING or VERIFIED claim) of
  *            school; G2)                  their own ACTIVE schools whose account is ACTIVE (teacher-scope.ts
  *                                         visibleSchoolStudentsWhere). Another student: 403 STUDENT_NOT_IN_SCOPE. The
  *                                         course-assignment delegation submissions.submitOnBehalf is separate and unchanged.
@@ -23,6 +23,11 @@
  *      version, the status history (first time: SUBMITTED), the audit entry (TESTS).
  * Pages are uploaded one at a time (a weak connection retries ONE page): each belongs to its pending upload until a
  * version commits it, then never changes (database trigger).
+ *
+ * Locked after submission (owner, 2026-11-21): the first version locks the answer — neither the student nor any teacher
+ * can replace it (409 SUBMISSION_LOCKED, checked under the submission's row lock, so a student and a teacher submitting
+ * at the same moment cannot both succeed). Only an Administrator (tests.authorizeResubmission) unlocks it for ONE
+ * replacement, with a reason; the replacement uses the authorization and is locked again. Every version is kept.
  *
  * Visibility: students and teachers see the deadline that applies to them (extension included) but never an "extended"
  * flag, the extension or the under-extension mark; Administrators and Head Coaches see all of it. Lists are paginated and
@@ -43,7 +48,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { visibleSchoolStudentsWhere } from '../teachers/teacher-scope.js';
 import type {
-  ListMyTestsQueryDto, ListTeacherTestStudentsQueryDto, ListTestSubmissionsQueryDto, SubmitTestAnswerDto,
+  AuthorizeResubmissionDto, ListMyTestsQueryDto, ListTeacherTestStudentsQueryDto, ListTestSubmissionsQueryDto, SubmitTestAnswerDto,
 } from './dto/submission.dto.js';
 import {
   MAX_ANSWER_PAGES, answerPageName, answerWindow, applicableDeadline, assertAnswerFormat, assertBeforeDeadline, assertEligible,
@@ -85,6 +90,7 @@ type VersionRow = Prisma.TestSubmissionVersionGetPayload<{ select: typeof VERSIO
 
 const SUMMARY_SELECT = {
   id: true, testId: true, studentId: true, publicCode: true, status: true, versionCount: true, firstSubmittedAt: true, lastSubmittedAt: true,
+  resubmissionAuthorizations: { where: { usedAt: null, cancelledAt: null }, select: { id: true } },
   currentVersion: {
     select: { number: true, submittedAt: true, submitterRole: true, underExtension: true, submittedBy: PERSON, teacher: PERSON },
   },
@@ -95,7 +101,7 @@ type SummaryRow = Prisma.TestSubmissionGetPayload<{ select: typeof SUMMARY_SELEC
 const SUBMIT_TX = { maxWait: 15_000, timeout: 30_000 } as const;
 
 const notInScope = () => new AppError(HttpStatus.FORBIDDEN, 'STUDENT_NOT_IN_SCOPE',
-  'You can submit only for verified students of your own schools.');
+  'You can submit only for students of your own schools.');
 const pageNotFound = () => new AppError(HttpStatus.NOT_FOUND, 'PAGE_NOT_FOUND', 'Page not found.');
 const submissionNotFound = () => new AppError(HttpStatus.NOT_FOUND, 'SUBMISSION_NOT_FOUND', 'Submission not found for this test.');
 
@@ -124,7 +130,7 @@ export class TestSubmissionsService {
     return { user, role: 'TEACHER', schools: await this.access.teacherSchools(user) };
   }
 
-  /** The student this caller acts for: themself, or (teacher) a verified student of their schools — else 403. */
+  /** The student this caller acts for: themself, or (teacher) a student of their schools — else 403. */
   private async studentFor(caller: Answerer, studentId: string): Promise<StudentRow> {
     if (caller.role === 'STUDENT') {
       const me = await this.prisma.user.findUnique({ where: { id: caller.user.id }, select: STUDENT_FIELDS });
@@ -173,7 +179,10 @@ export class TestSubmissionsService {
     const ids = rows.map((r) => r.id);
     const [extensions, subs] = ids.length ? await Promise.all([
       this.prisma.testExtension.findMany({ where: { testId: { in: ids }, ...mine }, select: { id: true, testId: true, kind: true, studentId: true, teacherId: true, newDeadline: true, cancelledAt: true } }),
-      this.prisma.testSubmission.findMany({ where: { testId: { in: ids }, studentId: me.id }, select: { testId: true, status: true, versionCount: true, lastSubmittedAt: true } }),
+      this.prisma.testSubmission.findMany({
+        where: { testId: { in: ids }, studentId: me.id },
+        select: { testId: true, status: true, versionCount: true, lastSubmittedAt: true, resubmissionAuthorizations: { where: OPEN_AUTHORIZATION, select: { id: true } } },
+      }),
     ]) : [[], []];
     const subOf = new Map(subs.map((s) => [s.testId, s]));
     const accountOk = eligibilityProblems({ status: 'PUBLISHED', opensAt: now, division: 'ALL' }, me, now).length === 0;
@@ -184,8 +193,13 @@ export class TestSubmissionsService {
       return {
         id: t.id, title: t.title, subject: t.discipline, division: t.division, answerFormat: t.answerFormat, maxMarks: t.maxMarks,
         opensAt: t.opensAt, deadline: d.deadline, window,
-        submission: sub && { status: sub.status, versionCount: sub.versionCount, lastSubmittedAt: sub.lastSubmittedAt },
-        canSubmit: accountOk && window === 'OPEN' && (!sub || sub.status === 'SUBMITTED'),
+        submission: sub && {
+          status: sub.status, versionCount: sub.versionCount, lastSubmittedAt: sub.lastSubmittedAt,
+          // Locked after submission unless an Administrator's authorization is open (owner 2026-11-21).
+          locked: sub.status !== 'SUBMITTED' || (sub.versionCount > 0 && sub.resubmissionAuthorizations.length === 0),
+          resubmissionOpen: sub.resubmissionAuthorizations.length > 0,
+        },
+        canSubmit: accountOk && window === 'OPEN' && (!sub || (sub.status === 'SUBMITTED' && (sub.versionCount === 0 || sub.resubmissionAuthorizations.length > 0))),
       };
     }), total, page, limit);
   }
@@ -253,12 +267,20 @@ export class TestSubmissionsService {
         ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : []),
       ],
     };
-    const where: Prisma.UserWhereInput = { AND: [population, ...(q.status ? [stateWhere(q.status, testId, general.deadline, now)] : [])] };
+    // Level and subject (owner 2026-11-21): narrow the list; the counts stay those of every eligible student.
+    const narrowed: Prisma.UserWhereInput[] = [
+      ...(q.division ? [{ gradeLevel: { in: gradesOf(q.division) } }] : []),
+      ...(q.subject ? [{ olympiadInterests: { has: q.subject } }] : []),
+    ];
+    const where: Prisma.UserWhereInput = { AND: [population, ...narrowed, ...(q.status ? [stateWhere(q.status, testId, general.deadline, now)] : [])] };
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total, ...counts] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where, skip, take, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
-        select: { id: true, username: true, firstName: true, lastName: true, gradeLevel: true, school: { select: { id: true, name: true } } },
+        select: {
+          id: true, username: true, firstName: true, lastName: true, gradeLevel: true, olympiadInterests: true, olympiadInterestOther: true,
+          school: { select: { id: true, name: true } },
+        },
       }),
       this.prisma.user.count({ where }),
       ...(['SUBMITTED', 'NOT_SUBMITTED', 'LATE_BLOCKED'] as const).map((s) =>
@@ -274,10 +296,12 @@ export class TestSubmissionsService {
       const d = deadlines.get(s.id)!;
       const sub = subOf.get(s.id) ?? null;
       const state = trackingState(sub !== null, now, d.deadline);
+      // Locked after submission unless an Administrator's authorization is open (owner 2026-11-21).
+      const locked = sub !== null && (sub.status !== 'SUBMITTED' || (sub.versionCount > 0 && sub.resubmissionAuthorizations.length === 0));
       return {
-        student: s, deadline: d.deadline, state,
+        student: { ...s, division: divisionOfGrade(s.gradeLevel) }, deadline: d.deadline, state,
         submission: sub && answererSummary(sub),
-        canSubmit: test.opensAt.getTime() <= now.getTime() && state !== 'LATE_BLOCKED' && (!sub || sub.status === 'SUBMITTED'),
+        canSubmit: test.opensAt.getTime() <= now.getTime() && state !== 'LATE_BLOCKED' && !locked,
       };
     }), total, page, limit);
     return { ...out, counts: { students: counts[0] + counts[1] + counts[2], submitted: counts[0], notSubmitted: counts[1], lateBlocked: counts[2] } };
@@ -306,6 +330,7 @@ export class TestSubmissionsService {
     assertEligible(test, student, now);
     assertUploadsAllowed(test.answerFormat);
     assertBeforeDeadline(now, await this.deadlines.forSubmission(this.prisma, test, student.id, this.submitterOf(caller)));
+    await this.assertAnswerOpen(testId, student.id);
     if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the page (multipart field "file").');
     const stored = await this.storage.store(file, 'TEST_ANSWER', caller.user.id);
 
@@ -386,6 +411,14 @@ export class TestSubmissionsService {
       }
       const deadline = await this.deadlines.forSubmission(tx, test, student.id, submitter);
       assertBeforeDeadline(now, deadline);
+      // Locked after submission (checked after the deadline, the more final answer): another version needs an
+      // Administrator's open authorization, used below.
+      let authorizationId: string | null = null;
+      if (sub.versionCount > 0) {
+        const open = await tx.testResubmissionAuthorization.findFirst({ where: { submissionId: sub.id, ...OPEN_AUTHORIZATION }, select: { id: true } });
+        if (!open) throw submittedAndLocked();
+        authorizationId = open.id;
+      }
 
       const pages = await tx.testAnswerPage.findMany({
         where: { testId, studentId: student.id, uploadKey: dto.clientKey, versionId: null }, select: { id: true, pageNumber: true, uploadedById: true },
@@ -406,6 +439,13 @@ export class TestSubmissionsService {
         select: { id: true },
       });
       if (pages.length) await tx.testAnswerPage.updateMany({ where: { id: { in: pages.map((p) => p.id) }, versionId: null }, data: { versionId: version.id } });
+      // The replacement uses the authorization: the answer is locked again.
+      if (authorizationId) {
+        const { count } = await tx.testResubmissionAuthorization.updateMany({
+          where: { id: authorizationId, ...OPEN_AUTHORIZATION }, data: { usedAt: now, usedVersionId: version.id },
+        });
+        if (count === 0) throw submittedAndLocked();
+      }
       await tx.testSubmission.update({
         where: { id: sub.id },
         data:  { currentVersionId: version.id, versionCount: number, lastSubmittedAt: now, ...(number === 1 && { firstSubmittedAt: now }) },
@@ -422,7 +462,7 @@ export class TestSubmissionsService {
           testId, subjectId: test.disciplineId, studentId: student.id, versionId: version.id, version: number,
           submitterRole: caller.role, ...(caller.role === 'TEACHER' && { teacherId: caller.user.id }),
           submittedAt: now.toISOString(), deadline: deadline.deadline.toISOString(), underExtension, extensionId: deadline.extensionId,
-          pages: pages.length, typedAnswer: typed !== null,
+          pages: pages.length, typedAnswer: typed !== null, ...(authorizationId && { resubmissionAuthorizationId: authorizationId }),
         },
       }, tx);
       return false;
@@ -531,6 +571,7 @@ export class TestSubmissionsService {
         versions: { orderBy: { number: 'desc' }, select: VERSION_SELECT },
         statusChanges: { orderBy: { createdAt: 'asc' }, select: { fromStatus: true, toStatus: true, actorRole: true, reason: true, createdAt: true, actor: PERSON } },
         test: { select: { closesAt: true } },
+        resubmissionAuthorizations: { orderBy: { createdAt: 'desc' }, select: RESUBMISSION_SELECT },
       },
     });
     if (!sub) throw submissionNotFound();
@@ -541,7 +582,60 @@ export class TestSubmissionsService {
       deadline: d.deadline, extended: d.extended, extensionKind: d.extensionKind, extensionId: d.extensionId,
       versions: sub.versions.map((v) => staffVersion(v)),
       statusHistory: sub.statusChanges,
+      resubmissions: sub.resubmissionAuthorizations.map(resubmissionView),
+      // The history above lists every authorization (used and cancelled too): the lock comes from the open one only.
+      locked: sub.status !== 'SUBMITTED' || (sub.versionCount > 0 && !sub.resubmissionAuthorizations.some((r) => !r.usedAt && !r.cancelledAt)),
+      resubmissionOpen: sub.resubmissionAuthorizations.some((r) => !r.usedAt && !r.cancelledAt),
     };
+  }
+
+  /**
+   * An Administrator unlocks a submitted answer for ONE replacement (tests.authorizeResubmission; owner 2026-11-21), with
+   * a reason. Under the submission's row lock (the same lock a submission takes): something must have been submitted,
+   * marking must not have begun (409 SUBMISSION_IN_MARKING), and at most one authorization is open (409
+   * RESUBMISSION_ALREADY_AUTHORIZED; a partial unique index too). The student, or a teacher of their school, may then
+   * submit a replacement before the deadline that applies (an extension may be needed); it is locked again. Audited.
+   */
+  async authorizeResubmission(testId: string, submissionId: string, dto: AuthorizeResubmissionDto, user: AuthUser) {
+    await this.tests.loadInScope(testId, user);
+    await this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<Array<{ id: string; studentId: string; status: string; versionCount: number }>>`
+        SELECT "id", "studentId", "status"::text AS "status", "versionCount" FROM "TestSubmission"
+         WHERE "id" = ${submissionId} AND "testId" = ${testId} FOR UPDATE`;
+      if (!row) throw submissionNotFound();
+      if (row.versionCount === 0) throw new AppError(HttpStatus.CONFLICT, 'NOTHING_SUBMITTED', 'Nothing has been submitted yet: there is nothing to unlock.');
+      if (row.status !== 'SUBMITTED') {
+        throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_IN_MARKING', 'Marking of this submission has begun; it can no longer be unlocked.', { status: row.status });
+      }
+      const open = await tx.testResubmissionAuthorization.findFirst({ where: { submissionId, ...OPEN_AUTHORIZATION }, select: { id: true } });
+      if (open) throw new AppError(HttpStatus.CONFLICT, 'RESUBMISSION_ALREADY_AUTHORIZED', 'A resubmission is already authorized for this submission.', { id: open.id });
+      const created = await tx.testResubmissionAuthorization.create({
+        data: { submissionId, authorizedById: user.id, reason: dto.reason }, select: { id: true },
+      });
+      await this.audit.log({
+        actorId: user.id, actorRole: user.role, action: 'TEST_RESUBMISSION_AUTHORIZED', entity: 'TestSubmission', entityId: submissionId,
+        metadata: { testId, studentId: row.studentId, authorizationId: created.id, reason: dto.reason, lockedVersion: row.versionCount },
+      }, tx);
+    });
+    return this.staffDetail(testId, submissionId, user);
+  }
+
+  /** An Administrator withdraws an authorization not used yet (the answer is locked again). Audited. */
+  async cancelResubmission(testId: string, submissionId: string, user: AuthUser) {
+    await this.tests.loadInScope(testId, user);
+    await this.prisma.$transaction(async (tx) => {
+      const [row] = await tx.$queryRaw<Array<{ id: string; studentId: string }>>`
+        SELECT "id", "studentId" FROM "TestSubmission" WHERE "id" = ${submissionId} AND "testId" = ${testId} FOR UPDATE`;
+      if (!row) throw submissionNotFound();
+      const open = await tx.testResubmissionAuthorization.findFirst({ where: { submissionId, ...OPEN_AUTHORIZATION }, select: { id: true } });
+      if (!open) throw new AppError(HttpStatus.CONFLICT, 'NO_OPEN_RESUBMISSION', 'No resubmission is waiting to be used for this submission.');
+      await tx.testResubmissionAuthorization.update({ where: { id: open.id }, data: { cancelledAt: new Date(), cancelledById: user.id } });
+      await this.audit.log({
+        actorId: user.id, actorRole: user.role, action: 'TEST_RESUBMISSION_CANCELLED', entity: 'TestSubmission', entityId: submissionId,
+        metadata: { testId, studentId: row.studentId, authorizationId: open.id },
+      }, tx);
+    });
+    return this.staffDetail(testId, submissionId, user);
   }
 
   async sendStaffPage(testId: string, submissionId: string, versionId: string, pageNumber: number, user: AuthUser, res: Response, download: boolean) {
@@ -568,6 +662,12 @@ export class TestSubmissionsService {
     });
     const opened = window !== 'UPCOMING';
     const eligible = eligibilityProblems(test, student, now).length === 0;
+    const open = sub && sub.versionCount > 0
+      ? await this.prisma.testResubmissionAuthorization.findFirst({
+          where: { submission: { testId, studentId: student.id }, ...OPEN_AUTHORIZATION }, select: { reason: true, createdAt: true },
+        })
+      : null;
+    const locked = !!sub && (sub.status !== 'SUBMITTED' || (sub.versionCount > 0 && !open));
     return {
       test: {
         id: test.id, title: test.title, subject: test.discipline, division: test.division, answerFormat: test.answerFormat,
@@ -584,9 +684,28 @@ export class TestSubmissionsService {
         currentVersion: sub.currentVersion?.number ?? null,
         versions: sub.versions.map((v) => answererVersion(v)),
       },
-      canSubmit: eligible && window === 'OPEN' && (!sub || sub.status === 'SUBMITTED'),
+      // Locked after submission (owner 2026-11-21): a replacement only with an Administrator's open authorization.
+      locked,
+      resubmission: open ? { reason: open.reason, authorizedAt: open.createdAt } : null,
+      canSubmit: eligible && window === 'OPEN' && !locked,
       limits: { maxPages: MAX_ANSWER_PAGES },
     };
+  }
+
+  /**
+   * 409 SUBMISSION_LOCKED before a page is stored: marking began, or the answer was submitted and no Administrator's
+   * authorization is open. (The submission itself checks again under the row lock; this only avoids useless uploads.)
+   */
+  private async assertAnswerOpen(testId: string, studentId: string) {
+    const sub = await this.prisma.testSubmission.findUnique({
+      where: { testId_studentId: { testId, studentId } },
+      select: { status: true, versionCount: true, resubmissionAuthorizations: { where: OPEN_AUTHORIZATION, select: { id: true } } },
+    });
+    if (!sub) return;
+    if (sub.status !== 'SUBMITTED') {
+      throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED', 'This submission is being marked; it can no longer be replaced.', { status: sub.status });
+    }
+    if (sub.versionCount > 0 && sub.resubmissionAuthorizations.length === 0) throw submittedAndLocked();
   }
 
   /** 409 UPLOAD_ALREADY_SUBMITTED: a version already committed this key (start a new upload for a replacement). */
@@ -594,6 +713,27 @@ export class TestSubmissionsService {
     const done = await tx.testSubmissionVersion.findFirst({ where: { clientKey: uploadKey, submission: { testId, studentId } }, select: { id: true } });
     if (done) throw new AppError(HttpStatus.CONFLICT, 'UPLOAD_ALREADY_SUBMITTED', 'These pages were already submitted; start a new upload to replace them.');
   }
+}
+
+/** An authorization neither used nor cancelled. */
+const OPEN_AUTHORIZATION = { usedAt: null, cancelledAt: null } as const;
+
+/** 409 SUBMISSION_LOCKED: submitted, and no Administrator's authorization is open (owner 2026-11-21). */
+const submittedAndLocked = () => new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED',
+  'This answer has been submitted and is locked. Only an administrator can allow it to be submitted again.', { reason: 'SUBMITTED' });
+
+const RESUBMISSION_SELECT = {
+  id: true, reason: true, createdAt: true, usedAt: true, cancelledAt: true,
+  authorizedBy: PERSON, cancelledBy: PERSON, usedVersion: { select: { number: true } },
+} as const satisfies Prisma.TestResubmissionAuthorizationSelect;
+
+/** The history of unlocks: who authorized, why, when; used by which version, or cancelled by whom. */
+function resubmissionView(r: Prisma.TestResubmissionAuthorizationGetPayload<{ select: typeof RESUBMISSION_SELECT }>) {
+  return {
+    id: r.id, reason: r.reason, authorizedAt: r.createdAt, authorizedBy: r.authorizedBy,
+    state: r.usedAt ? 'USED' as const : r.cancelledAt ? 'CANCELLED' as const : 'OPEN' as const,
+    usedAt: r.usedAt, usedVersion: r.usedVersion?.number ?? null, cancelledAt: r.cancelledAt, cancelledBy: r.cancelledBy,
+  };
 }
 
 const keyInUse = () => new AppError(HttpStatus.CONFLICT, 'UPLOAD_KEY_IN_USE',
@@ -670,6 +810,9 @@ function answererSummary(s: SummaryRow) {
   return {
     status: s.status, versionCount: s.versionCount, lastSubmittedAt: s.lastSubmittedAt,
     lastSubmitterRole: s.currentVersion?.submitterRole ?? null,
+    // Locked after submission unless an Administrator's authorization is open (owner 2026-11-21).
+    locked: s.status !== 'SUBMITTED' || (s.versionCount > 0 && s.resubmissionAuthorizations.length === 0),
+    resubmissionOpen: s.resubmissionAuthorizations.length > 0,
   };
 }
 
@@ -677,6 +820,9 @@ function staffSummary(s: SummaryRow) {
   return {
     id: s.id, publicCode: s.publicCode, status: s.status, versionCount: s.versionCount,
     firstSubmittedAt: s.firstSubmittedAt, lastSubmittedAt: s.lastSubmittedAt,
+    // Locked after submission unless an Administrator's authorization is open (owner 2026-11-21).
+    locked: s.versionCount > 0 && s.resubmissionAuthorizations.length === 0,
+    resubmissionOpen: s.resubmissionAuthorizations.length > 0,
     current: s.currentVersion && {
       number: s.currentVersion.number, submittedAt: s.currentVersion.submittedAt, submitterRole: s.currentVersion.submitterRole,
       submittedBy: s.currentVersion.submittedBy, teacher: s.currentVersion.teacher, underExtension: s.currentVersion.underExtension,

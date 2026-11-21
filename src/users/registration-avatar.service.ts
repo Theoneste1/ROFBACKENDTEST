@@ -60,15 +60,16 @@ export class RegistrationAvatarService {
     if (!t) throw invalidToken();
     if (!file?.buffer?.length) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Upload an image in the "file" field.');
 
-    if (t.kind === 'STUDENT') {
+    // A new account (a student, or a teacher who registered with a listed school): the picture is the account's.
+    if (t.kind === 'STUDENT' || t.kind === 'TEACHER') {
       const u = await this.prisma.user.findUnique({ where: { id: t.id }, select: { id: true, role: true, avatarFileId: true } });
-      if (!u || u.role !== 'STUDENT') throw new NotFoundException('Account not found.');
+      if (!u || u.role !== t.kind) throw new NotFoundException('Account not found.');
       if (u.avatarFileId) throw alreadySet();
       const stored = await this.storage.store({ ...file, originalname: '' }, 'AVATAR', u.id);
       await this.prisma.$transaction(async (tx) => {
         const { count } = await tx.user.updateMany({ where: { id: u.id, avatarFileId: null }, data: { avatarFileId: stored.id, avatarUrl: avatarUrlOf(u.id, stored.id) } });
         if (count === 0) throw alreadySet();   // a concurrent upload won; this file stays an orphan (nightly cleanup)
-        await this.audit.log({ actorId: u.id, actorRole: 'STUDENT', action: 'AVATAR_SET', entity: 'User', entityId: u.id, metadata: { fileId: stored.id, previousFileId: null, at: 'registration' } }, tx);
+        await this.audit.log({ actorId: u.id, actorRole: u.role, action: 'AVATAR_SET', entity: 'User', entityId: u.id, metadata: { fileId: stored.id, previousFileId: null, at: 'registration' } }, tx);
       });
       return { avatar: true as const };
     }

@@ -283,7 +283,7 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /11 migration\(s\) after post-Phase-1 .*\(20261211000000_countries_reference, 20261212000000_teacher_school_primary, 20261220000000_test_file_purposes, 20261220000100_tests_core, 20261220000200_tests_submissions, 20261220000300_tests_marking, 20261220000400_tests_publishing, 20261221000000_registration_gender, 20261221000100_home_location, 20261222000000_bulk_operations_generic, 20261223000000_olympiad_interest_other\)/);
+    assert.match(r.stderr, /12 migration\(s\) after post-Phase-1 .*\(20261211000000_countries_reference, 20261212000000_teacher_school_primary, 20261220000000_test_file_purposes, 20261220000100_tests_core, 20261220000200_tests_submissions, 20261220000300_tests_marking, 20261220000400_tests_publishing, 20261221000000_registration_gender, 20261221000100_home_location, 20261222000000_bulk_operations_generic, 20261223000000_olympiad_interest_other, 20261223000100_test_resubmission_lock\)/);
   });
 });
 
@@ -453,33 +453,34 @@ test('the runner: late-2026 passes the checkout guard on this checkout; a later 
 
 // ── dec-2026 release (--release dec-2026; the "Other" Olympiad interest, owner 2026-11-21) ──────────────────────────
 
-test('dec-2026: exactly the migration after late-2026 in this checkout; nothing after it; needs the 35 before it', () => {
+test('dec-2026: exactly the migrations after late-2026 in this checkout; nothing after them; needs the 35 before them', () => {
   const dirs = migrationDirs(REPO_ROOT);
   assert.deepEqual(dirs.filter((d) => d.slice(0, 14) > RELEASES['late-2026'].last), DEC_2026_MIGRATIONS);
   const dec = releaseFrom(['--release', 'dec-2026']);
   assert.equal(dec.name, 'dec-2026');
   assert.equal(checkoutProblem(dec, dirs), null);
   assert.match(checkoutProblem(dec, [...dirs, '20261231000000_next']), /1 migration\(s\) after dec 2026 .* \(20261231000000_next\)/);
-  assert.match(checkoutProblem(dec, dirs.filter((d) => d !== DEC_2026_MIGRATIONS[0])), /expected the 1 .* found 0/);
+  assert.match(checkoutProblem(dec, dirs.filter((d) => d !== DEC_2026_MIGRATIONS[0])), /expected the 2 .* found 1/);
+  assert.deepEqual([...DEC_2026_MIGRATIONS].sort(), DEC_2026_MIGRATIONS);
   assert.equal(dec.requires.count, 14 + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length);
   assert.equal(dirs.filter((d) => dec.requires.owns(d)).length, 35);
   for (const m of DEC_2026_MIGRATIONS) assert.equal(dec.requires.owns(m), false);
 });
 
-test('dec-2026: rollback-history checks exactly the columns its migration creates', () => {
+test('dec-2026: rollback-history checks exactly the tables and columns its migrations create', () => {
   const o = DEC_2026_OBJECTS;
-  assert.deepEqual(createdBy(DEC_2026_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g), []);
+  assert.deepEqual(createdBy(DEC_2026_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g), [...o.tables].sort());
   assert.deepEqual(createdBy(DEC_2026_MIGRATIONS, /CREATE TYPE "([A-Za-z]+)"/g), []);
   const added = DEC_2026_MIGRATIONS.flatMap((d) => [...readFileSync(`prisma/migrations/${d}/migration.sql`, 'utf8')
     .matchAll(/ALTER TABLE "([A-Za-z]+)" +ADD COLUMN "([A-Za-z]+)"/g)].map((m) => `${m[1]}.${m[2]}`)).sort();
   assert.deepEqual(o.columns.map(([t, c]) => `${t}.${c}`).sort(), added);
 });
 
-test('dec-2026: one rollback file, refusing while it would lose answers; history is a separate step; no pre-switch', () => {
+test('dec-2026: one rollback file per migration, newest first, each refusing while it would lose data; history is a separate step', () => {
   const release = releaseFrom(['--release', 'dec-2026']);
   const docs = readdirSync('docs/migrations');
   const files = releaseRollbackFiles(release, docs);
-  assert.deepEqual(files, DEC_2026_MIGRATIONS.map((m) => `${m}.rollback.sql`));
+  assert.deepEqual(files, [...DEC_2026_MIGRATIONS].reverse().map((m) => `${m}.rollback.sql`));
   assert.deepEqual(releasePreSwitchFiles(release, docs), []);
   for (const f of files) {
     const text = readFileSync(`docs/migrations/${f}`, 'utf8');
@@ -490,14 +491,14 @@ test('dec-2026: one rollback file, refusing while it would lose answers; history
   assert.equal(releaseRollbackFiles(releaseFrom(['--release', 'late-2026']), docs).some((f) => f.startsWith('20261223')), false);
 });
 
-test('dec-2026: the pre- and post-check SQL are read only, use only \\echo, and name every column the release creates', () => {
+test('dec-2026: the pre- and post-check SQL are read only, use only \\echo, and name every table and column the release creates', () => {
   for (const file of [RELEASES['dec-2026'].precheck, RELEASES['dec-2026'].postcheck]) {
     const text = readFileSync(file, 'utf8');
     const segs = segments(text).filter((s) => typeof s === 'string');
     assert.match(segs[0], /BEGIN TRANSACTION READ ONLY;/, file);
     assert.match(segs.at(-1), /ROLLBACK;\s*$/, file);
     assert.doesNotMatch(segs.join('\n').replace(/--[^\n]*/g, ''), /\b(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE)\b/i, file);
-    for (const [, c] of DEC_2026_OBJECTS.columns) assert.ok(text.includes(`'${c}'`), `${file}: ${c}`);
+    for (const name of [...DEC_2026_OBJECTS.tables, ...DEC_2026_OBJECTS.columns.map(([, c]) => c)]) assert.ok(text.includes(`'${name}'`), `${file}: ${name}`);
   }
 });
 
@@ -505,7 +506,7 @@ test('the runner: dec-2026 passes the checkout guard on this checkout; a later m
   withCheckoutCopy([], (root) => {
     const ok = run(root, 'deploy', '--release', 'dec-2026', '--confirm', 'ep-anything');
     assert.notEqual(ok.status, 5, ok.stderr);
-    assert.match(ok.stdout, /release: dec-2026 — dec 2026 \(1 migration after late 2026\)/);
+    assert.match(ok.stdout, /release: dec-2026 — dec 2026 \(2 migrations after late 2026\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
   });
   withCheckoutCopy(['20261231000000_next'], (root) => {

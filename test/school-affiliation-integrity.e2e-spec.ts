@@ -543,7 +543,8 @@ describe('Student–school affiliation hardening (school administration PR A.1)'
     for (const id of tracked) await consistent(id);
     const after = await listed();
     expect(after).toContain(verified);
-    expect(after).not.toContain(pending);
+    // Owner 2026-11-21: a PENDING claim makes a student of the school for its teachers, before and after the rollover.
+    expect(after).toContain(pending);
     expect(after).not.toContain(elsewhere);
     await consistent(divergent!);
   });

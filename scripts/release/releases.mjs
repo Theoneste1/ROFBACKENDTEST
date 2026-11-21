@@ -123,11 +123,13 @@ export const LATE_2026_OBJECTS = {
 export const DEC_2026_MIGRATIONS = [
   // "Other" Olympiad interest: a nullable olympiadInterestOther (2–100 characters) on User, MentorRequest and TeacherApplication.
   '20261223000000_olympiad_interest_other',
+  // Locked test submissions (owner, 2026-11-21): TestResubmissionAuthorization (an Administrator unlocks one replacement).
+  '20261223000100_test_resubmission_lock',
 ];
 
 /** What the dec-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
 export const DEC_2026_OBJECTS = {
-  tables: [],
+  tables: ['TestResubmissionAuthorization'],
   enums: [],
   columns: [['User', 'olympiadInterestOther'], ['MentorRequest', 'olympiadInterestOther'], ['TeacherApplication', 'olympiadInterestOther']],
   triggers: [],
@@ -190,7 +192,7 @@ export const RELEASES = {
     },
   },
   'dec-2026': {
-    label: `dec 2026 (${DEC_2026_MIGRATIONS.length} migration after late 2026)`,
+    label: `dec 2026 (${DEC_2026_MIGRATIONS.length} migrations after late 2026)`,
     count: DEC_2026_MIGRATIONS.length,
     owns: (name) => DEC_2026_MIGRATIONS.includes(name),
     last: DEC_2026_MIGRATIONS.at(-1).slice(0, 14),

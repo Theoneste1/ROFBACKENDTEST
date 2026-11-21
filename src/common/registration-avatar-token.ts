@@ -7,10 +7,10 @@
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-export type RegistrationAvatarKind = 'STUDENT' | 'TEACHER_APPLICATION' | 'COACH_APPLICATION';
+export type RegistrationAvatarKind = 'STUDENT' | 'TEACHER' | 'TEACHER_APPLICATION' | 'COACH_APPLICATION';
 export const REGISTRATION_AVATAR_TTL_MS = 30 * 60 * 1000;
 const PURPOSE = 'rof:registration-avatar:v1';
-const KINDS: readonly RegistrationAvatarKind[] = ['STUDENT', 'TEACHER_APPLICATION', 'COACH_APPLICATION'];
+const KINDS: readonly RegistrationAvatarKind[] = ['STUDENT', 'TEACHER', 'TEACHER_APPLICATION', 'COACH_APPLICATION'];
 
 const sign = (secret: string, body: string) => createHmac('sha256', `${PURPOSE}:${secret}`).update(body).digest('base64url');
 

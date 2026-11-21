@@ -108,11 +108,20 @@ export class UsersService {
       });
       for (const g of groups) if (g.role === 'PRIMARY' || !roles.has(g.teacherId)) roles.set(g.teacherId, g.role);
     }
+    // Test submission for students (owner 2026-11-21): on by default; an Administrator may revoke it per teacher (an
+    // active DENY of tests.submitForStudents). One query per page.
+    const revoked = new Set(teacherIds.length === 0 ? [] : (await this.prisma.userPermissionOverride.findMany({
+      where: {
+        userId: { in: teacherIds }, permission: 'tests.submitForStudents', effect: 'DENY', revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: { userId: true },
+    })).map((r) => r.userId));
 
     // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
     // Data minimisation (ACC-16 / SEC-03): phones masked and no date of birth in a list; GET /admin/users/:id has both.
     return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(
-      row.role === 'TEACHER' ? { ...row, teacherSchoolRole: roles.get(row.id) ?? null } : row,
+      row.role === 'TEACHER' ? { ...row, teacherSchoolRole: roles.get(row.id) ?? null, testSubmissionAllowed: !revoked.has(row.id) } : row,
     )), total, page, limit);
   }
 

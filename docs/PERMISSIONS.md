@@ -99,6 +99,7 @@ permission guard.
 | `tests.manageMarkers` | — | — | — | programme | all | all |
 | `tests.extensions` | — | — | — | programme | all | all |
 | `tests.viewSubmissions` | — | — | — | programme | all | all |
+| `tests.authorizeResubmission` | — | — | — | — | all | all |
 | `tests.submit` | own | — | — | — | — | — |
 | `tests.submitForStudents` | — | school | — | — | — | — |
 | `tests.distribute` | — | — | — | programme | all | all |

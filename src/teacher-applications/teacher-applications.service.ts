@@ -141,6 +141,15 @@ export class TeacherApplicationsService {
     await this.assertIdentityFree(dto.username, dto.email);
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_COST);
 
+    // Self-registration (owner, 2026-11-21): a teacher who chose a LISTED school (its code identifies it) gets the account
+    // at once — the application is created and approved in one transaction, with the same code as an Administrator's
+    // approval (the school link, primary when the school has none, the audit entry). A school that is not listed still
+    // needs an Administrator (there is no code to match the school's students with).
+    const instant = school !== null && (await this.prisma.school.count({ where: { id: school.id, isActive: true, countryCode: RWANDA } })) === 1;
+    const verify = instant ? await this.settings.get('registration.requireEmailVerification') : false;
+    let issued: IssuedActivation | null = null;
+    let account: { id: string; username: string } | null = null;
+
     const created = await this.prisma.$transaction(async (tx) => {
       const application = await tx.teacherApplication.create({
         data: {
@@ -162,11 +171,37 @@ export class TeacherApplicationsService {
         action: 'SUBMIT_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: application.id,
         metadata: { schoolId: school?.id ?? null, missingSchool: choice.kind === 'MISSING', olympiadInterests: dto.olympiadInterests },
       }, tx);
+      if (instant && school) {
+        const done = await this.approveInTx(tx, application.id, school.id, { id: null, role: 'ANONYMOUS' }, {
+          note: null, approvePicture: false, verify, selfRegistration: true,
+        });
+        issued = done.issued;
+        account = { id: done.user.id, username: done.user.username };
+        return { ...application, status: 'APPROVED' as const };
+      }
       return application;
     }).catch((e: unknown) => {
       // A concurrent PENDING application with this username or e-mail (partial unique indexes).
       throw isUniqueViolation(e) ? identityTaken() : e;
     });
+
+    const acc = account as { id: string; username: string } | null;
+    if (acc) {
+      // The account exists: the confirmation e-mail when required, else the teacher signs in at once.
+      if (issued) await this.activation.send(issued);
+      return {
+        id: created.id,
+        status: created.status,
+        requiresApproval: false as const,
+        accountCreated: true as const,
+        username: acc.username,
+        emailVerificationRequired: verify,
+        school,
+        proposedSchoolName: null,
+        // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes — on the new account.
+        avatarUploadToken: this.registrationAvatar.issue('TEACHER', acc.id),
+      };
+    }
 
     // Administrators are told once per application, after it committed (owner decision 5).
     this.events.emit(Events.TeacherApplicationSubmitted, { applicationId: created.id });
@@ -175,6 +210,7 @@ export class TeacherApplicationsService {
       id: created.id,
       status: created.status,
       requiresApproval: true as const,
+      accountCreated: false as const,
       school,
       proposedSchoolName: created.proposedSchoolName,
       // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes.
@@ -224,6 +260,40 @@ export class TeacherApplicationsService {
     let notice: string | null = null;
 
     const teacher = await this.prisma.$transaction(async (tx) => {
+      const done = await this.approveInTx(tx, id, schoolId, { id: caller.id, role: caller.role }, {
+        note: dto.note ?? null, approvePicture: dto.approvePicture === true, verify, selfRegistration: false,
+      });
+      issued = done.issued;
+      notice = done.notice;
+      return done.user;
+    }).catch((e: unknown) => {
+      throw isUniqueViolation(e) ? identityTaken() : e;
+    });
+
+    // The approval is committed: hand the notice to the dispatcher first, so a failure while queuing the
+    // confirmation e-mail below can no longer hold it back until the next sweep (L1).
+    this.notices.dispatchAfterCommit([notice]);
+    // With e-mail verification on, the confirmation e-mail is sent as before; the approval notice tells
+    // the teacher to use it (no login link until the account is activated).
+    if (issued) await this.activation.send(issued);
+
+    return {
+      application: await this.prisma.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT }),
+      teacher,
+      emailVerificationRequired: verify,
+    };
+  }
+
+  /**
+   * The approval, inside the caller's transaction: the application claimed (APPROVED), the Teacher account, its link to
+   * the school (primary when the school has none), the picture decision, the e-mail verification when required, the
+   * approval notice (not for self-registration) and the audit entry. Shared by an Administrator's approval and by
+   * self-registration with a listed school (owner 2026-11-21: no approval step; actor = the system, id null).
+   */
+  private async approveInTx(
+    tx: Prisma.TransactionClient, id: string, schoolId: string, actor: { id: string | null; role: string },
+    opts: { note: string | null; approvePicture: boolean; verify: boolean; selfRegistration: boolean },
+  ): Promise<{ user: { id: string; firstName: string; lastName: string; username: string; email: string; role: string }; issued: IssuedActivation | null; notice: string | null }> {
       const now = new Date();
       // The row as it is now, locked (an answer to a request for more information may have corrected it, e.g. the
       // phone; the answer path locks the application first too). Read before the claim, which clears the password hash.
@@ -234,8 +304,8 @@ export class TeacherApplicationsService {
       const { count } = await tx.teacherApplication.updateMany({
         where: { id, status: 'PENDING' },
         data:  {
-          status: 'APPROVED', passwordHash: null, decidedAt: now, decidedById: caller.id,
-          assignedSchoolId: schoolId, decisionNote: dto.note ?? null, avatarFileId: null,
+          status: 'APPROVED', passwordHash: null, decidedAt: now, decidedById: actor.id,
+          assignedSchoolId: schoolId, decisionNote: opts.note, avatarFileId: null,
         },
       });
       if (count === 0) throw applicationAlreadyDecided();
@@ -260,12 +330,12 @@ export class TeacherApplicationsService {
           homeProvince: application.homeProvince, homeDistrict: application.homeDistrict, homeSector: application.homeSector,
           homeLocation: homePlaceText(application),
           // The applicant chose this password; the address may still need confirming.
-          activatedAt: verify ? null : now,
+          activatedAt: opts.verify ? null : now,
         },
         select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
       });
       // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
-      const picture = !application.avatarFileId ? 'NONE' : dto.approvePicture === true ? 'APPROVED' : 'DISCARDED';
+      const picture = !application.avatarFileId ? 'NONE' : opts.approvePicture ? 'APPROVED' : 'DISCARDED';
       if (picture === 'APPROVED') await carryApplicationAvatar(tx, user.id, application.avatarFileId);   // REG-02
       // The first approved teacher of a school without an active primary becomes its primary teacher (owner decision
       // 2026-11-19); concurrent approvals of the same school are serialised by the school's primary lock.
@@ -273,42 +343,27 @@ export class TeacherApplicationsService {
       await lockSchoolPrimary(tx, [schoolId]);
       const role = await roleForNewLink(tx, schoolId, accountStatus);
       const assignment = await tx.teacherSchoolAssignment.create({
-        data: { teacherId: user.id, schoolId, assignedById: caller.id, role }, select: { id: true },
+        data: { teacherId: user.id, schoolId, assignedById: actor.id, role }, select: { id: true },
       });
       await tx.teacherApplication.update({ where: { id }, data: { userId: user.id } });
-      if (verify) issued = await this.activation.issue(user.id, 'EMAIL_VERIFICATION', caller.id, tx);
+      const issued = opts.verify ? await this.activation.issue(user.id, 'EMAIL_VERIFICATION', actor.id, tx) : null;
 
-      // Decision 10: null while teacher self-registration is off (no approval notice).
-      notice = await this.notices.enqueue(tx, {
+      // Decision 10: null while teacher self-registration is off (no approval notice). A teacher who registered with a
+      // listed school (no decision by anyone) gets no approval notice: they are signed in at once.
+      const notice = opts.selfRegistration ? null : await this.notices.enqueue(tx, {
         type: DecisionEvents.TeacherApplicationApproved, dedupeKey: `${DecisionEvents.TeacherApplicationApproved}:${id}`,
         recipient: { userId: user.id, email: user.email, firstName: application.firstName },
-        entity: { type: 'TeacherApplication', id }, payload: { activated: !verify },
+        entity: { type: 'TeacherApplication', id }, payload: { activated: !opts.verify },
       });
       await this.audit.log({
-        actorId: caller.id, actorRole: caller.role,
-        action: 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
+        actorId: actor.id, actorRole: actor.role,
+        action: opts.selfRegistration ? 'TEACHER_SELF_REGISTERED' : 'APPROVE_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: id,
         metadata: {
           newUserId: user.id, schoolId, assignmentId: assignment.id, role, missingSchool: application.proposedSchoolName !== null, picture,
-          approvalNotice: notice ? 'QUEUED' : 'NOT_SENT_SELF_REGISTRATION_OFF',
+          approvalNotice: opts.selfRegistration ? 'NOT_SENT_SELF_REGISTERED' : notice ? 'QUEUED' : 'NOT_SENT_SELF_REGISTRATION_OFF',
         },
       }, tx);
-      return user;
-    }).catch((e: unknown) => {
-      throw isUniqueViolation(e) ? identityTaken() : e;
-    });
-
-    // The approval is committed: hand the notice to the dispatcher first, so a failure while queuing the
-    // confirmation e-mail below can no longer hold it back until the next sweep (L1).
-    this.notices.dispatchAfterCommit([notice]);
-    // With e-mail verification on, the confirmation e-mail is sent as before; the approval notice tells
-    // the teacher to use it (no login link until the account is activated).
-    if (issued) await this.activation.send(issued);
-
-    return {
-      application: await this.prisma.teacherApplication.findUniqueOrThrow({ where: { id }, select: APPLICATION_SELECT }),
-      teacher,
-      emailVerificationRequired: verify,
-    };
+      return { user, issued, notice };
   }
 
   /**

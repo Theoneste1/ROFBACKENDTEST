@@ -418,15 +418,17 @@ enum NotificationCategory {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model User {
-  id           String       @id @default(uuid())
-  firstName    String
-  lastName     String
-  username     String       @unique
-  email        String       @unique
-  passwordHash String?
-  provider     AuthProvider @default(LOCAL)
-  providerId   String?
-  role         Role         @default(STUDENT)
+  resubmissionsAuthorized TestResubmissionAuthorization[] @relation("ResubmissionAuthorizedBy")
+  resubmissionsCancelled  TestResubmissionAuthorization[] @relation("ResubmissionCancelledBy")
+  id                      String                          @id @default(uuid())
+  firstName               String
+  lastName                String
+  username                String                          @unique
+  email                   String                          @unique
+  passwordHash            String?
+  provider                AuthProvider                    @default(LOCAL)
+  providerId              String?
+  role                    Role                            @default(STUDENT)
 
   /// Mentor accounts and (optionally) self-registered students require approval.
   isApproved       Boolean       @default(true)
@@ -2889,12 +2891,14 @@ model TestSubmission {
   publication   TestPublication? @relation("TestSubmissionPublication", fields: [publicationId], references: [id], onDelete: Restrict)
   publishedAt   DateTime?
 
-  versions          TestSubmissionVersion[]      @relation("TestSubmissionVersions")
-  statusChanges     TestSubmissionStatusChange[]
-  markerAssignments TestMarkerAssignment[]
-  markings          TestMarking[]                @relation("TestSubmissionMarkings")
-  reviews           TestReview[]
-  withdrawals       TestResultWithdrawal[]
+  versions                   TestSubmissionVersion[]         @relation("TestSubmissionVersions")
+  statusChanges              TestSubmissionStatusChange[]
+  markerAssignments          TestMarkerAssignment[]
+  markings                   TestMarking[]                   @relation("TestSubmissionMarkings")
+  reviews                    TestReview[]
+  withdrawals                TestResultWithdrawal[]
+  /// Owner 2026-11-21: a submitted answer is locked; an Administrator may authorize one replacement at a time.
+  resubmissionAuthorizations TestResubmissionAuthorization[]
 
   @@unique([testId, studentId])
   @@index([studentId])
@@ -2926,9 +2930,11 @@ model TestSubmissionVersion {
   typedAnswer        String?
   pageCount          Int               @default(0)
 
-  currentOf TestSubmission?  @relation("TestSubmissionCurrentVersion")
-  pages     TestAnswerPage[]
-  markings  TestMarking[]
+  currentOf                 TestSubmission?                @relation("TestSubmissionCurrentVersion")
+  pages                     TestAnswerPage[]
+  /// The Administrator's resubmission authorization this replacement used (owner 2026-11-21), if any.
+  resubmissionAuthorization TestResubmissionAuthorization? @relation("ResubmissionUsedVersion")
+  markings                  TestMarking[]
 
   @@unique([submissionId, number])
   @@unique([submissionId, clientKey])
@@ -3195,4 +3201,29 @@ model TestResultWithdrawal {
   @@index([submissionId, createdAt])
   @@index([publicationId])
   @@index([withdrawnById])
+}
+
+/// An Administrator's authorization to replace a LOCKED test submission (owner, 2026-11-21). A submitted answer is locked
+/// for the student and their teachers; one open authorization (at most — partial unique index) lets the next version
+/// through, which uses it (usedAt, usedVersionId) and is locked again. Never deleted: with the versions it is the history
+/// (who authorized, why, when, which replacement). An unused one may be cancelled.
+model TestResubmissionAuthorization {
+  id             String                 @id @default(uuid())
+  submissionId   String
+  submission     TestSubmission         @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  authorizedById String?
+  authorizedBy   User?                  @relation("ResubmissionAuthorizedBy", fields: [authorizedById], references: [id], onDelete: SetNull)
+  /// Why (3–500 characters, CHECK): shown to the student and their teachers with the unlocked submission.
+  reason         String
+  createdAt      DateTime               @default(now())
+  usedAt         DateTime?
+  usedVersionId  String?                @unique
+  usedVersion    TestSubmissionVersion? @relation("ResubmissionUsedVersion", fields: [usedVersionId], references: [id], onDelete: Restrict)
+  cancelledAt    DateTime?
+  cancelledById  String?
+  cancelledBy    User?                  @relation("ResubmissionCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  @@index([submissionId])
+  @@index([authorizedById])
+  @@index([cancelledById])
 }

@@ -11920,6 +11920,103 @@
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/teachers/{id}/test-submission": {
+      "get": {
+        "operationId": "TeacherDelegationsController_testSubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Test submission for students (owner, 2026-11-21): every Teacher has it by default; an Administrator revokes it (reason\nrequired) or restores it for one teacher. Revoking never deactivates the account, never blocks sign-in or any other\nteacher right, and never touches students' own submissions. Audited (TEACHER_TEST_SUBMISSION_REVOKED / _RESTORED).",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "TeacherDelegationsController_setTestSubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTeacherTestSubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/teachers/{id}/delegations/{overrideId}": {
       "delete": {
         "operationId": "TeacherDelegationsController_revoke",
@@ -49366,6 +49463,110 @@
         "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission": {
+      "post": {
+        "operationId": "AdminTestSubmissionsController_authorizeResubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizeResubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Unlock a submitted (locked) answer for ONE replacement, with a reason (owner 2026-11-21; Administrators only). 409\nNOTHING_SUBMITTED, SUBMISSION_IN_MARKING (marking began) or RESUBMISSION_ALREADY_AUTHORIZED. Audited.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.authorizeResubmission",
+        "description": "**Access:** permission `tests.authorizeResubmission` (ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "AdminTestSubmissionsController_cancelResubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Withdraw an authorization not used yet (the answer is locked again). 409 NO_OPEN_RESUBMISSION. Audited.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.authorizeResubmission",
+        "description": "**Access:** permission `tests.authorizeResubmission` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/me/tests": {
       "get": {
         "operationId": "MyTestsController_list",
@@ -49892,6 +50093,33 @@
               "minLength": 1,
               "maxLength": 100,
               "type": "string"
+            }
+          },
+          {
+            "name": "division",
+            "required": false,
+            "in": "query",
+            "description": "Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "JUNIOR",
+                "SENIOR"
+              ]
+            }
+          },
+          {
+            "name": "subject",
+            "required": false,
+            "in": "query",
+            "description": "Olympiad subject (owner 2026-11-21): students who chose it among their Olympiad interests.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
             }
           }
         ],
@@ -53461,6 +53689,23 @@
           "schoolId"
         ]
       },
+      "SetTeacherTestSubmissionDto": {
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required to revoke (3–500 characters); optional when restoring. Recorded in the audit log.",
+            "minLength": 0,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "allowed"
+        ]
+      },
       "CreateDelegationDto": {
         "type": "object",
         "properties": {
@@ -56300,6 +56545,20 @@
           "reason": {
             "type": "string",
             "description": "Mandatory (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "AuthorizeResubmissionDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "3–500 characters; recorded in the history and the audit log, and shown to the student and their teachers.",
             "minLength": 3,
             "maxLength": 500
           }

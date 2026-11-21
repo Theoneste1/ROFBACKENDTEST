@@ -101,6 +101,9 @@ export const PERMISSIONS = [
   // ── Test Management, Phase 2 (WS3, 2026-11-19): deadlines, extensions, submissions ──
   'tests.extensions',            // grant / edit / cancel deadline extensions (Administrators; Head Coaches: subjects they head)
   'tests.viewSubmissions',       // submission tracking and every version, with submitter and extension status (same scope)
+  'tests.authorizeResubmission', // Administrators only (owner 2026-11-21): unlock a submitted (locked) answer for ONE
+                                 // replacement, with a reason (audited); never a Head Coach, teacher or student (never
+                                 // grantable by an individual override)
   'tests.submit',                // Students: submit / replace their own answer to a test of their division (own)
   'tests.submitForStudents',     // Teachers (G2: any teacher of the school, primary or secondary): submit for VERIFIED
                                  // students of their own schools (school). Separate from submissions.submitOnBehalf.
@@ -176,7 +179,7 @@ const ADMIN_GRANTS: Grants = {
   // Test Management (WS3, 2026-11-19): every subject
   'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
   // Test Management, Phase 2: extensions and submission tracking, every subject
-  'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
+  'tests.extensions': 'global', 'tests.viewSubmissions': 'global', 'tests.authorizeResubmission': 'global',
   // Test Management, Phase 3: distribution and review, every subject. Never tests.mark or tests.adjustMarks (G4).
   'tests.distribute': 'global', 'tests.review': 'global',
   // Test Management, Phase 4: publication (and its override: Administrators only), results, rankings, reports.
@@ -210,7 +213,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     // students.viewProfile, students.viewProgress, submissions.submitOnBehalf: only by
     // an individual GRANT (Administrator or Super Admin), school scope (P1-11)
     // Test Management, Phase 2 (G2, owner decision 2026-11-19): every teacher of a school, primary or secondary, submits
-    // test answers for the VERIFIED students of their own schools — a default, not a delegation.
+    // test answers for the students of their own schools (verified or pending claim, owner 2026-11-21) — a default, not a
+    // delegation; an Administrator revokes it per teacher (a DENY override) without touching the account.
     'tests.submitForStudents': 'school',
     // Test Management, Phase 4 (2026-11-19): published results of the verified students of their own schools (no ranks)
     'tests.viewSchoolResults': 'school',
@@ -266,7 +270,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
     'reference.manage': 'global',
     'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
-    'tests.extensions': 'global', 'tests.viewSubmissions': 'global',
+    'tests.extensions': 'global', 'tests.viewSubmissions': 'global', 'tests.authorizeResubmission': 'global',
     'tests.distribute': 'global', 'tests.review': 'global',
     'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
   },
@@ -288,6 +292,8 @@ export const NEVER_GRANTABLE: readonly Permission[] = [
   // Test Management, Phase 4 (owner spec 10.1): the publication override belongs to Administrators alone; a Head Coach can
   // never receive it, not even by an individual override.
   'tests.overridePublication',
+  // Locked submissions (owner 2026-11-21): only Administrators unlock a submitted answer; nobody else may receive it.
+  'tests.authorizeResubmission',
 ];
 
 // ── Legacy lists, returned unchanged by GET /me/permissions (decision A1) ────
@@ -355,6 +361,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'tests.distribute', 'tests.review',
     // Appended (additive, Test Management Phase 4, 2026-11-19): publication and its override, results, rankings, reports.
     'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
+    // appended 2026-11-21 (owner): unlock a locked test submission for one replacement (Administrators only)
+    'tests.authorizeResubmission',
   ],
 };
 

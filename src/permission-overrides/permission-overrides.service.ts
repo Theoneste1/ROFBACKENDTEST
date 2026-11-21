@@ -62,6 +62,9 @@ function assertTeacherTarget(target: { role: string }) {
   }
 }
 
+/** The one permission an Administrator revokes / restores per teacher (owner 2026-11-21). */
+const TEST_SUBMISSION = 'tests.submitForStudents';
+
 const notAllowed = (reason: string, details: Record<string, unknown> = {}) =>
   new AppError(HttpStatus.BAD_REQUEST, 'OVERRIDE_NOT_ALLOWED', `This override is not allowed: ${reason}.`, { reason, ...details });
 
@@ -218,6 +221,75 @@ export class PermissionOverridesService {
       }, tx);
       return { ...updated, active: false };
     });
+  }
+
+  // ── A teacher's test submission for students (owner, 2026-11-21) ─────────────────────────────────────────────
+  // Every Teacher submits tests for the students of their school by default (tests.submitForStudents). An Administrator
+  // (users.manageTeachers) may revoke that one permission for one teacher, and restore it: a DENY override of exactly
+  // tests.submitForStudents, read on every request like any override. The account, the sign-in and every other teacher
+  // right are untouched; students' own submissions never depend on it.
+
+  /** Whether this teacher may submit tests for their students now, and the revocation if any. */
+  async teacherTestSubmission(userId: string) {
+    const target = await this.requireUser(userId);
+    assertTeacherTarget(target);
+    const deny = await this.prisma.userPermissionOverride.findFirst({
+      where: { userId, permission: TEST_SUBMISSION, effect: 'DENY', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, reason: true, createdAt: true, createdBy: { select: { id: true, username: true, firstName: true, lastName: true } } },
+    });
+    return { userId, allowed: !deny, revokedAt: deny?.createdAt ?? null, reason: deny?.reason ?? null, revokedBy: deny?.createdBy ?? null };
+  }
+
+  /** Revoke (allowed false, reason 3–500 required) or restore (allowed true) it. Idempotent; audited when it changes. */
+  async setTeacherTestSubmission(userId: string, dto: { allowed: boolean; reason?: string }, actor: CallerCtx) {
+    const target = await this.requireUser(userId);
+    assertTeacherTarget(target);
+    if (target.id === actor.id) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'OVERRIDE_NOT_ALLOWED', 'You cannot change your own permissions.', { reason: 'self' });
+    }
+    const reason = dto.reason?.trim() ?? '';
+    if (!dto.allowed && (reason.length < 3 || reason.length > 500)) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', 'Give a reason (3–500 characters) for revoking test submission.');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      // The same per-user lock as every override change: a concurrent revoke and restore apply one after the other.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${userId}))::text`;
+      const active = await tx.userPermissionOverride.findMany({
+        where: { userId, permission: TEST_SUBMISSION, effect: 'DENY', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        select: { id: true },
+      });
+      if (!dto.allowed && active.length === 0) {
+        const created = await tx.userPermissionOverride.create({
+          data: { userId, permission: TEST_SUBMISSION, effect: 'DENY', reason, createdById: actor.id }, select: { id: true },
+        });
+        await this.audit.log({
+          actorId: actor.id, actorRole: actor.role, action: 'TEACHER_TEST_SUBMISSION_REVOKED', entity: 'User', entityId: userId,
+          metadata: { overrideId: created.id, permission: TEST_SUBMISSION, reason, previous: { allowed: true }, next: { allowed: false } },
+        }, tx);
+      }
+      if (dto.allowed && active.length > 0) {
+        await tx.userPermissionOverride.updateMany({
+          where: { id: { in: active.map((a) => a.id) }, revokedAt: null },
+          data: { revokedAt: new Date(), revokedById: actor.id, ...(reason && { revokeReason: reason }) },
+        });
+        await this.audit.log({
+          actorId: actor.id, actorRole: actor.role, action: 'TEACHER_TEST_SUBMISSION_RESTORED', entity: 'User', entityId: userId,
+          metadata: { overrideIds: active.map((a) => a.id), permission: TEST_SUBMISSION, ...(reason && { reason }), previous: { allowed: false }, next: { allowed: true } },
+        }, tx);
+      }
+    });
+    return this.teacherTestSubmission(userId);
+  }
+
+  /** Of these Teacher ids, the ones whose test submission is revoked now (the Users list shows it). */
+  async teachersWithoutTestSubmission(ids: readonly string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const rows = await this.prisma.userPermissionOverride.findMany({
+      where: { userId: { in: [...ids] }, permission: TEST_SUBMISSION, effect: 'DENY', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      select: { userId: true },
+    });
+    return new Set(rows.map((r) => r.userId));
   }
 
   /** GET /admin/users/:id/permissions — what the user can do now (role defaults ± active overrides). */

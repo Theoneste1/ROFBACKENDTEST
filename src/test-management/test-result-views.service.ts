@@ -5,7 +5,7 @@
  *   Student (tests.viewOwnResults, own)     their OWN published results: marks per question (where the test has
  *                                           questions), the total, the comments of the FINAL marking — never who marked,
  *                                           never another marking, never a rank (STUDENT_RANKINGS_ENABLED is false).
- *   Teacher (tests.viewSchoolResults,       published results of the VERIFIED, ACTIVE students of their own ACTIVE
+ *   Teacher (tests.viewSchoolResults,       published results of the ACTIVE students (current claim) of their own ACTIVE
  *            school)                        schools (teacher-scope.ts visibleSchoolStudentsWhere) — never a rank, never
  *                                           another school's student (404, not revealed).
  * A result is visible only while it is PUBLISHED: an unapproved, approved-but-unpublished or withdrawn (G6) result is

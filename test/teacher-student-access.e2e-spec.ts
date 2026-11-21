@@ -14,7 +14,7 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
   let ctx: TestContext;
   let admin: string, t1: string, t2: string, t3: string, coach: string, student: string;
   let t1Id: string, t2Id: string, t3Id: string, t4Id: string, schoolA: string, schoolB: string;
-  let pendingId: string, oId: string, o2Id: string, workId: string;
+  let pendingId: string, notMemberId: string, oId: string, o2Id: string, workId: string;
   let worker: BulkOperationsWorker;
   const http = () => ctx.http();
   const p = () => ctx.prisma;
@@ -38,9 +38,9 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
     const mk = async (username: string, role: 'TEACHER' | 'STUDENT', extra: object = {}) =>
       (await p().user.create({ data: { username, firstName: username, lastName: 'Tsa', email: `${username}@test.local`, role, passwordHash: hash, activatedAt: new Date(), ...extra } })).id;
-    const claim = (studentId: string, schoolId: string, st: 'VERIFIED' | 'PENDING') => p().studentSchoolAffiliation.create({ data: {
-      studentId, schoolId, status: st, source: st === 'VERIFIED' ? 'ADMIN' : 'REGISTRATION', createdById: ctx.ids.admin,
-      ...(st === 'VERIFIED' && { decidedById: ctx.ids.admin, decidedAt: new Date() }),
+    const claim = (studentId: string, schoolId: string, st: 'VERIFIED' | 'PENDING' | 'REJECTED') => p().studentSchoolAffiliation.create({ data: {
+      studentId, schoolId, status: st, source: st !== 'PENDING' ? 'ADMIN' : 'REGISTRATION', createdById: ctx.ids.admin,
+      ...(st !== 'PENDING' && { decidedById: ctx.ids.admin, decidedAt: new Date() }),
     } });
     t1Id = await mk('tsa.t1', 'TEACHER');
     t2Id = await mk('tsa.t2', 'TEACHER');
@@ -52,6 +52,10 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     o2Id = await mk('tsa.o2', 'STUDENT', { ...junior, schoolId: schoolB, homeLocation: 'Huye' });
     for (const s of [ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior]) await claim(s, schoolA, 'VERIFIED');
     await claim(pendingId, schoolA, 'PENDING');
+    // Owner 2026-11-21: a PENDING claim makes a student of the school; a REJECTED one never does — this student is
+    // outside every teacher's school (the cross-school cases below).
+    notMemberId = await mk('tsa.notmember', 'STUDENT', { ...junior, schoolId: schoolA, homeLocation: 'Huye' });
+    await claim(notMemberId, schoolA, 'REJECTED');
     await claim(oId, schoolB, 'VERIFIED');
     await claim(o2Id, schoolB, 'VERIFIED');
     for (const [teacherId, schoolId] of [[t1Id, schoolA], [t2Id, schoolA], [t3Id, schoolB]]) {
@@ -69,16 +73,15 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     await ctx?.app.close();
   });
 
-  it('TS-1: a teacher sees verified students of their schools only; pending ones only as a number', async () => {
+  it('TS-1 (owner 2026-11-21): a teacher sees the students of their schools — verified and pending claims — never a rejected claim or another school; the summary counts those ROF has not verified yet', async () => {
     const list = await http().get('/api/v1/teacher/students').set(bearer(t1)).expect(200);
     const ids = list.body.data.map((s: any) => s.id);
-    expect(ids).toEqual(expect.arrayContaining([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior]));
-    expect(ids).not.toContain(pendingId);
+    expect(ids).toEqual(expect.arrayContaining([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior, pendingId]));
+    expect(ids).not.toContain(notMemberId);
     expect(ids).not.toContain(oId);
     expect(list.body.data[0]).toMatchObject({ access: { school: true, assigned: false }, can: { viewProfile: false, viewProgress: false, submitOnBehalf: false } });
     const sum = await http().get('/api/v1/teacher/students/summary').set(bearer(t1)).expect(200);
-    expect(sum.body).toEqual({ schools: 1, students: 3, viaSchool: 3, viaAssignment: 0, pendingVerification: 1 });
-    expect(JSON.stringify(sum.body)).not.toContain('tsa.pending');
+    expect(sum.body).toEqual({ schools: 1, students: 4, viaSchool: 4, viaAssignment: 0, pendingVerification: 1 });
     // Other roles: the summary is the teacher's (the service answers 403 for anyone else).
     expect((await status(http().get('/api/v1/teacher/students/summary').set(bearer(admin))))[0]).toBe(403);
   });
@@ -206,24 +209,28 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     expect(await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t2Id, studentId: oId } })).toMatchObject({ isActive: false, endReason: 'REASSIGNED' });
     expect(await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t3Id, studentId: oId } })).toMatchObject({ isActive: true, crossSchool: false });
     expect(await status(http().post(`${TS}/reassign`).set(bearer(admin)).send({ fromTeacherId: t3Id, toTeacherId: t3Id, studentIds: [oId] }))).toEqual([400, 'SAME_TEACHER']);
-    // A refused new assignment leaves the old one: tsa.pending is not T4's verified student and no reason is given.
-    await assign({ teacherId: t1Id, studentIds: [pendingId], reason: 'Pending claim, camp group' }).expect(200);
-    const kept = await http().post(`${TS}/reassign`).set(bearer(admin)).send({ fromTeacherId: t1Id, toTeacherId: t4Id, studentIds: [pendingId] }).expect(200);
-    expect(outcomes(kept)).toEqual({ [pendingId]: ['FAILED', 'REASON_REQUIRED'] });
-    expect((await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t1Id, studentId: pendingId } })).isActive).toBe(true);
+    // A refused new assignment leaves the old one: tsa.notmember (rejected claim) is not T4's student and no reason is given.
+    await assign({ teacherId: t1Id, studentIds: [notMemberId], reason: 'Rejected claim, camp group' }).expect(200);
+    const kept = await http().post(`${TS}/reassign`).set(bearer(admin)).send({ fromTeacherId: t1Id, toTeacherId: t4Id, studentIds: [notMemberId] }).expect(200);
+    expect(outcomes(kept)).toEqual({ [notMemberId]: ['FAILED', 'REASON_REQUIRED'] });
+    expect((await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t1Id, studentId: notMemberId } })).isActive).toBe(true);
   });
 
-  it('SR-2 (approved 2026-11-18): a student whose school claim is still PENDING is assigned only with a reason, audited; the teacher sees that one student, other teachers of the school do not', async () => {
-    // No reason → refused (the pending student is not a verified student of T2's school).
-    expect(outcomes(await assign({ teacherId: t2Id, studentIds: [pendingId] }).expect(200))).toEqual({ [pendingId]: ['FAILED', 'REASON_REQUIRED'] });
-    const row = await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t1Id, studentId: pendingId } });
-    expect(row).toMatchObject({ isActive: true, crossSchool: true, reason: 'Pending claim, camp group', assignedById: ctx.ids.admin });
+  it('SR-2: a student outside the teacher\'s schools (here a REJECTED claim) is assigned only with a reason, audited; the teacher sees that one student, other teachers of the school do not', async () => {
+    // No reason → refused (not a student of T2's school).
+    expect(outcomes(await assign({ teacherId: t2Id, studentIds: [notMemberId] }).expect(200))).toEqual({ [notMemberId]: ['FAILED', 'REASON_REQUIRED'] });
+    const row = await p().teacherStudentAssignment.findFirstOrThrow({ where: { teacherId: t1Id, studentId: notMemberId } });
+    expect(row).toMatchObject({ isActive: true, crossSchool: true, reason: 'Rejected claim, camp group', assignedById: ctx.ids.admin });
     expect((await p().auditLog.findFirstOrThrow({ where: { action: 'TEACHER_STUDENT_ASSIGNED', entityId: row.id } })).metadata)
-      .toMatchObject({ teacherId: t1Id, studentId: pendingId, crossSchool: true, reason: 'Pending claim, camp group' });
+      .toMatchObject({ teacherId: t1Id, studentId: notMemberId, crossSchool: true, reason: 'Rejected claim, camp group' });
     const t1List = (await http().get('/api/v1/teacher/students').set(bearer(t1)).expect(200)).body.data;
-    expect(t1List.find((s: any) => s.id === pendingId)).toMatchObject({ access: { school: false, assigned: true } });
-    expect((await http().get('/api/v1/teacher/students').query({ access: 'SCHOOL' }).set(bearer(t1)).expect(200)).body.data.map((s: any) => s.id)).not.toContain(pendingId);
-    expect((await http().get('/api/v1/teacher/students').set(bearer(t2)).expect(200)).body.data.map((s: any) => s.id)).not.toContain(pendingId);
+    expect(t1List.find((s: any) => s.id === notMemberId)).toMatchObject({ access: { school: false, assigned: true } });
+    expect((await http().get('/api/v1/teacher/students').query({ access: 'SCHOOL' }).set(bearer(t1)).expect(200)).body.data.map((s: any) => s.id)).not.toContain(notMemberId);
+    expect((await http().get('/api/v1/teacher/students').set(bearer(t2)).expect(200)).body.data.map((s: any) => s.id)).not.toContain(notMemberId);
+    // A PENDING claim, by contrast, is a student of the school: every teacher of it sees them, without any assignment.
+    for (const t of [t1, t2]) {
+      expect((await http().get('/api/v1/teacher/students').query({ access: 'SCHOOL' }).set(bearer(t)).expect(200)).body.data.map((s: any) => s.id)).toContain(pendingId);
+    }
   });
 
   it('School Access: teachers with their access, counts, and students with their teachers — never contact data', async () => {
@@ -236,15 +243,15 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     ]);
 
     const pending = await http().get(`/api/v1/admin/schools/${schoolA}/access/students`).query({ verification: 'PENDING' }).set(bearer(admin)).expect(200);
-    expect(pending.body.data.map((s: any) => [s.id, s.claim.status, s.teachers.map((t: any) => t.id)])).toEqual([[pendingId, 'PENDING', [t1Id]]]);
+    expect(pending.body.data.map((s: any) => [s.id, s.claim.status, s.teachers.map((t: any) => t.id)])).toEqual([[pendingId, 'PENDING', []]]);
     const unassigned = await http().get(`/api/v1/admin/schools/${schoolA}/access/students`).query({ assigned: false }).set(bearer(admin)).expect(200);
-    expect(unassigned.body.data.map((s: any) => s.id).sort()).toEqual([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior].sort());
+    expect(unassigned.body.data.map((s: any) => s.id).sort()).toEqual([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior, pendingId].sort());
     const text = JSON.stringify([access.body, pending.body, unassigned.body]);
     expect(text).not.toMatch(/@test\.local|phone|guardian|dateOfBirth/i);
     await http().get('/api/v1/admin/schools/00000000-0000-4000-8000-000000000000/access').set(bearer(admin)).expect(404);
 
     const listed = await http().get(TS).query({ teacherId: t1Id, isActive: true }).set(bearer(admin)).expect(200);
-    expect(listed.body.data.map((a: any) => a.student.id).sort()).toEqual([oId, pendingId].sort());
+    expect(listed.body.data.map((a: any) => a.student.id).sort()).toEqual([oId, notMemberId].sort());
   });
 
   it('bulk: assign, give a permission for selected students, take it back — per-student results, one notice per operation', async () => {

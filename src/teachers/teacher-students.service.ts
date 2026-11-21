@@ -1,8 +1,9 @@
 /**
  * A Teacher's view of their students (P1-11; owner decisions 2026-11-10; TS-1…TS-6 2026-11-18). Visible: approved,
- * activated students who are VERIFIED students of one of the teacher's ACTIVE schools, or explicitly ASSIGNED to the
- * teacher by an Administrator (teacher-scope.ts) — read fresh on each request; any other student → 404 (not
- * revealed). Students of the teacher's schools still pending verification are only counted (summary), never named.
+ * activated students whose current school claim (PENDING or VERIFIED; owner 2026-11-21: automatic discovery by school
+ * code) is one of the teacher's ACTIVE schools, or explicitly ASSIGNED to the teacher by an Administrator
+ * (teacher-scope.ts) — read fresh on each request; any other student → 404 (not revealed). The summary also counts
+ * those whose school ROF has not verified yet (pendingVerification; they are among the visible students).
  * A delegation applies to a visible student only when its student scope covers them (SCHOOL / ASSIGNED / SELECTED):
  * otherwise 403 DELEGATION_NOT_FOR_STUDENT.
  *
@@ -110,8 +111,8 @@ export class TeacherStudentsService {
   }
 
   /**
-   * Counts for My Students: students the teacher sees (through the schools, through assignments) and students of
-   * their schools still waiting for an Administrator to verify the school — a number only, never who (TS-1).
+   * Counts for My Students: students the teacher sees (through the schools, through assignments) and, among those of
+   * their schools, how many ROF has not verified yet (pendingVerification).
    */
   async summary(user: AuthUser) {
     const schools = await this.schools(user);

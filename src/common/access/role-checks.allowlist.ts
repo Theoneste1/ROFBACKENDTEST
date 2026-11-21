@@ -52,6 +52,10 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: 'teacherSchools(): only a TEACHER has school assignments; every other role (including an unsupported one) gets the empty list — the least-privileged result, which schoolStudentsFilter() turns into "matches nobody".',
   },
   {
+    file: 'src/teacher-applications/teacher-applications.service.ts', rule: 'U6', code: 'role: caller.role',
+    reason: "approve(): passes the approving Administrator's role to approveInTx(), which only writes it to the audit entry (actorRole) — attribution data, not an access decision; the route is guarded by users.manageTeachers.",
+  },
+  {
     file: 'src/submissions/submissions.service.ts', rule: 'U6', code: 'submittedByRole: actor.role',
     reason: 'submit(): records WHO submitted on a student\'s behalf (P1-11) in the activity metadata — attribution data, not an access decision.',
   },
