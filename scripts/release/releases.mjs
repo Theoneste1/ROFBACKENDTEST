@@ -117,6 +117,24 @@ export const LATE_2026_OBJECTS = {
 };
 
 /**
+ * The dec-2026 release: the "Other" Olympiad interest (owner, 2026-11-21), after late-2026 (applied to production on
+ * 2026-11-21). Listed explicitly — a migration added later is never part of it until it is appended here on purpose.
+ */
+export const DEC_2026_MIGRATIONS = [
+  // "Other" Olympiad interest: a nullable olympiadInterestOther (2–100 characters) on User, MentorRequest and TeacherApplication.
+  '20261223000000_olympiad_interest_other',
+];
+
+/** What the dec-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
+export const DEC_2026_OBJECTS = {
+  tables: [],
+  enums: [],
+  columns: [['User', 'olympiadInterestOther'], ['MentorRequest', 'olympiadInterestOther'], ['TeacherApplication', 'olympiadInterestOther']],
+  triggers: [],
+  functions: [],
+};
+
+/**
  * Each release: `owns(name)` — the migration belongs to it; `last` — its last timestamp (a migration sorting after it
  * is never deployed by the kit for this release); the read-only SQL checks; and the rollback-history rule.
  */
@@ -169,6 +187,23 @@ export const RELEASES = {
     requires: {
       label: 'Phase 1, post-Phase-1 and design areas', count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length,
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name),
+    },
+  },
+  'dec-2026': {
+    label: `dec 2026 (${DEC_2026_MIGRATIONS.length} migration after late 2026)`,
+    count: DEC_2026_MIGRATIONS.length,
+    owns: (name) => DEC_2026_MIGRATIONS.includes(name),
+    last: DEC_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/dec-2026-precheck.sql',
+    postcheck: 'scripts/release/dec-2026-postcheck.sql',
+    migrations: DEC_2026_MIGRATIONS,
+    objects: DEC_2026_OBJECTS,
+    // The target must already hold Phase 1, post-Phase-1, the design areas and late-2026 (production since 2026-11-21).
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas and late 2026',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name),
     },
   },
 };

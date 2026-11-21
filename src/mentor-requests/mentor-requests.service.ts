@@ -26,12 +26,13 @@ import { DecisionEvents } from '../decision-notifications/decision-content.js';
 import { ApplicationInfoRequestsService, INFO_REQUEST_SELECT } from '../application-info-requests/application-info-requests.service.js';
 import { normalisePhone } from '../schools/directory/school-contacts.js';
 import { RegistrationAvatarService, carryApplicationAvatar } from '../users/registration-avatar.service.js';
+import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
 
 const PUBLIC_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
   status: true, createdAt: true, updatedAt: true,
   // Application details (coachApplicationDetails); NULL / empty on older applications.
-  country: true, occupation: true, educationLevel: true, olympiadInterests: true,
+  country: true, occupation: true, educationLevel: true, olympiadInterests: true, olympiadInterestOther: true,
   // REG-06 / REG-10 (2026-11-17)
   phone: true, affiliation: true, expertise: true, relevantExperience: true, yearsOfExperience: true, rejectionReason: true,
   infoRequests: { select: INFO_REQUEST_SELECT, orderBy: { requestedAt: 'desc' }, take: 10 },
@@ -117,6 +118,7 @@ export class MentorRequestsService {
       occupation:        data.occupation ?? null,
       educationLevel:    data.educationLevel ?? null,
       olympiadInterests: canonicalInterests(data.olympiadInterests),
+      olympiadInterestOther: storedOtherInterest(data.olympiadInterestOther) ?? null,
       phone, affiliation: data.affiliation ?? null, expertise: data.expertise ?? null,
       relevantExperience: data.relevantExperience ?? null, yearsOfExperience: data.yearsOfExperience ?? null,
       rejectionReason: null,
@@ -220,6 +222,7 @@ export class MentorRequestsService {
         homeSector:        request.homeSector,
         homeLocation:      homePlaceText(request),
         olympiadInterests: request.olympiadInterests,
+        olympiadInterestOther: request.olympiadInterestOther,
         // The applicant chose this password; the address may still need confirming.
         activatedAt:  verify ? null : new Date(),
       },

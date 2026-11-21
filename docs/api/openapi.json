@@ -52483,7 +52483,6 @@
           "olympiadInterests": {
             "type": "array",
             "description": "Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and\nPHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then\nhas none); the sign-up form requires at least one. Information only: no programme membership, no permissions.",
-            "minItems": 1,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -52493,6 +52492,11 @@
                 "PHYSICS"
               ]
             }
+          },
+          "olympiadInterestOther": {
+            "type": "string",
+            "nullable": true,
+            "description": "Another Olympiad named in words (\"Other\"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,\ne.g. \"Chemistry\". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).\nNever a subject: grants nothing, not part of Test Management."
           }
         },
         "required": [
@@ -53300,7 +53304,6 @@
           "olympiadInterests": {
             "type": "array",
             "description": "A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of\nMATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the\nroute already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only:\ninterests never grant marking or any other permission.",
-            "minItems": 1,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -53310,6 +53313,11 @@
                 "PHYSICS"
               ]
             }
+          },
+          "olympiadInterestOther": {
+            "type": "string",
+            "nullable": true,
+            "description": "Another Olympiad named in words (\"Other\"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,\ne.g. \"Chemistry\". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).\nNever a subject: grants nothing, not part of Test Management."
           }
         }
       },
@@ -53419,7 +53427,6 @@
           "olympiadInterests": {
             "type": "array",
             "description": "The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of\nMATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests).",
-            "minItems": 1,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -53429,6 +53436,11 @@
                 "PHYSICS"
               ]
             }
+          },
+          "olympiadInterestOther": {
+            "type": "string",
+            "nullable": true,
+            "description": "Another Olympiad named in words (\"Other\"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,\ne.g. \"Chemistry\". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).\nNever a subject: grants nothing, not part of Test Management."
           }
         }
       },
@@ -55424,7 +55436,6 @@
           "olympiadInterests": {
             "type": "array",
             "description": "The subjects the applicant would like to coach: one or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates).\nREQUIRED for every new application (owner decision 2026-11-19, capability coachOlympiadInterests). Copied to the Coach\naccount on approval; information only — it never grants marking or any other permission.",
-            "minItems": 1,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -55434,6 +55445,11 @@
                 "PHYSICS"
               ]
             }
+          },
+          "olympiadInterestOther": {
+            "type": "string",
+            "nullable": true,
+            "description": "Another Olympiad named in words (\"Other\"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,\ne.g. \"Chemistry\". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).\nNever a subject: grants nothing, not part of Test Management."
           },
           "phone": {
             "type": "string",
@@ -55560,7 +55576,6 @@
           "olympiadInterests": {
             "type": "array",
             "description": "One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates).",
-            "minItems": 1,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -55570,6 +55585,11 @@
                 "PHYSICS"
               ]
             }
+          },
+          "olympiadInterestOther": {
+            "type": "string",
+            "nullable": true,
+            "description": "Another Olympiad named in words (\"Other\"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,\ne.g. \"Chemistry\". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).\nNever a subject: grants nothing, not part of Test Management."
           },
           "schoolProvince": {
             "type": "string",

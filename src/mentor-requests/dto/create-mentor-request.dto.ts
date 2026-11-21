@@ -1,5 +1,5 @@
 import {
-  IsInt, Max, Min, ArrayNotEmpty,
+  IsInt, Max, Min,
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -10,12 +10,14 @@ import {
   Length,
   Matches,
   IsBoolean,
+  ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { HomePlacePart } from '../../common/home-place.js';
 import { CoachEducationLevel, Gender, MentorRequestStatus, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { IsOtherInterest, NonEmptyUnlessOther } from '../../users/olympiad-interests.rules.js';
 
 export class CreateMentorRequestDto {
   @IsString()
@@ -90,10 +92,20 @@ export class CreateMentorRequestDto {
    * account on approval; information only — it never grants marking or any other permission.
    */
   @IsArray({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
-  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @NonEmptyUnlessOther()
   @ArrayUnique({ message: 'olympiadInterests must not name a subject twice.' })
   @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
   olympiadInterests: OlympiadSubject[];
+
+  /**
+   * Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,
+   * e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).
+   * Never a subject: grants nothing, not part of Test Management.
+   */
+  @ValidateIf((o: { olympiadInterestOther?: unknown }) => o.olympiadInterestOther !== undefined)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsOtherInterest()
+  olympiadInterestOther?: string | null;
 
   /** Phone, stored in E.164 (else 400 INVALID_PHONE). REG-06. */
   @IsOptional()

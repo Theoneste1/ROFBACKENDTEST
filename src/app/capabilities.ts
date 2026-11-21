@@ -242,6 +242,13 @@ export const FEATURES = {
    */
   bulkOperationsGeneric: 'always',
   /**
+   * "Other" Olympiad interest (owner, 2026-11-21): `olympiadInterestOther` (2–100 characters, e.g. "Chemistry") beside
+   * `olympiadInterests` on POST /auth/register/student, POST /teacher-applications, POST /mentor-requests, PATCH /me and
+   * PATCH /admin/users/:id (Coach accounts); returned on the profile, users and applications. With it, the subjects may
+   * be empty ("Other" alone). null clears it, only beside at least one subject. Never a subject: grants nothing.
+   */
+  olympiadInterestOther: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with
