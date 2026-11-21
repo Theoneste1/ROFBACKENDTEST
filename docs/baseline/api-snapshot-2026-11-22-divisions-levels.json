@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 421,
+    "operations": 422,
     "paths": 371,
-    "schemas": 155
+    "schemas": 156
   },
-  "fingerprint": "cb54884f244524f8616457cec568e7803ba062871b2b4bc44c6975ca00ff7069",
+  "fingerprint": "1a8729bcc28ae854f1d8c15eb0fd2e2057e1bb90a01331ffedcc356cc56bd684",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -3504,6 +3504,35 @@
             }
           }
         },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/divisions",
+      "operationId": "DivisionsController_create",
+      "tags": [
+        "Divisions"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "CreateDivisionDto"
+          }
+        }
+      },
+      "responses": {
+        "201": null,
         "default": {
           "application/json": {
             "ref": "Error"
@@ -15236,13 +15265,7 @@
           "in": "query",
           "required": false,
           "schema": {
-            "type": "string",
-            "enum": [
-              "ALL",
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR"
-            ]
+            "type": "string"
           }
         },
         {
@@ -16609,13 +16632,7 @@
           "in": "query",
           "required": false,
           "schema": {
-            "type": "string",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR",
-              "UNKNOWN"
-            ]
+            "type": "string"
           }
         },
         {
@@ -16893,13 +16910,7 @@
           "in": "query",
           "required": false,
           "schema": {
-            "type": "string",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR",
-              "UNKNOWN"
-            ]
+            "type": "string"
           }
         },
         {
@@ -16996,12 +17007,7 @@
           "in": "query",
           "required": false,
           "schema": {
-            "type": "string",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR"
-            ]
+            "type": "string"
           }
         },
         {
@@ -17342,19 +17348,6 @@
           "required": false,
           "schema": {
             "type": "boolean"
-          }
-        },
-        {
-          "name": "olympiadLevel",
-          "in": "query",
-          "required": false,
-          "schema": {
-            "type": "string",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR"
-            ]
           }
         },
         {
@@ -45044,19 +45037,6 @@
           }
         },
         {
-          "name": "olympiadLevel",
-          "in": "query",
-          "required": false,
-          "schema": {
-            "type": "string",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR"
-            ]
-          }
-        },
-        {
           "name": "q",
           "in": "query",
           "required": false,
@@ -45429,12 +45409,7 @@
           "in": "query",
           "required": false,
           "schema": {
-            "type": "string",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR"
-            ]
+            "type": "string"
           }
         },
         {
@@ -47699,12 +47674,7 @@
         },
         "olympiadLevel": {
           "type": "string",
-          "enum": [
-            "AUTOMATIC",
-            "JUNIOR",
-            "MIDDLE",
-            "SENIOR"
-          ]
+          "pattern": "^[A-Z][A-Z0-9_]{1,29}$"
         },
         "permission": {
           "type": "string",
@@ -48314,6 +48284,52 @@
         }
       }
     },
+    "CreateDivisionDto": {
+      "type": "object",
+      "required": [
+        "code",
+        "name"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^(?!ALL$)[A-Z][A-Z0-9_]{1,29}$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "sortOrder": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "suggestedGrades": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S1",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          },
+          "maxItems": 6
+        }
+      }
+    },
     "CreateMentorAssignmentDto": {
       "type": "object",
       "required": [
@@ -48688,13 +48704,7 @@
           "type": "string"
         },
         "division": {
-          "type": "string",
-          "enum": [
-            "ALL",
-            "JUNIOR",
-            "MIDDLE",
-            "SENIOR"
-          ]
+          "type": "string"
         },
         "maxMarks": {
           "type": "number",
@@ -50278,13 +50288,9 @@
         "automatic": {
           "type": "boolean"
         },
-        "level": {
+        "divisionId": {
           "type": "string",
-          "enum": [
-            "JUNIOR",
-            "MIDDLE",
-            "SENIOR"
-          ]
+          "format": "uuid"
         },
         "reason": {
           "type": "string",
@@ -50647,6 +50653,26 @@
           "type": "string",
           "minLength": 2,
           "maxLength": 100
+        },
+        "sortOrder": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "suggestedGrades": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "S1",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          },
+          "maxItems": 6
         }
       }
     },
@@ -50936,13 +50962,7 @@
           "type": "string"
         },
         "division": {
-          "type": "string",
-          "enum": [
-            "ALL",
-            "JUNIOR",
-            "MIDDLE",
-            "SENIOR"
-          ]
+          "type": "string"
         },
         "maxMarks": {
           "type": "number",

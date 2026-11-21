@@ -146,8 +146,11 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
       status: 'ACTIVE', isCurrent: true,
     },
   });
-  const junior = await prisma.division.create({ data: { code: 'JUNIOR', name: 'Junior' } });
-  const senior = await prisma.division.create({ data: { code: 'SENIOR', name: 'Senior' } });
+  // As the seed and migration 20261224000000 create them: Junior S1–S3, Middle (no grade until an Administrator gives it
+  // some), Senior S4–S6.
+  const junior = await prisma.division.create({ data: { code: 'JUNIOR', name: 'Junior', suggestedGrades: ['S1', 'S2', 'S3'], sortOrder: 1 } });
+  await prisma.division.create({ data: { code: 'MIDDLE', name: 'Middle', suggestedGrades: [], sortOrder: 2 } });
+  const senior = await prisma.division.create({ data: { code: 'SENIOR', name: 'Senior', suggestedGrades: ['S4', 'S5', 'S6'], sortOrder: 3 } });
   // Countries (seeded by migration 20261211000000 in real databases; every table is truncated here): schools reference them.
   await seedReferenceData(prisma);
 

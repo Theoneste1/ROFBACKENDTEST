@@ -37,9 +37,9 @@ import { activeGrantsOf, delegationCovers, teacherStudentsWhere, visibilityOf, v
 /** The three delegations, by the short names the list returns. */
 const DELEGATION_KEYS = { 'students.viewProfile': 'viewProfile', 'students.viewProgress': 'viewProgress', 'submissions.submitOnBehalf': 'submitOnBehalf' } as const;
 
-/** The default list (students.viewScoped): name, username, grade, Olympiad level, division, school — nothing else. */
+/** The default list (students.viewScoped): name, username, grade, division, school — nothing else. */
 const STUDENT_SELECT = {
-  id: true, username: true, firstName: true, lastName: true, gradeLevel: true, olympiadLevel: true,
+  id: true, username: true, firstName: true, lastName: true, gradeLevel: true,
   division: { select: { id: true, code: true, name: true } },
   school:   { select: { id: true, name: true, location: true } },
 } as const;
@@ -91,7 +91,6 @@ export class TeacherStudentsService {
         inScope,
         ...(q.schoolId ? [{ schoolId: q.schoolId }] : []),
         ...(q.gradeLevel ? [{ gradeLevel: q.gradeLevel }] : []),
-        ...(q.olympiadLevel ? [{ olympiadLevel: q.olympiadLevel }] : []),
         ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : []),
       ],
     };

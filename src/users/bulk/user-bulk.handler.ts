@@ -115,8 +115,12 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     if (action === 'changeClassification' && !p.gradeLevel) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.gradeLevel is required.');
     }
-    if (action === 'setOlympiadLevel' && !p.olympiadLevel) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.olympiadLevel is required.');
+    if (action === 'setOlympiadLevel') {
+      if (!p.olympiadLevel) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.olympiadLevel is required.');
+      if (p.olympiadLevel !== 'AUTOMATIC') {
+        const d = await this.prisma.division.findUnique({ where: { code: p.olympiadLevel }, select: { isActive: true } });
+        if (!d?.isActive) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_DIVISION', 'Choose an active division or AUTOMATIC.', { olympiadLevel: p.olympiadLevel });
+      }
     }
     if (action === 'message' && (!p.subject || !p.body)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.subject and params.body are required.');
@@ -250,7 +254,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
       // The body of PUT /admin/students/:id/olympiad-level for this student (lock, history, audit), in the item's transaction.
       const automatic = params.olympiadLevel === 'AUTOMATIC';
       const r = await this.levels.setInTx(tx, user.id, {
-        ...(automatic ? { automatic: true } : { level: params.olympiadLevel as 'JUNIOR' | 'MIDDLE' | 'SENIOR' }), reason: op.reason ?? '',
+        ...(automatic ? { automatic: true } : { divisionCode: params.olympiadLevel }), reason: op.reason ?? '',
       }, actor, { operationId: op.id });
       return r.changed ? { outcome: 'SUCCEEDED' } : { outcome: 'SKIPPED', code: 'ALREADY_SET', message: 'The student already has this level.' };
     }

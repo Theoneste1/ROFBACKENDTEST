@@ -1,22 +1,20 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsEnum, IsOptional, IsString, Length, ValidateIf } from 'class-validator';
-
-import { OlympiadLevel } from '../../generated/prisma/client.js';
+import { IsBoolean, IsOptional, IsString, IsUUID, Length, ValidateIf } from 'class-validator';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 /**
- * PUT /admin/students/:id/olympiad-level (owner 2026-11-21): exactly one of
- *  - `{ level, reason }` — set the level by hand (it then no longer follows the grade);
- *  - `{ automatic: true, reason }` — return to the level the grade suggests (and follow the grade again).
+ * PUT /admin/students/:id/olympiad-level (owner 2026-11-21/22): exactly one of
+ *  - `{ divisionId, reason }` — set the student's division (Olympiad level) by hand; it then no longer follows the grade;
+ *  - `{ automatic: true, reason }` — return to the division the grade suggests (and follow the grade again).
  */
 export class SetOlympiadLevelDto {
-  /** JUNIOR, MIDDLE or SENIOR. Required unless `automatic` is true; refused with it. */
+  /** An active division. Required unless `automatic` is true; refused with it (400 LEVEL_WITH_AUTOMATIC). */
   @ValidateIf((o: SetOlympiadLevelDto) => o.automatic !== true)
-  @IsEnum(OlympiadLevel, { message: 'level must be one of JUNIOR, MIDDLE, SENIOR.' })
-  level?: OlympiadLevel;
+  @IsUUID('all', { message: 'divisionId must be a division id.' })
+  divisionId?: string;
 
-  /** true: follow the grade again (the suggested level). Never together with a level (400 LEVEL_WITH_AUTOMATIC). */
+  /** true: follow the grade again (the suggested division). */
   @IsOptional() @IsBoolean()
   automatic?: boolean;
 

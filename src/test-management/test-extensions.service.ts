@@ -235,11 +235,11 @@ export class TestExtensionsService {
     const id = dto.kind === 'STUDENT' ? dto.studentId! : dto.teacherId!;
     const u = await tx.user.findUnique({
       where: { id },
-      select: { id: true, role: true, email: true, firstName: true, accountStatus: true, activatedAt: true, gradeLevel: true, olympiadLevel: true, division: { select: { code: true } } },
+      select: { id: true, role: true, email: true, firstName: true, accountStatus: true, activatedAt: true, gradeLevel: true, division: { select: { code: true } } },
     });
     if (dto.kind === 'STUDENT') {
       if (!u || u.role !== 'STUDENT') throw new AppError(HttpStatus.NOT_FOUND, 'STUDENT_NOT_FOUND', 'Student not found.');
-      if (!divisionMatches(division, { olympiadLevel: u.olympiadLevel, divisionCode: u.division?.code })) {
+      if (!divisionMatches(division, u)) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'STUDENT_NOT_IN_DIVISION', 'This student is not at the test\'s Olympiad level.');
       }
     } else if (!u || u.role !== 'TEACHER') {

@@ -22,7 +22,7 @@ import { ActivationService, type IssuedActivation } from '../auth/activation.ser
 import { AuthService, PROFILE_SELECT } from '../auth/auth.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { parseCsv } from '../common/csv-parse.js';
-import { divisionCodeForGrade } from '../common/grade-levels.js';
+import { divisionIdForGrade } from '../divisions/division-rules.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { AccessService } from '../common/access/access.service.js';
 import { isHeadCoach } from '../common/access/roles.js';
@@ -349,9 +349,8 @@ export class UserProvisioningService {
       ? ((await resolveSchoolReference(tx, dto, { requireActive: true }))?.id ?? null)
       : null;
 
-    const division = isStudent
-      ? await tx.division.findUniqueOrThrow({ where: { code: divisionCodeForGrade(dto.gradeLevel!) }, select: { id: true } })
-      : null;
+    // The division the grade suggests (administrator-managed; the User trigger applies the same rule).
+    const division = isStudent ? { id: await divisionIdForGrade(tx, dto.gradeLevel!) } : null;
 
     const created = await tx.user.create({
       data: {

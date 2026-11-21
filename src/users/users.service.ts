@@ -42,8 +42,8 @@ const SAFE_SELECT = {
   accountStatus: true,
   activatedAt: true,
   updatedAt:  true,
-  // Olympiad levels (owner 2026-11-21): whether a Coach or a User Manager set the level by hand.
-  olympiadLevelManual: true,
+  // Olympiad levels (owner 2026-11-21): whether a Coach or a User Manager set the division (level) by hand.
+  divisionManual: true,
 } as const;
 
 /**
@@ -56,7 +56,6 @@ export function userListWhere(q: Omit<ListUsersQueryDto, 'page' | 'limit'>): Pri
     ...(q.role       && { role: q.role }),
     ...(q.divisionId && { divisionId: q.divisionId }),
     ...(q.gradeLevel && { gradeLevel: q.gradeLevel }),
-    ...(q.olympiadLevel && { olympiadLevel: q.olympiadLevel }),
     ...(q.schoolId   && { schoolId: q.schoolId }),
     ...(q.isApproved !== undefined && { isApproved: q.isApproved }),
     ...(q.isActive   !== undefined && { isActive: q.isActive }),

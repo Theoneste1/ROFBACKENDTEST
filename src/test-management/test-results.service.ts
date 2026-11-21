@@ -238,8 +238,8 @@ export class TestResultsService {
       AND: [
         ...(q.schoolId ? [{ student: { schoolId: q.schoolId } }] : []),
         // The ranking group (owner 2026-11-21): the level at submission, else the student's level now (DIVISION_SQL).
-        ...(q.division && q.division !== 'UNKNOWN' ? [{ OR: [{ level: q.division }, { level: null, student: { olympiadLevel: q.division } }] }] : []),
-        ...(q.division === 'UNKNOWN' ? [{ level: null, student: { olympiadLevel: null } }] : []),
+        ...(q.division && q.division !== 'UNKNOWN' ? [{ OR: [{ level: q.division }, { level: null, student: { division: { code: q.division } } }] }] : []),
+        ...(q.division === 'UNKNOWN' ? [{ level: null, student: { divisionId: null } }] : []),
         ...(contains ? [{ OR: [{ publicCode: contains }, { student: { OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] } }] }] : []),
       ],
     };

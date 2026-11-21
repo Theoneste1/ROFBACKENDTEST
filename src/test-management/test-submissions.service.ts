@@ -67,7 +67,7 @@ export type Answerer = { user: AuthUser; role: 'STUDENT' } | { user: AuthUser; r
 const PERSON = { select: { id: true, username: true, firstName: true, lastName: true } } as const;
 const STUDENT_FIELDS = {
   id: true, username: true, firstName: true, lastName: true, role: true, accountStatus: true, isActive: true, isApproved: true,
-  activatedAt: true, gradeLevel: true, olympiadLevel: true, schoolId: true, division: { select: { code: true } }, school: { select: { id: true, name: true } },
+  activatedAt: true, gradeLevel: true, schoolId: true, division: { select: { code: true } }, school: { select: { id: true, name: true } },
 } as const satisfies Prisma.UserSelect;
 type StudentRow = Prisma.UserGetPayload<{ select: typeof STUDENT_FIELDS }>;
 
@@ -150,7 +150,7 @@ export class TestSubmissionsService {
   private async answererTest(testId: string, student?: StudentRow): Promise<AnswererTest> {
     const t = await this.prisma.test.findUnique({ where: { id: testId }, include: TEST_FOR_ANSWERERS });
     if (!t || t.status !== 'PUBLISHED') throw testNotFound();
-    if (student && !divisionMatches(t.division, { olympiadLevel: student.olympiadLevel, divisionCode: student.division?.code })) throw testNotFound();
+    if (student && !divisionMatches(t.division, student)) throw testNotFound();
     return t;
   }
 
@@ -161,7 +161,7 @@ export class TestSubmissionsService {
     this.studentCaller(user);
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: STUDENT_FIELDS });
     // The student's Olympiad level (owner 2026-11-21), not their grade.
-    const division = levelOf({ olympiadLevel: me.olympiadLevel, divisionCode: me.division?.code });
+    const division = levelOf(me);
     const now = await this.deadlines.now();
     const mine: Prisma.TestExtensionWhereInput = { cancelledAt: null, OR: [{ kind: 'TEST' }, { kind: 'STUDENT', studentId: me.id }] };
     const where: Prisma.TestWhereInput = {
@@ -223,17 +223,18 @@ export class TestSubmissionsService {
     const where: Prisma.TestWhereInput = { status: 'PUBLISHED', ...windowWhere(q.window, now, mine) };
     const { page, limit, skip, take } = pageArgs(q);
     const students = visibleSchoolStudentsWhere(schools);
-    const [rows, total, all, junior, middle, senior] = await this.prisma.$transaction([
+    const [rows, total, all, byDivision] = await this.prisma.$transaction([
       this.prisma.test.findMany({
         where, skip, take, orderBy: [{ opensAt: 'desc' }, { id: 'asc' }],
         select: { id: true, title: true, division: true, answerFormat: true, opensAt: true, closesAt: true, maxMarks: true, discipline: { select: { id: true, code: true, name: true } } },
       }),
       this.prisma.test.count({ where }),
       this.prisma.user.count({ where: students }),
-      this.prisma.user.count({ where: { AND: [students, levelWhere('JUNIOR')] } }),
-      this.prisma.user.count({ where: { AND: [students, levelWhere('MIDDLE')] } }),
-      this.prisma.user.count({ where: { AND: [students, levelWhere('SENIOR')] } }),
+      // Students per division (whatever divisions exist): the count for each test's level.
+      this.prisma.user.groupBy({ by: ['divisionId'], where: students, _count: { _all: true }, orderBy: { divisionId: 'asc' } }),
     ]);
+    const codeOf = new Map((await this.prisma.division.findMany({ select: { id: true, code: true } })).map((d) => [d.id, d.code]));
+    const perCode = new Map(byDivision.map((g) => [codeOf.get(g.divisionId ?? '') ?? '', g._count._all]));
     const ids = rows.map((r) => r.id);
     const [extensions, submitted] = ids.length ? await Promise.all([
       this.prisma.testExtension.findMany({ where: { testId: { in: ids }, ...mine }, select: { id: true, testId: true, kind: true, studentId: true, teacherId: true, newDeadline: true, cancelledAt: true } }),
@@ -246,7 +247,7 @@ export class TestSubmissionsService {
       return {
         id: t.id, title: t.title, subject: t.discipline, division: t.division, answerFormat: t.answerFormat, maxMarks: t.maxMarks,
         opensAt: t.opensAt, deadline: d.deadline, window: answerWindow(t.opensAt, d.deadline, now),
-        students: { ALL: all, JUNIOR: junior, MIDDLE: middle, SENIOR: senior }[t.division],
+        students: t.division === 'ALL' ? all : (perCode.get(t.division) ?? 0),
         submitted: submittedOf.get(t.id) ?? 0,
       };
     }), total, page, limit);
@@ -280,7 +281,8 @@ export class TestSubmissionsService {
       this.prisma.user.findMany({
         where, skip, take, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
         select: {
-          id: true, username: true, firstName: true, lastName: true, gradeLevel: true, olympiadLevel: true, olympiadInterests: true, olympiadInterestOther: true,
+          id: true, username: true, firstName: true, lastName: true, gradeLevel: true, olympiadInterests: true, olympiadInterestOther: true,
+          division: { select: { code: true, name: true } },
           school: { select: { id: true, name: true } },
         },
       }),
@@ -302,7 +304,8 @@ export class TestSubmissionsService {
       const locked = sub !== null && (sub.status !== 'SUBMITTED' || (sub.versionCount > 0 && sub.resubmissionAuthorizations.length === 0));
       return {
         // division: the Olympiad level (kept under its former name for older screens).
-        student: { ...s, division: s.olympiadLevel }, deadline: d.deadline, state,
+        // division: the student's division code (their Olympiad level); divisionName for display.
+        student: { ...s, division: s.division?.code ?? null, divisionName: s.division?.name ?? null }, deadline: d.deadline, state,
         submission: sub && answererSummary(sub),
         canSubmit: test.opensAt.getTime() <= now.getTime() && state !== 'LATE_BLOCKED' && !locked,
       };
@@ -752,7 +755,7 @@ async function ensureSubmission(tx: Tx, testId: string, studentId: string) {
       INSERT INTO "TestSubmission" ("id", "testId", "studentId", "publicCode", "status", "versionCount", "level", "createdAt", "updatedAt")
       VALUES (${randomUUID()}, ${testId}, ${studentId}, ${code}, 'SUBMITTED', 0,
               -- The student's Olympiad level now: the result's ranking group from here on (owner 2026-11-21).
-              (SELECT "olympiadLevel" FROM "User" WHERE "id" = ${studentId}),
+              (SELECT d."code" FROM "User" u JOIN "Division" d ON d."id" = u."divisionId" WHERE u."id" = ${studentId}),
               (clock_timestamp() AT TIME ZONE 'UTC'), (clock_timestamp() AT TIME ZONE 'UTC'))
       ON CONFLICT DO NOTHING`;
     const [row] = await tx.$queryRaw<Array<{ id: string; status: string; versionCount: number }>>`

@@ -21,8 +21,8 @@ export const BULK_ACTIONS = [
   'assignTeacher', 'unassignTeacher', 'grantDelegation', 'revokeDelegation',
   // Move the selected students from one teacher to another (params.fromTeacherId → params.toTeacherId; 2026-11-19).
   'reassignTeacher',
-  // The students' Olympiad level (owner 2026-11-21): params.olympiadLevel — JUNIOR, MIDDLE, SENIOR, or AUTOMATIC (follow
-  // the grade's suggestion again).
+  // The students' Olympiad level = division (owner 2026-11-21/22): params.olympiadLevel — an active division's code, or
+  // AUTOMATIC (follow the grade's suggestion again).
   'setOlympiadLevel',
 ] as const;
 
@@ -45,8 +45,6 @@ export const BULK_MEMBERSHIP_KEY = 8_152_026_002n;
 export const MEMBERSHIP_COLUMNS = [
   'role', 'divisionId', 'gradeLevel', 'schoolId', 'isApproved', 'isActive', 'accountStatus', 'activatedAt',
   'firstName', 'lastName', 'username', 'email',
-  // Olympiad levels (owner 2026-11-21): the list filters on the level (trigger re-created in 20261224000000).
-  'olympiadLevel',
 ] as const;
 /** A claimed item whose worker vanished is claimed again after this long. */
 export const CLAIM_TIMEOUT_MS = 5 * 60_000;
@@ -71,7 +69,7 @@ export interface BulkParams {
   fromTeacherId?: string;
   toTeacherId?: string;
   /** setOlympiadLevel: the level to set by hand, or AUTOMATIC (the level the grade suggests). */
-  olympiadLevel?: 'JUNIOR' | 'MIDDLE' | 'SENIOR' | 'AUTOMATIC';
+  olympiadLevel?: string;
 }
 
 export interface ActionRule {

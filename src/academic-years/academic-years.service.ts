@@ -17,7 +17,8 @@ import { auditChanges } from '../audit/audit-changes.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
-import { DIVISION_GRADES, divisionCodeForGrade, nextGrade } from '../common/grade-levels.js';
+import { nextGrade } from '../common/grade-levels.js';
+import { studentDivisionFor } from '../divisions/division-rules.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { Prisma, type GradeLevel } from '../generated/prisma/client.js';
 import {
@@ -41,9 +42,14 @@ function nextGradeSql(column: Prisma.Sql): Prisma.Sql {
   return Prisma.sql`(CASE ${column} ${Prisma.join(steps.map(([g, n]) => Prisma.sql`WHEN ${g}::"GradeLevel" THEN ${n}::"GradeLevel"`), ' ')} ELSE NULL END)`;
 }
 
-/** SQL for divisionCodeForGrade() mapped to the division ids: JUNIOR for S1–S3, SENIOR otherwise. */
-function divisionSql(divisionFor: Record<'JUNIOR' | 'SENIOR', string>, grade: Prisma.Sql): Prisma.Sql {
-  return Prisma.sql`(CASE WHEN ${grade}::text IN (${Prisma.join(DIVISION_GRADES.JUNIOR)}) THEN ${divisionFor.JUNIOR} ELSE ${divisionFor.SENIOR} END)`;
+/**
+ * SQL: a student's division for an enrolment at `grade` (owner 2026-11-21, administrator-managed divisions): the
+ * division set by hand when it is (`u."divisionManual"`), otherwise the active division the grade suggests
+ * (division_for_grade, migration 20261224000000) — the same rule the User trigger applies, so the enrolment and the
+ * account always agree. `u` is the student's "User" row.
+ */
+function divisionSql(grade: Prisma.Sql): Prisma.Sql {
+  return Prisma.sql`(CASE WHEN u."divisionManual" THEN u."divisionId" ELSE coalesce(division_for_grade(${grade}::text), u."divisionId") END)`;
 }
 
 @Injectable()
@@ -136,11 +142,6 @@ export class AcademicYearsService {
   async activate(id: string, dto: ActivateAcademicYearDto, caller: CallerCtx) {
     await this.findOne(id);   // 404 before anything else
 
-    // Resolve outside the transaction: only `tx` may be used inside it.
-    const divisionFor = {
-      JUNIOR: await this.divisions.idForCode('JUNIOR'),
-      SENIOR: await this.divisions.idForCode('SENIOR'),
-    };
     const counts = { promoted: 0, carriedOver: 0, graduated: 0, newlyEnrolled: 0, assignmentsArchived: 0 };
 
     // A start rewrites every student's enrolment, so starts are single-flight, platform-wide:
@@ -199,14 +200,14 @@ export class AcademicYearsService {
       // of 3–4 statements per student (49 s for 10,000 students locally; the 120 s transaction expired at 50,000).
       if (previous) {
         const rolled = await this.rollOver(tx, {
-          previousYearId: previous.id, yearId: id, now, divisionFor,
+          previousYearId: previous.id, yearId: id, now,
           promote: dto.promoteStudents, deactivateGraduates: dto.deactivateGraduates ?? true,
         });
         counts.graduated = rolled.graduated;
         if (dto.promoteStudents) counts.promoted = rolled.moved;
         else counts.carriedOver = rolled.moved;
       }
-      counts.newlyEnrolled = await this.enrollUnenrolled(tx, { yearId: id, now, divisionFor });
+      counts.newlyEnrolled = await this.enrollUnenrolled(tx, { yearId: id, now });
 
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role,
@@ -268,7 +269,6 @@ export class AcademicYearsService {
    */
   private async rollOver(tx: Tx, p: {
     previousYearId: string; yearId: string; now: Date; promote: boolean; deactivateGraduates: boolean;
-    divisionFor: Record<'JUNIOR' | 'SENIOR', string>;
   }): Promise<{ moved: number; graduated: number }> {
     // The grade in the new year (NULL: graduates). gradeLevel itself is not changed by the UPDATE,
     // so the expression means the same in SET and in RETURNING.
@@ -293,9 +293,9 @@ export class AcademicYearsService {
       ),
       enrolled AS (
         INSERT INTO "StudentEnrollment" ("id", "studentId", "academicYearId", "divisionId", "gradeLevel", "schoolId", "status", "enrolledAt")
-        SELECT gen_random_uuid()::text, r."studentId", ${p.yearId}, ${divisionSql(p.divisionFor, Prisma.sql`r."grade"`)},
+        SELECT gen_random_uuid()::text, r."studentId", ${p.yearId}, ${divisionSql(Prisma.sql`r."grade"`)},
                r."grade", r."schoolId", 'ACTIVE'::"StudentEnrollmentStatus", ${p.now}::timestamp(3)
-          FROM rolled AS r WHERE r."grade" IS NOT NULL
+          FROM rolled AS r JOIN "User" AS u ON u."id" = r."studentId" WHERE r."grade" IS NOT NULL
         ON CONFLICT ("studentId", "academicYearId") DO UPDATE
            SET "gradeLevel" = EXCLUDED."gradeLevel", "divisionId" = EXCLUDED."divisionId",
                "schoolId" = EXCLUDED."schoolId", "status" = 'ACTIVE', "endedAt" = NULL
@@ -325,7 +325,7 @@ export class AcademicYearsService {
    * student again is an explicit administrator action (an enrolment in the current year).
    */
   private async enrollUnenrolled(tx: Tx, p: {
-    yearId: string; now: Date; divisionFor: Record<'JUNIOR' | 'SENIOR', string>;
+    yearId: string; now: Date;
   }): Promise<number> {
     const [row] = await tx.$queryRaw<Array<{ enrolled: number }>>`
       WITH candidates AS (
@@ -340,9 +340,9 @@ export class AcademicYearsService {
       ),
       enrolled AS (
         INSERT INTO "StudentEnrollment" ("id", "studentId", "academicYearId", "divisionId", "gradeLevel", "schoolId", "status", "enrolledAt")
-        SELECT gen_random_uuid()::text, c."id", ${p.yearId}, ${divisionSql(p.divisionFor, Prisma.sql`c."gradeLevel"`)},
+        SELECT gen_random_uuid()::text, c."id", ${p.yearId}, ${divisionSql(Prisma.sql`c."gradeLevel"`)},
                c."gradeLevel", c."schoolId", 'ACTIVE'::"StudentEnrollmentStatus", ${p.now}::timestamp(3)
-          FROM candidates AS c
+          FROM candidates AS c JOIN "User" AS u ON u."id" = c."id"
         ON CONFLICT ("studentId", "academicYearId") DO UPDATE
            SET "gradeLevel" = EXCLUDED."gradeLevel", "divisionId" = EXCLUDED."divisionId",
                "schoolId" = EXCLUDED."schoolId", "status" = 'ACTIVE', "endedAt" = NULL
@@ -402,10 +402,7 @@ export class AcademicYearsService {
         });
       }
       if (dto.gradeLevel) {
-        const divisionId = await tx.division.findUniqueOrThrow({
-          where: { code: divisionCodeForGrade(dto.gradeLevel) }, select: { id: true },
-        });
-        return this.writeEnrollment(tx, e.studentId, e.academicYearId, dto.gradeLevel, divisionId.id, e.schoolId);
+        return this.writeEnrollment(tx, e.studentId, e.academicYearId, dto.gradeLevel, await studentDivisionFor(tx, e.studentId, dto.gradeLevel), e.schoolId);
       }
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Provide gradeLevel or status.');
     });
@@ -428,10 +425,7 @@ export class AcademicYearsService {
    */
   async enrollInCurrentYear(tx: Tx, studentId: string, gradeLevel: GradeLevel, schoolId: string | null) {
     const year = await this.current(tx);
-    const division = await tx.division.findUniqueOrThrow({
-      where: { code: divisionCodeForGrade(gradeLevel) }, select: { id: true },
-    });
-    return this.writeEnrollment(tx, studentId, year.id, gradeLevel, division.id, schoolId);
+    return this.writeEnrollment(tx, studentId, year.id, gradeLevel, await studentDivisionFor(tx, studentId, gradeLevel), schoolId);
   }
 
   private async writeEnrollment(

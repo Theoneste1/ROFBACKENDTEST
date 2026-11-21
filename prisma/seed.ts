@@ -21,7 +21,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
-import { PrismaClient, type DivisionCode, type GradeLevel } from '../src/generated/prisma/client.js';
+import { PrismaClient, type GradeLevel } from '../src/generated/prisma/client.js';
 import { seedReferenceData } from '../src/reference-data/seed-reference-data.js';
 
 const prisma = new PrismaClient({
@@ -30,9 +30,14 @@ const prisma = new PrismaClient({
 
 const BCRYPT_COST = 12;
 
-const DIVISIONS: Array<{ code: DivisionCode; name: string; description: string }> = [
-  { code: 'JUNIOR', name: 'Junior', description: 'Senior 1 to Senior 3 (S1–S3).' },
-  { code: 'SENIOR', name: 'Senior', description: 'Senior 4 to Senior 6 (S4–S6).' },
+/**
+ * The divisions (Olympiad levels) a new database starts with; Administrators edit them and add more. Every grade is
+ * suggested by exactly one active division: Middle starts with none (an Administrator gives it grades when ready).
+ */
+const DIVISIONS: Array<{ code: string; name: string; description: string; suggestedGrades: GradeLevel[]; sortOrder: number }> = [
+  { code: 'JUNIOR', name: 'Junior', description: 'Senior 1 to Senior 3 (S1–S3).', suggestedGrades: ['S1', 'S2', 'S3'], sortOrder: 1 },
+  { code: 'MIDDLE', name: 'Middle', description: 'Olympiad level between Junior and Senior.', suggestedGrades: [], sortOrder: 2 },
+  { code: 'SENIOR', name: 'Senior', description: 'Senior 4 to Senior 6 (S4–S6).', suggestedGrades: ['S4', 'S5', 'S6'], sortOrder: 3 },
 ];
 
 const MATHEMATICS = { code: 'MATHEMATICS', name: 'Mathematics', description: 'Olympiad mathematics.' };

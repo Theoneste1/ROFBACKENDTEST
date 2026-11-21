@@ -202,10 +202,9 @@ export function resultView(
  * (TestSubmission.level), else their level now, else UNKNOWN — never the grade, so a later change of level never moves a
  * published result.
  */
-export function rankingDivision(submissionLevel: string | null | undefined, studentLevel?: string | null): 'JUNIOR' | 'MIDDLE' | 'SENIOR' | 'UNKNOWN' {
-  const l = submissionLevel ?? studentLevel ?? null;
-  return l === 'JUNIOR' || l === 'MIDDLE' || l === 'SENIOR' ? l : 'UNKNOWN';
+export function rankingDivision(submissionLevel: string | null | undefined, studentLevel?: string | null): string {
+  return submissionLevel || studentLevel || 'UNKNOWN';
 }
 
 /** The same rule in SQL (rankings and reports), for a "TestSubmission" row aliased `s` and its "User" aliased `u`. */
-export const DIVISION_SQL = `COALESCE(s."level"::text, u."olympiadLevel"::text, 'UNKNOWN')`;
+export const DIVISION_SQL = `COALESCE(s."level", (SELECT dv."code" FROM "Division" dv WHERE dv."id" = u."divisionId"), 'UNKNOWN')`;

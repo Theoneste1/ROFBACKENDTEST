@@ -141,18 +141,18 @@ export const DEC_2026_OBJECTS = {
  * after dec-2026. Listed explicitly — a migration added later is never part of it until it is appended here on purpose.
  */
 export const LEVELS_2026_MIGRATIONS = [
-  // OlympiadLevel and OlympiadLevelChangeSource; User.olympiadLevel / olympiadLevelManual (backfilled: today's test level);
-  // TestSubmission.level; OlympiadLevelChange; MIDDLE in TestDivision; the grade triggers; the bulk guard covers the level.
-  '20261224000000_olympiad_levels',
+  // Administrator-managed divisions = Olympiad levels: Division.code text, suggestedGrades, sortOrder; MIDDLE created;
+  // Test.division text; TestSubmission.level; User.divisionManual; DivisionChange; the grade triggers.
+  '20261224000000_divisions_levels',
 ];
 
 /** What the levels-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
 export const LEVELS_2026_OBJECTS = {
-  tables: ['OlympiadLevelChange'],
-  enums: ['OlympiadLevel', 'OlympiadLevelChangeSource'],
-  columns: [['User', 'olympiadLevel'], ['User', 'olympiadLevelManual'], ['TestSubmission', 'level']],
-  triggers: ['olympiad_level_from_grade', 'olympiad_level_history'],
-  functions: ['olympiad_level_of_grade', 'olympiad_level_from_grade', 'olympiad_level_history'],
+  tables: ['DivisionChange'],
+  enums: ['DivisionChangeSource'],
+  columns: [['Division', 'sortOrder'], ['Division', 'suggestedGrades'], ['TestSubmission', 'level'], ['User', 'divisionManual']],
+  triggers: ['student_division_from_grade', 'student_division_history'],
+  functions: ['division_for_grade', 'student_division_from_grade', 'student_division_history'],
 };
 
 /**
@@ -228,7 +228,7 @@ export const RELEASES = {
     },
   },
   'levels-2026': {
-    label: `Olympiad levels (${LEVELS_2026_MIGRATIONS.length} migration after dec 2026)`,
+    label: `divisions and Olympiad levels (${LEVELS_2026_MIGRATIONS.length} migration after dec 2026)`,
     count: LEVELS_2026_MIGRATIONS.length,
     owns: (name) => LEVELS_2026_MIGRATIONS.includes(name),
     last: LEVELS_2026_MIGRATIONS.at(-1).slice(0, 14),

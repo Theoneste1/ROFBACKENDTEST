@@ -65,14 +65,6 @@ enum ActivationPurpose {
   EMAIL_VERIFICATION
 }
 
-/// The two fixed academic divisions.
-///   JUNIOR → S1, S2, S3
-///   SENIOR → S4, S5, S6
-enum DivisionCode {
-  JUNIOR
-  SENIOR
-}
-
 /// Secondary-school grade level. Determines a student's division.
 enum GradeLevel {
   S1
@@ -460,18 +452,20 @@ model User {
   // these columns mirror the ACTIVE enrolment of the current academic year so
   // every request can scope a student without a join. Both are updated in the
   // same transaction.
-  gradeLevel            GradeLevel?
-  divisionId            String?
-  division              Division?             @relation(fields: [divisionId], references: [id])
+  gradeLevel       GradeLevel?
+  divisionId       String?
+  division         Division?        @relation(fields: [divisionId], references: [id])
   /// Students: the Olympiad level (owner 2026-11-21) — kept in step with gradeLevel by the trigger
   /// `olympiad_level_from_grade` while olympiadLevelManual is false; never touched by it once set by hand.
-  olympiadLevel         OlympiadLevel?
-  olympiadLevelManual   Boolean               @default(false)
-  olympiadLevelChanges  OlympiadLevelChange[] @relation("OlympiadLevelChangeStudent")
-  olympiadLevelsChanged OlympiadLevelChange[] @relation("OlympiadLevelChangeActor")
-  schoolId              String?
-  school                School?               @relation(fields: [schoolId], references: [id])
-  homeLocation          String?
+  /// Students (owner 2026-11-21): the division — the student's Olympiad level — set by hand by a Coach or a User
+  /// Manager. While false, the database trigger `student_division_from_grade` keeps it in step with the grade (the
+  /// division whose suggestedGrades hold it); once true, a grade change never moves it.
+  divisionManual   Boolean          @default(false)
+  divisionChanges  DivisionChange[] @relation("DivisionChangeStudent")
+  divisionsChanged DivisionChange[] @relation("DivisionChangeActor")
+  schoolId         String?
+  school           School?          @relation(fields: [schoolId], references: [id])
+  homeLocation     String?
 
   /// Contact phone (E.164) and country (ISO 3166-1 alpha-2) — set when a Teacher application is
   /// approved (teacher self-registration); NULL for every other account.
@@ -612,7 +606,6 @@ model User {
   @@index([role, accountStatus])
   @@index([createdAt])
   @@index([gradeLevel])
-  @@index([role, olympiadLevel])
 }
 
 model RefreshToken {
@@ -1288,13 +1281,21 @@ enum SchoolExternalIdKind {
 /// Exactly two rows (JUNIOR, SENIOR), created by the seed. Admins may edit
 /// name/description/isActive but never create or delete divisions.
 model Division {
-  id          String       @id @default(uuid())
-  code        DivisionCode @unique
-  name        String
-  description String?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id              String       @id @default(uuid())
+  /// Stable identifier (owner 2026-11-21: Administrators create divisions): JUNIOR, MIDDLE, SENIOR or a new one —
+  /// 2–30 capitals, digits or underscores, never ALL (CHECK). Never changed once created.
+  code            String       @unique
+  name            String
+  description     String?
+  /// Inactive: offered for no new student, test or course; kept with its history (never deleted).
+  isActive        Boolean      @default(true)
+  /// The grades whose students this division is suggested for (a grade in at most one active division; the service
+  /// keeps every grade S1–S6 covered by exactly one active division).
+  suggestedGrades GradeLevel[] @default([])
+  /// Display order (Junior 1, Middle 2, Senior 3, new ones after).
+  sortOrder       Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   students            User[]
   studentEnrollments  StudentEnrollment[]
@@ -1303,6 +1304,8 @@ model Division {
   assignments         Assignment[]
   threads             DiscussionThread[]
   permissionOverrides UserPermissionOverride[]
+  changesFrom         DivisionChange[]         @relation("DivisionChangeFrom")
+  changesTo           DivisionChange[]         @relation("DivisionChangeTo")
 }
 
 /// A subject area (e.g. Mathematics). The platform launches with Mathematics
@@ -2679,34 +2682,16 @@ model Country {
 // Migration 20261220000100_tests_core.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Who a test is for: Junior (S1–S3), Senior (S4–S6) or All. Mandatory; default ALL.
-enum TestDivision {
-  JUNIOR
-  SENIOR
-  ALL
-  /// Olympiad levels (owner 2026-11-21): a test for the students whose Olympiad level is MIDDLE.
-  MIDDLE
-}
-
-/// A student's Olympiad level (owner 2026-11-21) — separate from the school grade. Suggested from the grade
-/// (S1–S2 Junior, S3–S4 Middle, S5–S6 Senior) by the database trigger `olympiad_level_from_grade`, unless a Coach or a
-/// User Manager set it by hand. Test eligibility, the teacher's lists and the rankings use it.
-enum OlympiadLevel {
-  JUNIOR
-  MIDDLE
-  SENIOR
-}
-
-/// Why a student's Olympiad level changed.
-enum OlympiadLevelChangeSource {
+/// Why a student's division (Olympiad level) changed.
+enum DivisionChangeSource {
   /// Followed the school grade (sign-up, a grade change, a new academic year): written by the database trigger.
   GRADE
   /// Set by hand by a Coach or a User Manager, with a reason.
   MANUAL
-  /// Back to following the grade (the suggested level), by a Coach or a User Manager.
+  /// Back to following the grade (the division the grade suggests), by a Coach or a User Manager, with a reason.
   AUTOMATIC
-  /// The level every student had when Olympiad levels were introduced (their former test division).
-  BACKFILL
+  /// Changed by another administrative write (recorded by the trigger, without a reason).
+  SYSTEM
 }
 
 /// How students answer (enforced from Phase 2): uploaded pages only, typed answers only, or both.
@@ -2735,7 +2720,9 @@ model Test {
   title                  String
   disciplineId           String
   discipline             Discipline       @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
-  division               TestDivision     @default(ALL)
+  /// Who the test is for (owner 2026-11-21): a division's code (JUNIOR, MIDDLE, SENIOR or one an Administrator
+  /// created) — the students of that division — or ALL. Checked by the service against the divisions.
+  division               String           @default("ALL")
   answerFormat           TestAnswerFormat
   opensAt                DateTime
   closesAt               DateTime
@@ -2909,9 +2896,9 @@ model TestSubmission {
   lastSubmittedAt  DateTime?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
-  /// The student's Olympiad level when the submission was first made (owner 2026-11-21): the ranking group, so a later
-  /// change of level never moves a result. Null for submissions made before levels existed (then: the current level).
-  level            OlympiadLevel?
+  /// The code of the student's division when the submission was first made (owner 2026-11-21): the ranking group, so a
+  /// later change of division never moves a result.
+  level            String?
 
   /// Phase 3: the marking whose marks count (set by approval of a single marking, or by the Head Coach's choice of
   /// first / second / adjusted marks; cleared when a marking is returned or a second marking is requested).
@@ -3261,23 +3248,27 @@ model TestResubmissionAuthorization {
   @@index([cancelledById])
 }
 
-/// Every change of a student's Olympiad level (owner 2026-11-21): append-only history — who, when, why, from what.
-model OlympiadLevelChange {
-  id          String                    @id @default(uuid())
-  studentId   String
-  student     User                      @relation("OlympiadLevelChangeStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  fromLevel   OlympiadLevel?
-  toLevel     OlympiadLevel?
-  /// The school grade at the time (the reason for a GRADE change).
-  gradeLevel  GradeLevel?
-  source      OlympiadLevelChangeSource
+/// Every change of a student's division (Olympiad level, owner 2026-11-21): append-only — who, when, why, from what.
+model DivisionChange {
+  id             String               @id @default(uuid())
+  studentId      String
+  student        User                 @relation("DivisionChangeStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  fromDivisionId String?
+  fromDivision   Division?            @relation("DivisionChangeFrom", fields: [fromDivisionId], references: [id], onDelete: Restrict)
+  toDivisionId   String
+  toDivision     Division             @relation("DivisionChangeTo", fields: [toDivisionId], references: [id], onDelete: Restrict)
+  /// The school grade at the time.
+  gradeLevel     GradeLevel?
+  source         DivisionChangeSource
   /// MANUAL / AUTOMATIC: the reason given (3–500 characters).
-  reason      String?
-  /// MANUAL / AUTOMATIC: who changed it; GRADE / BACKFILL: null (the system).
-  changedById String?
-  changedBy   User?                     @relation("OlympiadLevelChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
-  createdAt   DateTime                  @default(now())
+  reason         String?
+  /// MANUAL / AUTOMATIC: who changed it; GRADE / SYSTEM: null.
+  changedById    String?
+  changedBy      User?                @relation("DivisionChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime             @default(now())
 
   @@index([studentId, createdAt])
   @@index([changedById])
+  @@index([fromDivisionId])
+  @@index([toDivisionId])
 }

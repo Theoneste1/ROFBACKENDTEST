@@ -2719,6 +2719,15 @@
     "tag": "Divisions"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/divisions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
     "method": "PATCH",
     "path": "/api/v1/admin/divisions/{id}",
     "roles": [

@@ -328,7 +328,7 @@ const TEACHER_SELF_SERVICE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-tea
  * follow the grade again; bulk setOlympiadLevel), MIDDLE tests and level filters. Additive only against the teacher
  * self-service snapshot.
  */
-const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-olympiad-levels.json';
+const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-divisions-levels.json';
 const CURRENT_SNAPSHOT = OLYMPIAD_LEVELS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
@@ -1786,30 +1786,31 @@ describe('approved API contract history', () => {
     ]);
   });
 
-  test('teacher self-service → Olympiad levels (2026-11-21): additive only — the level routes, MIDDLE everywhere a level is chosen, the level filters, the bulk action', () => {
+  test('teacher self-service → divisions and Olympiad levels (2026-11-22): additive only — the level and division routes, any division code where a level is chosen, the bulk action', () => {
     for (const f of [TEACHER_SELF_SERVICE_SNAPSHOT, OLYMPIAD_LEVELS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(TEACHER_SELF_SERVICE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(OLYMPIAD_LEVELS_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
+    const anyDivision = ['GET /api/v1/admin/tests › query parameter', 'GET /api/v1/admin/tests/{id}/results › query parameter',
+      'GET /api/v1/admin/tests/{id}/results/rankings › query parameter', 'GET /api/v1/admin/tests/{id}/submissions › query parameter',
+      'GET /api/v1/teacher/tests/{id}/students › query parameter', 'PATCH /api/v1/admin/tests/{id} › request application/json.',
+      'POST /api/v1/admin/tests › request application/json.']
+      .map((p) => `${p}${p.endsWith('.') ? 'division' : ' division'}: enum restriction removed (any value)`);
     assert.deepEqual(res.additive.sort(), [
+      ...anyDivision,
       'GET /api/v1/admin/students/{id}/olympiad-level: operation added',
-      'GET /api/v1/admin/tests › query parameter division: enum values added: MIDDLE',
-      'GET /api/v1/admin/tests/{id}/results › query parameter division: enum values added: MIDDLE',
-      'GET /api/v1/admin/tests/{id}/results/rankings › query parameter division: enum values added: MIDDLE',
-      'GET /api/v1/admin/tests/{id}/submissions › query parameter division: enum values added: MIDDLE',
-      'GET /api/v1/admin/users: new optional query parameter "olympiadLevel"',
-      'GET /api/v1/teacher/students: new optional query parameter "olympiadLevel"',
-      'GET /api/v1/teacher/tests/{id}/students › query parameter division: enum values added: MIDDLE',
-      'PATCH /api/v1/admin/tests/{id} › request application/json.division: enum values added: MIDDLE',
-      'POST /api/v1/admin/tests › request application/json.division: enum values added: MIDDLE',
+      'PATCH /api/v1/admin/divisions/{id} › request application/json.sortOrder: new optional field',
+      'PATCH /api/v1/admin/divisions/{id} › request application/json.suggestedGrades: new optional field',
+      'POST /api/v1/admin/divisions: operation added',
       'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: setOlympiadLevel',
       'POST /api/v1/admin/users/bulk › request application/json.params.olympiadLevel: new optional field',
       'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: setOlympiadLevel',
       'POST /api/v1/admin/users/bulk/preview › request application/json.params.olympiadLevel: new optional field',
       'PUT /api/v1/admin/students/{id}/olympiad-level: operation added',
+      'schema CreateDivisionDto: added',
       'schema SetOlympiadLevelDto: added',
-    ]);
+    ].sort());
   });
 
   test('"Other" Olympiad interest → teacher self-service and locked submissions (2026-11-21): additive only — the resubmission and teacher test-submission routes, the level and subject filters', () => {

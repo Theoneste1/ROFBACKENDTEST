@@ -14,10 +14,10 @@
  *   A submission is accepted up to and including the deadline instant; one millisecond later it is refused.
  *
  *   Eligibility of a student for a test: the test is PUBLISHED and has opened (opensAt ≤ now); the student account is a
- *   STUDENT that is ACTIVE (approved, activated, not suspended / deactivated / archived); the student's OLYMPIAD LEVEL
- *   matches the test (JUNIOR, MIDDLE or SENIOR; ALL = any student). The level is the student's own (User.olympiadLevel,
- *   owner 2026-11-21): suggested from the grade (S1–S2 Junior, S3–S4 Middle, S5–S6 Senior) unless a Coach or a User
- *   Manager set it — never the grade itself. A student without a level (no grade): their course division decides.
+ *   STUDENT that is ACTIVE (approved, activated, not suspended / deactivated / archived); the student's DIVISION — their
+ *   Olympiad level (owner 2026-11-21: Junior, Middle, Senior or one an Administrator created) — is the test's (ALL = any
+ *   student). The division follows the grade (the division whose suggested grades hold it) unless a Coach or a User
+ *   Manager set it, so the grade itself never decides.
  *
  *   Answer formats: UPLOAD_ONLY — pages, no typed answer; TYPED_ONLY — a typed answer, no pages; BOTH — a typed answer
  *   and/or pages (at least one).
@@ -29,9 +29,9 @@ import { AppError } from '../common/errors/app-error.js';
 export type ExtensionKind = 'TEST' | 'STUDENT' | 'TEACHER';
 export type SubmitterRole = 'STUDENT' | 'TEACHER';
 export type AnswerFormat = 'UPLOAD_ONLY' | 'TYPED_ONLY' | 'BOTH';
-export type OlympiadLevelValue = 'JUNIOR' | 'MIDDLE' | 'SENIOR';
-export type TestDivisionValue = OlympiadLevelValue | 'ALL';
-export const OLYMPIAD_LEVELS: readonly OlympiadLevelValue[] = ['JUNIOR', 'MIDDLE', 'SENIOR'];
+/** A test's level: a division code (JUNIOR, MIDDLE, SENIOR or one an Administrator created) or ALL. */
+export type TestDivisionValue = string;
+export const ALL_DIVISIONS = 'ALL';
 
 /** Pages of one version (photos of handwritten sheets, or PDFs). */
 export const MAX_ANSWER_PAGES = 30;
@@ -91,48 +91,29 @@ export function beforeDeadline(now: Date, deadline: Date): boolean {
   return now.getTime() <= deadline.getTime();
 }
 
-/** The COURSE division of a grade (courses keep two): S1–S3 → JUNIOR, S4–S6 → SENIOR; anything else → null. */
-export function divisionOfGrade(grade: string | null | undefined): 'JUNIOR' | 'SENIOR' | null {
-  if (grade === 'S1' || grade === 'S2' || grade === 'S3') return 'JUNIOR';
-  if (grade === 'S4' || grade === 'S5' || grade === 'S6') return 'SENIOR';
-  return null;
-}
+/** Where a student's level comes from: their division (`division.code`, or `divisionCode`). */
+export interface LevelSource { division?: { code: string } | null; divisionCode?: string | null }
 
-/**
- * The Olympiad level a grade SUGGESTS (owner 2026-11-21): S1–S2 Junior, S3–S4 Middle, S5–S6 Senior; no grade → null.
- * The same rule as the database function olympiad_level_of_grade (migration 20261224000000), which applies it.
- */
-export function suggestedLevel(grade: string | null | undefined): OlympiadLevelValue | null {
-  if (grade === 'S1' || grade === 'S2') return 'JUNIOR';
-  if (grade === 'S3' || grade === 'S4') return 'MIDDLE';
-  if (grade === 'S5' || grade === 'S6') return 'SENIOR';
-  return null;
-}
-
-/** Where a student's Olympiad level comes from: their level; without one (no grade), their course division. */
-export interface LevelSource { olympiadLevel?: string | null; divisionCode?: string | null }
-
-/** The student's Olympiad level, as test eligibility uses it (null: none — only ALL tests). */
-export function levelOf(s: LevelSource): OlympiadLevelValue | null {
-  const l = s.olympiadLevel ?? s.divisionCode ?? null;
-  return l === 'JUNIOR' || l === 'MIDDLE' || l === 'SENIOR' ? l : null;
+/** The student's level (their division's code) as test eligibility uses it; null: none (only ALL tests). */
+export function levelOf(s: LevelSource): string | null {
+  return s.division?.code ?? s.divisionCode ?? null;
 }
 
 /** The test's level accepts this student (ALL: everyone). */
 export function divisionMatches(test: TestDivisionValue, student: LevelSource): boolean {
-  if (test === 'ALL') return true;
+  if (test === ALL_DIVISIONS) return true;
   return levelOf(student) === test;
 }
 
-/** Database filter: students of this Olympiad level (a test's level, or a list filter). */
-export function levelWhere(level: OlympiadLevelValue): { olympiadLevel: OlympiadLevelValue } {
-  return { olympiadLevel: level };
+/** Database filter: students of this division (a test's level, or a list filter), by code. */
+export function levelWhere(code: string): { division: { code: string } } {
+  return { division: { code } };
 }
 
 export interface EligibilityTest { status: string; opensAt: Date; division: TestDivisionValue }
 export interface EligibilityStudent {
   role: string; accountStatus: string; isActive: boolean; isApproved: boolean; activatedAt: Date | null;
-  gradeLevel: string | null; olympiadLevel?: string | null; divisionCode?: string | null;
+  gradeLevel: string | null; division?: { code: string } | null; divisionCode?: string | null;
 }
 
 export type EligibilityProblem = 'TEST_NOT_PUBLISHED' | 'TEST_NOT_OPEN' | 'NOT_A_STUDENT' | 'ACCOUNT_NOT_ACTIVE' | 'DIVISION_MISMATCH';

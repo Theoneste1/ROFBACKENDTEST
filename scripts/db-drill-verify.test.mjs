@@ -242,7 +242,7 @@ describe('expected state — derived from this checkout only', () => {
       'TestMarkChange', 'TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestReview',   // + Phase 3 (20261220000300)
       'TestPublication', 'TestResultWithdrawal',   // + Phase 4 (20261220000400)
       'TestResubmissionAuthorization',   // + locked submissions (20261223000100, owner 2026-11-21)
-      'OlympiadLevelChange'];   // + Olympiad levels (20261224000000, owner 2026-11-21)
+      'DivisionChange'];   // + divisions and Olympiad levels (20261224000000, owner 2026-11-21)
     assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), [...postTables, ...areaTables].sort());
   });
   test('the two baselines are distinct: pre-phase1 ⊂ pre-post-phase1 ⊂ this checkout (migrations and models)', () => {

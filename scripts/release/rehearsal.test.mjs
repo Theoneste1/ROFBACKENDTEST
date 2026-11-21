@@ -285,7 +285,7 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /13 migration\(s\) after post-Phase-1 .*\(20261211000000_countries_reference, 20261212000000_teacher_school_primary, 20261220000000_test_file_purposes, 20261220000100_tests_core, 20261220000200_tests_submissions, 20261220000300_tests_marking, 20261220000400_tests_publishing, 20261221000000_registration_gender, 20261221000100_home_location, 20261222000000_bulk_operations_generic, 20261223000000_olympiad_interest_other, 20261223000100_test_resubmission_lock, 20261224000000_olympiad_levels\)/);
+    assert.match(r.stderr, /13 migration\(s\) after post-Phase-1 .*\(20261211000000_countries_reference, 20261212000000_teacher_school_primary, 20261220000000_test_file_purposes, 20261220000100_tests_core, 20261220000200_tests_submissions, 20261220000300_tests_marking, 20261220000400_tests_publishing, 20261221000000_registration_gender, 20261221000100_home_location, 20261222000000_bulk_operations_generic, 20261223000000_olympiad_interest_other, 20261223000100_test_resubmission_lock, 20261224000000_divisions_levels\)/);
   });
 });
 
@@ -514,7 +514,7 @@ test('the runner: dec-2026 passes the checkout guard on its checkout; a later mi
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'dec-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /1 migration\(s\) after dec 2026 .*20261224000000_olympiad_levels/);
+    assert.match(r.stderr, /1 migration\(s\) after dec 2026 .*20261224000000_divisions_levels/);
   });
 });
 
@@ -526,7 +526,7 @@ test('levels-2026: exactly the migration after dec-2026 in this checkout; nothin
   const lv = releaseFrom(['--release', 'levels-2026']);
   assert.equal(lv.name, 'levels-2026');
   assert.equal(checkoutProblem(lv, dirs), null);
-  assert.match(checkoutProblem(lv, [...dirs, '20261231000000_next']), /1 migration\(s\) after Olympiad levels .* \(20261231000000_next\)/);
+  assert.match(checkoutProblem(lv, [...dirs, '20261231000000_next']), /1 migration\(s\) after divisions and Olympiad levels .* \(20261231000000_next\)/);
   assert.match(checkoutProblem(lv, dirs.filter((d) => d !== LEVELS_2026_MIGRATIONS[0])), /expected the 1 .* found 0/);
   assert.equal(dirs.filter((d) => lv.requires.owns(d)).length, 37);
   for (const m of LEVELS_2026_MIGRATIONS) assert.equal(lv.requires.owns(m), false);
@@ -536,7 +536,7 @@ test('levels-2026: rollback-history checks exactly the tables, enums, columns, t
   const o = LEVELS_2026_OBJECTS;
   assert.deepEqual(createdBy(LEVELS_2026_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g), [...o.tables].sort());
   assert.deepEqual(createdBy(LEVELS_2026_MIGRATIONS, /CREATE TYPE "([A-Za-z]+)"/g), [...o.enums].sort());
-  assert.deepEqual(createdBy(LEVELS_2026_MIGRATIONS, /CREATE TRIGGER ([a-z_]+)/g).filter((t) => t !== 'user_bulk_membership_guard'), [...o.triggers].sort());
+  assert.deepEqual(createdBy(LEVELS_2026_MIGRATIONS, /CREATE TRIGGER ([a-z_]+)/g), [...o.triggers].sort());
   assert.deepEqual(createdBy(LEVELS_2026_MIGRATIONS, /CREATE OR REPLACE FUNCTION ([a-z_]+)/g), [...o.functions].sort());
   const added = LEVELS_2026_MIGRATIONS.flatMap((d) => {
     let table = null;
@@ -549,7 +549,7 @@ test('levels-2026: rollback-history checks exactly the tables, enums, columns, t
   assert.deepEqual(o.columns.map(([t, c]) => `${t}.${c}`).sort(), added);
 });
 
-test('levels-2026: one rollback file, refusing while it would lose data (MIDDLE tests, classifications); history is a separate step', () => {
+test('levels-2026: one rollback file, refusing while it would lose data (other divisions in use, classifications); history is a separate step', () => {
   const release = releaseFrom(['--release', 'levels-2026']);
   const docs = readdirSync('docs/migrations');
   const files = releaseRollbackFiles(release, docs);
@@ -557,12 +557,9 @@ test('levels-2026: one rollback file, refusing while it would lose data (MIDDLE 
   assert.deepEqual(releasePreSwitchFiles(release, docs), []);
   const text = readFileSync(`docs/migrations/${files[0]}`, 'utf8');
   assert.doesNotThrow(() => segments(text));
-  assert.match(text, /RAISE EXCEPTION 'OLYMPIAD_LEVELS_ROLLBACK_REFUSED/);
-  assert.match(text, /"division"::text = 'MIDDLE'/);
+  assert.match(text, /RAISE EXCEPTION 'DIVISIONS_LEVELS_ROLLBACK_REFUSED/);
+  assert.match(text, /"division" NOT IN \('JUNIOR', 'SENIOR', 'ALL'\)/);
   assert.doesNotMatch(text.replace(/--[^\n]*/g, ''), /_prisma_migrations/, 'history is a separate, approved step');
-  // It restores the bulk guard as 20261207000100 created it (without olympiadLevel).
-  const guard = (sql) => sql.split('CREATE TRIGGER user_bulk_membership_guard').at(-1).split('FOR EACH ROW')[0].replace(/\s+/g, ' ');
-  assert.equal(guard(text), guard(readFileSync('prisma/migrations/20261207000100_bulk_membership_guard/migration.sql', 'utf8')));
   assert.equal(releaseRollbackFiles(releaseFrom(['--release', 'dec-2026']), docs).some((f) => f.startsWith('20261224')), false);
 });
 
@@ -582,13 +579,13 @@ test('the runner: levels-2026 passes the checkout guard on this checkout; a late
   withCheckoutCopy([], (root) => {
     const ok = run(root, 'deploy', '--release', 'levels-2026', '--confirm', 'ep-anything');
     assert.notEqual(ok.status, 5, ok.stderr);
-    assert.match(ok.stdout, /release: levels-2026 — Olympiad levels \(1 migration after dec 2026\)/);
+    assert.match(ok.stdout, /release: levels-2026 — divisions and Olympiad levels \(1 migration after dec 2026\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
   });
   withCheckoutCopy(['20261231000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'levels-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /1 migration\(s\) after Olympiad levels .*20261231000000_next/);
+    assert.match(r.stderr, /1 migration\(s\) after divisions and Olympiad levels .*20261231000000_next/);
   });
 });
 

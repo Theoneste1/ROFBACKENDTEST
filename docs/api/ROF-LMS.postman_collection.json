@@ -6077,9 +6077,9 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
-                  "description": ""
+                  "description": "A division code, or UNKNOWN (no division)."
                 },
                 {
                   "key": "q",
@@ -6312,7 +6312,7 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
                   "description": "Only this division (by=division)."
                 },
@@ -6541,9 +6541,9 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
-                  "description": "JUNIOR, MIDDLE, SENIOR or ALL (exact match)."
+                  "description": "A division code or ALL (exact match)."
                 },
                 {
                   "key": "status",
@@ -6587,7 +6587,7 @@
             "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"JUNIOR\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
+              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"division\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6655,7 +6655,7 @@
             "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"JUNIOR\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
+              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"division\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7254,7 +7254,7 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
                   "description": "The student's Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR."
                 },
@@ -7535,12 +7535,6 @@
                   "value": "S1",
                   "disabled": true,
                   "description": ""
-                },
-                {
-                  "key": "olympiadLevel",
-                  "value": "JUNIOR",
-                  "disabled": true,
-                  "description": "Students of this Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR."
                 },
                 {
                   "key": "schoolId",
@@ -11249,6 +11243,40 @@
           }
         },
         {
+          "name": "POST /admin/divisions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "divisions"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"code\",\n  \"name\": \"name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "PATCH /admin/divisions/{id}",
           "request": {
             "method": "PATCH",
@@ -11280,7 +11308,7 @@
             "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"name\",\n  \"description\": \"description\",\n  \"isActive\": true\n}",
+              "raw": "{\n  \"name\": \"name\",\n  \"description\": \"description\",\n  \"isActive\": true,\n  \"suggestedGrades\": [\n    \"S1\"\n  ],\n  \"sortOrder\": 0\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -14015,12 +14043,6 @@
                   "description": ""
                 },
                 {
-                  "key": "olympiadLevel",
-                  "value": "JUNIOR",
-                  "disabled": true,
-                  "description": "The students' Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR."
-                },
-                {
                   "key": "q",
                   "value": "q",
                   "disabled": true,
@@ -15207,7 +15229,7 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
                   "description": "Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade."
                 },

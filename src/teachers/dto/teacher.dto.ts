@@ -3,7 +3,7 @@ import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsISO8601
 
 import { TEACHER_DELEGATIONS } from '../../auth/override-policy.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
-import { GradeLevel, OlympiadLevel, TeacherSchoolRole } from '../../generated/prisma/client.js';
+import { GradeLevel, TeacherSchoolRole } from '../../generated/prisma/client.js';
 import { STUDENT_SCOPES, type StudentScope } from '../teacher-scope.js';
 
 /** Most students one request may name (larger sets: the bulk operations). */
@@ -77,12 +77,6 @@ export class ListTeacherStudentsDto extends PaginationQueryDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsEnum(GradeLevel)
   gradeLevel?: GradeLevel;
-
-  /** The students' Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR. */
-  @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
-  @IsEnum(OlympiadLevel)
-  olympiadLevel?: OlympiadLevel;
 
   /** Name or username contains. */
   @IsOptional()

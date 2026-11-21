@@ -314,4 +314,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // Olympiad levels (owner 2026-11-21): a student's level, its suggestion and history; set it or follow the grade again.
   'GET /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.view':                               ADMINS_AND_COACHES,
   'PUT /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.set':                                ADMINS_AND_COACHES,
+  // Administrator-managed divisions (owner 2026-11-21/22): create one (divisions.manage).
+  'POST /api/v1/admin/divisions  DivisionsController.create':                                                   ADMINISTRATORS,
 };

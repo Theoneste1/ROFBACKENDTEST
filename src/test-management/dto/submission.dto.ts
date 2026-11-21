@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsISO8601, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsISO8601, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/pagination.js';
 import { MAX_ANSWER_PAGES, MAX_TYPED_ANSWER } from '../submission-rules.js';
@@ -9,7 +9,8 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 export const EXTENSION_KINDS = ['TEST', 'STUDENT', 'TEACHER'] as const;
 export const EXTENSION_STATES = ['active', 'cancelled', 'all'] as const;
 export const TRACKING_STATES = ['SUBMITTED', 'NOT_SUBMITTED', 'LATE_BLOCKED', 'UNDER_EXTENSION'] as const;
-export const STUDENT_DIVISIONS = ['JUNIOR', 'MIDDLE', 'SENIOR'] as const;
+/** A division code (JUNIOR, MIDDLE, SENIOR or one an Administrator created): 2–30 capitals, digits or underscores. */
+export const DIVISION_CODE = /^[A-Z][A-Z0-9_]{1,29}$/;
 
 // ── Extensions (Administrators; Head Coaches of the subject) ─────────────────────
 
@@ -85,8 +86,8 @@ export class ListTestSubmissionsQueryDto extends PaginationQueryDto {
   schoolId?: string;
 
   /** The student's Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR. */
-  @IsOptional() @IsIn(STUDENT_DIVISIONS)
-  division?: (typeof STUDENT_DIVISIONS)[number];
+  @IsOptional() @Matches(DIVISION_CODE, { message: 'division must be a division code.' })
+  division?: string;
 
   /** Part of the student's first name, last name or username (1–100 characters). */
   @IsOptional() @IsString() @Transform(trim) @Length(1, 100)
@@ -114,8 +115,9 @@ export class ListTeacherTestStudentsQueryDto extends PaginationQueryDto {
   q?: string;
 
   /** Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade. */
-  @IsOptional() @IsIn(['JUNIOR', 'MIDDLE', 'SENIOR'])
-  division?: 'JUNIOR' | 'MIDDLE' | 'SENIOR';
+  /** The students' division (Olympiad level), by code. */
+  @IsOptional() @Matches(DIVISION_CODE, { message: 'division must be a division code.' })
+  division?: string;
 
   /** Olympiad subject (owner 2026-11-21): students who chose it among their Olympiad interests. */
   @IsOptional() @IsIn(['MATHEMATICS', 'COMPUTING', 'PHYSICS'])

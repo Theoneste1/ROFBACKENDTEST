@@ -2570,7 +2570,7 @@
             }
           }
         },
-        "summary": "The two divisions and their grade levels (public — needed by the sign-up form).",
+        "summary": "Every division (Olympiad level) and its suggested grades, in display order (public — needed by the sign-up form).",
         "tags": [
           "Divisions"
         ],
@@ -2659,6 +2659,45 @@
           }
         },
         "summary": "Admin view with student and mentor-assignment counts.",
+        "tags": [
+          "Divisions"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "divisions.manage",
+        "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "DivisionsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDivisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A new division (owner 2026-11-21/22): its code is permanent; every grade must stay with one active division.",
         "tags": [
           "Divisions"
         ],
@@ -8566,20 +8605,6 @@
             }
           },
           {
-            "name": "olympiadLevel",
-            "required": false,
-            "in": "query",
-            "description": "Students of this Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "JUNIOR",
-                "SENIOR",
-                "MIDDLE"
-              ]
-            }
-          },
-          {
             "name": "schoolId",
             "required": false,
             "in": "query",
@@ -12741,20 +12766,6 @@
                 "S4",
                 "S5",
                 "S6"
-              ]
-            }
-          },
-          {
-            "name": "olympiadLevel",
-            "required": false,
-            "in": "query",
-            "description": "The students' Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR.",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "JUNIOR",
-                "SENIOR",
-                "MIDDLE"
               ]
             }
           },
@@ -48191,15 +48202,9 @@
             "name": "division",
             "required": false,
             "in": "query",
-            "description": "JUNIOR, MIDDLE, SENIOR or ALL (exact match).",
+            "description": "A division code or ALL (exact match).",
             "schema": {
-              "type": "string",
-              "enum": [
-                "JUNIOR",
-                "MIDDLE",
-                "SENIOR",
-                "ALL"
-              ]
+              "type": "string"
             }
           },
           {
@@ -49417,12 +49422,7 @@
             "in": "query",
             "description": "The student's Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR.",
             "schema": {
-              "type": "string",
-              "enum": [
-                "JUNIOR",
-                "MIDDLE",
-                "SENIOR"
-              ]
+              "type": "string"
             }
           },
           {
@@ -50223,12 +50223,7 @@
             "in": "query",
             "description": "Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade.",
             "schema": {
-              "type": "string",
-              "enum": [
-                "JUNIOR",
-                "MIDDLE",
-                "SENIOR"
-              ]
+              "type": "string"
             }
           },
           {
@@ -51685,14 +51680,9 @@
             "name": "division",
             "required": false,
             "in": "query",
+            "description": "A division code, or UNKNOWN (no division).",
             "schema": {
-              "type": "string",
-              "enum": [
-                "JUNIOR",
-                "MIDDLE",
-                "SENIOR",
-                "UNKNOWN"
-              ]
+              "type": "string"
             }
           },
           {
@@ -51949,13 +51939,7 @@
             "in": "query",
             "description": "Only this division (by=division).",
             "schema": {
-              "type": "string",
-              "enum": [
-                "JUNIOR",
-                "MIDDLE",
-                "SENIOR",
-                "UNKNOWN"
-              ]
+              "type": "string"
             }
           },
           {
@@ -52603,6 +52587,53 @@
         "type": "object",
         "properties": {}
       },
+      "CreateDivisionDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Permanent code: 2–30 capitals, digits or underscores, starting with a letter; never ALL.",
+            "pattern": "^(?!ALL$)[A-Z][A-Z0-9_]{1,29}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 1000
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "suggestedGrades": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "enum": [
+                "S1",
+                "S2",
+                "S3",
+                "S4",
+                "S5",
+                "S6"
+              ]
+            }
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
       "UpdateDivisionDto": {
         "type": "object",
         "properties": {
@@ -52617,7 +52648,30 @@
             "maxLength": 1000
           },
           "isActive": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "false: offered for no new student, test or course (refused while students are in it or a test is open)."
+          },
+          "suggestedGrades": {
+            "type": "array",
+            "description": "The grades this division is suggested for (every grade S1–S6 must stay with exactly one active division).",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "enum": [
+                "S1",
+                "S2",
+                "S3",
+                "S4",
+                "S5",
+                "S6"
+              ]
+            }
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "Display order (lower first).",
+            "minimum": 0,
+            "maximum": 1000
           }
         }
       },
@@ -53186,12 +53240,7 @@
           "olympiadLevel": {
             "type": "string",
             "description": "setOlympiadLevel: JUNIOR, MIDDLE, SENIOR, or AUTOMATIC (the level the grade suggests).",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR",
-              "AUTOMATIC"
-            ]
+            "pattern": "^[A-Z][A-Z0-9_]{1,29}$"
           }
         }
       },
@@ -53812,18 +53861,14 @@
       "SetOlympiadLevelDto": {
         "type": "object",
         "properties": {
-          "level": {
+          "divisionId": {
             "type": "string",
-            "description": "JUNIOR, MIDDLE or SENIOR. Required unless `automatic` is true; refused with it.",
-            "enum": [
-              "JUNIOR",
-              "SENIOR",
-              "MIDDLE"
-            ]
+            "description": "An active division. Required unless `automatic` is true; refused with it (400 LEVEL_WITH_AUTOMATIC).",
+            "format": "uuid"
           },
           "automatic": {
             "type": "boolean",
-            "description": "true: follow the grade again (the suggested level). Never together with a level (400 LEVEL_WITH_AUTOMATIC)."
+            "description": "true: follow the grade again (the suggested division)."
           },
           "reason": {
             "type": "string",
@@ -56483,13 +56528,7 @@
           },
           "division": {
             "type": "string",
-            "description": "The Olympiad level: JUNIOR, MIDDLE or SENIOR (the students whose level it is), or ALL. Mandatory.",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR",
-              "ALL"
-            ]
+            "description": "Who the test is for: a division's code (its students; the division must be active) or ALL. Mandatory."
           },
           "answerFormat": {
             "type": "string",
@@ -56547,13 +56586,7 @@
             "format": "uuid"
           },
           "division": {
-            "type": "string",
-            "enum": [
-              "JUNIOR",
-              "MIDDLE",
-              "SENIOR",
-              "ALL"
-            ]
+            "type": "string"
           },
           "answerFormat": {
             "type": "string",

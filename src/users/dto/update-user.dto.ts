@@ -14,7 +14,7 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { Gender, GradeLevel, OlympiadLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
+import { Gender, GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 import { HomePlacePart } from '../../common/home-place.js';
@@ -276,8 +276,6 @@ export class ListUsersQueryDto extends PaginationQueryDto {
   @IsOptional() @IsEnum(AccountStatus) accountStatus?: AccountStatus;
   @IsOptional() @IsUUID() divisionId?: string;
   @IsOptional() @IsEnum(GradeLevel) gradeLevel?: GradeLevel;
-  /** Students of this Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR. */
-  @IsOptional() @IsEnum(OlympiadLevel) olympiadLevel?: OlympiadLevel;
   @IsOptional() @IsUUID() schoolId?: string;
 
   @IsOptional()
