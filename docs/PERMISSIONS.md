@@ -26,7 +26,8 @@ from `/me/permissions`, and is refused by every `@RequirePermission` route (leas
 ## Matrix
 
 Scope: **own** = own records · **division** = own division · **course × division** = assigned
-course × division · **programme** = own programme(s) · **all** = global · **—** = not granted.
+course × division · **programme** = own programme(s) · **authorised subjects (assigned)** = the subjects the coach is
+authorised to mark, only the submissions assigned to them · **all** = global · **—** = not granted.
 The scope says *where* a grant applies. The services enforce it (AccessService), not the
 permission guard.
 
@@ -83,6 +84,99 @@ permission guard.
 | `submissions.submitOnBehalf` | — | — | — | — | — | — |
 | `schools.manage` | — | — | — | — | all | all |
 | `schools.syncDirectory` | — | — | — | — | — | all |
+| `users.viewStatusHistory` | — | — | — | — | all | all |
+| `users.changeStatus` | — | — | — | — | all | all |
+| `users.suspend` | — | — | — | — | all | all |
+| `users.archive` | — | — | — | — | all | all |
+| `users.bulkManage` | — | — | — | — | all | all |
+| `users.export` | — | — | — | — | all | all |
+| `forms.view` | — | — | — | — | all | all |
+| `forms.manageAvailability` | — | — | — | — | all | all |
+| `forms.editMessages` | — | — | — | — | all | all |
+| `reference.manage` | — | — | — | — | all | all |
+| `tests.view` | — | — | — | programme | all | all |
+| `tests.manage` | — | — | — | programme | all | all |
+| `tests.manageMarkers` | — | — | — | programme | all | all |
+| `tests.extensions` | — | — | — | programme | all | all |
+| `tests.viewSubmissions` | — | — | — | programme | all | all |
+| `tests.submit` | own | — | — | — | — | — |
+| `tests.submitForStudents` | — | school | — | — | — | — |
+| `tests.distribute` | — | — | — | programme | all | all |
+| `tests.review` | — | — | — | programme | all | all |
+| `tests.adjustMarks` | — | — | — | programme | — | — |
+| `tests.mark` | — | — | authorised subjects (assigned) | — | — | — |
+| `tests.publishResults` | — | — | — | programme | all | all |
+| `tests.overridePublication` | — | — | — | — | all | all |
+| `tests.viewResults` | — | — | — | programme | all | all |
+| `tests.viewRankings` | — | — | — | programme | all | all |
+| `tests.viewOwnResults` | own | — | — | — | — | — |
+| `tests.viewSchoolResults` | — | school | — | — | — | — |
+
+## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
+
+`tests.view`, `tests.manage`, `tests.manageMarkers`: Administrators and Super Admins in every subject; Head Coaches only in
+the subjects (programmes) they head — any Head Coach of the subject may act, and the audit log records which one did. The
+service checks the subject on every request (another subject: 403 `SCOPE_FORBIDDEN`). Coaches, Teachers and Students hold
+none of them (authorised markers mark from Phase 3 with the separate permission `tests.mark`, in `ADMIN_PROHIBITED`, so
+Administrators never mark or adjust marks, G4). A marker authorisation is separate from a coach's Olympiad interests: an
+interest never grants marking. The marking guide is served only to holders of `tests.view` for the test's subject. Every
+change is audited in the TESTS category, in the same transaction. Appended to the frozen ADMIN list additively.
+
+### Phase 2: deadlines, extensions, submissions
+
+- `tests.extensions` (grant / edit / cancel deadline extensions) and `tests.viewSubmissions` (submission tracking, every
+  version with its submitter, teacher and extension status): Administrators and Super Admins in every subject; Head
+  Coaches in the subjects they head (same service check). Appended to the frozen ADMIN list additively.
+- `tests.submit` (own): Students submit and replace their own answer to a published, open test of their division.
+  Appended to the frozen STUDENT list additively, so the student portal shows My tests.
+- `tests.submitForStudents` (school; owner decision G2): every Teacher of a school, primary or secondary, by default —
+  only for the VERIFIED students of their own ACTIVE schools whose account is active (another student: 403
+  `STUDENT_NOT_IN_SCOPE`). The course-assignment delegation `submissions.submitOnBehalf` is separate and unchanged
+  (individual GRANT only).
+- Deadlines come from one service, in database time; a student or teacher sees the deadline that applies to them, never
+  an "extended" mark (Administrators and Head Coaches only — never markers). All new; none is in `ADMIN_PROHIBITED` or
+  `NEVER_GRANTABLE`; like every default, each can be denied to an individual.
+
+### Phase 3: distribution, blind marking, second marking, review, approval, locking
+
+- `tests.distribute` (distribute evenly, assign, reassign with a reason; progress per coach) and `tests.review` (review
+  with identity: approve — which locks —, return with a comment, request an independent blind second marking, unlock with
+  a reason; status history and the mark-change log): Administrators and Super Admins in every subject; Head Coaches in
+  the subjects they head. Appended to the frozen ADMIN list additively.
+- `tests.adjustMarks` (choose the first, the second or an adjusted mark, with a mandatory reason): the subject's Head
+  Coaches only — owner decision G4: Administrators never edit or adjust marks. In `ADMIN_PROHIBITED`.
+- `tests.mark` (Coaches; scope **authorised subjects (assigned)**): blind marking of the submissions currently assigned
+  to the coach, in a subject the coach holds an ACTIVE marker authorisation for — both checked on every request (403
+  `MARKER_NOT_AUTHORIZED`, `MARKING_NOT_ASSIGNED`). Appended to the frozen MENTOR list additively, so the coach portal
+  shows the marking queue. In `ADMIN_PROHIBITED` (Administrators never mark). An Olympiad interest never grants it.
+- None is in `NEVER_GRANTABLE`; the course-assignment grading permissions (`reviews.grade`, `submissions.distribute`,
+  `results.approve`) are unchanged.
+
+### Phase 4: publication, results, rankings, reports, dashboards
+
+- `tests.publishResults` (preview: counts, the unapproved results, extensions still running; publish the APPROVED
+  results — blocked with `PUBLICATION_BLOCKED` while any result is unapproved; publications and withdrawals),
+  `tests.viewResults` (results with identity, the results report, CSV exports, the reporting overview) and
+  `tests.viewRankings` (internal rankings overall, by division, by school): Administrators and Super Admins in every
+  subject; Head Coaches in the subjects they head. Appended to the frozen ADMIN list additively.
+- `tests.overridePublication` (publish although results are unapproved, with a mandatory reason; audited
+  `TEST_PUBLICATION_OVERRIDDEN`; only the approved results are published): Administrators and Super Admins only — never a
+  Head Coach (owner spec 10.1). In `NEVER_GRANTABLE`, so no individual override can give it to anyone.
+- `tests.viewOwnResults` (Students, **own**): their own PUBLISHED results — marks per question, total, the final
+  marking's comments; never who marked, never a rank. Appended to the frozen STUDENT list additively.
+- `tests.viewSchoolResults` (Teachers, **school**): PUBLISHED results of the verified, active students of their own
+  schools; never a rank, never another school's student.
+- Coaches receive none of them (nothing beyond what marking needs). Dashboards reuse `tests.view` (Administrators, Head
+  Coaches), `tests.mark` (Coaches: their own assigned work only), `tests.submit` (Students) and
+  `tests.submitForStudents` (Teachers). G6: unlocking a published result (`tests.review`) withdraws it from the student's
+  and the teachers' views until it is approved and published again.
+
+## Countries (owner decision 2026-11-19)
+
+`reference.manage` (Administrators and Super Admins, global; appended to the frozen ADMIN list additively): correct a
+country's name or calling code (`GET`, `PATCH /admin/countries…`). Never granted by an individual override. Everyone reads
+the public list (`GET /countries`). No country is blocked from registration; a country never sets a level or division.
+Every change is audited (REFERENCE_DATA, `COUNTRY_UPDATED`).
 
 ## Administrators and Head Coaches (D-5, 2026-11-14)
 

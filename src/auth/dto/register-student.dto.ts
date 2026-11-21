@@ -1,7 +1,11 @@
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsEmail,
   IsEnum,
   IsISO31661Alpha2,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -10,8 +14,14 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel } from '../../generated/prisma/client.js';
+import { HomePlacePart } from '../../common/home-place.js';
+import { Gender, GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from './password.rules.js';
+import { IsNormalisablePhone, IsStudentDateOfBirth } from './registration-details.rules.js';
+
+/** True when any part of the official home place is sent (then all three are required). */
+export const hasHomePlace = (o: { homeProvince?: unknown; homeDistrict?: unknown; homeSector?: unknown }) =>
+  o.homeProvince !== undefined || o.homeDistrict !== undefined || o.homeSector !== undefined;
 
 /** Normalise a string to Title Case, trim whitespace. */
 export const toTitleCase = (value: string) =>
@@ -121,9 +131,79 @@ export class RegisterStudentDto {
   @Transform(titleCase)
   schoolLocation?: string;
 
-  /** Student's home city / region. */
+  /**
+   * Student's home city / region (optional free text, kept for older clients). With the official home place it is
+   * stored as "Sector, District" when not sent. Home location rules (homeLocationRules): homeCountry decides.
+   */
+  @IsOptional()
   @IsString()
   @Length(2, 200)
   @Transform(titleCase)
-  homeLocation: string;
+  homeLocation?: string;
+
+  // ─── Registration details (capability studentRegistrationDetails; optional for older clients) ───
+
+  /**
+   * Date of birth, "YYYY-MM-DD": a real past date, age 5–30 on the day of registration (Rwanda). Not audited.
+   * Required (owner, 2026-11-17: every student is asked their date of birth at registration).
+   */
+  @Transform(trim)
+  @IsStudentDateOfBirth()
+  dateOfBirth: string;
+
+  /** FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. */
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
+
+  /** The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited. */
+  @IsOptional()
+  @Transform(trim)
+  @IsNormalisablePhone()
+  phone?: string;
+
+  /**
+   * A close-family member's phone, stored in E.164 (teacher-application rules). Required (owner decision 9.2,
+   * 2026-11-18: the server requires it, not only the form) — missing, empty or not a valid phone number is refused.
+   * Not audited.
+   */
+  @Transform(trim)
+  @IsNotEmpty({ message: 'guardianPhone (the phone number of a close-family member) is required.' })
+  @IsNormalisablePhone()
+  guardianPhone: string;
+
+  /**
+   * The student's home country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's.
+   * Required (owner, 2026-11-20: home location on every registration form, homeLocationRules).
+   */
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsISO31661Alpha2({ message: 'homeCountry must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
+  homeCountry: string;
+
+  /**
+   * The official home place: required when homeCountry is Rwanda (a place of GET /schools/locations, else 400
+   * UNKNOWN_HOME_LOCATION); with another homeCountry not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY).
+   */
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeProvince?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeDistrict?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
+
+  /**
+   * Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and
+   * PHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then
+   * has none); the sign-up form requires at least one. Information only: no programme membership, no permissions.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @ArrayUnique()
+  @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
+  olympiadInterests?: OlympiadSubject[];
 }

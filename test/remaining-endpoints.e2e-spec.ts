@@ -209,7 +209,7 @@ describe('Remaining endpoints (e2e)', () => {
       await ctx.prisma.school.create({ data: { name: 'TEST OFFICIAL SCHOOL', location: 'Kigali, Gasabo', code: '120999', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'test official school' } });
       const found = await http().get('/api/v1/schools/search').query({ q: 'Test' }).expect(200);
       expect(found.body).toEqual([expect.objectContaining({ name: 'TEST OFFICIAL SCHOOL', code: '120999' })]);
-      expect(Object.keys(found.body[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'sector']);
+      expect(Object.keys(found.body[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'province', 'sector']);
       expect((await http().get('/api/v1/schools/search').query({ q: '1209' }).expect(200)).body.map((s: any) => s.code)).toEqual(['120999']);
       // Rwanda cascade: Province → District → Sector, then every official school of the sector.
       await ctx.prisma.school.update({ where: { code: '120999' }, data: { province: 'Kigali City' } });
@@ -275,7 +275,7 @@ describe('Remaining endpoints (e2e)', () => {
   describe('administration', () => {
     it('administrators reject a mentor application', async () => {
       const apply = await http().post('/api/v1/mentor-requests')
-        .send({ firstName: 'Jean', lastName: 'Applicant', username: 'jean.app', email: 'jean.app@example.com', password: 'Mentor123' }).expect(201);
+        .send({ firstName: 'Jean', lastName: 'Applicant', username: 'jean.app', email: 'jean.app@example.com', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
       await http().patch(`/api/v1/mentor-requests/${apply.body.id}/reject`).set(bearer(mentorJ)).expect(403);
       await http().patch(`/api/v1/mentor-requests/${apply.body.id}/reject`).set(bearer(admin)).expect(200);
       await http().patch(`/api/v1/mentor-requests/${apply.body.id}/approve`).set(bearer(admin)).expect(409);
@@ -340,7 +340,7 @@ describe('Remaining endpoints (e2e)', () => {
       await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': true }).expect(200);
       try {
         const apply = await http().post('/api/v1/mentor-requests')
-          .send({ firstName: 'Vera', lastName: 'Verify', username: 'vera.verify', email: 'vera@example.com', password: 'Mentor123' }).expect(201);
+          .send({ firstName: 'Vera', lastName: 'Verify', username: 'vera.verify', email: 'vera@example.com', password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
         const approved = await http().patch(`/api/v1/mentor-requests/${apply.body.id}/approve`).set(bearer(admin)).expect(200);
         expect(approved.body).toMatchObject({ emailVerificationRequired: true, mentor: { role: 'MENTOR' } });
 
@@ -410,7 +410,7 @@ describe('Remaining endpoints (e2e)', () => {
       expect(res.body.data[0]).toHaveProperty('gradeLevel');
     });
 
-    it('an administrator creates another administrator, and deletes an account without history', async () => {
+    it('an administrator creates another administrator; DELETE never deletes an account, even one without history', async () => {
       const created = await http().post('/api/v1/auth/register/admin').set(bearer(admin)).send({
         firstName: 'Second', lastName: 'Admin', username: 'second.admin', email: 'second.admin@test.local', password: 'Str0ng!Passw0rd',
       }).expect(201);
@@ -421,8 +421,9 @@ describe('Remaining endpoints (e2e)', () => {
       const temp = await http().post('/api/v1/admin/users').set(bearer(admin)).send({
         firstName: 'Temp', lastName: 'User', username: 'temp.user', email: 'temp.user@test.local', password: 'Str0ng!Passw0rd', role: 'MENTOR',
       }).expect(201);
-      await http().delete(`/api/v1/admin/users/${temp.body.id}`).set(bearer(admin)).expect(200);
-      expect(await ctx.prisma.user.count({ where: { id: temp.body.id } })).toBe(0);
+      const refused = await http().delete(`/api/v1/admin/users/${temp.body.id}`).set(bearer(admin)).expect(409);
+      expect(refused.body.code).toBe('PERMANENT_DELETION_DISABLED');
+      expect(await ctx.prisma.user.count({ where: { id: temp.body.id } })).toBe(1);
     });
 
     it('a student opens a published resource; a mentor deletes one', async () => {

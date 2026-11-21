@@ -13,6 +13,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { auditChanges } from '../audit/audit-changes.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -111,7 +112,8 @@ export class AcademicYearsService {
     });
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role,
-      action: 'UPDATE_ACADEMIC_YEAR', entity: 'AcademicYear', entityId: id, metadata: { ...dto },
+      action: 'UPDATE_ACADEMIC_YEAR', entity: 'AcademicYear', entityId: id,
+      metadata: { ...dto, changes: auditChanges(year, updated, ['name', 'startsOn', 'endsOn']) },
     });
     return updated;
   }

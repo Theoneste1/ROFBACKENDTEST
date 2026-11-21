@@ -7,6 +7,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
+import { COURSE_WORK_ROLES } from '../common/access/roles.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from './notifications.service.js';
 import {
@@ -21,6 +22,7 @@ import {
   type MentorRequestSubmittedEvent,
   type ResultReopenedEvent,
   type StudentRegisteredEvent,
+  type TeacherApplicationSubmittedEvent,
   type ResourceEvent,
   type ResultsPublishedEvent,
   type SubmissionEvent,
@@ -285,7 +287,7 @@ export class NotificationListener {
       if (!t) return;
       const courseId = t.courseId ?? t.assignment!.courseId;
       const mentors = await this.prisma.mentorAssignment.findMany({
-        where:  { courseId, divisionId: t.divisionId, isActive: true, mentor: { isActive: true, role: 'MENTOR' } },
+        where:  { courseId, divisionId: t.divisionId, isActive: true, mentor: { isActive: true, role: { in: [...COURSE_WORK_ROLES] } } },
         select: { mentorId: true },
       });
       const where = t.assignment ? `the assignment "${t.assignment.title}"` : t.course!.title;
@@ -423,7 +425,7 @@ export class NotificationListener {
         e.approved ? 'Your coach application was approved' : 'Your coach application',
         e.approved
           ? 'Your coach application has been approved. You can now log in with the username and password you chose.'
-          : 'Thank you for applying to be a coach. Your application was not approved at this time.',
+          : 'Thank you for applying to be a coach. Your application was not approved at this time.' + (e.reason ? `\n\nReason: ${e.reason}` : ''),
         { firstName: e.firstName, link: e.approved ? '/login' : undefined },
       );
     });
@@ -467,6 +469,30 @@ export class NotificationListener {
         body:     `${name} ${e.reapplication ? 'applied again' : 'applied'} to become a coach and is waiting for a decision.`,
         data:     { mentorRequestId: r.id },
         link:     '/admin/mentors',
+      }, { email: false });
+    });
+  }
+
+  /**
+   * Teacher self-registration application → administrators (in-app; owner decision 5: notify
+   * Administrators about new registrations, idempotently). One notice per application.
+   */
+  @OnEvent(Events.TeacherApplicationSubmitted, ASYNC)
+  async onTeacherApplicationSubmitted(e: TeacherApplicationSubmittedEvent) {
+    await this.safe('teacher application submitted', async () => {
+      const a = await this.prisma.teacherApplication.findUnique({
+        where:  { id: e.applicationId },
+        select: { id: true, firstName: true, lastName: true, status: true, schoolId: true },
+      });
+      if (!a || a.status !== 'PENDING') return;
+      const name = `${a.firstName ?? ''} ${a.lastName ?? ''}`.trim() || 'Someone';
+      await this.notifications.notifyOnce(`registration.teacher_application:${a.id}`, await this.notifications.adminIds(), {
+        category: 'ACCOUNT',
+        type:     Events.TeacherApplicationSubmitted,
+        title:    'New teacher application',
+        body:     `${name} applied to register as a teacher${a.schoolId ? '' : ' (school not listed: verify it first)'} and is waiting for a decision.`,
+        data:     { teacherApplicationId: a.id },
+        link:     '/admin/teacher-applications',
       }, { email: false });
     });
   }

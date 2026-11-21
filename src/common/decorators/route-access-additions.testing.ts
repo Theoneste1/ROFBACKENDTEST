@@ -20,6 +20,10 @@ const PUBLIC: AddedRouteDecisions = { anonymous: 'allow', STUDENT: 'allow', MENT
 /** Granted only by an individual delegation (P1-11): no baseline caller holds it. */
 const NOBODY_BY_DEFAULT: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: '403', ADMIN: '403', UNKNOWN_ROLE: '403' };
 const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
+/** tests.mark (Test Management Phase 3): Coaches only — Administrators never mark (ADMIN_PROHIBITED, G4). */
+const COACHES_ONLY:     AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: '403', UNKNOWN_ROLE: '403' };
+/** @Authenticated: every signed-in caller, whatever the role (own data only, or data shown to every member). */
+const SIGNED_IN:        AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
 
 export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>> = {
   // P1-09 — individual permission overrides (permissions.manageOverrides: Super Admin only)
@@ -107,6 +111,196 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   // E-mail deliveries across transactional and bulk e-mail (email.bulkSend, as the existing e-mail job routes)
   'GET /api/v1/admin/email/deliveries  EmailController.listAllDeliveries':                                    ADMINISTRATORS,
   'POST /api/v1/admin/email/deliveries/:id/retry  EmailController.retryDelivery':                             ADMINISTRATORS,
+  // Teacher self-registration (owner-approved): public application, Administrator review (users.manageTeachers)
+  'GET /api/v1/auth/register/teacher/availability  TeacherRegistrationController.availability':                PUBLIC,
+  'POST /api/v1/auth/register/teacher  TeacherRegistrationController.register':                               PUBLIC,
+  'GET /api/v1/admin/teacher-applications  AdminTeacherApplicationsController.list':                          ADMINISTRATORS,
+  'GET /api/v1/admin/teacher-applications/:id  AdminTeacherApplicationsController.get':                       ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-applications/:id/approve  AdminTeacherApplicationsController.approve':          ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-applications/:id/reject  AdminTeacherApplicationsController.reject':            ADMINISTRATORS,
+  // Decision notifications (owner-approved): school verification of a missing-school application
+  // (users.manageTeachers) and the delivery log (email.bulkSend: Administrators, Super Admins)
+  'POST /api/v1/admin/teacher-applications/:id/school  AdminTeacherApplicationsController.verifySchool':      ADMINISTRATORS,
+  'GET /api/v1/admin/notification-deliveries  DecisionNotificationsController.list':                          ADMINISTRATORS,
+  'POST /api/v1/admin/notification-deliveries/:id/retry  DecisionNotificationsController.retry':              ADMINISTRATORS,
   // Owner decision 2026-11-14: an administrator verifies a school (schools.manage, like every school edit).
   'POST /api/v1/admin/schools/:id/verify  AdminSchoolsController.verify':                                     ADMINISTRATORS,
+  // Profile pictures (2026-11-15): own picture (any signed-in user), viewing (any signed-in user, never anonymous),
+  // another account's picture (users.manage + the role policy on the target account, in AvatarService)
+  'PUT /api/v1/me/avatar  MeController.setAvatar':                                                             SIGNED_IN,
+  'DELETE /api/v1/me/avatar  MeController.removeAvatar':                                                       SIGNED_IN,
+  // Owner decision 9.3 (2026-11-18): a student without a date of birth gives it at first sign-in
+  'PUT /api/v1/me/date-of-birth  MeController.setDateOfBirth':                                                  STUDENTS_ONLY,
+  // Owner 2026-11-20: a user without a gender gives it once (any signed-in user; asked of students, teachers, coaches)
+  'PUT /api/v1/me/gender  MeController.setGender':                                                              SIGNED_IN,
+  'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
+  'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
+  'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
+  // Account states (2026-11-16): users.manage + the transition's permission and the role policy (AccountStatusService);
+  // the history needs users.viewStatusHistory
+  'POST /api/v1/admin/users/:id/status-changes  UsersController.changeStatus':                                 ADMINISTRATORS,
+  'GET /api/v1/admin/users/:id/status-history  UsersController.statusHistory':                                 ADMINISTRATORS,
+  // Bulk user operations (2026-11-17): users.bulkManage (export: users.export); each action's own permission and the
+  // per-account role policy are checked in BulkOperationsService / BulkOperationsWorker
+  'POST /api/v1/admin/users/bulk/preview  BulkOperationsController.preview':                                   ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk  BulkOperationsController.execute':                                           ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk  BulkOperationsController.list':                                               ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk/export  BulkOperationsController.export':                                     ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk/:id  BulkOperationsController.get':                                            ADMINISTRATORS,
+  'GET /api/v1/admin/users/bulk/:id/items  BulkOperationsController.items':                                    ADMINISTRATORS,
+  'POST /api/v1/admin/users/bulk/:id/cancel  BulkOperationsController.cancel':                                 ADMINISTRATORS,
+  // Form availability (2026-11-15): the public view of every form (no sign-in), and the administrators' management
+  // (forms.view, forms.manageAvailability, forms.editMessages: Administrators and Super Admins)
+  'GET /api/v1/forms  FormsController.list':                                                                  PUBLIC,
+  'GET /api/v1/forms/:key  FormsController.one':                                                              PUBLIC,
+  'GET /api/v1/admin/forms  AdminFormsController.list':                                                       ADMINISTRATORS,
+  'GET /api/v1/admin/forms/:key  AdminFormsController.one':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/forms/:key/history  AdminFormsController.history':                                       ADMINISTRATORS,
+  'PATCH /api/v1/admin/forms/:key/availability  AdminFormsController.availability':                           ADMINISTRATORS,
+  'PATCH /api/v1/admin/forms/:key/messages  AdminFormsController.messages':                                   ADMINISTRATORS,
+  // Request more information on applications (2026-11-17, ADR-009): Administrators ask (users.manageTeachers,
+  // mentorRequests.decide); the applicant (no account) answers through the one-time link.
+  'POST /api/v1/admin/teacher-applications/:id/request-info  AdminTeacherApplicationsController.requestInfo':  ADMINISTRATORS,
+  'POST /api/v1/mentor-requests/:id/request-info  MentorRequestsController.requestInfo':                      ADMINISTRATORS,
+  // Final review 2026-11-18 (owner approvals): date-of-birth corrections (users.manage) and application picture review
+  'PUT /api/v1/admin/users/:id/date-of-birth  UsersController.correctDateOfBirth':                              ADMINISTRATORS,
+  'GET /api/v1/admin/users/:id/date-of-birth-history  UsersController.dateOfBirthHistory':                      ADMINISTRATORS,
+  'GET /api/v1/admin/teacher-applications/:id/avatar  AdminTeacherApplicationsController.avatar':              ADMINISTRATORS,
+  'GET /api/v1/mentor-requests/:id/avatar  MentorRequestsController.avatar':                                    ADMINISTRATORS,
+  'POST /api/v1/applications/info-requests/view  ApplicationInfoRequestsController.view':                    PUBLIC,
+  'POST /api/v1/applications/info-requests/answer  ApplicationInfoRequestsController.answer':                 PUBLIC,
+  // Optional profile picture right after registering (REG-02): the one-time token is the authorization.
+  'PUT /api/v1/auth/register/avatar  RegistrationAvatarController.upload':                                   PUBLIC,
+  // Registration timeline (REG-13): users.manage, as the user page.
+  'GET /api/v1/admin/users/:id/registration-timeline  UsersController.registrationTimeline':                ADMINISTRATORS,
+  // Teacher–student access (TS-1…TS-6): users.manageTeachers (Administrators); the teacher's counts: students.viewScoped
+  // (ADMIN holds it — the service then answers 403 ROLE_NOT_SUPPORTED, as for the teacher's list).
+  'GET /api/v1/admin/teacher-students  TeacherStudentAssignmentsController.list':                             ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-students  TeacherStudentAssignmentsController.assign':                          ADMINISTRATORS,
+  'POST /api/v1/admin/teacher-students/reassign  TeacherStudentAssignmentsController.reassign':               ADMINISTRATORS,
+  'DELETE /api/v1/admin/teacher-students/:id  TeacherStudentAssignmentsController.end':                       ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/access  SchoolAccessController.access':                                     ADMINISTRATORS,
+  'GET /api/v1/admin/schools/:id/access/students  SchoolAccessController.students':                          ADMINISTRATORS,
+  'POST /api/v1/admin/teachers/:id/delegations/:overrideId/students  TeacherDelegationsController.addStudents': ADMINISTRATORS,
+  'DELETE /api/v1/admin/teachers/:id/delegations/:overrideId/students/:studentId  TeacherDelegationsController.removeStudent': ADMINISTRATORS,
+  'POST /api/v1/admin/teachers/:id/delegations/:overrideId/reviewed  TeacherDelegationsController.reviewed':  ADMINISTRATORS,
+  'GET /api/v1/teacher/students/summary  TeacherStudentsController.summary':                                  ADMINISTRATORS,
+  // Countries (owner decision 2026-11-19): the public list (no sign-in; the registration forms read it) and its
+  // administration (reference.manage: Administrators and Super Admins).
+  'GET /api/v1/countries  CountriesController.list':                                                          PUBLIC,
+  'GET /api/v1/admin/countries  AdminCountriesController.list':                                               ADMINISTRATORS,
+  'PATCH /api/v1/admin/countries/:code  AdminCountriesController.update':                                     ADMINISTRATORS,
+  // Primary teacher (owner decision 2026-11-19): Administrators choose a school's primary teacher (users.manageTeachers);
+  // the teacher's own schools and role: students.viewScoped (ADMIN holds it — the service answers 403 ROLE_NOT_SUPPORTED).
+  'POST /api/v1/admin/teacher-assignments/:id/primary  TeacherSchoolsController.makePrimary':                  ADMINISTRATORS,
+  'GET /api/v1/teacher/schools  TeacherOwnSchoolsController.list':                                            ADMINISTRATORS,
+  // Test Management, Phase 1 (WS3, owner-approved plan 2026-11-19): tests.view / tests.manage / tests.manageMarkers —
+  // Administrators (every subject) and Head Coaches (HEAD_COACH is not a baseline caller; the subjects they head, checked
+  // by the service). Coaches, Students and unknown roles: 403.
+  'GET /api/v1/admin/tests/subjects  TestsController.subjects':                                                 ADMINISTRATORS,
+  'GET /api/v1/admin/tests  TestsController.list':                                                              ADMINISTRATORS,
+  'POST /api/v1/admin/tests  TestsController.create':                                                           ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id  TestsController.get':                                                           ADMINISTRATORS,
+  'PATCH /api/v1/admin/tests/:id  TestsController.update':                                                      ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id  TestsController.remove':                                                     ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/publish  TestsController.publish':                                              ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish':                                          ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion':                                        ADMINISTRATORS,
+  'PUT /api/v1/admin/tests/:id/questions/order  TestsController.reorderQuestions':                              ADMINISTRATORS,
+  'PATCH /api/v1/admin/tests/:id/questions/:questionId  TestsController.updateQuestion':                        ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id/questions/:questionId  TestsController.removeQuestion':                       ADMINISTRATORS,
+  'PUT /api/v1/admin/tests/:id/files/:kind  TestsController.putFile':                                           ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id/files/:kind  TestsController.removeFile':                                     ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/files/:kind  TestsController.file':                                              ADMINISTRATORS,
+  'GET /api/v1/admin/test-markers  TestMarkersController.list':                                                 ADMINISTRATORS,
+  'GET /api/v1/admin/test-markers/candidates  TestMarkersController.candidates':                                ADMINISTRATORS,
+  'POST /api/v1/admin/test-markers  TestMarkersController.grant':                                               ADMINISTRATORS,
+  'POST /api/v1/admin/test-markers/:id/revoke  TestMarkersController.revoke':                                   ADMINISTRATORS,
+  // Test Management, Phase 2 (WS3, 2026-11-19): extensions (tests.extensions) and tracking (tests.viewSubmissions) —
+  // Administrators (every subject) and Head Coaches (not baseline callers; the subjects they head, checked by the service).
+  'GET /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.list':                                 ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/extension-targets  AdminTestExtensionsController.targets':                       ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/extensions  AdminTestExtensionsController.create':                              ADMINISTRATORS,
+  'PATCH /api/v1/admin/tests/:id/extensions/:extensionId  AdminTestExtensionsController.update':                ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/extensions/:extensionId/cancel  AdminTestExtensionsController.cancel':          ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions  AdminTestSubmissionsController.list':                               ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId  AdminTestSubmissionsController.get':                  ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId/versions/:versionId/pages/:page  AdminTestSubmissionsController.page': ADMINISTRATORS,
+  // The student's own tests (tests.submit: Students only).
+  'GET /api/v1/me/tests  MyTestsController.list':                                                               STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id  MyTestsController.get':                                                            STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id/paper  MyTestsController.paper':                                                    STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id/uploads/:uploadKey  MyTestsController.pending':                                     STUDENTS_ONLY,
+  'POST /api/v1/me/tests/:id/uploads/:uploadKey/pages/:page  MyTestsController.upload':                         STUDENTS_ONLY,
+  'DELETE /api/v1/me/tests/:id/uploads/:uploadKey/pages/:page  MyTestsController.removePage':                   STUDENTS_ONLY,
+  'POST /api/v1/me/tests/:id/submission  MyTestsController.submit':                                             STUDENTS_ONLY,
+  'GET /api/v1/me/tests/:id/versions/:versionId/pages/:page  MyTestsController.page':                           STUDENTS_ONLY,
+  // Teachers for their students (tests.submitForStudents: Teachers only — not a baseline caller, so nobody here).
+  'GET /api/v1/teacher/tests  TeacherTestsController.list':                                                     NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/paper  TeacherTestsController.paper':                                          NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students  TeacherTestsController.students':                                    NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students/:studentId  TeacherTestsController.student':                           NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students/:studentId/uploads/:uploadKey  TeacherTestsController.pending':        NOBODY_BY_DEFAULT,
+  'POST /api/v1/teacher/tests/:id/students/:studentId/uploads/:uploadKey/pages/:page  TeacherTestsController.upload': NOBODY_BY_DEFAULT,
+  'DELETE /api/v1/teacher/tests/:id/students/:studentId/uploads/:uploadKey/pages/:page  TeacherTestsController.removePage': NOBODY_BY_DEFAULT,
+  'POST /api/v1/teacher/tests/:id/students/:studentId/submission  TeacherTestsController.submit':                NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/tests/:id/students/:studentId/versions/:versionId/pages/:page  TeacherTestsController.page': NOBODY_BY_DEFAULT,
+  // Test Management, Phase 3 (WS3, 2026-11-19): distribution (tests.distribute) and review (tests.review) — Administrators
+  // (every subject) and Head Coaches (not baseline callers; the subjects they head, checked by the service). Choosing /
+  // adjusting the mark (tests.adjustMarks): the subject's Head Coach only — no baseline caller (G4: Administrators never).
+  'GET /api/v1/admin/tests/:id/marking  AdminTestMarkingController.overview':                                   ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/distribute  AdminTestMarkingController.distribute':                     ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/assign  AdminTestMarkingController.assign':                             ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/marking/submissions  AdminTestMarkingController.list':                           ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/marking/submissions/:submissionId  AdminTestMarkingController.get':              ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/reassign  AdminTestMarkingController.reassign': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/approve  AdminTestMarkingController.approve':  ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/return  AdminTestMarkingController.returnForCorrection': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/second-marking  AdminTestMarkingController.secondMarking': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/choose  AdminTestMarkingController.choose':    NOBODY_BY_DEFAULT,
+  'POST /api/v1/admin/tests/:id/marking/submissions/:submissionId/unlock  AdminTestMarkingController.unlock':    ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/marking/history  AdminTestMarkingController.history':                            ADMINISTRATORS,
+  // Blind marking (tests.mark: Coaches only; authorisation AND assignment checked by the service on every request).
+  'GET /api/v1/marking/queue  MarkingController.queue':                                                         COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code  MarkingController.get':                                               COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code/pages/:page  MarkingController.page':                                  COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code/paper  MarkingController.paper':                                       COACHES_ONLY,
+  'GET /api/v1/marking/submissions/:code/marking-guide  MarkingController.guide':                               COACHES_ONLY,
+  'PUT /api/v1/marking/submissions/:code/marking  MarkingController.save':                                      COACHES_ONLY,
+  'POST /api/v1/marking/submissions/:code/marking/submit  MarkingController.submit':                            COACHES_ONLY,
+  // Test Management, Phase 4 (WS3, 2026-11-19): publication (tests.publishResults), results with identity and reports
+  // (tests.viewResults), rankings (tests.viewRankings) — Administrators (every subject) and Head Coaches (not baseline
+  // callers; the subjects they head, checked by the service). The override (tests.overridePublication): Administrators only
+  // (a Head Coach never: not in their grants, NEVER_GRANTABLE).
+  'GET /api/v1/admin/tests/:id/results  AdminTestResultsController.list':                                       ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/preview  AdminTestResultsController.preview':                            ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/results/publish  AdminTestResultsController.publish':                           ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/results/publish/override  AdminTestResultsController.publishWithOverride':      ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/publications  AdminTestResultsController.publications':                  ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/rankings  AdminTestResultsController.rankings':                          ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/report  AdminTestResultsController.report':                              ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/results/export.csv  AdminTestResultsController.exportCsv':                       ADMINISTRATORS,
+  'GET /api/v1/admin/test-reports  AdminTestReportsController.reports':                                         ADMINISTRATORS,
+  'GET /api/v1/admin/test-dashboard  AdminTestReportsController.dashboard':                                     ADMINISTRATORS,
+  // Students: their own published results (tests.viewOwnResults) and their dashboard (tests.submit).
+  'GET /api/v1/me/test-results  MyTestResultsController.list':                                                  STUDENTS_ONLY,
+  'GET /api/v1/me/test-results/:testId  MyTestResultsController.get':                                           STUDENTS_ONLY,
+  'GET /api/v1/me/test-dashboard  MyTestResultsController.dashboard':                                           STUDENTS_ONLY,
+  // Teachers (not baseline callers): their schools' published results (tests.viewSchoolResults) and their dashboard.
+  'GET /api/v1/teacher/test-results  TeacherTestResultsController.list':                                        NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/test-results/:testId  TeacherTestResultsController.results':                             NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/test-results/:testId/students/:studentId  TeacherTestResultsController.result':          NOBODY_BY_DEFAULT,
+  'GET /api/v1/teacher/test-dashboard  TeacherTestResultsController.dashboard':                                 NOBODY_BY_DEFAULT,
+  // Coaches: their own marking dashboard (tests.mark; Administrators never mark).
+  'GET /api/v1/marking/dashboard  MarkingDashboardController.dashboard':                                        COACHES_ONLY,
+  // Generic bulk engine (2026-11-19): users.bulkManage on every route (Administrators, Super Admins); each action's own
+  // permission(s) and each record's single-route policy are checked in BulkOperationsService / BulkOperationsWorker
+  'GET /api/v1/admin/bulk/actions  BulkController.actions':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations  BulkController.list':                                                   ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations/:id  BulkController.get':                                                ADMINISTRATORS,
+  'GET /api/v1/admin/bulk/operations/:id/items  BulkController.items':                                        ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/operations/:id/cancel  BulkController.cancel':                                     ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType/preview  BulkController.preview':                                      ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType/export  BulkController.export':                                        ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType  BulkController.execute':                                              ADMINISTRATORS,
 };

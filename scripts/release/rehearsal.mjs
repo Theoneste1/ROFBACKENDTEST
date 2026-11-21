@@ -1,17 +1,28 @@
 #!/usr/bin/env node
 /**
- * Phase 1 migration rehearsal on a Neon BRANCH of production — never production itself.
- * Checklist: docs/operations/REHEARSAL-NEON-CHECKLIST.md.
+ * Migration rehearsal on a Neon BRANCH of production — never production itself.
+ * Checklist: docs/operations/REHEARSAL-NEON-CHECKLIST.md (Phase 1) and docs/operations/RELEASE-POST-PHASE1.md.
+ *
+ * Every command takes --release <phase1|post-phase1|areas-2026|late-2026> (default phase1, the kit's original behaviour):
+ *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
+ *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
+ *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
+ *   areas-2026   the design-area migrations after those eleven (area 1 as simplified by the owner 2026-11-19: countries;
+ *                the primary teacher of a school, owner decision 2026-11-19; Test Management Phases 1 to 4, 2026-11-19);
+ *                the target must already hold Phase 1 and post-Phase-1; same checkout and database rules.
+ *   late-2026    the migrations after the design areas (the sign-up work, owner 2026-11-20: gender at every sign-up; the
+ *                home location on every registration form); the target must already hold the three releases before it.
  *
  *   node scripts/release/rehearsal.mjs check-target                 guard only, no connection
- *   node scripts/release/rehearsal.mjs precheck                     scripts/release/phase1-precheck.sql (read only)
+ *   node scripts/release/rehearsal.mjs precheck                     the release's precheck SQL (read only)
  *   node scripts/release/rehearsal.mjs status                       prisma migrate status
  *   node scripts/release/rehearsal.mjs deploy   --confirm <ep-id>   prisma migrate deploy        (WRITES to the branch)
  *   node scripts/release/rehearsal.mjs diff                         prisma migrate diff … --exit-code
- *   node scripts/release/rehearsal.mjs postcheck                    scripts/release/phase1-postcheck.sql (read only)
- *   node scripts/release/rehearsal.mjs rollback --confirm <ep-id>   docs/migrations rollbacks M14 → M1 (WRITES)
+ *   node scripts/release/rehearsal.mjs postcheck                    the release's postcheck SQL (read only)
+ *   node scripts/release/rehearsal.mjs rollback --confirm <ep-id>   the release's docs/migrations rollbacks, newest first (WRITES)
  *   node scripts/release/rehearsal.mjs rollback-history --confirm <ep-id>
- *                                                                   deletes the M9–M14 history rows (WRITES)
+ *                                                                   deletes the release's history rows once its objects are
+ *                                                                   gone: M9–M14 (phase1) or all eleven (post-phase1) (WRITES)
  *   node scripts/release/rehearsal.mjs dump --out <dir> --confirm <ep-id>
  *                                                                   pg_dump of the target into an EFS-encrypted
  *                                                                   folder outside the repository and OneDrive
@@ -27,6 +38,11 @@
  * as scripts/db-drill-verify.mjs: the production host must be known from `.env.production.local` and
  * the target must differ from it and from every database the app is configured to use. A pooled
  * string is switched to the branch's direct endpoint (Prisma's migration lock needs it).
+ * Migration role (optional): DRILL_MIGRATION_DATABASE_URL in the same file — the branch's table OWNER (e.g. neondb_owner),
+ * used only by the commands that change schema or migration history (status, deploy, diff, rollback, rollback-history,
+ * dump, restore); the read-only checks keep the application role. It passes the same guard and must also be on the SAME
+ * endpoint as DRILL_DATABASE_URL and must NOT carry a password used in .env.production.local (a branch copies its
+ * parent's role passwords: reset the owner's password on the branch first). See resolveMigrationTarget.
  * Writing commands also need --confirm with the target's endpoint id (the first part of its host,
  * "ep-…", read from the Neon console), so a wrong file cannot be written to by accident.
  * Prisma's child process gets DATABASE_URL = the checked target and no DOTENV_* switches (childEnv).
@@ -40,8 +56,9 @@ import { createRequire } from 'node:module';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import pg from 'pg';
-import { REPO_ROOT, VERIFIER, resolveDrillTarget, readTargetInputs } from '../db-drill-verify.mjs';
+import { REPO_ROOT, VERIFIER, envValues, resolveDrillTarget, readTargetInputs } from '../db-drill-verify.mjs';
 import { PHASE1, PHASE1_COUNT, laterMigrations, migrationDirs } from './phase1.mjs';
+import { RELEASE_NAMES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
 
 export { PHASE1 };
 const WRITES = new Set(['deploy', 'rollback', 'rollback-history', 'dump', 'restore']);
@@ -74,6 +91,31 @@ export function rollbackFiles(names) {
 /** The endpoint id of a database URL ("ep-…", the first label of the host, "-pooler" removed). */
 export function endpointId(url) {
   return new URL(url).hostname.replace('-pooler', '').split('.')[0].toLowerCase();
+}
+
+/** Commands that run as the migration role when DRILL_MIGRATION_DATABASE_URL is set (they change schema or history). */
+export const MIGRATION_ROLE_COMMANDS = new Set(['status', 'deploy', 'diff', 'rollback', 'rollback-history', 'dump', 'restore']);
+
+/**
+ * The connection for schema changes (pure). Without DRILL_MIGRATION_DATABASE_URL: the application target, as before.
+ * With it: the same guard as the application target, the SAME endpoint, and never a production password (compared in
+ * memory, never printed). @returns {{ ok: true, url: string, role: string, separate: boolean } | { ok: false, code: number, reason: string }}
+ */
+export function resolveMigrationTarget(appTarget, { migrationUrls, productionUrls, appUrls }) {
+  const roleOf = (u) => decodeURIComponent(new URL(u).username);
+  if (migrationUrls.length === 0) return { ok: true, url: appTarget.url, role: roleOf(appTarget.url), separate: false };
+  if (migrationUrls.length > 1) return { ok: false, code: 2, reason: 'DRILL_MIGRATION_DATABASE_URL is defined more than once in .env.drill.local' };
+  const m = resolveDrillTarget({ drillUrls: migrationUrls, productionUrls, appUrls });
+  if (!m.ok) return { ok: false, code: m.code, reason: m.reason.replace('DRILL_DATABASE_URL', 'DRILL_MIGRATION_DATABASE_URL') };
+  if (endpointId(m.url) !== endpointId(appTarget.url) || new URL(m.url).hostname !== new URL(appTarget.url).hostname) {
+    return { ok: false, code: 3, reason: 'REFUSED: DRILL_MIGRATION_DATABASE_URL is not on the same endpoint as DRILL_DATABASE_URL.' };
+  }
+  const password = decodeURIComponent(new URL(m.url).password);
+  const prodPasswords = productionUrls.map((u) => { try { return decodeURIComponent(new URL(u).password); } catch { return null; } }).filter(Boolean);
+  if (!password || prodPasswords.includes(password)) {
+    return { ok: false, code: 3, reason: 'REFUSED: DRILL_MIGRATION_DATABASE_URL carries a production password (a branch copies the parent role passwords). Reset that role password ON THE BRANCH in the Neon console, then use the new string.' };
+  }
+  return { ok: true, url: m.url, role: roleOf(m.url), separate: true };
 }
 
 /** Splits a psql-style file into SQL segments and `\echo` lines; any other meta-command is refused. */
@@ -227,66 +269,146 @@ function prisma(url, args) {
 
 const opt = (rest, name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
 
+/**
+ * post-Phase-1 / design-areas rollback-history: refuses while any table, enum, column, trigger or function the release's
+ * migrations create is still there (release.objects); then deletes exactly their history rows. Returns the exit code.
+ */
+async function rollbackHistoryRelease(url, release) {
+  const label = release.name === 'post-phase1' ? 'post-Phase-1' : release.label;
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    const o = release.objects;
+    const left = (await client.query(
+      `SELECT (SELECT array_agg(table_name::text) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)) AS tables,
+              (SELECT array_agg(typname::text) FROM pg_type WHERE typnamespace = 'public'::regnamespace AND typname = ANY($2)) AS enums,
+              (SELECT array_agg(table_name || '.' || column_name) FROM information_schema.columns
+                 WHERE table_schema = 'public' AND (table_name || '.' || column_name) = ANY($3)) AS columns,
+              (SELECT array_agg(DISTINCT tgname::text) FROM pg_trigger WHERE tgname = ANY($4)) AS triggers,
+              (SELECT array_agg(proname::text) FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname = ANY($5)) AS functions`,
+      [o.tables, o.enums, o.columns.map(([t, c]) => `${t}.${c}`), o.triggers, o.functions])).rows[0];
+    const remaining = [...(left.tables ?? []), ...(left.enums ?? []).map((e) => `enum ${e}`), ...(left.columns ?? []).map((c) => `column ${c}`),
+      ...(left.triggers ?? []).map((x) => `trigger ${x}`), ...(left.functions ?? []).map((x) => `function ${x}`)];
+    if (remaining.length) {
+      console.error(`✗ refused: the ${label} rollback is not complete (${remaining.join(', ')}). Run \`rollback --release ${release.name}\` first.`);
+      return 1;
+    }
+    const dirs = migrationDirs(REPO_ROOT).filter((d) => release.migrations.includes(d));
+    if (dirs.length !== release.migrations.length) throw new Error(`expected ${release.migrations.length} ${label} migration directories, found ${dirs.length}`);
+    const names = (await client.query('SELECT migration_name FROM "_prisma_migrations" WHERE migration_name = ANY($1) ORDER BY 1', [dirs])).rows.map((r) => r.migration_name);
+    const del = await client.query('DELETE FROM "_prisma_migrations" WHERE migration_name = ANY($1)', [names]);
+    console.log(`deleted ${del.rowCount} history row(s): ${names.join(', ') || 'none'}`);
+    return 0;
+  } finally {
+    await client.end();
+  }
+}
+
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const known = ['check-target', 'precheck', 'status', 'deploy', 'diff', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore'];
-  if (!known.includes(command)) { console.error(`usage: node scripts/release/rehearsal.mjs <${known.join('|')}> [--confirm <ep-id>]`); return 2; }
+  if (!known.includes(command)) { console.error(`usage: node scripts/release/rehearsal.mjs <${known.join('|')}> [--release <${RELEASE_NAMES.join('|')}>] [--confirm <ep-id>]`); return 2; }
+  const release = releaseFrom(rest);
+  if (!release) { console.error(`✗ --release must be one of: ${RELEASE_NAMES.join(', ')}`); return 2; }
   if (!samePath(process.cwd(), REPO_ROOT)) {
     console.error('✗ refused: run this from the root of the checkout the script belongs to (cd there first).');
     return 2;
   }
   console.log(`verifier guard: ${VERIFIER}`);
+  console.log(`release: ${release.name} — ${release.label}`);
 
-  // Phase 1 only: a checkout with migrations after M14 would make `deploy` apply them too and leave them
-  // behind on `rollback` (exit 5, before any target is read).
-  const laterInCheckout = laterMigrations(migrationDirs(REPO_ROOT));
-  if (laterInCheckout.length) {
-    console.error(`✗ refused: this checkout has ${laterInCheckout.length} migration(s) after M14 (${laterInCheckout.join(', ')}). `
-      + 'The kit rehearses exactly the 14 Phase 1 migrations: run it from a checkout whose last migration is M14.');
-    return 5;
+  if (release.name === 'phase1') {
+    // Phase 1 only: a checkout with migrations after M14 would make `deploy` apply them too and leave them
+    // behind on `rollback` (exit 5, before any target is read).
+    const laterInCheckout = laterMigrations(migrationDirs(REPO_ROOT));
+    if (laterInCheckout.length) {
+      console.error(`✗ refused: this checkout has ${laterInCheckout.length} migration(s) after M14 (${laterInCheckout.join(', ')}). `
+        + 'The kit rehearses exactly the 14 Phase 1 migrations: run it from a checkout whose last migration is M14'
+        + ' (for the eleven migrations after M14, use --release post-phase1).');
+      return 5;
+    }
+  } else {
+    // post-Phase-1 / design areas: exactly the release's migrations in the checkout, nothing after them (exit 5, before any target is read).
+    const problem = checkoutProblem(release, migrationDirs(REPO_ROOT));
+    if (problem) { console.error(`✗ refused: ${problem}`); return 5; }
   }
 
   const target = resolveDrillTarget(readTargetInputs());
   if (!target.ok) { console.error(`✗ ${target.reason}`); return target.code; }
   const ep = endpointId(target.url);
+  const inputs = readTargetInputs();
+  const migration = resolveMigrationTarget(target, {
+    migrationUrls: existsSync('.env.drill.local') ? envValues(readFileSync('.env.drill.local', 'utf8'), 'DRILL_MIGRATION_DATABASE_URL') : [],
+    productionUrls: inputs.productionUrls, appUrls: inputs.appUrls,
+  });
+  if (!migration.ok) { console.error(`✗ ${migration.reason}`); return migration.code; }
+  const schemaUrl = MIGRATION_ROLE_COMMANDS.has(command) ? migration.url : target.url;
   if (WRITES.has(command)) {
     const confirm = rest.includes('--confirm') ? String(rest[rest.indexOf('--confirm') + 1] ?? '').toLowerCase() : '';
     if (confirm !== ep) { console.error('✗ refused: --confirm must be the rehearsal branch endpoint id (ep-…) shown in the Neon console.'); return 3; }
   }
   console.log(`target: rehearsal branch endpoint ${WRITES.has(command) ? ep : '(guard passed)'} via direct endpoint`);
+  console.log(`role: ${MIGRATION_ROLE_COMMANDS.has(command) ? migration.role : decodeURIComponent(new URL(target.url).username)}`
+    + `${migration.separate ? ` (migration role ${migration.role} on the same endpoint; production password check passed)` : ''}`);
   const started = Date.now();
   let code = 0;
 
-  // …and a database that already records a migration after M14 is not a Phase 1 state either (exit 5).
-  // check-target never connects; restore requires an empty database (no history table).
+  // …and a database that already records a migration after the release's last is not that release's state either
+  // (exit 5). check-target never connects; restore requires an empty database (no history table).
   if (!['check-target', 'restore'].includes(command)) {
-    const laterInDb = laterMigrations(await appliedMigrations(target.url));
+    const applied = await appliedMigrations(target.url);
+    const laterInDb = release.name === 'phase1' ? laterMigrations(applied) : afterRelease(release, applied);
     if (laterInDb.length) {
-      console.error(`✗ refused: the target database records ${laterInDb.length} migration(s) after M14 (${laterInDb.join(', ')}). `
-        + 'The kit handles exactly the 14 Phase 1 migrations.');
+      console.error(release.name === 'phase1'
+        ? `✗ refused: the target database records ${laterInDb.length} migration(s) after M14 (${laterInDb.join(', ')}). The kit handles exactly the 14 Phase 1 migrations.`
+        : `✗ refused: the target database records ${laterInDb.length} migration(s) after ${release.label}'s last (${laterInDb.join(', ')}).`);
       return 5;
+    }
+    // post-Phase-1 builds on Phase 1: every M1–M14 must already be recorded (production today).
+    if (release.name === 'post-phase1' && command !== 'restore') {
+      const phase1Applied = applied.filter((n) => PHASE1.test(n)).length;
+      if (phase1Applied !== PHASE1_COUNT) {
+        console.error(`✗ refused: the target records ${phase1Applied} of the ${PHASE1_COUNT} Phase 1 migrations; post-phase1 needs all of them first.`);
+        return 5;
+      }
+    }
+    // The design areas build on Phase 1 and post-Phase-1: all of them must already be recorded.
+    if ((release.name === 'areas-2026' || release.name === 'late-2026') && command !== 'restore') {
+      const before = applied.filter((n) => release.requires.owns(n)).length;
+      if (before !== release.requires.count) {
+        console.error(`✗ refused: the target records ${before} of the ${release.requires.count} ${release.requires.label} migrations; ${release.name} needs all of them first.`);
+        return 5;
+      }
     }
   }
 
   switch (command) {
     case 'check-target': console.log('✔ guard passed. No connection made.'); break;
-    case 'precheck': await runSqlFile(target.url, join(REPO_ROOT, 'scripts/release/phase1-precheck.sql'), { readOnly: true }); break;
-    case 'postcheck': await runSqlFile(target.url, join(REPO_ROOT, 'scripts/release/phase1-postcheck.sql'), { readOnly: true }); break;
-    case 'dump': await dump(target, opt(rest, '--out')); break;
-    case 'restore': await restore(target, opt(rest, '--dump')); break;
-    case 'status': code = prisma(target.url, ['migrate', 'status']); break;
-    case 'deploy': code = prisma(target.url, ['migrate', 'deploy']); break;
-    case 'diff': code = prisma(target.url, ['migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--exit-code']); break;
+    case 'precheck': await runSqlFile(target.url, join(REPO_ROOT, release.precheck), { readOnly: true }); break;
+    case 'postcheck': await runSqlFile(target.url, join(REPO_ROOT, release.postcheck), { readOnly: true }); break;
+    case 'dump': await dump({ ...target, url: schemaUrl }, opt(rest, '--out')); break;
+    case 'restore': await restore({ ...target, url: schemaUrl }, opt(rest, '--dump')); break;
+    case 'status': code = prisma(schemaUrl, ['migrate', 'status']); break;
+    case 'deploy': code = prisma(schemaUrl, ['migrate', 'deploy']); break;
+    case 'diff': code = prisma(schemaUrl, ['migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--exit-code']); break;
     case 'rollback': {
-      for (const f of rollbackFiles(readdirSync(join(REPO_ROOT, 'docs/migrations')))) {
+      const docs = readdirSync(join(REPO_ROOT, 'docs/migrations'));
+      // Pre-switch steps first (in production they run while the new release still serves; see the runbook §4).
+      const preSwitch = release.name === 'phase1' ? [] : releasePreSwitchFiles(release, docs);
+      for (const f of [...preSwitch, ...(release.name === 'phase1' ? rollbackFiles(docs) : releaseRollbackFiles(release, docs))]) {
         console.log(`=== ${f}`);
-        await runSqlFile(target.url, join(REPO_ROOT, 'docs/migrations', f), { readOnly: false });
+        await runSqlFile(schemaUrl, join(REPO_ROOT, 'docs/migrations', f), { readOnly: false });
       }
-      console.log('Next: rollback-history (M9–M14 rows), then `status` ("Following migrations have not yet been applied:" + the 14 names; exit 1).');
+      console.log(release.name === 'phase1'
+        ? 'Next: rollback-history (M9–M14 rows), then `status` ("Following migrations have not yet been applied:" + the 14 names; exit 1).'
+        : release.name === 'post-phase1'
+          ? 'Next: rollback-history --release post-phase1 (the eleven rows), then `status --release post-phase1` (the eleven names not yet applied; exit 1).'
+          : `Next: rollback-history --release ${release.name} (its ${release.count} rows), then \`status --release ${release.name}\` (those names not yet applied; exit 1).`);
       break;
     }
     case 'rollback-history': {
-      const client = new pg.Client({ connectionString: target.url });
+      if (release.name !== 'phase1') { code = await rollbackHistoryRelease(schemaUrl, release); break; }
+      const client = new pg.Client({ connectionString: schemaUrl });
       await client.connect();
       try {
         const left = (await client.query(

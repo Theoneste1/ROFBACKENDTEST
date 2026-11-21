@@ -37,6 +37,15 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/users/user-provisioning.service.ts', rule: 'U6', code: 'pendingApproval = isHeadCoach(caller)',
     reason: "inviteCoachToProgramme(): only callers holding users.manageCoaches reach this line (permission guard, then assertCanInviteCoach) — Administrators (global, approved at once) or a Head Coach (programme scope, pending). The value only makes a Head Coach's invitation MORE restricted; no other role can get here.",
   },
+  // ── Student profile pictures (owner decision 2026-11-18) ──────────────────────
+  {
+    file: 'src/users/avatar.service.ts', rule: 'U4', code: 'viewer.id === studentId || isAdmin(viewer)',
+    reason: 'maySeeStudentPicture(): grants only the student themselves or an Administrator / Super Administrator; every other role (including an unsupported one) continues to the Teacher check below, which refuses unless a covering students.viewProfile delegation exists — the default is a refusal (404, as for no picture).',
+  },
+  {
+    file: 'src/users/avatar.service.ts', rule: 'U1', code: "!isTeacher(viewer) || !this.permissions.has(viewer, 'students.viewProfile')",
+    reason: 'maySeeStudentPicture(): every caller that is not a Teacher holding students.viewProfile is refused here (returns false → 404); a Teacher then needs the student visible and a covering delegation. Least privilege for unsupported roles.',
+  },
   // ── Teacher school scope (P1-11) ───────────────────────────────────────────
   {
     file: 'src/common/access/access.service.ts', rule: 'U4', code: 'isTeacher(user)',
@@ -109,6 +118,15 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/discussions/discussions.service.ts', rule: 'U4',
     code: "isStaff(viewer) || author.role !== 'STUDENT' || author.id === viewer.id",
     reason: 'publicAuthor(): the fall-through is the anonymised student name — the less-privileged result for any other viewer.',
+  },
+  // ── Test Management, Phase 4: the publication override (owner spec 10.1) ─────
+  {
+    file: 'src/test-management/test-results.service.ts', rule: 'U6', code: 'mayOverride = isAdmin(user)',
+    reason: 'preview(): only callers holding tests.publishResults reach it (Administrators, Super Admins, Head Coaches of the subject). The value only ADDS the override option for an Administrator; every other role (including an unsupported one) gets false — the less-privileged result (blocked).',
+  },
+  {
+    file: 'src/test-management/test-results.service.ts', rule: 'U6', code: 'mayOverride: isAdmin(user)',
+    reason: 'doPublish(): decidePublication refuses an override unless this is true (403 OVERRIDE_NOT_ALLOWED) and blocks unapproved results without it; any role other than ADMIN / SUPER_ADMIN gets false — the restrictive branch. The override route also requires tests.overridePublication (Administrators only, NEVER_GRANTABLE).',
   },
   // ── Study groups (module not registered; unchanged by decision P3-4) ───────
   {

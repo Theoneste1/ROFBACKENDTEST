@@ -33,6 +33,8 @@ describe('Security (e2e)', () => {
   beforeAll(async () => {
     process.env.MAX_UPLOAD_REQUEST_MB = '2';
     ctx = await createTestApp();
+    // As production (TRUST_PROXY=1): one proxy hop, so X-Forwarded-For stands for the client address in these tests.
+    ctx.app.getHttpAdapter().getInstance().set('trust proxy', 1);
     [admin, mentorJ, mentorJ2, studentJ, studentJ2] = await Promise.all(
       ['admin', 'mentor.j', 'mentor.j2', 'student.j', 'student.j2'].map((u) => login(ctx, u)),
     );
@@ -132,31 +134,33 @@ describe('Security (e2e)', () => {
       studentJ2 = await login(ctx, 'student.j2');
     });
 
-    it('five wrong passwords lock the account for every address, without revealing it', async () => {
-      const attempt = (password: string) => ctx.http().post('/api/v1/auth/login').send({ username: 'mentor.j2', password });
+    it('five wrong passwords lock the account for THAT address only (owner approval 2026-11-18), without revealing it', async () => {
+      const attempt = (password: string, from: string) => ctx.http().post('/api/v1/auth/login').set('X-Forwarded-For', from).send({ username: 'mentor.j2', password });
       for (let i = 0; i < 5; i++) {
-        const r = await attempt(`wrong-${i}`).expect(401);
+        const r = await attempt(`wrong-${i}`, '198.51.100.7').expect(401);
         expect(r.body.message).toBe('Invalid username or password.');
       }
-      // Locked: even the right password gets the same answer.
-      const locked = await attempt(PASSWORD).expect(401);
+      // Locked from that address: even the right password gets the same answer.
+      const locked = await attempt(PASSWORD, '198.51.100.7').expect(401);
       expect(locked.body.message).toBe('Invalid username or password.');
-      expect((await ctx.prisma.auditLog.findFirst({ where: { action: 'LOCK_ACCOUNT', entityId: ctx.ids.mentorJunior2 } }))).toBeTruthy();
-
-      // Once the lock expires the right password works and the counter resets.
-      await ctx.prisma.user.update({ where: { id: ctx.ids.mentorJunior2 }, data: { lockedUntil: new Date(Date.now() - 1000) } });
-      await attempt(PASSWORD).expect(200);
-      expect(await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.ids.mentorJunior2 } })).toMatchObject({ failedLoginCount: 0, lockedUntil: null });
-      // An unknown username behaves exactly like a wrong password.
-      const unknown = await ctx.http().post('/api/v1/auth/login').send({ username: 'nobody.here', password: PASSWORD }).expect(401);
-      expect(unknown.body.message).toBe('Invalid username or password.');
+      const lock = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'LOCK_ACCOUNT', entityId: ctx.ids.mentorJunior2 } });
+      expect(lock.metadata).toMatchObject({ attempts: 5, scope: 'ADDRESS', ip: '198.51.100.7', minutes: 15 });
+      // The account itself is not locked: the owner signs in from another address.
+      await attempt(PASSWORD, '203.0.113.20').expect(200);
+      expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.ids.mentorJunior2 } })).lockedUntil).toBeNull();
+      // An unknown username behaves exactly like a wrong password, and is locked the same way.
+      for (let i = 0; i < 5; i++) {
+        const r = await ctx.http().post('/api/v1/auth/login').set('X-Forwarded-For', '198.51.100.8').send({ username: 'nobody.here', password: `x${i}` }).expect(401);
+        expect(r.body.message).toBe('Invalid username or password.');
+      }
+      expect((await ctx.http().post('/api/v1/auth/login').set('X-Forwarded-For', '198.51.100.8').send({ username: 'nobody.here', password: PASSWORD }).expect(401)).body.message)
+        .toBe('Invalid username or password.');
     });
 
-    it('parallel wrong passwords lock the account just like sequential ones (no lost counts)', async () => {
+    it('parallel wrong passwords from one address lock that address just like sequential ones (no lost counts)', async () => {
       const id = ctx.ids.mentorJunior2;
-      await ctx.prisma.user.update({ where: { id }, data: { failedLoginCount: 0, lockedUntil: null } });
       const since = new Date();
-      const attempt = (password: string) => ctx.http().post('/api/v1/auth/login').send({ username: 'mentor.j2', password });
+      const attempt = (password: string, from = '198.51.100.9') => ctx.http().post('/api/v1/auth/login').set('X-Forwarded-For', from).send({ username: 'mentor.j2', password });
 
       // Test harness: supertest starts a server that is not listening for the request that needs it and
       // closes it when that request ends, resetting the other requests still in flight (ECONNRESET on a
@@ -164,19 +168,15 @@ describe('Security (e2e)', () => {
       const server = ctx.app.getHttpServer();
       if (!server.listening) await new Promise<void>((resolve) => server.listen(0, resolve));
 
-      // 20 wrong guesses at once (e.g. from 20 addresses, so no IP throttle applies).
+      // 20 wrong guesses at once from one address.
       const burst = await Promise.all(Array.from({ length: 20 }, (_, i) => attempt(`parallel-wrong-${i}`)));
       expect(burst.map((r) => r.status)).toEqual(Array(20).fill(401));
       expect(new Set(burst.map((r) => r.body.message))).toEqual(new Set(['Invalid username or password.']));
-
-      const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id } });
-      expect(user.lockedUntil?.getTime() ?? 0).toBeGreaterThan(Date.now());
+      // Exactly one lock, for that address; the right password is refused from there and accepted elsewhere.
       expect(await ctx.prisma.auditLog.count({ where: { action: 'LOCK_ACCOUNT', entityId: id, createdAt: { gte: since } } })).toBe(1);
-      // Locked: the right password is refused too.
       await attempt(PASSWORD).expect(401);
-
-      await ctx.prisma.user.update({ where: { id }, data: { failedLoginCount: 0, lockedUntil: null } });
-      await attempt(PASSWORD).expect(200);
+      await attempt(PASSWORD, '203.0.113.21').expect(200);
+      expect((await ctx.prisma.user.findUniqueOrThrow({ where: { id } })).lockedUntil).toBeNull();
     });
 
     it('password-reset requests do not reveal whether an account exists; only the newest link works', async () => {

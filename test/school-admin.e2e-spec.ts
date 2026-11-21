@@ -81,7 +81,7 @@ describe('School administration (PR B)', () => {
   const create = (body: object, token = admin) => http().post(S).set(bearer(token)).send(body);
   const setActive = (id: string, isActive: boolean, token = admin) => http().patch(`${S}/${id}/active`).set(bearer(token)).send({ isActive, reason: 'Test reason' });
   const register = (username: string, extra: object) => http().post('/api/v1/auth/register/student').send({
-    firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', gradeLevel: 'S2', homeLocation: 'Huye', ...extra,
+    firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', ...extra,
   });
   const invite = (email: string, extra: object) => http().post('/api/v1/admin/users/invite').set(bearer(admin)).send({
     firstName: 'I', lastName: 'Nv', email, gradeLevel: 'S2', ...extra,

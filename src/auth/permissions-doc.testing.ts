@@ -12,6 +12,7 @@ const SCOPE_TEXT: Record<ScopeKind, string> = {
   programme:      'programme',
   school:         'school',
   global:         'all',
+  markerAuthorization: 'authorised subjects (assigned)',
 };
 
 export function renderPermissionMatrix(): string {

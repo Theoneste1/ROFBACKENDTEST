@@ -22,6 +22,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { PrismaClient, type DivisionCode, type GradeLevel } from '../src/generated/prisma/client.js';
+import { seedReferenceData } from '../src/reference-data/seed-reference-data.js';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -202,7 +203,7 @@ async function seedDemo() {
       where:  { username: s.username },
       create: {
         username: s.username, firstName: s.firstName, lastName: 'Student', email: `${s.username}@rof.local`,
-        passwordHash: password, role: 'STUDENT', gradeLevel: s.gradeLevel, activatedAt: new Date(),
+        passwordHash: password, role: 'STUDENT', dateOfBirth: new Date('2010-05-01T00:00:00Z'), gradeLevel: s.gradeLevel, activatedAt: new Date(),
         divisionId: divisions.get(division)!, schoolId: school.id, homeLocation: 'Kigali',
       },
       update: {},
@@ -215,6 +216,8 @@ async function seedDemo() {
 async function main() {
   const disciplineId = await seedDiscipline();
   await seedDivisions();
+  // Countries (inserted by migration 20261211000000; idempotent).
+  await seedReferenceData(prisma);
   await seedCourses(disciplineId);
   const yearId = await seedAcademicYear();
   await seedAdmin();

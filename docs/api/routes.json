@@ -130,6 +130,78 @@
     "tag": "Admin · Audit"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/{entityType}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/{entityType}/export",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/{entityType}/preview",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/actions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/operations",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/operations/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/bulk/operations/{id}/cancel",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/bulk/operations/{id}/items",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Bulk operations"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/contact-messages",
     "roles": [
@@ -146,6 +218,24 @@
       "SUPER_ADMIN"
     ],
     "tag": "Admin · Contact messages"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/countries",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Countries"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/countries/{code}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Countries"
   },
   {
     "method": "PATCH",
@@ -264,6 +354,69 @@
       "SUPER_ADMIN"
     ],
     "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/notification-deliveries",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/notification-deliveries/{id}/retry",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/forms",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/forms/{key}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/forms/{key}/availability",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/forms/{key}/history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/forms/{key}/messages",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Forms"
   },
   {
     "method": "POST",
@@ -966,6 +1119,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/access",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/schools/{id}/access/students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/teacher-assignments",
     "roles": [
       "ADMIN",
@@ -985,6 +1156,51 @@
   {
     "method": "DELETE",
     "path": "/api/v1/admin/teacher-assignments/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-assignments/{id}/primary",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teacher-students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teacher-students/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-students/reassign",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -1019,6 +1235,520 @@
     "tag": "Admin · Teachers"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}/students",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/assign",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/distribute",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking/history",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose",
+    "roles": [
+      "HEAD_COACH"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/test-dashboard",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/test-reports",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/export.csv",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/preview",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/publications",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/results/publish",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/results/publish/override",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/rankings",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/results/report",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Test results"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/test-markers",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/test-markers",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/test-markers/{id}/revoke",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/test-markers/candidates",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tests/{id}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tests/{id}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/extension-targets",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/extensions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/extensions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tests/{id}/extensions/{extensionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/extensions/{extensionId}/cancel",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/files/{kind}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tests/{id}/files/{kind}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tests/{id}/files/{kind}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/publish",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/questions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tests/{id}/questions/{questionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tests/{id}/questions/{questionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tests/{id}/questions/order",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/unpublish",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/subjects",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/users",
     "roles": [
@@ -1064,6 +1794,51 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/admin/users/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/users/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/users/{id}/date-of-birth",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/date-of-birth-history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/registration-timeline",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/users/{id}/resend-invitation",
     "roles": [
@@ -1084,6 +1859,87 @@
   {
     "method": "PATCH",
     "path": "/api/v1/admin/users/{id}/status",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/status-changes",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/status-history",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/bulk",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/bulk/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk/{id}/cancel",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/users/bulk/{id}/items",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk/export",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/users/bulk/preview",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -1280,6 +2136,22 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/applications/info-requests/answer",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/applications/info-requests/view",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/auth/activate",
     "roles": [
       "PUBLIC"
@@ -1356,8 +2228,32 @@
     "tag": "Auth"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/auth/register/avatar",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/auth/register/student",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/register/teacher",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/register/teacher/availability",
     "roles": [
       "PUBLIC"
     ],
@@ -1378,6 +2274,14 @@
       "PUBLIC"
     ],
     "tag": "Auth"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/countries",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Countries"
   },
   {
     "method": "GET",
@@ -1797,6 +2701,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/forms",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Forms"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/forms/{key}",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Forms"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1",
     "roles": [
       "PUBLIC"
@@ -1841,6 +2761,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/marking/dashboard",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Marking"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/me",
     "roles": [
       "STUDENT",
@@ -1868,8 +2796,36 @@
     "tag": "Me"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/me/avatar",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/avatar",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/me/courses",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/date-of-birth",
     "roles": [
       "STUDENT"
     ],
@@ -1880,6 +2836,16 @@
     "path": "/api/v1/me/enrollments",
     "roles": [
       "STUDENT"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/gender",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
     ],
     "tag": "Me"
   },
@@ -1986,6 +2952,15 @@
     "tag": "Mentor requests"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/mentor-requests/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
     "method": "PATCH",
     "path": "/api/v1/mentor-requests/{id}/reject",
     "roles": [
@@ -1993,6 +2968,39 @@
       "SUPER_ADMIN"
     ],
     "tag": "Mentor requests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/mentor-requests/{id}/request-info",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Mentor requests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/test-dashboard",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "My tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/test-results",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "My tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/test-results/{testId}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "My tests"
   },
   {
     "method": "GET",
@@ -2020,6 +3028,7 @@
     "roles": [
       "ADMIN",
       "MENTOR",
+      "HEAD_COACH",
       "SUPER_ADMIN"
     ],
     "tag": "Notifications"
@@ -2030,6 +3039,7 @@
     "roles": [
       "ADMIN",
       "MENTOR",
+      "HEAD_COACH",
       "SUPER_ADMIN"
     ],
     "tag": "Notifications"
@@ -2040,6 +3050,7 @@
     "roles": [
       "ADMIN",
       "MENTOR",
+      "HEAD_COACH",
       "SUPER_ADMIN"
     ],
     "tag": "Notifications"
@@ -2437,6 +3448,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/teacher/schools",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/teacher/students",
     "roles": [
       "TEACHER"
@@ -2466,5 +3485,310 @@
       "TEACHER"
     ],
     "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/students/summary",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teacher-applications",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teacher-applications/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/approve",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/teacher-applications/{id}/avatar",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/reject",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/request-info",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/teacher-applications/{id}/school",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Teacher applications"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-dashboard",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-results",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-results/{testId}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/test-results/{testId}/students/{studentId}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Teacher tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/queue",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/marking/submissions/{code}/marking",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}/marking-guide",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/marking/submissions/{code}/marking/submit",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}/pages/{page}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/submissions/{code}/paper",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}/paper",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/tests/{id}/submission",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}/uploads/{uploadKey}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tests/{id}/versions/{versionId}/pages/{page}",
+    "roles": [
+      "STUDENT"
+    ],
+    "tag": "Tests · Students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/paper",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/submission",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}",
+    "roles": [
+      "TEACHER"
+    ],
+    "tag": "Tests · Teachers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/users/{id}/avatar",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Users"
   }
 ]

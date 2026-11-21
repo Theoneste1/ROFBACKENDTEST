@@ -80,7 +80,7 @@ export class StorageService implements OnModuleInit {
   async store(
     file: Express.Multer.File,
     purpose: FilePurpose,
-    uploadedById: string,
+    uploadedById: string | null,   // null: an applicant without an account yet (REG-02)
   ): Promise<FileObject> {
     const rule = FILE_RULES[purpose];
     const data = file.buffer;
@@ -133,19 +133,37 @@ export class StorageService implements OnModuleInit {
   // Serve
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /** Stream a file to the client. Authorization must already have happened. */
-  async send(res: Response, file: ServableFile, opts: { download?: boolean } = {}) {
+  /**
+   * Stream a file to the client. Authorization must already have happened.
+   * `cacheControl` overrides the default `private, no-store` (e.g. versioned profile pictures).
+   */
+  async send(
+    res: Response, file: ServableFile,
+    opts: { download?: boolean; cacheControl?: string; transform?: (data: Buffer) => Buffer | Promise<Buffer> } = {},
+  ) {
     const stream = await this.driver.getStream(file.storageKey);
+    // `transform` (e.g. removing identifying metadata for a blind marker): the file is read whole (uploads are bounded)
+    // and the transformed bytes are sent with their own length.
+    let body: Buffer | null = null;
+    if (opts.transform) {
+      const chunks: Buffer[] = [];
+      for await (const c of stream) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c as Uint8Array));
+      body = await opts.transform(Buffer.concat(chunks));
+    }
 
     const inline = !opts.download && INLINE_TYPES.has(file.mimeType);
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Length', String(file.size));
+    res.setHeader('Content-Length', String(body ? body.length : file.size));
     res.setHeader('Content-Disposition', contentDisposition(file.originalName, inline));
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('Cache-Control', opts.cacheControl ?? 'private, no-store');
     // Uploaded documents must never run script in our origin.
     res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
 
+    if (body) {
+      res.end(body);
+      return;
+    }
     try {
       await pipeline(stream, res);
     } catch (err) {
@@ -173,8 +191,9 @@ export class StorageService implements OnModuleInit {
   /**
    * Nightly: delete files no record refers to any more (detached resource
    * files, uploads whose request failed after storing, …). Every reference to
-   * a file goes through an attachment table, so a file is an orphan only when
-   * no attachment of any kind points to it. Submission files stay attached to
+   * a file goes through an attachment table (a test's paper or marking guide
+   * included) or is an account's current profile picture, so a file is an orphan
+   * only when nothing of either kind points to it. Submission files stay attached to
    * their revision history and are never removed here.
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'storage-orphan-cleanup' })
@@ -192,6 +211,11 @@ export class StorageService implements OnModuleInit {
         assignmentAttachments: { none: {} },
         submissionAttachments: { none: {} },
         reviewAttachments:     { none: {} },
+        avatarOf:              { is: null },
+        teacherApplicationAvatarOf: { is: null },
+        mentorRequestAvatarOf:      { is: null },
+        testFiles:                  { none: {} },   // a test's paper or marking guide (Test Management)
+        testAnswerPage:             { is: null },   // a page of a test answer, pending or submitted (Test Management)
       },
       select: { id: true, storageKey: true },
       take:   500,

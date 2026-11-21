@@ -21,6 +21,7 @@ export const Events = {
   MentorRequestDecided:         'mentor_request.decided',
   StudentRegistered:            'registration.student',
   MentorRequestSubmitted:       'registration.mentor_request',
+  TeacherApplicationSubmitted:  'registration.teacher_application',
   DiscussionThreadCreated:      'discussion.thread_created',
   DiscussionCommentPosted:      'discussion.comment_posted',
   ContentReported:              'moderation.content_reported',
@@ -36,6 +37,8 @@ export interface ResultReopenedEvent    { submissionId: string; reason?: string;
 export interface StudentRegisteredEvent { userId: string; requiresApproval: boolean }
 /** A coach application submitted (or re-submitted after a rejection); submittedAt identifies this submission. */
 export interface MentorRequestSubmittedEvent { requestId: string; submittedAt: string; reapplication: boolean }
+/** A Teacher self-registration application submitted (each application is its own row: one notice each). */
+export interface TeacherApplicationSubmittedEvent { applicationId: string }
 export interface SubmissionsAssignedEvent { assignmentId: string; byMentor: Record<string, number> }
 export interface ResultsPublishedEvent  { submissionIds: string[] }
 export interface ResourceEvent          { resourceId: string }
@@ -53,4 +56,6 @@ export interface MentorRequestDecidedEvent {
   email:     string;
   firstName: string;
   approved:  boolean;
+  /** A rejection's reason, e-mailed to the applicant (REG-10). */
+  reason?:   string;
 }

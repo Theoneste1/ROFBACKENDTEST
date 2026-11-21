@@ -157,6 +157,26 @@ export class NotificationsService {
     }, { timeout: 30_000 });
   }
 
+  /**
+   * One in-app notification, written with the caller's transaction (decision notifications: it must
+   * exist if and only if the Administrator's action commits). Same format as notify(); no e-mail and no
+   * per-type switch — account notices cannot be switched off.
+   */
+  async createInApp(tx: Prisma.TransactionClient, userId: string, payload: NotificationPayload): Promise<{ id: string }> {
+    return tx.notification.create({
+      data: {
+        userId,
+        category: payload.category,
+        type:     payload.type,
+        title:    payload.title,
+        body:     payload.body,
+        data:     (payload.data as Prisma.InputJsonValue) ?? undefined,
+        link:     payload.link ?? null,
+      },
+      select: { id: true },
+    });
+  }
+
   /** Queue a transactional e-mail to an address that may not belong to a user. */
   async queueEmail(to: string, title: string, body: string, opts: QueueEmailOptions = {}) {
     const mail = this.compose(await this.brand(), { heading: title, ...opts }, body);

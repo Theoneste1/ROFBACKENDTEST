@@ -4,6 +4,9 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { loginRefusal } from '../users/account-status.js';
+import { FormAvailabilityService } from '../forms/form-availability.service.js';
+import { canonicalInterests } from '../users/olympiad-interests.js';
 import { AuditService } from '../audit/audit.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
@@ -22,10 +25,13 @@ import { RoleAssignmentPolicy } from './role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import { schoolKey } from '../schools/school-key.js';
 import { RWANDA } from '../schools/school-rules.js';
-import { assertDirectoryPlace, directorySchoolById, uniqueOfficialSchoolInPlace } from '../schools/school-directory.js';
+import { assertDirectoryPlace, directorySchoolById, publicDirectoryHasPlace, uniqueOfficialSchoolInPlace } from '../schools/school-directory.js';
+import { homePlaceOf, studentDetailAudit, studentDetailColumns, unknownHomeLocation } from './student-details.js';
 import { schoolInactive } from '../schools/school-usage.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import { RegistrationAvatarService } from '../users/registration-avatar.service.js';
+import { LOGIN_FAILURES_BEFORE_LOCK, LOGIN_LOCK_MS, LoginLimiter } from './login-limiter.js';
 import type { CallerCtx } from '../common/auth-user.js';
 
 export const BCRYPT_COST = 12;
@@ -36,19 +42,37 @@ const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 let dummyHash: Promise<string> | null = null;
 const getDummyHash = () => (dummyHash ??= bcrypt.hash('timing-equaliser-not-a-password', BCRYPT_COST));
 
+/** The roles asked their gender once at sign-in when it is missing (the roles that sign up themselves). */
+export const GENDER_STEP_ROLES: readonly string[] = ['STUDENT', 'TEACHER', 'MENTOR'];
+
 /** Profile fields returned on login and from GET /me. */
 export const PROFILE_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
-  role: true, avatarUrl: true, gradeLevel: true, homeLocation: true,
+  role: true, avatarUrl: true, gradeLevel: true, homeLocation: true, olympiadInterests: true,
+  // Registration details (studentRegistrationDetails): the account holder's own data.
+  dateOfBirth: true, gender: true, phone: true, guardianPhone: true, country: true, homeProvince: true, homeDistrict: true, homeSector: true,
   points: true, problemsSolved: true, createdAt: true, lastLoginAt: true,
   division: { select: { id: true, code: true, name: true } },
   school:   { select: { id: true, name: true, location: true } },
 } as const;
 
+/**
+ * A profile (PROFILE_SELECT) with `dateOfBirthRequired`: true for a STUDENT without a date of birth, who must give it
+ * before anything else (owner decision 9.3, PUT /api/v1/me/date-of-birth). Returned on login and by GET /me.
+ */
+export function withProfileSteps<T extends { role: string; dateOfBirth: Date | null; gender: string | null }>(profile: T): T & { dateOfBirthRequired: boolean; genderRequired: boolean } {
+  return {
+    ...profile,
+    dateOfBirthRequired: profile.role === 'STUDENT' && profile.dateOfBirth === null,
+    // Gender step (capability genderStep; owner 2026-11-20): students, teachers and coaches without a gender (accounts
+    // created before gender was asked at sign-up, or by an Administrator) give it once (PUT /me/gender).
+    genderRequired: GENDER_STEP_ROLES.includes(profile.role) && profile.gender === null,
+  };
+}
 
 /** Consecutive wrong passwords before an account is locked, and for how long. */
-export const MAX_FAILED_LOGINS = 5;
-export const LOCKOUT_MS = 15 * 60 * 1000;
+export const MAX_FAILED_LOGINS = LOGIN_FAILURES_BEFORE_LOCK;
+export const LOCKOUT_MS = LOGIN_LOCK_MS;
 
 @Injectable()
 export class AuthService {
@@ -66,6 +90,9 @@ export class AuthService {
     private readonly roles:         RoleAssignmentPolicy,
     private readonly affiliations:  SchoolAffiliationService,
     private readonly events:        EventEmitter2,
+    private readonly forms:         FormAvailabilityService,
+    private readonly limiter:       LoginLimiter,
+    private readonly registrationAvatar: RegistrationAvatarService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -122,9 +149,12 @@ export class AuthService {
   }
 
   async registerStudent(data: RegisterStudentDto) {
-    if (!(await this.settings.get('registration.studentSelfSignup'))) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'REGISTRATION_CLOSED', 'Student self-registration is currently closed.');
-    }
+    // The STUDENT_REGISTRATION form (open, closed or scheduled): 403 REGISTRATION_CLOSED with its closed message.
+    await this.forms.assertOpen('STUDENT_REGISTRATION');
+
+    // Registration details (studentRegistrationDetails): the official home place must exist (Rwanda only).
+    const home = homePlaceOf(data);
+    if (home && !(await publicDirectoryHasPlace(this.prisma, home))) throw unknownHomeLocation(home);
 
     await this.assertIdentityFree(data.username, data.email);
 
@@ -154,7 +184,10 @@ export class AuthService {
           gradeLevel:   data.gradeLevel,
           divisionId,
           schoolId:     school?.id ?? null,
-          homeLocation: data.homeLocation,
+          // homeLocation, and the registration details that were sent (date of birth, phones, own country, home place).
+          ...studentDetailColumns(data, home),
+          // Owner decision 8: information only (no programme membership, no permissions).
+          olympiadInterests: canonicalInterests(data.olympiadInterests),
         },
         select: PROFILE_SELECT,
       });
@@ -191,6 +224,9 @@ export class AuthService {
           }),
           // Linked to a canonical School or not; membership is verified separately by an Administrator.
           schoolLinked: !!school,
+          olympiadInterests: canonicalInterests(data.olympiadInterests),
+          // Whether each detail was given — never a phone number or a date of birth.
+          ...studentDetailAudit(data, home),
         },
       }, tx);
 
@@ -211,6 +247,8 @@ export class AuthService {
       requiresEmailVerification: requiresVerification,
       // 'PENDING' when a school claim was created (an Administrator verifies it); null otherwise.
       schoolVerification: student.affiliationId ? ('PENDING' as const) : null,
+      // OPTIONAL picture (REG-02): PUT /auth/register/avatar within 30 minutes; registration never depends on it.
+      avatarUploadToken: this.registrationAvatar.issue('STUDENT', student.created.id),
     };
   }
 
@@ -250,25 +288,40 @@ export class AuthService {
 
   async login(data: LoginDto, client: ClientInfo) {
     const identifier = data.username;
+    // Sign-in protection, decided before the account is looked up (identical for unknown usernames).
+    let decision = this.limiter.reserve(identifier, client.ip);
     const user = await this.prisma.user.findFirst({
       where: identifier.includes('@') ? { email: identifier } : { username: identifier },
       select: {
-        id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true,
+        id: true, role: true, passwordHash: true, isActive: true, isApproved: true, activatedAt: true, accountStatus: true,
+        lockedUntil: true,
       },
     });
 
-    // Reserve this attempt BEFORE the password is checked (under the user's row
-    // lock), so concurrent guesses cannot all be evaluated against a stale
-    // "not locked" read: at most MAX_FAILED_LOGINS guesses are ever checked
-    // before the account locks, however many arrive at once.
-    const attempt = user?.passwordHash ? await this.reserveLoginAttempt(user.id) : null;
+    if (!decision.ok && decision.reason === 'RATE_LIMITED') {
+      // The username's limits are reached (possibly by an attacker elsewhere). An address this account has signed in
+      // from successfully in the last 30 days is not held by them — otherwise an attacker hammering a username could
+      // keep the student out everywhere. That address still has its own lock (5 wrong passwords → 15 minutes).
+      // Attackers do not sign in from the student's addresses, so for them the answer stays the same for real and
+      // unknown usernames. Only where client addresses are verified (SIGNIN_TRUSTED_CLIENT_ADDRESS=true): behind a
+      // shared proxy address an attacker would share the student's "known" address.
+      const known = this.limiter.trustsClientAddresses && user && client.ip ? await this.signedInFrom(user.id, client.ip) : false;
+      if (!known) {
+        throw new AppError(HttpStatus.TOO_MANY_REQUESTS, 'TOO_MANY_REQUESTS', 'Too many sign-in attempts. Please wait and try again.', { retryAfter: decision.retryAfterSeconds });
+      }
+      decision = this.limiter.reserveKnownAddress(identifier, client.ip);
+    }
     const passwordMatches = await bcrypt.compare(data.password, user?.passwordHash ?? (await getDummyHash()));
-    // A locked account answers exactly like a wrong password, so the lock
-    // reveals nothing; the password is still checked to keep timing equal.
-    if (!user || !user.passwordHash || attempt === null || !passwordMatches) {
-      if (attempt !== null && !passwordMatches) await this.recordFailedLogin(user!.id, attempt);
+    // A locked username + address answers exactly like a wrong password (the right password included), so the lock
+    // reveals nothing; the password is still checked to keep timing equal. Unknown usernames count the same way.
+    // An account-wide lock recorded by an earlier release (User.lockedUntil) is still honoured until it expires;
+    // new locks are per username + address (LoginLimiter) and never written there.
+    const legacyLocked = !!user?.lockedUntil && user.lockedUntil > new Date();
+    if (!decision.ok || legacyLocked || !user || !user.passwordHash || !passwordMatches) {
+      if (decision.ok && !legacyLocked && !passwordMatches && this.limiter.failed(decision.pair) && user) await this.auditLock(user.id, client.ip);
       throw new UnauthorizedException('Invalid username or password.');
     }
+    this.limiter.succeeded(decision.pair);
 
     // Account state is only revealed after a correct password. A correct
     // password never counts towards the lockout, also when the account cannot
@@ -277,7 +330,9 @@ export class AuthService {
       await this.prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0 } });
     }
     if (!user.isActive) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_SUSPENDED', 'This account has been suspended.');
+      // Account states: ACCOUNT_DEACTIVATED, ACCOUNT_SUSPENDED (as before) or ACCOUNT_ARCHIVED.
+      const refusal = loginRefusal(user.accountStatus) ?? loginRefusal('SUSPENDED')!;
+      throw new AppError(HttpStatus.FORBIDDEN, refusal.code, refusal.message);
     }
     if (!user.activatedAt) {
       throw new AppError(
@@ -307,7 +362,7 @@ export class AuthService {
     });
     this.activity.record(user.id, 'LOGIN');
 
-    return { ...tokens, user: profile };
+    return { ...tokens, user: withProfileSteps(profile) };
   }
 
   // ─── Refresh / Logout ──────────────────────────────────────────────────────
@@ -355,59 +410,22 @@ export class AuthService {
    * Always succeeds from the caller's point of view, so the endpoint cannot be
    * used to discover which e-mail addresses have accounts.
    */
-  /**
-   * Reserve one login attempt for a user, atomically: under the User row lock,
-   * refuse (null) while the account is locked or MAX_FAILED_LOGINS attempts are
-   * already counted (pending or failed); otherwise count this attempt and return
-   * its number. A correct password resets the counter (login success); a wrong
-   * one is settled by recordFailedLogin. The row lock is held only for this
-   * short transaction, never during the bcrypt comparison.
-   */
-  private async reserveLoginAttempt(userId: string): Promise<number | null> {
-    const result = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-      const u = await tx.user.findUnique({ where: { id: userId }, select: { failedLoginCount: true, lockedUntil: true } });
-      if (!u) return { attempt: null, lockedNow: false };
-      if (u.lockedUntil && u.lockedUntil > new Date()) return { attempt: null, lockedNow: false };
-      if (u.failedLoginCount >= MAX_FAILED_LOGINS) {
-        // The limit is reached but nothing has locked the account yet: either the
-        // deciding attempt is still being checked, or its request died before it
-        // could settle. Lock now, so the account can never be stuck refusing
-        // every attempt with no expiry.
-        await tx.user.update({ where: { id: userId }, data: { failedLoginCount: 0, lockedUntil: new Date(Date.now() + LOCKOUT_MS) } });
-        return { attempt: null, lockedNow: true };
-      }
-      const updated = await tx.user.update({
-        where:  { id: userId },
-        data:   { failedLoginCount: { increment: 1 } },
-        select: { failedLoginCount: true },
-      });
-      return { attempt: updated.failedLoginCount, lockedNow: false };
+  /** Whether this account signed in successfully from this address in the last 30 days (LOGIN audit rows). */
+  private async signedInFrom(userId: string, address: string): Promise<boolean> {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60_000);
+    const row = await this.prisma.auditLog.findFirst({
+      where: { action: 'LOGIN', entityId: userId, createdAt: { gte: since }, metadata: { path: ['ip'], equals: address } },
+      select: { id: true },
     });
-    if (result.lockedNow) await this.auditLock(userId, MAX_FAILED_LOGINS);
-    return result.attempt;
+    return row !== null;
   }
 
-  /**
-   * Settle a reserved attempt whose password was wrong. The attempt that
-   * reaches MAX_FAILED_LOGINS locks the account for LOCKOUT_MS, whichever
-   * addresses the attempts came from (the IP throttle alone can be spread across
-   * many addresses). Earlier wrong attempts are already counted by the
-   * reservation, so there is nothing else to write.
-   */
-  private async recordFailedLogin(userId: string, attempt: number) {
-    if (attempt < MAX_FAILED_LOGINS) return;
-    const now = new Date();
-    // Conditional: a concurrent reservation may already have locked the account.
-    const { count } = await this.prisma.user.updateMany({
-      where: { id: userId, OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] },
-      data:  { failedLoginCount: 0, lockedUntil: new Date(now.getTime() + LOCKOUT_MS) },
+  /** The lock is scoped to this address (owner approval 2026-11-18); the account stays usable from every other one. */
+  private auditLock(userId: string, address: string | undefined) {
+    return this.audit.log({
+      actorId: null, action: 'LOCK_ACCOUNT', entity: 'User', entityId: userId,
+      metadata: { attempts: LOGIN_FAILURES_BEFORE_LOCK, scope: 'ADDRESS', ip: address ?? null, minutes: LOGIN_LOCK_MS / 60_000 },
     });
-    if (count > 0) await this.auditLock(userId, attempt);
-  }
-
-  private auditLock(userId: string, attempts: number) {
-    return this.audit.log({ actorId: null, action: 'LOCK_ACCOUNT', entity: 'User', entityId: userId, metadata: { attempts } });
   }
 
   async forgotPassword(email: string) {
@@ -481,7 +499,9 @@ export class AuthService {
         data:  { usedAt: new Date() },
       });
       if (count === 0) return false;
-      await tx.user.update({ where: { id: record.userId }, data: { passwordHash } });
+      // A password reset is the remedy for sign-in locks (no Administrator control): it also ends a lock recorded by
+      // the earlier release (User.lockedUntil); the address locks are cleared below.
+      await tx.user.update({ where: { id: record.userId }, data: { passwordHash, failedLoginCount: 0, lockedUntil: null } });
       // Every session ends in the same transaction as the password change.
       await this.tokens.revokeAllForUser(record.userId, tx);
       await this.audit.log({
@@ -493,6 +513,9 @@ export class AuthService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_RESET_TOKEN', 'This reset link is invalid or has expired.');
     }
 
+    // A new password ends this account's sign-in locks, from every address.
+    const owner = await this.prisma.user.findUnique({ where: { id: record.userId }, select: { username: true, email: true } });
+    if (owner) { this.limiter.clear(owner.username); this.limiter.clear(owner.email); }
     await this.accountEmails.passwordChanged(record.userId);
     return { message: 'Password updated. Please log in with your new password.' };
   }
@@ -526,14 +549,19 @@ export class AuthService {
 
   /** One message for both cases, so the endpoint can't confirm which one is taken. */
   private async assertIdentityFree(username: string, email: string) {
-    const [user, request] = await Promise.all([
+    const [user, request, teacherApplication] = await Promise.all([
       this.prisma.user.findFirst({ where: { OR: [{ username }, { email }] }, select: { id: true } }),
       this.prisma.mentorRequest.findFirst({
         where:  { OR: [{ username }, { email }], status: 'PENDING' },
         select: { id: true },
       }),
+      // A pending Teacher application holds its username and e-mail too (teacher self-registration).
+      this.prisma.teacherApplication.findFirst({
+        where:  { OR: [{ username }, { email }], status: 'PENDING' },
+        select: { id: true },
+      }),
     ]);
-    if (user || request) {
+    if (user || request || teacherApplication) {
       throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
     }
   }

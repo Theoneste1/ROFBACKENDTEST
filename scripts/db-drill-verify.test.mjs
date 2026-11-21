@@ -198,7 +198,7 @@ describe('CLI guard (no database connection)', () => {
   test('refuses an unknown --baseline before reading any target (exit 2)', () => {
     const r = spawnSync(process.execPath, [script, '--baseline', 'main'], { cwd: mkdtempSync(join(tmpdir(), 'drill-guard-')), encoding: 'utf8' });
     assert.equal(r.status, 2);
-    assert.match(r.stderr, /--baseline must be one of: pre-phase1/);
+    assert.match(r.stderr, /--baseline must be one of: pre-phase1, pre-post-phase1/);
   });
 });
 
@@ -207,10 +207,14 @@ describe('expected state — derived from this checkout only', () => {
   const base = expectedState(REPO_ROOT, 'pre-phase1');
   const phase1Sql = readdirSync(join(REPO_ROOT, 'prisma/migrations')).filter((d) => PHASE1.test(d))
     .map((d) => readFileSync(join(REPO_ROOT, 'prisma/migrations', d, 'migration.sql'), 'utf8'));
+  // Migrations after M14 (post-Phase-1 work, e.g. 20261201000000_teacher_applications): never in the baseline.
+  const later = readdirSync(join(REPO_ROOT, 'prisma/migrations')).filter((d) => d > '20261121001300_' && !PHASE1.test(d) && d !== 'migration_lock.toml').sort();
+  const laterSql = later.map((d) => readFileSync(join(REPO_ROOT, 'prisma/migrations', d, 'migration.sql'), 'utf8'));
 
   test('default: every migration and model of this checkout', () => {
     assert.equal(full.migrations.filter((m) => PHASE1.test(m)).length, 14);
-    assert.equal(full.migrations.length, base.migrations.length + 14);
+    assert.equal(full.migrations.length, base.migrations.length + 14 + later.length);
+    assert.ok(later.includes('20261201000000_teacher_applications'));
   });
   test('pre-phase1 = production main: 17 migrations ending with 20261120000000_email_html_body, 46 models', () => {
     assert.equal(base.migrations.length, 17);
@@ -220,9 +224,32 @@ describe('expected state — derived from this checkout only', () => {
   });
   test('the subtraction is exact: Phase 1 never drops or renames a table, and every table it creates is a model', () => {
     // Schema tables are always quoted in the migrations; M8's unquoted temporary table does not count.
-    for (const sql of phase1Sql) assert.doesNotMatch(sql, /DROP TABLE (IF EXISTS )?(public\.)?"|ALTER TABLE (public\.)?"\w+" RENAME TO/);
-    const created = [...new Set(phase1Sql.flatMap((s) => [...s.matchAll(/CREATE TABLE "(\w+)"/g)].map((m) => m[1])))].sort();
+    for (const sql of [...phase1Sql, ...laterSql]) assert.doesNotMatch(sql, /DROP TABLE (IF EXISTS )?(public\.)?"|ALTER TABLE (public\.)?"\w+" RENAME TO/);
+    const created = [...new Set([...phase1Sql, ...laterSql].flatMap((s) => [...s.matchAll(/CREATE TABLE "(\w+)"/g)].map((m) => m[1])))].sort();
     assert.deepEqual(full.models.filter((m) => !base.models.includes(m)).sort(), created);
+  });
+  test('pre-post-phase1 = production after Phase 1: 31 migrations ending with M14; the nine post-Phase-1 tables absent', () => {
+    const pp = expectedState(REPO_ROOT, 'pre-post-phase1');
+    assert.equal(pp.migrations.length, 31);
+    assert.equal(pp.migrations.at(-1), '20261121001300_school_directory_sync_approval');
+    assert.equal(pp.migrations.filter((m) => PHASE1.test(m)).length, 14);
+    assert.equal(pp.migrations.some((m) => m >= '20261201000000'), false);
+    const postTables = ['ApplicationInfoRequest', 'BulkOperation', 'BulkOperationItem', 'FormAvailability', 'NotificationOutbox', 'TeacherApplication',
+      'TeacherStudentAssignment', 'UserPermissionOverrideStudent', 'UserStatusChange'];
+    // The design-area table (countries, migration 20261211000000) comes after post-Phase-1, so it is absent before it too.
+    const areaTables = ['Country', 'MarkerAuthorization', 'Test', 'TestFile', 'TestQuestion',   // + Test Management Phase 1 (20261220000100)
+      'TestAnswerPage', 'TestExtension', 'TestSubmission', 'TestSubmissionStatusChange', 'TestSubmissionVersion',   // + Phase 2 (20261220000200)
+      'TestMarkChange', 'TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestReview',   // + Phase 3 (20261220000300)
+      'TestPublication', 'TestResultWithdrawal'];   // + Phase 4 (20261220000400)
+    assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), [...postTables, ...areaTables].sort());
+  });
+  test('the two baselines are distinct: pre-phase1 ⊂ pre-post-phase1 ⊂ this checkout (migrations and models)', () => {
+    const pp = expectedState(REPO_ROOT, 'pre-post-phase1');
+    assert.notDeepEqual(base, pp);
+    assert.ok(base.migrations.every((m) => pp.migrations.includes(m)) && pp.migrations.length === base.migrations.length + 14);
+    assert.ok(base.models.every((m) => pp.models.includes(m)) && pp.models.length > base.models.length);
+    assert.ok(pp.migrations.every((m) => full.migrations.includes(m)) && full.migrations.length === pp.migrations.length + later.length);
+    assert.throws(() => expectedState(REPO_ROOT, 'main'), /unknown baseline/);
   });
   test('the checkout is the one the script belongs to, not the working directory', () => {
     assert.equal(resolve(REPO_ROOT), resolve(import.meta.dirname, '..'));

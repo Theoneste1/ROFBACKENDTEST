@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'permissionScopes', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'studentAssignmentFilters'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testResults', 'testSubmissions'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -20,7 +20,26 @@ const ALWAYS = ['academicYearActivation', 'permissionScopes', 'reportExportFilte
  */
 const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>> = {
   academicYearActivation:  'always',   // appended 2026-11-13: single-flight, retry-safe year start
+  coachApplicationDetails: 'always',   // appended 2026-11-15: coach application country, occupation, education, interests
+  applicationDetails:      'always',
+  registrationAvatar:      'always',   // appended 2026-11-18: optional profile picture at registration (REG-02)
+  teacherStudentAccess:    'always',   // appended 2026-11-18: teacher–student assignments, school access, delegation student scope (TS-1…TS-6)
+  applicationPictureReview: 'always',  // appended 2026-11-18: application pictures reviewed before they go live (owner approval)
+  dateOfBirthCorrection:   'always',   // appended 2026-11-18: Administrator date-of-birth corrections with a reason (owner approval)
+  countries:               'always',   // appended 2026-11-19: countries reference list (owner decision, simplified area 1)
+  primaryTeacher:          'always',   // appended 2026-11-19: primary / secondary teacher of a school (owner decision)
+  schoolsTable:            'always',   // appended 2026-11-19: schools table sort (name, verified students) and primary teacher
+  testManagement:          'always',   // appended 2026-11-19: Test Management Phase 1 (tests, questions, files, marker authorisations)
+  testSubmissions:         'always',   // appended 2026-11-19: Test Management Phase 2 (deadlines, extensions, submissions)
+  testMarking:             'always',   // appended 2026-11-19: Test Management Phase 3 (distribution, blind marking, review)
+  testResults:             'always',   // appended 2026-11-19: Test Management Phase 4 (publication, results, rankings, reports, dashboards)
+  formAvailability:        'always',   // appended 2026-11-15: form availability (open, close, schedule, closed messages)
   headCoachAccounts:       'HEAD_COACH',
+  notificationDeliveries:  'always',   // appended 2026-11-14: decision-notification delivery log (owner approval pending)
+  profilePictures:         'always',   // appended 2026-11-15: profile pictures (upload, replace, remove, view)
+  accountStates:           'always',   // appended 2026-11-16: account states, status history, no permanent deletion
+  bulkUserOperations:      'always',   // appended 2026-11-17: bulk user operations
+  bulkOperationsGeneric:   'always',   // appended 2026-11-19: generic bulk engine, /admin/bulk/*, signed 15-minute confirmation
   permissionScopes:        'always',
   reportExportFilters:     'always',   // appended 2026-11-14: results.csv period/year/course/division, enrolment by course
   reviewQueueFilters:      'always',   // appended 2026-11-14: coach review queue search, groups, sort, scope, counts
@@ -29,7 +48,15 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   schoolDirectorySync:     'always',   // appended 2026-11-14: official-directory sync released (owner decision)
   schoolReferenceRequired: 'always',
   studentAssignmentFilters: 'always',  // appended 2026-11-14: My Assignments progress/sort, staff list statuses
+  studentDateOfBirthStep:   'always',  // appended 2026-11-18: first-sign-in date of birth for staff-created students (decision 9.3)
+  studentOlympiadInterests: 'always',  // appended 2026-11-14: students' Olympiad interests (owner decision 8)
+  studentRegistrationDetails: 'always', // appended 2026-11-15: date of birth, phones, own country, official home place
   teacherAccounts:         'TEACHER',
+  teacherSelfRegistration: 'TEACHER',  // appended 2026-11-13: teacher applications (owner-approved)
+  coachOlympiadInterests:  'always',   // appended 2026-11-19: coach subject interests required on applications, coach / admin edit (Option A)
+  registrationGender:      'always',   // appended 2026-11-20: gender required at every sign-up (owner)
+  homeLocationRules:       'always',
+  genderStep:              'always',   // appended 2026-11-20: existing accounts give their gender once (owner)   // appended 2026-11-20: home country required, Rwanda place only for Rwanda (owner)
 };
 
 describe('GET /api/v1 capabilities', () => {
@@ -49,10 +76,10 @@ describe('GET /api/v1 capabilities', () => {
     });
 
     it('a role-gated feature is listed only while its flag is exactly "true"', () => {
-      expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: 'true' })).features).toEqual([...ALWAYS, 'teacherAccounts'].sort());
+      expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: 'true' })).features).toEqual([...ALWAYS, 'teacherAccounts', 'teacherSelfRegistration'].sort());
       expect(capabilitiesOf(configOf({ HEAD_COACHES_ENABLED: 'true' })).features).toEqual([...ALWAYS, 'headCoachAccounts'].sort());
       expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: 'true', HEAD_COACHES_ENABLED: 'true' })).features)
-        .toEqual([...ALWAYS, 'headCoachAccounts', 'teacherAccounts'].sort());
+        .toEqual([...ALWAYS, 'headCoachAccounts', 'teacherAccounts', 'teacherSelfRegistration'].sort());
       for (const v of ['false', 'TRUE', 'True', '1', 'yes', '', ' true']) {
         expect(capabilitiesOf(configOf({ TEACHERS_ENABLED: v, HEAD_COACHES_ENABLED: v })).features).toEqual(ALWAYS);
       }
@@ -61,8 +88,9 @@ describe('GET /api/v1 capabilities', () => {
     it('a flag-gated feature agrees with what the API enforces (the same check)', async () => {
       const permissions = new PermissionService({ mentorScopes: async () => [] } as never);
       const prisma = { user: { count: vi.fn().mockResolvedValue(0) } };
-      const cases: Array<[Record<string, string>, string, 'teacherAccounts' | 'headCoachAccounts']> = [
+      const cases: Array<[Record<string, string>, string, 'teacherAccounts' | 'teacherSelfRegistration' | 'headCoachAccounts']> = [
         [{}, 'TEACHER', 'teacherAccounts'], [{ TEACHERS_ENABLED: 'true' }, 'TEACHER', 'teacherAccounts'],
+        [{}, 'TEACHER', 'teacherSelfRegistration'], [{ TEACHERS_ENABLED: 'true' }, 'TEACHER', 'teacherSelfRegistration'],
         [{}, 'HEAD_COACH', 'headCoachAccounts'], [{ HEAD_COACHES_ENABLED: 'true' }, 'HEAD_COACH', 'headCoachAccounts'],
       ];
       for (const [env, role, feature] of cases) {

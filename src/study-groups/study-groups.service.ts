@@ -7,6 +7,7 @@ import {
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { auditChanges } from '../audit/audit-changes.js';
 import { CreateStudyGroupDto } from './dto/create-study-group.dto.js';
 import { UpdateStudyGroupDto } from './dto/update-study-group.dto.js';
 import { AddMemberDto } from './dto/add-member.dto.js';
@@ -79,7 +80,7 @@ export class StudyGroupsService {
 
   // ─── ADMIN: Update name / description / tags / isActive ───────────────────
   async update(groupId: string, data: UpdateStudyGroupDto, caller: CallerCtx) {
-    await this.requireGroup(groupId);
+    const before = await this.requireGroup(groupId);
 
     if (Object.keys(data).length === 0) {
       throw new BadRequestException('No fields to update.');
@@ -102,7 +103,7 @@ export class StudyGroupsService {
       action:    'UPDATE_STUDY_GROUP',
       entity:    'StudyGroup',
       entityId:  groupId,
-      metadata:  { fields: Object.keys(data) },
+      metadata:  { fields: Object.keys(data), changes: auditChanges(before, updated, ['name', 'description', 'tags', 'isActive']) },
     });
 
     return updated;

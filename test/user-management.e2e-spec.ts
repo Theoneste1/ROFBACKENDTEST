@@ -131,7 +131,7 @@ describe('User management (e2e)', () => {
 
       const reg = await ctx.http().post('/api/v1/auth/register/student').send({
         firstName: 'Eric', lastName: 'Nkusi', username: 'eric.n', email: 'eric@example.com', password: 'Student123',
-        gradeLevel: 'S2', schoolName: 'Test School', schoolLocation: 'Kigali', homeLocation: 'Kigali',
+        dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S2', schoolName: 'Test School', schoolLocation: 'Kigali', homeLocation: 'Kigali',
       }).expect(201);
       expect(reg.body.requiresEmailVerification).toBe(true);
 
@@ -335,7 +335,9 @@ describe('User management (e2e)', () => {
         .send({ firstName: 'Sus', lastName: 'Pended', email: 'sus@example.com', gradeLevel: 'S1' }).expect(201);
       const link = await lastLinkToken('sus@example.com');
       await ctx.http().patch(`/api/v1/admin/users/${invited.body.user.id}/status`).set(bearer(admin)).send({ isActive: false }).expect(200);
-      await ctx.http().post('/api/v1/auth/activation/inspect').send({ token: link }).expect(404);
+      // Account states: blocking the account also voids its unused activation links (a restore never revives them).
+      const inspect = await ctx.http().post('/api/v1/auth/activation/inspect').send({ token: link }).expect(400);
+      expect(inspect.body.code).toBe('INVALID_ACTIVATION_TOKEN');
 
       await ctx.http().patch(`/api/v1/admin/users/${ctx.ids.studentJunior2}/status`).set(bearer(admin)).send({ isActive: true }).expect(200);
       await login(ctx, 'student.j2');

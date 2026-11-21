@@ -1,7 +1,11 @@
 import {
+  ArrayNotEmpty,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsISO31661Alpha2,
   IsOptional,
   IsString,
   IsUUID,
@@ -10,9 +14,11 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { GradeLevel, Role } from '../../generated/prisma/client.js';
+import { Gender, GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { HomePlacePart } from '../../common/home-place.js';
+import { IsStudentDateOfBirth } from '../../auth/dto/registration-details.rules.js';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -83,10 +89,56 @@ export class UpdateUserDto {
   @Length(2, 200)
   @Transform(trim)
   homeLocation?: string;
+
+  /**
+   * Home location (homeLocationRules; owner, 2026-11-20): the home country (ISO 3166-1 alpha-2, stored in `country`);
+   * with Rwanda the home province, district and sector are required (a place of the official directory, else 400
+   * UNKNOWN_HOME_LOCATION); with another country they are not asked and the stored ones are cleared (sent anyway:
+   * 400 HOME_LOCATION_RWANDA_ONLY). The place is only accepted together with homeCountry (400 HOME_COUNTRY_REQUIRED).
+   * Separate from the school location.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsISO31661Alpha2({ message: 'homeCountry must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
+  homeCountry?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeProvince?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeDistrict?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
+
+  /** Correct the account's gender (FEMALE or MALE; capability genderStep). Not audited with its value. */
+  @IsOptional()
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender?: Gender;
+
+  /**
+   * A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of
+   * MATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the
+   * route already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only:
+   * interests never grant marking or any other permission.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @ArrayUnique({ message: 'olympiadInterests must not name a subject twice.' })
+  @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
+  olympiadInterests?: OlympiadSubject[];
 }
 
 export class UpdateUserStatusDto {
-  /** false suspends the account immediately (all sessions are revoked). */
+  /**
+   * Compatible with the account states (capability accountStates): false suspends the account immediately (SUSPENDED;
+   * all sessions are revoked), true lifts a suspension or reactivates a deactivated account (an archived account is
+   * restored with POST /admin/users/:id/status-changes only). Prefer that route: it records your reason.
+   */
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
@@ -95,6 +147,51 @@ export class UpdateUserStatusDto {
   @IsOptional()
   @IsBoolean()
   isApproved?: boolean;
+}
+
+/** POST /admin/users/:id/status-changes (capability accountStates). */
+export class ChangeAccountStatusDto {
+  @IsEnum(AccountStatus, { message: 'toStatus must be one of ACTIVE, DEACTIVATED, SUSPENDED, ARCHIVED.' })
+  toStatus: AccountStatus;
+
+  /** Required (3–500 characters) to deactivate, suspend or archive, and to restore an archived account. */
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  reason?: string;
+
+  /** Must be true to restore an archived account (ARCHIVED → ACTIVE); ignored otherwise. */
+  @IsOptional()
+  @IsBoolean()
+  confirm?: boolean;
+}
+
+/** PUT /me/date-of-birth: "YYYY-MM-DD", the registration rules (a real past date, age 5–30 in Rwanda). */
+/** PUT /me/gender (capability genderStep). */
+export class SetGenderDto {
+  @IsEnum(Gender, { message: 'gender must be FEMALE or MALE.' })
+  gender: Gender;
+}
+
+export class SetDateOfBirthDto {
+  @Transform(trim)
+  @IsStudentDateOfBirth()
+  dateOfBirth: string;
+}
+
+/**
+ * PUT /admin/users/:id/date-of-birth (owner approval 2026-11-18): an Administrator corrects a student's date of birth.
+ * The registration rules apply; a reason is mandatory (5–500 characters) and is recorded with the old and new values.
+ */
+export class CorrectDateOfBirthDto {
+  @Transform(trim)
+  @IsStudentDateOfBirth()
+  dateOfBirth: string;
+
+  @Transform(trim)
+  @IsString()
+  @Length(5, 500, { message: 'reason must be 5 to 500 characters.' })
+  reason: string;
 }
 
 export class UpdateMeDto {
@@ -115,10 +212,47 @@ export class UpdateMeDto {
   @Length(2, 200)
   @Transform(trim)
   homeLocation?: string;
+
+  /**
+   * Home location (homeLocationRules; owner, 2026-11-20): the home country (ISO 3166-1 alpha-2, stored in `country`);
+   * with Rwanda the home province, district and sector are required (a place of the official directory, else 400
+   * UNKNOWN_HOME_LOCATION); with another country they are not asked and the stored ones are cleared (sent anyway:
+   * 400 HOME_LOCATION_RWANDA_ONLY). The place is only accepted together with homeCountry (400 HOME_COUNTRY_REQUIRED).
+   * Separate from the school location.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsISO31661Alpha2({ message: 'homeCountry must be an ISO 3166-1 alpha-2 code (e.g. RW).' })
+  homeCountry?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeProvince?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeDistrict?: string;
+
+  @HomePlacePart('homeCountry')
+  @IsString() @Length(1, 100) @Transform(trim)
+  homeSector?: string;
+
+  /**
+   * The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of
+   * MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests).
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @ArrayUnique()
+  @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
+  olympiadInterests?: OlympiadSubject[];
 }
 
 export class ListUsersQueryDto extends PaginationQueryDto {
   @IsOptional() @IsEnum(Role) role?: Role;
+  /** ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED (capability accountStates). */
+  @IsOptional() @IsEnum(AccountStatus) accountStatus?: AccountStatus;
   @IsOptional() @IsUUID() divisionId?: string;
   @IsOptional() @IsEnum(GradeLevel) gradeLevel?: GradeLevel;
   @IsOptional() @IsUUID() schoolId?: string;

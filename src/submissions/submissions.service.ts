@@ -711,6 +711,7 @@ export class SubmissionsService {
 
     await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'RETURN_REVIEW_TO_ADMIN', entity: 'Submission', entityId: submissionId,
+      metadata: { reviewId, from: 'MARKED', to: 'SUBMITTED_TO_ADMIN' },
     });
     this.events.emit(Events.ReviewReturned, { submissionId });
     return mentorView(updated);

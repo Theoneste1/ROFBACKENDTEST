@@ -111,6 +111,20 @@ describe('validateSettingValue', () => {
     }
   });
 
+  it('teacher self-registration is off by default, in production too', () => {
+    const before = process.env.NODE_ENV;
+    try {
+      for (const env of ['production', 'development']) {
+        process.env.NODE_ENV = env;
+        expect(defaultValue('registration.teacherSelfSignup')).toBe(false);
+      }
+    } finally {
+      process.env.NODE_ENV = before;
+    }
+    expect(SETTINGS['registration.teacherSelfSignup']).toMatchObject({ category: 'REGISTRATION', type: 'boolean' });
+    expect(Object.hasOwn(SETTINGS['registration.teacherSelfSignup'], 'productionDefault')).toBe(false);
+  });
+
   it('every setting has a category', () => {
     for (const def of Object.values(SETTINGS)) expect(def.category).toBeTruthy();
   });

@@ -91,6 +91,16 @@ describe('Teachers (P1-11)', () => {
       .toMatchObject({ actorId: ctx.ids.admin, metadata: { teacherId: t1Id, schoolId: schoolA } });
   });
 
+  it('teachers of a school (INT-07, the school page): filtered by school and state; names only, never contact details; Administrators only', async () => {
+    const bySchool = await http().get(ASSIGN).query({ schoolId: schoolA }).set(bearer(admin)).expect(200);
+    expect(bySchool.body.data.map((r: any) => r.teacher.id)).toEqual([t1Id]);
+    expect(Object.keys(bySchool.body.data[0].teacher).sort()).toEqual(['firstName', 'id', 'lastName', 'username']);
+    expect(JSON.stringify(bySchool.body)).not.toMatch(/email|phone/i);
+    expect((await http().get(ASSIGN).query({ schoolId: schoolB, isActive: true }).set(bearer(superAdmin)).expect(200)).body.data.map((r: any) => r.teacher.id)).toEqual([t2Id]);
+    expect((await http().get(ASSIGN).query({ schoolId: schoolA, isActive: false }).set(bearer(admin)).expect(200)).body.data).toEqual([]);
+    for (const token of [coachJ, studentJ2, t1]) expect(await status(http().get(ASSIGN).query({ schoolId: schoolA }).set(bearer(token)))).toEqual([403, 'PERMISSION_REQUIRED']);
+  });
+
   it('school isolation: a Teacher lists only students of their schools, without contact details; other schools 404; other roles refused', async () => {
     // Access follows the School relationship (schoolId), not a name: a school with a similar name stays invisible.
     const lookalike = (await p().school.create({ data: { name: 'Test School Branch', location: 'Kigali' } })).id;
@@ -112,8 +122,11 @@ describe('Teachers (P1-11)', () => {
     expect(mine.map((s: any) => s.id).sort()).toEqual([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior].sort());
     expect(mine.map((s: any) => s.id)).not.toContain(branchStudent);
     expect(mine.map((s: any) => s.id)).not.toContain(pending);
-    // The default list exposes exactly: name, username, grade, division, school.
-    for (const s of mine) expect(Object.keys(s).sort()).toEqual(['division', 'firstName', 'gradeLevel', 'id', 'lastName', 'school', 'username']);
+    // The default list exposes exactly: name, username, grade, division, school — plus (teacher–student access) how the
+    // teacher sees the student and what their permissions let them do. Never contact details.
+    for (const s of mine) expect(Object.keys(s).sort()).toEqual(['access', 'can', 'division', 'firstName', 'gradeLevel', 'id', 'lastName', 'school', 'username']);
+    for (const s of mine) expect(Object.keys(s.access).sort()).toEqual(['assigned', 'school']);
+    for (const s of mine) expect(Object.keys(s.can).sort()).toEqual(['submitOnBehalf', 'viewProfile', 'viewProgress']);
 
     // Every registered student of the school counts — no programme, course or enrolment condition.
     expect(await p().programmeMembership.count({ where: { userId: studentO } })).toBe(0);
@@ -156,7 +169,8 @@ describe('Teachers (P1-11)', () => {
   });
 
   it('2026-11-14: a Teacher holds no course access — /me/permissions lists only the school-scoped student list and the leaderboard; course routes stay refused', async () => {
-    expect((await http().get('/api/v1/me/permissions').set(bearer(t1)).expect(200)).body.permissions).toEqual(['leaderboard.view', 'students.viewScoped']);
+    // + tests.submitForStudents (Test Management Phase 2, G2): a test-answer default for verified students of their schools — still no course access; + tests.viewSchoolResults (Phase 4: published results of their schools' students).
+    expect((await http().get('/api/v1/me/permissions').set(bearer(t1)).expect(200)).body.permissions).toEqual(['leaderboard.view', 'students.viewScoped', 'tests.submitForStudents', 'tests.viewSchoolResults']);
     // The one route gated by courses.view (the programme list) now refuses at the permission check; the
     // signed-in course and discussion routes were already refused by their services (the grants were dead).
     expect(await status(http().get('/api/v1/programmes').set(bearer(t1)))).toEqual([403, 'PERMISSION_REQUIRED']);
@@ -325,7 +339,7 @@ describe('Teachers (P1-11)', () => {
     const coded = (await p().school.create({ data: { name: 'APPROVAL TEST SCHOOL', location: 'Kigali, Gasabo', code: '120998', province: 'Kigali City', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'approval test school' } })).id;
     await http().post(ASSIGN).set(bearer(admin)).send({ teacherId: t3Id, schoolId: coded }).expect(201);
     const reg = (username: string, extra: object = {}) => http().post('/api/v1/auth/register/student').send({
-      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', gradeLevel: 'S2',
+      firstName: 'R', lastName: username, username, email: `${username}@test.local`, password: 'Secret123', dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S2',
       schoolCode: '120998', homeLocation: 'Kigali', ...extra,
     });
     const listed = async () => (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(t3)).expect(200)).body.data.map((s: any) => s.username);

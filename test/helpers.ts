@@ -17,6 +17,7 @@ import { configureApp } from '../src/main.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import type { GradeLevel } from '../src/generated/prisma/client.js';
 import { EDUCATION_LEVELS, NESA_DATA_SOURCE } from '../src/schools/directory/reference-data.js';
+import { seedReferenceData } from '../src/reference-data/seed-reference-data.js';
 
 export const PASSWORD = 'Passw0rd!';
 
@@ -147,6 +148,8 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
   });
   const junior = await prisma.division.create({ data: { code: 'JUNIOR', name: 'Junior' } });
   const senior = await prisma.division.create({ data: { code: 'SENIOR', name: 'Senior' } });
+  // Countries (seeded by migration 20261211000000 in real databases; every table is truncated here): schools reference them.
+  await seedReferenceData(prisma);
 
   const courses = await Promise.all(
     ['ALGEBRA', 'GEOMETRY', 'NUMBER_THEORY', 'COMBINATORICS'].map((code, i) =>
@@ -172,6 +175,7 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
         username, firstName: username, lastName: 'Test', email: `${username}@test.local`,
         passwordHash: hash, role, activatedAt: new Date(),
         ...(grade && {
+          dateOfBirth: new Date('2010-05-01T00:00:00Z'),
           gradeLevel: grade,
           divisionId: ['S1', 'S2', 'S3'].includes(grade) ? junior.id : senior.id,
           schoolId:   school.id,

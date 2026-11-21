@@ -403,7 +403,7 @@ describe('School directory S1 (M12)', () => {
         await http().get('/api/v1/schools/locations').expect(200),
         await http().post('/api/v1/auth/register/student').send({
           firstName: 'Reg', lastName: 'Contact', username: 'sd.reg.contact', email: 'sd.reg.contact@test.local', password: 'Secret123',
-          gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220901',
+          dateOfBirth: '2010-05-01', gender: 'FEMALE', homeCountry: 'UG', guardianPhone: '0722000111', gradeLevel: 'S2', homeLocation: 'Huye', schoolCode: '220901',
         }),
         await http().get('/api/v1/schools').query({ search: 'Contact School' }).set(bearer(admin)).expect(200),
         await http().get(`/api/v1/schools/${school}`).set(bearer(superAdmin)).expect(200),
@@ -508,7 +508,7 @@ describe('School directory S1 (M12)', () => {
     it('public search by level: only schools offering it; the response is unchanged (no programmes, no contacts)', async () => {
       const found = (await http().get('/api/v1/schools/search').query({ district: 'Huye', sector: 'Ngoma', level: 'ol' }).expect(200)).body;
       expect(found.map((s: any) => s.code)).toEqual(['220902']);
-      expect(Object.keys(found[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'sector']);
+      expect(Object.keys(found[0]).sort()).toEqual(['code', 'district', 'id', 'location', 'name', 'province', 'sector']);
       expect((await http().get('/api/v1/schools/search').query({ district: 'Huye', sector: 'Ngoma', level: 'AL' }).expect(200)).body).toEqual([]);
     });
 

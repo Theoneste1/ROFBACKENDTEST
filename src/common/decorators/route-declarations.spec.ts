@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 18 @Public + 29 @Roles + 178 @RequirePermission + 53 @Authenticated = 278, none undeclared', () => {
+  it('declarations add up: 26 @Public + 30 @Roles + 311 @RequirePermission + 57 @Authenticated = 424, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 18, '@Roles': 29, '@RequirePermission': 178, '@Authenticated': 53 });  // +2: e-mail deliveries list + retry; +1: programme student candidates; +1: school verification
+    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 311, '@Authenticated': 57 });  // generic bulk engine (2026-11-19): +8 users.bulkManage; gender step (2026-11-20): +1 signed in (PUT /me/gender); Test Management Phase 4 (2026-11-19): +3 tests.publishResults, +1 tests.overridePublication, +4 tests.viewResults, +1 tests.viewRankings, +2 tests.viewOwnResults, +3 tests.viewSchoolResults, +1 tests.view, +1 tests.submit, +1 tests.submitForStudents, +1 tests.mark (dashboards); Test Management Phase 3 (2026-11-19): +4 tests.distribute, +7 tests.review, +1 tests.adjustMarks, +7 tests.mark; Test Management Phase 2 (2026-11-19): +5 tests.extensions, +3 tests.viewSubmissions, +8 tests.submit, +9 tests.submitForStudents; Test Management Phase 1 (2026-11-19): +4 tests.view, +11 tests.manage, +4 tests.manageMarkers; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -191,8 +191,11 @@ describe('route declarations (P1-02 §5)', () => {
     }
     expect(byPermission).toEqual({
       'academicYears.manage': 5, 'enrollments.manage': 1, 'assignments.prepare': 6, 'assignments.publish': 6,
-      'audit.view': 4, 'users.manage': 11, 'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
-      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 8, 'mentorRequests.decide': 3,
+      'audit.view': 4, 'users.manage': 17,   // + 2 date-of-birth correction and history (2026-11-18); + 1 registration timeline (REG-13); + 2 profile-picture routes (another account's picture); + 1 status change (account states)
+      'users.viewStatusHistory': 1,   // account states: an account's status history
+      'users.bulkManage': 14, 'users.export': 1,   // bulk user operations (2026-11-17); + 8 generic bulk routes (2026-11-19)
+      'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
+      'discussions.moderate': 8, 'divisions.manage': 2, 'email.bulkSend': 10, 'mentorRequests.decide': 5,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
       'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
       // P1-09: individual overrides (new routes, listed in route-access-additions.testing.ts)
@@ -205,7 +208,8 @@ describe('route declarations (P1-02 §5)', () => {
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,
       // P1-11: teacher school assignments, delegations and the teacher's school-scoped views (new routes)
-      'users.manageTeachers': 6, 'students.viewScoped': 1, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
+      'users.manageTeachers': 23,   // + primary teacher (2026-11-19); + application picture review (2026-11-18); + 9 teacher–student access (assignments, school access, selected students, review); + request-info; + 4 teacher-application review routes (teacher self-registration) + school verification (decision notifications)
+      'students.viewScoped': 3, 'students.viewProfile': 1, 'students.viewProgress': 1, 'submissions.submitOnBehalf': 1,
       // School administration PR A: student–school verification (new routes);
       // PR B: school records (list, get, students, create, update, activate / deactivate);
       // PR C: claim match, reopen, candidates; PR D: import template, import;
@@ -215,6 +219,28 @@ describe('route declarations (P1-02 §5)', () => {
       'schools.manage': 36,
       // directory S2b: approve, apply, resolve after apply (Super Admins only)
       'schools.syncDirectory': 3,
+      // Form availability (2026-11-15): list, form, history (forms.view); open/close/schedule; messages
+      'forms.view': 3, 'forms.manageAvailability': 1, 'forms.editMessages': 1,
+      // Countries (owner decision 2026-11-19): list, correct a name or calling code
+      'reference.manage': 2,
+      // Test Management, Phase 1 (2026-11-19): subjects, list, read, file download (tests.view); create, update, delete,
+      // publish, unpublish, 4 question routes, file upload / removal (tests.manage); markers list, candidates, grant, revoke
+      // + Phase 4: the staff dashboard (tests.view: 5)
+      'tests.view': 5, 'tests.manage': 11, 'tests.manageMarkers': 4,
+      // Test Management, Phase 2 (2026-11-19): extensions list, targets, grant, edit, cancel; tracking list, detail, page;
+      // the student's 8 /me/tests routes; the teacher's 9 /teacher/tests routes
+      // + Phase 4: the student's and the teacher's dashboards (tests.submit: 9, tests.submitForStudents: 10)
+      'tests.extensions': 5, 'tests.viewSubmissions': 3, 'tests.submit': 9, 'tests.submitForStudents': 10,
+      // Test Management, Phase 3 (2026-11-19): overview, distribute, assign, reassign (tests.distribute); review list,
+      // detail, approve, return, second marking, unlock, history (tests.review); choose (tests.adjustMarks); the coach's 7
+      // /marking routes (tests.mark)
+      // + Phase 4: the coach's dashboard (tests.mark: 8)
+      'tests.distribute': 4, 'tests.review': 7, 'tests.adjustMarks': 1, 'tests.mark': 8,
+      // Test Management, Phase 4 (2026-11-19): preview, publish, publications (tests.publishResults); the override
+      // (tests.overridePublication); results, report, CSV export, reporting overview (tests.viewResults); rankings; the
+      // student's 2 /me/test-results routes; the teacher's 3 /teacher/test-results routes
+      'tests.publishResults': 3, 'tests.overridePublication': 1, 'tests.viewResults': 4, 'tests.viewRankings': 1,
+      'tests.viewOwnResults': 2, 'tests.viewSchoolResults': 3,
     });
   });
 
@@ -327,7 +353,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 67 added since: 269 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 204 added since: 406 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });
@@ -358,7 +384,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
 
     it('an anonymous caller is refused (401) on every non-public handler and admitted only on @Public handlers', () => {
       for (const h of handlers) expect([keyOf(h), table[keyOf(h)].anonymous]).toEqual([keyOf(h), isPublic(h) ? 'allow' : '401']);
-      expect(handlers.filter(isPublic)).toHaveLength(18);   // P1-11: + GET /schools/locations; H1: + POST /auth/logout
+      expect(handlers.filter(isPublic)).toHaveLength(26);   // countries (2026-11-19): + GET /countries; registration avatar: + PUT /auth/register/avatar; request more information: + POST /applications/info-requests/view, /answer (token in the body, SEC-05); P1-11: + GET /schools/locations; H1: + POST /auth/logout; teacher self-registration: + availability, register; form availability: + GET /forms, /forms/:key
     });
 
     it('an unknown role is admitted only where nothing is required (public, or no @Roles / @RequirePermission), and refused (403) everywhere else', () => {
@@ -366,10 +392,11 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
         const expected = isPublic(h) || !restricted(h) ? 'allow' : '403';
         expect([keyOf(h), table[keyOf(h)].UNKNOWN_ROLE]).toEqual([keyOf(h), expected]);
       }
-      // Added routes that refuse anonymous callers (the added @Public ones are not restricted).
-      const addedRestricted = Object.values(ADDED_SINCE_BASELINE).filter((d) => d.anonymous !== 'allow').length;
+      // Added routes that require a role or permission: they refuse an unknown role (the added @Public ones and the
+      // signed-in-only @Authenticated ones — profile pictures — are not restricted).
+      const addedRestricted = Object.values(ADDED_SINCE_BASELINE).filter((d) => d.anonymous !== 'allow' && d.UNKNOWN_ROLE !== 'allow').length;
       expect(handlers.filter((h) => !isPublic(h) && restricted(h))).toHaveLength(141 + addedRestricted);
-      expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(53);
+      expect(handlers.filter((h) => !isPublic(h) && !restricted(h))).toHaveLength(57);   // + 3 profile-picture routes, + PUT /me/gender (signed in)
     });
 
     it.each(['STUDENT', 'MENTOR', 'ADMIN'] as const)('%s is admitted exactly where its role is listed, it holds the required permission, or nothing is required', (role) => {
@@ -411,7 +438,7 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
 
   it('SUPER_ADMIN and ADMIN are refused on every grading and assignment-authoring route (RS1)', async () => {
     const grading = handlers.filter((h) => ADMIN_PROHIBITED.includes(permissionOf(h) as Permission));
-    expect(grading.length).toBe(13);   // 6 assignments.prepare + 7 reviews.grade
+    expect(grading.length).toBe(22);   // 6 assignments.prepare + 7 reviews.grade + 8 tests.mark (+ the Phase 4 marking dashboard) + 1 tests.adjustMarks (G4)
     for (const h of grading) {
       for (const role of ['ADMIN', 'SUPER_ADMIN'] as const) {
         expect([keyOf(h), role, await decide(h, role as unknown as Caller)]).toEqual([keyOf(h), role, '403']);
@@ -441,11 +468,15 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
       else admitted.push(permissionOf(h));
     }
     // H4 (P1-10): the three read-only course-work views listing HEAD_COACH in @Roles;
-    // each service then requires an assigned scope or the caller's own review cycles.
+    // each service then requires an assigned scope or the caller's own review cycles. Plus the caller's own
+    // notification switches (the coaches' types: a Head Coach receives them for assigned course work).
     expect(byRole.sort()).toEqual([
       'GET /api/v1/assignments/:id/history  AssignmentsController.history',
+      'GET /api/v1/me/notification-settings  NotificationsController.settings',
       'GET /api/v1/me/teaching  MyTeachingController.findMine',
       'GET /api/v1/submissions/:id/reviews  SubmissionsController.reviews',
+      'PATCH /api/v1/me/notification-settings  NotificationsController.updateSettings',
+      'POST /api/v1/me/notification-settings/reset  NotificationsController.resetSettings',
     ]);
     // Course-work grants (services still require an Administrator-created coach
     // assignment, H4) and the programme-scoped ones whose services restrict a Head Coach
@@ -453,7 +484,11 @@ describe('six-role guard matrix (P1-06): TEACHER, HEAD_COACH and SUPER_ADMIN on 
     // (no reports.export, users.manage*, audit, settings, e-mail, approvals).
     expect([...new Set(admitted)].sort()).toEqual([
       'activity.view', 'analytics.course', 'assignments.prepare', 'coaches.monitor', 'courses.view', 'mentorAssignments.manage',
-      'programmes.manageMembers', 'reports.view', 'reviews.grade', 'students.viewScoped', 'users.manageCoaches',
+      'programmes.manageMembers', 'reports.view', 'reviews.grade', 'students.viewScoped',
+      // Test Management Phase 1 (2026-11-19): programme scope — the services restrict a Head Coach to the subjects they head.
+      'tests.adjustMarks', 'tests.distribute', 'tests.extensions', 'tests.manage', 'tests.manageMarkers', 'tests.publishResults', 'tests.review',
+      'tests.view', 'tests.viewRankings', 'tests.viewResults', 'tests.viewSubmissions',
+      'users.manageCoaches',
     ]);
     // students.viewScoped (programme scope) reaches only GET /teacher/students, whose service serves Teachers only (403 for a Head Coach).
   });

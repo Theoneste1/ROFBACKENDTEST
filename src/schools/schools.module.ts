@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AdminSchoolsController } from './admin-schools.controller.js';
 import { AdminSchoolsService } from './admin-schools.service.js';
+import { SchoolBulkHandler } from './bulk/school-bulk.handler.js';
 import { SchoolDirectoryDataService } from './directory/school-directory-data.service.js';
 import { SchoolImportService } from './import/school-import.service.js';
 import { SchoolSyncController } from './sync/school-sync.controller.js';
@@ -13,7 +14,7 @@ import { SchoolsService } from './schools.service.js';
 
 @Module({
   controllers: [SchoolsController, AdminSchoolsController, SchoolSyncController, SchoolSyncReviewController],
-  providers:   [SchoolsService, AdminSchoolsService, SchoolDirectoryDataService, SchoolImportService, SchoolSyncService, SchoolSyncReviewService, SchoolSyncApplyService],
+  providers:   [SchoolsService, AdminSchoolsService, SchoolDirectoryDataService, SchoolImportService, SchoolSyncService, SchoolSyncReviewService, SchoolSyncApplyService, SchoolBulkHandler],
   exports:     [SchoolsService],
 })
 export class SchoolsModule {}

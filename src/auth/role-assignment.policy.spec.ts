@@ -140,4 +140,29 @@ describe('RoleAssignmentPolicy (role allow-list, P1-05 / P1-08)', () => {
       }
     });
   });
+
+  describe('shared seeded account (SHARED_ACCOUNT_REFUSED)', () => {
+    const shared = (fn: () => void) => { try { fn(); return null; } catch (e) { expect((e as AppError).getStatus()).toBe(403); return (e as AppError).code; } };
+    it('`admin` is never promoted to SUPER_ADMIN and keeps its username', () => {
+      const p = policy();
+      expect(shared(() => p.assertSharedAccountRules({ username: 'admin' }, { role: 'SUPER_ADMIN' }))).toBe('SHARED_ACCOUNT_REFUSED');
+      expect(shared(() => p.assertSharedAccountRules({ username: 'admin' }, { username: 'admin.renamed' }))).toBe('SHARED_ACCOUNT_REFUSED');
+      expect(shared(() => p.assertSharedAccountRules({ username: 'admin' }, { username: 'x', role: 'SUPER_ADMIN' }))).toBe('SHARED_ACCOUNT_REFUSED');
+    });
+    it('the account configured through SEED_ADMIN_USERNAME too (case-insensitive), and `admin` stays covered', () => {
+      const p = policy({ SEED_ADMIN_USERNAME: 'OPS.Shared' });
+      expect(p.isSharedAccount('ops.shared')).toBe(true);
+      expect(p.isSharedAccount('admin')).toBe(true);
+      expect(shared(() => p.assertSharedAccountRules({ username: 'ops.shared' }, { role: 'SUPER_ADMIN' }))).toBe('SHARED_ACCOUNT_REFUSED');
+      expect(shared(() => p.assertSharedAccountRules({ username: 'ops.shared' }, { username: 'ops.other' }))).toBe('SHARED_ACCOUNT_REFUSED');
+    });
+    it('other changes of the shared account, and every change of a personal account, pass', () => {
+      const p = policy({ SEED_ADMIN_USERNAME: 'ops.shared' });
+      expect(shared(() => p.assertSharedAccountRules({ username: 'admin' }, {}))).toBeNull();
+      expect(shared(() => p.assertSharedAccountRules({ username: 'admin' }, { role: 'ADMIN', username: 'admin' }))).toBeNull();
+      expect(shared(() => p.assertSharedAccountRules({ username: 'admin' }, { role: 'MENTOR' }))).toBeNull();
+      expect(shared(() => p.assertSharedAccountRules({ username: 'theo.personal' }, { role: 'SUPER_ADMIN', username: 'theo.n' }))).toBeNull();
+      expect(p.isSharedAccount('administrator')).toBe(false);
+    });
+  });
 });
