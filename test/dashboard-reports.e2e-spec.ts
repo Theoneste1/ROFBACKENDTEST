@@ -119,7 +119,8 @@ describe('Admin dashboard and reports (e2e)', () => {
       expect(body.filters.academicYear).toMatchObject({ id: ctx.ids.year, name: '2026-2027' });
 
       expect(body.students).toMatchObject({ total: 5, active: 3, inactive: 1, awaitingSetup: 1, registeredInRange: null });
-      expect(body.students.byDivision.map((d: any) => [d.code, d.students])).toEqual([['JUNIOR', 2], ['SENIOR', 1]]);
+      // Every division is listed, Middle (created 2026-11-22, no student yet) included.
+      expect(body.students.byDivision.map((d: any) => [d.code, d.students])).toEqual([['JUNIOR', 2], ['MIDDLE', 0], ['SENIOR', 1]]);
       const course = (code: string) => body.students.byCourse.find((c: any) => c.code === code);
       expect(course('ALGEBRA')).toMatchObject({ participating: 3, completed: 0 });
       expect(course('GEOMETRY')).toMatchObject({ participating: 1, completed: 1 });
@@ -419,7 +420,7 @@ describe('Admin dashboard and reports (e2e)', () => {
       ['students', 'Student,Username,Email,Status', 5],
       ['mentors', 'Coach,Username,Email,Status', 4],
       ['enrollment', 'Academic year,Division,School', 4], // Junior S1, S2, S3; Senior S5
-      ['course-participation', 'Course,Division,Students', 8],
+      ['course-participation', 'Course,Division,Students', 12],   // 4 courses × 3 divisions (Middle since 2026-11-22)
       ['assignments', 'Assignment,Course,Division', 2],
       ['reviews', 'Assignment,Course,Division,Student,Coach', 2],
       ['results-publication', 'Assignment,Course,Division', 2],
