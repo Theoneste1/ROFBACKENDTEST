@@ -131,16 +131,23 @@ describe('School claims (PR C)', () => {
   // ─── The student's own claim ──────────────────────────────────────────────
 
   describe('student requests', () => {
-    it('by code: a PENDING STUDENT_REQUEST claim; User.schoolId and this year\'s enrolment follow; invisible to Teachers until verified', async () => {
+    it('by code: a PENDING STUDENT_REQUEST claim; User.schoolId and this year\'s enrolment follow; the school\'s Teachers see the student at once (owner 2026-11-21), not once rejected', async () => {
       const s = await mkStudent();
       const res = await request(s.token, { schoolCode: '220001' }).expect(201);
       expect(res.body.current).toMatchObject({ status: 'PENDING', school: { id: ngoma } });
       expect(await claimOf(s.id)).toMatchObject({ schoolId: ngoma, status: 'PENDING', source: 'STUDENT_REQUEST', createdById: s.id });
       await consistent(s.id);
       expect((await p().user.findUniqueOrThrow({ where: { id: s.id } })).schoolId).toBe(ngoma);
-      expect(await teacherSees()).not.toContain(s.id);
+      // Registered with the school code: a student of the school for its teachers, without waiting for verification.
+      expect(await teacherSees()).toContain(s.id);
       await decide((await claimOf(s.id)).id, 'verify');
       expect(await teacherSees()).toContain(s.id);
+      // A rejected claim is never a student of the school.
+      const r = await mkStudent();
+      await request(r.token, { schoolCode: '220001' }).expect(201);
+      expect(await teacherSees()).toContain(r.id);
+      await decide((await claimOf(r.id)).id, 'reject', 'Not on the school register');
+      expect(await teacherSees()).not.toContain(r.id);
     });
 
     it('"not listed": name + official place kept on a claim without a school; an exact unique official name in that sector is linked (still PENDING); another country is never matched', async () => {
@@ -275,9 +282,9 @@ describe('School claims (PR C)', () => {
         claimed: { name: 'GS Ngoma Annexe', sector: 'Ngoma' }, actual: { sector: 'Ngoma' },
       });
       expect((await http().get(A).query({ hasSchool: false, limit: 100 }).set(bearer(admin)).expect(200)).body.data.map((c: any) => c.id)).not.toContain(res.body.id);
-      // Verification is separate.
+      // Linked to the school: its teachers see the student at once (owner 2026-11-21); verification is separate.
       await http().post('/api/v1/admin/teacher-assignments').set(bearer(admin)).send({ teacherId, schoolId: annexe }).expect(201);
-      expect(await teacherSees()).not.toContain(s.id);
+      expect(await teacherSees()).toContain(s.id);
       await decide(res.body.id, 'verify');
       expect(await teacherSees()).toContain(s.id);
     });
