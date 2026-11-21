@@ -473,7 +473,9 @@ model User {
   /// Olympiad subjects the student is interested in (owner decision 8): any of MATHEMATICS, COMPUTING and
   /// PHYSICS, chosen at registration and editable on the profile. Information only: never grants
   /// programme membership or permissions. Empty for accounts that never chose (older clients, staff).
-  olympiadInterests OlympiadSubject[] @default([])
+  olympiadInterests     OlympiadSubject[] @default([])
+  /// Another Olympiad named in words ("Other"; owner 2026-11-21), 2–100 characters (CHECK). Never a subject.
+  olympiadInterestOther String?
 
   /// Student registration details (capability studentRegistrationDetails); NULL for older accounts and
   /// for staff. `country` above is the student's own country; the school's country is on the claim.
@@ -991,42 +993,44 @@ model TokenBlacklist {
 /// decision). At most one application that is not REJECTED per username and per e-mail: partial unique indexes
 /// (MentorRequest_active_username_key / _active_email_key, WHERE status <> 'REJECTED').
 model MentorRequest {
-  id                 String                   @id @default(uuid())
-  firstName          String
-  lastName           String
-  username           String
-  email              String
+  id                    String                   @id @default(uuid())
+  firstName             String
+  lastName              String
+  username              String
+  email                 String
   /// Cleared once the request is decided.
-  passwordHash       String?
-  status             MentorRequestStatus      @default(PENDING)
+  passwordHash          String?
+  status                MentorRequestStatus      @default(PENDING)
   /// Application details (capability coachApplicationDetails); NULL / empty for older applications.
   /// country and olympiadInterests are copied to the Coach account on approval.
-  country            String?
-  occupation         String?
-  educationLevel     CoachEducationLevel?
-  olympiadInterests  OlympiadSubject[]        @default([])
+  country               String?
+  occupation            String?
+  educationLevel        CoachEducationLevel?
+  olympiadInterests     OlympiadSubject[]        @default([])
+  /// Another Olympiad named in words ("Other"; owner 2026-11-21), 2–100 characters (CHECK). Never a subject.
+  olympiadInterestOther String?
   /// Required on new applications (2026-11-20); copied to the Coach account on approval. NULL for older ones.
-  gender             Gender?
+  gender                Gender?
   /// Home location (homeLocationRules, 2026-11-20): `country` is the home country (required on new applications);
   /// province, district and sector only for Rwanda. Copied to the Coach account on approval. NULL for older ones.
-  homeProvince       String?
-  homeDistrict       String?
-  homeSector         String?
+  homeProvince          String?
+  homeDistrict          String?
+  homeSector            String?
   /// Coach application details (2026-11-17, REG-06): phone (E.164), institution or affiliation, areas of
   /// expertise, relevant experience (free text) and years of experience (0–60). All optional for older clients.
-  phone              String?
-  affiliation        String?
-  expertise          String?
-  relevantExperience String?
-  yearsOfExperience  Int?
+  phone                 String?
+  affiliation           String?
+  expertise             String?
+  relevantExperience    String?
+  yearsOfExperience     Int?
   /// Why an Administrator rejected the application (e-mailed to the applicant).
-  rejectionReason    String?
-  infoRequests       ApplicationInfoRequest[]
+  rejectionReason       String?
+  infoRequests          ApplicationInfoRequest[]
   /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
-  avatarFileId       String?                  @unique
-  avatarFile         FileObject?              @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
+  avatarFileId          String?                  @unique
+  avatarFile            FileObject?              @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
 
   @@index([status])
   @@index([username])
@@ -1066,60 +1070,62 @@ model ApplicationInfoRequest {
 /// At most one PENDING application per username and per e-mail: partial unique indexes
 /// (TeacherApplication_pending_username_key / _pending_email_key, WHERE status = 'PENDING').
 model TeacherApplication {
-  id                 String                   @id @default(uuid())
-  firstName          String
-  lastName           String
-  username           String
-  email              String
+  id                    String                   @id @default(uuid())
+  firstName             String
+  lastName              String
+  username              String
+  email                 String
   /// Cleared once the application is decided.
-  passwordHash       String?
+  passwordHash          String?
   /// E.164.
-  phone              String
+  phone                 String
   /// ISO 3166-1 alpha-2.
-  country            String
-  olympiadInterests  OlympiadSubject[]
+  country               String
+  olympiadInterests     OlympiadSubject[]
+  /// Another Olympiad named in words ("Other"; owner 2026-11-21), 2–100 characters (CHECK). Never a subject.
+  olympiadInterestOther String?
   /// Required on new applications (2026-11-20); copied to the Teacher account on approval. NULL for older ones.
-  gender             Gender?
-  status             TeacherApplicationStatus @default(PENDING)
+  gender                Gender?
+  status                TeacherApplicationStatus @default(PENDING)
   /// A listed school (official directory) — or NULL with proposedSchoolName ("my school is missing").
-  schoolId           String?
-  school             School?                  @relation("TeacherApplicationSchool", fields: [schoolId], references: [id], onDelete: Restrict)
-  proposedSchoolName String?
+  schoolId              String?
+  school                School?                  @relation("TeacherApplicationSchool", fields: [schoolId], references: [id], onDelete: Restrict)
+  proposedSchoolName    String?
   /// The place the applicant entered (for a listed school: checked against the school's own place).
-  schoolProvince     String
-  schoolDistrict     String
-  schoolSector       String?
+  schoolProvince        String
+  schoolDistrict        String
+  schoolSector          String?
   /// Home location (homeLocationRules, 2026-11-20): `country` is the home country; province, district and sector
   /// only for Rwanda (NULL otherwise; older applications have district and sector without a province).
-  homeProvince       String?
-  homeDistrict       String?
-  homeSector         String?
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
-  decidedAt          DateTime?
-  decidedById        String?
-  decidedBy          User?                    @relation("TeacherApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
-  rejectionReason    String?
-  decisionNote       String?
+  homeProvince          String?
+  homeDistrict          String?
+  homeSector            String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  decidedAt             DateTime?
+  decidedById           String?
+  decidedBy             User?                    @relation("TeacherApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  rejectionReason       String?
+  decisionNote          String?
   /// The TEACHER account created on approval.
-  userId             String?                  @unique
-  user               User?                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId                String?                  @unique
+  user                  User?                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: SetNull)
   /// The school the approval assigned (TeacherSchoolAssignment).
-  assignedSchoolId   String?
-  assignedSchool     School?                  @relation("TeacherApplicationAssignedSchool", fields: [assignedSchoolId], references: [id], onDelete: Restrict)
+  assignedSchoolId      String?
+  assignedSchool        School?                  @relation("TeacherApplicationAssignedSchool", fields: [assignedSchoolId], references: [id], onDelete: Restrict)
   /// A missing-school application: when and by whom an Administrator linked it to an official school
   /// (POST /admin/teacher-applications/:id/school; schoolId is then that school). Required before approval.
-  schoolVerifiedAt   DateTime?
-  schoolVerifiedById String?
-  schoolVerifiedBy   User?                    @relation("TeacherApplicationSchoolVerifiedBy", fields: [schoolVerifiedById], references: [id], onDelete: SetNull)
+  schoolVerifiedAt      DateTime?
+  schoolVerifiedById    String?
+  schoolVerifiedBy      User?                    @relation("TeacherApplicationSchoolVerifiedBy", fields: [schoolVerifiedById], references: [id], onDelete: SetNull)
   /// Position or teaching role at the school (e.g. "Mathematics teacher", "Head of sciences"), as entered.
-  position           String?
+  position              String?
   /// Years of teaching experience (0–60), where the applicant gives it.
-  yearsOfExperience  Int?
-  infoRequests       ApplicationInfoRequest[]
+  yearsOfExperience     Int?
+  infoRequests          ApplicationInfoRequest[]
   /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
-  avatarFileId       String?                  @unique
-  avatarFile         FileObject?              @relation("TeacherApplicationAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  avatarFileId          String?                  @unique
+  avatarFile            FileObject?              @relation("TeacherApplicationAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([schoolId])

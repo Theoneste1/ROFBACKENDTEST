@@ -3125,6 +3125,7 @@ Body (JSON):
 | `homeSector` | string |  |  |
 | `gender` | FEMALE \| MALE |  | Correct the account's gender (FEMALE or MALE; capability genderStep). Not audited with its value. |
 | `olympiadInterests` | string[] |  | A Coach's Olympiad subject interests (capability coachOlympiadInterests), replacing the stored ones: one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates. Coach (MENTOR) accounts only (400 INTERESTS_COACH_ONLY); the route already needs users.manage and the right to manage the account's role (users.manageCoaches). Information only: interests never grant marking or any other permission. |
+| `olympiadInterestOther` | string |  | Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters, e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject). Never a subject: grants nothing, not part of Test Management. |
 
 Returns `200` JSON with:
 
@@ -3971,6 +3972,7 @@ Body (JSON):
 | `homeDistrict` | string |  |  |
 | `homeSector` | string |  |  |
 | `olympiadInterests` | string[] |  | Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then has none); the sign-up form requires at least one. Information only: no programme membership, no permissions. |
+| `olympiadInterestOther` | string |  | Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters, e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject). Never a subject: grants nothing, not part of Test Management. |
 
 Returns `201` JSON with:
 
@@ -3996,6 +3998,7 @@ Body (JSON):
 | `phone` | string | ✓ | Stored in E.164 (Rwanda: 07XXXXXXXX or +2507XXXXXXXX; elsewhere +country number) — else 400 INVALID_PHONE. |
 | `gender` | FEMALE \| MALE | ✓ | FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited. |
 | `olympiadInterests` | string[] | ✓ | One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). |
+| `olympiadInterestOther` | string |  | Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters, e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject). Never a subject: grants nothing, not part of Test Management. |
 | `schoolProvince` | string | ✓ |  |
 | `schoolDistrict` | string | ✓ |  |
 | `schoolId` | string (uuid) |  | A listed school (GET /schools/search). Exactly one of schoolId / proposedSchoolName. |
@@ -4883,6 +4886,7 @@ Body (JSON):
 | `homeDistrict` | string |  |  |
 | `homeSector` | string |  |  |
 | `olympiadInterests` | string[] |  | The caller's Olympiad interests (owner decision 8), replacing the stored ones: one or more of MATHEMATICS, COMPUTING and PHYSICS, no duplicates (capability studentOlympiadInterests). |
+| `olympiadInterestOther` | string |  | Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters, e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject). Never a subject: grants nothing, not part of Test Management. |
 
 Returns `200` JSON with:
 
@@ -5155,6 +5159,7 @@ Body (JSON):
 | `occupation` | string |  | Current or most recent occupation, as entered (2–200 characters). |
 | `educationLevel` | SECONDARY \| DIPLOMA \| BACHELOR \| MASTER \| DOCTORATE \| OTHER |  | Highest education level. |
 | `olympiadInterests` | string[] | ✓ | The subjects the applicant would like to coach: one or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). REQUIRED for every new application (owner decision 2026-11-19, capability coachOlympiadInterests). Copied to the Coach account on approval; information only — it never grants marking or any other permission. |
+| `olympiadInterestOther` | string |  | Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters, e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject). Never a subject: grants nothing, not part of Test Management. |
 | `phone` | string |  | Phone, stored in E.164 (else 400 INVALID_PHONE). REG-06. |
 | `affiliation` | string |  | Institution or affiliation, where applicable (2–200). |
 | `expertise` | string |  | Areas of expertise (2–1000). |

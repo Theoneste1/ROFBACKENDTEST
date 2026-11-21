@@ -1,5 +1,5 @@
 import {
-  IsInt, Max, Min, ArrayNotEmpty,
+  IsInt, Max, Min,
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -20,6 +20,7 @@ import { HomePlacePart } from '../../common/home-place.js';
 import { Gender, OlympiadSubject, TeacherApplicationStatus } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
+import { IsOtherInterest, NonEmptyUnlessOther } from '../../users/olympiad-interests.rules.js';
 
 /** Trim and collapse inner whitespace. */
 const squash = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : value);
@@ -68,10 +69,20 @@ export class RegisterTeacherDto {
 
   /** One or more of MATHEMATICS, COMPUTING, PHYSICS (no duplicates). */
   @IsArray()
-  @ArrayNotEmpty()
+  @NonEmptyUnlessOther()
   @ArrayUnique()
   @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
   olympiadInterests: OlympiadSubject[];
+
+  /**
+   * Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,
+   * e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).
+   * Never a subject: grants nothing, not part of Test Management.
+   */
+  @ValidateIf((o: { olympiadInterestOther?: unknown }) => o.olympiadInterestOther !== undefined)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsOtherInterest()
+  olympiadInterestOther?: string | null;
 
   @IsString() @Length(1, 100) @Transform(trim)
   schoolProvince: string;

@@ -33,6 +33,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { RegistrationAvatarService } from '../users/registration-avatar.service.js';
 import { LOGIN_FAILURES_BEFORE_LOCK, LOGIN_LOCK_MS, LoginLimiter } from './login-limiter.js';
 import type { CallerCtx } from '../common/auth-user.js';
+import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
 
 export const BCRYPT_COST = 12;
 
@@ -48,7 +49,7 @@ export const GENDER_STEP_ROLES: readonly string[] = ['STUDENT', 'TEACHER', 'MENT
 /** Profile fields returned on login and from GET /me. */
 export const PROFILE_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true,
-  role: true, avatarUrl: true, gradeLevel: true, homeLocation: true, olympiadInterests: true,
+  role: true, avatarUrl: true, gradeLevel: true, homeLocation: true, olympiadInterests: true, olympiadInterestOther: true,
   // Registration details (studentRegistrationDetails): the account holder's own data.
   dateOfBirth: true, gender: true, phone: true, guardianPhone: true, country: true, homeProvince: true, homeDistrict: true, homeSector: true,
   points: true, problemsSolved: true, createdAt: true, lastLoginAt: true,
@@ -188,6 +189,7 @@ export class AuthService {
           ...studentDetailColumns(data, home),
           // Owner decision 8: information only (no programme membership, no permissions).
           olympiadInterests: canonicalInterests(data.olympiadInterests),
+          olympiadInterestOther: storedOtherInterest(data.olympiadInterestOther) ?? null,
         },
         select: PROFILE_SELECT,
       });
@@ -225,6 +227,7 @@ export class AuthService {
           // Linked to a canonical School or not; membership is verified separately by an Administrator.
           schoolLinked: !!school,
           olympiadInterests: canonicalInterests(data.olympiadInterests),
+          olympiadInterestOther: storedOtherInterest(data.olympiadInterestOther) ?? null,
           // Whether each detail was given — never a phone number or a date of birth.
           ...studentDetailAudit(data, home),
         },

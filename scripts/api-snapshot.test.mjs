@@ -316,7 +316,8 @@ const BULK_ENGINE_MERGED_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-
 const GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-gender-step.json';
 /** The generic bulk engine on top of the gender step (2026-11-20): additive only against the gender-step snapshot. */
 const BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-gender-step.json';
-const CURRENT_SNAPSHOT = BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT;
+const OLYMPIAD_OTHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-olympiad-other.json';
+const CURRENT_SNAPSHOT = OLYMPIAD_OTHER_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1771,6 +1772,19 @@ describe('approved API contract history', () => {
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
     ]);
+  });
+
+  test('generic bulk engine → "Other" Olympiad interest (2026-11-21): additive only — olympiadInterestOther, and olympiadInterests may be empty beside it', () => {
+    for (const f of [BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT, OLYMPIAD_OTHER_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(OLYMPIAD_OTHER_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    const routes = ['PATCH /api/v1/admin/users/{id}', 'PATCH /api/v1/me', 'POST /api/v1/auth/register/student', 'POST /api/v1/auth/register/teacher', 'POST /api/v1/mentor-requests'];
+    assert.deepEqual(res.additive.sort(), routes.flatMap((r) => [
+      `${r} › request application/json.olympiadInterestOther: new optional field`,
+      `${r} › request application/json.olympiadInterests: minItems removed`,
+    ]).sort());
   });
 
   test('gender step → generic bulk engine (2026-11-20): additive only — the bulk routes, their responses and reassignTeacher; nothing breaking or for review', () => {

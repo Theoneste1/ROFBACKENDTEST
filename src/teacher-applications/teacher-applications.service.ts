@@ -42,13 +42,14 @@ import {
   applicationAlreadyDecided, approvalSchoolId, assertPasswordsMatch, identityTaken, registrationClosed,
   schoolAlreadyVerified, schoolChoice, schoolNotVerified, teacherRegistrationOpen, unknownSchool,
 } from './teacher-application.rules.js';
+import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
 
 const SCHOOL_SELECT = { id: true, name: true, code: true, province: true, district: true, sector: true } as const;
 
 /** What the admin endpoints return (never passwordHash). */
 export const APPLICATION_SELECT = {
   id: true, firstName: true, lastName: true, username: true, email: true, phone: true, country: true,
-  olympiadInterests: true, status: true,
+  olympiadInterests: true, olympiadInterestOther: true, status: true,
   school: { select: SCHOOL_SELECT },
   proposedSchoolName: true, schoolProvince: true, schoolDistrict: true, schoolSector: true,
   homeProvince: true, homeDistrict: true, homeSector: true, createdAt: true, decidedAt: true,
@@ -145,6 +146,7 @@ export class TeacherApplicationsService {
         data: {
           firstName: dto.firstName, lastName: dto.lastName, username: dto.username, email: dto.email,
           passwordHash, phone, country: dto.country, gender: dto.gender, olympiadInterests: dto.olympiadInterests,
+          olympiadInterestOther: storedOtherInterest(dto.olympiadInterestOther) ?? null,
           schoolId: school?.id ?? null,
           proposedSchoolName: choice.kind === 'MISSING' ? choice.proposedSchoolName : null,
           schoolProvince: dto.schoolProvince, schoolDistrict: dto.schoolDistrict,
