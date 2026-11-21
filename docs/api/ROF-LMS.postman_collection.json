@@ -1745,6 +1745,41 @@
             },
             "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
+        },
+        {
+          "name": "POST /admin/mentor-assignments/bulk",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/mentor-assignments/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "mentor-assignments",
+                "bulk"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mentorId\": \"00000000-0000-4000-8000-000000000000\",\n  \"scope\": \"ALL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -11309,6 +11344,76 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"name\",\n  \"description\": \"description\",\n  \"isActive\": true,\n  \"suggestedGrades\": [\n    \"S1\"\n  ],\n  \"sortOrder\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/divisions/{id}/courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions/:id/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "divisions",
+                ":id",
+                "courses"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/divisions/{id}/courses",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions/:id/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "divisions",
+                ":id",
+                "courses"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

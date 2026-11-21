@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import { DivisionsService } from './divisions.service.js';
-import { CreateDivisionDto, UpdateDivisionDto } from './dto/update-division.dto.js';
+import { CreateDivisionDto, SetDivisionCoursesDto, UpdateDivisionDto } from './dto/update-division.dto.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -32,6 +32,20 @@ export class DivisionsController {
   @RequirePermission('divisions.manage')
   create(@Body() body: CreateDivisionDto, @CurrentUser() user: AuthUser) {
     return this.divisions.create(body, user);
+  }
+
+  /** The courses and whether this division offers them. */
+  @Get('admin/divisions/:id/courses')
+  @RequirePermission('divisions.manage')
+  courses(@Param('id', ParseUUIDPipe) id: string) {
+    return this.divisions.courses(id);
+  }
+
+  /** Exactly these courses are offered in this division (others no longer: kept, deactivated). Audited. */
+  @Put('admin/divisions/:id/courses')
+  @RequirePermission('divisions.manage')
+  setCourses(@Param('id', ParseUUIDPipe) id: string, @Body() body: SetDivisionCoursesDto, @CurrentUser() user: AuthUser) {
+    return this.divisions.setCourses(id, body.courseIds, user);
   }
 
   @Patch('admin/divisions/:id')

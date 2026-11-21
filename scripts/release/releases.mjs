@@ -148,11 +148,11 @@ export const LEVELS_2026_MIGRATIONS = [
 
 /** What the levels-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
 export const LEVELS_2026_OBJECTS = {
-  tables: ['DivisionChange'],
+  tables: ['DivisionChange', 'CourseDivision'],
   enums: ['DivisionChangeSource'],
   columns: [['Division', 'sortOrder'], ['Division', 'suggestedGrades'], ['TestSubmission', 'level'], ['User', 'divisionManual']],
-  triggers: ['student_division_from_grade', 'student_division_history'],
-  functions: ['division_for_grade', 'student_division_from_grade', 'student_division_history'],
+  triggers: ['student_division_from_grade', 'student_division_history', 'course_offered_in_divisions'],
+  functions: ['division_for_grade', 'student_division_from_grade', 'student_division_history', 'course_offered_in_divisions'],
 };
 
 /**

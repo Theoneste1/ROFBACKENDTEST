@@ -458,6 +458,16 @@
     "tag": "Admin · Mentor assignments"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/mentor-assignments/bulk",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Mentor assignments"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/permissions/catalogue",
     "roles": [
@@ -2730,6 +2740,24 @@
   {
     "method": "PATCH",
     "path": "/api/v1/admin/divisions/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/divisions/{id}/courses",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/divisions/{id}/courses",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"

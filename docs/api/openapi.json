@@ -2709,6 +2709,94 @@
         "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/divisions/{id}/courses": {
+      "get": {
+        "operationId": "DivisionsController_courses",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The courses and whether this division offers them.",
+        "tags": [
+          "Divisions"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "divisions.manage",
+        "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "DivisionsController_setCourses",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDivisionCoursesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Exactly these courses are offered in this division (others no longer: kept, deactivated). Audited.",
+        "tags": [
+          "Divisions"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "divisions.manage",
+        "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/divisions/{id}": {
       "patch": {
         "operationId": "DivisionsController_update",
@@ -31190,6 +31278,48 @@
         "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/mentor-assignments/bulk": {
+      "post": {
+        "operationId": "MentorAssignmentsController_bulkAssign",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkMentorAssignmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Many course x division pairs at once (owner 2026-11-22): ALL offered, every course of one DIVISION, or chosen\nPAIRS; `dryRun` previews (NEW / REACTIVATE / ALREADY_ASSIGNED). Never a duplicate.",
+        "tags": [
+          "Admin · Mentor assignments"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "mentorAssignments.manage",
+        "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/mentor-assignments/{id}": {
       "delete": {
         "operationId": "MentorAssignmentsController_unassign",
@@ -52634,6 +52764,22 @@
           "name"
         ]
       },
+      "SetDivisionCoursesDto": {
+        "type": "object",
+        "properties": {
+          "courseIds": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "courseIds"
+        ]
+      },
       "UpdateDivisionDto": {
         "type": "object",
         "properties": {
@@ -55660,6 +55806,59 @@
           "mentorId",
           "courseId",
           "divisionId"
+        ]
+      },
+      "CoursePairDto": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "divisionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "courseId",
+          "divisionId"
+        ]
+      },
+      "BulkMentorAssignmentDto": {
+        "type": "object",
+        "properties": {
+          "mentorId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "DIVISION",
+              "PAIRS"
+            ]
+          },
+          "divisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pairs": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoursePairDto"
+            }
+          },
+          "dryRun": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mentorId",
+          "scope"
         ]
       },
       "CreateAssignmentDto": {

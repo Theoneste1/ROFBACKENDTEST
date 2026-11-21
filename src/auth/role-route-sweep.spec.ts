@@ -180,6 +180,7 @@ const COACH_ADMIN_ROUTES: string[] = [
   'PATCH /api/v1/admin/tests/:id/extensions/:extensionId  AdminTestExtensionsController.update  [HEAD_COACH]',
   'PATCH /api/v1/admin/tests/:id/questions/:questionId  TestsController.updateQuestion  [HEAD_COACH]',
   'POST /api/v1/admin/mentor-assignments  MentorAssignmentsController.assign  [HEAD_COACH]',
+  'POST /api/v1/admin/mentor-assignments/bulk  MentorAssignmentsController.bulkAssign  [HEAD_COACH]',
   'POST /api/v1/admin/programmes/:id/coach-invitations  AdminProgrammesController.inviteCoach  [HEAD_COACH]',
   'POST /api/v1/admin/programmes/:id/members  AdminProgrammesController.addMember  [HEAD_COACH]',
   'POST /api/v1/admin/test-markers  TestMarkersController.grant  [HEAD_COACH]',
@@ -238,4 +239,4 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // reporting overview, the staff dashboard — never the override); +10 for Administrators and Super Admins (the same and the
 // override).
 // 2026-11-19, generic bulk engine: +8 /admin/bulk/* routes (users.bulkManage: Administrators and Super Admins only).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 106, TEACHER: 97, MENTOR: 121, HEAD_COACH: 170, ADMIN: 353, SUPER_ADMIN: 359 };   // Olympiad levels (2026-11-21): +2 Administrators, Coaches and Head Coaches (a student's level: view / set), +1 Administrators (create a division); locked test submissions (2026-11-21): +4 Administrators (resubmission authorize / cancel, a teacher's test submission get / set); gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 106, TEACHER: 97, MENTOR: 121, HEAD_COACH: 171, ADMIN: 356, SUPER_ADMIN: 362 };   /* +3 Administrators (division courses get / set, coach bulk assignment), +1 Head Coaches (coach bulk assignment) */   // Olympiad levels (2026-11-21): +2 Administrators, Coaches and Head Coaches (a student's level: view / set), +1 Administrators (create a division); locked test submissions (2026-11-21): +4 Administrators (resubmission authorize / cancel, a teacher's test submission get / set); gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)

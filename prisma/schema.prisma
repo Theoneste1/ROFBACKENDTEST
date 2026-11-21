@@ -1306,6 +1306,7 @@ model Division {
   permissionOverrides UserPermissionOverride[]
   changesFrom         DivisionChange[]         @relation("DivisionChangeFrom")
   changesTo           DivisionChange[]         @relation("DivisionChangeTo")
+  courseOfferings     CourseDivision[]
 }
 
 /// A subject area (e.g. Mathematics). The platform launches with Mathematics
@@ -1401,6 +1402,7 @@ model Course {
   mentorAssignments   MentorAssignment[]
   activityLogs        ActivityLog[]
   permissionOverrides UserPermissionOverride[]
+  divisionOfferings   CourseDivision[]
 
   @@unique([disciplineId, code])
   @@index([status])
@@ -3271,4 +3273,21 @@ model DivisionChange {
   @@index([changedById])
   @@index([fromDivisionId])
   @@index([toDivisionId])
+}
+
+/// Which courses a division offers (owner 2026-11-22: administrator-managed divisions). A student sees the published
+/// courses their division offers; coaches are assigned to offered course × division pairs. Never deleted: an offering
+/// that ends is deactivated (its content stays).
+model CourseDivision {
+  id         String   @id @default(uuid())
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([courseId, divisionId])
+  @@index([divisionId, isActive])
 }

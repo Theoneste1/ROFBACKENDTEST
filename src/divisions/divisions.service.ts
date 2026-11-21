@@ -154,6 +154,52 @@ export class DivisionsService {
     return { ...updated, gradeLevels: updated.suggestedGrades };
   }
 
+  /**
+   * The courses (not archived) and whether this division offers them (owner 2026-11-22). A student sees the published
+   * courses their division offers; coaches are assigned to offered pairs.
+   */
+  async courses(id: string) {
+    await this.requireDivision(id);
+    const courses = await this.prisma.course.findMany({
+      where: { status: { not: 'ARCHIVED' } }, orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+      select: {
+        id: true, code: true, title: true, status: true, discipline: { select: { id: true, code: true, name: true } },
+        divisionOfferings: { where: { divisionId: id }, select: { isActive: true } },
+      },
+    });
+    return courses.map(({ divisionOfferings, ...c }) => ({ ...c, offered: divisionOfferings[0]?.isActive ?? false }));
+  }
+
+  /**
+   * Admin: exactly these courses are offered in this division (others are no longer offered: kept, deactivated — their
+   * content stays). Audited with what was added and removed.
+   */
+  async setCourses(id: string, courseIds: string[], caller: CallerCtx) {
+    const division = await this.requireDivision(id);
+    const wanted = [...new Set(courseIds)];
+    const known = await this.prisma.course.count({ where: { id: { in: wanted }, status: { not: 'ARCHIVED' } } });
+    if (known !== wanted.length) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_COURSE', 'Choose courses that exist and are not archived.');
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.courseDivision.findMany({ where: { divisionId: id }, select: { courseId: true, isActive: true } });
+      const was = new Set(current.filter((c) => c.isActive).map((c) => c.courseId));
+      const added = wanted.filter((c) => !was.has(c));
+      const removed = [...was].filter((c) => !wanted.includes(c));
+      for (const courseId of added) {
+        await tx.courseDivision.upsert({
+          where: { courseId_divisionId: { courseId, divisionId: id } }, create: { courseId, divisionId: id }, update: { isActive: true },
+        });
+      }
+      if (removed.length) await tx.courseDivision.updateMany({ where: { divisionId: id, courseId: { in: removed } }, data: { isActive: false } });
+      if (added.length || removed.length) {
+        await this.audit.log({
+          actorId: caller.id, actorRole: caller.role, action: 'DIVISION_COURSES_SET', entity: 'Division', entityId: id,
+          metadata: { code: division.code, added, removed },
+        }, tx);
+      }
+    });
+    return this.courses(id);
+  }
+
   /** 409 while students are in the division or a test for it is still open. */
   private async assertCanDeactivate(tx: Tx, d: { id: string; code: string }) {
     const [students, openTests] = await Promise.all([

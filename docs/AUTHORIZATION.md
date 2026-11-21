@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 422 endpoints — 26 public, 251 administrator-only.
+Totals: 425 endpoints — 26 public, 254 administrator-only.
 
 ## Academic years
 
@@ -131,6 +131,7 @@ Totals: 422 endpoints — 26 public, 251 administrator-only.
 | GET | `/api/v1/admin/mentor-assignments` |  |  |  | ✓ |
 | POST | `/api/v1/admin/mentor-assignments` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/mentor-assignments/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/mentor-assignments/bulk` |  |  |  | ✓ |
 
 ## Admin · Permissions
 
@@ -471,6 +472,8 @@ Totals: 422 endpoints — 26 public, 251 administrator-only.
 | GET | `/api/v1/admin/divisions` |  |  |  | ✓ |
 | POST | `/api/v1/admin/divisions` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/divisions/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/divisions/{id}/courses` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/divisions/{id}/courses` |  |  |  | ✓ |
 | GET | `/api/v1/divisions` | ✓ | ✓ | ✓ | ✓ |
 
 ## Forms

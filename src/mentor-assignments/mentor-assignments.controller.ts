@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query } from
 import { ApiTags } from '@nestjs/swagger';
 
 import { MentorAssignmentsService } from './mentor-assignments.service.js';
-import { CreateMentorAssignmentDto, ListMentorAssignmentsDto } from './dto/mentor-assignment.dto.js';
+import { BulkMentorAssignmentDto, CreateMentorAssignmentDto, ListMentorAssignmentsDto } from './dto/mentor-assignment.dto.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -29,6 +29,16 @@ export class MentorAssignmentsController {
   @RequirePermission('mentorAssignments.manage')
   assign(@Body() body: CreateMentorAssignmentDto, @CurrentUser() user: AuthUser) {
     return this.service.assign(body, user);
+  }
+
+  /**
+   * Many course x division pairs at once (owner 2026-11-22): ALL offered, every course of one DIVISION, or chosen
+   * PAIRS; `dryRun` previews (NEW / REACTIVATE / ALREADY_ASSIGNED). Never a duplicate.
+   */
+  @Post('bulk')
+  @RequirePermission('mentorAssignments.manage')
+  bulkAssign(@Body() body: BulkMentorAssignmentDto, @CurrentUser() user: AuthUser) {
+    return this.service.bulkAssign(body, user);
   }
 
   /** Deactivate. The response reports open reviews that should be reassigned. */

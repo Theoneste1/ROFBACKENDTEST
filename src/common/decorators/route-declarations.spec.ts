@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 26 @Public + 30 @Roles + 318 @RequirePermission + 57 @Authenticated = 431, none undeclared', () => {
+  it('declarations add up: 26 @Public + 30 @Roles + 321 @RequirePermission + 57 @Authenticated = 434, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 318, '@Authenticated': 57 });  // Olympiad levels (2026-11-21): +2 students.classifyLevel, +1 divisions.manage (create); locked test submissions (2026-11-21): +2 tests.authorizeResubmission, +2 users.manageTeachers (a teacher's test submission); generic bulk engine (2026-11-19): +8 users.bulkManage; gender step (2026-11-20): +1 signed in (PUT /me/gender); Test Management Phase 4 (2026-11-19): +3 tests.publishResults, +1 tests.overridePublication, +4 tests.viewResults, +1 tests.viewRankings, +2 tests.viewOwnResults, +3 tests.viewSchoolResults, +1 tests.view, +1 tests.submit, +1 tests.submitForStudents, +1 tests.mark (dashboards); Test Management Phase 3 (2026-11-19): +4 tests.distribute, +7 tests.review, +1 tests.adjustMarks, +7 tests.mark; Test Management Phase 2 (2026-11-19): +5 tests.extensions, +3 tests.viewSubmissions, +8 tests.submit, +9 tests.submitForStudents; Test Management Phase 1 (2026-11-19): +4 tests.view, +11 tests.manage, +4 tests.manageMarkers; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 321, '@Authenticated': 57 });  // Olympiad levels (2026-11-21): +2 students.classifyLevel, +3 divisions.manage (create, courses get / set), +1 mentorAssignments.manage (bulk); locked test submissions (2026-11-21): +2 tests.authorizeResubmission, +2 users.manageTeachers (a teacher's test submission); generic bulk engine (2026-11-19): +8 users.bulkManage; gender step (2026-11-20): +1 signed in (PUT /me/gender); Test Management Phase 4 (2026-11-19): +3 tests.publishResults, +1 tests.overridePublication, +4 tests.viewResults, +1 tests.viewRankings, +2 tests.viewOwnResults, +3 tests.viewSchoolResults, +1 tests.view, +1 tests.submit, +1 tests.submitForStudents, +1 tests.mark (dashboards); Test Management Phase 3 (2026-11-19): +4 tests.distribute, +7 tests.review, +1 tests.adjustMarks, +7 tests.mark; Test Management Phase 2 (2026-11-19): +5 tests.extensions, +3 tests.viewSubmissions, +8 tests.submit, +9 tests.submitForStudents; Test Management Phase 1 (2026-11-19): +4 tests.view, +11 tests.manage, +4 tests.manageMarkers; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -195,7 +195,7 @@ describe('route declarations (P1-02 §5)', () => {
       'users.viewStatusHistory': 1,   // account states: an account's status history
       'users.bulkManage': 14, 'users.export': 1,   // bulk user operations (2026-11-17); + 8 generic bulk routes (2026-11-19)
       'courses.complete': 1, 'resources.manage': 9, 'courses.manage': 4,
-      'discussions.moderate': 8, 'divisions.manage': 3, 'email.bulkSend': 10, 'mentorRequests.decide': 5,
+      'discussions.moderate': 8, 'divisions.manage': 5, 'email.bulkSend': 10, 'mentorRequests.decide': 5,
       'settings.manage': 2, 'submissions.submit': 1, 'submissions.distribute': 5, 'results.approve': 4,
       'results.publish': 3, 'reviews.grade': 7, 'submissions.viewOwn': 4, 'analytics.course': 1,
       // P1-09: individual overrides (new routes, listed in route-access-additions.testing.ts)
@@ -203,7 +203,7 @@ describe('route declarations (P1-02 §5)', () => {
       // P1-10: coach assignments converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions for every
       // baseline caller); programmes, heads and members are new routes (route-access-additions.testing.ts)
       // 2026-11-14: + GET /admin/programmes/:id/student-candidates (new route, programmes.manageMembers)
-      'mentorAssignments.manage': 3, 'courses.view': 1, 'programmes.manageHeads': 2, 'programmes.manageMembers': 4,
+      'mentorAssignments.manage': 4, 'courses.view': 1, 'programmes.manageHeads': 2, 'programmes.manageMembers': 4,
       // P1-10 part 3: dashboard, reports and activity converted from @Roles('ADMIN', 'SUPER_ADMIN') (same decisions
       // for every baseline caller; every CSV export → reports.export); coach invitation is a new route
       'reports.view': 3, 'coaches.monitor': 2, 'reports.export': 11, 'activity.view': 2, 'users.manageCoaches': 1,

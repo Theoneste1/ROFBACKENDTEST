@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Length, Matches, Max, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { trim } from '../../auth/dto/password.rules.js';
 import { GradeLevel } from '../../generated/prisma/client.js';
@@ -64,4 +64,10 @@ export class CreateDivisionDto {
   @IsOptional()
   @IsInt() @Min(0) @Max(1000)
   sortOrder?: number;
+}
+
+/** PUT /admin/divisions/:id/courses — exactly the courses this division offers (may be none). */
+export class SetDivisionCoursesDto {
+  @IsArray() @ArrayMaxSize(500) @IsUUID('all', { each: true })
+  courseIds: string[];
 }

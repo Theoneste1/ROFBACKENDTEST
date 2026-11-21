@@ -33,12 +33,15 @@ SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'pub
 SELECT "division" AS division, count(*) AS tests FROM "Test" GROUP BY 1 ORDER BY 1;
 SELECT (SELECT count(*) FROM "User") AS users, (SELECT count(*) FROM "TestSubmission") AS submissions;
 
+\echo '== 6. MUST be 0: every course is offered in every division (CourseDivision), none missing'
+SELECT (SELECT count(*) FROM "Course") * (SELECT count(*) FROM "Division") - (SELECT count(*) FROM "CourseDivision" WHERE "isActive") AS offerings_missing;
+
 \echo '== 5. MUST be 0, 0, 0: no submission without its level; nobody set by hand yet; no history yet'
 SELECT (SELECT count(*) FROM "TestSubmission" WHERE "level" IS NULL)   AS submissions_without_level,
        (SELECT count(*) FROM "User" WHERE "divisionManual")            AS set_by_hand,
        (SELECT count(*) FROM "DivisionChange")                         AS changes;
 
--- Named for the kit's tests: 'DivisionChange' 'DivisionChangeSource' 'sortOrder' 'suggestedGrades' 'level' 'divisionManual'
--- 'student_division_from_grade' 'student_division_history' 'division_for_grade'
+-- Named for the kit's tests: 'DivisionChange' 'CourseDivision' 'DivisionChangeSource' 'sortOrder' 'suggestedGrades' 'level' 'divisionManual'
+-- 'student_division_from_grade' 'student_division_history' 'division_for_grade' 'course_offered_in_divisions'
 
 ROLLBACK;

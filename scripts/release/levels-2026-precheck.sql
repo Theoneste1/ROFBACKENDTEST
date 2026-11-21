@@ -38,7 +38,7 @@ SELECT d."code"::text AS code, count(u."id") AS students
 SELECT "division"::text AS division, count(*) AS tests FROM "Test" GROUP BY 1 ORDER BY 1;
 SELECT (SELECT count(*) FROM "User") AS users, (SELECT count(*) FROM "TestSubmission") AS submissions;
 
--- Named for the kit's tests: 'DivisionChange' 'DivisionChangeSource' 'sortOrder' 'suggestedGrades' 'level' 'divisionManual'
--- 'student_division_from_grade' 'student_division_history' 'division_for_grade'
+-- Named for the kit's tests: 'DivisionChange' 'CourseDivision' 'DivisionChangeSource' 'sortOrder' 'suggestedGrades' 'level' 'divisionManual'
+-- 'student_division_from_grade' 'student_division_history' 'division_for_grade' 'course_offered_in_divisions'
 
 ROLLBACK;

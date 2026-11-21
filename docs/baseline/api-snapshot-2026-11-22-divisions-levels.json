@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 422,
-    "paths": 371,
-    "schemas": 156
+    "operations": 425,
+    "paths": 373,
+    "schemas": 159
   },
-  "fingerprint": "1a8729bcc28ae854f1d8c15eb0fd2e2057e1bb90a01331ffedcc356cc56bd684",
+  "fingerprint": "005ae9a722e99db6db666a79b9f411c699d883ab6c7d4e76b7059a7e9278696c",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -3626,6 +3626,75 @@
       }
     },
     {
+      "key": "GET /api/v1/admin/divisions/{id}/courses",
+      "operationId": "DivisionsController_courses",
+      "tags": [
+        "Divisions"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "PUT /api/v1/admin/divisions/{id}/courses",
+      "operationId": "DivisionsController_setCourses",
+      "tags": [
+        "Divisions"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SetDivisionCoursesDto"
+          }
+        }
+      },
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
       "key": "GET /api/v1/admin/email/deliveries",
       "operationId": "EmailController_listAllDeliveries",
       "tags": [
@@ -5026,6 +5095,36 @@
             }
           }
         },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/mentor-assignments/bulk",
+      "operationId": "MentorAssignmentsController_bulkAssign",
+      "tags": [
+        "Admin · Mentor assignments"
+      ],
+      "roles": [
+        "ADMIN",
+        "HEAD_COACH",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "BulkMentorAssignmentDto"
+          }
+        }
+      },
+      "responses": {
+        "201": null,
         "default": {
           "application/json": {
             "ref": "Error"
@@ -47357,6 +47456,42 @@
         }
       }
     },
+    "BulkMentorAssignmentDto": {
+      "type": "object",
+      "required": [
+        "mentorId",
+        "scope"
+      ],
+      "properties": {
+        "divisionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "mentorId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "pairs": {
+          "type": "array",
+          "items": {
+            "ref": "CoursePairDto"
+          },
+          "minItems": 1,
+          "maxItems": 500
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "ALL",
+            "DIVISION",
+            "PAIRS"
+          ]
+        }
+      }
+    },
     "BulkOperationPage": {
       "type": "object",
       "required": [
@@ -48105,6 +48240,23 @@
           "type": "string",
           "minLength": 5,
           "maxLength": 500
+        }
+      }
+    },
+    "CoursePairDto": {
+      "type": "object",
+      "required": [
+        "courseId",
+        "divisionId"
+      ],
+      "properties": {
+        "courseId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "divisionId": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     },
@@ -50261,6 +50413,22 @@
       "properties": {
         "dateOfBirth": {
           "type": "string"
+        }
+      }
+    },
+    "SetDivisionCoursesDto": {
+      "type": "object",
+      "required": [
+        "courseIds"
+      ],
+      "properties": {
+        "courseIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 500
         }
       }
     },

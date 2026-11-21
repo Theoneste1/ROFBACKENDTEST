@@ -128,3 +128,41 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER student_division_history
   AFTER INSERT OR UPDATE OF "gradeLevel", "role", "divisionId" ON "User"
   FOR EACH ROW EXECUTE FUNCTION student_division_history();
+
+-- Which courses each division offers. Every existing course is offered in every division (MIDDLE included), so nothing
+-- changes for anyone; Administrators then choose per division.
+CREATE TABLE "CourseDivision" (
+    "id" TEXT NOT NULL,
+    "courseId" TEXT NOT NULL,
+    "divisionId" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CourseDivision_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX "CourseDivision_divisionId_isActive_idx" ON "CourseDivision"("divisionId", "isActive");
+CREATE UNIQUE INDEX "CourseDivision_courseId_divisionId_key" ON "CourseDivision"("courseId", "divisionId");
+ALTER TABLE "CourseDivision" ADD CONSTRAINT "CourseDivision_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CourseDivision" ADD CONSTRAINT "CourseDivision_divisionId_fkey" FOREIGN KEY ("divisionId") REFERENCES "Division"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+INSERT INTO "CourseDivision" ("id", "courseId", "divisionId", "isActive", "createdAt", "updatedAt")
+SELECT gen_random_uuid()::text, c."id", d."id", true, (clock_timestamp() AT TIME ZONE 'UTC'), (clock_timestamp() AT TIME ZONE 'UTC')
+  FROM "Course" c CROSS JOIN "Division" d
+ON CONFLICT ("courseId", "divisionId") DO NOTHING;
+
+-- A new course is offered in every active division (whatever creates it: the API, the seed, a script); Administrators
+-- then narrow it per division.
+CREATE OR REPLACE FUNCTION course_offered_in_divisions() RETURNS trigger AS $$
+BEGIN
+  INSERT INTO "CourseDivision" ("id", "courseId", "divisionId", "isActive", "createdAt", "updatedAt")
+  SELECT gen_random_uuid()::text, NEW."id", d."id", true, (clock_timestamp() AT TIME ZONE 'UTC'), (clock_timestamp() AT TIME ZONE 'UTC')
+    FROM "Division" d WHERE d."isActive"
+  ON CONFLICT ("courseId", "divisionId") DO NOTHING;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER course_offered_in_divisions
+  AFTER INSERT ON "Course"
+  FOR EACH ROW EXECUTE FUNCTION course_offered_in_divisions();

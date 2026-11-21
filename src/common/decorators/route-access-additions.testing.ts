@@ -316,4 +316,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'PUT /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.set':                                ADMINS_AND_COACHES,
   // Administrator-managed divisions (owner 2026-11-21/22): create one (divisions.manage).
   'POST /api/v1/admin/divisions  DivisionsController.create':                                                   ADMINISTRATORS,
+  // The courses each division offers (divisions.manage); a coach on many course x division pairs at once
+  // (mentorAssignments.manage: Administrators; Head Coaches too — not a baseline caller).
+  'GET /api/v1/admin/divisions/:id/courses  DivisionsController.courses':                                       ADMINISTRATORS,
+  'PUT /api/v1/admin/divisions/:id/courses  DivisionsController.setCourses':                                    ADMINISTRATORS,
+  'POST /api/v1/admin/mentor-assignments/bulk  MentorAssignmentsController.bulkAssign':                         ADMINISTRATORS,
 };

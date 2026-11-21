@@ -50,12 +50,15 @@ BEGIN
   END IF;
 END $$;
 
+DROP TRIGGER course_offered_in_divisions ON "Course";
+DROP FUNCTION course_offered_in_divisions();
 DROP TRIGGER student_division_history ON "User";
 DROP TRIGGER student_division_from_grade ON "User";
 DROP FUNCTION student_division_history();
 DROP FUNCTION student_division_from_grade();
 DROP FUNCTION division_for_grade(text);
 
+DROP TABLE "CourseDivision";
 DROP TABLE "DivisionChange";
 DROP TYPE "DivisionChangeSource";
 ALTER TABLE "TestSubmission" DROP COLUMN "level";
