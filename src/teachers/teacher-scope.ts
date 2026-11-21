@@ -2,15 +2,15 @@
  * Which students a Teacher sees, and which of them a delegation covers (owner approvals TS-1…TS-6, 2026-11-18).
  *
  *  Visible = approved, activated STUDENT accounts that are
- *    (a) verified students of one of the teacher's ACTIVE schools (TS-1: an Administrator-verified current claim —
- *        e-mail verification never establishes school membership), or
+ *    (a) students of one of the teacher's ACTIVE schools: the student's current claim names that school and is PENDING
+ *        or VERIFIED (owner, 2026-11-21: automatic discovery by school code — no Administrator step; a REJECTED or
+ *        REVOKED claim never counts; access.service.ts SCHOOL_MEMBER_CLAIMS), or
  *    (b) explicitly assigned to the teacher by an Administrator (an ACTIVE TeacherStudentAssignment; TS-2 several
  *        teachers per student; TS-3 another school's student only with a reason). An assignment gives that student
  *        only — never the rest of their school. An assignment made WITHOUT a reason (crossSchool = false: the student
- *        was then a verified student of the teacher's schools) counts only while that is still true — if the student
+ *        was then a student of the teacher's schools) counts only while that is still true — if the student
  *        moves school, loses the verified claim, or the teacher's school assignment ends, it gives nothing, so it can
  *        never become a cross-school assignment without a reason (TS-3). An Administrator re-assigns with a reason.
- *  Pending students of the teacher's schools are never identified to the teacher: only their number is shown.
  *  Only ACTIVE accounts are visible (SR-1, owner approval 2026-11-18): a SUSPENDED, DEACTIVATED or ARCHIVED student is
  *  hidden from the teacher on every path — list, summary, profile, progress, delegations and submit on behalf — whether
  *  through the school or through an assignment, cross-school included. Hiding is not leaving scope: the assignment and
@@ -36,7 +36,7 @@ export const ACTIVE_ACCOUNT: Prisma.UserWhereInput = { accountStatus: 'ACTIVE' }
 
 /**
  * Scope, not visibility: approved, activated students explicitly assigned to the teacher (active assignment): a cross-school assignment (made
- * with a reason) always; a same-school one only while the student is still a verified student of the teacher's schools.
+ * with a reason) always; a same-school one only while the student is still a student of the teacher's schools (rule (a)).
  */
 export function assignedStudentsWhere(teacherId: string, schoolIds: readonly string[]): Prisma.UserWhereInput {
   return {
@@ -47,7 +47,7 @@ export function assignedStudentsWhere(teacherId: string, schoolIds: readonly str
   };
 }
 
-/** Students the teacher SEES through (a): verified students of their schools whose account is ACTIVE. */
+/** Students the teacher SEES through (a): students of their schools (current PENDING or VERIFIED claim) whose account is ACTIVE. */
 export function visibleSchoolStudentsWhere(schoolIds: readonly string[]): Prisma.UserWhereInput {
   return { AND: [schoolStudentsWhere(schoolIds), ACTIVE_ACCOUNT] };
 }

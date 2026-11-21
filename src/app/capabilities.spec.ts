@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testResults', 'testSubmissions'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess', 'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -57,6 +57,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   registrationGender:      'always',   // appended 2026-11-20: gender required at every sign-up (owner)
   homeLocationRules:       'always',
   olympiadInterestOther:   'always',   // appended 2026-11-21: "Other" Olympiad interest in words beside the three subjects (owner)
+  testSubmissionLock:      'always',   // appended 2026-11-21: teacher self-service, automatic school discovery, locked submissions (owner)
   genderStep:              'always',   // appended 2026-11-20: existing accounts give their gender once (owner)   // appended 2026-11-20: home country required, Rwanda place only for Rwanda (owner)
 };
 

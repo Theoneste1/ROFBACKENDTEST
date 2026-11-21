@@ -1263,6 +1263,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/teachers/{id}/test-submission",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/teachers/{id}/test-submission",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/tests/{id}/marking",
     "roles": [
       "HEAD_COACH",
@@ -1713,6 +1731,24 @@
     "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}",
     "roles": [
       "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission",
+    "roles": [
       "ADMIN",
       "SUPER_ADMIN"
     ],

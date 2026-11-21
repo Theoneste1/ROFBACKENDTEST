@@ -11,7 +11,7 @@ import type { AuthUser } from '../common/auth-user.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
 import {
-  CancelTestExtensionDto, CreateTestExtensionDto, ExtensionTargetsQueryDto, ListMyTestsQueryDto, ListTeacherTestStudentsQueryDto,
+  AuthorizeResubmissionDto, CancelTestExtensionDto, CreateTestExtensionDto, ExtensionTargetsQueryDto, ListMyTestsQueryDto, ListTeacherTestStudentsQueryDto,
   ListTestExtensionsQueryDto, ListTestSubmissionsQueryDto, SubmitTestAnswerDto, UpdateTestExtensionDto,
 } from './dto/submission.dto.js';
 import { TestExtensionsService } from './test-extensions.service.js';
@@ -117,7 +117,7 @@ export class MyTestsController {
 
 /**
  * Test Management, Phase 2 — a teacher submits for their students (G2: any teacher of the school, primary or secondary;
- * tests.submitForStudents, Teachers by default): only VERIFIED students of the teacher's own schools whose account is
+ * tests.submitForStudents, Teachers by default): only students (current PENDING or VERIFIED claim) of the teacher's own schools whose account is
  * active — another student: 403 STUDENT_NOT_IN_SCOPE. The deadline is the student's, or the teacher's own extension when
  * later. The course-assignment delegation submissions.submitOnBehalf is unchanged.
  */
@@ -260,6 +260,27 @@ export class AdminTestSubmissionsController {
     @Res() res: Response,
   ) {
     await this.submissions.sendStaffPage(id, submissionId, versionId, page, user, res, isDownload(download));
+  }
+
+  /**
+   * Unlock a submitted (locked) answer for ONE replacement, with a reason (owner 2026-11-21; Administrators only). 409
+   * NOTHING_SUBMITTED, SUBMISSION_IN_MARKING (marking began) or RESUBMISSION_ALREADY_AUTHORIZED. Audited.
+   */
+  @Post(':submissionId/resubmission')
+  @HttpCode(200)
+  @RequirePermission('tests.authorizeResubmission')
+  authorizeResubmission(
+    @Param('id', ParseUUIDPipe) id: string, @Param('submissionId', ParseUUIDPipe) submissionId: string,
+    @Body() dto: AuthorizeResubmissionDto, @CurrentUser() user: AuthUser,
+  ) {
+    return this.submissions.authorizeResubmission(id, submissionId, dto, user);
+  }
+
+  /** Withdraw an authorization not used yet (the answer is locked again). 409 NO_OPEN_RESUBMISSION. Audited. */
+  @Delete(':submissionId/resubmission')
+  @RequirePermission('tests.authorizeResubmission')
+  cancelResubmission(@Param('id', ParseUUIDPipe) id: string, @Param('submissionId', ParseUUIDPipe) submissionId: string, @CurrentUser() user: AuthUser) {
+    return this.submissions.cancelResubmission(id, submissionId, user);
   }
 }
 

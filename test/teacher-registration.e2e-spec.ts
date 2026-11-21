@@ -9,6 +9,7 @@
  * verified), s.kacyiru (verified at 110001).
  */
 import { randomUUID } from 'node:crypto';
+import bcrypt from 'bcrypt';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -84,6 +85,19 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     return { ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Tumba', ...over };
   };
   const register = (body: object) => http().post(REGISTER).send(body);
+  /**
+   * A PENDING listed-school application written as it was before self-registration (owner 2026-11-21): such applications
+   * stay with an Administrator, who still approves or rejects them. Password: Secret123.
+   */
+  const pendingListed = async (over: Record<string, unknown> = {}) => {
+    const b = listed(over) as Record<string, any>;
+    return (await p().teacherApplication.create({ data: {
+      firstName: b.firstName, lastName: b.lastName, username: b.username, email: b.email, passwordHash: await bcrypt.hash('Secret123', 4),
+      phone: '+250788123456', country: 'RW', gender: b.gender, olympiadInterests: b.olympiadInterests,
+      schoolId: b.schoolId, schoolProvince: b.schoolProvince, schoolDistrict: b.schoolDistrict, schoolSector: b.schoolSector ?? 'Ngoma',
+      homeProvince: b.homeProvince, homeDistrict: b.homeDistrict, homeSector: b.homeSector,
+    }, select: { id: true } })).id;
+  };
   const setOpen = (open: boolean) => http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.teacherSelfSignup': open }).expect(200);
 
   beforeAll(async () => {
@@ -138,27 +152,58 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
   describe('registration', () => {
     beforeAll(async () => { await setOpen(true); });
 
-    it('listed school, all three interests: PENDING, no account; school code/sector/province from the database', async () => {
+    it('listed school (owner 2026-11-21): the TEACHER account at once, linked to the school; signed in with their password; sees the school\'s students, pending ones included, and no other school\'s', async () => {
       const users = await p().user.count();
       const body = listed({ olympiadInterests: ['PHYSICS', 'MATHEMATICS', 'COMPUTING'], firstName: '  Grace ' });
       const res = await register(body).expect(201);
       expect(res.body).toEqual({
-        id: expect.any(String), status: 'PENDING', requiresApproval: true,
+        id: expect.any(String), status: 'APPROVED', requiresApproval: false, accountCreated: true, username: body.username,
+        emailVerificationRequired: false,
         school: { id: ngoma, name: 'gs ngoma official', code: '220001', province: 'Southern Province', district: 'Huye', sector: 'Ngoma' },
-        proposedSchoolName: null, avatarUploadToken: expect.any(String),   // the optional picture (REG-02)
+        proposedSchoolName: null, avatarUploadToken: expect.any(String),   // the optional picture (REG-02), on the account
       });
-      expect(await p().user.count()).toBe(users);
-      expect(await p().teacherSchoolAssignment.count()).toBe(0);
+      expect(await p().user.count()).toBe(users + 1);
+      const user = await p().user.findUniqueOrThrow({ where: { username: body.username } });
+      expect(user).toMatchObject({ role: 'TEACHER', isApproved: true, firstName: 'Grace', phone: '+250788123456', country: 'RW', accountStatus: 'ACTIVE' });
+      expect(user.activatedAt).not.toBeNull();
+      // Linked to the school by the system (no Administrator); the school had no primary teacher, so this one is.
+      expect(await p().teacherSchoolAssignment.findMany({ where: { teacherId: user.id } }))
+        .toEqual([expect.objectContaining({ schoolId: ngoma, isActive: true, assignedById: null, role: 'PRIMARY' })]);
       const row = await p().teacherApplication.findUniqueOrThrow({ where: { id: res.body.id } });
       expect(row).toMatchObject({
-        firstName: 'Grace', username: body.username, phone: '+250788123456', country: 'RW', status: 'PENDING',
-        olympiadInterests: ['PHYSICS', 'MATHEMATICS', 'COMPUTING'], schoolId: ngoma, schoolSector: 'Ngoma', proposedSchoolName: null,
-        homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Kacyiru', userId: null,
+        firstName: 'Grace', username: body.username, status: 'APPROVED', decidedById: null, assignedSchoolId: ngoma, userId: user.id,
+        olympiadInterests: ['PHYSICS', 'MATHEMATICS', 'COMPUTING'], schoolId: ngoma, schoolSector: 'Ngoma', proposedSchoolName: null, passwordHash: null,
+        homeProvince: 'Kigali City', homeDistrict: 'Gasabo', homeSector: 'Kacyiru',
       });
-      expect(row.passwordHash).toMatch(/^\$2/);
       expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|Secret123/);
       expect(await p().auditLog.findFirstOrThrow({ where: { action: 'SUBMIT_TEACHER_APPLICATION', entityId: res.body.id } }))
         .toMatchObject({ actorId: null, metadata: { schoolId: ngoma, missingSchool: false } });
+      expect(await p().auditLog.findFirstOrThrow({ where: { action: 'TEACHER_SELF_REGISTERED', entityId: res.body.id } }))
+        .toMatchObject({ actorId: null, metadata: { newUserId: user.id, schoolId: ngoma, approvalNotice: 'NOT_SENT_SELF_REGISTERED' } });
+
+      // Signed in at once with the password chosen at registration; the school's students are found automatically —
+      // the verified one AND the one whose claim ROF has not verified yet; never another school's.
+      const teacher = await login(ctx, body.username, 'Secret123');
+      const seen = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(teacher)).expect(200)).body.data.map((s: any) => s.id);
+      expect(seen.sort()).toEqual([sNgoma, sNgomaPending].sort());
+      expect(seen).not.toContain(sKacyiru);
+      // Test submission for students is on by default.
+      const perms = (await http().get('/api/v1/me/permissions').set(bearer(teacher)).expect(200)).body;
+      expect(JSON.stringify(perms)).toContain('tests.submitForStudents');
+    });
+
+    it('listed school with e-mail verification on: the account exists but starts unactivated, with a confirmation link', async () => {
+      await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': true }).expect(200);
+      try {
+        const body = listed();
+        const res = await register(body).expect(201);
+        expect(res.body).toMatchObject({ status: 'APPROVED', accountCreated: true, emailVerificationRequired: true });
+        const user = await p().user.findUniqueOrThrow({ where: { username: body.username } });
+        expect(user.activatedAt).toBeNull();
+        expect(await p().accountActivationToken.count({ where: { userId: user.id, purpose: 'EMAIL_VERIFICATION' } })).toBe(1);
+      } finally {
+        await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': false }).expect(200);
+      }
     });
 
     it('one interest is enough; empty, duplicate or unknown interests are refused', async () => {
@@ -179,14 +224,14 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     it('missing school: PENDING with the proposed name and place; no school is created', async () => {
       const schools = await p().school.count();
       const res = await register(missing()).expect(201);
-      expect(res.body).toEqual({ id: expect.any(String), status: 'PENDING', requiresApproval: true, school: null, proposedSchoolName: 'GS Not Yet Listed', avatarUploadToken: expect.any(String) });
+      expect(res.body).toEqual({ id: expect.any(String), status: 'PENDING', requiresApproval: true, accountCreated: false, school: null, proposedSchoolName: 'GS Not Yet Listed', avatarUploadToken: expect.any(String) });
       expect(await p().school.count()).toBe(schools);
       expect(await p().teacherApplication.findUniqueOrThrow({ where: { id: res.body.id } }))
         .toMatchObject({ schoolId: null, proposedSchoolName: 'GS Not Yet Listed', schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolSector: 'Tumba' });
       expect(await status(register(missing({ schoolSector: undefined })))).toEqual([400, 'VALIDATION_FAILED']);
     });
 
-    it('a school without an official code: refused until an administrator who created it verifies it; then chosen by id, no code invented', async () => {
+    it('a school without an official code: refused until an administrator who created it verifies it; then chosen by id (the account at once), no code invented', async () => {
       const created = await http().post('/api/v1/admin/schools').set(bearer(admin))
         .send({ name: 'Ecole Teacher Hill', countryCode: 'RW', province: 'Southern Province', district: 'Huye', sector: 'Ngoma', location: 'Ngoma hill' }).expect(201);
       const hill = created.body.id as string;
@@ -199,8 +244,10 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect((await http().get('/api/v1/schools/search').query({ q: 'Teacher Hill', teacherEligible: 'true' }).expect(200)).body.map((s: any) => [s.id, s.code]))
         .toEqual([[hill, null]]);
       expect(await status(apply('t.hill.ok'))).toEqual([201, null]);
+      // A listed school (verified by an Administrator, no official code): the account at once, linked to it.
       const app = await p().teacherApplication.findFirstOrThrow({ where: { username: 't.hill.ok' } });
-      expect(app).toMatchObject({ schoolId: hill, status: 'PENDING' });
+      expect(app).toMatchObject({ schoolId: hill, status: 'APPROVED', assignedSchoolId: hill });
+      expect(await p().teacherSchoolAssignment.count({ where: { teacherId: app.userId!, schoolId: hill, isActive: true } })).toBe(1);
       expect((await p().school.findUniqueOrThrow({ where: { id: hill } })).code).toBeNull();
     });
 
@@ -249,10 +296,12 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     });
 
     it('duplicates: a PENDING application holds its username and e-mail (409, also in the database); REJECTED does not', async () => {
-      const first = listed({ username: 'dup.teacher', email: 'dup.teacher@test.local' });
+      // An unlisted school: the application waits for an Administrator (a listed school creates the account at once).
+      const first = missing({ username: 'dup.teacher', email: 'dup.teacher@test.local' });
       const res = await register(first).expect(201);
       expect(await status(register(listed({ username: 'dup.teacher' })))).toEqual([409, 'IDENTITY_TAKEN']);
       expect(await status(register(listed({ email: 'DUP.Teacher@test.local' })))).toEqual([409, 'IDENTITY_TAKEN']);
+      expect(await status(register(missing({ username: 'dup.teacher' })))).toEqual([409, 'IDENTITY_TAKEN']);
       // An existing user or a pending coach application blocks too.
       expect(await status(register(listed({ username: 'student.j' })))).toEqual([409, 'IDENTITY_TAKEN']);
       await http().post('/api/v1/mentor-requests').send({ firstName: 'Co', lastName: 'Ach', username: 'coach.pending', email: 'coach.pending@test.local', password: 'Secret123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'] }).expect(201);
@@ -283,16 +332,19 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     it('a new application → every active administrator, in-app only, once per application (owner decision 5)', async () => {
       const admins = (await p().user.findMany({ where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] }, isActive: true }, select: { id: true } })).map((a) => a.id);
       const mailsBefore = await p().emailDelivery.count();
-      const one = await register(listed({ firstName: 'Notice', lastName: 'Listed' })).expect(201);
+      const instant = await register(listed({ firstName: 'Notice', lastName: 'Listed' })).expect(201);
+      const one = await register(missing({ firstName: 'Notice', lastName: 'First' })).expect(201);
       const two = await register(missing({ firstName: 'Notice', lastName: 'Missing' })).expect(201);
       await waitForEvents();
       const whereOf = (id: string) => ({ type: 'registration.teacher_application', data: { path: ['teacherApplicationId'], equals: id } });
-      for (const [id, unlisted] of [[one.body.id, false], [two.body.id, true]] as const) {
+      // A listed school: the account exists already — nothing waits for an Administrator, nobody is told.
+      expect(await p().notification.count({ where: whereOf(instant.body.id) })).toBe(0);
+      for (const [id, name] of [[one.body.id, 'First'], [two.body.id, 'Missing']] as const) {
         const rows = await p().notification.findMany({ where: whereOf(id), select: { userId: true, title: true, body: true, link: true, category: true } });
         expect(rows.map((n) => n.userId).sort()).toEqual([...admins].sort());
         expect(rows[0]).toMatchObject({ category: 'ACCOUNT', title: 'New teacher application', link: '/admin/teacher-applications' });
-        expect(rows[0].body).toContain('Notice ' + (unlisted ? 'Missing' : 'Listed'));
-        expect(rows[0].body.includes('school not listed')).toBe(unlisted);
+        expect(rows[0].body).toContain('Notice ' + name);
+        expect(rows[0].body.includes('school not listed')).toBe(true);
         expect(JSON.stringify(rows)).not.toMatch(/Secret123|passwordHash/);
       }
       // No e-mail for administrators (and no e-mail at all before a decision).
@@ -317,7 +369,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
         .toMatchObject({ label: 'New teacher applications', category: 'ACCOUNT', inAppEnabled: true, emailAvailable: false });
       await http().patch('/api/v1/me/notification-settings').set(bearer(admin))
         .send({ settings: [{ type: 'registration.teacher_application', inAppEnabled: false }] }).expect(200);
-      const three = await register(listed({ firstName: 'Notice', lastName: 'Off' })).expect(201);
+      const three = await register(missing({ firstName: 'Notice', lastName: 'Off' })).expect(201);
       await waitForEvents();
       const got = (await p().notification.findMany({ where: whereOf(three.body.id), select: { userId: true } })).map((n) => n.userId);
       expect(got).not.toContain(ctx.ids.admin);
@@ -333,7 +385,8 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
 
     beforeAll(async () => {
       await setOpen(true);
-      listedId = (await register(listed({ username: 'tr.approve', email: 'tr.approve@test.local', olympiadInterests: ['MATHEMATICS', 'PHYSICS'] })).expect(201)).body.id;
+      // A listed-school application waiting from before self-registration (owner 2026-11-21): still decided by an Administrator.
+      listedId = await pendingListed({ username: 'tr.approve', email: 'tr.approve@test.local', olympiadInterests: ['MATHEMATICS', 'PHYSICS'] });
       missingId = (await register(missing({ username: 'tr.missing', email: 'tr.missing@test.local' })).expect(201)).body.id;
     });
 
@@ -370,7 +423,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await status(http().get(ADMIN_APPS).query({ status: 'MAYBE' }).set(bearer(admin)))).toEqual([400, 'VALIDATION_FAILED']);
     });
 
-    it('approve a listed school: TEACHER account with phone and country, school assignment, decision recorded, hash cleared; the teacher sees only verified students of that school', async () => {
+    it('approve a waiting listed-school application: TEACHER account with phone and country, school assignment, decision recorded, hash cleared; the teacher sees that school\'s students only', async () => {
       expect(await status(approve(listedId, { schoolId: tumba }))).toEqual([400, 'SCHOOL_MISMATCH']);
       const res = await approve(listedId, { note: 'Confirmed by phone' }).expect(200);
       expect(res.body).toMatchObject({
@@ -393,11 +446,12 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(await p().auditLog.findFirstOrThrow({ where: { action: 'APPROVE_TEACHER_APPLICATION', entityId: listedId } }))
         .toMatchObject({ actorId: ctx.ids.admin, metadata: { newUserId: user.id, schoolId: ngoma } });
 
-      // The teacher logs in with the password chosen at registration and sees only VERIFIED students of the school.
+      // The teacher logs in with the password chosen at registration and sees the school's students — verified and
+      // pending claims alike (owner 2026-11-21: automatic discovery) — never another school's.
       const teacher = await login(ctx, 'tr.approve', 'Secret123');
       const seen = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(teacher)).expect(200)).body.data.map((s: any) => s.id);
-      expect(seen).toEqual([sNgoma]);
-      expect(seen).not.toContain(sNgomaPending);
+      expect(seen.sort()).toEqual([sNgoma, sNgomaPending].sort());
+      expect(seen).not.toContain(sKacyiru);
       // With the profile delegation, another school's student is 404.
       await http().post(`/api/v1/admin/teachers/${user.id}/delegations`).set(bearer(admin)).send({ permission: 'students.viewProfile', reason: 'School coordinator duties' }).expect(201);
       await http().get(`/api/v1/teacher/students/${sNgoma}`).set(bearer(teacher)).expect(200);
@@ -442,7 +496,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     });
 
     it('a listed school deactivated before approval: refused, nothing created', async () => {
-      const id = (await register(listed({ schoolId: tumba, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Tumba' })).expect(201)).body.id;
+      const id = await pendingListed({ schoolId: tumba, schoolSector: 'Tumba', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Tumba' });
       await p().school.update({ where: { id: tumba }, data: { isActive: false } });
       try {
         const users = await p().user.count();
@@ -455,14 +509,14 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     });
 
     it('approval re-checks the identity: a user created meanwhile with that username → 409, nothing changes', async () => {
-      const id = (await register(listed({ username: 'tr.race', email: 'tr.race@test.local' })).expect(201)).body.id;
+      const id = await pendingListed({ username: 'tr.race', email: 'tr.race@test.local' });
       await p().user.create({ data: { username: 'tr.race', firstName: 'R', lastName: 'R', email: 'tr.race.other@test.local', role: 'ADMIN' } });
       expect(await status(approve(id))).toEqual([409, 'IDENTITY_TAKEN']);
       expect(await p().teacherApplication.findUniqueOrThrow({ where: { id } })).toMatchObject({ status: 'PENDING', userId: null });
     });
 
     it('reject: no account and no assignment; reason and decider recorded; hash cleared; twice → 409', async () => {
-      const id = (await register(listed({ username: 'tr.reject', email: 'tr.reject@test.local' })).expect(201)).body.id;
+      const id = await pendingListed({ username: 'tr.reject', email: 'tr.reject@test.local' });
       expect(await status(reject(id, { reason: 'x' }))).toEqual([400, 'VALIDATION_FAILED']);
       const res = await reject(id, { reason: 'Could not confirm the school' }, superAdmin).expect(200);
       expect(res.body).toMatchObject({ id, status: 'REJECTED', rejectionReason: 'Could not confirm the school', userId: null, assignedSchool: null });
@@ -480,7 +534,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     });
 
     it('with e-mail verification on, the approved account starts unactivated and gets a confirmation link', async () => {
-      const id = (await register(listed({ username: 'tr.verify', email: 'tr.verify@test.local' })).expect(201)).body.id;
+      const id = await pendingListed({ username: 'tr.verify', email: 'tr.verify@test.local' });
       await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': true }).expect(200);
       try {
         const res = await approve(id).expect(200);

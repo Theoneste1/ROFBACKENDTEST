@@ -156,10 +156,12 @@ export class AccessService {
   /**
    * `User` filter: APPROVED and ACTIVATED (e-mail verified) student accounts of these
    * schools (none → matches nobody). Used by every Teacher student view — list, profile,
-   * progress and submit on behalf (P1-11): an unapproved or unverified student is never
-   * shown to, or acted on by, a teacher. Neither is proof of school membership, so the
-   * student must also hold a CURRENT VERIFIED affiliation (verified by an Administrator)
-   * for one of these same schools. Both school conditions are required.
+   * progress and submit on behalf (P1-11): an unapproved or unactivated student is never
+   * shown to, or acted on by, a teacher. Automatic discovery (owner, 2026-11-21): the
+   * student's CURRENT claim (not superseded) names one of these same schools and is
+   * PENDING or VERIFIED — a student who registered with the school's code is found at once,
+   * with no Administrator step; a REJECTED or REVOKED claim never counts. Both school
+   * conditions are required (the account's school and its current claim).
    */
   schoolStudentsFilter(schoolIds: readonly string[]): Prisma.UserWhereInput {
     return schoolStudentsWhere(schoolIds);
@@ -216,11 +218,18 @@ function notAssigned() {
   );
 }
 
+/**
+ * The claim statuses that make a student a member of a school for its teachers (owner, 2026-11-21: automatic discovery
+ * by school code): the current claim, PENDING or VERIFIED. REJECTED and REVOKED never count. The SQL copies of this rule
+ * (marking-store.ts, results-store.ts) use the same two values.
+ */
+export const SCHOOL_MEMBER_CLAIMS = ['PENDING', 'VERIFIED'] as const;
+
 /** See AccessService.schoolStudentsFilter (usable inside a transaction without the service). */
 export function schoolStudentsWhere(schoolIds: readonly string[]): Prisma.UserWhereInput {
   if (schoolIds.length === 0) return { id: { in: [] } };
   return {
     role: 'STUDENT', isApproved: true, activatedAt: { not: null }, schoolId: { in: [...schoolIds] },
-    schoolAffiliations: { some: { supersededAt: null, status: 'VERIFIED', schoolId: { in: [...schoolIds] } } },
+    schoolAffiliations: { some: { supersededAt: null, status: { in: [...SCHOOL_MEMBER_CLAIMS] }, schoolId: { in: [...schoolIds] } } },
   };
 }

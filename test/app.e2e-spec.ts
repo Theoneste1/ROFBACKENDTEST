@@ -35,7 +35,7 @@ describe('App basics (e2e)', () => {
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
       'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentRegistrationDetails', 'teacherStudentAccess',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts', 'teacherSelfRegistration'] : []),
-      'testManagement', 'testMarking', 'testResults', 'testSubmissions',
+      'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions',
     ]);
     const again = await ctx.http().get('/api/v1').expect(200);
     expect(again.body).toEqual(res.body);

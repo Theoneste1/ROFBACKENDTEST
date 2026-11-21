@@ -9,7 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import type { MockInstance } from 'vitest';
 
-import { createTestApp, login, bearer, waitForEvents, type TestContext } from './helpers.js';
+import { createTestApp, login, bearer, waitForEvents, pendingTeacherApplication, type TestContext } from './helpers.js';
 import { MailerService } from '../src/email/mailer.service.js';
 import { DecisionNotificationsService } from '../src/decision-notifications/decision-notifications.service.js';
 
@@ -151,7 +151,7 @@ describe('Decision notifications', () => {
     });
 
     it('a listed-school application has nothing to verify (409); refused or unauthorised calls queue nothing', async () => {
-      const listedId = await register(application());
+      const listedId = await pendingTeacherApplication(ctx, application());
       expect(await status(verifySchool(listedId, tumba))).toEqual([409, 'SCHOOL_ALREADY_VERIFIED']);
       const missingId = await register(missingApplication());
       expect(await status(verifySchool(missingId, randomUUID()))).toEqual([400, 'UNKNOWN_SCHOOL']);
@@ -168,7 +168,7 @@ describe('Decision notifications', () => {
 
   describe('teacher approval', () => {
     it('activated account: e-mail + in-app, ready to use with the login link; repeating the approval adds nothing', async () => {
-      const id = await register(application({ firstName: 'Eric', username: 'dn.eric', email: 'dn.eric@test.local' }));
+      const id = await pendingTeacherApplication(ctx, application({ firstName: 'Eric', username: 'dn.eric', email: 'dn.eric@test.local' }));
       const res = await approve(id).expect(200);
       await settle();
       const userId = res.body.teacher.id;
@@ -193,7 +193,7 @@ describe('Decision notifications', () => {
     });
 
     it('e-mail verification on: approved, confirm the e-mail first (separate activation message); no "ready to use", no login link', async () => {
-      const id = await register(application({ firstName: 'Vera', username: 'dn.vera', email: 'dn.vera@test.local' }));
+      const id = await pendingTeacherApplication(ctx, application({ firstName: 'Vera', username: 'dn.vera', email: 'dn.vera@test.local' }));
       await setting('registration.requireEmailVerification', true);
       try {
         const res = await approve(id).expect(200);
@@ -226,8 +226,8 @@ describe('Decision notifications', () => {
     });
 
     it('rejected and pending applications: no approval notification', async () => {
-      const rejected = await register(application());
-      const pending = await register(application());
+      const rejected = await pendingTeacherApplication(ctx, application());
+      const pending = await pendingTeacherApplication(ctx, application());
       await http().post(`${ADMIN_APPS}/${rejected}/reject`).set(bearer(admin)).send({ reason: 'Could not confirm' }).expect(200);
       await settle();
       expect(await outbox({ entityId: { in: [rejected, pending] } })).toHaveLength(0);
@@ -241,9 +241,9 @@ describe('Decision notifications', () => {
     // TEACHERS_ENABLED stays on (the review routes answer 403 TEACHERS_DISABLED without it); the
     // registration.teacherSelfSignup setting is turned off after the applications were submitted.
     it('approval, school verification and rejection of pending applications send no notice; the decisions still apply', async () => {
-      const listed = await register(application({ firstName: 'Odile', username: 'dn.off1', email: 'dn.off1@test.local' }));
+      const listed = await pendingTeacherApplication(ctx, application({ firstName: 'Odile', username: 'dn.off1', email: 'dn.off1@test.local' }));
       const missing = await register(missingApplication({ firstName: 'Omar', username: 'dn.off2', email: 'dn.off2@test.local' }));
-      const rejected = await register(application({ firstName: 'Olga', username: 'dn.off3', email: 'dn.off3@test.local' }));
+      const rejected = await pendingTeacherApplication(ctx, application({ firstName: 'Olga', username: 'dn.off3', email: 'dn.off3@test.local' }));
       await setting('registration.teacherSelfSignup', false);
       try {
         const res = await approve(listed).expect(200);
@@ -267,7 +267,7 @@ describe('Decision notifications', () => {
     });
 
     it('a notice queued while on is not e-mailed after self-registration is turned off (retry → FAILED, no automatic retry); on again it is sent', async () => {
-      const id = await register(application({ firstName: 'Ines', username: 'dn.off4', email: 'dn.off4@test.local' }));
+      const id = await pendingTeacherApplication(ctx, application({ firstName: 'Ines', username: 'dn.off4', email: 'dn.off4@test.local' }));
       send.mockRejectedValueOnce(new Error('provider down'));
       await approve(id).expect(200);
       await settle();
@@ -339,7 +339,7 @@ describe('Decision notifications', () => {
   describe('permissions granted', () => {
     let teacherId: string;
     beforeAll(async () => {
-      const id = await register(application({ firstName: 'Tina', username: 'dn.tina', email: 'dn.tina@test.local' }));
+      const id = await pendingTeacherApplication(ctx, application({ firstName: 'Tina', username: 'dn.tina', email: 'dn.tina@test.local' }));
       teacherId = (await approve(id).expect(200)).body.teacher.id;
       await settle();
     });
@@ -569,7 +569,7 @@ describe('Decision notifications', () => {
 
   describe('reliability', () => {
     it('a failing mailer never fails the admin action: 200 and committed, row FAILED (sanitised); the sweep sends it exactly once', async () => {
-      const id = await register(application({ firstName: 'Faith', username: 'dn.faith', email: 'dn.faith@test.local' }));
+      const id = await pendingTeacherApplication(ctx, application({ firstName: 'Faith', username: 'dn.faith', email: 'dn.faith@test.local' }));
       send.mockRejectedValueOnce(new Error('connect ECONNREFUSED for dn.faith@test.local with key re_live_SECRET'));
       const res = await approve(id).expect(200);
       await settle();
@@ -624,7 +624,7 @@ describe('Decision notifications', () => {
   describe('delivery log', () => {
     let failedId: string;
     beforeAll(async () => {
-      const id = await register(application({ username: 'dn.log', email: 'dn.log@test.local' }));
+      const id = await pendingTeacherApplication(ctx, application({ username: 'dn.log', email: 'dn.log@test.local' }));
       send.mockResolvedValueOnce({ accepted: false, messageId: null, error: 'Resend 500 internal_server_error: Oops', permanent: false });
       await approve(id).expect(200);
       await settle();

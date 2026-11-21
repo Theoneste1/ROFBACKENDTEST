@@ -5366,6 +5366,76 @@
             },
             "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
           }
+        },
+        {
+          "name": "GET /admin/teachers/{id}/test-submission",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teachers/:id/test-submission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teachers",
+                ":id",
+                "test-submission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/teachers/{id}/test-submission",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teachers/:id/test-submission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teachers",
+                ":id",
+                "test-submission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"allowed\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -7231,6 +7301,90 @@
               "query": []
             },
             "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/submissions/{submissionId}/resubmission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions/:submissionId/resubmission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions",
+                ":submissionId",
+                "resubmission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.authorizeResubmission` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/tests/{id}/submissions/{submissionId}/resubmission",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions/:submissionId/resubmission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions",
+                ":submissionId",
+                "resubmission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.authorizeResubmission` (ADMIN, SUPER_ADMIN)"
           }
         },
         {
@@ -14963,6 +15117,18 @@
                   "value": "q",
                   "disabled": true,
                   "description": ""
+                },
+                {
+                  "key": "division",
+                  "value": "JUNIOR",
+                  "disabled": true,
+                  "description": "Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade."
+                },
+                {
+                  "key": "subject",
+                  "value": "MATHEMATICS",
+                  "disabled": true,
+                  "description": "Olympiad subject (owner 2026-11-21): students who chose it among their Olympiad interests."
                 }
               ]
             },

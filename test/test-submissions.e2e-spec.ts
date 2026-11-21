@@ -41,6 +41,16 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
     http().post(`${base}/uploads/${key}/pages/${page}`).set(bearer(token)).attach('file', file, name);
   const commit = (token: string, base: string, body: object) => http().post(`${base}/submission`).set(bearer(token)).send(body);
   const flags = /underExtension|"extended"|extensionId|extensionKind|applicableDeadline/;
+  /** Owner 2026-11-21: a submitted answer is locked; an Administrator unlocks it for ONE replacement (reason). */
+  const subOf = async (testId: string, studentId: string) => (await p().testSubmission.findUniqueOrThrow({ where: { testId_studentId: { testId, studentId } } })).id;
+  const unlockRequest = async (testId: string, studentId: string, reason = 'The pages were unreadable') =>
+    http().post(`${T}/${testId}/submissions/${await subOf(testId, studentId)}/resubmission`).set(bearer(admin)).send({ reason });
+  /** Unlock and expect 200 (the response). */
+  const unlock = async (testId: string, studentId: string, reason?: string) => {
+    const r = await unlockRequest(testId, studentId, reason);
+    expect(r.status).toBe(200);
+    return r;
+  };
 
   beforeAll(async () => {
     process.env.HEAD_COACHES_ENABLED = 'true';
@@ -186,8 +196,9 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       expect(res.replayed).toBe(false);
       expect(res.submission).toMatchObject({ status: 'SUBMITTED', versionCount: 1, currentVersion: 1 });
       expect(res.submission.versions[0].pages.map((x: any) => x.name)).toEqual(['page-1.png', 'page-2.pdf']);
-      // The committed key can no longer receive pages; a committed page is never removed.
-      expect(await status(uploadAs(sj, base(), key, 3))).toEqual([409, 'UPLOAD_ALREADY_SUBMITTED']);
+      // Submitted: the answer is locked — no further page under this key or any other; a committed page is never removed.
+      expect(await status(uploadAs(sj, base(), key, 3))).toEqual([409, 'SUBMISSION_LOCKED']);
+      expect(await status(uploadAs(sj, base(), randomUUID(), 1))).toEqual([409, 'SUBMISSION_LOCKED']);
       expect(await status(http().delete(`${base()}/uploads/${key}/pages/1`).set(bearer(sj)))).toEqual([404, 'PAGE_NOT_FOUND']);
       // Pages are served under neutral names; no student name in the headers.
       const v1 = res.submission.versions[0].id;
@@ -199,65 +210,131 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       expect(await status(http().get(`${base()}/versions/${v1}/pages/1`).set(bearer(sj2)))).toEqual([404, 'PAGE_NOT_FOUND']);
     });
 
-    it('replace before the deadline: a new version; every version is kept and readable', async () => {
+    it('locked after submission (owner 2026-11-21): no replacement until an Administrator authorizes ONE, with a reason; every version is kept; locked again', async () => {
+      // Locked: the student cannot replace, nor upload; the view says so.
+      expect(await status(commit(sj, base(), { clientKey: randomUUID(), typedAnswer: 'Second thoughts' }))).toEqual([409, 'SUBMISSION_LOCKED']);
+      let view = (await http().get(base()).set(bearer(sj)).expect(200)).body;
+      expect([view.locked, view.canSubmit, view.resubmission]).toEqual([true, false, null]);
+      expect((await http().get(ME).set(bearer(sj)).expect(200)).body.data.find((t: any) => t.id === id))
+        .toMatchObject({ canSubmit: false, submission: { locked: true, resubmissionOpen: false } });
+      // Only an Administrator unlocks: never the student, a teacher or a Head Coach; a reason is required.
+      const sid = await subOf(id, stJ);
+      const url = `${T}/${id}/submissions/${sid}/resubmission`;
+      for (const token of [sj, ta, hm, coach]) expect((await http().post(url).set(bearer(token)).send({ reason: 'Please let me' })).status).toBe(403);
+      expect(await status(http().post(url).set(bearer(admin)).send({ reason: 'x' }))).toEqual([400, 'VALIDATION_FAILED']);
+      const unlocked = (await unlock(id, stJ, 'Page 2 was unreadable')).body;
+      expect(unlocked).toMatchObject({ locked: false, resubmissionOpen: true });
+      expect(unlocked.resubmissions).toEqual([expect.objectContaining({ state: 'OPEN', reason: 'Page 2 was unreadable', authorizedBy: expect.objectContaining({ id: ctx.ids.admin }), usedVersion: null })]);
+      expect(await status(unlockRequest(id, stJ))).toEqual([409, 'RESUBMISSION_ALREADY_AUTHORIZED']);
+      expect(await p().auditLog.findFirstOrThrow({ where: { action: 'TEST_RESUBMISSION_AUTHORIZED', entityId: sid } }))
+        .toMatchObject({ actorId: ctx.ids.admin, metadata: { testId: id, studentId: stJ, reason: 'Page 2 was unreadable', lockedVersion: 1 } });
+      view = (await http().get(base()).set(bearer(sj)).expect(200)).body;
+      expect([view.locked, view.canSubmit, view.resubmission?.reason]).toEqual([false, true, 'Page 2 was unreadable']);
+
+      // The replacement uses the authorization and is locked again.
       const res = (await commit(sj, base(), { clientKey: randomUUID(), typedAnswer: 'Second thoughts' }).expect(201)).body;
       expect(res.submission.versions.map((v: any) => [v.number, v.typedAnswer, v.pageCount])).toEqual([[2, 'Second thoughts', 0], [1, 'See my pages', 2]]);
-      expect(res.submission.currentVersion).toBe(2);
+      expect([res.submission.currentVersion, res.locked, res.canSubmit]).toEqual([2, true, false]);
+      expect(await status(commit(sj, base(), { clientKey: randomUUID(), typedAnswer: 'Third thoughts' }))).toEqual([409, 'SUBMISSION_LOCKED']);
+      const detail = (await http().get(`${T}/${id}/submissions/${sid}`).set(bearer(admin)).expect(200)).body;
+      expect(detail.resubmissions).toEqual([expect.objectContaining({ state: 'USED', usedVersion: 2, reason: 'Page 2 was unreadable' })]);
+      expect(detail.versions.map((v: any) => v.number)).toEqual([2, 1]);
+      expect((await p().auditLog.findFirstOrThrow({ where: { action: 'TEST_SUBMISSION_REPLACED', entityId: sid } })).metadata).toMatchObject({ version: 2, resubmissionAuthorizationId: expect.any(String) });
+
+      // Every version is kept and readable; versions are append-only in the database itself.
       const v1 = res.submission.versions[1].id;
       await http().get(`${base()}/versions/${v1}/pages/2`).set(bearer(sj)).expect(200);
-      // Versions are append-only in the database itself.
       await expect(p().testSubmissionVersion.update({ where: { id: v1 }, data: { typedAnswer: 'forged' } })).rejects.toThrow(/append-only/);
       await expect(p().testSubmissionVersion.deleteMany({ where: { id: v1 } })).rejects.toThrow(/append-only/);
       await expect(p().testAnswerPage.updateMany({ where: { versionId: v1 }, data: { pageNumber: 9 } })).rejects.toThrow(/submitted version/);
       const history = await p().testSubmissionStatusChange.findMany({ where: { submission: { testId: id, studentId: stJ } } });
       expect(history.map((h) => [h.fromStatus, h.toStatus, h.actorRole])).toEqual([[null, 'SUBMITTED', 'STUDENT']]);
       await expect(p().testSubmissionStatusChange.deleteMany({ where: { id: history[0].id } })).rejects.toThrow(/append-only/);
+
+      // An unused authorization can be withdrawn (locked again); the database allows one open authorization only.
+      await unlock(id, stJ, 'Wrong student');
+      await expect(p().testResubmissionAuthorization.create({ data: { submissionId: sid, reason: 'A second open one' } })).rejects.toMatchObject({ code: 'P2002' });
+      const cancelled = (await http().delete(url).set(bearer(admin)).expect(200)).body;
+      expect([cancelled.locked, cancelled.resubmissions[0].state]).toEqual([true, 'CANCELLED']);
+      expect(await status(http().delete(url).set(bearer(admin)))).toEqual([409, 'NO_OPEN_RESUBMISSION']);
+      expect(await status(commit(sj, base(), { clientKey: randomUUID(), typedAnswer: 'x' }))).toEqual([409, 'SUBMISSION_LOCKED']);
     });
 
     it('idempotent: the same clientKey again (also in parallel) returns the same version, never a second one', async () => {
       const key = randomUUID();
+      await unlock(id, stJ);
       const first = (await commit(sj, base(), { clientKey: key, typedAnswer: 'Third' }).expect(201)).body;
+      // Locked again — yet the same request resent is answered with that version (a retry never fails).
       const again = (await commit(sj, base(), { clientKey: key, typedAnswer: 'Third (resent)' }).expect(201)).body;
       expect([first.replayed, again.replayed, again.submission.versionCount]).toEqual([false, true, 3]);
       expect(again.submission.versions[0].typedAnswer).toBe('Third');
       const key2 = randomUUID();
+      await unlock(id, stJ);
       const results = await Promise.all([1, 2, 3, 4].map(() => commit(sj, base(), { clientKey: key2, typedAnswer: 'Fourth' })));
       expect(results.map((r) => r.status)).toEqual([201, 201, 201, 201]);
       expect(results.filter((r) => r.body.replayed === false)).toHaveLength(1);
       expect(await p().testSubmissionVersion.count({ where: { clientKey: key2 } })).toBe(1);
     });
 
-    it('10 parallel replacements: 10 new versions numbered without gap or duplicate; the current one is the last', async () => {
+    it('10 parallel replacements with ONE authorization: exactly one new version, no gap or duplicate; the other nine are refused (locked)', async () => {
       const before = (await p().testSubmission.findUniqueOrThrow({ where: { testId_studentId: { testId: id, studentId: stJ } } })).versionCount;
+      await unlock(id, stJ);
       const results = await Promise.all(Array.from({ length: 10 }, (_, i) => commit(sj, base(), { clientKey: randomUUID(), typedAnswer: `parallel ${i}` })));
-      expect(results.map((r) => r.status)).toEqual(Array(10).fill(201));
+      expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+      expect(results.filter((r) => r.status === 409).map((r) => r.body.code)).toEqual(Array(9).fill('SUBMISSION_LOCKED'));
       const sub = await p().testSubmission.findUniqueOrThrow({
         where: { testId_studentId: { testId: id, studentId: stJ } }, include: { versions: { select: { id: true, number: true } }, currentVersion: { select: { number: true } } },
       });
       const numbers = sub.versions.map((v) => v.number).sort((a, b) => a - b);
-      expect(numbers).toEqual(Array.from({ length: before + 10 }, (_, i) => i + 1));
-      expect([sub.versionCount, sub.currentVersion?.number]).toEqual([before + 10, before + 10]);
+      expect(numbers).toEqual(Array.from({ length: before + 1 }, (_, i) => i + 1));
+      expect([sub.versionCount, sub.currentVersion?.number]).toEqual([before + 1, before + 1]);
       expect(await p().testSubmission.count({ where: { testId: id, studentId: stJ } })).toBe(1);
+      expect(await p().testResubmissionAuthorization.count({ where: { submissionId: sub.id, usedAt: null, cancelledAt: null } })).toBe(0);
+    });
+
+    it('a student and a teacher submitting at the same moment (first answer): exactly one version; the other is refused (locked)', async () => {
+      const results = await Promise.all([
+        commit(sj2, `${ME}/${id}`, { clientKey: randomUUID(), typedAnswer: 'by the student' }),
+        commit(ta, `${TT}/${id}/students/${stJ2}`, { clientKey: randomUUID(), typedAnswer: 'by the teacher' }),
+      ]);
+      expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+      expect(results.find((r) => r.status === 409)!.body.code).toBe('SUBMISSION_LOCKED');
+      expect(await p().testSubmissionVersion.count({ where: { submission: { testId: id, studentId: stJ2 } } })).toBe(1);
     });
   });
 
-  describe('teachers submit for verified students of their own schools (G2)', () => {
+  describe('teachers submit for the students of their own schools (G2; owner 2026-11-21: pending claims included)', () => {
     let id: string;
     beforeAll(async () => { id = await publishedTest({ title: 'Teacher round' }); });
 
-    it('lists tests and only their own verified students (not pending, not another school\'s)', async () => {
+    it('lists tests and the students of their own schools — verified and pending claims — never another school\'s; level and subject filters', async () => {
       const tests = (await http().get(TT).set(bearer(ta)).expect(200)).body;
       const row = tests.data.find((t: any) => t.id === id);
-      expect(row).toMatchObject({ students: 2, submitted: 0, window: 'OPEN' });   // student.j, student.j2 (Junior); not student.s (Senior), not student.p (pending)
+      expect(row).toMatchObject({ students: 3, submitted: 0, window: 'OPEN' });   // student.j, student.j2, student.p (pending claim) — Junior; not student.s (Senior)
       const list = (await http().get(`${TT}/${id}/students`).set(bearer(ta)).expect(200)).body;
-      expect(list.data.map((r: any) => r.student.username).sort()).toEqual(['student.j', 'student.j2']);
-      expect(list.counts).toEqual({ students: 2, submitted: 0, notSubmitted: 2, lateBlocked: 0 });
+      expect(list.data.map((r: any) => r.student.username).sort()).toEqual(['student.j', 'student.j2', 'student.p']);
+      expect(list.counts).toEqual({ students: 3, submitted: 0, notSubmitted: 3, lateBlocked: 0 });
+      // Each row carries the level and the Olympiad interests; ?division and ?subject narrow the list.
+      expect(list.data.find((r: any) => r.student.username === 'student.p').student).toMatchObject({ gradeLevel: 'S2', division: 'JUNIOR', olympiadInterests: [] });
+      await p().user.update({ where: { id: stP }, data: { olympiadInterests: ['PHYSICS'] } });
+      const physics = (await http().get(`${TT}/${id}/students`).query({ subject: 'PHYSICS' }).set(bearer(ta)).expect(200)).body;
+      expect(physics.data.map((r: any) => r.student.username)).toEqual(['student.p']);
+      expect((await http().get(`${TT}/${id}/students`).query({ division: 'SENIOR' }).set(bearer(ta)).expect(200)).body.data).toEqual([]);
+      expect(await status(http().get(`${TT}/${id}/students`).query({ subject: 'CHEMISTRY' }).set(bearer(ta)))).toEqual([400, 'VALIDATION_FAILED']);
       expect((await http().get(`${TT}/${id}/students`).set(bearer(to)).expect(200)).body.data.map((r: any) => r.student.username)).toEqual(['student.o']);
     });
 
-    it('a primary AND a secondary teacher submit; another school\'s teacher or a pending student: 403 STUDENT_NOT_IN_SCOPE', async () => {
+    it('a primary AND a secondary teacher submit; neither overwrites the other nor the student; a pending student is submitted for; another school\'s teacher: 403', async () => {
       const a = (await commit(ta, `${TT}/${id}/students/${stJ2}`, { clientKey: randomUUID(), typedAnswer: 'Typed by the teacher' }).expect(201)).body;
       expect(a.submission.versions[0]).toMatchObject({ number: 1, submitterRole: 'TEACHER', submittedBy: { firstName: 'teacher.a' } });
+      // Locked: the other teacher and the student themself cannot overwrite it.
+      expect(await status(commit(tb, `${TT}/${id}/students/${stJ2}`, { clientKey: randomUUID(), typedAnswer: 'overwrite' }))).toEqual([409, 'SUBMISSION_LOCKED']);
+      expect(await status(uploadAs(tb, `${TT}/${id}/students/${stJ2}`, randomUUID(), 1))).toEqual([409, 'SUBMISSION_LOCKED']);
+      expect(await status(commit(sj2, `${ME}/${id}`, { clientKey: randomUUID(), typedAnswer: 'overwrite' }))).toEqual([409, 'SUBMISSION_LOCKED']);
+      const teacherView = (await http().get(`${TT}/${id}/students`).set(bearer(tb)).expect(200)).body.data.find((r: any) => r.student.id === stJ2);
+      expect(teacherView).toMatchObject({ canSubmit: false, submission: { locked: true, versionCount: 1, lastSubmitterRole: 'TEACHER' } });
+      // An Administrator unlocks it: the secondary teacher submits the replacement (locked again).
+      await unlock(id, stJ2, 'The wrong pages were uploaded');
       const key = randomUUID();
       await uploadAs(tb, `${TT}/${id}/students/${stJ2}`, key, 1).expect(201);
       const b = (await commit(tb, `${TT}/${id}/students/${stJ2}`, { clientKey: key, pageCount: 1 }).expect(201)).body;
@@ -265,7 +342,8 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       expect(await status(commit(to, `${TT}/${id}/students/${stJ}`, { clientKey: randomUUID(), typedAnswer: 'x' }))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);
       expect(await status(http().get(`${TT}/${id}/students/${stJ}`).set(bearer(to)))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);
       expect(await status(uploadAs(to, `${TT}/${id}/students/${stJ}`, randomUUID(), 1))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);
-      expect(await status(commit(ta, `${TT}/${id}/students/${stP}`, { clientKey: randomUUID(), typedAnswer: 'x' }))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);
+      // A student whose claim ROF has not verified yet is a student of the school (automatic discovery).
+      await commit(ta, `${TT}/${id}/students/${stP}`, { clientKey: randomUUID(), typedAnswer: 'for the pending student' }).expect(201);
       expect(await status(commit(ta, `${TT}/${id}/students/${stS}`, { clientKey: randomUUID(), typedAnswer: 'x' }))).toEqual([403, 'DIVISION_MISMATCH']);
       // Stored: the student owns it; the teacher is the submitter and the named teacher.
       const v = await p().testSubmissionVersion.findMany({ where: { submission: { testId: id, studentId: stJ2 } }, orderBy: { number: 'asc' } });
@@ -340,7 +418,8 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       expect(new Date(forJ.test.deadline).getTime()).toBe(new Date(ext.newDeadline).getTime());
       expect(JSON.stringify(forJ)).not.toMatch(flags);
       const list = (await http().get(`${TT}/${id}/students`).set(bearer(tb)).expect(200)).body;
-      expect(Object.fromEntries(list.data.map((r: any) => [r.student.username, r.state]))).toEqual({ 'student.j': 'SUBMITTED', 'student.j2': 'SUBMITTED' });
+      // student.p (a pending claim) is a student of the school too (owner 2026-11-21); nothing submitted, deadline passed for B.
+      expect(Object.fromEntries(list.data.map((r: any) => [r.student.username, r.state]))).toEqual({ 'student.j': 'SUBMITTED', 'student.j2': 'SUBMITTED', 'student.p': 'LATE_BLOCKED' });
       expect(JSON.stringify(list)).not.toMatch(flags);
     });
 

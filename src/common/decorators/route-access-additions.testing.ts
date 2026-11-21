@@ -302,5 +302,11 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/bulk/operations/:id/cancel  BulkController.cancel':                                     ADMINISTRATORS,
   'POST /api/v1/admin/bulk/:entityType/preview  BulkController.preview':                                      ADMINISTRATORS,
   'POST /api/v1/admin/bulk/:entityType/export  BulkController.export':                                        ADMINISTRATORS,
-  'POST /api/v1/admin/bulk/:entityType  BulkController.execute':                                              ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType  BulkController.execute':                                              ADMINISTRATORS,  // Locked test submissions (owner 2026-11-21): an Administrator authorizes / cancels one more version of a submitted
+  // answer (tests.authorizeResubmission: ADMIN and SUPER_ADMIN, never grantable), and revokes / restores a teacher's
+  // test submission for students without touching the account (users.manageTeachers).
+  'POST /api/v1/admin/tests/:id/submissions/:submissionId/resubmission  AdminTestSubmissionsController.authorizeResubmission': ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id/submissions/:submissionId/resubmission  AdminTestSubmissionsController.cancelResubmission': ADMINISTRATORS,
+  'GET /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.testSubmission':              ADMINISTRATORS,
+  'PUT /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.setTestSubmission':           ADMINISTRATORS,
 };

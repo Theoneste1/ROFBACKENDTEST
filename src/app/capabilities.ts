@@ -249,6 +249,19 @@ export const FEATURES = {
    */
   olympiadInterestOther: 'always',
   /**
+   * Teacher self-service and locked submissions (owner, 2026-11-21):
+   *  - a Teacher who registers with a LISTED school gets the account at once (POST /teacher-applications answers
+   *    accountCreated: true; signed in unless e-mail verification is on); an unlisted school still needs an Administrator;
+   *  - a teacher sees the students whose CURRENT school claim (PENDING or VERIFIED) is their school — no Administrator step;
+   *  - a submitted test answer is locked for the student and their teachers (409 SUBMISSION_LOCKED); an Administrator
+   *    unlocks it for one replacement (POST/DELETE /admin/tests/:id/submissions/:submissionId/resubmission,
+   *    tests.authorizeResubmission); views carry `locked` and the open authorization;
+   *  - an Administrator revokes / restores a teacher's test submission (GET/PUT /admin/teachers/:id/test-submission;
+   *    `testSubmissionAllowed` on TEACHER rows of GET /admin/users);
+   *  - GET /teacher/tests/:id/students filters by ?division and ?subject and returns each student's interests and level.
+   */
+  testSubmissionLock: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

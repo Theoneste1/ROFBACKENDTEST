@@ -112,6 +112,14 @@ export class ListTeacherTestStudentsQueryDto extends PaginationQueryDto {
 
   @IsOptional() @IsString() @Transform(trim) @Length(1, 100)
   q?: string;
+
+  /** Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade. */
+  @IsOptional() @IsIn(['JUNIOR', 'SENIOR'])
+  division?: 'JUNIOR' | 'SENIOR';
+
+  /** Olympiad subject (owner 2026-11-21): students who chose it among their Olympiad interests. */
+  @IsOptional() @IsIn(['MATHEMATICS', 'COMPUTING', 'PHYSICS'])
+  subject?: 'MATHEMATICS' | 'COMPUTING' | 'PHYSICS';
 }
 
 /**
@@ -130,4 +138,12 @@ export class SubmitTestAnswerDto {
   /** How many pages the client uploaded under clientKey (1…30); 409 PAGES_INCOMPLETE when some are missing. */
   @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(MAX_ANSWER_PAGES)
   pageCount?: number;
+}
+
+/** POST /admin/tests/:id/submissions/:submissionId/resubmission (owner 2026-11-21): why the locked answer is unlocked. */
+export class AuthorizeResubmissionDto {
+  /** 3–500 characters; recorded in the history and the audit log, and shown to the student and their teachers. */
+  @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString() @Length(3, 500)
+  reason: string;
 }

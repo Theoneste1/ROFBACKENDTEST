@@ -34,6 +34,7 @@ import type {
 import { divisionMatches, gradesOf } from './submission-rules.js';
 import { TestDeadlineService } from './test-deadline.service.js';
 import { TestsService, lockTest } from './tests.service.js';
+import { SCHOOL_MEMBER_CLAIMS } from '../common/access/access.service.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -256,7 +257,7 @@ async function assertNotInMarking(tx: Tx, testId: string, kind: 'TEST' | 'STUDEN
   const teacherReach: Prisma.TestSubmissionWhereInput = {
     OR: [
       { versions: { some: { teacherId: teacherId ?? '' } } },
-      { student: { schoolAffiliations: { some: { status: 'VERIFIED', supersededAt: null, school: { teachers: { some: { teacherId: teacherId ?? '', isActive: true } } } } } } },
+      { student: { schoolAffiliations: { some: { status: { in: [...SCHOOL_MEMBER_CLAIMS] }, supersededAt: null, school: { teachers: { some: { teacherId: teacherId ?? '', isActive: true } } } } } } },
     ],
   };
   const where: Prisma.TestSubmissionWhereInput = {

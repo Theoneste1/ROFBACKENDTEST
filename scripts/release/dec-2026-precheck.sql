@@ -1,4 +1,5 @@
--- Dec-2026 release pre-check (BEFORE `prisma migrate deploy` of the "Other" Olympiad interest, owner 2026-11-21): READ ONLY.
+-- Dec-2026 release pre-check (BEFORE `prisma migrate deploy` of the "Other" Olympiad interest and the locked test
+-- submissions, owner 2026-11-21): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs precheck --release dec-2026      (Neon rehearsal branch; guarded)
 --   psql "$DIRECT_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/release/dec-2026-precheck.sql   (production, in the window)
@@ -20,15 +21,19 @@ SELECT count(*) FILTER (WHERE migration_name LIKE '2026112100%' AND finished_at 
        count(*) FILTER (WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL)                                        AS failed_or_rolled_back
   FROM "_prisma_migrations";
 
-\echo '== 2. MUST be 0: nothing made by the dec-2026 migration exists yet (the olympiadInterestOther columns)'
-SELECT count(*) AS other_interest_columns
-  FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'olympiadInterestOther'
-   AND table_name IN ('User', 'MentorRequest', 'TeacherApplication');
+\echo '== 2. MUST be 0, 0: nothing made by the dec-2026 migrations exists yet (the olympiadInterestOther columns; the TestResubmissionAuthorization table)'
+SELECT (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'olympiadInterestOther'
+           AND table_name IN ('User', 'MentorRequest', 'TeacherApplication')) AS other_interest_columns,
+       (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'TestResubmissionAuthorization') AS resubmission_tables;
 
 \echo '== 3. compare: accounts and applications, and their subject interests (MUST be unchanged after the migration: additive only)'
 SELECT (SELECT count(*) FROM "User")                                            AS users,
        (SELECT count(*) FROM "User" WHERE cardinality("olympiadInterests") > 0) AS users_with_subjects,
        (SELECT count(*) FROM "MentorRequest")                                   AS coach_applications,
        (SELECT count(*) FROM "TeacherApplication")                              AS teacher_applications;
+
+\echo '== 4. compare: test submissions and their versions (MUST be unchanged after the migration: each is simply locked from now on)'
+SELECT (SELECT count(*) FROM "TestSubmission")        AS submissions,
+       (SELECT count(*) FROM "TestSubmissionVersion") AS versions;
 
 ROLLBACK;

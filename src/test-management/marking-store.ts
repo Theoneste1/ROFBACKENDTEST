@@ -130,7 +130,8 @@ export async function assertCoachesMayMark(tx: Tx, coachIds: readonly string[], 
  * G5 for submissions not yet assigned: each SUBMITTED submission of the test with no current FIRST assignment (or only
  * `ids`), with the moment after which nobody can submit or replace it any more — the latest of the test's closesAt and
  * every ACTIVE extension that could still let someone submit for that student: the whole-test extension, the student's
- * own, and that of any teacher who may submit for them (a teacher of one of the student's VERIFIED schools, or one who
+ * own, and that of any teacher who may submit for them (a teacher of the school of the student's current PENDING or
+ * VERIFIED claim — access.service.ts SCHOOL_MEMBER_CLAIMS — or one who
  * already submitted a version for them). One query (marking-rules.ts markingEligibleAt is the same rule, unit-tested).
  */
 export async function unassignedEligibility(db: Db, testId: string, ids?: readonly string[]): Promise<Array<{ id: string; publicCode: string; eligibleAt: Date }>> {
@@ -149,7 +150,7 @@ export async function unassignedEligibility(db: Db, testId: string, ids?: readon
                OR EXISTS (SELECT 1 FROM "TeacherSchoolAssignment" ta
                             JOIN "StudentSchoolAffiliation" f ON f."schoolId" = ta."schoolId"
                            WHERE ta."teacherId" = e."teacherId" AND ta."isActive"
-                             AND f."studentId" = s."studentId" AND f."status" = 'VERIFIED' AND f."supersededAt" IS NULL))))
+                             AND f."studentId" = s."studentId" AND f."status" IN ('PENDING', 'VERIFIED') AND f."supersededAt" IS NULL))))
       ) x ON true
      WHERE s."testId" = ${testId} AND s."status" = 'SUBMITTED'
        AND (${only}::text[] IS NULL OR s."id" = ANY(${only}::text[]))

@@ -309,7 +309,7 @@ describe('Student–school affiliation (school administration PR A)', () => {
 
   // ─── Teacher isolation ─────────────────────────────────────────────────────
 
-  it('Teacher views: only students with a CURRENT VERIFIED claim for the Teacher\'s school — every other status, and other schools, are 404 on all four routes', async () => {
+  it('Teacher views (owner 2026-11-21): students with a CURRENT PENDING or VERIFIED claim for the school; a rejected or revoked claim, a move away and other schools are 404 on all four routes', async () => {
     await p().userPermissionOverride.createMany({ data: ['students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'].map((permission) => ({
       userId: teacherId, permission, effect: 'GRANT' as const, reason: 'aff tests', createdById: ctx.ids.admin,
     })) });
@@ -325,7 +325,11 @@ describe('Student–school affiliation (school administration PR A)', () => {
 
     const listed = (await http().get('/api/v1/teacher/students').query({ limit: 100 }).set(bearer(teacher)).expect(200)).body.data.map((s: any) => s.id);
     expect(listed).toContain(verifiedA);
-    for (const hidden of [pendingA, rejectedA, revokedA, movedAway, verifiedB]) {
+    // A student who registered with the school and whose claim ROF has not verified yet is found automatically.
+    expect(listed).toContain(pendingA);
+    await http().get(`/api/v1/teacher/students/${pendingA}`).set(bearer(teacher)).expect(200);
+    await http().get(`/api/v1/teacher/students/${pendingA}/progress`).set(bearer(teacher)).expect(200);
+    for (const hidden of [rejectedA, revokedA, movedAway, verifiedB]) {
       expect([hidden, listed.includes(hidden)]).toEqual([hidden, false]);
       expect([hidden, (await http().get(`/api/v1/teacher/students/${hidden}`).set(bearer(teacher))).status]).toEqual([hidden, 404]);
       expect([hidden, (await http().get(`/api/v1/teacher/students/${hidden}/progress`).set(bearer(teacher))).status]).toEqual([hidden, 404]);
@@ -336,7 +340,7 @@ describe('Student–school affiliation (school administration PR A)', () => {
     // Revocation applies on the Teacher's next request.
     await http().post(`${A}/${(await claimOf(verifiedA)).id}/revoke`).set(bearer(admin)).send({ reason: 'checked again' }).expect(200);
     expect((await http().get(`/api/v1/teacher/students/${verifiedA}`).set(bearer(teacher))).status).toBe(404);
-    expect(await p().submission.count({ where: { studentId: { in: [pendingA, rejectedA, revokedA, movedAway, verifiedB] } } })).toBe(0);
+    expect(await p().submission.count({ where: { studentId: { in: [rejectedA, revokedA, movedAway, verifiedB] } } })).toBe(0);
   });
 
   // ─── Leaderboard ───────────────────────────────────────────────────────────

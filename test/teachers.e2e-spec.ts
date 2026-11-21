@@ -335,7 +335,7 @@ describe('Teachers (P1-11)', () => {
     expect(await p().auditLog.count({ where: { action: 'UNASSIGN_TEACHER_SCHOOL', entityId: a.id, actorId: ctx.ids.admin } })).toBe(1);
   });
 
-  it('registration.studentRequiresApproval: listed only once the school membership is verified, and (policy on) the account approved — the two are independent; no valid school → never listed', async () => {
+  it('registration.studentRequiresApproval: listed once registered with the school code (owner 2026-11-21), and (policy on) only once the account is approved; no valid school → never listed', async () => {
     const coded = (await p().school.create({ data: { name: 'APPROVAL TEST SCHOOL', location: 'Kigali, Gasabo', code: '120998', province: 'Kigali City', district: 'Gasabo', sector: 'Kigali', ownership: 'PUBLIC', nameKey: 'approval test school' } })).id;
     await http().post(ASSIGN).set(bearer(admin)).send({ teacherId: t3Id, schoolId: coded }).expect(201);
     const reg = (username: string, extra: object = {}) => http().post('/api/v1/auth/register/student').send({
@@ -350,11 +350,11 @@ describe('Teachers (P1-11)', () => {
       await http().post(`/api/v1/admin/school-affiliations/${claim.id}/verify`).set(bearer(admin)).send({}).expect(200);
     };
 
-    // Policy off (the default): approved at registration — but the school claim is PENDING, so not listed
-    // until an Administrator verifies the membership (school administration PR A).
+    // Policy off (the default): approved at registration; the school claim is PENDING — and the student is listed at once
+    // (owner 2026-11-21: automatic discovery by the school code; no Administrator step). Verifying it changes nothing here.
     const off = await reg('appr.off').expect(201);
     expect(off.body).toMatchObject({ requiresApproval: false, schoolVerification: 'PENDING' });
-    expect(await listed()).not.toContain('appr.off');
+    expect(await listed()).toContain('appr.off');
     await verifyClaim('appr.off');
     expect(await listed()).toContain('appr.off');
 

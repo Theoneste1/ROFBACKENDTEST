@@ -74,6 +74,8 @@ describe('permissions', () => {
       'tests.distribute', 'tests.review',
       // appended 2026-11-19 (Test Management Phase 4): publication and its override, results, rankings, reports
       'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
+      // appended 2026-11-21 (owner): locked submissions — Administrators unlock one replacement
+      'tests.authorizeResubmission',
     ]);
   });
 
@@ -93,7 +95,8 @@ describe('permissions', () => {
     const FORMS = ['forms.view', 'forms.manageAvailability', 'forms.editMessages'] as const;   // form availability, after AS
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
     const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review',
-      'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings'] as const;   // Test Management (2026-11-19, Phases 1–4), after countries
+      'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
+      'tests.authorizeResubmission'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -216,6 +219,8 @@ describe('permissions', () => {
       'tests.distribute': G, 'tests.review': G,
       // Test Management, Phase 4: publication and its override (Administrators only), results, rankings, reports
       'tests.publishResults': G, 'tests.overridePublication': G, 'tests.viewResults': G, 'tests.viewRankings': G,
+      // Locked submissions (owner 2026-11-21): unlock one replacement (Administrators only)
+      'tests.authorizeResubmission': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {

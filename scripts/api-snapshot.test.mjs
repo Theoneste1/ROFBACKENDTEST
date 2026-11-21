@@ -317,7 +317,13 @@ const GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-gender-step.
 /** The generic bulk engine on top of the gender step (2026-11-20): additive only against the gender-step snapshot. */
 const BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-gender-step.json';
 const OLYMPIAD_OTHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-olympiad-other.json';
-const CURRENT_SNAPSHOT = OLYMPIAD_OTHER_SNAPSHOT;
+/**
+ * Teacher self-service and locked test submissions (owner, 2026-11-21): an Administrator authorizes / cancels one more
+ * version of a submitted answer; revokes / restores a teacher's test submission for students; a teacher filters the
+ * test's students by level and subject. Additive only against the "Other" Olympiad interest snapshot.
+ */
+const TEACHER_SELF_SERVICE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-teacher-self-service.json';
+const CURRENT_SNAPSHOT = TEACHER_SELF_SERVICE_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1771,6 +1777,24 @@ describe('approved API contract history', () => {
       'schema GenericBulkExportDto: added',
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
+    ]);
+  });
+
+  test('"Other" Olympiad interest → teacher self-service and locked submissions (2026-11-21): additive only — the resubmission and teacher test-submission routes, the level and subject filters', () => {
+    for (const f of [OLYMPIAD_OTHER_SNAPSHOT, TEACHER_SELF_SERVICE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(OLYMPIAD_OTHER_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_SELF_SERVICE_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission: operation added',
+      'GET /api/v1/admin/teachers/{id}/test-submission: operation added',
+      'GET /api/v1/teacher/tests/{id}/students: new optional query parameter "division"',
+      'GET /api/v1/teacher/tests/{id}/students: new optional query parameter "subject"',
+      'POST /api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission: operation added',
+      'PUT /api/v1/admin/teachers/{id}/test-submission: operation added',
+      'schema AuthorizeResubmissionDto: added',
+      'schema SetTeacherTestSubmissionDto: added',
     ]);
   });
 

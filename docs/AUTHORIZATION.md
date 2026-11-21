@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 415 endpoints — 26 public, 246 administrator-only.
+Totals: 419 endpoints — 26 public, 250 administrator-only.
 
 ## Academic years
 
@@ -260,6 +260,8 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  | ✓ |
 
 ## Admin · Test marking
 
@@ -321,6 +323,8 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}` |  |  |  | ✓ |
 | POST | `/api/v1/admin/tests/{id}/unpublish` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/subjects` |  |  |  | ✓ |
