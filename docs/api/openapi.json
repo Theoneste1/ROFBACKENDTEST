@@ -24716,7 +24716,7 @@
                       "statusCode": 400,
                       "error": "Bad Request",
                       "code": "VALIDATION_FAILED",
-                      "message": "Request validation failed."
+                      "message": "Title is required."
                     }
                   }
                 }
@@ -25044,7 +25044,7 @@
                       "statusCode": 400,
                       "error": "Bad Request",
                       "code": "VALIDATION_FAILED",
-                      "message": "Request validation failed."
+                      "message": "Title is required."
                     }
                   },
                   "BAD_REQUEST": {
@@ -25423,7 +25423,7 @@
                       "statusCode": 400,
                       "error": "Bad Request",
                       "code": "VALIDATION_FAILED",
-                      "message": "Request validation failed."
+                      "message": "Title is required."
                     }
                   },
                   "BULK_ACTION_UNKNOWN": {
@@ -25626,7 +25626,7 @@
                       "statusCode": 400,
                       "error": "Bad Request",
                       "code": "VALIDATION_FAILED",
-                      "message": "Request validation failed."
+                      "message": "Title is required."
                     }
                   },
                   "SELECTION_TOO_LARGE": {
@@ -25872,7 +25872,7 @@
                       "statusCode": 400,
                       "error": "Bad Request",
                       "code": "VALIDATION_FAILED",
-                      "message": "Request validation failed."
+                      "message": "Title is required."
                     }
                   },
                   "BULK_ACTION_UNKNOWN": {
@@ -25926,7 +25926,7 @@
                       "statusCode": 400,
                       "error": "Bad Request",
                       "code": "CONFIRMATION_REQUIRED",
-                      "message": "Confirm the bulk action (confirm: true)."
+                      "message": "Please confirm this action before it is applied to the selected records."
                     }
                   },
                   "REASON_REQUIRED": {
