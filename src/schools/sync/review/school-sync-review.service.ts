@@ -292,7 +292,7 @@ export class SchoolSyncReviewService {
       const rowOf = new Map(items.map((i) => [i.id, i.rowNumber]));
       const itemByRow = new Map(items.filter((i) => i.rowNumber !== null).map((i) => [i.rowNumber!, i]));
       const { snap, places } = await loadDirectorySnapshot(tx, run.dataSourceId);
-      const cmp = compareRows(stagedRows(items), snap, places, approvedResolutions(changes, rowOf));
+      const cmp = compareRows(stagedRows(items), snap, places, approvedResolutions(changes, rowOf), run.mode);
 
       // Items: the fresh comparison (staged raw is unchanged).
       for (const fresh of cmp.items) {

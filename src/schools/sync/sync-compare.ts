@@ -5,7 +5,7 @@
  */
 import type { Prisma } from '../../generated/prisma/client.js';
 import { directoryPlaces, normaliseNesaRow, type NormalisedRow } from './nesa-normaliser.js';
-import { matchRows, type DirectorySnapshot, type MatchInput, type StagedChange, type StagedItem, type SyncResolution } from './sync-matcher.js';
+import { matchRows, type DirectorySnapshot, type MatchInput, type StagedChange, type StagedItem, type SyncMode, type SyncResolution } from './sync-matcher.js';
 import { countsOf, decisionsDigest, reportDigest } from './sync-report.js';
 
 type Tx = Prisma.TransactionClient;
@@ -56,10 +56,10 @@ export interface Comparison {
 }
 
 /** Normalise and match the rows against the snapshot (with approved resolutions), and digest the result. */
-export function compareRows(rows: readonly SourceRowInput[], snap: DirectorySnapshot, places: readonly Place[], resolutions?: ReadonlyMap<number, SyncResolution>): Comparison {
+export function compareRows(rows: readonly SourceRowInput[], snap: DirectorySnapshot, places: readonly Place[], resolutions?: ReadonlyMap<number, SyncResolution>, mode: SyncMode = 'FULL'): Comparison {
   const dir = directoryPlaces(places);
   const inputs = rows.map((r) => ({ ...r, n: normaliseNesaRow(r.raw, dir) }));
-  const { items, changes } = matchRows(inputs, snap, resolutions);
+  const { items, changes } = matchRows(inputs, snap, resolutions, { mode });
   const rowOf = (i: number | null) => (i === null ? null : items[i].rowNumber);
   return {
     inputs, items, changes,

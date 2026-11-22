@@ -838,6 +838,9 @@ model SchoolSyncRun {
   fileSha256         String
   format             String
   rowCount           Int
+  /// FULL: every difference with a matched school is proposed. NEW_ONLY: schools already in the
+  /// directory are recognised and left untouched; only schools with a new official code are proposed.
+  mode               SchoolSyncMode      @default(FULL)
   /// The source's own totals (e.g. NESA's Summary tab), as read.
   sourceSummary      Json?
   /// The source totals compared with the rows read.
@@ -1234,6 +1237,11 @@ enum SchoolSyncRunStatus {
   APPLIED
   EXPIRED
   SUPERSEDED
+}
+
+enum SchoolSyncMode {
+  FULL
+  NEW_ONLY
 }
 
 enum SchoolSyncItemOutcome {

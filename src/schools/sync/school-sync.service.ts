@@ -44,7 +44,7 @@ const json = (v: unknown) => (v === null || v === undefined ? Prisma.DbNull : (v
 
 const RUN_SELECT = {
   id: true, datasetKey: true, normaliserVersion: true, datasetLabel: true, fileName: true, fileSha256: true, format: true,
-  rowCount: true, sourceSummary: true, reconciliation: true, counts: true, reportDigest: true, decisionsDigest: true,
+  rowCount: true, mode: true, sourceSummary: true, reconciliation: true, counts: true, reportDigest: true, decisionsDigest: true,
   reviewGeneration: true, status: true, comparedAt: true, createdAt: true, expiresAt: true, appliedAt: true,
   supersededAt: true, supersededByRunId: true, stagedPurgedAt: true,
   dataSource: { select: { key: true, name: true } },
@@ -77,7 +77,7 @@ export class SchoolSyncService {
 
     const runId = await this.prisma.$transaction(async (tx) => {
       const { snap, places } = await loadDirectorySnapshot(tx, source.id);
-      const { inputs, items, changes, reportDigest: digest, pendingDecisionsDigest: decisions, counts } = compareRows(parsed.rows, snap, places);
+      const { inputs, items, changes, reportDigest: digest, pendingDecisionsDigest: decisions, counts } = compareRows(parsed.rows, snap, places, undefined, q.mode ?? 'FULL');
       const reconciliation = reconcile(parsed.summary, inputs.map((x) => x.n));
       const now = this.now();
 
@@ -85,7 +85,7 @@ export class SchoolSyncService {
         data: {
           datasetKey: dataset.key, normaliserVersion: dataset.normaliserVersion, dataSourceId: source.id,
           datasetLabel: q.label ?? `${dataset.name} — ${fileName}`, fileName, fileSha256, format: parsed.format,
-          rowCount: parsed.rows.length, sourceSummary: json(parsed.summary), reconciliation, counts,
+          rowCount: parsed.rows.length, mode: q.mode ?? 'FULL', sourceSummary: json(parsed.summary), reconciliation, counts,
           reportDigest: digest, decisionsDigest: decisions, comparedAt: now, createdAt: now,
           expiresAt: new Date(now.getTime() + SYNC_RUN_TTL_MS), createdById: caller.id,
         },
@@ -113,7 +113,7 @@ export class SchoolSyncService {
       }
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role, action: 'SCHOOL_SYNC_DRY_RUN', entity: 'SchoolSyncRun', entityId: run.id,
-        metadata: { datasetKey: dataset.key, fileName, fileSha256, format: parsed.format, rows: parsed.rows.length, counts, reconciliationMismatches: reconciliation.mismatches },
+        metadata: { datasetKey: dataset.key, mode: q.mode ?? 'FULL', fileName, fileSha256, format: parsed.format, rows: parsed.rows.length, counts, reconciliationMismatches: reconciliation.mismatches },
       }, tx);
       return run.id;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 180_000, maxWait: 10_000 });

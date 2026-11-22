@@ -35,7 +35,21 @@ export function countsOf(items: readonly StagedItem[], changes: readonly StagedC
   const unchanged = items.filter((it) => it.outcome === 'MATCHED' && !changed.has(it.index)).length;
   const issues: Record<string, number> = {};
   for (const it of items) for (const x of it.issues) issues[x.code] = (issues[x.code] ?? 0) + 1;
-  return { sourceRows: items.filter((it) => it.rowNumber !== null).length, outcomes, changes: kinds, unchanged, issues };
+  const rows = items.filter((it) => it.rowNumber !== null);
+  // A repeated row (DUPLICATE_ROW) counts with the row it repeats.
+  const byRow = new Map(rows.map((it) => [it.rowNumber, it]));
+  const effective = (it: StagedItem) => (it.outcome === 'DUPLICATE_ROW' ? byRow.get(it.details?.duplicateOfRow as number)?.outcome ?? 'INVALID' : it.outcome);
+  const n = (...o: string[]) => rows.filter((it) => o.includes(effective(it))).length;
+  // The four numbers an Administrator reads first (owner decision 2026-11-22); they add up to totalFound.
+  const summary = {
+    totalFound: rows.length,
+    existing: n('MATCHED'),
+    new: n('NEW'),
+    needsAttention: n('INVALID', 'CONFLICT', 'POSSIBLE_DUPLICATE'),
+    newSchools: rows.filter((it) => it.outcome === 'NEW').length,
+    repeatedRows: rows.filter((it) => it.outcome === 'DUPLICATE_ROW').length,
+  };
+  return { sourceRows: rows.length, summary, outcomes, changes: kinds, unchanged, issues };
 }
 
 const PROVINCE_LABEL: Readonly<Record<string, string>> = {
