@@ -80,11 +80,12 @@ function readCsv(dataset: SyncDataset, buffer: Buffer): SourceRow[] {
   } catch (err) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_CSV', (err as Error).message);
   }
-  checkHeader(dataset, parsed.headers);
+  const header = checkHeader(dataset, parsed.headers);
+  const published = new Map([...header].map(([given, column]) => [column, given]));
   return parsed.records.map((r) => ({
     row: r.line,
     sourceRef: `csv!${r.line}`,
-    raw: Object.fromEntries(dataset.columns.map((c) => [c, r.values[c] ?? ''])),
+    raw: Object.fromEntries(dataset.columns.map((c) => [c, r.values[published.get(c) ?? c] ?? ''])),
     problems: [],
   }));
 }
@@ -116,8 +117,8 @@ async function readXlsx(dataset: SyncDataset, buffer: Buffer): Promise<{ rows: S
     if (!columns) {
       if (cells.some((c) => c.problem)) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SYNC_HEADER', 'The header row must contain plain text column names.');
       const names = cells.map((c) => c.text.trim());
-      checkHeader(dataset, names);
-      columns = new Map(cells.map((c) => [c.col, c.text.trim()]));
+      const header = checkHeader(dataset, names);
+      columns = new Map(cells.map((c) => [c.col, header.get(c.text.trim()) ?? c.text.trim()]));
       return;
     }
     const raw: Record<string, string> = Object.fromEntries(dataset.columns.map((c) => [c, '']));
@@ -181,15 +182,25 @@ function readSummary(sheet: ExcelJS.Worksheet | undefined): SourceSummaryLine[] 
 
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
-function checkHeader(dataset: SyncDataset, names: string[]): void {
-  const expected = new Set(dataset.columns);
+/**
+ * A column name as compared: letter case and spacing ignored, also around "/" — NESA publishes
+ * "Combinations / Trades / Other Programmes" as well as "Combinations/Trades/Other Programmes".
+ */
+export const columnKey = (name: string) => name.normalize('NFC').replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/** The header checked against the dataset's columns; returns each given name → its dataset column. */
+function checkHeader(dataset: SyncDataset, names: string[]): Map<string, string> {
+  const expected = new Map(dataset.columns.map((c) => [columnKey(c), c]));
   const seen = new Set<string>();
   const unknown: string[] = [];
   const repeated: string[] = [];
+  const header = new Map<string, string>();
   for (const n of names) {
-    if (!expected.has(n)) unknown.push(n);
-    else if (seen.has(n)) repeated.push(n);
-    seen.add(n);
+    const column = expected.get(columnKey(n));
+    if (!column) unknown.push(n);
+    else if (seen.has(column)) repeated.push(n);
+    else header.set(n, column);
+    if (column) seen.add(column);
   }
   const missing = dataset.columns.filter((c) => !seen.has(c));
   if (unknown.length || repeated.length || missing.length) {
@@ -197,6 +208,7 @@ function checkHeader(dataset: SyncDataset, names: string[]): void {
       expected: dataset.columns, missing, unknown: unknown.slice(0, 50), repeated,
     });
   }
+  return header;
 }
 
 function finish(rows: SourceRow[]): SourceRow[] {

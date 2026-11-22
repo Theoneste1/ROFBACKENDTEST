@@ -24,6 +24,24 @@ describe('sync source file (S2a)', () => {
     expect(parsed.rows[0].raw.Village).toBe(' Gako ');
   });
 
+  it('header: case and spacing ignored, also around "/" — the published "Combinations / Trades / Other Programmes"', async () => {
+    const spaced = 'No.,Province,District,Sector,Cell,Village,School Code,School Name,Accommodation,School Status,Email,Phone,Pre-Primary,Primary,O-Level,A-Level,Combinations / Trades / Other Programmes,All Education Levels (as listed by NESA)';
+    const line = '1,South,Huye,Ngoma,Butare,Gako,220001,EP SPACED,DAY,PUBLIC,a@example.org,0788000101,,Yes,,,Tailoring (TAL),PRIMARY (PR); Tailoring (TAL)';
+    const parsed = await readSourceFile(NESA, { buffer: Buffer.from(`${spaced}
+${line}
+`), originalname: 'School Data - All Schools.csv' });
+    expect(Object.keys(parsed.rows[0].raw)).toEqual([...NESA_COLUMNS]);
+    expect(parsed.rows[0].raw['Combinations/Trades/Other Programmes']).toBe('Tailoring (TAL)');
+    const xl = await readSourceFile(NESA, await xlsx([{ ...nesaRow(), 'COMBINATIONS / TRADES / OTHER PROGRAMMES': 'Tailoring (TAL)' } as ReturnType<typeof nesaRow>], {
+      columns: NESA_COLUMNS.map((c) => (c.startsWith('Combinations') ? 'COMBINATIONS / TRADES / OTHER PROGRAMMES' : c)),
+    }));
+    expect(xl.rows[0].raw['Combinations/Trades/Other Programmes']).toBe('Tailoring (TAL)');
+    // Two spellings of one column are a repeated column.
+    expect(await code(readSourceFile(NESA, { buffer: Buffer.from(`${spaced},Combinations/Trades/Other Programmes
+${line},x
+`), originalname: 'x.csv' }))).toBe('INVALID_SYNC_HEADER');
+  });
+
   it('header: exactly the 18 columns (order free); missing, unknown or repeated → INVALID_SYNC_HEADER', async () => {
     const reordered = [...NESA_COLUMNS].reverse();
     expect((await readSourceFile(NESA, await xlsx([nesaRow()], { columns: reordered }))).rows).toHaveLength(1);
