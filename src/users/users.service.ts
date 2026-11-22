@@ -31,6 +31,7 @@ import {
   UpdateUserDto,
   UpdateUserStatusDto,
 } from './dto/update-user.dto.js';
+import { storedOtherInterest } from './olympiad-interests.rules.js';
 
 /** Fields that are safe to return to admins — passwordHash is never included. */
 const SAFE_SELECT = {
@@ -41,6 +42,8 @@ const SAFE_SELECT = {
   accountStatus: true,
   activatedAt: true,
   updatedAt:  true,
+  // Olympiad levels (owner 2026-11-21): whether a Coach or a User Manager set the division (level) by hand.
+  divisionManual: true,
 } as const;
 
 /**
@@ -70,6 +73,22 @@ export function userListWhere(q: Omit<ListUsersQueryDto, 'page' | 'limit'>): Pri
   return where;
 }
 
+/**
+ * The order of GET /admin/users (owner 2026-11-22: sortable columns). Dates default to newest first, text to A–Z; the
+ * id breaks ties so pages never overlap. Never-signed-in accounts sort last for lastLoginAt.
+ */
+export function userListOrder(q: Pick<ListUsersQueryDto, 'sort' | 'order'>): Prisma.UserOrderByWithRelationInput[] {
+  const dir = q.order ?? (q.sort === undefined || q.sort === 'registeredAt' || q.sort === 'lastLoginAt' ? 'desc' : 'asc');
+  const by: Prisma.UserOrderByWithRelationInput[] =
+    q.sort === 'name' ? [{ lastName: dir }, { firstName: dir }]
+      : q.sort === 'email' ? [{ email: dir }]
+        : q.sort === 'role' ? [{ role: dir }, { lastName: 'asc' }]
+          : q.sort === 'grade' ? [{ gradeLevel: { sort: dir, nulls: 'last' } }, { lastName: 'asc' }]
+            : q.sort === 'lastLoginAt' ? [{ lastLoginAt: { sort: dir, nulls: 'last' } }]
+              : [{ createdAt: dir }];
+  return [...by, { id: 'asc' }];
+}
+
 /** The reason recorded when PATCH /admin/users/:id/status suspends an account (that route takes no reason). */
 export const LEGACY_SUSPEND_REASON = 'Suspended by an administrator (status switch).';
 
@@ -93,7 +112,7 @@ export class UsersService {
     const where = userListWhere(q);
 
     const [users, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({ where, select: SAFE_SELECT, orderBy: { createdAt: 'desc' }, skip, take }),
+      this.prisma.user.findMany({ where, select: SAFE_SELECT, orderBy: userListOrder(q), skip, take }),
       this.prisma.user.count({ where }),
     ]);
 
@@ -107,11 +126,20 @@ export class UsersService {
       });
       for (const g of groups) if (g.role === 'PRIMARY' || !roles.has(g.teacherId)) roles.set(g.teacherId, g.role);
     }
+    // Test submission for students (owner 2026-11-21): on by default; an Administrator may revoke it per teacher (an
+    // active DENY of tests.submitForStudents). One query per page.
+    const revoked = new Set(teacherIds.length === 0 ? [] : (await this.prisma.userPermissionOverride.findMany({
+      where: {
+        userId: { in: teacherIds }, permission: 'tests.submitForStudents', effect: 'DENY', revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: { userId: true },
+    })).map((r) => r.userId));
 
     // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
     // Data minimisation (ACC-16 / SEC-03): phones masked and no date of birth in a list; GET /admin/users/:id has both.
     return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(
-      row.role === 'TEACHER' ? { ...row, teacherSchoolRole: roles.get(row.id) ?? null } : row,
+      row.role === 'TEACHER' ? { ...row, teacherSchoolRole: roles.get(row.id) ?? null, testSubmissionAllowed: !revoked.has(row.id) } : row,
     )), total, page, limit);
   }
 
@@ -197,7 +225,7 @@ export class UsersService {
     // The shared seeded account is never promoted to Super Admin, nor renamed out of that rule (P1-08 hardening).
     this.roles.assertSharedAccountRules(existing, { role: data.role, username: data.username });
     // Subject interests are edited here for Coach accounts only (coachOlympiadInterests); students edit theirs on PATCH /me.
-    if (data.olympiadInterests !== undefined && (data.role ?? existing.role) !== 'MENTOR') {
+    if ((data.olympiadInterests !== undefined || data.olympiadInterestOther !== undefined) && (data.role ?? existing.role) !== 'MENTOR') {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INTERESTS_COACH_ONLY', 'Olympiad interests can be edited here for Coach accounts only.');
     }
     // schoolCode → the school's id (PR B). Not required to be active here: re-sending a student's
@@ -239,6 +267,7 @@ export class UsersService {
       ...(data.password && { passwordHash: await bcrypt.hash(data.password, BCRYPT_COST) }),
       // Stored in the fixed order, like the coach's own edit (PATCH /me); information only.
       ...(data.olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(data.olympiadInterests) }),
+      ...(data.olympiadInterestOther !== undefined && { olympiadInterestOther: storedOtherInterest(data.olympiadInterestOther) }),
       // Home location (homeLocationRules), any role.
       ...(await this.homeUpdate(data)),
       // An Administrator's correction of the gender (genderStep), any role.
@@ -283,8 +312,8 @@ export class UsersService {
           'This user was changed by someone else in the meantime. Reload the user and try again.');
       }
       // The coach's interests before this edit (read under the row lock), for the audit entry.
-      const interestsBefore = data.olympiadInterests !== undefined
-        ? (await tx.user.findUniqueOrThrow({ where: { id }, select: { olympiadInterests: true } })).olympiadInterests
+      const interestsBefore = data.olympiadInterests !== undefined || data.olympiadInterestOther !== undefined
+        ? await tx.user.findUniqueOrThrow({ where: { id }, select: { olympiadInterests: true, olympiadInterestOther: true } })
         : undefined;
 
       // School affiliation follows the student's school and role, in this transaction:
@@ -305,7 +334,7 @@ export class UsersService {
 
       const updated = await tx.user.update({
         where: { id }, data: updateData,
-        select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true, olympiadInterests: true },
+        select: { role: true, gradeLevel: true, divisionId: true, schoolId: true, firstName: true, lastName: true, username: true, email: true, homeLocation: true, olympiadInterests: true, olympiadInterestOther: true },
       });
       if (nextClaim) await this.affiliations.claim(tx, nextClaim);
       let enrollment: 'PLACED' | 'WITHDRAWN' | null = null;
@@ -363,8 +392,11 @@ export class UsersService {
       // The audit entries commit with the change: what changed, from what, to what.
       const changes: Record<string, { from: unknown; to: unknown }> =
         diff(existing, updated, ['firstName', 'lastName', 'username', 'email', 'role', 'gradeLevel', 'divisionId', 'schoolId', 'homeLocation']);
-      if (interestsBefore && interestsBefore.join() !== updated.olympiadInterests.join()) {
-        changes.olympiadInterests = { from: interestsBefore, to: updated.olympiadInterests };
+      if (interestsBefore && interestsBefore.olympiadInterests.join() !== updated.olympiadInterests.join()) {
+        changes.olympiadInterests = { from: interestsBefore.olympiadInterests, to: updated.olympiadInterests };
+      }
+      if (interestsBefore && interestsBefore.olympiadInterestOther !== updated.olympiadInterestOther) {
+        changes.olympiadInterestOther = { from: interestsBefore.olympiadInterestOther, to: updated.olympiadInterestOther };
       }
 
       // A new e-mail address: links already e-mailed to the old address (invitation, e-mail
@@ -594,12 +626,16 @@ export class UsersService {
     if (Object.keys(data).length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'At least one field must be provided.');
     }
-    const { olympiadInterests, homeCountry: _c, homeProvince: _p, homeDistrict: _d, homeSector: _s, ...rest } = data;
+    const { olympiadInterests, olympiadInterestOther, homeCountry: _c, homeProvince: _p, homeDistrict: _d, homeSector: _s, ...rest } = data;
     const home = await this.homeUpdate(data);
     return this.prisma.user.update({
       where: { id: userId },
       // Olympiad interests are stored in the fixed order (owner decision 8; information only).
-      data:  { ...rest, ...home, ...(olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(olympiadInterests) }) },
+      data:  {
+        ...rest, ...home,
+        ...(olympiadInterests !== undefined && { olympiadInterests: canonicalInterests(olympiadInterests) }),
+        ...(olympiadInterestOther !== undefined && { olympiadInterestOther: storedOtherInterest(olympiadInterestOther) }),
+      },
       select: PROFILE_SELECT,
     });
   }

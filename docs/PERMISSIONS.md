@@ -99,6 +99,7 @@ permission guard.
 | `tests.manageMarkers` | — | — | — | programme | all | all |
 | `tests.extensions` | — | — | — | programme | all | all |
 | `tests.viewSubmissions` | — | — | — | programme | all | all |
+| `tests.authorizeResubmission` | — | — | — | — | all | all |
 | `tests.submit` | own | — | — | — | — | — |
 | `tests.submitForStudents` | — | school | — | — | — | — |
 | `tests.distribute` | — | — | — | programme | all | all |
@@ -111,6 +112,8 @@ permission guard.
 | `tests.viewRankings` | — | — | — | programme | all | all |
 | `tests.viewOwnResults` | own | — | — | — | — | — |
 | `tests.viewSchoolResults` | — | school | — | — | — | — |
+| `students.classifyLevel` | — | — | programme | programme | all | all |
+| `reports.build` | — | — | — | — | all | all |
 
 ## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
 

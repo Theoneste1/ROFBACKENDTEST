@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiExtension, ApiTags } from '@nestjs/swagger';
 
@@ -11,7 +11,7 @@ import { PermissionOverridesService } from '../permission-overrides/permission-o
 import { CreateSubmissionDto } from '../submissions/dto/create-submission.dto.js';
 import {
   AssignTeacherStudentsDto, CreateDelegationDto, CreateTeacherSchoolDto, DelegationStudentsDto, ListTeacherSchoolsDto,
-  ListTeacherStudentAssignmentsDto, ListTeacherStudentsDto, ReassignTeacherStudentsDto, SchoolAccessStudentsDto,
+  ListTeacherStudentAssignmentsDto, ListTeacherStudentsDto, ReassignTeacherStudentsDto, SchoolAccessStudentsDto, SetTeacherTestSubmissionDto,
 } from './dto/teacher.dto.js';
 import { TeacherStudentAssignmentsService } from './teacher-student-assignments.service.js';
 import { TeacherSchoolsService } from './teacher-schools.service.js';
@@ -76,6 +76,23 @@ export class TeacherDelegationsController {
   @RequirePermission('users.manageTeachers')
   list(@Param('id', ParseUUIDPipe) id: string) {
     return this.overrides.list(id, { delegation: true });
+  }
+
+  /**
+   * Test submission for students (owner, 2026-11-21): every Teacher has it by default; an Administrator revokes it (reason
+   * required) or restores it for one teacher. Revoking never deactivates the account, never blocks sign-in or any other
+   * teacher right, and never touches students' own submissions. Audited (TEACHER_TEST_SUBMISSION_REVOKED / _RESTORED).
+   */
+  @Get(':id/test-submission')
+  @RequirePermission('users.manageTeachers')
+  testSubmission(@Param('id', ParseUUIDPipe) id: string) {
+    return this.overrides.teacherTestSubmission(id);
+  }
+
+  @Put(':id/test-submission')
+  @RequirePermission('users.manageTeachers')
+  setTestSubmission(@Param('id', ParseUUIDPipe) id: string, @Body() body: SetTeacherTestSubmissionDto, @CurrentUser() user: AuthUser) {
+    return this.overrides.setTeacherTestSubmission(id, body, user);
   }
 
   @Post(':id/delegations')

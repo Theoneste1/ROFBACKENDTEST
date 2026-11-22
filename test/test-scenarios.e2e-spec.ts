@@ -328,6 +328,8 @@ describe('Test Management — the owner\'s scenarios beyond the phase specs (e2e
       const id = await createTest(hm, { title: 'Times' });
       const [{ now: t0 }] = await p().$queryRaw<Array<{ now: Date }>>`SELECT (clock_timestamp() AT TIME ZONE 'UTC') AS now`;
       await submitTyped(sj, id, 'first').expect(201);
+      // Locked once submitted (owner 2026-11-21): an Administrator authorizes the second version.
+      await http().post(`${T}/${id}/submissions/${(await subOf(id, stJ)).id}/resubmission`).set(bearer(admin)).send({ reason: 'Teacher hands in the paper copy' }).expect(200);
       await sleep(30);
       await http().post(`${TT}/${id}/students/${stJ}/submission`).set(bearer(ta)).send({ clientKey: randomUUID(), typedAnswer: 'second' }).expect(201);
       const [{ now: t1 }] = await p().$queryRaw<Array<{ now: Date }>>`SELECT (clock_timestamp() AT TIME ZONE 'UTC') AS now`;
@@ -348,13 +350,13 @@ describe('Test Management — the owner\'s scenarios beyond the phase specs (e2e
       expect(view.submission.versions.map((v: any) => v.number)).toEqual([2, 1]);
     });
 
-    it('scenario 19: a teacher extension never lets that teacher submit for another school\'s student, another division or a pending student', async () => {
+    it('scenario 19: a teacher extension never lets that teacher submit for another school\'s student or another division; a pending claim is a student of the school (owner 2026-11-21)', async () => {
       const id = await createTest(hm, { title: 'Teacher extension scope', division: 'JUNIOR' });
       await http().post(`${T}/${id}/extensions`).set(bearer(hm)).send({ kind: 'TEACHER', teacherId: tA, newDeadline: minutes(240), reason: 'Network down' }).expect(201);
       await closeNow(id);
       const submitFor = (studentId: string, token = ta) => http().post(`${TT}/${id}/students/${studentId}/submission`).set(bearer(token)).send({ clientKey: randomUUID(), typedAnswer: 'x' });
       expect(await status(submitFor(stO))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);       // another school
-      expect(await status(submitFor(stP))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);       // pending claim
+      expect((await submitFor(stP)).status).toBe(201);                                   // pending claim: their school's student (owner 2026-11-21)
       expect((await submitFor(stS)).status).toBe(403);                                   // Senior student, Junior test
       expect((await submitFor(stJ)).status).toBe(201);                                   // their own verified Junior student: yes
       expect(await status(submitFor(stO, to))).toEqual([409, 'DEADLINE_PASSED']);        // the other school's teacher: not extended

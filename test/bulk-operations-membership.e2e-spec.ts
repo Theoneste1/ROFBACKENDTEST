@@ -12,7 +12,6 @@
  * Runs on its own freshly reset test database (never production).
  */
 import pg from 'pg';
-import { readFileSync } from 'node:fs';
 
 import { BulkOperationsService } from '../src/users/bulk/bulk-operations.service.js';
 import { MEMBERSHIP_COLUMNS } from '../src/users/bulk/bulk-rules.js';
@@ -73,8 +72,10 @@ describe('Bulk operations — membership guard', () => {
   afterAll(async () => { await ctx?.app.close(); });
 
   it('the trigger guards exactly the columns the filters read (and fires on INSERT and DELETE)', async () => {
-    const migration = readFileSync('prisma/migrations/20261207000100_bulk_membership_guard/migration.sql', 'utf8');
-    const cols = [...(migration.match(/UPDATE OF([\s\S]*?)\n\s*ON "User"/)![1].matchAll(/"([A-Za-z]+)"/g))].map((m) => m[1]).sort();
+    // The trigger as the database has it now (re-created by 20261224000000 with "olympiadLevel"), not as a file says.
+    const [{ def }] = await p().$queryRaw<Array<{ def: string }>>`
+      SELECT pg_get_triggerdef(oid) AS def FROM pg_trigger WHERE tgname = 'user_bulk_membership_guard'`;
+    const cols = [...def.match(/UPDATE OF (.*?) ON /)![1].matchAll(/"?([A-Za-z]+)"?/g)].map((m) => m[1]).sort();
     expect(cols).toEqual([...MEMBERSHIP_COLUMNS].sort());
     const tg = await p().$queryRaw<Array<{ ins: boolean; del: boolean }>>`
       SELECT (tgtype & 4) <> 0 AS ins, (tgtype & 8) <> 0 AS del FROM pg_trigger WHERE tgname = 'user_bulk_membership_guard'`;

@@ -172,9 +172,10 @@ export class TeacherStudentAssignmentsService {
       this.prisma.teacherStudentAssignment.groupBy({
         by: ['teacherId'], where: { teacherId: { in: teacherIds }, isActive: true, student: { schoolId } }, _count: { _all: true },
       }),
-      this.prisma.user.count({ where: schoolStudentsWhere([schoolId]) }),
+      // "Verified" counts stay exactly that: the shared rule also admits PENDING claims (owner 2026-11-21), counted apart.
+      this.prisma.user.count({ where: { ...schoolStudentsWhere([schoolId]), ...verifiedAt(schoolId) } }),
       this.prisma.studentSchoolAffiliation.count({ where: { schoolId, supersededAt: null, status: 'PENDING', student: { role: 'STUDENT' } } }),
-      this.prisma.user.count({ where: { ...schoolStudentsWhere([schoolId]), teacherStudentsAsStudent: { none: { isActive: true } } } }),
+      this.prisma.user.count({ where: { ...schoolStudentsWhere([schoolId]), ...verifiedAt(schoolId), teacherStudentsAsStudent: { none: { isActive: true } } } }),
     ]);
     const assignedOf = new Map(assignedCounts.map((c) => [c.teacherId, c._count._all]));
     const rows = teachers.map((t) => ({
@@ -296,3 +297,6 @@ export class TeacherStudentAssignmentsService {
 }
 
 const actorOf = (c: CallerCtx): Actor => ({ actorId: c.id, actorRole: c.role });
+
+/** A CURRENT VERIFIED claim for this school (narrows schoolStudentsWhere, which also admits PENDING claims). */
+const verifiedAt = (schoolId: string) => ({ schoolAffiliations: { some: { schoolId, supersededAt: null, status: 'VERIFIED' as const } } });

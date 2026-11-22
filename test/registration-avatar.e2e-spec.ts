@@ -14,6 +14,14 @@ describe('Optional profile picture at registration (e2e)', () => {
   let ctx: TestContext;
   let admin: string, ngoma: string;
   const http = () => ctx.http();
+  const teacherBody = (u: string): Record<string, unknown> => ({
+    firstName: 'Tess', lastName: 'Teacher', username: u, email: `${u}@test.local`, password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
+    country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
+    schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
+  });
+  /** A school not listed yet: still an application an Administrator reviews (the picture is moderated there). */
+  const missingSchool = ({ schoolId: _drop, ...rest }: Record<string, unknown>) => ({ ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma' });
+  const verifySchool = (id: string) => http().post(`/api/v1/admin/teacher-applications/${id}/school`).set(bearer(admin)).send({ schoolId: ngoma }).expect(200);
   const p = () => ctx.prisma;
   let n = 0;
   const upload = (token: unknown, file: Buffer | null, name = 'me.png') => {
@@ -76,18 +84,26 @@ describe('Optional profile picture at registration (e2e)', () => {
     expect(await p().fileObject.count()).toBe(before);
   });
 
-  it('Teacher application: works without a picture; with one, it becomes the teacher\'s picture on approval', async () => {
-    const body = (u: string) => ({
-      firstName: 'Tess', lastName: 'Teacher', username: u, email: `${u}@test.local`, password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
-      country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
-    });
+  it('a listed school\'s teacher (account at once, owner 2026-11-21): the picture goes straight onto the account, like a student\'s', async () => {
+    const res = await http().post('/api/v1/auth/register/teacher').send(teacherBody('ra.t0')).expect(201);
+    expect(res.body).toMatchObject({ accountCreated: true, avatarUploadToken: expect.any(String) });
+    await upload(res.body.avatarUploadToken, PNG).expect(200);
+    const u = await p().user.findUniqueOrThrow({ where: { username: 'ra.t0' } });
+    expect(u.avatarFileId).not.toBeNull();
+    expect(u.avatarUrl).toContain(`/users/${u.id}/avatar`);
+    expect((await upload(res.body.avatarUploadToken, PNG)).status).toBe(409);   // once
+    expect(await p().auditLog.count({ where: { action: 'AVATAR_SET', entityId: u.id } })).toBe(1);
+  });
+
+  it('Teacher application (a school not listed yet, reviewed by an Administrator): works without a picture; with one, it becomes the teacher\'s picture on approval', async () => {
+    const body = (u: string) => missingSchool(teacherBody(u));
     const without = await http().post('/api/v1/auth/register/teacher').send(body('ra.t1')).expect(201);
     expect(typeof without.body.avatarUploadToken).toBe('string');
     const withPic = await http().post('/api/v1/auth/register/teacher').send(body('ra.t2')).expect(201);
     await upload(withPic.body.avatarUploadToken, PNG).expect(200);
     const app = await p().teacherApplication.findUniqueOrThrow({ where: { id: withPic.body.id } });
     expect(app.avatarFileId).not.toBeNull();
+    for (const id of [without.body.id, withPic.body.id]) await verifySchool(id);
 
     await http().post(`/api/v1/admin/teacher-applications/${without.body.id}/approve`).set(bearer(admin)).send({}).expect(200);
     // The Administrator sees the picture first, then approves it explicitly (picture moderation).
@@ -159,12 +175,9 @@ describe('Optional profile picture at registration (e2e)', () => {
     expect(await p().mentorRequest.count({ where: { avatarFileId: fileId } })).toBe(0);   // unreferenced: cleaned up
     expect((await p().auditLog.findFirstOrThrow({ where: { action: 'APPROVE_MENTOR_REQUEST', entityId: a.body.id } })).metadata).toMatchObject({ picture: 'DISCARDED' });
     // Same rule for teachers: approvePicture false discards.
-    const t = await http().post('/api/v1/auth/register/teacher').send({
-      firstName: 'Tess', lastName: 'Teacher', username: 'ra.m2', email: 'ra.m2@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
-      country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
-    }).expect(201);
+    const t = await http().post('/api/v1/auth/register/teacher').send(missingSchool(teacherBody('ra.m2'))).expect(201);
     await upload(t.body.avatarUploadToken, PNG).expect(200);
+    await verifySchool(t.body.id);
     await http().get(`/api/v1/admin/teacher-applications/${t.body.id}/avatar`).set(bearer(coach)).expect(403);
     await http().post(`/api/v1/admin/teacher-applications/${t.body.id}/approve`).set(bearer(admin)).send({ approvePicture: false }).expect(200);
     expect((await p().user.findUniqueOrThrow({ where: { username: 'ra.m2' } })).avatarFileId).toBeNull();

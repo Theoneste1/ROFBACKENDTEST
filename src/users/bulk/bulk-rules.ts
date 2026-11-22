@@ -21,6 +21,9 @@ export const BULK_ACTIONS = [
   'assignTeacher', 'unassignTeacher', 'grantDelegation', 'revokeDelegation',
   // Move the selected students from one teacher to another (params.fromTeacherId → params.toTeacherId; 2026-11-19).
   'reassignTeacher',
+  // The students' Olympiad level = division (owner 2026-11-21/22): params.olympiadLevel — an active division's code, or
+  // AUTOMATIC (follow the grade's suggestion again).
+  'setOlympiadLevel',
 ] as const;
 
 /** Actions on the teacher–student links of the selected students (params.teacherId). */
@@ -65,6 +68,8 @@ export interface BulkParams {
   /** reassignTeacher: the students' current teacher and the teacher they move to. */
   fromTeacherId?: string;
   toTeacherId?: string;
+  /** setOlympiadLevel: the level to set by hand, or AUTOMATIC (the level the grade suggests). */
+  olympiadLevel?: string;
 }
 
 export interface ActionRule {
@@ -96,7 +101,7 @@ export const ACTION_RULES: Readonly<Record<BulkAction, ActionRule>> = {
   assignRole: { permissions: ['users.manage'], reason: 'optional',
                 consequence: 'Each account gets the new role, if you may manage both its current and the new role. Sessions of changed accounts end.' },
   changeClassification: { permissions: ['users.manage'], reason: 'optional',
-                consequence: 'Students move to the new grade, and so to its division (S1–S3 Junior, S4–S6 Senior), re-enrolled for the current year. Other roles are skipped.' },
+                consequence: 'Students move to the new grade, and so to its course division (S1–S3 Junior, S4–S6 Senior), re-enrolled for the current year; their Olympiad level follows the grade unless it was set by hand. Other roles are skipped.' },
   message:    { permissions: ['email.bulkSend'], reason: 'optional',
                 consequence: 'Each active account in the selection is e-mailed once. Blocked accounts are skipped.' },
   assignTeacher:    { permissions: ['users.manageTeachers'], reason: 'optional',
@@ -109,6 +114,8 @@ export const ACTION_RULES: Readonly<Record<BulkAction, ActionRule>> = {
                       consequence: 'Each selected student is taken off the teacher\'s delegation for selected students (kept as history). Delegations for the whole school or assigned students are not changed: revoke those on the teacher\'s page.' },
   reassignTeacher:  { permissions: ['users.manageTeachers'], reason: 'optional',
                       consequence: 'Each selected student assigned to the first teacher moves to the second: the old assignment ends and the new one starts together, or nothing changes for that student (a student outside the new teacher\'s schools needs a reason). Students not assigned to the first teacher are skipped. School links and student ownership never change. The new teacher is told once.' },
+  setOlympiadLevel: { permissions: ['students.classifyLevel'], reason: 'required',
+                      consequence: 'Each selected student gets this Olympiad level (it then no longer follows the grade), or — Automatic — the level the grade suggests (and follows the grade again). The reason is kept in each student\'s level history. Their tests from now on are those of the new level; results already submitted keep their level. Other accounts, and students already at that level, are skipped.' },
 };
 
 /** Status of an account before a status action: SKIPPED (with why), or the transition to make. */
@@ -141,6 +148,7 @@ export function normaliseParams(action: BulkAction, p: BulkParams): BulkParams {
     case 'grantDelegation':
     case 'revokeDelegation': return { teacherId: p.teacherId, permission: p.permission };
     case 'reassignTeacher': return { fromTeacherId: p.fromTeacherId, toTeacherId: p.toTeacherId };
+    case 'setOlympiadLevel': return { olympiadLevel: p.olympiadLevel };
     default: return {};
   }
 }
@@ -162,4 +170,4 @@ export function selectionToken(action: BulkAction, params: BulkParams, selection
 export { finalStatus } from '../../bulk/bulk-handler.js';
 
 /** Refusal codes that mean "nothing to do for this account" rather than a failure. */
-export const SKIP_CODES: ReadonlySet<string> = new Set(['STATUS_UNCHANGED', 'INVALID_STATUS_TRANSITION', 'CANNOT_CHANGE_OWN_STATUS']);
+export const SKIP_CODES: ReadonlySet<string> = new Set(['STATUS_UNCHANGED', 'INVALID_STATUS_TRANSITION', 'CANNOT_CHANGE_OWN_STATUS', 'NO_SUGGESTED_LEVEL']);

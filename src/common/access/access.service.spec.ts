@@ -5,14 +5,14 @@ import { AccessService } from './access.service.js';
 
 const SCOPE = { courseId: 'c1', divisionId: 'd1' };
 
-function makeService(opts: { assigned?: boolean; courseStatus?: string } = {}) {
+function makeService(opts: { assigned?: boolean; courseStatus?: string; offered?: boolean } = {}) {
   const active = [{ courseId: 'c1', divisionId: 'd1' }, { courseId: 'c2', divisionId: 'd2' }];
   const prisma = {
     mentorAssignment: {
       findMany:  vi.fn().mockResolvedValue(opts.assigned === false ? [] : active),
       findFirst: vi.fn().mockResolvedValue(opts.assigned === false ? null : { id: 'ma1' }),
     },
-    course: { findUnique: vi.fn().mockResolvedValue({ status: opts.courseStatus ?? 'PUBLISHED' }) },
+    course: { findUnique: vi.fn().mockResolvedValue({ status: opts.courseStatus ?? 'PUBLISHED', divisionOfferings: opts.offered === false ? [] : [{ id: 'o1' }] }) },
   };
   return { service: new AccessService(prisma as never), prisma };
 }
@@ -56,9 +56,14 @@ describe('AccessService — known roles keep their behaviour', () => {
     await expect(service.assertCanView(user('STUDENT', { divisionId: 'd1' }), SCOPE)).resolves.toBeUndefined();
     await expect(service.assertCanView(user('STUDENT', { divisionId: 'd2' }), SCOPE)).rejects.toBeInstanceOf(NotFoundException);
     await expect(service.scopeFilter(user('STUDENT', { divisionId: 'd1' }))).resolves.toEqual({
-      divisionId: 'd1', course: { status: 'PUBLISHED' },
+      divisionId: 'd1', course: { status: 'PUBLISHED', divisionOfferings: { some: { divisionId: 'd1', isActive: true } } },
     });
     await expect(service.assertCanManage(user('STUDENT', { divisionId: 'd1' }), SCOPE)).rejects.toMatchObject({ code: 'NOT_ASSIGNED_TO_SCOPE' });
+  });
+
+  it('students: a course their division does not offer is not revealed (404)', async () => {
+    const { service } = makeService({ offered: false });
+    await expect(service.assertCanView(user('STUDENT', { divisionId: 'd1' }), SCOPE)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('students in an unpublished course: 404', async () => {

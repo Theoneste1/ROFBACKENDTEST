@@ -22,6 +22,8 @@ const NOBODY_BY_DEFAULT: AddedRouteDecisions = { anonymous: '401', STUDENT: '403
 const COURSE_VIEWERS:   AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** tests.mark (Test Management Phase 3): Coaches only — Administrators never mark (ADMIN_PROHIBITED, G4). */
 const COACHES_ONLY:     AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: '403', UNKNOWN_ROLE: '403' };
+/** students.classifyLevel (Olympiad levels, owner 2026-11-21): User Managers and Coaches (the service limits a Coach to their programmes' students). */
+const ADMINS_AND_COACHES: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** @Authenticated: every signed-in caller, whatever the role (own data only, or data shown to every member). */
 const SIGNED_IN:        AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
 
@@ -302,5 +304,42 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/bulk/operations/:id/cancel  BulkController.cancel':                                     ADMINISTRATORS,
   'POST /api/v1/admin/bulk/:entityType/preview  BulkController.preview':                                      ADMINISTRATORS,
   'POST /api/v1/admin/bulk/:entityType/export  BulkController.export':                                        ADMINISTRATORS,
-  'POST /api/v1/admin/bulk/:entityType  BulkController.execute':                                              ADMINISTRATORS,
+  'POST /api/v1/admin/bulk/:entityType  BulkController.execute':                                              ADMINISTRATORS,  // Locked test submissions (owner 2026-11-21): an Administrator authorizes / cancels one more version of a submitted
+  // answer (tests.authorizeResubmission: ADMIN and SUPER_ADMIN, never grantable), and revokes / restores a teacher's
+  // test submission for students without touching the account (users.manageTeachers).
+  'POST /api/v1/admin/tests/:id/submissions/:submissionId/resubmission  AdminTestSubmissionsController.authorizeResubmission': ADMINISTRATORS,
+  'DELETE /api/v1/admin/tests/:id/submissions/:submissionId/resubmission  AdminTestSubmissionsController.cancelResubmission': ADMINISTRATORS,
+  'GET /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.testSubmission':              ADMINISTRATORS,
+  'PUT /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.setTestSubmission':           ADMINISTRATORS,
+  // Olympiad levels (owner 2026-11-21): a student's level, its suggestion and history; set it or follow the grade again.
+  'GET /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.view':                               ADMINS_AND_COACHES,
+  'PUT /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.set':                                ADMINS_AND_COACHES,
+  // Administrator-managed divisions (owner 2026-11-21/22): create one (divisions.manage).
+  'POST /api/v1/admin/divisions  DivisionsController.create':                                                   ADMINISTRATORS,
+  // The courses each division offers (divisions.manage); a coach on many course x division pairs at once
+  // (mentorAssignments.manage: Administrators; Head Coaches too — not a baseline caller).
+  'GET /api/v1/admin/divisions/:id/courses  DivisionsController.courses':                                       ADMINISTRATORS,
+  'PUT /api/v1/admin/divisions/:id/courses  DivisionsController.setCourses':                                    ADMINISTRATORS,
+  'POST /api/v1/admin/mentor-assignments/bulk  MentorAssignmentsController.bulkAssign':                         ADMINISTRATORS,
+  // The Student Profile Overview (owner 2026-11-22): every signed-in caller; the service decides who may view whom (404).
+  'GET /api/v1/students/:id/overview  StudentOverviewController.view':                                          SIGNED_IN,
+  // Table layouts (owner 2026-11-22): own layouts (users.view), the organization default (settings.manage).
+  'GET /api/v1/me/table-layouts/:table  TableLayoutsController.mine':                                           ADMINISTRATORS,
+  'PUT /api/v1/me/table-layouts/:table  TableLayoutsController.saveMine':                                       ADMINISTRATORS,
+  'DELETE /api/v1/me/table-layouts/:table  TableLayoutsController.resetMine':                                   ADMINISTRATORS,
+  'PUT /api/v1/admin/table-layouts/:table  TableLayoutsController.saveOrg':                                     ADMINISTRATORS,
+  'DELETE /api/v1/admin/table-layouts/:table  TableLayoutsController.resetOrg':                                 ADMINISTRATORS,
+  // Custom reports (owner 2026-11-22): building (reports.build); a shared report's grants decide the rest (signed in).
+  'GET /api/v1/reports/sources  CustomReportsController.sources':                                               ADMINISTRATORS,
+  'POST /api/v1/reports  CustomReportsController.create':                                                       ADMINISTRATORS,
+  'POST /api/v1/reports/preview  CustomReportsController.preview':                                              ADMINISTRATORS,
+  'GET /api/v1/reports  CustomReportsController.list':                                                          SIGNED_IN,
+  'GET /api/v1/reports/:id  CustomReportsController.get':                                                       SIGNED_IN,
+  'PUT /api/v1/reports/:id  CustomReportsController.update':                                                    SIGNED_IN,
+  'DELETE /api/v1/reports/:id  CustomReportsController.remove':                                                 SIGNED_IN,
+  'POST /api/v1/reports/:id/preview  CustomReportsController.previewFor':                                       SIGNED_IN,
+  'GET /api/v1/reports/:id/run  CustomReportsController.run':                                                   SIGNED_IN,
+  'GET /api/v1/reports/:id/export  CustomReportsController.export':                                             SIGNED_IN,
+  'GET /api/v1/reports/:id/grants  CustomReportsController.grants':                                             SIGNED_IN,
+  'PUT /api/v1/reports/:id/grants  CustomReportsController.setGrants':                                          SIGNED_IN,
 };

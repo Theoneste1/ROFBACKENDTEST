@@ -34,6 +34,14 @@ describe('Application details and requests for more information (e2e)', () => {
       homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', ...over,
     };
   };
+  /**
+   * A school not listed yet: an application an Administrator reviews (and may question). A listed school's teacher gets
+   * the account at once (owner 2026-11-21), so there is nothing to ask about.
+   */
+  const reviewedBody = (over: Record<string, unknown> = {}) => {
+    const { schoolId: _drop, ...rest } = teacherBody(over);
+    return { ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma' };
+  };
   const coachBody = (over: Record<string, unknown> = {}) => {
     n += 1;
     return { firstName: 'Eric', lastName: 'Coach', username: `air.c${n}`, email: `air.c${n}@test.local`, password: 'Mentor123', gender: 'FEMALE', country: 'KE', olympiadInterests: ['MATHEMATICS'], ...over };
@@ -75,7 +83,7 @@ describe('Application details and requests for more information (e2e)', () => {
   });
 
   it('Teacher: request → e-mailed link → view → answer with corrections → PENDING again, administrators told; link used once', async () => {
-    const body = teacherBody({ position: 'Teacher' });
+    const body = reviewedBody({ position: 'Teacher' });
     const app = (await http().post(TEACHER_REGISTER).send(body).expect(201)).body.id as string;
     const asked = await http().post(`/api/v1/admin/teacher-applications/${app}/request-info`).set(bearer(admin))
       .send({ question: 'Which classes do you teach?' }).expect(200);
@@ -106,7 +114,7 @@ describe('Application details and requests for more information (e2e)', () => {
   });
 
   it('a new question replaces an unanswered one (the old link stops working); a decision cancels the open one', async () => {
-    const body = teacherBody();
+    const body = reviewedBody();
     const app = (await http().post(TEACHER_REGISTER).send(body).expect(201)).body.id as string;
     await http().post(`/api/v1/admin/teacher-applications/${app}/request-info`).set(bearer(admin)).send({ question: 'First question?' }).expect(200);
     const first = await tokenFor(body.email);
@@ -158,7 +166,7 @@ describe('Application details and requests for more information (e2e)', () => {
   });
 
   it('only administrators with the permission may ask; invalid input and unknown links are refused', async () => {
-    const t = (await http().post(TEACHER_REGISTER).send(teacherBody()).expect(201)).body.id as string;
+    const t = (await http().post(TEACHER_REGISTER).send(reviewedBody()).expect(201)).body.id as string;
     const c = (await http().post('/api/v1/mentor-requests').send(coachBody()).expect(201)).body.id as string;
     await http().post(`/api/v1/admin/teacher-applications/${t}/request-info`).set(bearer(coach)).send({ question: 'Hello there?' }).expect(403);
     await http().post(`/api/v1/mentor-requests/${c}/request-info`).set(bearer(coach)).send({ question: 'Hello there?' }).expect(403);

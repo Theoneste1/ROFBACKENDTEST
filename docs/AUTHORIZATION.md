@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 415 endpoints — 26 public, 246 administrator-only.
+Totals: 443 endpoints — 26 public, 262 administrator-only.
 
 ## Academic years
 
@@ -131,6 +131,7 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | GET | `/api/v1/admin/mentor-assignments` |  |  |  | ✓ |
 | POST | `/api/v1/admin/mentor-assignments` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/mentor-assignments/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/mentor-assignments/bulk` |  |  |  | ✓ |
 
 ## Admin · Permissions
 
@@ -260,6 +261,8 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed` |  |  |  | ✓ |
 | POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  | ✓ |
 
 ## Admin · Test marking
 
@@ -321,6 +324,8 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}` |  |  |  | ✓ |
 | POST | `/api/v1/admin/tests/{id}/unpublish` |  |  |  | ✓ |
 | GET | `/api/v1/admin/tests/subjects` |  |  |  | ✓ |
@@ -432,6 +437,23 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | POST | `/api/v1/courses/{id}/complete` |  | ✓ |  |  |
 | GET | `/api/v1/disciplines` |  | ✓ | ✓ | ✓ |
 
+## custom-reports
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/reports` |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports` |  |  |  | ✓ |
+| GET | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/export` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/{id}/preview` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/run` |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/preview` |  |  |  | ✓ |
+| GET | `/api/v1/reports/sources` |  |  |  | ✓ |
+
 ## Discussions
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -465,7 +487,10 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | Method | Path | Public | Student | Mentor | Admin |
 |---|---|:-:|:-:|:-:|:-:|
 | GET | `/api/v1/admin/divisions` |  |  |  | ✓ |
+| POST | `/api/v1/admin/divisions` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/divisions/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/divisions/{id}/courses` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/divisions/{id}/courses` |  |  |  | ✓ |
 | GET | `/api/v1/divisions` | ✓ | ✓ | ✓ | ✓ |
 
 ## Forms
@@ -560,6 +585,13 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | POST | `/api/v1/notifications/read-all` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/notifications/unread-count` |  | ✓ | ✓ | ✓ |
 
+## olympiad-levels
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/students/{id}/olympiad-level` |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/students/{id}/olympiad-level` |  |  | ✓ | ✓ |
+
 ## Programmes
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -581,6 +613,12 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | GET | `/api/v1/schools/{id}` |  |  |  | ✓ |
 | GET | `/api/v1/schools/locations` | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/schools/search` | ✓ | ✓ | ✓ | ✓ |
+
+## Students
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/students/{id}/overview` |  | ✓ | ✓ | ✓ |
 
 ## Submissions
 
@@ -619,6 +657,16 @@ Totals: 415 endpoints — 26 public, 246 administrator-only.
 | Method | Path | Public | Student | Mentor | Admin |
 |---|---|:-:|:-:|:-:|:-:|
 | GET | `/api/v1/support` | ✓ | ✓ | ✓ | ✓ |
+
+## table-layouts
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| PUT | `/api/v1/admin/table-layouts/{table}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/table-layouts/{table}` |  |  |  | ✓ |
+| GET | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
+| PUT | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
+| DELETE | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
 
 ## Teacher
 

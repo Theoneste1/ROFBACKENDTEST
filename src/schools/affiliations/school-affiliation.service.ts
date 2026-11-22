@@ -83,7 +83,7 @@ const ADMIN_SELECT = {
   claimedName: true, claimedCountry: true, claimedProvince: true, claimedDistrict: true, claimedSector: true,
   decidedAt: true, decisionReason: true, revokedAt: true, revokeReason: true,
   supersededAt: true, supersedeReason: true,
-  student:      { select: { id: true, username: true, firstName: true, lastName: true, gradeLevel: true, division: { select: { id: true, code: true, name: true } } } },
+  student:      { select: { id: true, username: true, firstName: true, lastName: true, avatarUrl: true, gradeLevel: true, division: { select: { id: true, code: true, name: true } } } },
   school:       { select: { id: true, code: true, name: true, location: true } },
   createdBy:    { select: { id: true, username: true } },
   decidedBy:    { select: { id: true, username: true } },

@@ -17,6 +17,7 @@
  * Protections for minors: pictures are never public (GET needs a signed-in user); the link and the storage key
  * carry only ids and a random UUID, never a name, username or e-mail; the uploaded file name is discarded.
  */
+import { StudentOverviewService } from './student-overview.service.js';
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
 
@@ -25,8 +26,6 @@ import { PROFILE_SELECT, withProfileSteps } from '../auth/auth.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { PermissionService } from '../auth/permission.service.js';
-import { isAdmin, isTeacher } from '../common/access/roles.js';
-import { activeGrantsOf, activeSchoolsOf, delegationCovers, visibilityOf } from '../teachers/teacher-scope.js';
 import { AppError } from '../common/errors/app-error.js';
 import { StorageService } from '../common/storage/storage.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -50,6 +49,7 @@ export class AvatarService {
     private readonly roles: RoleAssignmentPolicy,
     private readonly users: UsersService,
     private readonly permissions: PermissionService,
+    private readonly overview: StudentOverviewService,
   ) {}
 
   // ─── Own picture (/me) ──────────────────────────────────────────────────────
@@ -82,11 +82,11 @@ export class AvatarService {
 
   /** Stream the account's current picture (404 when it has none). Callers are signed in (controller). */
   /**
-   * GET /users/:id/avatar. Staff pictures: every signed-in user (unchanged). A STUDENT's picture (owner decision
-   * 2026-11-18, minors): the student, Administrators and Super Administrators, and a Teacher only when they may view
-   * that student's profile now — the student is visible to them (TS-1…TS-6, SR-1) and an active students.viewProfile
-   * delegation covers the student (the same rule as GET /teacher/students/:id). Anyone else gets the same 404 as "no
-   * picture", so the answer never reveals whether a student has one.
+   * GET /users/:id/avatar. Staff pictures: every signed-in user (unchanged). A STUDENT's picture (owner 2026-11-22,
+   * replacing the 2026-11-18 rule): everyone who may view the student's profile overview — the student, Administrators,
+   * other students (active students), the Teachers of the student's school, the Coaches and Head Coaches of the student's
+   * programmes or divisions (StudentOverviewService.mayView). Anyone else gets the same 404 as "no picture", so the answer
+   * never reveals whether a student has one.
    */
   async send(userId: string, viewer: AuthUser, res: Response) {
     const user = await this.prisma.user.findUnique({
@@ -103,15 +103,10 @@ export class AvatarService {
     await this.storage.send(res, user.avatarFile, { cacheControl: STUDENT_AVATAR_CACHE_CONTROL });
   }
 
-  /** Whether this viewer may see this student's picture (see send). */
+  /** Whether this viewer may see this student's picture: whoever may view the student's profile overview (see send). */
   async maySeeStudentPicture(viewer: AuthUser, studentId: string): Promise<boolean> {
-    if (viewer.id === studentId || isAdmin(viewer)) return true;
-    if (!isTeacher(viewer) || !this.permissions.has(viewer, 'students.viewProfile')) return false;
-    const schools = await activeSchoolsOf(this.prisma, viewer.id);
-    const seen = (await visibilityOf(this.prisma, viewer.id, schools, [studentId])).get(studentId);
-    if (!seen) return false;
-    const grants = await activeGrantsOf(this.prisma, viewer.id, ['students.viewProfile']);
-    return delegationCovers(grants, { id: studentId, ...seen });
+    const s = await this.prisma.user.findUnique({ where: { id: studentId }, select: { id: true, accountStatus: true, divisionId: true } });
+    return !!s && this.overview.mayView(viewer, s);
   }
 
   // ─── Internals ──────────────────────────────────────────────────────────────

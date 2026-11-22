@@ -316,7 +316,20 @@ const BULK_ENGINE_MERGED_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-
 const GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-gender-step.json';
 /** The generic bulk engine on top of the gender step (2026-11-20): additive only against the gender-step snapshot. */
 const BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-20-bulk-engine-gender-step.json';
-const CURRENT_SNAPSHOT = BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT;
+const OLYMPIAD_OTHER_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-olympiad-other.json';
+/**
+ * Teacher self-service and locked test submissions (owner, 2026-11-21): an Administrator authorizes / cancels one more
+ * version of a submitted answer; revokes / restores a teacher's test submission for students; a teacher filters the
+ * test's students by level and subject. Additive only against the "Other" Olympiad interest snapshot.
+ */
+const TEACHER_SELF_SERVICE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-teacher-self-service.json';
+/**
+ * Olympiad levels (owner, 2026-11-21): Junior / Middle / Senior, separate from the grade — a student's level (view, set,
+ * follow the grade again; bulk setOlympiadLevel), MIDDLE tests and level filters. Additive only against the teacher
+ * self-service snapshot.
+ */
+const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-divisions-levels.json';
+const CURRENT_SNAPSHOT = OLYMPIAD_LEVELS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1771,6 +1784,98 @@ describe('approved API contract history', () => {
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
     ]);
+  });
+
+  test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {
+    for (const f of [TEACHER_SELF_SERVICE_SNAPSHOT, OLYMPIAD_LEVELS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(TEACHER_SELF_SERVICE_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(OLYMPIAD_LEVELS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/admin/table-layouts/{table}: operation added',
+      'DELETE /api/v1/me/table-layouts/{table}: operation added',
+      'DELETE /api/v1/reports/{id}: operation added',
+      'GET /api/v1/admin/divisions/{id}/courses: operation added',
+      'GET /api/v1/admin/students/{id}/olympiad-level: operation added',
+      'GET /api/v1/admin/tests › query parameter division: enum restriction removed (any value)',
+      'GET /api/v1/admin/tests/{id}/results › query parameter division: enum restriction removed (any value)',
+      'GET /api/v1/admin/tests/{id}/results/rankings › query parameter division: enum restriction removed (any value)',
+      'GET /api/v1/admin/tests/{id}/submissions › query parameter division: enum restriction removed (any value)',
+      'GET /api/v1/admin/users: new optional query parameter \"order\"',
+      'GET /api/v1/admin/users: new optional query parameter \"sort\"',
+      'GET /api/v1/me/table-layouts/{table}: operation added',
+      'GET /api/v1/reports/sources: operation added',
+      'GET /api/v1/reports/{id}/export: operation added',
+      'GET /api/v1/reports/{id}/grants: operation added',
+      'GET /api/v1/reports/{id}/run: operation added',
+      'GET /api/v1/reports/{id}: operation added',
+      'GET /api/v1/reports: operation added',
+      'GET /api/v1/students/{id}/overview: operation added',
+      'GET /api/v1/teacher/tests/{id}/students › query parameter division: enum restriction removed (any value)',
+      'PATCH /api/v1/admin/divisions/{id} › request application/json.sortOrder: new optional field',
+      'PATCH /api/v1/admin/divisions/{id} › request application/json.suggestedGrades: new optional field',
+      'PATCH /api/v1/admin/tests/{id} › request application/json.division: enum restriction removed (any value)',
+      'POST /api/v1/admin/divisions: operation added',
+      'POST /api/v1/admin/mentor-assignments/bulk: operation added',
+      'POST /api/v1/admin/tests › request application/json.division: enum restriction removed (any value)',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: setOlympiadLevel',
+      'POST /api/v1/admin/users/bulk › request application/json.params.olympiadLevel: new optional field',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: setOlympiadLevel',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.params.olympiadLevel: new optional field',
+      'POST /api/v1/reports/preview: operation added',
+      'POST /api/v1/reports/{id}/preview: operation added',
+      'POST /api/v1/reports: operation added',
+      'PUT /api/v1/admin/divisions/{id}/courses: operation added',
+      'PUT /api/v1/admin/students/{id}/olympiad-level: operation added',
+      'PUT /api/v1/admin/table-layouts/{table}: operation added',
+      'PUT /api/v1/me/table-layouts/{table}: operation added',
+      'PUT /api/v1/reports/{id}/grants: operation added',
+      'PUT /api/v1/reports/{id}: operation added',
+      'schema BulkMentorAssignmentDto: added',
+      'schema CoursePairDto: added',
+      'schema CreateDivisionDto: added',
+      'schema ReportDefinitionDto: added',
+      'schema ReportFilterDto: added',
+      'schema ReportGrantDto: added',
+      'schema ReportSortDto: added',
+      'schema SaveReportDto: added',
+      'schema SaveTableLayoutDto: added',
+      'schema SetDivisionCoursesDto: added',
+      'schema SetOlympiadLevelDto: added',
+      'schema SetReportGrantsDto: added',
+    ]);
+  });
+
+  test('"Other" Olympiad interest → teacher self-service and locked submissions (2026-11-21): additive only — the resubmission and teacher test-submission routes, the level and subject filters', () => {
+    for (const f of [OLYMPIAD_OTHER_SNAPSHOT, TEACHER_SELF_SERVICE_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(OLYMPIAD_OTHER_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_SELF_SERVICE_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission: operation added',
+      'GET /api/v1/admin/teachers/{id}/test-submission: operation added',
+      'GET /api/v1/teacher/tests/{id}/students: new optional query parameter "division"',
+      'GET /api/v1/teacher/tests/{id}/students: new optional query parameter "subject"',
+      'POST /api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission: operation added',
+      'PUT /api/v1/admin/teachers/{id}/test-submission: operation added',
+      'schema AuthorizeResubmissionDto: added',
+      'schema SetTeacherTestSubmissionDto: added',
+    ]);
+  });
+
+  test('generic bulk engine → "Other" Olympiad interest (2026-11-21): additive only — olympiadInterestOther, and olympiadInterests may be empty beside it', () => {
+    for (const f of [BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT, OLYMPIAD_OTHER_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BULK_ENGINE_ON_GENDER_STEP_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(OLYMPIAD_OTHER_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    const routes = ['PATCH /api/v1/admin/users/{id}', 'PATCH /api/v1/me', 'POST /api/v1/auth/register/student', 'POST /api/v1/auth/register/teacher', 'POST /api/v1/mentor-requests'];
+    assert.deepEqual(res.additive.sort(), routes.flatMap((r) => [
+      `${r} › request application/json.olympiadInterestOther: new optional field`,
+      `${r} › request application/json.olympiadInterests: minItems removed`,
+    ]).sort());
   });
 
   test('gender step → generic bulk engine (2026-11-20): additive only — the bulk routes, their responses and reassignTeacher; nothing breaking or for review', () => {

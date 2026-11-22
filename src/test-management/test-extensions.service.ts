@@ -31,9 +31,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   CancelTestExtensionDto, CreateTestExtensionDto, ExtensionTargetsQueryDto, ListTestExtensionsQueryDto, UpdateTestExtensionDto,
 } from './dto/submission.dto.js';
-import { divisionMatches, gradesOf } from './submission-rules.js';
+import { divisionMatches, levelWhere, type TestDivisionValue } from './submission-rules.js';
 import { TestDeadlineService } from './test-deadline.service.js';
 import { TestsService, lockTest } from './tests.service.js';
+import { SCHOOL_MEMBER_CLAIMS } from '../common/access/access.service.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -89,7 +90,7 @@ export class TestExtensionsService {
     const where: Prisma.UserWhereInput = {
       role: q.kind,
       accountStatus: 'ACTIVE',
-      ...(q.kind === 'STUDENT' && test.division !== 'ALL' && { gradeLevel: { in: gradesOf(test.division) } }),
+      ...(q.kind === 'STUDENT' && test.division !== 'ALL' && levelWhere(test.division)),
       ...(contains && { OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }),
     };
     const { page, limit, skip, take } = pageArgs(q);
@@ -229,7 +230,7 @@ export class TestExtensionsService {
   }
 
   /** The student (of the test's division) or teacher an individual extension names; null for a whole-test extension. */
-  private async requireTarget(tx: Tx, dto: CreateTestExtensionDto, division: 'JUNIOR' | 'SENIOR' | 'ALL') {
+  private async requireTarget(tx: Tx, dto: CreateTestExtensionDto, division: TestDivisionValue) {
     if (dto.kind === 'TEST') return null;
     const id = dto.kind === 'STUDENT' ? dto.studentId! : dto.teacherId!;
     const u = await tx.user.findUnique({
@@ -238,8 +239,8 @@ export class TestExtensionsService {
     });
     if (dto.kind === 'STUDENT') {
       if (!u || u.role !== 'STUDENT') throw new AppError(HttpStatus.NOT_FOUND, 'STUDENT_NOT_FOUND', 'Student not found.');
-      if (!divisionMatches(division, u.gradeLevel, u.division?.code)) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'STUDENT_NOT_IN_DIVISION', 'This student is not in the test\'s division.');
+      if (!divisionMatches(division, u)) {
+        throw new AppError(HttpStatus.BAD_REQUEST, 'STUDENT_NOT_IN_DIVISION', 'This student is not at the test\'s Olympiad level.');
       }
     } else if (!u || u.role !== 'TEACHER') {
       throw new AppError(HttpStatus.NOT_FOUND, 'TEACHER_NOT_FOUND', 'Teacher not found.');
@@ -256,7 +257,7 @@ async function assertNotInMarking(tx: Tx, testId: string, kind: 'TEST' | 'STUDEN
   const teacherReach: Prisma.TestSubmissionWhereInput = {
     OR: [
       { versions: { some: { teacherId: teacherId ?? '' } } },
-      { student: { schoolAffiliations: { some: { status: 'VERIFIED', supersededAt: null, school: { teachers: { some: { teacherId: teacherId ?? '', isActive: true } } } } } } },
+      { student: { schoolAffiliations: { some: { status: { in: [...SCHOOL_MEMBER_CLAIMS] }, supersededAt: null, school: { teachers: { some: { teacherId: teacherId ?? '', isActive: true } } } } } } },
     ],
   };
   const where: Prisma.TestSubmissionWhereInput = {

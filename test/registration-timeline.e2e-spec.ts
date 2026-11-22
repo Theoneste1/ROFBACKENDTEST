@@ -54,12 +54,13 @@ describe('Registration timeline (e2e)', () => {
     for (const secret of ['tl.student@test.local', '788111222', '722333444', '2011-01-02']) expect(text).not.toContain(secret);
   });
 
-  it('teacher: the application\'s events (question, answer, decision) lead to the account', async () => {
+  it('teacher (a school not listed yet, reviewed by an Administrator): the application\'s events (question, answer, school, decision) lead to the account', async () => {
     const app = await http().post('/api/v1/auth/register/teacher').send({
       firstName: 'Ted', lastName: 'Line', username: 'tl.teacher', email: 'tl.teacher@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
+      proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
     }).expect(201);
+    await http().post(`/api/v1/admin/teacher-applications/${app.body.id}/school`).set(bearer(admin)).send({ schoolId: ngoma }).expect(200);
     await http().post(`/api/v1/admin/teacher-applications/${app.body.id}/request-info`).set(bearer(admin)).send({ question: 'Which classes do you teach?' }).expect(200);
     const mail = await p().emailDelivery.findFirstOrThrow({ where: { recipientEmail: 'tl.teacher@test.local', body: { contains: 'applications/respond?token=' } } });
     const token = /token=([A-Za-z0-9_-]+)/.exec(mail.body ?? "")![1];
@@ -75,6 +76,22 @@ describe('Registration timeline (e2e)', () => {
     const asked = res.body.events.find((e: any) => e.action === 'APPLICATION_INFO_REQUESTED');
     expect(asked.details).toMatchObject({ question: 'Which classes do you teach?' });
     expect(res.body.events.find((e: any) => e.action === 'SUBMIT_TEACHER_APPLICATION').actor).toBe('APPLICANT');
+  });
+
+  it('teacher of a listed school (owner 2026-11-21): the sign-up itself creates the account — the timeline says so', async () => {
+    await http().post('/api/v1/auth/register/teacher').send({
+      firstName: 'Sam', lastName: 'Self', username: 'tl.self', email: 'tl.self@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
+      country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
+      schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma',
+    }).expect(201);
+    const user = await p().user.findUniqueOrThrow({ where: { username: 'tl.self' } });
+    const res = await tl(user.id).expect(200);
+    expect(res.body.stages.source).toBe('TEACHER_APPLICATION');
+    const actions = res.body.events.map((e: any) => e.action);
+    expect(actions[0]).toBe('SUBMIT_TEACHER_APPLICATION');
+    expect(actions).toContain('TEACHER_SELF_REGISTERED');
+    expect(actions).not.toContain('APPROVE_TEACHER_APPLICATION');
+    expect(res.body.events.find((e: any) => e.action === 'TEACHER_SELF_REGISTERED').label).toBe('Teacher account created at sign-up (listed school: no approval needed)');
   });
 
   it('administrators only; unknown account 404', async () => {

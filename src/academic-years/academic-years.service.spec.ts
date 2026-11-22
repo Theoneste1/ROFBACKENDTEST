@@ -150,8 +150,9 @@ describe('AcademicYearsService', () => {
 
       const result = await service.activate('y2', { promoteStudents: true, expectedCurrentYearId: 'y1' } as any, ADMIN);
 
-      expect(divisions.idForCode).toHaveBeenCalledWith('JUNIOR');
-      expect(divisions.idForCode).toHaveBeenCalledWith('SENIOR');
+      // Administrator-managed divisions (2026-11-21/22): the SQL asks the database for the grade's division, and keeps a
+      // division set by hand; no fixed JUNIOR / SENIOR lookup.
+      expect(divisions.idForCode).not.toHaveBeenCalled();
 
       // Previous year closed, new year current.
       const yearUpdates = prisma.academicYear.update.mock.calls.map((c) => c[0]);
@@ -180,8 +181,8 @@ describe('AcademicYearsService', () => {
       expect(roll.text).toMatch(/INSERT INTO "StudentEnrollment"/);
       expect(roll.values).toContain('"y1"');           // previous year's enrolments
       expect(roll.values).toContain('"y2"');           // new year's enrolments
-      expect(roll.values).toContain('"div-junior"');
-      expect(roll.values).toContain('"div-senior"');
+      expect(roll.values).toContain('division_for_grade(');   // the grade's division, from the database (nested SQL: in the values)
+      expect(roll.values).toContain('divisionManual');         // a division set by hand is kept
       const sweep = call(2);
       expect(sweep.text).toMatch(/IS DISTINCT FROM 'GRADUATED'/);   // graduates are never swept in again
       expect(sweep.values).toContain('"y2"');

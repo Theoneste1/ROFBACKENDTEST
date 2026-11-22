@@ -1,14 +1,7 @@
-import { DivisionCode, GradeLevel } from '../generated/prisma/client.js';
+import type { GradeLevel } from '../generated/prisma/client.js';
 
-/** Junior: S1–S3. Senior: S4–S6. */
-export const DIVISION_GRADES: Record<DivisionCode, GradeLevel[]> = {
-  JUNIOR: ['S1', 'S2', 'S3'],
-  SENIOR: ['S4', 'S5', 'S6'],
-};
-
-export function divisionCodeForGrade(grade: GradeLevel): DivisionCode {
-  return DIVISION_GRADES.JUNIOR.includes(grade) ? 'JUNIOR' : 'SENIOR';
-}
+// The grade → division mapping is no longer fixed here (owner 2026-11-21/22): Administrators set each division's
+// suggested grades (src/divisions/division-rules.ts, database function division_for_grade).
 
 /** The next grade up, or null after S6 (the student graduates). */
 export function nextGrade(grade: GradeLevel): GradeLevel | null {

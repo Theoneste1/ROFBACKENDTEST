@@ -146,8 +146,11 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
       status: 'ACTIVE', isCurrent: true,
     },
   });
-  const junior = await prisma.division.create({ data: { code: 'JUNIOR', name: 'Junior' } });
-  const senior = await prisma.division.create({ data: { code: 'SENIOR', name: 'Senior' } });
+  // As the seed and migration 20261224000000 create them: Junior S1–S3, Middle (no grade until an Administrator gives it
+  // some), Senior S4–S6.
+  const junior = await prisma.division.create({ data: { code: 'JUNIOR', name: 'Junior', suggestedGrades: ['S1', 'S2', 'S3'], sortOrder: 1 } });
+  await prisma.division.create({ data: { code: 'MIDDLE', name: 'Middle', suggestedGrades: [], sortOrder: 2 } });
+  const senior = await prisma.division.create({ data: { code: 'SENIOR', name: 'Senior', suggestedGrades: ['S4', 'S5', 'S6'], sortOrder: 3 } });
   // Countries (seeded by migration 20261211000000 in real databases; every table is truncated here): schools reference them.
   await seedReferenceData(prisma);
 
@@ -248,4 +251,27 @@ export const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)
 /** The current academic year's id (null: none) — `expectedCurrentYearId` of a year start. */
 export async function currentYearId(ctx: TestContext): Promise<string | null> {
   return (await ctx.prisma.academicYear.findFirst({ where: { isCurrent: true }, select: { id: true } }))?.id ?? null;
+}
+
+/**
+ * A PENDING listed-school teacher application, written as `POST /auth/register/teacher` wrote it before teacher
+ * self-registration (owner 2026-11-21: a listed school's teacher now gets the account at once). Such applications exist
+ * in production and stay with an Administrator, who approves, rejects or questions them — the review paths these tests
+ * exercise. `body` is the registration body (password → bcrypt; phone → +250…; the school's sector from the school).
+ * Returns the application id.
+ */
+export async function pendingTeacherApplication(ctx: TestContext, body: Record<string, any>): Promise<string> {
+  const school = await ctx.prisma.school.findUniqueOrThrow({ where: { id: body.schoolId }, select: { sector: true } });
+  const digits = String(body.phone ?? '0788123456').replace(/\D/g, '');
+  const app = await ctx.prisma.teacherApplication.create({ data: {
+    firstName: String(body.firstName).trim(), lastName: String(body.lastName).trim(), username: String(body.username).toLowerCase(),
+    email: String(body.email).toLowerCase(), passwordHash: await bcrypt.hash(String(body.password ?? 'Secret123'), 4),
+    phone: `+250${digits.replace(/^(250|0)/, '')}`, country: String(body.country ?? 'RW').toUpperCase(), gender: body.gender ?? null,
+    olympiadInterests: body.olympiadInterests ?? ['MATHEMATICS'], olympiadInterestOther: body.olympiadInterestOther ?? null,
+    schoolId: body.schoolId, schoolProvince: body.schoolProvince, schoolDistrict: body.schoolDistrict, schoolSector: school.sector,
+    homeProvince: body.homeProvince ?? null, homeDistrict: body.homeDistrict ?? null, homeSector: body.homeSector ?? null,
+    ...(body.position !== undefined && { position: body.position }),
+    ...(body.yearsOfExperience !== undefined && { yearsOfExperience: body.yearsOfExperience }),
+  }, select: { id: true } });
+  return app.id;
 }

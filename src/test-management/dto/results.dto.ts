@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/pagination.js';
 import { MIN_OVERRIDE_REASON } from '../results-rules.js';
@@ -8,7 +8,8 @@ const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? val
 const bool = ({ value }: { value: unknown }) => (value === 'true' || value === true ? true : value === 'false' || value === false ? false : value);
 
 export const RANKING_GROUPS = ['overall', 'division', 'school'] as const;
-export const RANKING_DIVISIONS = ['JUNIOR', 'SENIOR', 'UNKNOWN'] as const;
+/** A division code (JUNIOR, MIDDLE, SENIOR or one an Administrator created): 2–30 capitals, digits or underscores. */
+export const DIVISION_CODE = /^[A-Z][A-Z0-9_]{1,29}$/;
 export const EXPORT_TYPES = ['results', 'schools', 'divisions', 'questions'] as const;
 
 // ── Publication (tests.publishResults; override: tests.overridePublication) ────────
@@ -47,8 +48,9 @@ export class ListTestResultsQueryDto extends PaginationQueryDto {
   @IsOptional() @IsUUID()
   schoolId?: string;
 
-  @IsOptional() @IsIn(RANKING_DIVISIONS)
-  division?: (typeof RANKING_DIVISIONS)[number];
+  /** A division code, or UNKNOWN (no division). */
+  @IsOptional() @Matches(DIVISION_CODE, { message: 'division must be a division code.' })
+  division?: string;
 
   /** Student name, username or submission code. */
   @IsOptional() @IsString() @Transform(trim) @MaxLength(100)
@@ -62,8 +64,9 @@ export class RankingsQueryDto extends PaginationQueryDto {
   by?: (typeof RANKING_GROUPS)[number];
 
   /** Only this division (by=division). */
-  @IsOptional() @IsIn(RANKING_DIVISIONS)
-  division?: (typeof RANKING_DIVISIONS)[number];
+  /** A division code, or UNKNOWN (no division). */
+  @IsOptional() @Matches(DIVISION_CODE, { message: 'division must be a division code.' })
+  division?: string;
 
   /** Only this school (by=school). */
   @IsOptional() @IsUUID()

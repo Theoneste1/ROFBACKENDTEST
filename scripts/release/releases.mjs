@@ -117,6 +117,45 @@ export const LATE_2026_OBJECTS = {
 };
 
 /**
+ * The dec-2026 release: the "Other" Olympiad interest (owner, 2026-11-21), after late-2026 (applied to production on
+ * 2026-11-21). Listed explicitly — a migration added later is never part of it until it is appended here on purpose.
+ */
+export const DEC_2026_MIGRATIONS = [
+  // "Other" Olympiad interest: a nullable olympiadInterestOther (2–100 characters) on User, MentorRequest and TeacherApplication.
+  '20261223000000_olympiad_interest_other',
+  // Locked test submissions (owner, 2026-11-21): TestResubmissionAuthorization (an Administrator unlocks one replacement).
+  '20261223000100_test_resubmission_lock',
+];
+
+/** What the dec-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
+export const DEC_2026_OBJECTS = {
+  tables: ['TestResubmissionAuthorization'],
+  enums: [],
+  columns: [['User', 'olympiadInterestOther'], ['MentorRequest', 'olympiadInterestOther'], ['TeacherApplication', 'olympiadInterestOther']],
+  triggers: [],
+  functions: [],
+};
+
+/**
+ * The levels-2026 release: Olympiad levels (owner, 2026-11-21) — Junior / Middle / Senior, separate from the grade —
+ * after dec-2026. Listed explicitly — a migration added later is never part of it until it is appended here on purpose.
+ */
+export const LEVELS_2026_MIGRATIONS = [
+  // Administrator-managed divisions = Olympiad levels: Division.code text, suggestedGrades, sortOrder; MIDDLE created;
+  // Test.division text; TestSubmission.level; User.divisionManual; DivisionChange; the grade triggers.
+  '20261224000000_divisions_levels',
+];
+
+/** What the levels-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
+export const LEVELS_2026_OBJECTS = {
+  tables: ['DivisionChange', 'CourseDivision', 'TableLayout', 'CustomReport', 'CustomReportGrant'],
+  enums: ['DivisionChangeSource'],
+  columns: [['Division', 'sortOrder'], ['Division', 'suggestedGrades'], ['TestSubmission', 'level'], ['User', 'divisionManual']],
+  triggers: ['student_division_from_grade', 'student_division_history', 'course_offered_in_divisions'],
+  functions: ['division_for_grade', 'student_division_from_grade', 'student_division_history', 'course_offered_in_divisions'],
+};
+
+/**
  * Each release: `owns(name)` — the migration belongs to it; `last` — its last timestamp (a migration sorting after it
  * is never deployed by the kit for this release); the read-only SQL checks; and the rollback-history rule.
  */
@@ -169,6 +208,40 @@ export const RELEASES = {
     requires: {
       label: 'Phase 1, post-Phase-1 and design areas', count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length,
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name),
+    },
+  },
+  'dec-2026': {
+    label: `dec 2026 (${DEC_2026_MIGRATIONS.length} migrations after late 2026)`,
+    count: DEC_2026_MIGRATIONS.length,
+    owns: (name) => DEC_2026_MIGRATIONS.includes(name),
+    last: DEC_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/dec-2026-precheck.sql',
+    postcheck: 'scripts/release/dec-2026-postcheck.sql',
+    migrations: DEC_2026_MIGRATIONS,
+    objects: DEC_2026_OBJECTS,
+    // The target must already hold Phase 1, post-Phase-1, the design areas and late-2026 (production since 2026-11-21).
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas and late 2026',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name),
+    },
+  },
+  'levels-2026': {
+    label: `divisions and Olympiad levels (${LEVELS_2026_MIGRATIONS.length} migration after dec 2026)`,
+    count: LEVELS_2026_MIGRATIONS.length,
+    owns: (name) => LEVELS_2026_MIGRATIONS.includes(name),
+    last: LEVELS_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/levels-2026-precheck.sql',
+    postcheck: 'scripts/release/levels-2026-postcheck.sql',
+    migrations: LEVELS_2026_MIGRATIONS,
+    objects: LEVELS_2026_OBJECTS,
+    // The target must already hold every release before it, dec-2026 included.
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas, late 2026 and dec 2026',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name),
     },
   },
 };

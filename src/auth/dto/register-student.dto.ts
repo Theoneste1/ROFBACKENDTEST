@@ -1,5 +1,5 @@
 import {
-  ArrayNotEmpty,
+ 
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -18,6 +18,7 @@ import { HomePlacePart } from '../../common/home-place.js';
 import { Gender, GradeLevel, OlympiadSubject } from '../../generated/prisma/client.js';
 import { IsStrongPassword, lower, trim } from './password.rules.js';
 import { IsNormalisablePhone, IsStudentDateOfBirth } from './registration-details.rules.js';
+import { IsOtherInterest, NonEmptyUnlessOther } from '../../users/olympiad-interests.rules.js';
 
 /** True when any part of the official home place is sent (then all three are required). */
 export const hasHomePlace = (o: { homeProvince?: unknown; homeDistrict?: unknown; homeSector?: unknown }) =>
@@ -202,8 +203,18 @@ export class RegisterStudentDto {
    */
   @IsOptional()
   @IsArray()
-  @ArrayNotEmpty({ message: 'olympiadInterests must name at least one of MATHEMATICS, COMPUTING or PHYSICS.' })
+  @NonEmptyUnlessOther()
   @ArrayUnique()
   @IsEnum(OlympiadSubject, { each: true, message: 'olympiadInterests must contain only MATHEMATICS, COMPUTING or PHYSICS.' })
   olympiadInterests?: OlympiadSubject[];
+
+  /**
+   * Another Olympiad named in words ("Other"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,
+   * e.g. "Chemistry". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).
+   * Never a subject: grants nothing, not part of Test Management.
+   */
+  @ValidateIf((o: { olympiadInterestOther?: unknown }) => o.olympiadInterestOther !== undefined)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsOtherInterest()
+  olympiadInterestOther?: string | null;
 }

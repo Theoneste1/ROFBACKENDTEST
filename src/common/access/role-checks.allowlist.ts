@@ -38,18 +38,50 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: "inviteCoachToProgramme(): only callers holding users.manageCoaches reach this line (permission guard, then assertCanInviteCoach) — Administrators (global, approved at once) or a Head Coach (programme scope, pending). The value only makes a Head Coach's invitation MORE restricted; no other role can get here.",
   },
   // ── Student profile pictures (owner decision 2026-11-18) ──────────────────────
-  {
-    file: 'src/users/avatar.service.ts', rule: 'U4', code: 'viewer.id === studentId || isAdmin(viewer)',
-    reason: 'maySeeStudentPicture(): grants only the student themselves or an Administrator / Super Administrator; every other role (including an unsupported one) continues to the Teacher check below, which refuses unless a covering students.viewProfile delegation exists — the default is a refusal (404, as for no picture).',
-  },
-  {
-    file: 'src/users/avatar.service.ts', rule: 'U1', code: "!isTeacher(viewer) || !this.permissions.has(viewer, 'students.viewProfile')",
-    reason: 'maySeeStudentPicture(): every caller that is not a Teacher holding students.viewProfile is refused here (returns false → 404); a Teacher then needs the student visible and a covering delegation. Least privilege for unsupported roles.',
-  },
   // ── Teacher school scope (P1-11) ───────────────────────────────────────────
   {
     file: 'src/common/access/access.service.ts', rule: 'U4', code: 'isTeacher(user)',
     reason: 'teacherSchools(): only a TEACHER has school assignments; every other role (including an unsupported one) gets the empty list — the least-privileged result, which schoolStudentsFilter() turns into "matches nobody".',
+  },
+  {
+    file: 'src/teacher-applications/teacher-applications.service.ts', rule: 'U6', code: 'role: caller.role',
+    reason: "approve(): passes the approving Administrator's role to approveInTx(), which only writes it to the audit entry (actorRole) — attribution data, not an access decision; the route is guarded by users.manageTeachers.",
+  },
+  {
+    file: 'src/users/student-overview.service.ts', rule: 'U6', code: '(APP_ROLES as readonly string[]).includes(viewer.role)',
+    reason: 'mayView(): the first check REFUSES (returns false → 404) any caller whose role is not one of the six known roles — even for their own account; it never grants anything.',
+  },
+  {
+    file: 'src/users/student-overview.service.ts', rule: 'U4', code: 'isCourseWorker(viewer)',
+    reason: "mayView(): the Coach / Head Coach branch grants only for a student of the viewer's programmes or taught divisions; every other role (an unsupported one included) falls through to `return false` (404).",
+  },
+  {
+    file: 'src/users/student-overview.service.ts', rule: 'U6', code: 'staff = isAdmin(viewer) || isCourseWorker(viewer) || isTeacher(viewer)',
+    reason: 'overview(): decides only whether the account status is ADDED for staff viewers; any other role (students, an unsupported one) gets less data, never more. Access itself is decided by mayView().',
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: '(g) => g.userId === viewer.id || g.role === viewer.role',
+    reason: "levels(): selects the grants that name the caller or the caller's own role — the only grants that apply to them; an unknown role matches no role grant (grants name known roles only) and gets no level.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: "!mine.length || viewer.role === 'STUDENT'",
+    reason: 'levels(): REFUSES (no level) when no grant applies or the caller is a student — students never receive reports, whatever a grant says.',
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: 'isHeadCoach(viewer)',
+    reason: "scopeFor(): a Head Coach's rows are the members of the programmes they head (none → no rows); a Coach the students of their programmes or taught divisions; every other role falls through to the Teacher branch, then to no rows.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: 'isTeacher(viewer)',
+    reason: "scopeFor(): a Teacher's rows are the students of their schools (the same rule as every teacher list); any other role falls through to `{ id: { in: [] } }` — no rows.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: '(APP_ROLES as readonly string[]).includes(viewer.role)',
+    reason: 'list(): a role grant is looked up only for one of the six known roles; an unsupported role contributes no role grant (REFUSAL by omission).',
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: 'viewer.role as Role',
+    reason: "list(): finds the reports granted to the caller's own role (or to them, or created by them); an unknown role matches no role grant; levels() then decides every report again.",
   },
   {
     file: 'src/submissions/submissions.service.ts', rule: 'U6', code: 'submittedByRole: actor.role',
