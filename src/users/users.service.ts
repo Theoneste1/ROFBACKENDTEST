@@ -136,10 +136,37 @@ export class UsersService {
       select: { userId: true },
     })).map((r) => r.userId));
 
+    // A teacher's school is a TeacherSchoolAssignment, not User.schoolId (owner 2026-11-22: the list showed "—"). Each
+    // TEACHER row's `school` is its active primary school, else its earliest active secondary one; `schoolCount` is how
+    // many active schools it has. One query per page.
+    const teacherSchools = new Map<string, { school: { id: string; name: string; location: string | null }; count: number }>();
+    if (teacherIds.length > 0) {
+      const links = await this.prisma.teacherSchoolAssignment.findMany({
+        where: { teacherId: { in: teacherIds }, isActive: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { teacherId: true, role: true, school: { select: { id: true, name: true, location: true } } },
+      });
+      for (const l of links) {
+        const seen = teacherSchools.get(l.teacherId);
+        if (!seen) teacherSchools.set(l.teacherId, { school: l.school, count: 1 });
+        else seen.count += 1;
+      }
+      // The primary school wins over the earliest secondary one.
+      for (const l of links) if (l.role === 'PRIMARY') teacherSchools.get(l.teacherId)!.school = l.school;
+    }
+
     // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
     // Data minimisation (ACC-16 / SEC-03): phones masked and no date of birth in a list; GET /admin/users/:id has both.
     return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(
-      row.role === 'TEACHER' ? { ...row, teacherSchoolRole: roles.get(row.id) ?? null, testSubmissionAllowed: !revoked.has(row.id) } : row,
+      row.role === 'TEACHER'
+        ? {
+          ...row,
+          school: row.school ?? teacherSchools.get(row.id)?.school ?? null,
+          schoolCount: teacherSchools.get(row.id)?.count ?? 0,
+          teacherSchoolRole: roles.get(row.id) ?? null,
+          testSubmissionAllowed: !revoked.has(row.id),
+        }
+        : row,
     )), total, page, limit);
   }
 

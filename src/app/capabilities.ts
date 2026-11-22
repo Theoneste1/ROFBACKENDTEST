@@ -166,7 +166,8 @@ export const FEATURES = {
    * designated main contact, at most one active per school) or SECONDARY — the same rights either way. GET
    * /admin/teacher-assignments returns `role` and filters by `?role=`; POST /admin/teacher-assignments/:id/primary makes a
    * teacher the primary (the previous one becomes secondary; users.manageTeachers); School Access rows carry `role`;
-   * GET /admin/users TEACHER rows carry `teacherSchoolRole` (PRIMARY | SECONDARY | null); Teachers read their own schools
+   * GET /admin/users TEACHER rows carry `teacherSchoolRole` (PRIMARY | SECONDARY | null), `school` (the primary school, else
+   * the earliest active one; owner 2026-11-22) and `schoolCount` (active schools); Teachers read their own schools
    * and role at GET /teacher/schools. A school can have no primary teacher (none is promoted automatically).
    */
   primaryTeacher: 'always',
