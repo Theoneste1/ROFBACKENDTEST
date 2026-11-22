@@ -14,6 +14,12 @@
 --   - while any division was set by hand, or any MANUAL / AUTOMATIC change is recorded (that work and its history would
 --     be LOST), unless acknowledged after a backup that contains it, in a session that first sets:
 --         SET rof.divisions_levels_rollback = 'discard-classifications';
+--   - while any custom report (with its sharing) or saved table layout exists (Administrators' work that would be LOST),
+--     unless acknowledged after a backup that contains it, in a session that first sets:
+--         SET rof.divisions_levels_rollback_reports = 'discard-reports-and-layouts';
+--
+-- Courses a division stopped offering become visible to its students again (the previous code offers every course to
+-- every division); nothing else about courses, enrolments, progress or coach assignments changes.
 --
 -- Like the other rollbacks, this file deliberately does NOT edit Prisma's migration history:
 --   1. Confirm the table is gone:
@@ -30,6 +36,7 @@ DECLARE
   other_tests bigint;
   other_refs bigint;
   classified bigint;
+  saved bigint;
 BEGIN
   SELECT count(*) INTO other_tests FROM "Test" WHERE "division" NOT IN ('JUNIOR', 'SENIOR', 'ALL');
   SELECT (SELECT count(*) FROM "User" u JOIN "Division" d ON d."id" = u."divisionId" WHERE d."code" NOT IN ('JUNIOR', 'SENIOR'))
@@ -47,6 +54,10 @@ BEGIN
        + (SELECT count(*) FROM "DivisionChange" WHERE "source" IN ('MANUAL', 'AUTOMATIC')) INTO classified;
   IF classified > 0 AND coalesce(current_setting('rof.divisions_levels_rollback', true), '') <> 'discard-classifications' THEN
     RAISE EXCEPTION 'DIVISIONS_LEVELS_ROLLBACK_REFUSED: % division(s) set by hand or recorded changes would be lost. Back up, then SET rof.divisions_levels_rollback = ''discard-classifications'' to proceed.', classified;
+  END IF;
+  SELECT (SELECT count(*) FROM "CustomReport") + (SELECT count(*) FROM "TableLayout") INTO saved;
+  IF saved > 0 AND coalesce(current_setting('rof.divisions_levels_rollback_reports', true), '') <> 'discard-reports-and-layouts' THEN
+    RAISE EXCEPTION 'DIVISIONS_LEVELS_ROLLBACK_REFUSED: % saved report(s) or table layout(s) would be lost. Back up, then SET rof.divisions_levels_rollback_reports = ''discard-reports-and-layouts'' to proceed.', saved;
   END IF;
 END $$;
 

@@ -21,25 +21,30 @@ SELECT d."code", array_to_string(d."suggestedGrades", ',') AS grades, d."sortOrd
   FROM "Division" d LEFT JOIN "User" u ON u."divisionId" = d."id" AND u."role" = 'STUDENT'
  GROUP BY d."id" ORDER BY d."sortOrder";
 
-\echo '== 3. MUST be 1, 1, 0, 3, 2, 2: DivisionChange; DivisionChangeSource; DivisionCode and TestDivision gone; 3 functions; 2 triggers; 2 CHECKs'
-SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'DivisionChange')        AS change_tables,
+\echo '== 3. MUST be 5, 1, 0, 4, 3, 2: DivisionChange, CourseDivision, TableLayout, CustomReport, CustomReportGrant; DivisionChangeSource; DivisionCode and TestDivision gone; 4 functions; 3 triggers; 2 CHECKs'
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
+           AND table_name IN ('DivisionChange', 'CourseDivision', 'TableLayout', 'CustomReport', 'CustomReportGrant'))      AS new_tables,
        (SELECT count(*) FROM pg_type WHERE typname = 'DivisionChangeSource')                                                    AS source_enums,
        (SELECT count(*) FROM pg_type WHERE typname IN ('DivisionCode', 'TestDivision'))                                       AS old_enums,
-       (SELECT count(*) FROM pg_proc WHERE proname IN ('division_for_grade', 'student_division_from_grade', 'student_division_history')) AS functions,
-       (SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('student_division_from_grade', 'student_division_history')) AS triggers,
+       (SELECT count(*) FROM pg_proc WHERE proname IN ('division_for_grade', 'student_division_from_grade', 'student_division_history', 'course_offered_in_divisions')) AS functions,
+       (SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal
+           AND tgname IN ('student_division_from_grade', 'student_division_history', 'course_offered_in_divisions'))           AS triggers,
        (SELECT count(*) FROM pg_constraint WHERE contype = 'c' AND conname IN ('DivisionChange_reason_length', 'DivisionChange_manual_reason')) AS checks;
 
 \echo '== 4. compare: tests by level (MUST equal pre-check section 4), and submissions'
 SELECT "division" AS division, count(*) AS tests FROM "Test" GROUP BY 1 ORDER BY 1;
 SELECT (SELECT count(*) FROM "User") AS users, (SELECT count(*) FROM "TestSubmission") AS submissions;
 
-\echo '== 6. MUST be 0: every course is offered in every division (CourseDivision), none missing'
-SELECT (SELECT count(*) FROM "Course") * (SELECT count(*) FROM "Division") - (SELECT count(*) FROM "CourseDivision" WHERE "isActive") AS offerings_missing;
-
 \echo '== 5. MUST be 0, 0, 0: no submission without its level; nobody set by hand yet; no history yet'
 SELECT (SELECT count(*) FROM "TestSubmission" WHERE "level" IS NULL)   AS submissions_without_level,
        (SELECT count(*) FROM "User" WHERE "divisionManual")            AS set_by_hand,
        (SELECT count(*) FROM "DivisionChange")                         AS changes;
+
+\echo '== 6. MUST be 0: every course is offered in every division (CourseDivision), none missing'
+SELECT (SELECT count(*) FROM "Course") * (SELECT count(*) FROM "Division") - (SELECT count(*) FROM "CourseDivision" WHERE "isActive") AS offerings_missing;
+
+\echo '== 7. MUST be 0, 0: no saved report or table layout yet'
+SELECT (SELECT count(*) FROM "CustomReport") AS reports, (SELECT count(*) FROM "TableLayout") AS layouts;
 
 -- Named for the kit's tests: 'DivisionChange' 'CourseDivision' 'TableLayout' 'CustomReport' 'CustomReportGrant' 'DivisionChangeSource' 'sortOrder' 'suggestedGrades' 'level' 'divisionManual'
 -- 'student_division_from_grade' 'student_division_history' 'division_for_grade' 'course_offered_in_divisions'
