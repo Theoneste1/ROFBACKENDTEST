@@ -41,6 +41,18 @@ const M13_ROLLBACK = body('docs/migrations/20261121001200_school_directory_sync.
 // M14 (S2b) builds on M13: rolled back first and re-applied after it.
 const M14 = body('prisma/migrations/20261121001300_school_directory_sync_approval/migration.sql');
 const M14_ROLLBACK = body('docs/migrations/20261121001300_school_directory_sync_approval.rollback.sql');
+// Newer migrations that build on M12–M14 (owner 2026-11-22), rolled back before them and re-applied after them:
+// the sync mode (on SchoolSyncRun, M13) and the teacher's unlisted-school details (day / boarding uses M12's
+// SchoolAccommodation type). Other suites leave PENDING applications with a code and may leave NEW_ONLY runs, so
+// their losses are acknowledged inside the test's own transaction (rolled back).
+const MODE = body('prisma/migrations/20261225000000_school_sync_mode/migration.sql');
+const MODE_ROLLBACK = body('docs/migrations/20261225000000_school_sync_mode.rollback.sql');
+const TEACHER_SCHOOL = body('prisma/migrations/20261225000100_teacher_unlisted_school/migration.sql');
+const TEACHER_SCHOOL_ROLLBACK = body('docs/migrations/20261225000100_teacher_unlisted_school.rollback.sql');
+const NEWER_ROLLBACKS_ACK = [
+  `SET LOCAL rof.teacher_unlisted_school_rollback = 'discard-details'`,
+  `SET LOCAL rof.school_sync_mode_rollback = 'forget-modes'`,
+];
 const M12_TABLES = ['SchoolDataSource', 'SchoolExternalId', 'SchoolSourceRecord', 'SchoolContact', 'EducationLevel', 'SchoolEducationLevel', 'Programme', 'SchoolProgramme'];
 const M12_COLUMNS = ['cell', 'village', 'accommodation', 'lastSourceSyncAt', 'lastVerifiedAt', 'lastVerifiedById'];
 const M12_TYPES = ['SchoolAccommodation', 'SchoolContactType', 'SchoolContactVisibility', 'ProgrammeCategory', 'SchoolExternalIdKind'];
@@ -134,6 +146,9 @@ describe('School directory S1 (M12)', () => {
         const before = await links(q);
         expect(await nameIndexes()).toEqual([['School_name_idx', false]]);
         await c.query('BEGIN');
+        for (const sql of NEWER_ROLLBACKS_ACK) await c.query(sql);
+        await c.query(TEACHER_SCHOOL_ROLLBACK);
+        await c.query(MODE_ROLLBACK);
         await c.query(M14_ROLLBACK);
         await c.query(M13_ROLLBACK);
         await c.query(M12_ROLLBACK);
@@ -146,6 +161,8 @@ describe('School directory S1 (M12)', () => {
         await c.query(M12);
         await c.query(M13);
         await c.query(M14);
+        await c.query(MODE);
+        await c.query(TEACHER_SCHOOL);
         expect([await tables(), await columns(), await types(), await functions()]).toEqual([8, 6, 5, 3]);
         expect(await nameIndexes()).toEqual([['School_name_idx', false]]);
         expect((await q(`SELECT array_agg("code" ORDER BY "sortOrder") AS codes FROM "EducationLevel"`))[0].codes).toEqual(['PPR', 'PR', 'OL', 'AL', 'PE']);
@@ -169,6 +186,9 @@ describe('School directory S1 (M12)', () => {
           for (const sql of setup) await c.query(sql);
           const count = await schools();
           if (acknowledge) await c.query(`SET LOCAL rof.m12_rollback = 'discard-directory-data'`);
+          for (const sql of NEWER_ROLLBACKS_ACK) await c.query(sql);
+          await c.query(TEACHER_SCHOOL_ROLLBACK);
+          await c.query(MODE_ROLLBACK);
           await c.query(M14_ROLLBACK);   // no approvals or sync runs here: M14's and M13's rollbacks go through
           await c.query(M13_ROLLBACK);
           await c.query(M12_ROLLBACK);

@@ -2,7 +2,7 @@ import { Transform } from 'class-transformer';
 import { IsEnum, IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/pagination.js';
-import { SchoolSyncChangeKind, SchoolSyncDecision, SchoolSyncItemOutcome, SchoolSyncRunStatus } from '../../generated/prisma/client.js';
+import { SchoolSyncChangeKind, SchoolSyncDecision, SchoolSyncItemOutcome, SchoolSyncMode, SchoolSyncRunStatus } from '../../generated/prisma/client.js';
 import { PRINTABLE } from '../dto/admin-school.dto.js';
 import { SYNC_DATASET_KEYS } from './sync-datasets.js';
 
@@ -16,6 +16,12 @@ export class CreateSyncRunQueryDto {
 
   /** A label for this run (default: the dataset name and the file name). */
   @IsOptional() @Transform(trim) @IsString() @Length(3, 200) @Matches(PRINTABLE) label?: string;
+
+  /**
+   * FULL (default): every difference with a matched school is proposed. NEW_ONLY: schools already
+   * in the directory are recognised and left untouched; only schools with a new code are proposed.
+   */
+  @IsOptional() @IsEnum(SchoolSyncMode, { message: 'mode must be FULL or NEW_ONLY' }) mode?: SchoolSyncMode;
 }
 
 /** GET /admin/school-sync/runs */

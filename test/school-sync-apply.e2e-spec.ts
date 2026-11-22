@@ -106,7 +106,7 @@ describe('School directory sync — S2b review and apply', () => {
     /* 8 */ { 'School Name': 'EP WRONG PROVINCE', 'School Code': '120009' },
     /* 9 */ { 'School Name': 'EP KACYIRU NEW', 'School Code': 'N/A', Province: 'Kigali City', District: 'Gasabo', Sector: 'Kacyiru' },
     /* 10 */ { 'School Name': '' },
-    /* 11 */ { 'School Name': 'EP TUMBA NSHYA', Sector: 'Tumba Nshya', 'School Code': 'SDMS CODE: 340209' },
+    /* 11 */ { 'School Name': 'EP TUMBA NSHYA', Sector: 'Tumba Nshya', 'School Code': '220888' },   // a new place (owner 2026-11-22: a new school needs a code)
     /* 12 */ { 'School Name': 'Test School', 'School Code': '-' },
     /* 13 */ { 'School Name': 'EP TOTALLY DIFFERENT', 'School Code': '110001', Province: 'Kigali City', District: 'Nyarugenge', Sector: 'Muhima' },
   ];
@@ -204,7 +204,7 @@ describe('School directory sync — S2b review and apply', () => {
     runId = await upload(FILE);
     const s = (await http().get(`${R}/${runId}/review`).set(bearer(admin)).expect(200)).body;
     expect(s.run).toMatchObject({ status: 'PREVIEW', reviewGeneration: 0, approvalCurrent: false, createdBy: { username: 'admin' }, approvedBy: null, appliedBy: null });
-    expect(s.outcomes).toMatchObject({ MATCHED: 2, NEW: 3, CONFLICT: 4, DUPLICATE_ROW: 1, INVALID: 1, POSSIBLE_DUPLICATE: 1, MISSING_FROM_SOURCE: 1 });
+    expect(s.outcomes).toMatchObject({ MATCHED: 2, NEW: 2, CONFLICT: 4, DUPLICATE_ROW: 1, INVALID: 2, POSSIBLE_DUPLICATE: 1, MISSING_FROM_SOURCE: 1 });
     expect(s.manualReview).toEqual({ total: 5, conflicts: 4, possibleDuplicates: 1, byState: { OPEN: 5, PROPOSED: 0, RESOLVED: 0 } });
     expect(s.changes.NAME_RESTORE).toEqual({ PENDING: 1, APPROVED: 0, REJECTED: 0 });
     expect(s.changes.CHANGE).toEqual({ PENDING: 1, APPROVED: 0, REJECTED: 0 });   // karama's ownership
@@ -298,7 +298,7 @@ describe('School directory sync — S2b review and apply', () => {
     const changes = await changesOf(runId);
     const approvedCount = changes.filter((c) => c.decision === 'APPROVED').length;
     const res = await applyRun(runId, token).expect(200);
-    expect(res.body).toMatchObject({ status: 'APPLIED', counts: { schoolsCreated: 3, namesRestored: 1, placesApproved: 1, sourceRecordsCreated: 12 } });
+    expect(res.body).toMatchObject({ status: 'APPLIED', counts: { schoolsCreated: 2, namesRestored: 1, placesApproved: 1, sourceRecordsCreated: 12 } });
     expect(res.body.metrics).toMatchObject({ durationMs: expect.any(Number), lockWaitMs: expect.any(Number), attempt: 1, memoryPeakMb: expect.any(Number) });
 
     // Matched schools: approved fields only; the rejected ownership change not applied; never deactivated.
@@ -308,12 +308,14 @@ describe('School directory sync — S2b review and apply', () => {
     // New schools: OFFICIAL_LIST, created by the Super Admin; the new place exists with them.
     const created = await p().school.findMany({ where: { createdById: superAdminId }, orderBy: { name: 'asc' } });
     expect(created.map((s) => [s.name, s.code, s.source, s.sector])).toEqual([
-      ['EP KACYIRU NEW', null, 'OFFICIAL_LIST', 'Kacyiru'], ['EP NEW SCHOOL', '220777', 'OFFICIAL_LIST', 'Ngoma'], ['EP TUMBA NSHYA', null, 'OFFICIAL_LIST', 'Tumba Nshya'],
+      ['EP NEW SCHOOL', '220777', 'OFFICIAL_LIST', 'Ngoma'], ['EP TUMBA NSHYA', '220888', 'OFFICIAL_LIST', 'Tumba Nshya'],
     ]);
+    // A row without a usable code is never created (owner decision 2026-11-22).
+    expect(await p().school.count({ where: { name: 'EP KACYIRU NEW' } })).toBe(0);
     // Contacts: only approved ones, ADMIN_ONLY and unverified; levels added.
     expect((await p().schoolContact.findMany({ where: { schoolId: ngoma } })).map((c) => [c.type, c.value, c.visibility, c.verifiedAt])).toEqual([['EMAIL', 'head.ngoma@example.org', 'ADMIN_ONLY', null]]);
     expect(await p().schoolContact.count({ where: { schoolId: karama, value: 'new.karama@example.org' } })).toBe(1);
-    expect(await p().schoolEducationLevel.count({ where: { schoolId: { in: created.map((s) => s.id) } } })).toBe(3);
+    expect(await p().schoolEducationLevel.count({ where: { schoolId: { in: created.map((s) => s.id) } } })).toBe(2);
     // Ids and relationships kept.
     expect((await p().user.findUniqueOrThrow({ where: { id: karamaStudent } })).schoolId).toBe(karama);
     expect(await p().studentSchoolAffiliation.findFirstOrThrow({ where: { studentId: karamaStudent, supersededAt: null } })).toEqual(claimBefore);
@@ -321,9 +323,9 @@ describe('School directory sync — S2b review and apply', () => {
     // Source records: every row (conflicts and invalid rows unlinked); external ids for code and fingerprint, never the disputed code.
     const records = await p().schoolSourceRecord.findMany({ where: { syncRunId: runId }, orderBy: { sourceRef: 'asc' } });
     expect(records).toHaveLength(12);
-    expect(records.filter((r) => r.schoolId === null).length).toBe(6);   // rows 6, 7, 8, 10, 12, 13
+    expect(records.filter((r) => r.schoolId === null).length).toBe(7);   // rows 6, 7, 8, 9 (no code), 10, 12, 13
     const ext = await p().schoolExternalId.findMany();
-    expect(ext.filter((e) => e.kind === 'CODE').map((e) => e.externalKey).sort()).toEqual(['220001', '220002', '220777']);
+    expect(ext.filter((e) => e.kind === 'CODE').map((e) => e.externalKey).sort()).toEqual(['220001', '220002', '220777', '220888']);
     expect(ext.some((e) => e.externalKey === '220500' || e.externalKey === '110001' || e.externalKey === '120009')).toBe(false);
     // One audit entry per applied change, contact values masked; the summary names the token by id.
     const run = await p().schoolSyncRun.findUniqueOrThrow({ where: { id: runId } });

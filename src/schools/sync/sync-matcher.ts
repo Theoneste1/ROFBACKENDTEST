@@ -26,10 +26,19 @@
  *    from the official list, matched by code, and its current name is exactly the published name
  *    + " — " + district or + " (" + code + ")" (M8's suffixes); otherwise CHANGE. Additions:
  *    ADD_CONTACT / ADD_LEVEL / ADD_PROGRAMME for what the school does not have yet.
- * 5. A NEW row → CREATE_SCHOOL (+ its additions). A place not in the directory → one NEW_PLACE
+ * 5. The school code is the identifier (owner decision 2026-11-22): a row that would create a school
+ *    but carries no usable code (its own valid, undisputed code or a reviewer-verified one) is
+ *    INVALID with CODE_REQUIRED — it needs attention and never creates a school.
+ *    A NEW row → CREATE_SCHOOL (+ its additions). A place not in the directory → one NEW_PLACE
  *    per place. An official coded school whose code is nowhere in the file → MISSING_FROM_SOURCE
  *    (reported, never changed).
+ *
+ * Mode NEW_ONLY (owner decision 2026-11-22): a matched school is recognised and left untouched —
+ * no field change, no addition and no new place is proposed for it; only new schools are.
  */
+
+export type SyncMode = 'FULL' | 'NEW_ONLY';
+export interface MatchOptions { mode?: SyncMode }
 import type { SchoolSyncChangeKind, SchoolSyncItemOutcome } from '../../generated/prisma/client.js';
 import { schoolKey } from '../school-key.js';
 import type { NormalisedRow, SyncIssue } from './nesa-normaliser.js';
@@ -98,7 +107,8 @@ const lower = (v: string | null | undefined) => (v ?? '').toLowerCase();
 const keyOf = (s: DirectorySchool) => s.nameKey ?? schoolKey(s.name);
 const identity = (n: NormalisedRow) => [n.nameKey, n.province, n.district, n.sector, n.cell ?? '', n.village ?? ''].map((x) => lower(x)).join('|');
 
-export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot, resolutions?: ReadonlyMap<number, SyncResolution>): MatchResult {
+export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot, resolutions?: ReadonlyMap<number, SyncResolution>, options: MatchOptions = {}): MatchResult {
+  const newOnly = options.mode === 'NEW_ONLY';
   const byCode = new Map(snap.schools.filter((s) => s.code).map((s) => [s.code!, s]));
   const byId = new Map(snap.schools.map((s) => [s.id, s]));
   const byKey = new Map<string, DirectorySchool[]>();
@@ -230,21 +240,32 @@ export function matchRows(inputs: MatchInput[], snap: DirectorySnapshot, resolut
   // 4–5. Proposed changes.
   const changes: StagedChange[] = [];
   const claimedCodes = new Set(byCode.keys());
+  // The code a change may carry: a reviewer-verified code, else the row's own valid, unclaimed,
+  // undisputed code — never a disputed one (D7).
+  const codeFor = (it: StagedItem, n: NormalisedRow) => {
+    const resolution = it.details?.resolution as SyncResolution | undefined;
+    const rowCode = !it.details?.codeDisputed && n.codeStatus === 'VALID' && !claimedCodes.has(n.code!) ? n.code : null;
+    return resolution?.code ?? rowCode;
+  };
+  // 5. No code, no new school.
+  for (const it of items) {
+    if (it.outcome !== 'NEW' || !it.normalized || codeFor(it, it.normalized)) continue;
+    it.outcome = 'INVALID';
+    it.issues.push({ code: 'CODE_REQUIRED', field: 'School Code', message: 'No usable official school code: the school is not created (the code identifies a school).' });
+  }
   const newPlaces = new Map<string, { value: Record<string, unknown>; rows: number[] }>();
   for (const it of items) {
     const n = it.normalized;
     if (!n || (it.outcome !== 'MATCHED' && it.outcome !== 'NEW')) continue;
+    if (newOnly && it.outcome === 'MATCHED') continue;   // recognised, left untouched
     if (!n.placeKnown && n.province && n.district && n.sector) {
       const k = lower(`${n.province}|${n.district}|${n.sector}`);
       const place = newPlaces.get(k) ?? { value: { province: n.province, district: n.district, sector: n.sector, publishedSpelling: n.publishedPlace }, rows: [] };
       place.rows.push(it.rowNumber!);
       newPlaces.set(k, place);
     }
-    // The code a change may carry: a reviewer-verified code, else the row's own valid, unclaimed,
-    // undisputed code — never a disputed one (D7).
     const resolution = it.details?.resolution as SyncResolution | undefined;
-    const rowCode = !it.details?.codeDisputed && n.codeStatus === 'VALID' && !claimedCodes.has(n.code!) ? n.code : null;
-    const wantedCode = resolution?.code ?? rowCode;
+    const wantedCode = codeFor(it, n);
     if (it.outcome === 'NEW') {
       changes.push({
         itemIndex: it.index, schoolId: null, kind: 'CREATE_SCHOOL', field: null, currentValue: null,

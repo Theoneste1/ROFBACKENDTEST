@@ -132,7 +132,7 @@ export class SchoolSyncApplyService {
 
     // The reviewed comparison must still be the comparison.
     const { snap, places } = await loadDirectorySnapshot(tx, run.dataSourceId);
-    const cmp = compareRows(stagedRows(items), snap, places, resolutions);
+    const cmp = compareRows(stagedRows(items), snap, places, resolutions, run.mode);
     if (cmp.reportDigest !== run.reportDigest) throw stale('DIRECTORY_CHANGED');
     sample();
 

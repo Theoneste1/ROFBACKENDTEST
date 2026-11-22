@@ -27516,6 +27516,19 @@
               "maxLength": 200,
               "type": "string"
             }
+          },
+          {
+            "name": "mode",
+            "required": false,
+            "in": "query",
+            "description": "FULL (default): every difference with a matched school is proposed. NEW_ONLY: schools already\nin the directory are recognised and left untouched; only schools with a new code are proposed.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "FULL",
+                "NEW_ONLY"
+              ]
+            }
           }
         ],
         "responses": {
@@ -57298,6 +57311,36 @@
             "minLength": 1,
             "maxLength": 100
           },
+          "proposedSchoolCode": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "proposedSchoolCell": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "proposedSchoolVillage": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "proposedSchoolOwnership": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "GOVERNMENT_AIDED",
+              "PRIVATE"
+            ]
+          },
+          "proposedSchoolAccommodation": {
+            "type": "string",
+            "enum": [
+              "DAY",
+              "BOARDING",
+              "MIXED"
+            ]
+          },
           "position": {
             "type": "string",
             "description": "Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients.",
@@ -57374,6 +57417,10 @@
           "approvePicture": {
             "type": "boolean",
             "description": "Picture moderation (owner approval 2026-11-18): the picture sent with the application becomes the account's\npicture ONLY when the Administrator, having seen it (GET …/:id/avatar), sends true. Omitted or false: it is\ndiscarded and the account starts without a picture."
+          },
+          "confirmPossibleDuplicate": {
+            "type": "boolean",
+            "description": "An unlisted-school application whose school is created by this approval (owner 2026-11-22): true confirms a\nschool with the same name in the same district is a different school (409 POSSIBLE_DUPLICATE otherwise)."
           }
         }
       },

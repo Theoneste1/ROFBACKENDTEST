@@ -22,19 +22,34 @@ export const registrationClosed = () =>
 
 export type SchoolChoice =
   | { kind: 'LISTED'; schoolId: string }
-  | { kind: 'MISSING'; proposedSchoolName: string; schoolSector: string };
+  | {
+      kind: 'MISSING'; proposedSchoolName: string; schoolSector: string;
+      /** The school's official details (owner 2026-11-22): code, ownership and day / boarding required; cell, village optional. */
+      code: string; cell: string | null; village: string | null; ownership: string; accommodation: 'DAY' | 'BOARDING' | 'MIXED';
+    };
+
+type ChoiceInput = {
+  schoolId?: string; proposedSchoolName?: string; schoolSector?: string;
+  proposedSchoolCode?: string; proposedSchoolCell?: string; proposedSchoolVillage?: string;
+  proposedSchoolOwnership?: string; proposedSchoolAccommodation?: 'DAY' | 'BOARDING' | 'MIXED';
+};
 
 /** Exactly one of schoolId / proposedSchoolName (400 SCHOOL_CHOICE_REQUIRED otherwise). */
-export function schoolChoice(dto: { schoolId?: string; proposedSchoolName?: string; schoolSector?: string }): SchoolChoice {
+export function schoolChoice(dto: ChoiceInput): SchoolChoice {
   const listed = dto.schoolId !== undefined;
   const missing = dto.proposedSchoolName !== undefined;
-  // A listed school's sector comes from the directory, never from the client.
-  if (listed === missing || (listed && dto.schoolSector !== undefined)) {
+  const details = [dto.schoolSector, dto.proposedSchoolCode, dto.proposedSchoolCell, dto.proposedSchoolVillage, dto.proposedSchoolOwnership, dto.proposedSchoolAccommodation];
+  // A listed school's sector and details come from the directory, never from the client.
+  if (listed === missing || (listed && details.some((d) => d !== undefined))) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CHOICE_REQUIRED',
       'Choose your school from the list (schoolId), or name a missing school (proposedSchoolName with its sector) — exactly one.');
   }
   if (listed) return { kind: 'LISTED', schoolId: dto.schoolId! };
-  return { kind: 'MISSING', proposedSchoolName: dto.proposedSchoolName!, schoolSector: dto.schoolSector! };
+  return {
+    kind: 'MISSING', proposedSchoolName: dto.proposedSchoolName!, schoolSector: dto.schoolSector!,
+    code: dto.proposedSchoolCode!, cell: dto.proposedSchoolCell ?? null, village: dto.proposedSchoolVillage ?? null,
+    ownership: dto.proposedSchoolOwnership!, accommodation: dto.proposedSchoolAccommodation!,
+  };
 }
 
 export function assertPasswordsMatch(password: string, confirmPassword: string): void {

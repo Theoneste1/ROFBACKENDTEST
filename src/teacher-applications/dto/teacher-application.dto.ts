@@ -1,5 +1,5 @@
 import {
-  IsInt, Max, Min,
+  IsIn, IsInt, Max, Min,
   ArrayUnique,
   IsArray,
   IsEmail,
@@ -17,7 +17,8 @@ import {
 import { Transform } from 'class-transformer';
 
 import { HomePlacePart } from '../../common/home-place.js';
-import { Gender, OlympiadSubject, TeacherApplicationStatus } from '../../generated/prisma/client.js';
+import { Gender, OlympiadSubject, SchoolAccommodation, TeacherApplicationStatus } from '../../generated/prisma/client.js';
+import { SCHOOL_OWNERSHIP } from '../../schools/school-rules.js';
 import { IsStrongPassword, lower, trim } from '../../auth/dto/password.rules.js';
 import { PaginationQueryDto } from '../../common/pagination.js';
 import { IsOtherInterest, NonEmptyUnlessOther } from '../../users/olympiad-interests.rules.js';
@@ -108,6 +109,29 @@ export class RegisterTeacherDto {
   @IsString() @Length(1, 100) @Transform(trim)
   schoolSector?: string;
 
+  // ─── "My school is not listed": the school's official details (owner decision 2026-11-22) ──────────────────
+  // Required with proposedSchoolName (code, ownership, day / boarding); cell and village optional. Refused with
+  // schoolId (400 SCHOOL_CHOICE_REQUIRED). The approval creates the school from them — nothing is typed again.
+
+  /** The school's official 6-digit code (Ministry of Education list); not yet in the directory (409 SCHOOL_CODE_LISTED). */
+  @ValidateIf((o: RegisterTeacherDto) => o.proposedSchoolName !== undefined || o.proposedSchoolCode !== undefined)
+  @Transform(trim) @IsString() @Matches(/^\d{6}$/, { message: 'proposedSchoolCode must be the 6-digit official school code' })
+  proposedSchoolCode?: string;
+
+  @IsOptional() @IsString() @Length(1, 100) @Transform(squash)
+  proposedSchoolCell?: string;
+
+  @IsOptional() @IsString() @Length(1, 100) @Transform(squash)
+  proposedSchoolVillage?: string;
+
+  @ValidateIf((o: RegisterTeacherDto) => o.proposedSchoolName !== undefined || o.proposedSchoolOwnership !== undefined)
+  @IsIn(SCHOOL_OWNERSHIP, { message: `proposedSchoolOwnership must be one of: ${SCHOOL_OWNERSHIP.join(', ')}` })
+  proposedSchoolOwnership?: (typeof SCHOOL_OWNERSHIP)[number];
+
+  @ValidateIf((o: RegisterTeacherDto) => o.proposedSchoolName !== undefined || o.proposedSchoolAccommodation !== undefined)
+  @IsEnum(SchoolAccommodation, { message: 'proposedSchoolAccommodation must be DAY, BOARDING or MIXED' })
+  proposedSchoolAccommodation?: SchoolAccommodation;
+
   /** Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients. */
   @IsOptional()
   @IsString() @Length(2, 100) @Transform(trim)
@@ -161,6 +185,14 @@ export class ApproveTeacherApplicationDto {
   @IsOptional()
   @IsBoolean()
   approvePicture?: boolean;
+
+  /**
+   * An unlisted-school application whose school is created by this approval (owner 2026-11-22): true confirms a
+   * school with the same name in the same district is a different school (409 POSSIBLE_DUPLICATE otherwise).
+   */
+  @IsOptional()
+  @IsBoolean()
+  confirmPossibleDuplicate?: boolean;
 }
 
 /** POST /admin/teacher-applications/:id/reject */

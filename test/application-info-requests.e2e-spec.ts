@@ -7,6 +7,10 @@
  */
 import { createTestApp, login, bearer, waitForEvents, type TestContext } from './helpers.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(291000 + ++codeSeq);
+
 const TEACHER_REGISTER = '/api/v1/auth/register/teacher';
 
 describe('Application details and requests for more information (e2e)', () => {
@@ -40,7 +44,7 @@ describe('Application details and requests for more information (e2e)', () => {
    */
   const reviewedBody = (over: Record<string, unknown> = {}) => {
     const { schoolId: _drop, ...rest } = teacherBody(over);
-    return { ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma' };
+    return { ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY' };
   };
   const coachBody = (over: Record<string, unknown> = {}) => {
     n += 1;

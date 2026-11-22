@@ -3666,6 +3666,12 @@
                   "value": "label",
                   "disabled": true,
                   "description": "A label for this run (default: the dataset name and the file name)."
+                },
+                {
+                  "key": "mode",
+                  "value": "FULL",
+                  "disabled": true,
+                  "description": "FULL (default): every difference with a matched school is proposed. NEW_ONLY: schools already\nin the directory are recognised and left untouched; only schools with a new code are proposed."
                 }
               ]
             },
@@ -15004,7 +15010,7 @@
             "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\",\n  \"approvePicture\": true\n}",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\",\n  \"approvePicture\": true,\n  \"confirmPossibleDuplicate\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
