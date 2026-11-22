@@ -458,6 +458,16 @@
     "tag": "Admin · Mentor assignments"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/mentor-assignments/bulk",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Mentor assignments"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/permissions/catalogue",
     "roles": [
@@ -2489,6 +2499,123 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/reports",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/reports/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/reports/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}/export",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}/grants",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/reports/{id}/grants",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports/{id}/preview",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}/run",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports/preview",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/sources",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/comments/hidden",
     "roles": [
       "ADMIN",
@@ -2719,8 +2846,35 @@
     "tag": "Divisions"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/divisions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
     "method": "PATCH",
     "path": "/api/v1/admin/divisions/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/divisions/{id}/courses",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Divisions"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/divisions/{id}/courses",
     "roles": [
       "ADMIN",
       "SUPER_ADMIN"
@@ -3163,6 +3317,28 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/students/{id}/olympiad-level",
+    "roles": [
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "olympiad-levels"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/students/{id}/olympiad-level",
+    "roles": [
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "olympiad-levels"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/programmes",
     "roles": [
       "STUDENT",
@@ -3222,6 +3398,16 @@
       "PUBLIC"
     ],
     "tag": "Schools"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/students/{id}/overview",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Students"
   },
   {
     "method": "POST",
@@ -3481,6 +3667,54 @@
       "PUBLIC"
     ],
     "tag": "Support"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/table-layouts/{table}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/table-layouts/{table}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/table-layouts/{table}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/table-layouts/{table}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/table-layouts/{table}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
   },
   {
     "method": "GET",

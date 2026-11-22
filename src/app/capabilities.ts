@@ -228,7 +228,7 @@ export const FEATURES = {
    * POST /api/v1/admin/users/bulk (202; idempotent per idempotencyKey; 409 SELECTION_CHANGED), GET /api/v1/admin/users/bulk,
    * GET /api/v1/admin/users/bulk/:id, GET /api/v1/admin/users/bulk/:id/items, POST /api/v1/admin/users/bulk/:id/cancel and
    * POST /api/v1/admin/users/bulk/export (CSV). Actions: activate, deactivate, suspend, archive, restore, assignRole,
-   * changeClassification (a student's grade, and so division), message.
+   * changeClassification (a student's grade, and so division), message; with olympiadLevels also setOlympiadLevel.
    */
   bulkUserOperations: 'always',
   /**
@@ -261,6 +261,32 @@ export const FEATURES = {
    *  - GET /teacher/tests/:id/students filters by ?division and ?subject and returns each student's interests and level.
    */
   testSubmissionLock: 'always',
+  /**
+   * Olympiad levels (owner 2026-11-21): every student has an Olympiad level — JUNIOR, MIDDLE or SENIOR (`olympiadLevel`
+   * on the profile, the Users list and the teachers' lists; `olympiadLevelManual` for administrators) — separate from
+   * the school grade. The grade suggests it (S1–S2 Junior, S3–S4 Middle, S5–S6 Senior); a holder of
+   * students.classifyLevel sets it by hand or returns it to the suggestion (GET / PUT /admin/students/:id/olympiad-level,
+   * reason, history; bulk action setOlympiadLevel). Tests may be for MIDDLE; eligibility, the teachers' lists and the
+   * rankings use the level (each result keeps the level it was submitted at). GET /admin/users and /teacher/students
+   * filter by ?olympiadLevel. Without it: two levels from the grade (S1–S3 Junior, S4–S6 Senior).
+   */
+  olympiadLevels: 'always',
+  /**
+   * Administrator-managed divisions (owner 2026-11-22): POST /admin/divisions; PATCH with suggestedGrades and sortOrder
+   * (grades given to a division are taken from the one that had them); deactivation guarded; GET / PUT
+   * /admin/divisions/:id/courses (which courses a division offers; students see only those);
+   * POST /admin/mentor-assignments/bulk (ALL / DIVISION / PAIRS, dryRun preview, never a duplicate).
+   */
+  adminDivisions: 'always',
+  /**
+   * The Student Profile Overview (owner 2026-11-22): GET /students/:id/overview — photo, name, username, country, school,
+   * grade, Olympiad level, subjects (status for staff); the student's picture visible to whoever may view it.
+   */
+  studentOverview: 'always',
+  /** Custom reports (owner 2026-11-22): /reports — sources, preview, save, run, CSV / Excel export, grants (view / download / edit). */
+  customReports: 'always',
+  /** Table layouts (owner 2026-11-22): /me/table-layouts/:table and /admin/table-layouts/:table; GET /admin/users ?sort&order. */
+  tableLayouts: 'always',
   /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and

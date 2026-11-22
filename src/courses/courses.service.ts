@@ -63,7 +63,8 @@ export class CoursesService {
     if (isStudent(user)) {
       const divisionId = this.access.studentDivision(user);
       const courses = await this.prisma.course.findMany({
-        where:   { status: 'PUBLISHED' },
+        // The published courses the student's division offers (administrator-managed, 2026-11-22).
+        where:   { status: 'PUBLISHED', divisionOfferings: { some: { divisionId, isActive: true } } },
         orderBy: { sortOrder: 'asc' },
         select: {
           ...COURSE_SELECT,
@@ -128,6 +129,9 @@ export class CoursesService {
     if (isStudent(user)) {
       if (course.status !== 'PUBLISHED') throw new NotFoundException('Course not found.');
       const divisionId = this.access.studentDivision(user);
+      // A course the student's division does not offer is not revealed.
+      const offered = await this.prisma.courseDivision.count({ where: { courseId, divisionId, isActive: true } });
+      if (!offered) throw new NotFoundException('Course not found.');
       const enrollment = await this.recordCourseView(courseId, user.id);
       this.activity.record(user.id, 'COURSE_OPENED', { courseId, entityType: 'Course', entityId: courseId });
       const counts = await this.prisma.course.findUnique({

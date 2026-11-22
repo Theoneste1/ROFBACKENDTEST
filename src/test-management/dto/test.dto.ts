@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
-  ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsISO8601, IsOptional, IsString, IsUUID, Length, Max, Min,
+  ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsIn, IsInt, IsISO8601, IsOptional, IsString, IsUUID, Length, Matches, Max, Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -9,7 +9,8 @@ import { MAX_QUESTIONS, MAX_TEST_MARKS } from '../test-rules.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
-export const TEST_DIVISIONS = ['JUNIOR', 'SENIOR', 'ALL'] as const;
+/** A division code (JUNIOR, MIDDLE, SENIOR or one an Administrator created): 2–30 capitals, digits or underscores. */
+export const DIVISION_CODE = /^[A-Z][A-Z0-9_]{1,29}$/;
 export const ANSWER_FORMATS = ['UPLOAD_ONLY', 'TYPED_ONLY', 'BOTH'] as const;
 export const TEST_STATUSES = ['DRAFT', 'PUBLISHED'] as const;
 /** The file kinds as they appear in the URL. */
@@ -37,9 +38,9 @@ export class CreateTestDto {
   @IsUUID()
   subjectId: string;
 
-  /** JUNIOR (S1–S3), SENIOR (S4–S6) or ALL. Mandatory. */
-  @IsIn(TEST_DIVISIONS)
-  division: (typeof TEST_DIVISIONS)[number];
+  /** Who the test is for: a division's code (its students; the division must be active) or ALL. Mandatory. */
+  @Matches(DIVISION_CODE, { message: 'division must be ALL or a division code.' })
+  division: string;
 
   /** How students answer: UPLOAD_ONLY, TYPED_ONLY or BOTH. */
   @IsIn(ANSWER_FORMATS)
@@ -72,8 +73,8 @@ export class UpdateTestDto {
   @IsOptional() @IsUUID()
   subjectId?: string;
 
-  @IsOptional() @IsIn(TEST_DIVISIONS)
-  division?: (typeof TEST_DIVISIONS)[number];
+  @IsOptional() @Matches(DIVISION_CODE, { message: 'division must be ALL or a division code.' })
+  division?: string;
 
   @IsOptional() @IsIn(ANSWER_FORMATS)
   answerFormat?: (typeof ANSWER_FORMATS)[number];
@@ -96,9 +97,9 @@ export class ListTestsQueryDto extends PaginationQueryDto {
   @IsOptional() @IsUUID()
   subjectId?: string;
 
-  /** JUNIOR, SENIOR or ALL (exact match). */
-  @IsOptional() @IsIn(TEST_DIVISIONS)
-  division?: (typeof TEST_DIVISIONS)[number];
+  /** A division code or ALL (exact match). */
+  @IsOptional() @Matches(DIVISION_CODE, { message: 'division must be ALL or a division code.' })
+  division?: string;
 
   /** DRAFT or PUBLISHED. */
   @IsOptional() @IsIn(TEST_STATUSES)

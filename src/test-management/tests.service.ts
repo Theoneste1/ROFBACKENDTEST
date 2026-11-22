@@ -17,6 +17,7 @@
  * order and marks; its paper stays. 409 TEST_LOCKED_BY_SUBMISSIONS (with the fields). Unpublishing or deleting it: 409
  * TEST_HAS_SUBMISSIONS. Still editable: the title, a question's wording, the marking guide. (submission-rules.ts)
  */
+import { DivisionsService } from '../divisions/divisions.service.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 
@@ -65,6 +66,7 @@ export class TestsService {
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly storage: StorageService,
+    private readonly divisions: DivisionsService,
   ) {}
 
   // ── Scope ───────────────────────────────────────────────────────────────────
@@ -121,6 +123,8 @@ export class TestsService {
     const opensAt = new Date(dto.opensAt);
     const closesAt = new Date(dto.closesAt);
     assertWindow(opensAt, closesAt);
+    // Who the test is for: ALL or an ACTIVE division (administrator-managed, owner 2026-11-21/22).
+    await this.divisions.assertTestLevel(dto.division);
     const questions = dto.questions ?? [];
     assertQuestionMarks('DRAFT', dto.maxMarks, questions.map((x) => x.maxMarks));
 
@@ -146,6 +150,7 @@ export class TestsService {
   }
 
   async update(id: string, dto: UpdateTestDto, user: AuthUser) {
+    if (dto.division !== undefined) await this.divisions.assertTestLevel(dto.division);
     const changed = Object.entries(dto).filter(([, v]) => v !== undefined);
     if (changed.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Nothing to change.');
     const scope = await this.scope(user);

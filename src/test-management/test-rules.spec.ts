@@ -98,9 +98,12 @@ describe('Test Management rules (WS3, Phase 1)', () => {
     };
     const errors = (o: object) => validateSync(plainToInstance(CreateTestDto, o)).map((e) => e.property).sort();
     it('a complete body is valid', () => expect(errors(valid)).toEqual([]));
+    it('any division code and ALL pass validation (administrator-managed divisions; the service checks it is active)', () => {
+      for (const division of ['JUNIOR', 'MIDDLE', 'SENIOR', 'ADVANCED_2', 'ALL']) expect([division, errors({ ...valid, division })]).toEqual([division, []]);
+    });
     it.each([
       ['division missing', { division: undefined }, ['division']],
-      ['unknown division', { division: 'MIDDLE' }, ['division']],
+      ['not a division code', { division: 'junior level' }, ['division']],
       ['unknown answer format', { answerFormat: 'ORAL' }, ['answerFormat']],
       ['fractional marks', { maxMarks: 12.5 }, ['maxMarks']],
       ['zero marks', { maxMarks: 0 }, ['maxMarks']],

@@ -43,7 +43,8 @@ describe('AvatarService', () => {
     const roles = { assertCanManage: vi.fn(async () => { if (opts.refuse) throw Object.assign(new Error('no'), { code: 'ROLE_NOT_ASSIGNABLE' }); }) };
     const users = { findOne: vi.fn().mockResolvedValue({ id: 'stu' }) };
     const permissions = { has: vi.fn().mockReturnValue(false) };
-    const service = new AvatarService(prisma as never, storage as never, audit as never, roles as never, users as never, permissions as never);
+    const overview = { mayView: vi.fn().mockResolvedValue(true) };
+    const service = new AvatarService(prisma as never, storage as never, audit as never, roles as never, users as never, permissions as never, overview as never);
     return { service, prisma, tx, storage, audit, roles, users };
   }
 

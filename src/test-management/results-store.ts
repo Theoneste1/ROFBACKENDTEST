@@ -107,7 +107,7 @@ export function resultNotices(
 export interface ResultRow {
   id: string; publicCode: string; status: string; publishedAt: Date | null; totalMarks: number;
   studentId: string; firstName: string; lastName: string; username: string; gradeLevel: string | null;
-  schoolId: string | null; schoolName: string | null; division: 'JUNIOR' | 'SENIOR' | 'UNKNOWN';
+  schoolId: string | null; schoolName: string | null; division: string;
 }
 
 /** The final, approved results of a test (APPROVED and PUBLISHED; or PUBLISHED only), with the student. One query. */

@@ -1745,6 +1745,41 @@
             },
             "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
+        },
+        {
+          "name": "POST /admin/mentor-assignments/bulk",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/mentor-assignments/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "mentor-assignments",
+                "bulk"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `mentorAssignments.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mentorId\": \"00000000-0000-4000-8000-000000000000\",\n  \"scope\": \"ALL\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -6077,9 +6112,9 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
-                  "description": ""
+                  "description": "A division code, or UNKNOWN (no division)."
                 },
                 {
                   "key": "q",
@@ -6312,7 +6347,7 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
                   "description": "Only this division (by=division)."
                 },
@@ -6541,9 +6576,9 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
-                  "description": "JUNIOR, SENIOR or ALL (exact match)."
+                  "description": "A division code or ALL (exact match)."
                 },
                 {
                   "key": "status",
@@ -6587,7 +6622,7 @@
             "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"JUNIOR\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
+              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"division\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6655,7 +6690,7 @@
             "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"JUNIOR\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
+              "raw": "{\n  \"title\": \"title\",\n  \"subjectId\": \"00000000-0000-4000-8000-000000000000\",\n  \"division\": \"division\",\n  \"answerFormat\": \"UPLOAD_ONLY\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"maxMarks\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7254,9 +7289,9 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
-                  "description": "The student's division (by grade): JUNIOR (S1–S3) or SENIOR (S4–S6)."
+                  "description": "The student's Olympiad level (owner 2026-11-21): JUNIOR, MIDDLE or SENIOR."
                 },
                 {
                   "key": "q",
@@ -7565,6 +7600,18 @@
                   "value": "search",
                   "disabled": true,
                   "description": ""
+                },
+                {
+                  "key": "sort",
+                  "value": "name",
+                  "disabled": true,
+                  "description": "Sort column (owner 2026-11-22): name, email, role, grade, registeredAt (default) or lastLoginAt."
+                },
+                {
+                  "key": "order",
+                  "value": "asc",
+                  "disabled": true,
+                  "description": "asc or desc (default desc for dates, asc otherwise)."
                 }
               ]
             },
@@ -10343,6 +10390,418 @@
       ]
     },
     {
+      "name": "custom-reports",
+      "item": [
+        {
+          "name": "GET /reports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "POST /reports",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `reports.build` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"name\",\n  \"source\": \"source\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /reports/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "PUT /reports/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"name\",\n  \"source\": \"source\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /reports/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "GET /reports/{id}/export",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "export"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "csv",
+                  "disabled": false,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "GET /reports/{id}/grants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/grants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "grants"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "PUT /reports/{id}/grants",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/grants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "grants"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grants\": [\n    {\n      \"canView\": true,\n      \"canDownload\": true,\n      \"canEdit\": true\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /reports/{id}/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "preview"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** Any signed-in user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"source\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /reports/{id}/run",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/run",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "run"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "POST /reports/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "preview"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `reports.build` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"source\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /reports/sources",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sources",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "sources"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `reports.build` (ADMIN, SUPER_ADMIN)"
+          }
+        }
+      ]
+    },
+    {
       "name": "Discussions",
       "item": [
         {
@@ -11243,6 +11702,40 @@
           }
         },
         {
+          "name": "POST /admin/divisions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "divisions"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"code\",\n  \"name\": \"name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "PATCH /admin/divisions/{id}",
           "request": {
             "method": "PATCH",
@@ -11274,7 +11767,77 @@
             "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"name\",\n  \"description\": \"description\",\n  \"isActive\": true\n}",
+              "raw": "{\n  \"name\": \"name\",\n  \"description\": \"description\",\n  \"isActive\": true,\n  \"suggestedGrades\": [\n    \"S1\"\n  ],\n  \"sortOrder\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/divisions/{id}/courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions/:id/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "divisions",
+                ":id",
+                "courses"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/divisions/{id}/courses",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/divisions/:id/courses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "divisions",
+                ":id",
+                "courses"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseIds\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -12742,6 +13305,81 @@
       ]
     },
     {
+      "name": "olympiad-levels",
+      "item": [
+        {
+          "name": "GET /admin/students/{id}/olympiad-level",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/students/:id/olympiad-level",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "students",
+                ":id",
+                "olympiad-level"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `students.classifyLevel` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/students/{id}/olympiad-level",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/students/:id/olympiad-level",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "students",
+                ":id",
+                "olympiad-level"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `students.classifyLevel` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Programmes",
       "item": [
         {
@@ -12922,6 +13560,38 @@
               "query": []
             },
             "description": "**Access:** Public (no token)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Students",
+      "item": [
+        {
+          "name": "GET /students/{id}/overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/:id/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                ":id",
+                "overview"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
           }
         }
       ]
@@ -13878,6 +14548,174 @@
               "query": []
             },
             "description": "**Access:** Public (no token)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "table-layouts",
+      "item": [
+        {
+          "name": "PUT /admin/table-layouts/{table}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/table-layouts/:table",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "table-layouts",
+                ":table"
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/table-layouts/{table}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/table-layouts/:table",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "table-layouts",
+                ":table"
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /me/table-layouts/{table}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/table-layouts/:table",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "table-layouts",
+                ":table"
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /me/table-layouts/{table}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/table-layouts/:table",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "table-layouts",
+                ":table"
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /me/table-layouts/{table}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/table-layouts/:table",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "table-layouts",
+                ":table"
+              ],
+              "variable": [
+                {
+                  "key": "table",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -15120,7 +15958,7 @@
                 },
                 {
                   "key": "division",
-                  "value": "JUNIOR",
+                  "value": "division",
                   "disabled": true,
                   "description": "Competition level (owner 2026-11-21): JUNIOR (S1–S3) or SENIOR (S4–S6), from the student's grade."
                 },

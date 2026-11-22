@@ -70,9 +70,11 @@ export class AccessService {
         if (user.divisionId !== scope.divisionId) throw new NotFoundException('Not found.');
         const course = await this.prisma.course.findUnique({
           where:  { id: scope.courseId },
-          select: { status: true },
+          select: { status: true, divisionOfferings: { where: { divisionId: scope.divisionId, isActive: true }, select: { id: true } } },
         });
         if (course?.status !== 'PUBLISHED') throw new NotFoundException('Not found.');
+        // Only a course the student's division offers (administrator-managed divisions, 2026-11-22).
+        if (course.divisionOfferings.length === 0) throw new NotFoundException('Not found.');
         return;
       }
       default:
@@ -102,7 +104,9 @@ export class AccessService {
   async scopeFilter(user: AuthUser): Promise<Record<string, unknown> | undefined> {
     if (isAdmin(user)) return undefined;
     if (isStudent(user)) {
-      return { divisionId: this.studentDivision(user), course: { status: 'PUBLISHED' } };
+      // Published courses the student's division offers (administrator-managed divisions, 2026-11-22).
+      const divisionId = this.studentDivision(user);
+      return { divisionId, course: { status: 'PUBLISHED', divisionOfferings: { some: { divisionId, isActive: true } } } };
     }
     if (isCourseWorker(user)) {
       const scopes = await this.mentorScopes(user.id);

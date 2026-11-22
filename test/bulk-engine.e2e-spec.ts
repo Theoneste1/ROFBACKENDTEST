@@ -165,6 +165,7 @@ describe('Generic bulk engine', () => {
       assignTeacher: { teacherId }, unassignTeacher: { teacherId },
       grantDelegation: { teacherId, permission: 'students.viewProfile' }, revokeDelegation: { teacherId, permission: 'students.viewProfile' },
       reassignTeacher: { fromTeacherId: teacherId, toTeacherId: ctx.ids.admin },
+      setOlympiadLevel: { olympiadLevel: 'MIDDLE' },
     } as Record<string, Record<string, unknown>>)[action];
 
     beforeAll(async () => {

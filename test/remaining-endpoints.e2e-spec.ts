@@ -192,9 +192,10 @@ describe('Remaining endpoints (e2e)', () => {
   describe('reference data and the leaderboard', () => {
     it('divisions: public list; administrators rename', async () => {
       const pub = await http().get('/api/v1/divisions').expect(200);
-      expect(pub.body.map((d: any) => d.code).sort()).toEqual(['JUNIOR', 'SENIOR']);
+      // Junior, Middle (administrator-managed divisions, 2026-11-22) and Senior.
+      expect(pub.body.map((d: any) => d.code).sort()).toEqual(['JUNIOR', 'MIDDLE', 'SENIOR']);
       const all = await http().get('/api/v1/admin/divisions').set(bearer(admin)).expect(200);
-      expect(all.body.length).toBe(2);
+      expect(all.body.length).toBe(3);
       await http().get('/api/v1/admin/divisions').set(bearer(mentorJ)).expect(403);
 
       const renamed = await http().patch(`/api/v1/admin/divisions/${ctx.ids.junior}`).set(bearer(admin)).send({ name: 'Junior (S1–S3)' }).expect(200);

@@ -1,7 +1,7 @@
 /** Bulk user operations — request shapes (2026-11-17; capability bulkUserOperations). */
 import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Min,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Min,
   ValidateIf, ValidateNested,
 } from 'class-validator';
 import { TEACHER_DELEGATIONS } from '../../auth/override-policy.js';
@@ -39,7 +39,7 @@ export class BulkSelectionDto {
   filter?: BulkFilterDto;
 }
 
-/** The action's parameters: assignRole → role; changeClassification → gradeLevel; message → subject and body. */
+/** The action's parameters: assignRole → role; changeClassification → gradeLevel; message → subject and body; setOlympiadLevel → olympiadLevel. */
 export class BulkParamsDto {
   @IsOptional() @IsEnum(Role) role?: Role;
   @IsOptional() @IsEnum(GradeLevel) gradeLevel?: GradeLevel;
@@ -53,6 +53,8 @@ export class BulkParamsDto {
   @IsOptional() @IsUUID() fromTeacherId?: string;
   /** reassignTeacher: the Teacher the students move to. */
   @IsOptional() @IsUUID() toTeacherId?: string;
+  /** setOlympiadLevel: JUNIOR, MIDDLE, SENIOR, or AUTOMATIC (the level the grade suggests). */
+  @IsOptional() @Matches(/^[A-Z][A-Z0-9_]{1,29}$/, { message: 'olympiadLevel must be a division code or AUTOMATIC.' }) olympiadLevel?: string;
 }
 
 export class BulkPreviewDto {

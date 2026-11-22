@@ -42,6 +42,8 @@ const SAFE_SELECT = {
   accountStatus: true,
   activatedAt: true,
   updatedAt:  true,
+  // Olympiad levels (owner 2026-11-21): whether a Coach or a User Manager set the division (level) by hand.
+  divisionManual: true,
 } as const;
 
 /**
@@ -71,6 +73,22 @@ export function userListWhere(q: Omit<ListUsersQueryDto, 'page' | 'limit'>): Pri
   return where;
 }
 
+/**
+ * The order of GET /admin/users (owner 2026-11-22: sortable columns). Dates default to newest first, text to A–Z; the
+ * id breaks ties so pages never overlap. Never-signed-in accounts sort last for lastLoginAt.
+ */
+export function userListOrder(q: Pick<ListUsersQueryDto, 'sort' | 'order'>): Prisma.UserOrderByWithRelationInput[] {
+  const dir = q.order ?? (q.sort === undefined || q.sort === 'registeredAt' || q.sort === 'lastLoginAt' ? 'desc' : 'asc');
+  const by: Prisma.UserOrderByWithRelationInput[] =
+    q.sort === 'name' ? [{ lastName: dir }, { firstName: dir }]
+      : q.sort === 'email' ? [{ email: dir }]
+        : q.sort === 'role' ? [{ role: dir }, { lastName: 'asc' }]
+          : q.sort === 'grade' ? [{ gradeLevel: { sort: dir, nulls: 'last' } }, { lastName: 'asc' }]
+            : q.sort === 'lastLoginAt' ? [{ lastLoginAt: { sort: dir, nulls: 'last' } }]
+              : [{ createdAt: dir }];
+  return [...by, { id: 'asc' }];
+}
+
 /** The reason recorded when PATCH /admin/users/:id/status suspends an account (that route takes no reason). */
 export const LEGACY_SUSPEND_REASON = 'Suspended by an administrator (status switch).';
 
@@ -94,7 +112,7 @@ export class UsersService {
     const where = userListWhere(q);
 
     const [users, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({ where, select: SAFE_SELECT, orderBy: { createdAt: 'desc' }, skip, take }),
+      this.prisma.user.findMany({ where, select: SAFE_SELECT, orderBy: userListOrder(q), skip, take }),
       this.prisma.user.count({ where }),
     ]);
 

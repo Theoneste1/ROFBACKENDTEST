@@ -79,6 +79,8 @@ describe('bulk rules', () => {
     const NOT_FILTERS: Record<string, string> = {
       page:  'pagination only (PaginationQueryDto); never reaches the where clause',
       limit: 'pagination only (PaginationQueryDto); never reaches the where clause',
+      sort:  'the order of the list only (userListOrder, 2026-11-22); never reaches the where clause',
+      order: 'the order of the list only (userListOrder, 2026-11-22); never reaches the where clause',
     };
     const keysOf = (cls: new () => object) =>
       [...new Set(getMetadataStorage().getTargetValidationMetadatas(cls, '', true, false).map((m) => m.propertyName))].sort();

@@ -9,7 +9,7 @@ import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import type { Prisma } from '../generated/prisma/client.js';
-import { CreateMentorAssignmentDto, ListMentorAssignmentsDto } from './dto/mentor-assignment.dto.js';
+import { BulkMentorAssignmentDto, CreateMentorAssignmentDto, ListMentorAssignmentsDto } from './dto/mentor-assignment.dto.js';
 
 const SELECT = {
   id: true, isActive: true, createdAt: true, updatedAt: true,
@@ -83,6 +83,10 @@ export class MentorAssignmentsService {
     }
     if (!course)   throw new NotFoundException('Course not found.');
     if (!division) throw new NotFoundException('Division not found.');
+    // Only a course the division offers (administrator-managed divisions, 2026-11-22).
+    if (!(await this.prisma.courseDivision.count({ where: { courseId: dto.courseId, divisionId: dto.divisionId, isActive: true } }))) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'COURSE_NOT_OFFERED', 'This division does not offer this course.');
+    }
 
     // The change and its audit record commit together: if the audit write fails, nothing changes.
     return this.prisma.$transaction(async (tx) => {
@@ -166,6 +170,93 @@ export class MentorAssignmentsService {
     if (!(await this.access.headedProgrammes(headCoach as AuthUser)).includes(course.disciplineId)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_PROGRAMME_HEAD', 'A Head Coach can only be assigned to courses of a programme they head.');
     }
+  }
+
+  /**
+   * Bulk (owner 2026-11-22): a coach on many course x division pairs at once: ALL offered pairs, every course one
+   * division offers, or chosen pairs. The pairs are the ACTIVE offerings (courses not archived, active divisions); a
+   * Head Coach only gets the courses of programmes they head, for a Coach of those programmes (the same rules as one
+   * assignment); an Administrator gives a Head Coach only courses of programmes that Head Coach heads (H4). Each pair is
+   * NEW, REACTIVATE (an ended assignment) or ALREADY_ASSIGNED (nothing to do: never a duplicate). `dryRun` previews.
+   * Applied in one transaction, one ASSIGN_MENTOR audit row per change (as the single route).
+   */
+  async bulkAssign(dto: BulkMentorAssignmentDto, caller: AuthUser) {
+    if (!isAdmin(caller) && !isHeadCoach(caller)) throw unsupportedRole();
+    const mentor = await this.prisma.user.findUnique({ where: { id: dto.mentorId }, select: { id: true, role: true, isActive: true, firstName: true, lastName: true } });
+    if (!mentor) throw new NotFoundException('Coach not found.');
+    if (isAdmin(caller) && mentor.role !== 'MENTOR' && mentor.role !== 'HEAD_COACH') {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Only Coaches, or Head Coaches (by an Administrator), can be assigned.');
+    }
+    if (!mentor.isActive) throw new AppError(HttpStatus.BAD_REQUEST, 'ACCOUNT_SUSPENDED', 'This coach account is suspended.');
+    if (isHeadCoach(caller) && (mentor.id === caller.id || mentor.role !== 'MENTOR')) {
+      throw scopeForbidden('Head Coaches assign Coaches only — never themselves, another Head Coach or an Administrator.', { role: mentor.role });
+    }
+    const allowedProgrammes = await this.bulkProgrammeScope(caller, mentor);
+
+    if (dto.scope === 'DIVISION' && !(await this.prisma.division.findFirst({ where: { id: dto.divisionId, isActive: true }, select: { id: true } }))) {
+      throw new NotFoundException('Division not found.');
+    }
+    const offerings = await this.prisma.courseDivision.findMany({
+      where: {
+        isActive: true, division: { isActive: true },
+        course: { status: { not: 'ARCHIVED' }, ...(allowedProgrammes && { disciplineId: { in: allowedProgrammes } }) },
+        ...(dto.scope === 'DIVISION' && { divisionId: dto.divisionId }),
+        ...(dto.scope === 'PAIRS' && { OR: dto.pairs!.map((pr) => ({ courseId: pr.courseId, divisionId: pr.divisionId })) }),
+      },
+      select: { courseId: true, divisionId: true, course: { select: { id: true, code: true, title: true } }, division: { select: { id: true, code: true, name: true } } },
+      orderBy: [{ division: { sortOrder: 'asc' } }, { course: { sortOrder: 'asc' } }],
+    });
+    // Chosen pairs not (or no longer) offered, or outside the caller's programmes: reported, never assigned.
+    const notOffered = dto.scope === 'PAIRS'
+      ? dto.pairs!.filter((pr) => !offerings.some((o) => o.courseId === pr.courseId && o.divisionId === pr.divisionId))
+      : [];
+    const existing = offerings.length ? await this.prisma.mentorAssignment.findMany({
+      where: { mentorId: mentor.id, OR: offerings.map((o) => ({ courseId: o.courseId, divisionId: o.divisionId })) },
+      select: { courseId: true, divisionId: true, isActive: true },
+    }) : [];
+    const stateOf = (o: { courseId: string; divisionId: string }) => {
+      const e = existing.find((x) => x.courseId === o.courseId && x.divisionId === o.divisionId);
+      return !e ? 'NEW' as const : e.isActive ? 'ALREADY_ASSIGNED' as const : 'REACTIVATE' as const;
+    };
+    const pairs = offerings.map((o) => ({ course: o.course, division: o.division, state: stateOf(o) }));
+    const counts = {
+      total: pairs.length, new: pairs.filter((x) => x.state === 'NEW').length, reactivate: pairs.filter((x) => x.state === 'REACTIVATE').length,
+      alreadyAssigned: pairs.filter((x) => x.state === 'ALREADY_ASSIGNED').length, notOffered: notOffered.length,
+    };
+    const result = { mentor: { id: mentor.id, firstName: mentor.firstName, lastName: mentor.lastName }, scope: dto.scope, pairs, notOffered, counts };
+    if (dto.dryRun) return { ...result, applied: false };
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const x of pairs.filter((y) => y.state !== 'ALREADY_ASSIGNED')) {
+        const a = await tx.mentorAssignment.upsert({
+          where: { mentorId_courseId_divisionId: { mentorId: mentor.id, courseId: x.course.id, divisionId: x.division.id } },
+          create: { mentorId: mentor.id, courseId: x.course.id, divisionId: x.division.id, assignedById: caller.id },
+          update: { isActive: true, assignedById: caller.id },
+          select: { id: true },
+        });
+        await this.audit.log({
+          actorId: caller.id, actorRole: caller.role, action: 'ASSIGN_MENTOR', entity: 'MentorAssignment', entityId: a.id,
+          metadata: { mentorId: mentor.id, courseId: x.course.id, divisionId: x.division.id, bulk: dto.scope },
+        }, tx);
+      }
+    });
+    return { ...result, applied: true };
+  }
+
+  /**
+   * The programmes whose courses a bulk assignment may cover (null: every programme). An Administrator: every programme,
+   * except for a Head Coach target, who gets only the programmes they head (H4). A Head Coach: the programmes they head
+   * that the Coach belongs to. Any other role is refused.
+   */
+  private async bulkProgrammeScope(caller: AuthUser, mentor: { id: string; role: string }): Promise<string[] | null> {
+    if (isAdmin(caller)) {
+      return mentor.role === 'HEAD_COACH' ? this.access.headedProgrammes(mentor as unknown as AuthUser) : null;
+    }
+    if (isHeadCoach(caller)) {
+      const [headed, coach] = await Promise.all([this.access.headedProgrammes(caller), this.access.programmesOf(mentor.id)]);
+      return headed.filter((pr) => coach.includes(pr));
+    }
+    throw unsupportedRole();
   }
 
   /** The caller's own teaching scopes (a coach, or a Head Coach with Administrator-created assignments). */

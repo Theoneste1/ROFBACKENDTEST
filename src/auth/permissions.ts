@@ -121,6 +121,14 @@ export const PERMISSIONS = [
   'tests.viewRankings',          // internal rankings: overall, by division, by school (never students or teachers)
   'tests.viewOwnResults',        // Students: their own PUBLISHED results (marks per question, total, comments; no ranks)
   'tests.viewSchoolResults',     // Teachers: PUBLISHED results of the verified students of their own schools (no ranks)
+  // ── Olympiad levels (owner 2026-11-21) ──
+  'students.classifyLevel',      // set a student's Olympiad level (Junior / Middle / Senior) or return it to the grade's
+                                 // suggestion, with a reason (history kept): User Managers (Administrators, global); Coaches
+                                 // and Head Coaches for the students of their programmes (programme)
+  // ── Custom reports (owner 2026-11-22) ──
+  'reports.build',               // build custom reports (any source), see and manage every report and who may use it
+                                 // (view / download / edit grants): Administrators (global). Shared reports need no
+                                 // permission: their grants decide (src/custom-reports)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -184,6 +192,10 @@ const ADMIN_GRANTS: Grants = {
   'tests.distribute': 'global', 'tests.review': 'global',
   // Test Management, Phase 4: publication (and its override: Administrators only), results, rankings, reports.
   'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
+  // Olympiad levels (owner 2026-11-21): User Managers classify every student.
+  'students.classifyLevel': 'global',
+  // Custom reports (owner 2026-11-22): build reports and share them.
+  'reports.build': 'global',
 };
 
 /**
@@ -227,6 +239,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     // Test Management, Phase 3 (2026-11-19): blind marking of the submissions assigned to them, in the subjects they are
     // authorised for (an interest never grants it).
     'tests.mark': 'markerAuthorization',
+    // Olympiad levels (owner 2026-11-21): the students of the programmes the coach belongs to.
+    'students.classifyLevel': 'programme',
   },
   HEAD_COACH: {
     'courses.view': 'programme', 'resources.view': 'programme', 'assignments.view': 'programme',
@@ -247,6 +261,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.distribute': 'programme', 'tests.review': 'programme', 'tests.adjustMarks': 'programme',
     // Phase 4: publication (never the override), results, rankings and reports of the subjects they head.
     'tests.publishResults': 'programme', 'tests.viewResults': 'programme', 'tests.viewRankings': 'programme',
+    // Olympiad levels (owner 2026-11-21): the students of the programmes they head.
+    'students.classifyLevel': 'programme',
   },
   ADMIN: ADMIN_GRANTS,
   SUPER_ADMIN: {
@@ -273,6 +289,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.extensions': 'global', 'tests.viewSubmissions': 'global', 'tests.authorizeResubmission': 'global',
     'tests.distribute': 'global', 'tests.review': 'global',
     'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
+    'students.classifyLevel': 'global',
+    'reports.build': 'global',
   },
 };
 
@@ -319,6 +337,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, Test Management Phase 3, 2026-11-19): coaches hold it (authorised subjects, assigned
     // submissions) and the /marking routes require it; listed so the coach portal shows the marking queue.
     'tests.mark',
+    // Appended (additive, Olympiad levels, owner 2026-11-21): coaches hold it (their programmes' students); listed so the
+    // coach sees the Olympiad level control.
+    'students.classifyLevel',
   ],
   ADMIN: [
     'courses.view', 'resources.view', 'resources.manage',
@@ -363,6 +384,10 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
     // appended 2026-11-21 (owner): unlock a locked test submission for one replacement (Administrators only)
     'tests.authorizeResubmission',
+    // appended 2026-11-21 (owner): Olympiad levels — User Managers classify students
+    'students.classifyLevel',
+    // appended 2026-11-22 (owner): custom reports — build and share
+    'reports.build',
   ],
 };
 

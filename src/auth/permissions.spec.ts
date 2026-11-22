@@ -44,6 +44,8 @@ describe('permissions', () => {
       'discussions.participate', 'discussions.report', 'analytics.course', 'leaderboard.view',
       // appended 2026-11-19 (Test Management Phase 3): granted (authorised subjects, assigned submissions), reported for the marking queue
       'tests.mark',
+      // appended 2026-11-21 (Olympiad levels): granted (their programmes' students), reported for the level control
+      'students.classifyLevel',
     ]);
     expect(ROLE_PERMISSIONS.ADMIN).toEqual([
       'courses.view', 'resources.view', 'resources.manage',
@@ -76,6 +78,10 @@ describe('permissions', () => {
       'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
       // appended 2026-11-21 (owner): locked submissions — Administrators unlock one replacement
       'tests.authorizeResubmission',
+      // appended 2026-11-21 (owner): Olympiad levels — User Managers classify students
+      'students.classifyLevel',
+      // appended 2026-11-22 (owner): custom reports — build and share
+      'reports.build',
     ]);
   });
 
@@ -96,7 +102,7 @@ describe('permissions', () => {
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
     const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review',
       'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
-      'tests.authorizeResubmission'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions), after countries
+      'tests.authorizeResubmission', 'students.classifyLevel', 'reports.build'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions, Olympiad levels), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -221,6 +227,10 @@ describe('permissions', () => {
       'tests.publishResults': G, 'tests.overridePublication': G, 'tests.viewResults': G, 'tests.viewRankings': G,
       // Locked submissions (owner 2026-11-21): unlock one replacement (Administrators only)
       'tests.authorizeResubmission': G,
+      // Olympiad levels (owner 2026-11-21): User Managers classify every student
+      'students.classifyLevel': G,
+      // Custom reports (owner 2026-11-22): build and share
+      'reports.build': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {
@@ -247,6 +257,8 @@ describe('permissions', () => {
         'analytics.course': CD, 'leaderboard.view': G,
         // Test Management, Phase 3 (2026-11-19): blind marking — authorised subjects, assigned submissions
         'tests.mark': 'markerAuthorization',
+        // Olympiad levels (owner 2026-11-21): the students of the coach's programmes
+        'students.classifyLevel': P,
       },
       HEAD_COACH: {
         'courses.view': P, 'resources.view': P, 'assignments.view': P,
@@ -264,6 +276,8 @@ describe('permissions', () => {
         'tests.distribute': P, 'tests.review': P, 'tests.adjustMarks': P,
         // Phase 4: publication (NEVER the override), results, rankings, reports of the subjects they head
         'tests.publishResults': P, 'tests.viewResults': P, 'tests.viewRankings': P,
+        // Olympiad levels (owner 2026-11-21): the students of the programmes they head
+        'students.classifyLevel': P,
       },
       ADMIN: ADMIN_TABLE,
       SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },

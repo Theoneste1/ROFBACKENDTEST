@@ -543,26 +543,25 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
       await picture(pupilId).expect(401);
     });
 
-    it('refused (404, the same answer as "no picture") to a classmate, a coach, a Head Coach, another teacher and a teacher without the profile permission', async () => {
+    it('owner 2026-11-22: everyone who may view the student\'s profile sees it — a classmate, the coach of the student\'s division, the teacher of the student\'s school (no delegation needed); others get 404, the same answer as "no picture"', async () => {
+      for (const token of [classmate, coach, teacherP]) await picture(pupilId, token).expect(200);
       const noPicture = await picture(ctx.ids.studentSenior, admin).expect(404);   // an account without a picture
-      for (const token of [classmate, coach, headCoach, teacherQ, teacherP]) {
+      for (const token of [headCoach, teacherQ]) {   // no programme or taught division in common; another school
         const r = await picture(pupilId, token).expect(404);
         expect(r.body.message).toBe(noPicture.body.message);
       }
     });
 
-    it('a teacher with students.viewProfile covering the student sees it; not once the student is suspended (SR-1) or the permission is revoked', async () => {
-      const g = await http().post(delegations(teacherPId)).set(bearer(admin)).send({ permission: 'students.viewProfile', reason: 'Profiles', studentScope: 'SCHOOL' }).expect(201);
-      await picture(pupilId, teacherP).expect(200);
+    it('a suspended student\'s picture: hidden from other students and from the school\'s teacher again; Administrators still see it', async () => {
       await http().post(`/api/v1/admin/users/${pupilId}/status-changes`).set(bearer(admin)).send({ toStatus: 'SUSPENDED', reason: 'Picture visibility check' })
         .expect((r) => { if (r.status >= 300) throw new Error(`suspend ${r.status}`); });
+      await picture(pupilId, classmate).expect(404);
       await picture(pupilId, teacherP).expect(404);
-      await picture(pupilId, admin).expect(200);   // Administrators still see it
+      await picture(pupilId, admin).expect(200);
       await http().post(`/api/v1/admin/users/${pupilId}/status-changes`).set(bearer(admin)).send({ toStatus: 'ACTIVE', reason: 'Picture visibility check' })
         .expect((r) => { if (r.status >= 300) throw new Error(`reactivate ${r.status}`); });
+      await picture(pupilId, classmate).expect(200);
       await picture(pupilId, teacherP).expect(200);
-      await http().delete(`${delegations(teacherPId)}/${g.body.id}`).set(bearer(admin)).expect(200);
-      await picture(pupilId, teacherP).expect(404);   // same token: applies at once
     });
 
     it('staff pictures are unchanged: any signed-in user, cacheable', async () => {
