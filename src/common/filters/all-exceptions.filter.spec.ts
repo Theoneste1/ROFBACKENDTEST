@@ -186,16 +186,16 @@ describe('AllExceptionsFilter: plain words for the framework\'s own refusals (ow
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('an unknown route: ROUTE_NOT_FOUND, never "Cannot GET /api/…"', () => {
+  it('an unknown route: NOT_FOUND (code unchanged) in plain words, never "Cannot GET /api/…"', () => {
     const { status, body } = run(new NotFoundException('Cannot GET /api/v1/nothing'));
     expect(status).toBe(404);
-    expect(body).toMatchObject({ code: 'ROUTE_NOT_FOUND', message: PLAIN.routeNotFound });
+    expect(body).toMatchObject({ code: 'NOT_FOUND', message: PLAIN.routeNotFound });
   });
 
-  it('a malformed id in the address: INVALID_REFERENCE, never "Validation failed (uuid is expected)"', () => {
+  it('a malformed id in the address: BAD_REQUEST (code unchanged) in plain words, never "Validation failed (uuid is expected)"', () => {
     const { status, body } = run(new BadRequestException('Validation failed (uuid is expected)'));
     expect(status).toBe(400);
-    expect(body).toMatchObject({ code: 'INVALID_REFERENCE', message: PLAIN.invalidId });
+    expect(body).toMatchObject({ code: 'BAD_REQUEST', message: PLAIN.invalidId });
   });
 
   it('the default 401 / 403 / 429 texts are rewritten; our own messages are kept', () => {

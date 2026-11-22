@@ -54,10 +54,10 @@ export const PLAIN = {
   uploadRejected: "This upload couldn't be accepted. Check the file and try again.",
 } as const;
 
-/** Nest's own default texts ("Forbidden resource", "Cannot GET /x", "Validation failed (uuid is expected)") in plain words. */
+/** Only the wording changes: the codes stay as documented (NOT_FOUND, BAD_REQUEST …). Nest's own default texts ("Forbidden resource", "Cannot GET /x", "Validation failed (uuid is expected)") in plain words. */
 function plainHttpMessage(status: number, message: string): { message: string; code?: string } | null {
-  if (status === 404 && /^Cannot (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /.test(message)) return { message: PLAIN.routeNotFound, code: 'ROUTE_NOT_FOUND' };
-  if (status === 400 && /^Validation failed \((uuid|numeric string|boolean string|enum)/i.test(message)) return { message: PLAIN.invalidId, code: 'INVALID_REFERENCE' };
+  if (status === 404 && /^Cannot (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) /.test(message)) return { message: PLAIN.routeNotFound };
+  if (status === 400 && /^Validation failed \((uuid|numeric string|boolean string|enum)/i.test(message)) return { message: PLAIN.invalidId };
   if (status === 401 && /^Unauthorized$/i.test(message)) return { message: PLAIN.unauthorized };
   if (status === 403 && /^Forbidden( resource)?$/i.test(message)) return { message: PLAIN.forbidden };
   if (status === 429) return { message: PLAIN.tooMany };
