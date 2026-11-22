@@ -48,6 +48,10 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: "approve(): passes the approving Administrator's role to approveInTx(), which only writes it to the audit entry (actorRole) — attribution data, not an access decision; the route is guarded by users.manageTeachers.",
   },
   {
+    file: 'src/users/student-overview.service.ts', rule: 'U6', code: '(APP_ROLES as readonly string[]).includes(viewer.role)',
+    reason: 'mayView(): the first check REFUSES (returns false → 404) any caller whose role is not one of the six known roles — even for their own account; it never grants anything.',
+  },
+  {
     file: 'src/users/student-overview.service.ts', rule: 'U4', code: 'isCourseWorker(viewer)',
     reason: "mayView(): the Coach / Head Coach branch grants only for a student of the viewer's programmes or taught divisions; every other role (an unsupported one included) falls through to `return false` (404).",
   },
