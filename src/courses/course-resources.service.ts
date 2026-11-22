@@ -243,7 +243,7 @@ export class CourseResourcesService {
 
   async addAttachments(courseId: string, resourceId: string, user: AuthUser, files: Express.Multer.File[]) {
     if (files.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach at least one file (field "files").');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach at least one file.');
     }
     await this.requireManageable(courseId, resourceId, user);
     await this.addAttachmentsInternal(resourceId, files, user);

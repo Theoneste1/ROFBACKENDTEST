@@ -398,7 +398,7 @@ export class SchoolAffiliationService {
       const differs = (['province', 'district', 'sector'] as const).filter((k) => claimedPlace[k] && claimedPlace[k] !== actualPlace[k]);
       if (differs.length && !dto.confirmDifferentPlace) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_PLACE_MISMATCH',
-          `The school's ${differs.join(', ')} differ from what the student entered. Repeat with confirmDifferentPlace: true to link it anyway.`,
+          `The school's ${differs.join(', ')} differ from what the student entered. Check it is the right school, then confirm to link it anyway.`,
           { claimed: claimedPlace, actual: actualPlace, differs });
       }
       if (!school.isActive) throw schoolInactive(school.id);

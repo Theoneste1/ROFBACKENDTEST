@@ -121,7 +121,7 @@ export class SubmissionsService {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         'ANSWER_REQUIRED',
-        'Type your answer ("answerText") or attach your work (field "files", or "file").',
+        'Type your answer or attach your work (a file or photos) before submitting.',
       );
     }
 

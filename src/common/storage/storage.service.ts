@@ -92,7 +92,7 @@ export class StorageService implements OnModuleInit {
       throw new AppError(
         HttpStatus.PAYLOAD_TOO_LARGE,
         'FILE_TOO_LARGE',
-        `The file exceeds the ${Math.round(rule.maxBytes / (1024 * 1024))} MB limit.`,
+        `The file is larger than ${Math.round(rule.maxBytes / (1024 * 1024))} MB. Choose a smaller file (or a lower-resolution photo) and try again.`,
       );
     }
 

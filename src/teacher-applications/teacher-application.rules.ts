@@ -42,7 +42,7 @@ export function schoolChoice(dto: ChoiceInput): SchoolChoice {
   // A listed school's sector and details come from the directory, never from the client.
   if (listed === missing || (listed && details.some((d) => d !== undefined))) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CHOICE_REQUIRED',
-      'Choose your school from the list (schoolId), or name a missing school (proposedSchoolName with its sector) — exactly one.');
+      'Choose your school from the list, or choose “My school is not listed” and give its details (only one of the two).');
   }
   if (listed) return { kind: 'LISTED', schoolId: dto.schoolId! };
   return {
@@ -67,14 +67,14 @@ export function approvalSchoolId(applicationSchoolId: string | null, requested: 
   if (applicationSchoolId) {
     if (requested !== undefined && requested !== applicationSchoolId) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_MISMATCH',
-        'This application names a listed school; approve it with that school (or without schoolId).',
+        'This applicant chose a school from the official list. Approve the application with that school.',
         { applicationSchoolId });
     }
     return applicationSchoolId;
   }
   if (requested === undefined) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REQUIRED',
-      'This applicant\'s school is missing from the directory: create it (POST /admin/schools) or choose an existing school, then approve with its schoolId.');
+      'This applicant\'s school is not in the official list yet. Verify the school first (add it, or choose an existing school), then approve.');
   }
   return requested;
 }

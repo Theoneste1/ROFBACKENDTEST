@@ -404,7 +404,7 @@ export class AcademicYearsService {
       if (dto.gradeLevel) {
         return this.writeEnrollment(tx, e.studentId, e.academicYearId, dto.gradeLevel, await studentDivisionFor(tx, e.studentId, dto.gradeLevel), e.schoolId);
       }
-      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Provide gradeLevel or status.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Choose a new grade or a new status: nothing was changed.');
     });
 
     await this.audit.log({
@@ -443,7 +443,7 @@ export class AcademicYearsService {
 
   private assertDates(startsOn: string, endsOn: string) {
     if (new Date(endsOn) <= new Date(startsOn)) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_DATE_RANGE', 'endsOn must be after startsOn.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_DATE_RANGE', 'The end date must be after the start date.');
     }
   }
 }

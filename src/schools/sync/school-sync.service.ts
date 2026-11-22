@@ -73,7 +73,7 @@ export class SchoolSyncService {
     const parsed = await readSourceFile(dataset, file);
     const fileSha256 = createHash('sha256').update(file!.buffer).digest('hex');
     const source = await this.prisma.schoolDataSource.findUnique({ where: { key: dataset.dataSourceKey }, select: { id: true } });
-    if (!source) throw new AppError(HttpStatus.CONFLICT, 'SYNC_SOURCE_MISSING', `The data source ${dataset.dataSourceKey} is not configured.`);
+    if (!source) throw new AppError(HttpStatus.CONFLICT, 'SYNC_SOURCE_MISSING', `The school list source (${dataset.dataSourceKey}) is not set up yet. Contact the technical team.`);
 
     const runId = await this.prisma.$transaction(async (tx) => {
       const { snap, places } = await loadDirectorySnapshot(tx, source.id);

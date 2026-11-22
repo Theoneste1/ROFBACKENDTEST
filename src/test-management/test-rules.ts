@@ -22,7 +22,7 @@ export type TestStatusValue = 'DRAFT' | 'PUBLISHED';
 /** 400 INVALID_TEST_WINDOW unless opensAt is strictly before closesAt. */
 export function assertWindow(opensAt: Date, closesAt: Date): void {
   if (!(opensAt.getTime() < closesAt.getTime())) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_TEST_WINDOW', 'The test must open before it closes (opensAt < closesAt).',
+    throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_TEST_WINDOW', 'The opening time must be before the closing time. Change one of them.',
       { opensAt: opensAt.toISOString(), closesAt: closesAt.toISOString() });
   }
 }

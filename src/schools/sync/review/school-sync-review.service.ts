@@ -232,7 +232,7 @@ export class SchoolSyncReviewService {
 
       let schoolId: string | null = null;
       if (dto.action === 'LINK') {
-        if (!dto.schoolId) throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REQUIRED', 'A link needs the school (schoolId).');
+        if (!dto.schoolId) throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REQUIRED', 'Choose the school to link this row to.');
         const school = await tx.school.findUnique({ where: { id: dto.schoolId }, select: { id: true, countryCode: true } });
         if (!school || school.countryCode !== 'RW') throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL', 'No such school in Rwanda\'s directory.');
         if (manual === 'POSSIBLE_DUPLICATE' && !(details.candidates ?? []).some((c) => c.id === school.id)) {
