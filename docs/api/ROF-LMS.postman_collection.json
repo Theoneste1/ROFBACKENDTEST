@@ -13141,6 +13141,38 @@
       ]
     },
     {
+      "name": "Students",
+      "item": [
+        {
+          "name": "GET /students/{id}/overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/:id/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                ":id",
+                "overview"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        }
+      ]
+    },
+    {
       "name": "Submissions",
       "item": [
         {

@@ -3283,6 +3283,16 @@
     "tag": "Schools"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/students/{id}/overview",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Students"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/assignments/{assignmentId}/distribute",
     "roles": [

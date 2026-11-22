@@ -9,13 +9,15 @@ import { UsersService } from './users.service.js';
 import { UserProvisioningService } from './user-provisioning.service.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { OlympiadLevelController } from './olympiad-level.controller.js';
+import { StudentOverviewController } from './student-overview.controller.js';
+import { StudentOverviewService } from './student-overview.service.js';
 import { OlympiadLevelService } from './olympiad-level.service.js';
 
 @Module({
   imports:     [AuthModule],
   // BulkOperationsController first: its /admin/users/bulk routes must win over /admin/users/:id.
-  controllers: [BulkOperationsController, UsersController, MeController, UserAvatarController, OlympiadLevelController],
-  providers:   [RegistrationTimelineService, UsersService, UserProvisioningService, AvatarService, AccountStatusService, UserBulkHandler, OlympiadLevelService],
-  exports:     [UsersService, UserProvisioningService, AccountStatusService, OlympiadLevelService],
+  controllers: [BulkOperationsController, UsersController, MeController, UserAvatarController, OlympiadLevelController, StudentOverviewController],
+  providers:   [RegistrationTimelineService, UsersService, UserProvisioningService, AvatarService, AccountStatusService, UserBulkHandler, OlympiadLevelService, StudentOverviewService],
+  exports:     [UsersService, UserProvisioningService, AccountStatusService, OlympiadLevelService, StudentOverviewService],
 })
 export class UsersModule {}

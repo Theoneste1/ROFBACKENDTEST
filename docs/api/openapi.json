@@ -11834,6 +11834,46 @@
         "description": "**Access:** permission `students.classifyLevel` (MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/students/{id}/overview": {
+      "get": {
+        "operationId": "StudentOverviewController_view",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Photo, name, username, country, school, grade, Olympiad level, subjects (account status for staff). 404 if not allowed.",
+        "tags": [
+          "Students"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
     "/api/v1/admin/teacher-assignments": {
       "get": {
         "operationId": "TeacherSchoolsController_list",

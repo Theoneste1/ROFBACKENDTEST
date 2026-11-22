@@ -101,10 +101,10 @@ describe('profile pictures', () => {
   });
 
   describe('viewing (GET /users/:id/avatar)', () => {
-    it('an Administrator sees the picture of a student inline, never cached, nosniff; another student cannot (2026-11-18); anonymous is 401; no picture is 404', async () => {
+    it('an Administrator sees the picture of a student inline, never cached, nosniff; another student too (owner 2026-11-22, replacing 2026-11-18); anonymous is 401; no picture is 404', async () => {
       await put('/api/v1/me/avatar', student, PNG).expect(200);
-      // A student's picture: the student, Administrators and teachers who may view the profile only.
-      await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(student2)).expect(404);
+      // A student's picture: everyone who may view the student's profile, other students included.
+      await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(student2)).expect(200);
       const r = await http().get(`/api/v1/users/${ctx.ids.studentJunior}/avatar`).set(bearer(admin)).buffer(true)
         .parse((res, cb) => { const chunks: Buffer[] = []; res.on('data', (c: Buffer) => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks))); })
         .expect(200);

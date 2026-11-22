@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 425,
-    "paths": 373,
+    "operations": 426,
+    "paths": 374,
     "schemas": 159
   },
-  "fingerprint": "005ae9a722e99db6db666a79b9f411c699d883ab6c7d4e76b7059a7e9278696c",
+  "fingerprint": "69f7b8b0dcd59dd39f0ec40b3256607047cf72fcd15b10c032979092e1d59e61",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -37269,6 +37269,38 @@
             }
           }
         },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/students/{id}/overview",
+      "operationId": "StudentOverviewController_view",
+      "tags": [
+        "Students"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
         "default": {
           "application/json": {
             "ref": "Error"

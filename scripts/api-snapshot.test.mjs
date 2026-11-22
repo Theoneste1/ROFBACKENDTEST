@@ -1806,6 +1806,7 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/divisions/{id}/courses: operation added',
       'PUT /api/v1/admin/divisions/{id}/courses: operation added',
       'POST /api/v1/admin/mentor-assignments/bulk: operation added',
+      'GET /api/v1/students/{id}/overview: operation added',
       'schema BulkMentorAssignmentDto: added',
       'schema CoursePairDto: added',
       'schema SetDivisionCoursesDto: added',

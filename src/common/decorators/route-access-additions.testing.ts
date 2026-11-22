@@ -321,4 +321,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/divisions/:id/courses  DivisionsController.courses':                                       ADMINISTRATORS,
   'PUT /api/v1/admin/divisions/:id/courses  DivisionsController.setCourses':                                    ADMINISTRATORS,
   'POST /api/v1/admin/mentor-assignments/bulk  MentorAssignmentsController.bulkAssign':                         ADMINISTRATORS,
+  // The Student Profile Overview (owner 2026-11-22): every signed-in caller; the service decides who may view whom (404).
+  'GET /api/v1/students/:id/overview  StudentOverviewController.view':                                          SIGNED_IN,
 };
