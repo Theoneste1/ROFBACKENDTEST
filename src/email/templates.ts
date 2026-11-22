@@ -45,10 +45,12 @@ export interface RenderedEmail {
 
 export const ORGANIZATION = 'Rwanda Olympiad Foundation';
 
-const NAVY   = '#001E4E';
-const ACCENT = '#2B2BB2';
+// The website's colours (owner 2026-11-22): the ROF logo blue #00428C and its shades (frontend globals.css: brand,
+// brand-deep, brand-light), so e-mails look like the site.
+const NAVY   = '#00428C';   // header band, headings, the organisation's name
+const ACCENT = '#00428C';   // the button and the links
 const MUTED  = '#5B6577';
-const BG     = '#E6EBF2';
+const BG     = '#E6EEF7';   // brand-light
 
 export function renderEmail(content: EmailContent, brand: EmailBrand): RenderedEmail {
   return { text: renderText(content, brand), html: renderHtml(content, brand) };
