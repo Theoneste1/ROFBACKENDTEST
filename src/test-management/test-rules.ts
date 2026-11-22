@@ -115,8 +115,27 @@ export function subjectFilter(scope: SubjectScope): { disciplineId?: { in: strin
   return scope === 'all' ? {} : { disciplineId: { in: [...scope] } };
 }
 
-/** Neutral download name for a test file: never the uploader's own file name. */
-export function neutralFileName(kind: 'PAPER' | 'MARKING_GUIDE', storageKey: string): string {
+/**
+ * Download name of a test file: named after the TEST'S TITLE (owner 2026-11-22), e.g. "Junior Rwanda Mathematics
+ * Competition.pdf" and "Junior Rwanda Mathematics Competition - marking guide.pdf"; never the uploader's own file name
+ * (blind marking). Characters a file name cannot hold are removed; without a title: test-paper / marking-guide.
+ */
+export function neutralFileName(kind: 'PAPER' | 'MARKING_GUIDE', storageKey: string, title?: string | null): string {
   const ext = /\.([a-z0-9]{1,8})$/i.exec(storageKey)?.[1]?.toLowerCase() ?? 'bin';
-  return `${kind === 'PAPER' ? 'test-paper' : 'marking-guide'}.${ext}`;
+  const base = fileNameFromTitle(title);
+  if (!base) return `${kind === 'PAPER' ? 'test-paper' : 'marking-guide'}.${ext}`;
+  return `${base}${kind === 'PAPER' ? '' : ' - marking guide'}.${ext}`;
+}
+
+/** A test title as a file name: no characters Windows, macOS or phones refuse, no leading dots, at most 120 characters. */
+export function fileNameFromTitle(title: string | null | undefined): string {
+  const clean = (title ?? '')
+    .normalize('NFC')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/[\\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '')
+    .replace(/[. ]+$/, '');
+  return clean.length > 120 ? clean.slice(0, 120).replace(/[. ]+$/, '') : clean;
 }

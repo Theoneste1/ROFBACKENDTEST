@@ -522,7 +522,8 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       const id2 = await publishedTest({ title: 'With paper' });
       await http().put(`${T}/${id2}/files/paper`).set(bearer(admin)).attach('file', PDF, 'Round 3 secret.pdf').expect(200);
       const dl = await http().get(`${ME}/${id2}/paper?download=1`).set(bearer(sj)).expect(200);
-      expect(dl.headers['content-disposition']).toMatch(/filename="test-paper\.pdf"/);
+      expect(dl.headers['content-disposition']).toContain('filename="With paper.pdf"');   // the test's title, not the uploader's name
+      expect(dl.headers['content-disposition']).not.toContain('secret');
       await http().get(`${TT}/${id2}/paper`).set(bearer(ta)).expect(200);
       expect((await http().get(`${ME}/${id2}`).set(bearer(sj)).expect(200)).body.test.hasPaper).toBe(true);
       expect((await http().get(`${ME}/${id2}/marking-guide`).set(bearer(sj))).status).toBe(404);

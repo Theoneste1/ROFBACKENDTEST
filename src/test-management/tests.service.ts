@@ -417,12 +417,13 @@ export class TestsService {
     const kind = KIND_OF[kindParam];
     const test = await this.loadInScope(id, user);
     if (kind === 'MARKING_GUIDE' && !(await this.mayReadMarkingGuide(user, test.disciplineId))) throw fileNotFound();
+    const { title } = (await this.prisma.test.findUnique({ where: { id }, select: { title: true } }))!;
     const link = await this.prisma.testFile.findUnique({
       where: { testId_kind: { testId: id, kind } },
       select: { file: { select: { storageKey: true, mimeType: true, size: true } } },
     });
     if (!link) throw fileNotFound();
-    await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey) }, { download });
+    await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey, title) }, { download });
   }
 
   /** Everyone who manages the subject's tests (Administrators, its Head Coaches). Markers: test-marker.service.ts. */
@@ -490,9 +491,9 @@ async function renumber(tx: Tx, ids: readonly string[]) {
      WHERE q."id" = v.id`;
 }
 
-function fileView(files: FileRow[], kind: TestFileKind) {
+function fileView(files: FileRow[], kind: TestFileKind, title: string) {
   const f = files.find((x) => x.kind === kind);
-  return f ? { fileId: f.file.id, name: neutralFileName(kind, f.file.storageKey), mimeType: f.file.mimeType, size: f.file.size, uploadedAt: f.createdAt } : null;
+  return f ? { fileId: f.file.id, name: neutralFileName(kind, f.file.storageKey, title), mimeType: f.file.mimeType, size: f.file.size, uploadedAt: f.createdAt } : null;
 }
 
 /** The API shape of a test (list rows and the detail). The uploader's own file names are never returned. */
@@ -506,7 +507,7 @@ function testView(t: TestRow, questionMarksTotal: number) {
     deadlineMoved: t.closesAt.getTime() !== t.originalClosesAt.getTime(),
     maxMarks: t.maxMarks, status: t.status, publishedAt: t.publishedAt,
     questionCount: t._count.questions, questionMarksTotal: totals.total, questionsComplete: totals.complete,
-    files: { paper: fileView(t.files, 'PAPER'), markingGuide: fileView(t.files, 'MARKING_GUIDE') },
+    files: { paper: fileView(t.files, 'PAPER', t.title), markingGuide: fileView(t.files, 'MARKING_GUIDE', t.title) },
     createdBy: t.createdBy, createdAt: t.createdAt, updatedAt: t.updatedAt,
   };
 }
