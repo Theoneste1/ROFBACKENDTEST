@@ -4094,6 +4094,11 @@ Body (JSON):
 | `schoolId` | string (uuid) |  | A listed school (GET /schools/search). Exactly one of schoolId / proposedSchoolName. |
 | `proposedSchoolName` | string |  | "My school is missing": its name, with schoolSector. Exactly one of schoolId / proposedSchoolName. |
 | `schoolSector` | string |  | Required with proposedSchoolName; refused with schoolId (a listed school's sector comes from the directory — 400 SCHOOL_CHOICE_REQUIRED). |
+| `proposedSchoolCode` | string |  |  |
+| `proposedSchoolCell` | string |  |  |
+| `proposedSchoolVillage` | string |  |  |
+| `proposedSchoolOwnership` | PUBLIC \| GOVERNMENT_AIDED \| PRIVATE |  |  |
+| `proposedSchoolAccommodation` | DAY \| BOARDING \| MIXED |  |  |
 | `position` | string |  | Position or teaching role at the school (2–100 characters; REG-05). Optional for older clients. |
 | `yearsOfExperience` | number |  | Years of teaching experience, 0–60 (REG-05). Optional. |
 | `homeProvince` | string |  | Home location (homeLocationRules): required when the home country (`country`) is Rwanda — a place of the official directory, else 400 UNKNOWN_HOME_LOCATION; with another country not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY). |
@@ -6450,6 +6455,7 @@ Body (JSON):
 | `schoolId` | string (uuid) |  | Required for a missing-school application (the school the Administrator created or chose); otherwise omit it or send the application's school. |
 | `note` | string |  |  |
 | `approvePicture` | boolean |  | Picture moderation (owner approval 2026-11-18): the picture sent with the application becomes the account's picture ONLY when the Administrator, having seen it (GET …/:id/avatar), sends true. Omitted or false: it is discarded and the account starts without a picture. |
+| `confirmPossibleDuplicate` | boolean |  | An unlisted-school application whose school is created by this approval (owner 2026-11-22): true confirms a school with the same name in the same district is a different school (409 POSSIBLE_DUPLICATE otherwise). |
 
 Returns `200` JSON with:
 

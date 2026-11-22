@@ -15010,7 +15010,7 @@
             "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\",\n  \"approvePicture\": true\n}",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\",\n  \"approvePicture\": true,\n  \"confirmPossibleDuplicate\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"

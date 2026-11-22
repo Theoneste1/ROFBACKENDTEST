@@ -10,7 +10,7 @@
     "paths": 384,
     "schemas": 166
   },
-  "fingerprint": "ddb268c87f8dbc05327e19d776888d16d608eee8d3353e47200e358d8d722ce4",
+  "fingerprint": "367e9ff53b9ab8ee4955a6b37a7f6b145d668fecfe5e6ad5ef4d0748fda1cfe9",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -47714,6 +47714,9 @@
         "approvePicture": {
           "type": "boolean"
         },
+        "confirmPossibleDuplicate": {
+          "type": "boolean"
+        },
         "note": {
           "type": "string",
           "maxLength": 500
@@ -50653,10 +50656,40 @@
           "minLength": 2,
           "maxLength": 100
         },
+        "proposedSchoolAccommodation": {
+          "type": "string",
+          "enum": [
+            "BOARDING",
+            "DAY",
+            "MIXED"
+          ]
+        },
+        "proposedSchoolCell": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "proposedSchoolCode": {
+          "type": "string",
+          "pattern": "^\\d{6}$"
+        },
         "proposedSchoolName": {
           "type": "string",
           "minLength": 2,
           "maxLength": 200
+        },
+        "proposedSchoolOwnership": {
+          "type": "string",
+          "enum": [
+            "GOVERNMENT_AIDED",
+            "PRIVATE",
+            "PUBLIC"
+          ]
+        },
+        "proposedSchoolVillage": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
         },
         "schoolDistrict": {
           "type": "string",

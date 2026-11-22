@@ -112,6 +112,15 @@ export const FEATURES = {
    */
   homeLocationRules: 'always',
   /**
+   * "My school is not listed" with the school's official details (owner, 2026-11-22): POST /auth/register/teacher
+   * accepts `proposedSchoolCode` (6 digits, required with `proposedSchoolName`; 400 INVALID_SCHOOL_CODE; 409
+   * SCHOOL_CODE_LISTED naming the listed school), optional `proposedSchoolCell` / `proposedSchoolVillage`,
+   * `proposedSchoolOwnership` and `proposedSchoolAccommodation`. Approving such an application adds the school to the
+   * official list from them in ONE step (schools.manage; 409 POSSIBLE_DUPLICATE unless `confirmPossibleDuplicate`), or
+   * uses the school listed with that code since. Applications without a code still need "Verify school" first.
+   */
+  teacherUnlistedSchoolDetails: 'always',
+  /**
    * Gender step (owner, 2026-11-20): GET /me and the sign-in answer carry `genderRequired`, true for a STUDENT, TEACHER
    * or MENTOR without a gender (accounts from before gender was asked at sign-up); the portal then asks it once:
    * PUT /api/v1/me/gender { gender: FEMALE | MALE } (409 GENDER_ALREADY_SET). PATCH /admin/users/:id accepts `gender`

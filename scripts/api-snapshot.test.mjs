@@ -1792,13 +1792,21 @@ describe('approved API contract history', () => {
     ]);
   });
 
-  test('Olympiad levels → the school code is the identifier (2026-11-22): additive only — the sync run mode', () => {
+  test('Olympiad levels → the school code is the identifier (2026-11-22): additive only — the sync run mode; the details of an unlisted school and the confirmation on its one-step approval', () => {
     for (const f of [OLYMPIAD_LEVELS_SNAPSHOT, SCHOOL_CODES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(OLYMPIAD_LEVELS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
-    assert.deepEqual(res.additive.sort(), ['POST /api/v1/admin/school-sync/runs: new optional query parameter "mode"']);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/admin/school-sync/runs: new optional query parameter "mode"',
+      'POST /api/v1/admin/teacher-applications/{id}/approve › request application/json.confirmPossibleDuplicate: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolAccommodation: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolCell: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolCode: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolOwnership: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolVillage: new optional field',
+    ]);
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {
