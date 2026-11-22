@@ -272,6 +272,22 @@ export const FEATURES = {
    */
   olympiadLevels: 'always',
   /**
+   * Administrator-managed divisions (owner 2026-11-22): POST /admin/divisions; PATCH with suggestedGrades and sortOrder
+   * (grades given to a division are taken from the one that had them); deactivation guarded; GET / PUT
+   * /admin/divisions/:id/courses (which courses a division offers; students see only those);
+   * POST /admin/mentor-assignments/bulk (ALL / DIVISION / PAIRS, dryRun preview, never a duplicate).
+   */
+  adminDivisions: 'always',
+  /**
+   * The Student Profile Overview (owner 2026-11-22): GET /students/:id/overview — photo, name, username, country, school,
+   * grade, Olympiad level, subjects (status for staff); the student's picture visible to whoever may view it.
+   */
+  studentOverview: 'always',
+  /** Custom reports (owner 2026-11-22): /reports — sources, preview, save, run, CSV / Excel export, grants (view / download / edit). */
+  customReports: 'always',
+  /** Table layouts (owner 2026-11-22): /me/table-layouts/:table and /admin/table-layouts/:table; GET /admin/users ?sort&order. */
+  tableLayouts: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with
