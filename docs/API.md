@@ -1537,6 +1537,7 @@ always a dry run — the comparison is staged for review (24 hours); nothing els
 |---|---|---|:-:|---|
 | `dataset` | query | NESA:ACCREDITED_SCHOOLS | ✓ | The dataset (trusted server configuration), e.g. NESA:ACCREDITED_SCHOOLS. |
 | `label` | query | string |  | A label for this run (default: the dataset name and the file name). |
+| `mode` | query | FULL \| NEW_ONLY |  | FULL (default): every difference with a matched school is proposed. NEW_ONLY: schools already in the directory are recognised and left untouched; only schools with a new code are proposed. |
 
 Returns `201` JSON.
 

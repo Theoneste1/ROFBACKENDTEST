@@ -7,6 +7,10 @@
  */
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(295000 + ++codeSeq);
+
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 const GIF = Buffer.concat([Buffer.from('GIF89a', 'latin1'), Buffer.from([1, 0, 1, 0, 0, 0, 0]), Buffer.alloc(16, 0)]);
 
@@ -20,7 +24,7 @@ describe('Optional profile picture at registration (e2e)', () => {
     schoolId: ngoma, homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
   });
   /** A school not listed yet: still an application an Administrator reviews (the picture is moderated there). */
-  const missingSchool = ({ schoolId: _drop, ...rest }: Record<string, unknown>) => ({ ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma' });
+  const missingSchool = ({ schoolId: _drop, ...rest }: Record<string, unknown>) => ({ ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY' });
   const verifySchool = (id: string) => http().post(`/api/v1/admin/teacher-applications/${id}/school`).set(bearer(admin)).send({ schoolId: ngoma }).expect(200);
   const p = () => ctx.prisma;
   let n = 0;

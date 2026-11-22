@@ -3666,6 +3666,12 @@
                   "value": "label",
                   "disabled": true,
                   "description": "A label for this run (default: the dataset name and the file name)."
+                },
+                {
+                  "key": "mode",
+                  "value": "FULL",
+                  "disabled": true,
+                  "description": "FULL (default): every difference with a matched school is proposed. NEW_ONLY: schools already\nin the directory are recognised and left untouched; only schools with a new code are proposed."
                 }
               ]
             },

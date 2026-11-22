@@ -18,10 +18,16 @@ describe('teacher self-registration rules', () => {
     expect(teacherRegistrationOpen(false, false)).toBe(false);
   });
 
-  it('exactly one school choice: listed (schoolId, no sector) or missing (name + sector)', () => {
+  it('exactly one school choice: listed (schoolId, no sector or details) or missing (name + sector + the official details)', () => {
     expect(schoolChoice({ schoolId: 's1' })).toEqual({ kind: 'LISTED', schoolId: 's1' });
-    expect(schoolChoice({ proposedSchoolName: 'GS New', schoolSector: 'Ngoma' }))
-      .toEqual({ kind: 'MISSING', proposedSchoolName: 'GS New', schoolSector: 'Ngoma' });
+    const details = { proposedSchoolCode: '220999', proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY' as const };
+    expect(schoolChoice({ proposedSchoolName: 'GS New', schoolSector: 'Ngoma', ...details, proposedSchoolCell: 'Butare' })).toEqual({
+      kind: 'MISSING', proposedSchoolName: 'GS New', schoolSector: 'Ngoma',
+      code: '220999', cell: 'Butare', village: null, ownership: 'PRIVATE', accommodation: 'DAY',
+    });
+    // A listed school's details come from the directory (owner 2026-11-22).
+    expect(codeOf(() => schoolChoice({ schoolId: 's1', proposedSchoolCode: '220999' }))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
+    expect(codeOf(() => schoolChoice({ schoolId: 's1', proposedSchoolOwnership: 'PRIVATE' }))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
     expect(codeOf(() => schoolChoice({}))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
     expect(codeOf(() => schoolChoice({ schoolId: 's1', proposedSchoolName: 'GS New', schoolSector: 'Ngoma' }))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
     expect(codeOf(() => schoolChoice({ schoolId: 's1', schoolSector: 'Ngoma' }))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
@@ -70,8 +76,15 @@ describe('teacher self-registration rules', () => {
       }
       expect(errors({ ...base, country: 'Rwanda' })).toEqual(['country']);
       const missing = { ...without('schoolId'), proposedSchoolName: 'GS New' };
-      expect(errors(missing)).toEqual(['schoolSector']);
-      expect(errors({ ...missing, schoolSector: 'Ngoma' })).toEqual([]);
+      // An unlisted school needs its sector, official code, ownership and day / boarding (owner 2026-11-22).
+      expect(errors(missing).sort()).toEqual(['proposedSchoolAccommodation', 'proposedSchoolCode', 'proposedSchoolOwnership', 'schoolSector']);
+      const complete = { ...missing, schoolSector: 'Ngoma', proposedSchoolCode: '220999', proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY' };
+      expect(errors(complete)).toEqual([]);
+      expect(errors({ ...complete, proposedSchoolCell: 'Butare', proposedSchoolVillage: 'Gako' })).toEqual([]);   // optional
+      expect(errors({ ...complete, proposedSchoolCode: '22099' })).toEqual(['proposedSchoolCode']);
+      expect(errors({ ...complete, proposedSchoolCode: 'AB1234' })).toEqual(['proposedSchoolCode']);
+      expect(errors({ ...complete, proposedSchoolOwnership: 'CHURCH' })).toEqual(['proposedSchoolOwnership']);
+      expect(errors({ ...complete, proposedSchoolAccommodation: 'NIGHT' })).toEqual(['proposedSchoolAccommodation']);
       expect(errors({ ...base, schoolCode: '220001' })).toEqual(['schoolCode']);
     });
 

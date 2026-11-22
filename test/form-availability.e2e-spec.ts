@@ -10,6 +10,10 @@ import { join } from 'node:path';
 
 import { createTestApp, login, bearer, PASSWORD, type TestContext } from './helpers.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(294000 + ++codeSeq);
+
 const STUDENT_DEFAULT = 'Student registration is currently closed. Please contact the Rwanda Olympiad Foundation for further information or check back later.';
 
 describe('Form availability', () => {
@@ -43,7 +47,7 @@ describe('Form availability', () => {
     return {
       firstName: 'Tea', lastName: 'Cher', username: `form.teacher${n}`, email: `form.teacher${n}@test.local`, password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Nowhere Province', schoolDistrict: 'Nowhere',
-      proposedSchoolName: 'GS Somewhere', schoolSector: 'Nowhere', homeProvince: 'Nowhere', homeDistrict: 'Nowhere', homeSector: 'Nowhere',
+      proposedSchoolName: 'GS Somewhere', schoolSector: 'Nowhere', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY', homeProvince: 'Nowhere', homeDistrict: 'Nowhere', homeSector: 'Nowhere',
     };
   };
   async function makeUser(username: string, role: 'TEACHER' | 'HEAD_COACH') {

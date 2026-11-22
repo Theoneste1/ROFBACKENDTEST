@@ -24,7 +24,11 @@ import { pageArgs, paginated } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { normalisePhone } from '../schools/directory/school-contacts.js';
 import { TEACHER_SCHOOL_WHERE, directoryPlaceProblem, publicDirectoryHasPlace } from '../schools/school-directory.js';
-import { RWANDA } from '../schools/school-rules.js';
+import { RWANDA, codeProblems } from '../schools/school-rules.js';
+import { AdminSchoolsService } from '../schools/admin-schools.service.js';
+import { PermissionService } from '../auth/permission.service.js';
+import type { AuthUser } from '../common/auth-user.js';
+import type { CreateSchoolDto } from '../schools/dto/admin-school.dto.js';
 import { lockSchoolsForUse } from '../schools/school-usage.js';
 import { lockSchoolPrimary, lockTeacherAccount, roleForNewLink } from '../teachers/primary-teacher.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -52,6 +56,7 @@ export const APPLICATION_SELECT = {
   olympiadInterests: true, olympiadInterestOther: true, status: true,
   school: { select: SCHOOL_SELECT },
   proposedSchoolName: true, schoolProvince: true, schoolDistrict: true, schoolSector: true,
+  proposedSchoolCode: true, proposedSchoolCell: true, proposedSchoolVillage: true, proposedSchoolOwnership: true, proposedSchoolAccommodation: true,
   homeProvince: true, homeDistrict: true, homeSector: true, createdAt: true, decidedAt: true,
   decidedBy: { select: { id: true, firstName: true, lastName: true } },
   rejectionReason: true, decisionNote: true, userId: true,
@@ -82,7 +87,61 @@ export class TeacherApplicationsService {
     private readonly infoRequests: ApplicationInfoRequestsService,
     private readonly notifications: NotificationsService,
     private readonly registrationAvatar: RegistrationAvatarService,
+    private readonly schools: AdminSchoolsService,
+    private readonly permissions: PermissionService,
   ) {}
+
+  /**
+   * An unlisted school's official code (owner 2026-11-22): 6 digits that fit the province (400 INVALID_SCHOOL_CODE),
+   * and not in the directory yet (409 SCHOOL_CODE_LISTED, naming the school so the applicant can choose it instead).
+   */
+  private async assertProposedCodeFree(code: string, province: string) {
+    const problems = codeProblems(code, province);
+    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SCHOOL_CODE', problems[0], { code });
+    const listed = await this.prisma.school.findUnique({ where: { code }, select: { id: true, name: true, district: true, sector: true, isActive: true } });
+    if (!listed) return;
+    const where = [listed.district, listed.sector].filter(Boolean).join(', ');
+    throw new AppError(HttpStatus.CONFLICT, 'SCHOOL_CODE_LISTED', listed.isActive
+      ? `This code belongs to ${listed.name}${where ? ` (${where})` : ''}, which is already listed. Choose it in the school list above instead.`
+      : `This code belongs to ${listed.name}, which is not open for registration. Contact the Rwanda Olympiad Foundation.`,
+    { code, school: listed });
+  }
+
+  /**
+   * One-step approval of an unlisted-school application (owner 2026-11-22): the school is created from the details the
+   * applicant gave — no retyping — with the same checks as an Administrator's POST /admin/schools (official place, code
+   * free, possible duplicates confirmed), or, when its code was listed since (e.g. by a directory sync), that school is
+   * used. The application's school is then verified (the existing verify step, audited), and the approval continues.
+   * Two committed steps: when the approval itself fails afterwards, the school and the verification stay and approving
+   * again completes it.
+   */
+  private async createProposedSchool(application: {
+    id: string; proposedSchoolName: string | null; proposedSchoolCode: string | null; schoolProvince: string; schoolDistrict: string;
+    schoolSector: string | null; proposedSchoolCell: string | null; proposedSchoolVillage: string | null;
+    proposedSchoolOwnership: string | null; proposedSchoolAccommodation: 'DAY' | 'BOARDING' | 'MIXED' | null;
+  }, confirmPossibleDuplicate: boolean | undefined, caller: CallerCtx) {
+    const code = application.proposedSchoolCode!;
+    // Creating a school is the Administrator's schools.manage right (as POST /admin/schools).
+    if (!this.permissions.has(caller as AuthUser, 'schools.manage')) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'SCHOOL_MANAGE_REQUIRED', 'Approving this application creates its school, which needs the right to manage schools.');
+    }
+    const listed = await this.prisma.school.findUnique({ where: { code }, select: { id: true, isActive: true, countryCode: true } });
+    let schoolId: string;
+    if (listed) {
+      if (!listed.isActive || listed.countryCode !== RWANDA) throw unknownSchool(listed.id);
+      schoolId = listed.id;
+    } else {
+      const created = await this.schools.create({
+        name: application.proposedSchoolName!, countryCode: RWANDA, code,
+        province: application.schoolProvince, district: application.schoolDistrict, sector: application.schoolSector ?? undefined,
+        cell: application.proposedSchoolCell ?? undefined, village: application.proposedSchoolVillage ?? undefined,
+        ownership: (application.proposedSchoolOwnership ?? undefined) as CreateSchoolDto['ownership'],
+        accommodation: application.proposedSchoolAccommodation ?? undefined, confirmPossibleDuplicate,
+      } as CreateSchoolDto, caller);
+      schoolId = created.id;
+    }
+    await this.verifySchool(application.id, { schoolId, note: listed ? 'The proposed code was listed meanwhile: that school is used.' : 'Created from the application (one-step approval).' }, caller);
+  }
 
   // ─── Public ────────────────────────────────────────────────────────────────
 
@@ -121,6 +180,10 @@ export class TeacherApplicationsService {
     if (!(await publicDirectoryHasPlace(this.prisma, place))) {
       throw directoryPlaceProblem({ province: place.province, district: place.district, sector: place.sector ?? null });
     }
+
+    // "My school is not listed" (owner 2026-11-22): the official code must fit the province and must not be listed yet —
+    // a listed code means the school is in the list above (chosen by code, it gets the account at once).
+    if (choice.kind === 'MISSING') await this.assertProposedCodeFree(choice.code, dto.schoolProvince);
 
     let school: { id: string; name: string; code: string | null; province: string | null; district: string | null; sector: string | null } | null = null;
     if (choice.kind === 'LISTED') {
@@ -161,6 +224,10 @@ export class TeacherApplicationsService {
           schoolProvince: dto.schoolProvince, schoolDistrict: dto.schoolDistrict,
           // A listed school's sector comes from the directory.
           schoolSector: choice.kind === 'MISSING' ? choice.schoolSector : school?.sector ?? null,
+          ...(choice.kind === 'MISSING' && {
+            proposedSchoolCode: choice.code, proposedSchoolCell: choice.cell, proposedSchoolVillage: choice.village,
+            proposedSchoolOwnership: choice.ownership, proposedSchoolAccommodation: choice.accommodation,
+          }),
           homeProvince: home.homeProvince, homeDistrict: home.homeDistrict, homeSector: home.homeSector,
           position: dto.position ?? null, yearsOfExperience: dto.yearsOfExperience ?? null,
         },
@@ -245,11 +312,16 @@ export class TeacherApplicationsService {
    */
   async approve(id: string, dto: ApproveTeacherApplicationDto, caller: CallerCtx) {
     await this.roles.assertCanAssign(caller, 'TEACHER');
-    const application = await this.prisma.teacherApplication.findUnique({ where: { id } });
+    let application = await this.prisma.teacherApplication.findUnique({ where: { id } });
     if (!application) throw notFound();
     if (application.status !== 'PENDING' || !application.passwordHash) throw applicationAlreadyDecided();
-    // A missing-school application: an Administrator verifies the school first (POST …/:id/school).
-    if (application.proposedSchoolName !== null && !application.schoolVerifiedAt) throw schoolNotVerified();
+    if (application.proposedSchoolName !== null && !application.schoolVerifiedAt) {
+      // With the school's official details (owner 2026-11-22): one step — the school is created from them and verified.
+      // Without them (an application made before): the Administrator verifies the school first (POST …/:id/school).
+      if (!application.proposedSchoolCode || dto.schoolId !== undefined) throw schoolNotVerified();
+      await this.createProposedSchool(application, dto.confirmPossibleDuplicate, caller);
+      application = await this.prisma.teacherApplication.findUniqueOrThrow({ where: { id } });
+    }
 
     const schoolId = approvalSchoolId(application.schoolId, dto.schoolId);
     const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, isActive: true, countryCode: true } });

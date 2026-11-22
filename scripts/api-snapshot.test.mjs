@@ -329,7 +329,13 @@ const TEACHER_SELF_SERVICE_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-21-tea
  * self-service snapshot.
  */
 const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-divisions-levels.json';
-const CURRENT_SNAPSHOT = OLYMPIAD_LEVELS_SNAPSHOT;
+/**
+ * The school code is the identifier (owner, 2026-11-22): a directory sync run may import new schools only (mode
+ * NEW_ONLY); teacher registration's "My school is not listed" carries the school's official details. Additive only
+ * against the Olympiad levels snapshot.
+ */
+const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
+const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1784,6 +1790,15 @@ describe('approved API contract history', () => {
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
     ]);
+  });
+
+  test('Olympiad levels → the school code is the identifier (2026-11-22): additive only — the sync run mode', () => {
+    for (const f of [OLYMPIAD_LEVELS_SNAPSHOT, SCHOOL_CODES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(OLYMPIAD_LEVELS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), ['POST /api/v1/admin/school-sync/runs: new optional query parameter "mode"']);
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {

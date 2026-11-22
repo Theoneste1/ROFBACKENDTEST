@@ -16,6 +16,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createTestApp, login, bearer, type TestContext, waitForEvents } from './helpers.js';
 import { Events } from '../src/notifications/events.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(297000 + ++codeSeq);
+
 const REGISTER = '/api/v1/auth/register/teacher';
 const AVAILABILITY = '/api/v1/auth/register/teacher/availability';
 const ADMIN_APPS = '/api/v1/admin/teacher-applications';
@@ -38,7 +42,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED off (the default)', () 
     const body = {
       firstName: 'Off', lastName: 'Flag', username: 'off.flag', email: 'off.flag@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      proposedSchoolName: 'GS Somewhere', schoolSector: 'Ngoma', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma',
+      proposedSchoolName: 'GS Somewhere', schoolSector: 'Ngoma', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma',
     };
     for (const setting of [false, true]) {
       await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.teacherSelfSignup': setting }).expect(200);
@@ -82,7 +86,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
   };
   const missing = (over: Record<string, unknown> = {}) => {
     const { schoolId: _drop, ...rest } = listed();
-    return { ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Tumba', ...over };
+    return { ...rest, proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Tumba', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY', ...over };
   };
   const register = (body: object) => http().post(REGISTER).send(body);
   /**
@@ -216,7 +220,7 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
     it('a school code, name or sector for a listed school is never taken from the client', async () => {
       expect(await status(register(listed({ schoolCode: '220002' })))).toEqual([400, 'VALIDATION_FAILED']);
       expect(await status(register(listed({ schoolSector: 'Tumba' })))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
-      expect(await status(register(listed({ proposedSchoolName: 'Other', schoolSector: 'Tumba' })))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
+      expect(await status(register(listed({ proposedSchoolName: 'Other', schoolSector: 'Tumba', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY' })))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
       const { schoolId: _s, ...none } = listed();
       expect(await status(register(none))).toEqual([400, 'SCHOOL_CHOICE_REQUIRED']);
     });
@@ -410,7 +414,8 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       const one = (await http().get(`${ADMIN_APPS}/${listedId}`).set(bearer(superAdmin)).expect(200)).body;
       expect(Object.keys(one).sort()).toEqual([
         'assignedSchool', 'avatarFileId', 'country', 'createdAt', 'decidedAt', 'decidedBy', 'decisionNote', 'email', 'firstName', 'homeDistrict', 'homeProvince', 'homeSector',
-        'id', 'infoRequests', 'lastName', 'olympiadInterestOther', 'olympiadInterests', 'phone', 'position', 'proposedSchoolName', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
+        'id', 'infoRequests', 'lastName', 'olympiadInterestOther', 'olympiadInterests', 'phone', 'position', 'proposedSchoolAccommodation', 'proposedSchoolCell', 'proposedSchoolCode', 'proposedSchoolName',
+        'proposedSchoolOwnership', 'proposedSchoolVillage', 'rejectionReason', 'school', 'schoolDistrict', 'schoolProvince',
         'schoolSector', 'schoolVerifiedAt', 'schoolVerifiedBy', 'status', 'userId', 'username', 'yearsOfExperience',
       ]);
       expect(one).toMatchObject({
@@ -464,6 +469,8 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
 
     it('missing school: SCHOOL_NOT_VERIFIED until an Administrator verifies the school (inactive or unknown refused, nothing created); then approved with that school', async () => {
       const verifySchool = (id: string, body: object, token = admin) => http().post(`${ADMIN_APPS}/${id}/school`).set(bearer(token)).send(body);
+      // An application made before the school's official details were asked (owner 2026-11-22): the two-step flow stays.
+      await p().teacherApplication.update({ where: { id: missingId }, data: { proposedSchoolCode: null } });
       const before = { users: await p().user.count(), assignments: await p().teacherSchoolAssignment.count() };
       expect(await status(approve(missingId))).toEqual([400, 'SCHOOL_NOT_VERIFIED']);
       expect(await status(approve(missingId, { schoolId: tumba }))).toEqual([400, 'SCHOOL_NOT_VERIFIED']);
@@ -493,6 +500,49 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       expect(res.body.application).toMatchObject({ status: 'APPROVED', school: { id: created.body.id }, proposedSchoolName: 'GS Not Yet Listed', assignedSchool: { id: created.body.id } });
       expect(await p().teacherSchoolAssignment.count({ where: { teacherId: res.body.teacher.id, schoolId: created.body.id, isActive: true } })).toBe(1);
       expect(await status(verifySchool(missingId, { schoolId: created.body.id }))).toEqual([409, 'APPLICATION_ALREADY_DECIDED']);
+    });
+
+    it('"My school is not listed" (owner 2026-11-22): the official details are checked when applying; one approval creates the school from them — nothing typed again', async () => {
+      // The code must fit the province and must not be listed yet (the listed school is named, to be chosen instead).
+      expect(await status(register(missing({ username: 'tr.os.a', email: 'tr.os.a@test.local', proposedSchoolCode: '120001' })))).toEqual([400, 'INVALID_SCHOOL_CODE']);
+      const listedCode = (await p().school.findUniqueOrThrow({ where: { id: ngoma } })).code!;
+      const taken = await register(missing({ username: 'tr.os.b', email: 'tr.os.b@test.local', proposedSchoolCode: listedCode })).expect(409);
+      expect(taken.body).toMatchObject({ code: 'SCHOOL_CODE_LISTED', details: { code: listedCode, school: { id: ngoma } } });
+      expect(taken.body.message).toMatch(/already listed\. Choose it in the school list above instead\./);
+
+      const body = missing({
+        username: 'tr.os.c', email: 'tr.os.c@test.local', proposedSchoolName: 'GS One Step Hill', proposedSchoolCode: '297900',
+        proposedSchoolCell: 'Butare', proposedSchoolVillage: 'Gako', proposedSchoolOwnership: 'GOVERNMENT_AIDED', proposedSchoolAccommodation: 'BOARDING',
+      });
+      const id = (await register(body).expect(201)).body.id;
+      expect(await p().school.count({ where: { code: '297900' } })).toBe(0);   // nothing created when applying
+      const app = (await http().get(`${ADMIN_APPS}/${id}`).set(bearer(admin)).expect(200)).body;
+      expect(app).toMatchObject({
+        proposedSchoolName: 'GS One Step Hill', proposedSchoolCode: '297900', proposedSchoolCell: 'Butare', proposedSchoolVillage: 'Gako',
+        proposedSchoolOwnership: 'GOVERNMENT_AIDED', proposedSchoolAccommodation: 'BOARDING', schoolProvince: 'Southern Province', schoolDistrict: 'Huye', schoolSector: 'Tumba',
+      });
+
+      // One step: the school is created from the application, verified, and the teacher approved with it.
+      const res = await approve(id).expect(200);
+      const school = await p().school.findUniqueOrThrow({ where: { code: '297900' } });
+      expect(school).toMatchObject({
+        name: 'GS One Step Hill', province: 'Southern Province', district: 'Huye', sector: 'Tumba', cell: 'Butare', village: 'Gako',
+        ownership: 'GOVERNMENT_AIDED', accommodation: 'BOARDING', countryCode: 'RW', isActive: true, createdById: ctx.ids.admin,
+      });
+      expect(res.body.application).toMatchObject({ status: 'APPROVED', school: { id: school.id }, assignedSchool: { id: school.id }, schoolVerifiedBy: { id: ctx.ids.admin } });
+      expect(await p().teacherSchoolAssignment.count({ where: { teacherId: res.body.teacher.id, schoolId: school.id, isActive: true } })).toBe(1);
+      expect(await p().auditLog.count({ where: { action: 'CREATE_SCHOOL', entityId: school.id } })).toBe(1);
+      expect(await p().auditLog.count({ where: { action: 'VERIFY_TEACHER_APPLICATION_SCHOOL', entityId: id } })).toBe(1);
+
+      // The code was listed meanwhile (e.g. by a directory sync): that school is used, no second school is created.
+      const later = (await register(missing({ username: 'tr.os.d', email: 'tr.os.d@test.local', proposedSchoolName: 'GS Listed Since', proposedSchoolCode: '297901' })).expect(201)).body.id;
+      const since = await http().post('/api/v1/admin/schools').set(bearer(admin)).send({
+        name: 'GS Listed Since', code: '297901', province: 'Southern Province', district: 'Huye', sector: 'Tumba', location: 'Huye',
+      }).expect(201);
+      const schools = await p().school.count();
+      const res2 = await approve(later).expect(200);
+      expect(res2.body.application).toMatchObject({ status: 'APPROVED', school: { id: since.body.id }, assignedSchool: { id: since.body.id } });
+      expect(await p().school.count()).toBe(schools);
     });
 
     it('a listed school deactivated before approval: refused, nothing created', async () => {

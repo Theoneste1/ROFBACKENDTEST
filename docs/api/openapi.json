@@ -27516,6 +27516,19 @@
               "maxLength": 200,
               "type": "string"
             }
+          },
+          {
+            "name": "mode",
+            "required": false,
+            "in": "query",
+            "description": "FULL (default): every difference with a matched school is proposed. NEW_ONLY: schools already\nin the directory are recognised and left untouched; only schools with a new code are proposed.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "FULL",
+                "NEW_ONLY"
+              ]
+            }
           }
         ],
         "responses": {
