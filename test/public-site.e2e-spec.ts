@@ -5,7 +5,7 @@
  *   GET  /admin/contact-messages     — administrators only
  *   PATCH /admin/contact-messages/:id
  *
- * Seed (test/helpers.ts): 1 admin, 3 mentors (coaches), 3 students at one school, all active.
+ * Seed (test/helpers.ts): 1 admin, 3 mentors (coaches), 3 students at one school, all active; no teachers.
  */
 import { PublicSiteController } from '../src/public-site/public-site.controller.js';
 import { PublicSiteService, CONTACT_PER_EMAIL_PER_HOUR } from '../src/public-site/public-site.service.js';
@@ -37,7 +37,7 @@ describe('Public site (e2e)', () => {
       fresh();
       const res = await http().get('/api/v1/public/statistics').expect(200);
       expect(Object.keys(res.body).sort()).toEqual(['coaches', 'generatedAt', 'members', 'schools', 'students', 'teachers']);
-      expect(res.body).toMatchObject({ students: 3, coaches: 3, schools: 1, members: 7, teachers: null });
+      expect(res.body).toMatchObject({ students: 3, coaches: 3, schools: 1, members: 7, teachers: 0 });
       const text = JSON.stringify(res.body);
       expect(text).not.toMatch(/@|student\.j|mentor\.j|Test School|passwordHash|email/i);
     });
@@ -58,6 +58,31 @@ describe('Public site (e2e)', () => {
       // Restore.
       await ctx.prisma.user.updateMany({ where: { role: { in: ['STUDENT', 'MENTOR'] } }, data: { isActive: true, isApproved: true, activatedAt: new Date() } });
       expect(await stats()).toMatchObject({ students: 3, coaches: 3, schools: 1, members: 7 });
+    });
+
+    it('counts active teachers, and a school with only an active teacher (owner 2026-11-22)', async () => {
+      const hash = (await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash!;
+      const school = await ctx.prisma.school.create({ data: { name: 'Teacher Only School', location: 'Huye', source: 'ADMIN' } });
+      const t = await ctx.prisma.user.create({ data: {
+        username: 'stats.teacher', firstName: 'S', lastName: 'Teacher', email: 'stats.teacher@test.local', role: 'TEACHER', passwordHash: hash, activatedAt: new Date(),
+      } });
+      const link = await ctx.prisma.teacherSchoolAssignment.create({ data: { teacherId: t.id, schoolId: school.id, isActive: true, role: 'PRIMARY' } });
+      expect(await stats()).toMatchObject({ teachers: 1, schools: 2, members: 8, students: 3 });
+      // A teacher still awaiting setup (not activated) is not counted, nor is their school.
+      await ctx.prisma.user.update({ where: { id: t.id }, data: { activatedAt: null } });
+      expect(await stats()).toMatchObject({ teachers: 0, schools: 1, members: 7 });
+      // Active again, but the school link ended: the teacher counts, the school does not.
+      await ctx.prisma.user.update({ where: { id: t.id }, data: { activatedAt: new Date() } });
+      await ctx.prisma.teacherSchoolAssignment.update({ where: { id: link.id }, data: { isActive: false, endedAt: new Date() } });
+      expect(await stats()).toMatchObject({ teachers: 1, schools: 1, members: 8 });
+      // A suspended teacher is not counted.
+      await ctx.prisma.user.update({ where: { id: t.id }, data: { isActive: false } });
+      expect(await stats()).toMatchObject({ teachers: 0, members: 7 });
+      // Clean up for the following tests.
+      await ctx.prisma.teacherSchoolAssignment.delete({ where: { id: link.id } });
+      await ctx.prisma.user.delete({ where: { id: t.id } });
+      await ctx.prisma.school.delete({ where: { id: school.id } });
+      expect(await stats()).toMatchObject({ students: 3, coaches: 3, teachers: 0, schools: 1, members: 7 });
     });
 
     it('cannot be influenced by the caller (parameters ignored, other methods refused)', async () => {

@@ -8,9 +8,9 @@
  * Deleted accounts no longer exist and are never counted.
  *   students — active STUDENT accounts
  *   coaches  — active MENTOR accounts (coaches mentor ROF students)
- *   teachers — null: school teachers have no accounts on the platform yet
- *   schools  — schools with at least one active student
- *   members  — all active accounts (students, coaches, administrators)
+ *   teachers — active TEACHER accounts (school teachers; owner 2026-11-22)
+ *   schools  — schools with at least one active student or one active teacher linked to them
+ *   members  — all active accounts (students, teachers, coaches, administrators)
  *
  * Contact: messages are validated, rate-limited (per IP in the controller,
  * per e-mail and duplicates here, plus a honeypot), stored, and an e-mail notice
@@ -37,7 +37,7 @@ export const ACTIVE_MEMBER: Prisma.UserWhereInput = { isActive: true, isApproved
 export interface PublicStatistics {
   students: number;
   coaches: number;
-  teachers: number | null;
+  teachers: number;
   schools: number;
   members: number;
   generatedAt: string;
@@ -69,13 +69,17 @@ export class PublicSiteService {
 
   async statistics(): Promise<PublicStatistics> {
     if (this.cache && Date.now() - this.cache.at < STATS_TTL_MS) return this.cache.value;
-    const [students, coaches, members, schools] = await this.prisma.$transaction([
+    const [students, coaches, teachers, members, schools] = await this.prisma.$transaction([
       this.prisma.user.count({ where: { ...ACTIVE_MEMBER, role: 'STUDENT' } }),
       this.prisma.user.count({ where: { ...ACTIVE_MEMBER, role: 'MENTOR' } }),
+      this.prisma.user.count({ where: { ...ACTIVE_MEMBER, role: 'TEACHER' } }),
       this.prisma.user.count({ where: ACTIVE_MEMBER }),
-      this.prisma.school.count({ where: { students: { some: { ...ACTIVE_MEMBER, role: 'STUDENT' } } } }),
+      this.prisma.school.count({ where: { OR: [
+        { students: { some: { ...ACTIVE_MEMBER, role: 'STUDENT' } } },
+        { teachers: { some: { isActive: true, teacher: { ...ACTIVE_MEMBER, role: 'TEACHER' } } } },
+      ] } }),
     ]);
-    const value: PublicStatistics = { students, coaches, teachers: null, schools, members, generatedAt: new Date().toISOString() };
+    const value: PublicStatistics = { students, coaches, teachers, schools, members, generatedAt: new Date().toISOString() };
     this.cache = { at: Date.now(), value };
     return value;
   }
