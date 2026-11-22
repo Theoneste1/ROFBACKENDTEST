@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 426 endpoints — 26 public, 254 administrator-only.
+Totals: 443 endpoints — 26 public, 262 administrator-only.
 
 ## Academic years
 
@@ -437,6 +437,23 @@ Totals: 426 endpoints — 26 public, 254 administrator-only.
 | POST | `/api/v1/courses/{id}/complete` |  | ✓ |  |  |
 | GET | `/api/v1/disciplines` |  | ✓ | ✓ | ✓ |
 
+## custom-reports
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/reports` |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports` |  |  |  | ✓ |
+| GET | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/export` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/{id}/preview` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/run` |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/preview` |  |  |  | ✓ |
+| GET | `/api/v1/reports/sources` |  |  |  | ✓ |
+
 ## Discussions
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -640,6 +657,16 @@ Totals: 426 endpoints — 26 public, 254 administrator-only.
 | Method | Path | Public | Student | Mentor | Admin |
 |---|---|:-:|:-:|:-:|:-:|
 | GET | `/api/v1/support` | ✓ | ✓ | ✓ | ✓ |
+
+## table-layouts
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| PUT | `/api/v1/admin/table-layouts/{table}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/table-layouts/{table}` |  |  |  | ✓ |
+| GET | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
+| PUT | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
+| DELETE | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
 
 ## Teacher
 

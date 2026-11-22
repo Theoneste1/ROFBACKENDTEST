@@ -323,4 +323,23 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/mentor-assignments/bulk  MentorAssignmentsController.bulkAssign':                         ADMINISTRATORS,
   // The Student Profile Overview (owner 2026-11-22): every signed-in caller; the service decides who may view whom (404).
   'GET /api/v1/students/:id/overview  StudentOverviewController.view':                                          SIGNED_IN,
+  // Table layouts (owner 2026-11-22): own layouts (users.view), the organization default (settings.manage).
+  'GET /api/v1/me/table-layouts/:table  TableLayoutsController.mine':                                           ADMINISTRATORS,
+  'PUT /api/v1/me/table-layouts/:table  TableLayoutsController.saveMine':                                       ADMINISTRATORS,
+  'DELETE /api/v1/me/table-layouts/:table  TableLayoutsController.resetMine':                                   ADMINISTRATORS,
+  'PUT /api/v1/admin/table-layouts/:table  TableLayoutsController.saveOrg':                                     ADMINISTRATORS,
+  'DELETE /api/v1/admin/table-layouts/:table  TableLayoutsController.resetOrg':                                 ADMINISTRATORS,
+  // Custom reports (owner 2026-11-22): building (reports.build); a shared report's grants decide the rest (signed in).
+  'GET /api/v1/reports/sources  CustomReportsController.sources':                                               ADMINISTRATORS,
+  'POST /api/v1/reports  CustomReportsController.create':                                                       ADMINISTRATORS,
+  'POST /api/v1/reports/preview  CustomReportsController.preview':                                              ADMINISTRATORS,
+  'GET /api/v1/reports  CustomReportsController.list':                                                          SIGNED_IN,
+  'GET /api/v1/reports/:id  CustomReportsController.get':                                                       SIGNED_IN,
+  'PUT /api/v1/reports/:id  CustomReportsController.update':                                                    SIGNED_IN,
+  'DELETE /api/v1/reports/:id  CustomReportsController.remove':                                                 SIGNED_IN,
+  'POST /api/v1/reports/:id/preview  CustomReportsController.previewFor':                                       SIGNED_IN,
+  'GET /api/v1/reports/:id/run  CustomReportsController.run':                                                   SIGNED_IN,
+  'GET /api/v1/reports/:id/export  CustomReportsController.export':                                             SIGNED_IN,
+  'GET /api/v1/reports/:id/grants  CustomReportsController.grants':                                             SIGNED_IN,
+  'PUT /api/v1/reports/:id/grants  CustomReportsController.setGrants':                                          SIGNED_IN,
 };

@@ -2499,6 +2499,123 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/reports",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/reports/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/reports/{id}",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}/export",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}/grants",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/reports/{id}/grants",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports/{id}/preview",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}/run",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports/preview",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/sources",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/comments/hidden",
     "roles": [
       "ADMIN",
@@ -3550,6 +3667,54 @@
       "PUBLIC"
     ],
     "tag": "Support"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/table-layouts/{table}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/table-layouts/{table}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/table-layouts/{table}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/table-layouts/{table}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/table-layouts/{table}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "table-layouts"
   },
   {
     "method": "GET",

@@ -60,6 +60,30 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: 'overview(): decides only whether the account status is ADDED for staff viewers; any other role (students, an unsupported one) gets less data, never more. Access itself is decided by mayView().',
   },
   {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: '(g) => g.userId === viewer.id || g.role === viewer.role',
+    reason: "levels(): selects the grants that name the caller or the caller's own role — the only grants that apply to them; an unknown role matches no role grant (grants name known roles only) and gets no level.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: "!mine.length || viewer.role === 'STUDENT'",
+    reason: 'levels(): REFUSES (no level) when no grant applies or the caller is a student — students never receive reports, whatever a grant says.',
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: 'isHeadCoach(viewer)',
+    reason: "scopeFor(): a Head Coach's rows are the members of the programmes they head (none → no rows); a Coach the students of their programmes or taught divisions; every other role falls through to the Teacher branch, then to no rows.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: 'isTeacher(viewer)',
+    reason: "scopeFor(): a Teacher's rows are the students of their schools (the same rule as every teacher list); any other role falls through to `{ id: { in: [] } }` — no rows.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: '(APP_ROLES as readonly string[]).includes(viewer.role)',
+    reason: 'list(): a role grant is looked up only for one of the six known roles; an unsupported role contributes no role grant (REFUSAL by omission).',
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: 'viewer.role as Role',
+    reason: "list(): finds the reports granted to the caller's own role (or to them, or created by them); an unknown role matches no role grant; levels() then decides every report again.",
+  },
+  {
     file: 'src/submissions/submissions.service.ts', rule: 'U6', code: 'submittedByRole: actor.role',
     reason: 'submit(): records WHO submitted on a student\'s behalf (P1-11) in the activity metadata — attribution data, not an access decision.',
   },

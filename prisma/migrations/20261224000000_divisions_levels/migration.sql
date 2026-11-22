@@ -166,3 +166,79 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER course_offered_in_divisions
   AFTER INSERT ON "Course"
   FOR EACH ROW EXECUTE FUNCTION course_offered_in_divisions();
+
+-- Saved table layouts (organization default and per person) and custom reports with their grants (owner 2026-11-22).
+-- CreateTable
+CREATE TABLE "TableLayout" (
+    "id" TEXT NOT NULL,
+    "owner" TEXT NOT NULL,
+    "table" TEXT NOT NULL,
+    "columns" JSONB NOT NULL,
+    "updatedById" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "TableLayout_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CustomReport" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "source" TEXT NOT NULL,
+    "columns" JSONB NOT NULL,
+    "filters" JSONB NOT NULL,
+    "sort" JSONB NOT NULL,
+    "createdById" TEXT,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "CustomReport_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CustomReportGrant" (
+    "id" TEXT NOT NULL,
+    "reportId" TEXT NOT NULL,
+    "grantee" TEXT NOT NULL,
+    "userId" TEXT,
+    "role" "Role",
+    "canView" BOOLEAN NOT NULL DEFAULT true,
+    "canDownload" BOOLEAN NOT NULL DEFAULT false,
+    "canEdit" BOOLEAN NOT NULL DEFAULT false,
+    "grantedById" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CustomReportGrant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TableLayout_owner_table_key" ON "TableLayout"("owner", "table");
+
+-- CreateIndex
+CREATE INDEX "CustomReport_createdById_idx" ON "CustomReport"("createdById");
+
+-- CreateIndex
+CREATE INDEX "CustomReportGrant_userId_idx" ON "CustomReportGrant"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CustomReportGrant_reportId_grantee_key" ON "CustomReportGrant"("reportId", "grantee");
+
+-- AddForeignKey
+ALTER TABLE "CustomReport" ADD CONSTRAINT "CustomReport_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CustomReportGrant" ADD CONSTRAINT "CustomReportGrant_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "CustomReport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CustomReportGrant" ADD CONSTRAINT "CustomReportGrant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- A grant names exactly one grantee (a user or a role), matching its key; a name is 2–120 characters.
+ALTER TABLE "CustomReportGrant" ADD CONSTRAINT "CustomReportGrant_one_grantee"
+  CHECK (("userId" IS NOT NULL AND "role" IS NULL AND "grantee" = 'user:' || "userId")
+      OR ("userId" IS NULL AND "role" IS NOT NULL AND "grantee" = 'role:' || "role"::text));
+ALTER TABLE "CustomReport" ADD CONSTRAINT "CustomReport_name_length" CHECK (char_length("name") BETWEEN 2 AND 120);

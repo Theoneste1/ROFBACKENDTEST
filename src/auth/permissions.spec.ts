@@ -80,6 +80,8 @@ describe('permissions', () => {
       'tests.authorizeResubmission',
       // appended 2026-11-21 (owner): Olympiad levels — User Managers classify students
       'students.classifyLevel',
+      // appended 2026-11-22 (owner): custom reports — build and share
+      'reports.build',
     ]);
   });
 
@@ -100,7 +102,7 @@ describe('permissions', () => {
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
     const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review',
       'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
-      'tests.authorizeResubmission', 'students.classifyLevel'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions, Olympiad levels), after countries
+      'tests.authorizeResubmission', 'students.classifyLevel', 'reports.build'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions, Olympiad levels), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -227,6 +229,8 @@ describe('permissions', () => {
       'tests.authorizeResubmission': G,
       // Olympiad levels (owner 2026-11-21): User Managers classify every student
       'students.classifyLevel': G,
+      // Custom reports (owner 2026-11-22): build and share
+      'reports.build': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {

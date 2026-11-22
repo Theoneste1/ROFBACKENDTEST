@@ -125,6 +125,10 @@ export const PERMISSIONS = [
   'students.classifyLevel',      // set a student's Olympiad level (Junior / Middle / Senior) or return it to the grade's
                                  // suggestion, with a reason (history kept): User Managers (Administrators, global); Coaches
                                  // and Head Coaches for the students of their programmes (programme)
+  // ── Custom reports (owner 2026-11-22) ──
+  'reports.build',               // build custom reports (any source), see and manage every report and who may use it
+                                 // (view / download / edit grants): Administrators (global). Shared reports need no
+                                 // permission: their grants decide (src/custom-reports)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -190,6 +194,8 @@ const ADMIN_GRANTS: Grants = {
   'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
   // Olympiad levels (owner 2026-11-21): User Managers classify every student.
   'students.classifyLevel': 'global',
+  // Custom reports (owner 2026-11-22): build reports and share them.
+  'reports.build': 'global',
 };
 
 /**
@@ -284,6 +290,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.distribute': 'global', 'tests.review': 'global',
     'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
     'students.classifyLevel': 'global',
+    'reports.build': 'global',
   },
 };
 
@@ -379,6 +386,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'tests.authorizeResubmission',
     // appended 2026-11-21 (owner): Olympiad levels — User Managers classify students
     'students.classifyLevel',
+    // appended 2026-11-22 (owner): custom reports — build and share
+    'reports.build',
   ],
 };
 

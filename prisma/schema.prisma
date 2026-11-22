@@ -452,20 +452,22 @@ model User {
   // these columns mirror the ACTIVE enrolment of the current academic year so
   // every request can scope a student without a join. Both are updated in the
   // same transaction.
-  gradeLevel       GradeLevel?
-  divisionId       String?
-  division         Division?        @relation(fields: [divisionId], references: [id])
+  gradeLevel         GradeLevel?
+  divisionId         String?
+  division           Division?           @relation(fields: [divisionId], references: [id])
   /// Students: the Olympiad level (owner 2026-11-21) — kept in step with gradeLevel by the trigger
   /// `olympiad_level_from_grade` while olympiadLevelManual is false; never touched by it once set by hand.
   /// Students (owner 2026-11-21): the division — the student's Olympiad level — set by hand by a Coach or a User
   /// Manager. While false, the database trigger `student_division_from_grade` keeps it in step with the grade (the
   /// division whose suggestedGrades hold it); once true, a grade change never moves it.
-  divisionManual   Boolean          @default(false)
-  divisionChanges  DivisionChange[] @relation("DivisionChangeStudent")
-  divisionsChanged DivisionChange[] @relation("DivisionChangeActor")
-  schoolId         String?
-  school           School?          @relation(fields: [schoolId], references: [id])
-  homeLocation     String?
+  divisionManual     Boolean             @default(false)
+  divisionChanges    DivisionChange[]    @relation("DivisionChangeStudent")
+  divisionsChanged   DivisionChange[]    @relation("DivisionChangeActor")
+  customReports      CustomReport[]      @relation("CustomReportCreator")
+  customReportGrants CustomReportGrant[] @relation("CustomReportGrantee")
+  schoolId           String?
+  school             School?             @relation(fields: [schoolId], references: [id])
+  homeLocation       String?
 
   /// Contact phone (E.164) and country (ISO 3166-1 alpha-2) — set when a Teacher application is
   /// approved (teacher self-registration); NULL for every other account.
@@ -3290,4 +3292,64 @@ model CourseDivision {
 
   @@unique([courseId, divisionId])
   @@index([divisionId, isActive])
+}
+
+/// A saved column layout of a table (owner 2026-11-22: administrators choose the columns of the user tables). `owner`
+/// is "ORG" (the organization default, set by Administrators) or a user id (that person's own layout). `columns`: the
+/// ordered list of {key, visible}; keys are checked against the table's columns by the service.
+model TableLayout {
+  id          String   @id @default(uuid())
+  owner       String
+  table       String
+  columns     Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([owner, table])
+}
+
+/// A saved custom report (owner 2026-11-22): a data source, its columns in order, filters and sort — run on live
+/// records within the viewer's own data scope; sensitive fields are never available.
+model CustomReport {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  source      String
+  columns     Json
+  filters     Json
+  sort        Json
+  createdById String?
+  createdBy   User?     @relation("CustomReportCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// Deleted reports are kept (and their grants) for history; they no longer appear or run.
+  deletedAt   DateTime?
+
+  grants CustomReportGrant[]
+
+  @@index([createdById])
+}
+
+/// Who may use a report (owner 2026-11-22): one user (`userId`) or everyone of a role (`role`), each permission level
+/// independent — view, download, edit. Enforced by the API.
+model CustomReportGrant {
+  id          String       @id @default(uuid())
+  reportId    String
+  report      CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  /// "user:<id>" or "role:<ROLE>": unique per report.
+  grantee     String
+  userId      String?
+  user        User?        @relation("CustomReportGrantee", fields: [userId], references: [id], onDelete: Cascade)
+  role        Role?
+  canView     Boolean      @default(true)
+  canDownload Boolean      @default(false)
+  canEdit     Boolean      @default(false)
+  grantedById String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([reportId, grantee])
+  @@index([userId])
 }

@@ -41,7 +41,7 @@ SELECT (SELECT count(*) FROM "TestSubmission" WHERE "level" IS NULL)   AS submis
        (SELECT count(*) FROM "User" WHERE "divisionManual")            AS set_by_hand,
        (SELECT count(*) FROM "DivisionChange")                         AS changes;
 
--- Named for the kit's tests: 'DivisionChange' 'CourseDivision' 'DivisionChangeSource' 'sortOrder' 'suggestedGrades' 'level' 'divisionManual'
+-- Named for the kit's tests: 'DivisionChange' 'CourseDivision' 'TableLayout' 'CustomReport' 'CustomReportGrant' 'DivisionChangeSource' 'sortOrder' 'suggestedGrades' 'level' 'divisionManual'
 -- 'student_division_from_grade' 'student_division_history' 'division_for_grade' 'course_offered_in_divisions'
 
 ROLLBACK;

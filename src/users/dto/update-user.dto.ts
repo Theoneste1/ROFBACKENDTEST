@@ -12,6 +12,7 @@ import {
   Length,
   Matches,
   ValidateIf,
+  IsIn,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Gender, GradeLevel, OlympiadSubject, Role, AccountStatus } from '../../generated/prisma/client.js';
@@ -270,6 +271,8 @@ export class UpdateMeDto {
   olympiadInterestOther?: string | null;
 }
 
+export const USER_SORTS = ['name', 'email', 'role', 'grade', 'registeredAt', 'lastLoginAt'] as const;
+
 export class ListUsersQueryDto extends PaginationQueryDto {
   @IsOptional() @IsEnum(Role) role?: Role;
   /** ACTIVE, DEACTIVATED, SUSPENDED or ARCHIVED (capability accountStates). */
@@ -299,5 +302,13 @@ export class ListUsersQueryDto extends PaginationQueryDto {
   @Length(1, 100)
   @Transform(trim)
   search?: string;
+
+  /** Sort column (owner 2026-11-22): name, email, role, grade, registeredAt (default) or lastLoginAt. */
+  @IsOptional() @IsIn(USER_SORTS)
+  sort?: (typeof USER_SORTS)[number];
+
+  /** asc or desc (default desc for dates, asc otherwise). */
+  @IsOptional() @IsIn(['asc', 'desc'])
+  order?: 'asc' | 'desc';
 }
 

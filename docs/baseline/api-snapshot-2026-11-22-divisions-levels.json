@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 426,
-    "paths": 374,
-    "schemas": 159
+    "operations": 443,
+    "paths": 384,
+    "schemas": 166
   },
-  "fingerprint": "69f7b8b0dcd59dd39f0ec40b3256607047cf72fcd15b10c032979092e1d59e61",
+  "fingerprint": "1861d5ec783e09a5403095a342c3b97a71d7f7a9f9639a28649260230abbdfe0",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -13326,6 +13326,75 @@
       }
     },
     {
+      "key": "DELETE /api/v1/admin/table-layouts/{table}",
+      "operationId": "TableLayoutsController_resetOrg",
+      "tags": [
+        "table-layouts"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "table",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "PUT /api/v1/admin/table-layouts/{table}",
+      "operationId": "TableLayoutsController_saveOrg",
+      "tags": [
+        "table-layouts"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "table",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SaveTableLayoutDto"
+          }
+        }
+      },
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
       "key": "GET /api/v1/admin/teacher-applications",
       "operationId": "AdminTeacherApplicationsController_list",
       "tags": [
@@ -17450,6 +17519,18 @@
           }
         },
         {
+          "name": "order",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          }
+        },
+        {
           "name": "role",
           "in": "query",
           "required": false,
@@ -17482,6 +17563,22 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 100
+          }
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "email",
+              "grade",
+              "lastLoginAt",
+              "name",
+              "registeredAt",
+              "role"
+            ]
           }
         }
       ],
@@ -34925,6 +35022,109 @@
       }
     },
     {
+      "key": "DELETE /api/v1/me/table-layouts/{table}",
+      "operationId": "TableLayoutsController_resetMine",
+      "tags": [
+        "table-layouts"
+      ],
+      "roles": [
+        "ADMIN",
+        "HEAD_COACH",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "table",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/me/table-layouts/{table}",
+      "operationId": "TableLayoutsController_mine",
+      "tags": [
+        "table-layouts"
+      ],
+      "roles": [
+        "ADMIN",
+        "HEAD_COACH",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "table",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "PUT /api/v1/me/table-layouts/{table}",
+      "operationId": "TableLayoutsController_saveMine",
+      "tags": [
+        "table-layouts"
+      ],
+      "roles": [
+        "ADMIN",
+        "HEAD_COACH",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "table",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SaveTableLayoutDto"
+          }
+        }
+      },
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
       "key": "GET /api/v1/me/teaching",
       "operationId": "MyTeachingController_findMine",
       "tags": [
@@ -36944,6 +37144,456 @@
             "properties": {}
           }
         },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/reports",
+      "operationId": "CustomReportsController_list",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/reports",
+      "operationId": "CustomReportsController_create",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SaveReportDto"
+          }
+        }
+      },
+      "responses": {
+        "201": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/reports/preview",
+      "operationId": "CustomReportsController_preview",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "number",
+            "minimum": 1
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "ReportDefinitionDto"
+          }
+        }
+      },
+      "responses": {
+        "201": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/reports/sources",
+      "operationId": "CustomReportsController_sources",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "DELETE /api/v1/reports/{id}",
+      "operationId": "CustomReportsController_remove",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/reports/{id}",
+      "operationId": "CustomReportsController_get",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "PUT /api/v1/reports/{id}",
+      "operationId": "CustomReportsController_update",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SaveReportDto"
+          }
+        }
+      },
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/reports/{id}/export",
+      "operationId": "CustomReportsController_export",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "format",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "xlsx"
+            ]
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/reports/{id}/grants",
+      "operationId": "CustomReportsController_grants",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "PUT /api/v1/reports/{id}/grants",
+      "operationId": "CustomReportsController_setGrants",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SetReportGrantsDto"
+          }
+        }
+      },
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/reports/{id}/preview",
+      "operationId": "CustomReportsController_previewFor",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "number",
+            "minimum": 1
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "ReportDefinitionDto"
+          }
+        }
+      },
+      "responses": {
+        "201": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/reports/{id}/run",
+      "operationId": "CustomReportsController_run",
+      "tags": [
+        "custom-reports"
+      ],
+      "roles": [
+        "ADMIN",
+        "MENTOR",
+        "STUDENT"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "number",
+            "minimum": 1
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
         "default": {
           "application/json": {
             "ref": "Error"
@@ -50151,6 +50801,129 @@
         }
       }
     },
+    "ReportDefinitionDto": {
+      "type": "object",
+      "required": [
+        "columns",
+        "source"
+      ],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 40
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "ref": "ReportFilterDto"
+          },
+          "maxItems": 20
+        },
+        "sort": {
+          "type": "array",
+          "items": {
+            "ref": "ReportSortDto"
+          },
+          "maxItems": 5
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        }
+      }
+    },
+    "ReportFilterDto": {
+      "type": "object",
+      "required": [
+        "field",
+        "op"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "contains",
+            "eq",
+            "gte",
+            "in",
+            "isEmpty",
+            "isNotEmpty",
+            "lte",
+            "neq"
+          ]
+        },
+        "value": {
+          "type": "object",
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "ReportGrantDto": {
+      "type": "object",
+      "required": [
+        "canDownload",
+        "canEdit",
+        "canView"
+      ],
+      "properties": {
+        "canDownload": {
+          "type": "boolean"
+        },
+        "canEdit": {
+          "type": "boolean"
+        },
+        "canView": {
+          "type": "boolean"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "ADMIN",
+            "HEAD_COACH",
+            "MENTOR",
+            "STUDENT",
+            "SUPER_ADMIN",
+            "TEACHER"
+          ]
+        },
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "ReportSortDto": {
+      "type": "object",
+      "required": [
+        "dir",
+        "field"
+      ],
+      "properties": {
+        "dir": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        },
+        "field": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        }
+      }
+    },
     "RequestApplicationInfoDto": {
       "type": "object",
       "required": [
@@ -50359,6 +51132,58 @@
         }
       }
     },
+    "SaveReportDto": {
+      "type": "object",
+      "required": [
+        "columns",
+        "name",
+        "source"
+      ],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 40
+        },
+        "description": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "ref": "ReportFilterDto"
+          },
+          "maxItems": 20
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "sort": {
+          "type": "array",
+          "items": {
+            "ref": "ReportSortDto"
+          },
+          "maxItems": 5
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        }
+      }
+    },
+    "SaveTableLayoutDto": {
+      "type": "object",
+      "required": [],
+      "properties": {}
+    },
     "ScoreInputDto": {
       "type": "object",
       "required": [
@@ -50512,6 +51337,21 @@
             "format": "uuid"
           },
           "maxItems": 20
+        }
+      }
+    },
+    "SetReportGrantsDto": {
+      "type": "object",
+      "required": [
+        "grants"
+      ],
+      "properties": {
+        "grants": {
+          "type": "array",
+          "items": {
+            "ref": "ReportGrantDto"
+          },
+          "maxItems": 200
         }
       }
     },

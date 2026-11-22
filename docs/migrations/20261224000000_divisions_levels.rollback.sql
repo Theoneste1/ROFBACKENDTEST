@@ -58,6 +58,9 @@ DROP FUNCTION student_division_history();
 DROP FUNCTION student_division_from_grade();
 DROP FUNCTION division_for_grade(text);
 
+DROP TABLE "CustomReportGrant";
+DROP TABLE "CustomReport";
+DROP TABLE "TableLayout";
 DROP TABLE "CourseDivision";
 DROP TABLE "DivisionChange";
 DROP TYPE "DivisionChangeSource";

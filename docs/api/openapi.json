@@ -2895,6 +2895,1817 @@
         "description": "**Access:** permission `divisions.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/me/table-layouts/{table}": {
+      "get": {
+        "operationId": "TableLayoutsController_mine",
+        "parameters": [
+          {
+            "name": "table",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The effective layout (own, else organization, else built-in), its source, the organization default, every column.",
+        "tags": [
+          "table-layouts"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.view",
+        "description": "**Access:** permission `users.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "TableLayoutsController_saveMine",
+        "parameters": [
+          {
+            "name": "table",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTableLayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "table-layouts"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.view",
+        "description": "**Access:** permission `users.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "TableLayoutsController_resetMine",
+        "parameters": [
+          {
+            "name": "table",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Back to the organization default.",
+        "tags": [
+          "table-layouts"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.view",
+        "description": "**Access:** permission `users.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/table-layouts/{table}": {
+      "put": {
+        "operationId": "TableLayoutsController_saveOrg",
+        "parameters": [
+          {
+            "name": "table",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTableLayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "table-layouts"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "settings.manage",
+        "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "TableLayoutsController_resetOrg",
+        "parameters": [
+          {
+            "name": "table",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The organization default back to the built-in one.",
+        "tags": [
+          "table-layouts"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "settings.manage",
+        "description": "**Access:** permission `settings.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/reports/sources": {
+      "get": {
+        "operationId": "CustomReportsController_sources",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The sources and their fields, and the filter conditions (for the builder).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "reports.build",
+        "description": "**Access:** permission `reports.build` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "operationId": "CustomReportsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The reports the caller may open, with their levels on each.",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      },
+      "post": {
+        "operationId": "CustomReportsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "reports.build",
+        "description": "**Access:** permission `reports.build` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/reports/preview": {
+      "post": {
+        "operationId": "CustomReportsController_preview",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportDefinitionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "An unsaved definition's first rows.",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "reports.build",
+        "description": "**Access:** permission `reports.build` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/reports/{id}": {
+      "get": {
+        "operationId": "CustomReportsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      },
+      "put": {
+        "operationId": "CustomReportsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change the definition (edit level).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      },
+      "delete": {
+        "operationId": "CustomReportsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Remove it (its creator or a builder); kept for history.",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/reports/{id}/preview": {
+      "post": {
+        "operationId": "CustomReportsController_previewFor",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportDefinitionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "A changed definition's first rows (edit level).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/reports/{id}/run": {
+      "get": {
+        "operationId": "CustomReportsController_run",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The report's rows, a page at a time (view level).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/reports/{id}/export": {
+      "get": {
+        "operationId": "CustomReportsController_export",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "xlsx"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "CSV or Excel (download level).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/reports/{id}/grants": {
+      "get": {
+        "operationId": "CustomReportsController_grants",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Who has access, with their levels (its creator or a builder).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      },
+      "put": {
+        "operationId": "CustomReportsController_setGrants",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetReportGrantsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Replace who has access (its creator or a builder). Audited.",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/auth/register/student": {
+      "post": {
+        "operationId": "AuthController_registerStudent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterStudentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "avatarUrl": {
+                      "nullable": true
+                    },
+                    "country": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "dateOfBirth": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "division": {
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "gradeLevel": {
+                      "type": "string"
+                    },
+                    "guardianPhone": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "homeDistrict": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "homeLocation": {
+                      "type": "string"
+                    },
+                    "homeProvince": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "homeSector": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "lastLoginAt": {
+                      "nullable": true
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "olympiadInterests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "phone": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "points": {
+                      "type": "integer"
+                    },
+                    "problemsSolved": {
+                      "type": "integer"
+                    },
+                    "requiresApproval": {
+                      "type": "boolean"
+                    },
+                    "requiresEmailVerification": {
+                      "type": "boolean"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "school": {
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "location": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "location",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "schoolVerification": {
+                      "nullable": true,
+                      "type": "string",
+                      "enum": [
+                        "PENDING"
+                      ]
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "avatarUrl",
+                    "country",
+                    "createdAt",
+                    "dateOfBirth",
+                    "division",
+                    "email",
+                    "firstName",
+                    "gradeLevel",
+                    "guardianPhone",
+                    "homeDistrict",
+                    "homeLocation",
+                    "homeProvince",
+                    "homeSector",
+                    "id",
+                    "lastLoginAt",
+                    "lastName",
+                    "olympiadInterests",
+                    "phone",
+                    "points",
+                    "problemsSolved",
+                    "requiresApproval",
+                    "requiresEmailVerification",
+                    "role",
+                    "school",
+                    "schoolVerification",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/register/admin": {
+      "post": {
+        "operationId": "AuthController_registerAdmin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "lastName": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string"
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "email",
+                    "firstName",
+                    "id",
+                    "lastName",
+                    "role",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "expires_in": {
+                      "type": "integer"
+                    },
+                    "refresh_expires_at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "token_type": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "properties": {
+                        "avatarUrl": {
+                          "nullable": true
+                        },
+                        "country": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "dateOfBirth": {
+                          "format": "date-time",
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "division": {
+                          "nullable": true,
+                          "properties": {
+                            "code": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "id",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "gradeLevel": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "guardianPhone": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "homeDistrict": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "homeLocation": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "homeProvince": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "homeSector": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastLoginAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "olympiadInterests": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "phone": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "points": {
+                          "type": "integer"
+                        },
+                        "problemsSolved": {
+                          "type": "integer"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "school": {
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "format": "uuid",
+                              "type": "string"
+                            },
+                            "location": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "location",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "avatarUrl",
+                        "country",
+                        "createdAt",
+                        "dateOfBirth",
+                        "division",
+                        "email",
+                        "firstName",
+                        "gradeLevel",
+                        "guardianPhone",
+                        "homeDistrict",
+                        "homeLocation",
+                        "homeProvince",
+                        "homeSector",
+                        "id",
+                        "lastLoginAt",
+                        "lastName",
+                        "olympiadInterests",
+                        "phone",
+                        "points",
+                        "problemsSolved",
+                        "role",
+                        "school",
+                        "username"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "access_token",
+                    "expires_in",
+                    "refresh_expires_at",
+                    "refresh_token",
+                    "token_type",
+                    "user"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "expires_in": {
+                      "type": "integer"
+                    },
+                    "refresh_expires_at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "token_type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "access_token",
+                    "expires_in",
+                    "refresh_expires_at",
+                    "refresh_token",
+                    "token_type"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "operationId": "AuthController_logoutAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/auth/activation/inspect": {
+      "post": {
+        "operationId": "AuthController_inspectActivation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivationTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "firstName": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string"
+                    },
+                    "requiresPassword": {
+                      "type": "boolean"
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "email",
+                    "expiresAt",
+                    "firstName",
+                    "purpose",
+                    "requiresPassword",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/activate": {
+      "post": {
+        "operationId": "AuthController_activate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "username"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Activate an invited (choose a password) or unverified account.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/resend-activation": {
+      "post": {
+        "operationId": "AuthController_resendActivation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendActivationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Send a new activation link. Same answer whether or not the e-mail exists.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/forgot-password": {
+      "post": {
+        "operationId": "AuthController_forgotPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/reset-password": {
+      "post": {
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/password": {
+      "patch": {
+        "operationId": "AuthController_changePassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
     "/api/v1/academic-years": {
       "get": {
         "operationId": "AcademicYearsController_list",
@@ -4108,1048 +5919,6 @@
         ],
         "x-permission": "activity.view",
         "description": "**Access:** permission `activity.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/auth/register/student": {
-      "post": {
-        "operationId": "AuthController_registerStudent",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterStudentDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "avatarUrl": {
-                      "nullable": true
-                    },
-                    "country": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "dateOfBirth": {
-                      "format": "date-time",
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "division": {
-                      "properties": {
-                        "code": {
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "code",
-                        "id",
-                        "name"
-                      ],
-                      "type": "object"
-                    },
-                    "email": {
-                      "type": "string"
-                    },
-                    "firstName": {
-                      "type": "string"
-                    },
-                    "gradeLevel": {
-                      "type": "string"
-                    },
-                    "guardianPhone": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "homeDistrict": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "homeLocation": {
-                      "type": "string"
-                    },
-                    "homeProvince": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "homeSector": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "lastLoginAt": {
-                      "nullable": true
-                    },
-                    "lastName": {
-                      "type": "string"
-                    },
-                    "olympiadInterests": {
-                      "items": {
-                        "type": "string"
-                      },
-                      "type": "array"
-                    },
-                    "phone": {
-                      "nullable": true,
-                      "type": "string"
-                    },
-                    "points": {
-                      "type": "integer"
-                    },
-                    "problemsSolved": {
-                      "type": "integer"
-                    },
-                    "requiresApproval": {
-                      "type": "boolean"
-                    },
-                    "requiresEmailVerification": {
-                      "type": "boolean"
-                    },
-                    "role": {
-                      "type": "string"
-                    },
-                    "school": {
-                      "nullable": true,
-                      "properties": {
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "location": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "location",
-                        "name"
-                      ],
-                      "type": "object"
-                    },
-                    "schoolVerification": {
-                      "nullable": true,
-                      "type": "string",
-                      "enum": [
-                        "PENDING"
-                      ]
-                    },
-                    "username": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "avatarUrl",
-                    "country",
-                    "createdAt",
-                    "dateOfBirth",
-                    "division",
-                    "email",
-                    "firstName",
-                    "gradeLevel",
-                    "guardianPhone",
-                    "homeDistrict",
-                    "homeLocation",
-                    "homeProvince",
-                    "homeSector",
-                    "id",
-                    "lastLoginAt",
-                    "lastName",
-                    "olympiadInterests",
-                    "phone",
-                    "points",
-                    "problemsSolved",
-                    "requiresApproval",
-                    "requiresEmailVerification",
-                    "role",
-                    "school",
-                    "schoolVerification",
-                    "username"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/register/admin": {
-      "post": {
-        "operationId": "AuthController_registerAdmin",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterAdminDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "email": {
-                      "type": "string"
-                    },
-                    "firstName": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "lastName": {
-                      "type": "string"
-                    },
-                    "role": {
-                      "type": "string"
-                    },
-                    "username": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "email",
-                    "firstName",
-                    "id",
-                    "lastName",
-                    "role",
-                    "username"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "users.manage",
-        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/auth/login": {
-      "post": {
-        "operationId": "AuthController_login",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "access_token": {
-                      "type": "string"
-                    },
-                    "expires_in": {
-                      "type": "integer"
-                    },
-                    "refresh_expires_at": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "refresh_token": {
-                      "type": "string"
-                    },
-                    "token_type": {
-                      "type": "string"
-                    },
-                    "user": {
-                      "properties": {
-                        "avatarUrl": {
-                          "nullable": true
-                        },
-                        "country": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "createdAt": {
-                          "format": "date-time",
-                          "type": "string"
-                        },
-                        "dateOfBirth": {
-                          "format": "date-time",
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "division": {
-                          "nullable": true,
-                          "properties": {
-                            "code": {
-                              "type": "string"
-                            },
-                            "id": {
-                              "format": "uuid",
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "code",
-                            "id",
-                            "name"
-                          ],
-                          "type": "object"
-                        },
-                        "email": {
-                          "type": "string"
-                        },
-                        "firstName": {
-                          "type": "string"
-                        },
-                        "gradeLevel": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "guardianPhone": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "homeDistrict": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "homeLocation": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "homeProvince": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "homeSector": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "lastLoginAt": {
-                          "format": "date-time",
-                          "type": "string"
-                        },
-                        "lastName": {
-                          "type": "string"
-                        },
-                        "olympiadInterests": {
-                          "items": {
-                            "type": "string"
-                          },
-                          "type": "array"
-                        },
-                        "phone": {
-                          "nullable": true,
-                          "type": "string"
-                        },
-                        "points": {
-                          "type": "integer"
-                        },
-                        "problemsSolved": {
-                          "type": "integer"
-                        },
-                        "role": {
-                          "type": "string"
-                        },
-                        "school": {
-                          "nullable": true,
-                          "properties": {
-                            "id": {
-                              "format": "uuid",
-                              "type": "string"
-                            },
-                            "location": {
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "location",
-                            "name"
-                          ],
-                          "type": "object"
-                        },
-                        "username": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "avatarUrl",
-                        "country",
-                        "createdAt",
-                        "dateOfBirth",
-                        "division",
-                        "email",
-                        "firstName",
-                        "gradeLevel",
-                        "guardianPhone",
-                        "homeDistrict",
-                        "homeLocation",
-                        "homeProvince",
-                        "homeSector",
-                        "id",
-                        "lastLoginAt",
-                        "lastName",
-                        "olympiadInterests",
-                        "phone",
-                        "points",
-                        "problemsSolved",
-                        "role",
-                        "school",
-                        "username"
-                      ],
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "access_token",
-                    "expires_in",
-                    "refresh_expires_at",
-                    "refresh_token",
-                    "token_type",
-                    "user"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/refresh": {
-      "post": {
-        "operationId": "AuthController_refresh",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "access_token": {
-                      "type": "string"
-                    },
-                    "expires_in": {
-                      "type": "integer"
-                    },
-                    "refresh_expires_at": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "refresh_token": {
-                      "type": "string"
-                    },
-                    "token_type": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "access_token",
-                    "expires_in",
-                    "refresh_expires_at",
-                    "refresh_token",
-                    "token_type"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/logout": {
-      "post": {
-        "operationId": "AuthController_logout",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RefreshTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/logout-all": {
-      "post": {
-        "operationId": "AuthController_logoutAll",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
-        ],
-        "description": "**Access:** Any signed-in user"
-      }
-    },
-    "/api/v1/auth/activation/inspect": {
-      "post": {
-        "operationId": "AuthController_inspectActivation",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ActivationTokenDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "email": {
-                      "type": "string"
-                    },
-                    "expiresAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "firstName": {
-                      "type": "string"
-                    },
-                    "purpose": {
-                      "type": "string"
-                    },
-                    "requiresPassword": {
-                      "type": "boolean"
-                    },
-                    "username": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "email",
-                    "expiresAt",
-                    "firstName",
-                    "purpose",
-                    "requiresPassword",
-                    "username"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/activate": {
-      "post": {
-        "operationId": "AuthController_activate",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ActivateAccountDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    },
-                    "username": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message",
-                    "username"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Activate an invited (choose a password) or unverified account.",
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/resend-activation": {
-      "post": {
-        "operationId": "AuthController_resendActivation",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResendActivationDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Send a new activation link. Same answer whether or not the e-mail exists.",
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/forgot-password": {
-      "post": {
-        "operationId": "AuthController_forgotPassword",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ForgotPasswordDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/reset-password": {
-      "post": {
-        "operationId": "AuthController_resetPassword",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ResetPasswordDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "PUBLIC"
-        ],
-        "description": "**Access:** Public (no token)",
-        "security": []
-      }
-    },
-    "/api/v1/auth/password": {
-      "patch": {
-        "operationId": "AuthController_changePassword",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChangePasswordDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "tags": [
-          "Auth"
-        ],
-        "x-roles": [
-          "STUDENT",
-          "MENTOR",
-          "ADMIN"
-        ],
-        "description": "**Access:** Any signed-in user"
       }
     },
     "/api/v1/admin/users/{id}/permission-overrides": {
@@ -8734,6 +9503,36 @@
               "minLength": 1,
               "maxLength": 100,
               "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "Sort column (owner 2026-11-22): name, email, role, grade, registeredAt (default) or lastLoginAt.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "email",
+                "role",
+                "grade",
+                "registeredAt",
+                "lastLoginAt"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "description": "asc or desc (default desc for dates, asc otherwise).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
             }
           }
         ],
@@ -52861,92 +53660,193 @@
           }
         }
       },
-      "CreateAcademicYearDto": {
+      "SaveTableLayoutDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "ReportFilterDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "eq",
+              "neq",
+              "in",
+              "contains",
+              "gte",
+              "lte",
+              "isEmpty",
+              "isNotEmpty"
+            ]
+          },
+          "value": {
+            "type": "object",
+            "description": "Text, a date (ISO), true / false, or a list of values (for \"in\")."
+          }
+        },
+        "required": [
+          "field",
+          "op"
+        ]
+      },
+      "ReportSortDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "dir": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "dir"
+        ]
+      },
+      "SaveReportDto": {
         "type": "object",
         "properties": {
           "name": {
             "type": "string",
-            "description": "e.g. \"2027-2028\".",
-            "minLength": 4,
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 1000
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
             "maxLength": 30
           },
-          "startsOn": {
-            "type": "string",
-            "description": "First day (YYYY-MM-DD)."
+          "columns": {
+            "minItems": 1,
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
-          "endsOn": {
-            "type": "string",
-            "description": "Last day (YYYY-MM-DD)."
+          "filters": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportFilterDto"
+            }
+          },
+          "sort": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportSortDto"
+            }
           }
         },
         "required": [
           "name",
-          "startsOn",
-          "endsOn"
+          "source",
+          "columns"
         ]
       },
-      "UpdateAcademicYearDto": {
+      "ReportDefinitionDto": {
         "type": "object",
         "properties": {
-          "name": {
+          "source": {
             "type": "string",
-            "minLength": 4,
+            "minLength": 1,
             "maxLength": 30
           },
-          "startsOn": {
-            "type": "string"
+          "columns": {
+            "minItems": 1,
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
-          "endsOn": {
-            "type": "string"
-          }
-        }
-      },
-      "ActivateAcademicYearDto": {
-        "type": "object",
-        "properties": {
-          "promoteStudents": {
-            "type": "boolean",
-            "description": "Move every active student up one grade (true at the start of a new school year)."
+          "filters": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportFilterDto"
+            }
           },
-          "deactivateGraduates": {
-            "type": "boolean",
-            "description": "When promoting, deactivate S6 students who graduate (default true)."
-          },
-          "expectedCurrentYearId": {
-            "type": "string",
-            "nullable": true,
-            "description": "REQUIRED: the academic year the caller saw as current (null: none). When the current year is\nnow another one (another start went through meanwhile), the start is refused with\n409 CURRENT_YEAR_CHANGED instead of closing a year the caller never saw and rolling students\nover a second time. Required so that no client can start a year blind.",
-            "format": "uuid"
+          "sort": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportSortDto"
+            }
           }
         },
         "required": [
-          "promoteStudents",
-          "expectedCurrentYearId"
+          "source",
+          "columns"
         ]
       },
-      "UpdateEnrollmentDto": {
+      "ReportGrantDto": {
         "type": "object",
         "properties": {
-          "gradeLevel": {
+          "userId": {
             "type": "string",
-            "description": "Correct the student's grade in the current year (moves division if needed).",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
             "enum": [
-              "S1",
-              "S2",
-              "S3",
-              "S4",
-              "S5",
-              "S6"
+              "STUDENT",
+              "MENTOR",
+              "ADMIN",
+              "TEACHER",
+              "HEAD_COACH",
+              "SUPER_ADMIN"
             ]
           },
-          "status": {
-            "type": "string",
-            "description": "WITHDRAWN ends the enrolment and suspends the account.",
-            "enum": [
-              "WITHDRAWN"
-            ]
+          "canView": {
+            "type": "boolean"
+          },
+          "canDownload": {
+            "type": "boolean"
+          },
+          "canEdit": {
+            "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "canView",
+          "canDownload",
+          "canEdit"
+        ]
+      },
+      "SetReportGrantsDto": {
+        "type": "object",
+        "properties": {
+          "grants": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportGrantDto"
+            }
+          }
+        },
+        "required": [
+          "grants"
+        ]
       },
       "RegisterStudentDto": {
         "type": "object",
@@ -53258,6 +54158,93 @@
           "currentPassword",
           "newPassword"
         ]
+      },
+      "CreateAcademicYearDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "e.g. \"2027-2028\".",
+            "minLength": 4,
+            "maxLength": 30
+          },
+          "startsOn": {
+            "type": "string",
+            "description": "First day (YYYY-MM-DD)."
+          },
+          "endsOn": {
+            "type": "string",
+            "description": "Last day (YYYY-MM-DD)."
+          }
+        },
+        "required": [
+          "name",
+          "startsOn",
+          "endsOn"
+        ]
+      },
+      "UpdateAcademicYearDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 30
+          },
+          "startsOn": {
+            "type": "string"
+          },
+          "endsOn": {
+            "type": "string"
+          }
+        }
+      },
+      "ActivateAcademicYearDto": {
+        "type": "object",
+        "properties": {
+          "promoteStudents": {
+            "type": "boolean",
+            "description": "Move every active student up one grade (true at the start of a new school year)."
+          },
+          "deactivateGraduates": {
+            "type": "boolean",
+            "description": "When promoting, deactivate S6 students who graduate (default true)."
+          },
+          "expectedCurrentYearId": {
+            "type": "string",
+            "nullable": true,
+            "description": "REQUIRED: the academic year the caller saw as current (null: none). When the current year is\nnow another one (another start went through meanwhile), the start is refused with\n409 CURRENT_YEAR_CHANGED instead of closing a year the caller never saw and rolling students\nover a second time. Required so that no client can start a year blind.",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "promoteStudents",
+          "expectedCurrentYearId"
+        ]
+      },
+      "UpdateEnrollmentDto": {
+        "type": "object",
+        "properties": {
+          "gradeLevel": {
+            "type": "string",
+            "description": "Correct the student's grade in the current year (moves division if needed).",
+            "enum": [
+              "S1",
+              "S2",
+              "S3",
+              "S4",
+              "S5",
+              "S6"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "WITHDRAWN ends the enrolment and suspends the account.",
+            "enum": [
+              "WITHDRAWN"
+            ]
+          }
+        }
       },
       "CreateOverrideDto": {
         "type": "object",
