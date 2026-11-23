@@ -4,15 +4,22 @@ import { PermissionService } from './permission.service.js';
 import { APP_ROLES, NEVER_GRANTABLE, PERMISSIONS, ROLE_GRANTS } from './permissions.js';
 
 describe('approved override list (plan §6.3)', () => {
-  it('GRANT: only for TEACHER — the three P1-11 teacher delegations (assignments.prepare removed 2026-11-14)', () => {
+  it('GRANT: the three P1-11 teacher delegations for TEACHER (assignments.prepare removed 2026-11-14); users.impersonate for HEAD_COACH only (view as, 2026-11-23)', () => {
     const TEACHER_GRANTS = ['students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'];
-    expect(GRANTABLE).toEqual({ TEACHER: TEACHER_GRANTS });
+    const HEAD_COACH_GRANTS = ['users.impersonate'];
+    expect(GRANTABLE).toEqual({ TEACHER: TEACHER_GRANTS, HEAD_COACH: HEAD_COACH_GRANTS });
     for (const role of APP_ROLES) {
       for (const p of PERMISSIONS) {
-        const ok = role === 'TEACHER' && TEACHER_GRANTS.includes(p);
+        const ok = (role === 'TEACHER' && TEACHER_GRANTS.includes(p)) || (role === 'HEAD_COACH' && HEAD_COACH_GRANTS.includes(p));
         expect([role, p, overrideRefusal(role, p, 'GRANT') === null]).toEqual([role, p, ok]);
       }
     }
+  });
+
+  it('users.impersonate (view as) is never grantable to a Student, Teacher or Coach; deniable for Administrators', () => {
+    for (const role of ['STUDENT', 'TEACHER', 'MENTOR']) expect(overrideRefusal(role, 'users.impersonate', 'GRANT')).not.toBeNull();
+    expect(overrideRefusal('ADMIN', 'users.impersonate', 'DENY')).toBeNull();
+    expect(overrideRefusal('SUPER_ADMIN', 'users.impersonate', 'DENY')).not.toBeNull();
   });
 
   it('never-grantable permissions are refused for every role', () => {
@@ -63,6 +70,14 @@ describe('override evaluation in PermissionService.effective (plan §6.4)', () =
     expect(service.has(user('MENTOR', [o('users.manage', 'GRANT')]), 'users.manage')).toBe(false);
     expect(service.has(user('TEACHER', [o('reviews.grade', 'GRANT')]), 'reviews.grade')).toBe(false);
     expect(service.has(user('STUDENT', [o('assignments.prepare', 'GRANT')]), 'assignments.prepare')).toBe(false);
+  });
+
+  it('view as: a Head Coach GRANT of users.impersonate applies everywhere (global); an Administrator DENY removes it', () => {
+    expect(service.has(user('HEAD_COACH', []), 'users.impersonate')).toBe(false);
+    expect(service.scopeOf(user('HEAD_COACH', [o('users.impersonate', 'GRANT')]), 'users.impersonate')).toBe('global');
+    expect(service.has(user('MENTOR', [o('users.impersonate', 'GRANT')]), 'users.impersonate')).toBe(false);
+    expect(service.has(user('ADMIN', []), 'users.impersonate')).toBe(true);
+    expect(service.has(user('ADMIN', [o('users.impersonate', 'DENY')]), 'users.impersonate')).toBe(false);
   });
 
   it('no override ever applies to a SUPER_ADMIN or an unknown role; RS1 still holds for administrators', () => {

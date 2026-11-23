@@ -35,6 +35,9 @@ import type { AuthUser } from '../common/auth-user.js';
 import type { ClientInfo, IssuedTokens } from './token.service.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 import { AllowedBeforeDateOfBirth } from '../common/decorators/date-of-birth-step.decorator.js';
+import { AllowedWhileViewing } from './view-as/allowed-while-viewing.decorator.js';
+import { bearerClaimsViewAs } from './view-as/view-as.errors.js';
+import { ViewAsService } from './view-as/view-as.service.js';
 
 export const REFRESH_COOKIE = 'rof_refresh';
 
@@ -50,6 +53,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly config:      ConfigService,
     private readonly activation:  ActivationService,
+    private readonly viewAs:      ViewAsService,
   ) {}
 
   // ─── Student self-registration (public) ────────────────────────────────────
@@ -116,6 +120,7 @@ export class AuthController {
    * revoke (a repeated or stale sign-out), so a client can always finish.
    */
   @Public()
+  @AllowedWhileViewing()
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(200)
   @Post('logout')
@@ -124,6 +129,12 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    // Sign-out of a "view as" tab: only the viewing session ends. The browser also sends the VIEWER's own refresh
+    // cookie (same site), which must never be revoked or cleared here.
+    if (bearerClaimsViewAs(req)) {
+      await this.viewAs.endFromToken(bearerToken(req));
+      return { message: 'The viewing session has ended.' };
+    }
     await this.authService.logout({
       refreshToken: body.refreshToken ?? req.cookies?.[REFRESH_COOKIE],
       accessToken:  bearerToken(req),

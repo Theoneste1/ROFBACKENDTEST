@@ -1930,6 +1930,15 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/view-as",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/users/bulk",
     "roles": [
@@ -2316,6 +2325,22 @@
   {
     "method": "POST",
     "path": "/api/v1/auth/reset-password",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/view-as/end",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/view-as/exchange",
     "roles": [
       "PUBLIC"
     ],

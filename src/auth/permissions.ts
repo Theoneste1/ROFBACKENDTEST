@@ -129,6 +129,10 @@ export const PERMISSIONS = [
   'reports.build',               // build custom reports (any source), see and manage every report and who may use it
                                  // (view / download / edit grants): Administrators (global). Shared reports need no
                                  // permission: their grants decide (src/custom-reports)
+  // ── View as (owner 2026-11-23) ──
+  'users.impersonate',           // view the platform exactly as a LOWER-ranked user sees it, READ ONLY (src/auth/view-as):
+                                 // Administrators and Super Admins by default; grantable to a Head Coach by an individual
+                                 // override (then Students, Teachers and Coaches only); removable per user (DENY)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -196,6 +200,8 @@ const ADMIN_GRANTS: Grants = {
   'students.classifyLevel': 'global',
   // Custom reports (owner 2026-11-22): build reports and share them.
   'reports.build': 'global',
+  // View as, read only (owner 2026-11-23): lower-ranked users only (view-as.rules.ts).
+  'users.impersonate': 'global',
 };
 
 /**
@@ -291,6 +297,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
     'students.classifyLevel': 'global',
     'reports.build': 'global',
+    'users.impersonate': 'global',
   },
 };
 
@@ -388,6 +395,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'students.classifyLevel',
     // appended 2026-11-22 (owner): custom reports — build and share
     'reports.build',
+    // appended 2026-11-23 (owner): view as another (lower-ranked) user, read only
+    'users.impersonate',
   ],
 };
 

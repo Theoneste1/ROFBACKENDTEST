@@ -24,6 +24,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { isAdmin } from '../common/access/roles.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { AuditService } from './audit.service.js';
+import { allowWritesWhileViewing } from '../common/request-context.js';
 
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -49,11 +50,13 @@ export class AdminRequestAuditMiddleware implements NestMiddleware {
   private async record(req: AuditedRequest, res: Response): Promise<void> {
     try {
       const user = req.user;
-      if (!user || !isAdmin(user)) return;
+      // "View as": the request is the VIEWER's (refused as read only); recorded under them when they are an administrator.
+      const actor = user?.viewAs ? { id: user.viewAs.actor.id, role: user.viewAs.actor.role } : user;
+      if (!user || !actor || !isAdmin(actor)) return;
       const params: Record<string, string> = {};
       for (const [k, v] of Object.entries(req.params ?? {})) params[k] = RECORDED_PARAMS.has(k) ? String(v) : '[omitted]';
-      await this.audit.log({
-        actorId: user.id, actorRole: user.role,
+      await allowWritesWhileViewing(() => this.audit.log({
+        actorId: actor.id, actorRole: actor.role,
         action: 'ADMIN_REQUEST', entity: 'Request',
         metadata: {
           method:    req.method,
@@ -61,8 +64,9 @@ export class AdminRequestAuditMiddleware implements NestMiddleware {
           params,
           outcome:   res.statusCode,
           requestId: req.id ?? null,
+          ...(user.viewAs && { viewingAs: { userId: user.id, sessionId: user.viewAs.sessionId } }),
         },
-      });
+      }));
     } catch (err) {
       this.logger.error(`Could not record the administrator request audit row: ${(err as Error).message}`);
     }

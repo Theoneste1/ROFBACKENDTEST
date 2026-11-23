@@ -97,6 +97,8 @@ export const AUDIT_CATEGORIES = {
   SECURITY: [
     'LOGIN', 'LOGOUT', 'LOGOUT_ALL_SESSIONS', 'CHANGE_PASSWORD', 'REQUEST_PASSWORD_RESET', 'RESET_PASSWORD', 'LOCK_ACCOUNT',
   ],
+  /** "View as", read only (owner 2026-11-23): an administrator viewing the platform as another user. */
+  VIEW_AS: ['VIEW_AS_STARTED', 'VIEW_AS_ENDED'],
   DATA_EXPORTS: ['EXPORT_REPORT', 'EXPORT_AUDIT_LOG', 'CREATE_EMAIL_JOB', 'RETRY_EMAIL_JOB', 'RETRY_EMAIL_DELIVERY', 'RETRY_NOTIFICATION_DELIVERY'],
   /** The study-groups module is switched off; kept so earlier entries stay categorised. */
   STUDY_GROUPS: [

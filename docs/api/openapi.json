@@ -4706,6 +4706,131 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/admin/users/{id}/view-as": {
+      "post": {
+        "operationId": "ViewAsAdminController_start",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartViewAsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Start viewing the platform as this user, READ ONLY. Returns { ticket, expiresAt }: a single-use ticket valid for\n60 seconds, exchanged by the new tab at POST /auth/view-as/exchange. 403 VIEW_AS_NOT_ALLOWED (yourself, a Super\nAdministrator, a role not lower than yours), 404 for an unknown user. Audited (VIEW_AS_STARTED, with the reason).",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.impersonate",
+        "description": "**Access:** permission `users.impersonate` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/auth/view-as/exchange": {
+      "post": {
+        "operationId": "ViewAsAuthController_exchange",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExchangeViewAsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Exchange a ticket (once, within 60 seconds) for a viewing access token: { accessToken, tokenType, expiresAt,\nviewAs: { sessionId, actor, target, expiresAt } }. 30 minutes, no refresh token, no cookie; every change is refused\nwith it (403 VIEW_AS_READ_ONLY). 403 VIEW_AS_NOT_ALLOWED for an unknown, used or expired ticket.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/auth/view-as/end": {
+      "post": {
+        "operationId": "ViewAsAuthController_end",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "End the viewing session of the bearer viewing token (also after it expired). Audited (VIEW_AS_ENDED). Never\ntouches the viewer's own session or cookie. Idempotent; 200 also when there was nothing to end.",
+        "tags": [
+          "Auth"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
     "/api/v1/academic-years": {
       "get": {
         "operationId": "AcademicYearsController_list",
@@ -54170,6 +54295,30 @@
         "required": [
           "currentPassword",
           "newPassword"
+        ]
+      },
+      "StartViewAsDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Why the administrator is viewing as this user (optional, kept in the audit log).",
+            "maxLength": 500
+          }
+        }
+      },
+      "ExchangeViewAsDto": {
+        "type": "object",
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "description": "The single-use ticket returned by POST /admin/users/:id/view-as.",
+            "minLength": 20,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "ticket"
         ]
       },
       "CreateAcademicYearDto": {

@@ -49,6 +49,7 @@ import { deriveStudentDisplayStatus } from '../submissions/student-display-statu
 import { CreateAssignmentDto, ListAssignmentsDto, MyAssignmentsQueryDto, type MyAssignmentProgress } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { CloseAssignmentDto, RejectAssignmentDto, ReopenAssignmentDto } from './dto/reject-assignment.dto.js';
+import { isViewing } from '../common/request-context.js';
 
 const EDITABLE_STATUSES: AssignmentStatus[] = ['DRAFT', 'REJECTED'];
 
@@ -767,6 +768,8 @@ export class AssignmentsService {
 
   /** Records that a student opened the assignment (drives "New" vs "Opened"). */
   private async recordView(assignmentId: string, studentId: string): Promise<void> {
+    // "View as" (read only): an administrator's look is not the student's view.
+    if (isViewing()) return;
     try {
       const now = new Date();
       await this.prisma.assignmentView.upsert({

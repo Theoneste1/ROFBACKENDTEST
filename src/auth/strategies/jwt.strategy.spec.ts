@@ -44,7 +44,7 @@ describe('JwtStrategy.validate — revoked sessions', () => {
     tokenBlacklist: { findUnique: async () => null },
     user:           { findUnique: async () => user },
   };
-  const strategy = new JwtStrategy({ getOrThrow: () => 'x'.repeat(40) } as never, prisma as never);
+  const strategy = new JwtStrategy({ getOrThrow: () => 'x'.repeat(40) } as never, prisma as never, {} as never);
 
   it('rejects (401) a same-second token issued before the role change', async () => {
     await expect(strategy.validate({ sub: 'u1', jti: 'j', iat: Math.floor(revokedAt.getTime() / 1000), iatMs: revokedAt.getTime() - 100 }))

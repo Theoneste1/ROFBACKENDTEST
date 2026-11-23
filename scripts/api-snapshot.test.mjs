@@ -335,7 +335,13 @@ const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-division
  * against the Olympiad levels snapshot.
  */
 const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
+/**
+ * View as, read only (owner, 2026-11-23): an administrator starts viewing as a lower-ranked user (a single-use ticket),
+ * the viewing tab exchanges it for a 30-minute viewing token and ends the session. Additive only against the school
+ * codes snapshot.
+ */
+const VIEW_AS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-view-as.json';
+const CURRENT_SNAPSHOT = VIEW_AS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1789,6 +1795,21 @@ describe('approved API contract history', () => {
       'schema GenericBulkExportDto: added',
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
+    ]);
+  });
+
+  test('the school code is the identifier → view as, read only (2026-11-23): additive only — three operations, two request schemas', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, VIEW_AS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(VIEW_AS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/admin/users/{id}/view-as: operation added',
+      'POST /api/v1/auth/view-as/end: operation added',
+      'POST /api/v1/auth/view-as/exchange: operation added',
+      'schema ExchangeViewAsDto: added',
+      'schema StartViewAsDto: added',
     ]);
   });
 
