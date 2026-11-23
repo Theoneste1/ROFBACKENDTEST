@@ -50,7 +50,7 @@ describe('PermissionService', () => {
   });
 
   describe('course homework by teachers (owner 2026-11-24): defaults, the switch (DENY) and older delegations (GRANT)', () => {
-    const o = (permission: string, effect: 'GRANT' | 'DENY') => ({ id: `${permission}-${effect}`, permission, effect, courseId: null, divisionId: null, expiresAt: null });
+    const o = (permission: string, effect: 'GRANT' | 'DENY') => ({ id: `${permission}-${effect}`, permission, effect, courseId: null, divisionId: null, expiresAt: null as Date | null });
     const teacher = (...overrides: ReturnType<typeof o>[]) => ({ ...user('TEACHER'), overrides });
     const HW = ['students.viewProgress', 'submissions.submitOnBehalf'] as const;
 
