@@ -1129,6 +1129,123 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/subscribers",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscribers/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/subscribers/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/export",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/import",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/mailings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/mailings/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings/{id}/cancel",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings/preview",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings/test",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/summary",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/schools/{id}/access",
     "roles": [
       "ADMIN",
@@ -3412,6 +3529,30 @@
   {
     "method": "GET",
     "path": "/api/v1/public/statistics",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/subscribe",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/unsubscribe",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/unsubscribe/one-click",
     "roles": [
       "PUBLIC"
     ],

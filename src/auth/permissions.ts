@@ -136,6 +136,9 @@ export const PERMISSIONS = [
   //    taken away per coach and programme by an Administrator or the programme's Head Coach (CoachProgrammeRestriction) ──
   'students.viewProgramme',      // the students of their programmes (name, level, school, subjects; never contacts)
   'tests.viewProgrammeResults',  // the PUBLISHED results of their programmes' tests (no ranks, codes or markers)
+  // ── News subscribers (owner 2026-11-23) ──
+  'subscribers.manage',          // the news mailing list: see, export, add, import, edit, unsubscribe, erase; compose and send
+                                 // mailings to subscribers (Administrators, global)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -203,6 +206,8 @@ const ADMIN_GRANTS: Grants = {
   'students.classifyLevel': 'global',
   // Custom reports (owner 2026-11-22): build reports and share them.
   'reports.build': 'global',
+  // News subscribers (owner 2026-11-23): the mailing list and mailings.
+  'subscribers.manage': 'global',
 };
 
 /**
@@ -302,6 +307,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'reports.build': 'global',
     // Registration data (owner 2026-11-23): Super Administrators only.
     'registrationData.manage': 'global',
+    'subscribers.manage': 'global',
   },
 };
 
@@ -404,6 +410,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'students.classifyLevel',
     // appended 2026-11-22 (owner): custom reports — build and share
     'reports.build',
+    // appended 2026-11-23 (owner): news subscribers — the mailing list and mailings
+    'subscribers.manage',
   ],
 };
 

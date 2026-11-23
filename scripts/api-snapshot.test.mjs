@@ -358,6 +358,11 @@ const SCHOOL_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-fi
  */
 const FORM_EMAIL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-form-email-verification.json';
 /**
+ * News subscribers (owner, 2026-11-23): public subscribe / unsubscribe (incl. RFC 8058 one-click) and /admin/subscribers
+ * (list, summary, export, add, import, edit, erase, mailings). Additive only against the school-codes snapshot.
+ */
+const SUBSCRIBERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-subscribers.json';
+/**
  * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
  */
 const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
@@ -1910,6 +1915,40 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, ['PATCH /api/v1/admin/forms/{key}/availability › request application/json.requireEmailVerification: new optional field']);
   });
 
+  test('the school code is the identifier → news subscribers (2026-11-23): additive only — 16 routes, 8 request schemas, no existing field changed', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SUBSCRIBERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SUBSCRIBERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      "DELETE /api/v1/admin/subscribers/{id}: operation added",
+      "GET /api/v1/admin/subscribers/export: operation added",
+      "GET /api/v1/admin/subscribers/mailings/{id}: operation added",
+      "GET /api/v1/admin/subscribers/mailings: operation added",
+      "GET /api/v1/admin/subscribers/summary: operation added",
+      "GET /api/v1/admin/subscribers: operation added",
+      "PATCH /api/v1/admin/subscribers/{id}: operation added",
+      "POST /api/v1/admin/subscribers/import: operation added",
+      "POST /api/v1/admin/subscribers/mailings/preview: operation added",
+      "POST /api/v1/admin/subscribers/mailings/test: operation added",
+      "POST /api/v1/admin/subscribers/mailings/{id}/cancel: operation added",
+      "POST /api/v1/admin/subscribers/mailings: operation added",
+      "POST /api/v1/admin/subscribers: operation added",
+      "POST /api/v1/public/subscribe: operation added",
+      "POST /api/v1/public/unsubscribe/one-click: operation added",
+      "POST /api/v1/public/unsubscribe: operation added",
+      "schema AudienceDto: added",
+      "schema CreateMailingDto: added",
+      "schema CreateSubscriberDto: added",
+      "schema MailingAudienceDto: added",
+      "schema SubscribeDto: added",
+      "schema TestMailingDto: added",
+      "schema UnsubscribeDto: added",
+      "schema UpdateSubscriberDto: added",
+    ]);
+  });
+
   test('the school code is the identifier → integration of the 2026-11-23 branches (audit 2026-11-24): nothing breaking, nothing for review; every branch snapshot is contained', () => {
     for (const f of [SCHOOL_CODES_SNAPSHOT, INTEGRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const base = JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8'));
@@ -1918,7 +1957,7 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     // Each branch's own additions are all present together.
-    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT]) {
+    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT, SUBSCRIBERS_SNAPSHOT]) {
       const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
       assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
     }

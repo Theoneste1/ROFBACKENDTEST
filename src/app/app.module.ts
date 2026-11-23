@@ -29,6 +29,7 @@ import { TableLayoutsModule } from '../table-layouts/table-layouts.module.js';
 import { RegistrationDataModule } from '../registration-data/registration-data.module.js';
 import { CoachAccessModule } from '../coach-access/coach-access.module.js';
 import { CustomReportsModule } from '../custom-reports/custom-reports.module.js';
+import { SubscribersModule } from '../subscribers/subscribers.module.js';
 import { AcademicYearsModule } from '../academic-years/academic-years.module.js';
 import { ActivityModule } from '../activity/activity.module.js';
 import { AuthModule } from '../auth/auth.module.js';
@@ -110,6 +111,7 @@ import { TestManagementModule } from '../test-management/test-management.module.
     RegistrationDataModule,
     CoachAccessModule,
     CustomReportsModule,
+    SubscribersModule,
     AcademicYearsModule,
     ActivityModule,
 

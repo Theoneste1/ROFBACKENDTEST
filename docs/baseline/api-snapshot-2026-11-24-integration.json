@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 461,
-    "paths": 396,
-    "schemas": 172
+    "operations": 477,
+    "paths": 409,
+    "schemas": 180
   },
-  "fingerprint": "e3cc754ed19dfd1e7802b8c87f25bb70bd5cfb58eeb78553a660777699cc6a8e",
+  "fingerprint": "81ff40ee41ce5202d568462f17ed33f6ee231c179ed8b65c2fc40b59d5805f0b",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -13897,6 +13897,1528 @@
       },
       "responses": {
         "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/admin/subscribers",
+      "operationId": "AdminSubscribersController_list",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "country",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "interest",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "COMPUTING",
+              "MATHEMATICS",
+              "PHYSICS"
+            ]
+          }
+        },
+        {
+          "name": "kind",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "OTHER",
+              "PARENT",
+              "SCHOOL",
+              "STUDENT",
+              "TEACHER"
+            ]
+          }
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "email",
+              "name",
+              "newest",
+              "oldest"
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "IMPORT",
+              "WEBSITE"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "UNSUBSCRIBED"
+            ]
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "data",
+              "meta"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "country",
+                    "createdAt",
+                    "email",
+                    "fullName",
+                    "id",
+                    "interests",
+                    "kind",
+                    "source",
+                    "status",
+                    "subscribedAt",
+                    "unsubscribeReason",
+                    "unsubscribedAt",
+                    "updatedAt",
+                    "userId"
+                  ],
+                  "properties": {
+                    "country": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "interests": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "kind": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subscribedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "unsubscribeReason": {
+                      "nullable": true,
+                      "type": "any"
+                    },
+                    "unsubscribedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "userId": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              },
+              "meta": {
+                "type": "object",
+                "required": [
+                  "limit",
+                  "page",
+                  "total",
+                  "totalPages"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer"
+                  },
+                  "page": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "totalPages": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/subscribers",
+      "operationId": "AdminSubscribersController_create",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "CreateSubscriberDto"
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "country",
+              "createdAt",
+              "email",
+              "fullName",
+              "id",
+              "interests",
+              "kind",
+              "source",
+              "status",
+              "subscribedAt",
+              "unsubscribeReason",
+              "unsubscribedAt",
+              "updatedAt",
+              "userId"
+            ],
+            "properties": {
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "email": {
+                "type": "string"
+              },
+              "fullName": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "interests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "nullable": true,
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subscribedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "unsubscribeReason": {
+                "nullable": true,
+                "type": "any"
+              },
+              "unsubscribedAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "userId": {
+                "nullable": true,
+                "type": "any"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/admin/subscribers/export",
+      "operationId": "AdminSubscribersController_export",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "country",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "interest",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "COMPUTING",
+              "MATHEMATICS",
+              "PHYSICS"
+            ]
+          }
+        },
+        {
+          "name": "kind",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "OTHER",
+              "PARENT",
+              "SCHOOL",
+              "STUDENT",
+              "TEACHER"
+            ]
+          }
+        },
+        {
+          "name": "q",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "email",
+              "name",
+              "newest",
+              "oldest"
+            ]
+          }
+        },
+        {
+          "name": "source",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "IMPORT",
+              "WEBSITE"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "UNSUBSCRIBED"
+            ]
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/subscribers/import",
+      "operationId": "AdminSubscribersController_import",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "dryRun",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "alreadyListed",
+              "dryRun",
+              "invalid",
+              "problems",
+              "problemsTruncated",
+              "rows",
+              "unsubscribed",
+              "wouldAdd"
+            ],
+            "properties": {
+              "alreadyListed": {
+                "type": "integer"
+              },
+              "dryRun": {
+                "type": "boolean"
+              },
+              "invalid": {
+                "type": "integer"
+              },
+              "problems": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "line",
+                    "problem"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer"
+                    },
+                    "problem": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "problemsTruncated": {
+                "type": "boolean"
+              },
+              "rows": {
+                "type": "integer"
+              },
+              "unsubscribed": {
+                "type": "integer"
+              },
+              "wouldAdd": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "201": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "added",
+              "alreadyListed",
+              "dryRun",
+              "invalid",
+              "problems",
+              "problemsTruncated",
+              "rows",
+              "unsubscribed"
+            ],
+            "properties": {
+              "added": {
+                "type": "integer"
+              },
+              "alreadyListed": {
+                "type": "integer"
+              },
+              "dryRun": {
+                "type": "boolean"
+              },
+              "invalid": {
+                "type": "integer"
+              },
+              "problems": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "line",
+                    "problem"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer"
+                    },
+                    "problem": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "problemsTruncated": {
+                "type": "boolean"
+              },
+              "rows": {
+                "type": "integer"
+              },
+              "unsubscribed": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/admin/subscribers/mailings",
+      "operationId": "AdminSubscribersController_listMailings",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "data",
+              "meta"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "audience",
+                    "cancelledAt",
+                    "cancelledCount",
+                    "createdAt",
+                    "createdBy",
+                    "emailJobId",
+                    "failedCount",
+                    "id",
+                    "pendingCount",
+                    "recipientCount",
+                    "sendsAfter",
+                    "sentAt",
+                    "sentCount",
+                    "status",
+                    "subject"
+                  ],
+                  "properties": {
+                    "audience": {
+                      "type": "object",
+                      "required": [
+                        "interests"
+                      ],
+                      "properties": {
+                        "interests": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "cancelledAt": {
+                      "nullable": true,
+                      "type": "any"
+                    },
+                    "cancelledCount": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "createdBy": {
+                      "type": "object",
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "username"
+                      ],
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "emailJobId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "failedCount": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "pendingCount": {
+                      "type": "integer"
+                    },
+                    "recipientCount": {
+                      "type": "integer"
+                    },
+                    "sendsAfter": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sentCount": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "meta": {
+                "type": "object",
+                "required": [
+                  "limit",
+                  "page",
+                  "total",
+                  "totalPages"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer"
+                  },
+                  "page": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "totalPages": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/subscribers/mailings",
+      "operationId": "AdminSubscribersController_createMailing",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "CreateMailingDto"
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "alreadyExisted",
+              "audience",
+              "body",
+              "cancelledAt",
+              "cancelledCount",
+              "createdAt",
+              "createdBy",
+              "emailJobId",
+              "failedCount",
+              "id",
+              "pendingCount",
+              "recipientCount",
+              "sendsAfter",
+              "sentAt",
+              "sentCount",
+              "status",
+              "subject"
+            ],
+            "properties": {
+              "alreadyExisted": {
+                "type": "boolean"
+              },
+              "audience": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "interests": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "cancelledAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "cancelledCount": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdBy": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "id",
+                  "lastName",
+                  "username"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              },
+              "emailJobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "failedCount": {
+                "type": "integer"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pendingCount": {
+                "type": "integer"
+              },
+              "recipientCount": {
+                "type": "integer"
+              },
+              "sendsAfter": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "sentCount": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/subscribers/mailings/preview",
+      "operationId": "AdminSubscribersController_preview",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "MailingAudienceDto"
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "audience",
+              "recipients"
+            ],
+            "properties": {
+              "audience": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "countries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "interests": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "kinds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "recipients": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/subscribers/mailings/test",
+      "operationId": "AdminSubscribersController_sendTest",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "TestMailingDto"
+          }
+        }
+      },
+      "responses": {
+        "202": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "sentTo"
+            ],
+            "properties": {
+              "sentTo": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/admin/subscribers/mailings/{id}",
+      "operationId": "AdminSubscribersController_mailing",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "audience",
+              "body",
+              "cancelledAt",
+              "cancelledCount",
+              "createdAt",
+              "createdBy",
+              "emailJobId",
+              "failedCount",
+              "id",
+              "pendingCount",
+              "recipientCount",
+              "sendsAfter",
+              "sentAt",
+              "sentCount",
+              "status",
+              "subject"
+            ],
+            "properties": {
+              "audience": {
+                "type": "object",
+                "required": [
+                  "interests"
+                ],
+                "properties": {
+                  "interests": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "cancelledAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "cancelledCount": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdBy": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "id",
+                  "lastName",
+                  "username"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              },
+              "emailJobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "failedCount": {
+                "type": "integer"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pendingCount": {
+                "type": "integer"
+              },
+              "recipientCount": {
+                "type": "integer"
+              },
+              "sendsAfter": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentCount": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/admin/subscribers/mailings/{id}/cancel",
+      "operationId": "AdminSubscribersController_cancel",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "audience",
+              "body",
+              "cancelledAt",
+              "cancelledCount",
+              "createdAt",
+              "createdBy",
+              "emailJobId",
+              "failedCount",
+              "id",
+              "pendingCount",
+              "recipientCount",
+              "sendsAfter",
+              "sentAt",
+              "sentCount",
+              "status",
+              "subject",
+              "withdrawn"
+            ],
+            "properties": {
+              "audience": {
+                "type": "object",
+                "required": [],
+                "properties": {}
+              },
+              "body": {
+                "type": "string"
+              },
+              "cancelledAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "cancelledCount": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdBy": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "id",
+                  "lastName",
+                  "username"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              },
+              "emailJobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "failedCount": {
+                "type": "integer"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pendingCount": {
+                "type": "integer"
+              },
+              "recipientCount": {
+                "type": "integer"
+              },
+              "sendsAfter": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "sentCount": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "withdrawn": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "GET /api/v1/admin/subscribers/summary",
+      "operationId": "AdminSubscribersController_summary",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "active",
+              "byInterest",
+              "byKind",
+              "bySource",
+              "unsubscribed"
+            ],
+            "properties": {
+              "active": {
+                "type": "integer"
+              },
+              "byInterest": {
+                "type": "object",
+                "required": [
+                  "ALL_SUBJECTS",
+                  "COMPUTING",
+                  "MATHEMATICS",
+                  "PHYSICS"
+                ],
+                "properties": {
+                  "ALL_SUBJECTS": {
+                    "type": "integer"
+                  },
+                  "COMPUTING": {
+                    "type": "integer"
+                  },
+                  "MATHEMATICS": {
+                    "type": "integer"
+                  },
+                  "PHYSICS": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "byKind": {
+                "type": "object",
+                "required": [
+                  "NOT_GIVEN",
+                  "PARENT"
+                ],
+                "properties": {
+                  "NOT_GIVEN": {
+                    "type": "integer"
+                  },
+                  "PARENT": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "bySource": {
+                "type": "object",
+                "required": [
+                  "ADMIN",
+                  "WEBSITE"
+                ],
+                "properties": {
+                  "ADMIN": {
+                    "type": "integer"
+                  },
+                  "WEBSITE": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "unsubscribed": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "DELETE /api/v1/admin/subscribers/{id}",
+      "operationId": "AdminSubscribersController_remove",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "deleted"
+            ],
+            "properties": {
+              "deleted": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "PATCH /api/v1/admin/subscribers/{id}",
+      "operationId": "AdminSubscribersController_update",
+      "tags": [
+        "Admin · Subscribers"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "UpdateSubscriberDto"
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "country",
+              "createdAt",
+              "email",
+              "fullName",
+              "id",
+              "interests",
+              "kind",
+              "source",
+              "status",
+              "subscribedAt",
+              "unsubscribeReason",
+              "unsubscribedAt",
+              "updatedAt",
+              "userId"
+            ],
+            "properties": {
+              "country": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "email": {
+                "type": "string"
+              },
+              "fullName": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "interests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "nullable": true,
+                "type": "any"
+              },
+              "source": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subscribedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "unsubscribeReason": {
+                "nullable": true,
+                "type": "string"
+              },
+              "unsubscribedAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "userId": {
+                "nullable": true,
+                "type": "any"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -37907,6 +39429,144 @@
       }
     },
     {
+      "key": "POST /api/v1/public/subscribe",
+      "operationId": "PublicSubscribersController_subscribe",
+      "tags": [
+        "Public site"
+      ],
+      "roles": [
+        "PUBLIC"
+      ],
+      "public": true,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SubscribeDto"
+          }
+        }
+      },
+      "responses": {
+        "202": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "message",
+              "received"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "received": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/public/unsubscribe",
+      "operationId": "PublicSubscribersController_unsubscribe",
+      "tags": [
+        "Public site"
+      ],
+      "roles": [
+        "PUBLIC"
+      ],
+      "public": true,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "UnsubscribeDto"
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "unsubscribed"
+            ],
+            "properties": {
+              "unsubscribed": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/public/unsubscribe/one-click",
+      "operationId": "PublicSubscribersController_oneClick",
+      "tags": [
+        "Public site"
+      ],
+      "roles": [
+        "PUBLIC"
+      ],
+      "public": true,
+      "parameters": [
+        {
+          "name": "s",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "t",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      ],
+      "requestBody": null,
+      "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "unsubscribed"
+            ],
+            "properties": {
+              "unsubscribed": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
       "key": "GET /api/v1/reports",
       "operationId": "CustomReportsController_list",
       "tags": [
@@ -48536,6 +50196,45 @@
         }
       }
     },
+    "AudienceDto": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "countries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 50
+        },
+        "interests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "COMPUTING",
+              "MATHEMATICS",
+              "PHYSICS"
+            ]
+          },
+          "maxItems": 3
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "OTHER",
+              "PARENT",
+              "SCHOOL",
+              "STUDENT",
+              "TEACHER"
+            ]
+          },
+          "maxItems": 5
+        }
+      }
+    },
     "AuthorizeResubmissionDto": {
       "type": "object",
       "required": [
@@ -49922,6 +51621,34 @@
         }
       }
     },
+    "CreateMailingDto": {
+      "type": "object",
+      "required": [
+        "body",
+        "idempotencyKey",
+        "subject"
+      ],
+      "properties": {
+        "audience": {
+          "ref": "AudienceDto"
+        },
+        "body": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 20000
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 150
+        }
+      }
+    },
     "CreateMentorAssignmentDto": {
       "type": "object",
       "required": [
@@ -50252,6 +51979,49 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 1000
+        }
+      }
+    },
+    "CreateSubscriberDto": {
+      "type": "object",
+      "required": [
+        "email"
+      ],
+      "properties": {
+        "country": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "interests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "COMPUTING",
+              "MATHEMATICS",
+              "PHYSICS"
+            ]
+          },
+          "maxItems": 3
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "OTHER",
+            "PARENT",
+            "SCHOOL",
+            "STUDENT",
+            "TEACHER"
+          ]
         }
       }
     },
@@ -50851,6 +52621,15 @@
           "type": "string",
           "minLength": 3,
           "maxLength": 254
+        }
+      }
+    },
+    "MailingAudienceDto": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "audience": {
+          "ref": "AudienceDto"
         }
       }
     },
@@ -52432,6 +54211,53 @@
         }
       }
     },
+    "SubscribeDto": {
+      "type": "object",
+      "required": [
+        "email"
+      ],
+      "properties": {
+        "country": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "interests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "COMPUTING",
+              "MATHEMATICS",
+              "PHYSICS"
+            ]
+          },
+          "maxItems": 3
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "OTHER",
+            "PARENT",
+            "SCHOOL",
+            "STUDENT",
+            "TEACHER"
+          ]
+        },
+        "website": {
+          "type": "string",
+          "maxLength": 200
+        }
+      }
+    },
     "SyncDecisionsDto": {
       "type": "object",
       "required": [],
@@ -52454,6 +54280,25 @@
           "type": "string",
           "minLength": 3,
           "maxLength": 500
+        }
+      }
+    },
+    "TestMailingDto": {
+      "type": "object",
+      "required": [
+        "body",
+        "subject"
+      ],
+      "properties": {
+        "body": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 20000
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 150
         }
       }
     },
@@ -52503,6 +54348,29 @@
           "type": "string",
           "minLength": 3,
           "maxLength": 500
+        }
+      }
+    },
+    "UnsubscribeDto": {
+      "type": "object",
+      "required": [
+        "id",
+        "token"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "token": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
         }
       }
     },
@@ -52971,6 +54839,57 @@
       "type": "object",
       "required": [],
       "properties": {}
+    },
+    "UpdateSubscriberDto": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "country": {
+          "nullable": true,
+          "type": "string"
+        },
+        "fullName": {
+          "nullable": true,
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "interests": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "COMPUTING",
+              "MATHEMATICS",
+              "PHYSICS"
+            ]
+          },
+          "maxItems": 3
+        },
+        "kind": {
+          "nullable": true,
+          "type": "string",
+          "enum": [
+            "OTHER",
+            "PARENT",
+            "SCHOOL",
+            "STUDENT",
+            "TEACHER"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "UNSUBSCRIBED"
+          ]
+        }
+      }
     },
     "UpdateTestDto": {
       "type": "object",

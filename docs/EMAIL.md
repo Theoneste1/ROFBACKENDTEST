@@ -188,6 +188,7 @@ aligned DKIM signature (`resend._domainkey`).
 | `EMAIL_REDIRECT_TO` | **Your own inbox**, whenever a real key is set | **Unset** |
 | `EMAIL_DRY_RUN` | Unset | **Unset** in production. `true` only on a **staging** service (copy of real data): nothing is sent even with a key, no key or sender needed; warned at every start |
 | `APP_URL` | `http://localhost:3001` | **Required**: the public frontend URL, no trailing slash |
+| `API_PUBLIC_URL` | Unset | Optional: the API's public https address (no `/api/v1`). When set, e-mails to news subscribers offer one-click unsubscribe (RFC 8058); see `docs/SUBSCRIBERS.md` |
 | `EMAIL_MAX_PER_SECOND` | 2 | 2 (raise only if Resend raised your limit) |
 | `EMAIL_BATCH_SIZE` | 50 | 50 |
 

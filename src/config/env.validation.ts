@@ -97,6 +97,15 @@ export class EnvironmentVariables {
   @IsUrl({ require_tld: false, require_protocol: true })
   APP_URL?: string;
 
+  /**
+   * Public URL of this API, without /api/v1 (e.g. https://api.rwandaolympiadfoundation.org). Optional: when set, e-mails
+   * to news subscribers announce RFC 8058 one-click unsubscribe (List-Unsubscribe-Post) to
+   * <API_PUBLIC_URL>/api/v1/public/unsubscribe/one-click; without it they link to the frontend's /unsubscribe page only.
+   */
+  @IsOptional()
+  @IsUrl({ require_tld: false, require_protocol: true })
+  API_PUBLIC_URL?: string;
+
   /** IANA time zone for wall-clock dates (report and audit-log date filters). Default Africa/Kigali. */
   @IsOptional()
   @IsTimeZone()

@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 461 endpoints — 26 public, 264 administrator-only.
+Totals: 477 endpoints — 29 public, 277 administrator-only.
 
 ## Academic years
 
@@ -240,6 +240,24 @@ Totals: 461 endpoints — 26 public, 264 administrator-only.
 |---|---|:-:|:-:|:-:|:-:|
 | GET | `/api/v1/admin/settings` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/settings` |  |  |  | ✓ |
+
+## Admin · Subscribers
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/subscribers` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/subscribers/{id}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/subscribers/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/export` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/import` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/mailings` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/mailings/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/{id}/cancel` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/preview` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/test` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/summary` |  |  |  | ✓ |
 
 ## Admin · Teachers
 
@@ -620,6 +638,9 @@ Totals: 461 endpoints — 26 public, 264 administrator-only.
 |---|---|:-:|:-:|:-:|:-:|
 | POST | `/api/v1/public/contact` | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/public/statistics` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/subscribe` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/unsubscribe` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/unsubscribe/one-click` | ✓ | ✓ | ✓ | ✓ |
 
 ## registration-data
 

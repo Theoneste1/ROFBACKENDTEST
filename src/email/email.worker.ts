@@ -26,6 +26,7 @@ import { SettingsService } from '../settings/settings.service.js';
 import { MailerService } from './mailer.service.js';
 import { loadEmailBrand } from './email-brand.js';
 import { renderEmail, type EmailBrand } from './templates.js';
+import { greetingFor, listUnsubscribeHeaders, unsubscribeLinks } from '../subscribers/subscriber-rules.js';
 
 export const MAX_ATTEMPTS = 5;
 
@@ -37,6 +38,13 @@ interface ClaimedDelivery {
   body:           string | null;
   html:           string | null;
   attempts:       number;
+  subscriberId:   string | null;
+}
+
+interface SubscriberOfDelivery {
+  id:       string;
+  status:   string;
+  fullName: string | null;
 }
 
 @Injectable()
@@ -93,7 +101,7 @@ export class EmailWorker {
         LIMIT ${this.mailer.batchSize}
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING d."id", d."jobId", d."recipientEmail", d."subject", d."body", d."html", d."attempts"`;
+      RETURNING d."id", d."jobId", d."recipientEmail", d."subject", d."body", d."html", d."attempts", d."subscriberId"`;
 
     if (claimed.length === 0) return 0;
 
@@ -106,23 +114,56 @@ export class EmailWorker {
       })).map((j) => [j.id, j]),
     );
 
+    // E-mails to news subscribers: who they are now (a mailing is never sent to someone who unsubscribed meanwhile).
+    const subscriberIds = [...new Set(claimed.map((c) => c.subscriberId).filter((id): id is string => !!id))];
+    const subscribers = new Map<string, SubscriberOfDelivery>(
+      subscriberIds.length === 0 ? [] : (await this.prisma.subscriber.findMany({
+        where:  { id: { in: subscriberIds } },
+        select: { id: true, status: true, fullName: true },
+      })).map((s) => [s.id, s]),
+    );
+
     // Bulk e-mails get the branded layout at send time.
     const brand = jobIds.length > 0 ? await loadEmailBrand(this.settings, this.config) : null;
 
     // Bounded concurrency; the mailer also paces requests to Resend's rate limit.
     const CONCURRENCY = 5;
     for (let i = 0; i < claimed.length; i += CONCURRENCY) {
-      await Promise.all(claimed.slice(i, i + CONCURRENCY).map((d) => this.deliver(d, d.jobId ? jobs.get(d.jobId) : undefined, brand)));
+      await Promise.all(claimed.slice(i, i + CONCURRENCY).map((d) =>
+        this.deliver(d, d.jobId ? jobs.get(d.jobId) : undefined, brand, d.subscriberId ? subscribers.get(d.subscriberId) ?? null : undefined)));
     }
 
     for (const jobId of jobIds) await this.refreshJob(jobId);
     return claimed.length;
   }
 
-  private async deliver(d: ClaimedDelivery, job: { subject: string; body: string } | undefined, brand: EmailBrand | null) {
+  /**
+   * `subscriber`: undefined for e-mails to accounts and addresses; for an e-mail to a news subscriber, that subscriber
+   * (null when they no longer exist). A mailing is rendered for its subscriber (greeting, unsubscribe link in the
+   * footer) and both carry the List-Unsubscribe headers.
+   */
+  private async deliver(d: ClaimedDelivery, job: { subject: string; body: string } | undefined, brand: EmailBrand | null, subscriber?: SubscriberOfDelivery | null) {
+    let headers: Record<string, string> | undefined;
+    let personal: { text: string; html: string } | null = null;
+    if (subscriber !== undefined) {
+      if (d.jobId && subscriber?.status !== 'ACTIVE') {
+        await this.prisma.emailDelivery.update({
+          where: { id: d.id },
+          data:  { status: 'FAILED', errorMessage: 'Not sent: the subscriber unsubscribed before it was sent.', lockedAt: null, attemptedAt: new Date() },
+        });
+        return;
+      }
+      const links = unsubscribeLinks({
+        secret: this.config.get<string>('JWT_SECRET') ?? '', appUrl: this.config.get<string>('APP_URL'), apiPublicUrl: this.config.get<string>('API_PUBLIC_URL'),
+      }, d.subscriberId!);
+      headers = listUnsubscribeHeaders(links);
+      if (job && brand && d.body === null) {
+        personal = renderEmail({ heading: job.subject, body: job.body, greeting: greetingFor(subscriber?.fullName), unsubscribeUrl: links.pageUrl }, brand);
+      }
+    }
     const subject = d.subject ?? job?.subject;
-    const body    = d.body    ?? job?.body;
-    const html    = d.html    ?? (job && brand ? renderEmail({ heading: job.subject, body: job.body }, brand).html : null);
+    const body    = d.body    ?? personal?.text ?? job?.body;
+    const html    = d.html    ?? personal?.html ?? (job && brand ? renderEmail({ heading: job.subject, body: job.body }, brand).html : null);
 
     if (!subject || !body) {
       await this.prisma.emailDelivery.update({
@@ -136,7 +177,7 @@ export class EmailWorker {
     if (this.paused) return this.defer(d, this.pausedUntil, null);
 
     const result = await this.mailer.sendOne({
-      to: d.recipientEmail, subject, text: body, html, idempotencyKey: `email-delivery/${d.id}`,
+      to: d.recipientEmail, subject, text: body, html, idempotencyKey: `email-delivery/${d.id}`, ...(headers && { headers }),
     });
 
     if (result.deferMs) {
