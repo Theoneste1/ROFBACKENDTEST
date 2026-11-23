@@ -27,7 +27,7 @@ DECLARE
 BEGIN
   SELECT count(*) INTO saved FROM "RegistrationSavedFilter";
   IF saved > 0 AND coalesce(current_setting('rof.registration_data_rollback', true), '') <> 'discard-saved-filters' THEN
-    RAISE EXCEPTION 'Refusing: % saved filter(s) exist. Set rof.registration_data_rollback = ''discard-saved-filters'' to proceed.', saved;
+    RAISE EXCEPTION 'REGISTRATION_DATA_ROLLBACK_REFUSED: % saved filter(s) exist; nothing was changed. After a backup that contains them, set rof.registration_data_rollback = ''discard-saved-filters'' to proceed.', saved;
   END IF;
 END $$;
 

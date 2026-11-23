@@ -24,7 +24,7 @@ DECLARE
 BEGIN
   SELECT count(*) INTO pending FROM "TeacherApplication" WHERE "status" = 'PENDING' AND "proposedSchoolCode" IS NOT NULL;
   IF pending > 0 AND coalesce(current_setting('rof.teacher_unlisted_school_rollback', true), '') <> 'discard-details' THEN
-    RAISE EXCEPTION 'Refusing: % pending application(s) propose a school code. Set rof.teacher_unlisted_school_rollback = ''discard-details'' to proceed.', pending;
+    RAISE EXCEPTION 'TEACHER_UNLISTED_SCHOOL_ROLLBACK_REFUSED: % pending application(s) propose a school code; nothing was changed. After a backup that contains them, set rof.teacher_unlisted_school_rollback = ''discard-details'' to proceed.', pending;
   END IF;
 END $$;
 

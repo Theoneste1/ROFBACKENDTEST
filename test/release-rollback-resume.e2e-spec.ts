@@ -3,7 +3,8 @@
  * PostgreSQL. Staging rehearsal 2026-11-19: `rollback --release post-phase1` stopped at the registration-details guard
  * after seven newer rollbacks had run; running it again failed at once on a table those rollbacks had already dropped.
  *
- * For every release the kit supports and whose migrations this checkout has (phase1, post-phase1, areas-2026):
+ * For every release the kit supports and whose migrations this checkout has (phase1, post-phase1, areas-2026, late-2026,
+ * dec-2026, levels-2026, launch-2026):
  *  - each migration's object list equals what its SQL changes in the catalogue, and names every object its SQL names;
  *  - a fresh database is migrated to the release's state and seeded, including data that makes EVERY guard refuse;
  *  - a clean full rollback (all acknowledgements) is the reference: every object gone (schema = before the release, but
@@ -15,6 +16,8 @@
  *    the same command refuses again at the same guard and changes nothing; with the acknowledgement (or PGOPTIONS) it completes;
  *  - half-rolled-back migrations (a table dropped but its column or trigger left, an index left, a dropped index restored)
  *    and an out-of-order state are refused, naming what remains, and nothing changes;
+ *  - a check-only migration (20261220000000_test_file_purposes: its rollback keeps its enum values and changes nothing) has
+ *    its file run every time, so its guard is never skipped;
  *  - --acknowledge accepts only the fixed allow-list; PG_BIN is validated.
  *
  * Every database here is created next to TEST_DATABASE_URL under a random rk_* name and dropped afterwards; the shared test
@@ -170,10 +173,60 @@ const SEEDS: Record<string, Seed> = {
   'areas-2026': async (c) => {
     await c.query(`UPDATE "Country" SET "updatedAt" = "updatedAt" + interval '1 day' WHERE "code" = (SELECT min("code") FROM "Country")`); // country edits
     await c.query(`INSERT INTO "AuditLog" ("id", "action", "entity", "entityId") VALUES ('rel-audit-1', 'TEACHER_PRIMARY_ASSIGNED', 'TeacherSchoolAssignment', 'pre-tsa-1')`);
+    await c.query(`INSERT INTO "FileObject" ("id", "storageKey", "purpose", "originalName", "mimeType", "size", "sha256")
+      VALUES ('rel-file-paper', 'rel/paper', 'TEST_PAPER', 'paper.pdf', 'application/pdf', 1, repeat('1', 64))`);                 // test files
+    await seedTestAndSubmission(c);                                                                                                 // tests, submissions
+    await c.query(`INSERT INTO "TestMarkerAssignment" ("id", "submissionId", "kind", "coachId", "assignedAt", "method")
+      VALUES ('rel-tma-1', 'rel-sub-1', 'FIRST', 'pre-user-1', '2026-12-03', 'MANUAL')`);                                          // marking
+    await c.query(`INSERT INTO "TestPublication" ("id", "testId", "number", "actorRole", "publishedCount", "counts", "createdAt")
+      VALUES ('rel-pub-1', 'rel-test-1', 1, 'ADMIN', 0, '{}', '2026-12-04')`);                                                      // publications
+  },
+  'late-2026': async (c) => {
+    await c.query(`UPDATE "User" SET "gender" = (enum_range(NULL::"Gender"))[1] WHERE "id" = 'pre-user-2'`);                       // genders
+    await c.query(`UPDATE "MentorRequest" SET "homeDistrict" = 'Gasabo' WHERE "id" = 'pre-mr-1'`);                                  // home places
+    await c.query(`INSERT INTO "BulkOperation" ("id", "actorRole", "action", "params", "selection", "selectionToken", "total", "idempotencyKey", "entityType")
+      VALUES ('rel-bulk-school', 'ADMIN', 'DEACTIVATE', '{}', '{}', 'rel-school', 0, 'rel-bulk-school', 'SCHOOL')`);             // non-user bulk operations
+  },
+  'dec-2026': async (c) => {
+    await c.query(`UPDATE "User" SET "olympiadInterestOther" = 'Astronomy' WHERE "id" = 'pre-user-2'`);                            // other Olympiad
+    await seedTestAndSubmission(c);
+    await c.query(`INSERT INTO "TestResubmissionAuthorization" ("id", "submissionId", "reason")
+      VALUES ('rel-rsa-1', 'rel-sub-1', 'One more version for the rehearsal')`);                                                    // resubmission authorizations
+  },
+  'levels-2026': async (c) => {
+    await c.query(`UPDATE "User" SET "divisionManual" = true WHERE "id" = 'pre-user-2'`);                                           // classifications
+    await c.query(`INSERT INTO "CustomReport" ("id", "name", "source", "columns", "filters", "sort", "updatedAt")
+      VALUES ('rel-report-1', 'Rehearsal report', 'users', '[]', '[]', '[]', '2026-12-05')`);                                       // reports and layouts
+  },
+  'launch-2026': async (c) => {
+    await c.query(`INSERT INTO "SchoolSyncRun" ("id", "datasetKey", "normaliserVersion", "dataSourceId", "datasetLabel", "fileName",
+      "fileSha256", "format", "rowCount", "reconciliation", "counts", "reportDigest", "decisionsDigest", "comparedAt", "expiresAt", "mode")
+      SELECT 'rel-run-new-only', 'rehearsal', '1', "id", 'Rehearsal', 'r.csv', repeat('0', 64), 'csv', 0, '{}', '{}', 'd', 'd', '2026-12-06', '2026-12-07', 'NEW_ONLY'
+        FROM "SchoolDataSource" ORDER BY "id" LIMIT 1`);                                                                             // sync modes
+    await c.query(`INSERT INTO "TeacherApplication" ("id", "firstName", "lastName", "username", "email", "phone", "country", "schoolProvince",
+      "schoolDistrict", "homeDistrict", "homeSector", "updatedAt", "proposedSchoolName", "proposedSchoolCode")
+      VALUES ('rel-ta-1', 'Teacher', 'Applicant', 'rel-teacher', 'rel-teacher@example.invalid', '+250700000003', 'RW', 'Kigali', 'Gasabo',
+        'Gasabo', 'Remera', '2026-12-06', 'Rehearsal Unlisted School', '999999')`);                                                // unlisted-school details
+    await c.query(`INSERT INTO "RegistrationSavedFilter" ("id", "ownerId", "name", "category", "filter", "columns", "sort", "updatedAt")
+      VALUES ('rel-rsf-1', 'pre-user-3', 'Rehearsal filter', 'STUDENT', '{}', '[]', '[]', '2026-12-06')`);                         // saved filters
+    await c.query(`INSERT INTO "CoachProgrammeRestriction" ("id", "coachId", "disciplineId", "capability", "reason", "createdAt")
+      SELECT 'rel-cpr-1', 'pre-user-1', "id", 'STUDENTS', 'Restricted for the rehearsal', '2026-12-06' FROM "Discipline" ORDER BY "id" LIMIT 1`); // coach restrictions
+    await c.query(`UPDATE "FormAvailability" SET "requireEmailVerification" = true WHERE "key" = (SELECT "key" FROM "FormAvailability" ORDER BY "key" LIMIT 1)`); // activation per form
+    await c.query(`INSERT INTO "Subscriber" ("id", "email", "source", "updatedAt", "subscribedAt", "createdAt")
+      VALUES ('rel-subscriber-1', 'reader@example.invalid', 'WEBSITE', '2026-12-06', '2026-12-06', '2026-12-06')`);              // subscribers
   },
 };
 
-const RELEASES = ['phase1', 'post-phase1', 'areas-2026'];
+/** A test and one submission to it (release-time rows "rel-…"): the Test Management guards need them. */
+async function seedTestAndSubmission(c: Client) {
+  await c.query(`INSERT INTO "Test" ("id", "title", "disciplineId", "answerFormat", "opensAt", "closesAt", "originalClosesAt", "maxMarks", "updatedAt")
+    SELECT 'rel-test-1', 'Rehearsal test', "id", (enum_range(NULL::"TestAnswerFormat"))[1], '2026-12-01', '2026-12-02', '2026-12-02', 10, '2026-12-01'
+      FROM "Discipline" ORDER BY "id" LIMIT 1`);
+  await c.query(`INSERT INTO "TestSubmission" ("id", "testId", "studentId", "publicCode", "updatedAt")
+    VALUES ('rel-sub-1', 'rel-test-1', 'pre-user-2', 'REL-0001', '2026-12-02')`);
+}
+
+const RELEASES = ['phase1', 'post-phase1', 'areas-2026', 'late-2026', 'dec-2026', 'levels-2026', 'launch-2026'];
 
 // ── Pure checks: object lists against the SQL, the acknowledgement allow-list, PG_BIN ───────────────────────────────
 
@@ -304,6 +357,8 @@ for (const name of RELEASES) {
     const ids = () => rel.releaseAcknowledgements(release) as string[];
     const acksExcept = (...ex: string[]) => rel.resolveAcknowledgements(ids().filter((i) => !ex.includes(i)), release).acks;
     const guardOf = (file: string) => ids().find((i) => rel.ACKNOWLEDGEMENTS[i].migration === kit.migrationOfFile(file));
+    /** A check-only migration's file (it changes nothing): it runs every time the rollback reaches it, never "already rolled back". */
+    const isCheckOnly = (file: string) => Boolean(rel.MIGRATION_OBJECTS[kit.migrationOfFile(file)].checkOnly);
     const rollback = (db_: string, opts: Any = {}) => kit.rollbackRelease(url(db_), release, { ...quiet, ...opts });
     const history = (db_: string) => (release.name === 'phase1' ? kit.rollbackHistoryPhase1 : kit.rollbackHistoryRelease)(url(db_), release, { log: quiet.log, error: quiet.log, root: ROOT });
     const statesOf = (db_: string): Promise<Any[]> => withDb(db_, (c) => kit.migrationStates(c, release));
@@ -370,7 +425,7 @@ for (const name of RELEASES) {
       expect(cleanRan).toEqual([...files.preSwitch, ...files.rollback]);
       for (const id of ids()) {
         const d = await newDb('guard', tpl);
-        const file = cleanRan.find((f) => f.endsWith('.rollback.sql') && guardOf(f) === id) as string;
+        const file = cleanRan.find((f) => f.endsWith('.rollback.sql') && kit.migrationOfFile(f) === rel.ACKNOWLEDGEMENTS[id].migration) as string;
         // Only this file's acknowledgement is missing; the newer files are rolled back first (as on staging).
         await expect(rollback(d, { acknowledgements: acksExcept(id) })).rejects.toThrow(new RegExp(`${file.replace(/\./g, '\\.')}: .*_REFUSED`));
         const states = await statesOf(d);
@@ -381,7 +436,7 @@ for (const name of RELEASES) {
         await expect(rollback(d, { acknowledgements: acksExcept(id) })).rejects.toThrow(/_REFUSED/);
         expect(logs.join('\n')).not.toMatch(/does not exist/);
         expect(logs.filter((l) => l.includes('already rolled back')).length)
-          .toBe(cleanRan.slice(0, cleanRan.indexOf(file)).filter((f) => kit.migrationOfFile(f) !== kit.migrationOfFile(file)).length);
+          .toBe(cleanRan.slice(0, cleanRan.indexOf(file)).filter((f) => kit.migrationOfFile(f) !== kit.migrationOfFile(file) && !isCheckOnly(f)).length);
         expect(await state(d)).toEqual(before);
         // With a DIFFERENT acknowledgement only: still refused, nothing changes.
         const other = ids().find((i) => i !== id);
@@ -413,13 +468,14 @@ for (const name of RELEASES) {
         // Not complete: rollback-history refuses and changes nothing (Phase 1's only concerns M9–M14, whose rows it deletes;
         // M1–M8 delete their own row in their rollback file).
         const atStop = await state(d);
-        const objectBased = (await statesOf(d)).filter((x) => !rel.MIGRATION_OBJECTS[x.migration].history);
+        const objectBased = (await statesOf(d)).filter((x) => !rel.MIGRATION_OBJECTS[x.migration].history && !x.checkOnly);
         if (objectBased.some((x) => x.state !== 'absent')) {
           expect(await history(d)).toBe(1);
           expect(await state(d)).toEqual(atStop);
         }
         // Without acknowledgements: the next guarded file refuses; if it is the next file to run, nothing changes at all.
-        const rest = cleanRan.slice(k);
+        // The files still to run: those after the stop, and the check-only ones before it (they run every time).
+        const rest = cleanRan.filter((f, i) => i >= k || isCheckOnly(f));
         const guarded = rest.findIndex((f) => f.endsWith('.rollback.sql') && guardOf(f));
         if (guarded >= 0) {
           const file = rest[guarded];
@@ -434,12 +490,14 @@ for (const name of RELEASES) {
             expect(await state(d)).toEqual(mid);
           }
         }
-        // Resumed with every acknowledgement: completes; the files already run are skipped, never run twice.
+        // Resumed with every acknowledgement: completes; the files already run are skipped, never run twice (a check-only
+        // file changes nothing and runs again).
         logs.length = 0;
         const second = await rollback(d, { acknowledgements: allAcks });
         expect(second.stopped).toBe(false);
         expect([...second.skipped, ...second.ran].sort()).toEqual([...cleanRan].sort());
-        for (const f of cleanRan.slice(0, k)) if (f.endsWith('.rollback.sql')) expect(second.skipped).toContain(f);
+        for (const f of cleanRan.slice(0, k)) if (f.endsWith('.rollback.sql') && !isCheckOnly(f)) expect(second.skipped).toContain(f);
+        for (const f of cleanRan.filter(isCheckOnly)) expect(second.ran).toContain(f);
         await expectCompleteAndReapply(d);
         await drop(d);
       }
@@ -453,7 +511,7 @@ for (const name of RELEASES) {
       const kept = release.migrations.flatMap((m: string) => rel.MIGRATION_OBJECTS[m].kept?.enumValues ?? []);
       const strip = (lines: string[]) => lines.map((l) => kept.reduce((acc: string, [e, v]: string[]) => (acc.startsWith(`enum ${e} `) ? acc.replace(new RegExp(`,${v}\\b`), '') : acc), l));
       expect(strip(await withDb(d, schemaOf))).toEqual(preSchema);
-      for (const s of await statesOf(d)) expect(s.state).toBe('absent');
+      for (const s of await statesOf(d)) if (!s.checkOnly) expect(s.state).toBe('absent');   // a check-only migration has no state
       // Data: every pre-release row is still there, unchanged; the only new rows are release-time ones, audit rows (append
       // only) and the registration switches written back by the form-availability rollback.
       const after = await withDb(d, rowsByKey);
@@ -461,11 +519,13 @@ for (const name of RELEASES) {
       expect(changed).toEqual([]);
       const added = [...after.keys()].filter((k) => !preRows.has(k) && !k.startsWith('AuditLog ') && !k.includes('"rel-') && !k.startsWith('SystemSetting ["registration.'));
       expect(added).toEqual([]);
-      // Run again on the rolled-back database: everything is skipped, nothing changes.
+      // Run again on the rolled-back database: everything is skipped but the check-only files (which change nothing, and
+      // whose guards still need their acknowledgement), nothing changes.
       const before = await state(d);
-      const again = await rollback(d);
-      expect(again).toMatchObject({ ran: [], stopped: false });
-      expect(again.skipped.length).toBe(cleanRan.length);
+      const checkOnly = cleanRan.filter((f) => rel.MIGRATION_OBJECTS[kit.migrationOfFile(f)].checkOnly);
+      const again = await rollback(d, checkOnly.length ? { acknowledgements: allAcks } : {});
+      expect(again).toMatchObject({ ran: checkOnly, stopped: false });
+      expect(again.skipped.length).toBe(cleanRan.length - checkOnly.length);
       expect(await state(d)).toEqual(before);
     }, 300_000);
 
@@ -488,7 +548,29 @@ for (const name of RELEASES) {
         ],
         'areas-2026': [
           ['an index dropped by hand', 'DROP INDEX "TeacherSchoolAssignment_one_primary_per_school"', /20261212000000_teacher_school_primary: still there: .*column TeacherSchoolAssignment\.role.*already gone: index TeacherSchoolAssignment\.TeacherSchoolAssignment_one_primary_per_school/],
-          ['out of order', 'ALTER TABLE "School" DROP CONSTRAINT "School_countryCode_fkey"; DROP TABLE "Country"', /20261211000000_countries_reference is already rolled back while the newer 20261212000000_teacher_school_primary is not/],
+          ['a table dropped, its column left', 'DROP TABLE "TestResultWithdrawal"', /20261220000400_tests_publishing: still there: .*column Test\.studentRankingsVisible.*already gone: table TestResultWithdrawal/],
+          // The Test Management migrations come after the primary teacher's: the newest one still in place is tests_publishing.
+          ['out of order', 'ALTER TABLE "School" DROP CONSTRAINT "School_countryCode_fkey"; DROP TABLE "Country"', /20261211000000_countries_reference is already rolled back while the newer 20261220000400_tests_publishing is not/],
+        ],
+        'late-2026': [
+          ['a column dropped by hand', 'ALTER TABLE "MentorRequest" DROP COLUMN "homeSector"', /20261221000100_home_location: still there: .*column MentorRequest\.homeDistrict.*already gone: column MentorRequest\.homeSector/],
+          ['out of order', 'ALTER TABLE "User" DROP COLUMN "gender"; ALTER TABLE "MentorRequest" DROP COLUMN "gender"; ALTER TABLE "TeacherApplication" DROP COLUMN "gender"; DROP TYPE "Gender"',
+            /20261221000000_registration_gender is already rolled back while the newer 20261222000000_bulk_operations_generic is not/],
+        ],
+        'dec-2026': [
+          ['a constraint dropped by hand', 'ALTER TABLE "User" DROP CONSTRAINT "User_olympiadInterestOther_length"', /20261223000000_olympiad_interest_other: still there: .*already gone: constraint User\.User_olympiadInterestOther_length/],
+          ['out of order', 'ALTER TABLE "User" DROP COLUMN "olympiadInterestOther"; ALTER TABLE "MentorRequest" DROP COLUMN "olympiadInterestOther"; ALTER TABLE "TeacherApplication" DROP COLUMN "olympiadInterestOther"',
+            /20261223000000_olympiad_interest_other is already rolled back while the newer 20261223000100_test_resubmission_lock is not/],
+        ],
+        'levels-2026': [
+          ['the report tables dropped, the rest left', 'DROP TABLE "CustomReportGrant"; DROP TABLE "CustomReport"', /20261224000000_divisions_levels: still there: .*table DivisionChange.*already gone: table CustomReport, table CustomReportGrant/],
+          ['a dropped enum created again by hand', `CREATE TYPE "DivisionCode" AS ENUM ('JUNIOR', 'SENIOR')`, /20261224000000_divisions_levels: still there: .*already gone: enum DivisionCode still dropped/],
+        ],
+        'launch-2026': [
+          ['a table dropped, its column left', 'DROP TABLE "RegistrationSavedFilter"', /20261226000000_registration_data: still there: column MentorRequest\.userId.*already gone: table RegistrationSavedFilter/],
+          ['the subscriber tables dropped, the column left', 'ALTER TABLE "EmailDelivery" DROP CONSTRAINT "EmailDelivery_subscriberId_fkey"; DROP TABLE "Mailing"; DROP TABLE "Subscriber"',
+            /20261229000000_subscribers: still there: .*column EmailDelivery\.subscriberId.*already gone: .*table Mailing/],
+          ['out of order', 'ALTER TABLE "SchoolSyncRun" DROP COLUMN "mode"; DROP TYPE "SchoolSyncMode"', /20261225000000_school_sync_mode is already rolled back while the newer 20261229000000_subscribers is not/],
         ],
       };
       for (const [label, sql, message] of cases[name]) {

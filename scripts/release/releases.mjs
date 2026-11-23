@@ -171,6 +171,9 @@ export const PHASE1_MIGRATIONS = [
  *            Marker: the row exists.
  *   kept     what the migration creates and its rollback deliberately KEEPS, so it is not a marker: the FilePurpose value
  *            'AVATAR' (PostgreSQL cannot drop an enum value; the rollback file says so).
+ *   checkOnly a migration with no marker at all (it only adds kept enum values: test_file_purposes): its rollback file
+ *            changes nothing and only checks (its guard), so it runs every time `rollback` reaches it and is ignored by the
+ *            order and completeness checks.
  * Data a rollback restores (values written back, rows revoked) lives in objects listed here, so it is checked through them.
  */
 export const MIGRATION_OBJECTS = {
@@ -362,6 +365,128 @@ export const MIGRATION_OBJECTS = {
       indexes: [['TeacherSchoolAssignment', 'TeacherSchoolAssignment_one_primary_per_school']],
     },
   },
+  // Adds three FilePurpose values only, and its rollback KEEPS them (PostgreSQL cannot drop an enum value): nothing tells
+  // whether its rollback file ran. checkOnly: the file changes nothing (it only checks, with its guard), so `rollback` runs
+  // it every time it reaches it, and it never counts as present or rolled back for the order and completeness checks.
+  '20261220000000_test_file_purposes': {
+    checkOnly: true,
+    kept: { enumValues: [['FilePurpose', 'MARKING_GUIDE'], ['FilePurpose', 'TEST_ANSWER'], ['FilePurpose', 'TEST_PAPER']] },
+  },
+  '20261220000100_tests_core': {
+    creates: {
+      enums: ['TestAnswerFormat', 'TestDivision', 'TestFileKind', 'TestStatus'],
+      tables: ['MarkerAuthorization', 'Test', 'TestFile', 'TestQuestion'],
+    },
+  },
+  '20261220000200_tests_submissions': {
+    creates: {
+      enums: ['TestExtensionKind', 'TestSubmissionStatus', 'TestSubmitterRole'],
+      functions: ['test_answer_page_committed_guard', 'test_submission_status_append_only', 'test_submission_version_append_only'],
+      tables: ['TestAnswerPage', 'TestExtension', 'TestSubmission', 'TestSubmissionStatusChange', 'TestSubmissionVersion'],
+    },
+  },
+  '20261220000300_tests_marking': {
+    creates: {
+      columns: [['TestSubmission', 'finalMarkingId']],
+      constraints: [['TestSubmission', 'TestSubmission_finalMarkingId_fkey']],
+      enums: ['TestMarkingKind', 'TestMarkingStatus', 'TestReviewAction'],
+      functions: ['test_mark_change_append_only', 'test_marker_assignment_guard', 'test_marking_guard', 'test_marking_score_guard', 'test_review_append_only'],
+      indexes: [['TestSubmission', 'TestSubmission_finalMarkingId_key']],
+      tables: ['TestMarkChange', 'TestMarkerAssignment', 'TestMarking', 'TestMarkingScore', 'TestReview'],
+    },
+  },
+  '20261220000400_tests_publishing': {
+    creates: {
+      columns: [['Test', 'studentRankingsVisible'], ['TestSubmission', 'publicationId'], ['TestSubmission', 'publishedAt']],
+      constraints: [['Test', 'Test_student_rankings_design_only'], ['TestSubmission', 'TestSubmission_publicationId_fkey'], ['TestSubmission', 'TestSubmission_published_state']],
+      functions: ['test_publication_append_only', 'test_result_withdrawal_append_only'],
+      indexes: [['TestSubmission', 'TestSubmission_publicationId_idx']],
+      tables: ['TestPublication', 'TestResultWithdrawal'],
+    },
+  },
+  '20261221000000_registration_gender': {
+    creates: {
+      columns: [['MentorRequest', 'gender'], ['TeacherApplication', 'gender'], ['User', 'gender']],
+      enums: ['Gender'],
+    },
+  },
+  '20261221000100_home_location': {
+    creates: {
+      columns: [['MentorRequest', 'homeDistrict'], ['MentorRequest', 'homeProvince'], ['MentorRequest', 'homeSector'], ['TeacherApplication', 'homeProvince']],
+    },
+  },
+  '20261222000000_bulk_operations_generic': {
+    creates: {
+      columns: [['BulkOperation', 'entityType'], ['BulkOperationItem', 'entityId']],
+      functions: ['bulk_item_entity_from_user'],
+      indexes: [['BulkOperation', 'BulkOperation_selectionToken_v2_key'], ['BulkOperationItem', 'BulkOperationItem_operationId_entityId_key']],
+      triggers: [['BulkOperationItem', 'bulk_item_entity_from_user']],
+    },
+  },
+  '20261223000000_olympiad_interest_other': {
+    creates: {
+      columns: [['MentorRequest', 'olympiadInterestOther'], ['TeacherApplication', 'olympiadInterestOther'], ['User', 'olympiadInterestOther']],
+      constraints: [['MentorRequest', 'MentorRequest_olympiadInterestOther_length'], ['TeacherApplication', 'TeacherApplication_olympiadInterestOther_length'],
+        ['User', 'User_olympiadInterestOther_length']],
+    },
+  },
+  '20261223000100_test_resubmission_lock': {
+    creates: {
+      tables: ['TestResubmissionAuthorization'],
+    },
+  },
+  '20261224000000_divisions_levels': {
+    creates: {
+      columns: [['Division', 'sortOrder'], ['Division', 'suggestedGrades'], ['TestSubmission', 'level'], ['User', 'divisionManual']],
+      constraints: [['Division', 'Division_code_format']],
+      enums: ['DivisionChangeSource'],
+      functions: ['course_offered_in_divisions', 'division_for_grade', 'student_division_from_grade', 'student_division_history'],
+      tables: ['CourseDivision', 'CustomReport', 'CustomReportGrant', 'DivisionChange', 'TableLayout'],
+      triggers: [['Course', 'course_offered_in_divisions'], ['User', 'student_division_from_grade'], ['User', 'student_division_history']],
+    },
+    // Division.code and Test.division become text: the two enums are dropped, and the rollback creates them again.
+    drops: { enums: ['DivisionCode', 'TestDivision'] },
+  },
+  '20261225000000_school_sync_mode': {
+    creates: {
+      columns: [['SchoolSyncRun', 'mode']],
+      enums: ['SchoolSyncMode'],
+    },
+  },
+  '20261225000100_teacher_unlisted_school': {
+    creates: {
+      columns: [['TeacherApplication', 'proposedSchoolAccommodation'], ['TeacherApplication', 'proposedSchoolCell'], ['TeacherApplication', 'proposedSchoolCode'],
+        ['TeacherApplication', 'proposedSchoolOwnership'], ['TeacherApplication', 'proposedSchoolVillage']],
+    },
+  },
+  '20261226000000_registration_data': {
+    creates: {
+      columns: [['MentorRequest', 'userId']],
+      constraints: [['MentorRequest', 'MentorRequest_userId_fkey']],
+      indexes: [['MentorRequest', 'MentorRequest_userId_key']],
+      tables: ['RegistrationSavedFilter'],
+    },
+  },
+  '20261227000000_coach_programme_access': {
+    creates: {
+      enums: ['CoachCapability'],
+      tables: ['CoachProgrammeRestriction'],
+    },
+  },
+  '20261228000000_form_email_verification': {
+    creates: {
+      columns: [['FormAvailability', 'requireEmailVerification']],
+    },
+  },
+  '20261229000000_subscribers': {
+    creates: {
+      columns: [['EmailDelivery', 'subscriberId']],
+      constraints: [['EmailDelivery', 'EmailDelivery_subscriberId_fkey']],
+      enums: ['MailingStatus', 'SubscriberKind', 'SubscriberSource', 'SubscriberStatus'],
+      indexes: [['EmailDelivery', 'EmailDelivery_subscriberId_idx']],
+      tables: ['Mailing', 'Subscriber'],
+    },
+  },
 };
 
 /**
@@ -387,6 +512,24 @@ export const ACKNOWLEDGEMENTS = {
   'teacher-student-access':     { migration: '20261210000000_teacher_student_access', setting: 'rof.teacher_student_rollback', value: 'discard-teacher-student-access' },
   'country-edits':              { migration: '20261211000000_countries_reference', setting: 'rof.countries_reference_rollback', value: 'discard-country-edits' },
   'primary-teachers':           { migration: '20261212000000_teacher_school_primary', setting: 'rof.teacher_school_primary_rollback', value: 'discard-primary-teachers' },
+  'test-files':                 { migration: '20261220000000_test_file_purposes', setting: 'rof.test_file_purposes_rollback', value: 'discard-test-files' },
+  'tests':                      { migration: '20261220000100_tests_core', setting: 'rof.tests_core_rollback', value: 'discard-tests' },
+  'test-submissions':           { migration: '20261220000200_tests_submissions', setting: 'rof.tests_submissions_rollback', value: 'discard-submissions' },
+  'test-marking':               { migration: '20261220000300_tests_marking', setting: 'rof.tests_marking_rollback', value: 'discard-marking' },
+  'test-publications':          { migration: '20261220000400_tests_publishing', setting: 'rof.tests_publishing_rollback', value: 'discard-publications' },
+  'genders':                    { migration: '20261221000000_registration_gender', setting: 'rof.registration_gender_rollback', value: 'discard-genders' },
+  'home-places':                { migration: '20261221000100_home_location', setting: 'rof.home_location_rollback', value: 'discard-home-places' },
+  'non-user-bulk-operations':   { migration: '20261222000000_bulk_operations_generic', setting: 'rof.bulk_operations_generic_rollback', value: 'discard-non-user-operations' },
+  'olympiad-interest-other':    { migration: '20261223000000_olympiad_interest_other', setting: 'rof.olympiad_interest_other_rollback', value: 'discard-answers' },
+  'resubmission-authorizations': { migration: '20261223000100_test_resubmission_lock', setting: 'rof.test_resubmission_lock_rollback', value: 'discard-authorizations' },
+  'division-classifications':   { migration: '20261224000000_divisions_levels', setting: 'rof.divisions_levels_rollback', value: 'discard-classifications' },
+  'reports-and-layouts':        { migration: '20261224000000_divisions_levels', setting: 'rof.divisions_levels_rollback_reports', value: 'discard-reports-and-layouts' },
+  'sync-modes':                 { migration: '20261225000000_school_sync_mode', setting: 'rof.school_sync_mode_rollback', value: 'forget-modes' },
+  'unlisted-school-details':    { migration: '20261225000100_teacher_unlisted_school', setting: 'rof.teacher_unlisted_school_rollback', value: 'discard-details' },
+  'saved-filters':              { migration: '20261226000000_registration_data', setting: 'rof.registration_data_rollback', value: 'discard-saved-filters' },
+  'coach-restrictions':         { migration: '20261227000000_coach_programme_access', setting: 'rof.coach_programme_access_rollback', value: 'discard-restrictions' },
+  'form-email-verification':    { migration: '20261228000000_form_email_verification', setting: 'rof.form_email_verification_rollback', value: 'discard-verification-switches' },
+  'subscribers':                { migration: '20261229000000_subscribers', setting: 'rof.subscribers_rollback', value: 'discard-subscribers' },
 };
 
 /** The acknowledgement ids of a release (those of its own migrations), sorted. */
@@ -428,6 +571,42 @@ export const LEVELS_2026_OBJECTS = {
   columns: [['Division', 'sortOrder'], ['Division', 'suggestedGrades'], ['TestSubmission', 'level'], ['User', 'divisionManual']],
   triggers: ['student_division_from_grade', 'student_division_history', 'course_offered_in_divisions'],
   functions: ['division_for_grade', 'student_division_from_grade', 'student_division_history', 'course_offered_in_divisions'],
+};
+
+/**
+ * The launch-2026 release: the six migrations after levels-2026 (production holds every migration up to and including
+ * 20261224000000_divisions_levels, read-only check 2026-11-23). Listed explicitly — a migration added later (e.g.
+ * 20261230000000_view_as) is never part of it until it is appended here, with its MIGRATION_OBJECTS entry, its
+ * acknowledgements and its objects below, on purpose.
+ */
+export const LAUNCH_2026_MIGRATIONS = [
+  // Directory sync "new schools only" (owner, 2026-11-22): SchoolSyncRun.mode FULL / NEW_ONLY, default FULL.
+  '20261225000000_school_sync_mode',
+  // Teacher registration "My school is not listed" (owner, 2026-11-22): five nullable proposedSchool* columns.
+  '20261225000100_teacher_unlisted_school',
+  // Registration data (owner, 2026-11-23): MentorRequest.userId (backfilled) and RegistrationSavedFilter.
+  '20261226000000_registration_data',
+  // Coach programme-wide access (owner, 2026-11-23): CoachCapability and CoachProgrammeRestriction (revoked marking
+  // authorisations carried over).
+  '20261227000000_coach_programme_access',
+  // Activation per sign-up form (owner, 2026-11-23): FormAvailability.requireEmailVerification, default false.
+  '20261228000000_form_email_verification',
+  // News subscribers and mailings (owner, 2026-11-23): Subscriber, Mailing, EmailDelivery.subscriberId, four enums.
+  '20261229000000_subscribers',
+];
+
+/** What the launch-2026 migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
+export const LAUNCH_2026_OBJECTS = {
+  tables: ['RegistrationSavedFilter', 'CoachProgrammeRestriction', 'Subscriber', 'Mailing'],
+  enums: ['SchoolSyncMode', 'CoachCapability', 'SubscriberKind', 'SubscriberSource', 'SubscriberStatus', 'MailingStatus'],
+  columns: [
+    ['SchoolSyncRun', 'mode'],
+    ['TeacherApplication', 'proposedSchoolCode'], ['TeacherApplication', 'proposedSchoolCell'], ['TeacherApplication', 'proposedSchoolVillage'],
+    ['TeacherApplication', 'proposedSchoolOwnership'], ['TeacherApplication', 'proposedSchoolAccommodation'],
+    ['MentorRequest', 'userId'], ['FormAvailability', 'requireEmailVerification'], ['EmailDelivery', 'subscriberId'],
+  ],
+  triggers: [],
+  functions: [],
 };
 
 /**
@@ -518,6 +697,24 @@ export const RELEASES = {
       count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length,
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
         || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name),
+    },
+  },
+  'launch-2026': {
+    label: `the launch release (${LAUNCH_2026_MIGRATIONS.length} migrations after levels 2026)`,
+    count: LAUNCH_2026_MIGRATIONS.length,
+    owns: (name) => LAUNCH_2026_MIGRATIONS.includes(name),
+    last: LAUNCH_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/launch-2026-precheck.sql',
+    postcheck: 'scripts/release/launch-2026-postcheck.sql',
+    migrations: LAUNCH_2026_MIGRATIONS,
+    objects: LAUNCH_2026_OBJECTS,
+    // The target must already hold the six releases before it, levels-2026 included (production since 2026-11-22).
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas, late 2026, dec 2026 and levels 2026',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length
+        + LEVELS_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name),
     },
   },
 };

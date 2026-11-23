@@ -3,7 +3,7 @@
  * Migration rehearsal on a Neon BRANCH of production — never production itself.
  * Checklist: docs/operations/REHEARSAL-NEON-CHECKLIST.md (Phase 1) and docs/operations/RELEASE-POST-PHASE1.md.
  *
- * Every command takes --release <phase1|post-phase1|areas-2026|late-2026|dec-2026|levels-2026> (default phase1, the kit's original behaviour):
+ * Every command takes --release <phase1|post-phase1|areas-2026|late-2026|dec-2026|levels-2026|launch-2026> (default phase1, the kit's original behaviour):
  *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
  *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
  *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
@@ -15,8 +15,11 @@
  *   dec-2026     the "Other" Olympiad interest (owner, 2026-11-21); the target must already hold the four releases before it
  *                (production since 2026-11-21).
  *   levels-2026  the Olympiad levels (owner, 2026-11-21: Junior / Middle / Senior, separate from the grade); the target
- *                must already hold the five releases before it.
- *   For post-phase1 and areas-2026, a NEWER checkout (later migrations after the release's) is accepted by the commands
+ *                must already hold the five releases before it (production since 2026-11-22).
+ *   launch-2026  the launch release (owner, 2026-11-22/23): directory sync mode, the unlisted school of a teacher
+ *                application, registration data, coach programme access, activation per sign-up form, news subscribers;
+ *                the target must already hold the six releases before it. Runbook: docs/releases/launch-2026.md.
+ *   For every release but phase1, a NEWER checkout (later migrations after the release's) is accepted by the commands
  *   that run only the release's own files and checks: check-target, precheck, postcheck, rollback, rollback-history,
  *   dump, restore. deploy, diff and status act on every migration of the checkout and still refuse it (exit 5).
  *   The DATABASE must never record a migration after the release's last (exit 5), whatever the command.
@@ -25,7 +28,9 @@
  * object list (scripts/release/releases.mjs, MIGRATION_OBJECTS: tables, columns, enums and enum values, indexes,
  * constraints, triggers, functions, objects it drops, and for M1–M8 the history row). A migration of which NOTHING remains
  * is skipped ("already rolled back"); one of which some objects remain and some are gone is refused with the list (half
- * rolled back — none of its files run); otherwise its pre-switch and rollback files run as before. Every data-loss guard is
+ * rolled back — none of its files run); otherwise its pre-switch and rollback files run as before. A check-only migration
+ * (no marker at all: 20261220000000_test_file_purposes, whose rollback keeps its enum values and changes nothing) has its
+ * file run every time the rollback reaches it, so its guard is never skipped. Every data-loss guard is
  * kept: a guard that refuses stops the run with nothing of that file applied; the same command run again continues there.
  *   --acknowledge <id>     (rollback only; repeatable, each id once) supplies the acknowledgement one guard checks, from the
  *                          FIXED allow-list ACKNOWLEDGEMENTS in releases.mjs (only the release's own ids), e.g.
@@ -354,15 +359,19 @@ export function releaseFiles(release, names) {
 }
 
 /**
- * The data-loss guards written in the release's files: every `current_setting('rof.…', true) IS DISTINCT FROM '…'`, as
- * { migration, setting, value } (comments ignored). The tests compare it with the fixed allow-list ACKNOWLEDGEMENTS.
+ * The data-loss guards written in the release's files: every `current_setting('rof.…', true) IS DISTINCT FROM '…'` and
+ * every `coalesce(current_setting('rof.…', true), '') <> '…'` (the two forms used in docs/migrations; they refuse alike
+ * unless the setting holds exactly that value), as { migration, setting, value } (comments ignored). The tests compare it
+ * with the fixed allow-list ACKNOWLEDGEMENTS.
  */
 export function guardsInFiles(release, { docsDir = DOCS_MIGRATIONS, names = readdirSync(docsDir) } = {}) {
   const { preSwitch, rollback } = releaseFiles(release, names);
   const out = [];
   for (const file of [...preSwitch, ...rollback]) {
     const sql = readFileSync(join(docsDir, file), 'utf8').replace(/--[^\n]*/g, '');
-    for (const [, setting, value] of sql.matchAll(/current_setting\(\s*'(rof\.[a-z0-9_]+)'\s*,\s*true\s*\)\s*IS DISTINCT FROM\s*'([^']*)'/gi)) {
+    const forms = [/current_setting\(\s*'(rof\.[a-z0-9_]+)'\s*,\s*true\s*\)\s*IS DISTINCT FROM\s*'([^']*)'/gi,
+      /coalesce\(\s*current_setting\(\s*'(rof\.[a-z0-9_]+)'\s*,\s*true\s*\)\s*,\s*''\s*\)\s*<>\s*'([^']*)'/gi];
+    for (const [, setting, value] of forms.flatMap((re) => [...sql.matchAll(re)])) {
       if (!out.some((g) => g.setting === setting && g.value === value)) out.push({ migration: migrationOfFile(file), setting, value });
     }
   }
@@ -378,11 +387,16 @@ export function optionValues(args, name) {
  * Each migration's state from the catalogue labels (pure), newest first:
  *   present — every marker of MIGRATION_OBJECTS holds; absent — none holds (already rolled back);
  *   partial — some hold, some do not (half rolled back). `remaining`: the markers that still hold.
+ *   A check-only migration (MIGRATION_OBJECTS checkOnly: no marker) is always present with `checkOnly: true`.
  */
 export function statesFrom(labels, release) {
   return [...release.migrations].sort().reverse().map((migration) => {
     const o = MIGRATION_OBJECTS[migration];
     if (!o) throw new Error(`no object list for ${migration} in scripts/release/releases.mjs (MIGRATION_OBJECTS)`);
+    if (o.checkOnly) {
+      if (markers(migration, o).length) throw new Error(`${migration} is check-only but its object list has markers`);
+      return { migration, state: 'present', checkOnly: true, remaining: [], gone: [] };
+    }
     const all = markers(migration, o);
     if (!all.length) throw new Error(`the object list of ${migration} is empty`);
     const describe = ([label, whenApplied]) => (whenApplied ? label : `${label} still dropped`);
@@ -413,17 +427,19 @@ export function rollbackPlan(states, { preSwitch, rollback }) {
       + 'A migration is skipped only when EVERY object it creates is gone; this one is neither in place nor rolled back, so none of its files run. Nothing was changed. '
       + 'Restore the target from its backup, or complete that migration\'s rollback by hand after review, then run the command again.' };
   }
-  const firstPresent = states.findIndex((s) => s.state === 'present');
+  // A check-only migration says nothing about the order (it is always "present"); only the others count.
+  const firstPresent = states.findIndex((s) => s.state === 'present' && !s.checkOnly);
   const gap = firstPresent < 0 ? [] : states.slice(firstPresent).filter((s) => s.state === 'absent');
   if (gap.length) {
     return { ok: false, reason: `refused: ${gap.map((s) => s.migration).join(', ')} ${gap.length === 1 ? 'is' : 'are'} already rolled back while the newer `
       + `${states[firstPresent].migration} is not. The kit rolls back newest first, so it did not leave this state. Nothing was changed.` };
   }
   const stateOf = new Map(states.map((s) => [s.migration, s.state]));
+  const checkOnly = new Set(states.filter((s) => s.checkOnly).map((s) => s.migration));
   const step = (kind) => (file) => {
     const migration = migrationOfFile(file);
     if (!stateOf.has(migration)) throw new Error(`${file} does not belong to the release's migrations`);
-    return { file, migration, kind, run: stateOf.get(migration) === 'present' };
+    return { file, migration, kind, run: stateOf.get(migration) === 'present', checkOnly: checkOnly.has(migration) };
   };
   return { ok: true, steps: [...preSwitch.map(step('pre-switch')), ...rollback.map(step('rollback'))] };
 }
@@ -474,7 +490,7 @@ export async function rollbackRelease(url, release, { acknowledgements = [], sto
       log(`stopped after ${ran.length} file(s) as asked (--stop-after ${stopAfter}). Run the same command again to continue.`);
       return { ran, skipped, stopped: true };
     }
-    log(`=== ${s.file}`);
+    log(s.checkOnly ? `=== ${s.file} (check only: it changes nothing and runs every time; its migration's objects are kept)` : `=== ${s.file}`);
     try {
       await runSqlFile(url, join(docsDir, s.file), { readOnly: false, settings, log, table });
     } catch (e) {
@@ -482,7 +498,7 @@ export async function rollbackRelease(url, release, { acknowledgements = [], sto
         + 'Run the same command again to continue from here — with --acknowledge <id> if a guard refused, after a backup that holds the data.');
     }
     ran.push(s.file);
-    if (s.kind === 'rollback') {
+    if (s.kind === 'rollback' && !s.checkOnly) {
       const check = new pg.Client({ connectionString: url });
       await check.connect();
       try {
@@ -685,8 +701,8 @@ async function main() {
         return 5;
       }
     }
-    // The design areas build on Phase 1 and post-Phase-1: all of them must already be recorded.
-    if (['areas-2026', 'late-2026', 'dec-2026', 'levels-2026'].includes(release.name) && command !== 'restore') {
+    // Every release after post-Phase-1 builds on all the releases before it: all of them must already be recorded.
+    if (release.requires && release.name !== 'post-phase1' && command !== 'restore') {
       const before = applied.filter((n) => release.requires.owns(n)).length;
       if (before !== release.requires.count) {
         console.error(`✗ refused: the target records ${before} of the ${release.requires.count} ${release.requires.label} migrations; ${release.name} needs all of them first.`);

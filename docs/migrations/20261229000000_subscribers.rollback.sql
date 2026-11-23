@@ -29,12 +29,12 @@ DECLARE
 BEGIN
   SELECT count(*) INTO pending FROM "EmailDelivery" WHERE "subscriberId" IS NOT NULL AND "status" = 'PENDING';
   IF pending > 0 THEN
-    RAISE EXCEPTION 'Refusing: % subscriber e-mail(s) are still waiting to be sent. Let the outbox finish or cancel the mailing first.', pending;
+    RAISE EXCEPTION 'SUBSCRIBERS_ROLLBACK_REFUSED: % subscriber e-mail(s) are still waiting to be sent; nothing was changed. Let the outbox finish or cancel the mailing first.', pending;
   END IF;
   SELECT count(*) INTO subscribers FROM "Subscriber";
   SELECT count(*) INTO mailings FROM "Mailing";
   IF (subscribers > 0 OR mailings > 0) AND coalesce(current_setting('rof.subscribers_rollback', true), '') <> 'discard-subscribers' THEN
-    RAISE EXCEPTION 'Refusing: % subscriber(s) and % mailing(s) exist. Back them up, then set rof.subscribers_rollback = ''discard-subscribers'' to proceed.', subscribers, mailings;
+    RAISE EXCEPTION 'SUBSCRIBERS_ROLLBACK_REFUSED: % subscriber(s) and % mailing(s) exist; nothing was changed. Back them up, then set rof.subscribers_rollback = ''discard-subscribers'' to proceed.', subscribers, mailings;
   END IF;
 END $$;
 

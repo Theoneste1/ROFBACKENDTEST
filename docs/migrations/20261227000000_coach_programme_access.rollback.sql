@@ -24,7 +24,7 @@ DECLARE
 BEGIN
   SELECT count(*) INTO made FROM "CoachProgrammeRestriction" WHERE "reason" NOT LIKE 'Carried over from the revoked marking authorisation:%';
   IF made > 0 AND coalesce(current_setting('rof.coach_programme_access_rollback', true), '') <> 'discard-restrictions' THEN
-    RAISE EXCEPTION 'Refusing: % coach access restriction(s) were recorded since the release. Set rof.coach_programme_access_rollback = ''discard-restrictions'' to proceed.', made;
+    RAISE EXCEPTION 'COACH_PROGRAMME_ACCESS_ROLLBACK_REFUSED: % coach access restriction(s) were recorded since the release; nothing was changed. After a backup that contains them, set rof.coach_programme_access_rollback = ''discard-restrictions'' to proceed.', made;
   END IF;
 END $$;
 
