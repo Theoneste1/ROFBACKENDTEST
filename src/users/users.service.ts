@@ -259,7 +259,7 @@ export class UsersService {
     // current school creates no claim; a NEW claim for an inactive school is refused by claim().
     if (data.schoolCode !== undefined) {
       if (data.schoolId === null) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH', 'schoolId: null clears the school; do not send a schoolCode with it.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH', 'To remove the school, leave the school empty (do not give a school code at the same time).');
       }
       const { schoolCode: _code, ...rest } = data;
       data = { ...rest, schoolId: (await this.schoolFromReference(data, false))! };
@@ -533,7 +533,7 @@ export class UsersService {
     // Account states (2026-11-16): accounts are never deleted through the API — archive them instead (their
     // submissions, results, discussions, enrolments, affiliations, notifications and audit history are kept).
     throw new AppError(HttpStatus.CONFLICT, 'PERMANENT_DELETION_DISABLED',
-      'Accounts are not deleted. Archive the account instead (POST /admin/users/:id/status-changes with toStatus ARCHIVED).');
+      'Accounts are never deleted. Archive the account instead (Change status → Archived).');
   }
 
   // (Annual promotion moved to AcademicYearsService.activate, which also keeps

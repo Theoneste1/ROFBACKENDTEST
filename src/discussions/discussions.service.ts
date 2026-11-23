@@ -526,7 +526,7 @@ export class DiscussionsService {
     const division = isStudent(user) ? this.access.studentDivision(user) : divisionId;
     if (!division) {
       if (isAdmin(user) && !forWrite) return { courseId };
-      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId for course discussions.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Choose the level (division) for this course discussion.');
     }
     await this.access.assertCanView(user, { courseId, divisionId: division });
     return { courseId, divisionId: division };

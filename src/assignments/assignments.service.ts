@@ -406,7 +406,7 @@ export class AssignmentsService {
 
   async addAttachments(assignmentId: string, user: AuthUser, files: Express.Multer.File[]) {
     if (files.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach at least one file (field "files").');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach at least one file.');
     }
     const assignment = await this.findOrThrow(assignmentId);
     await this.access.assertMentorOf(user, assignment);
@@ -741,7 +741,7 @@ export class AssignmentsService {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         'INVALID_RESUBMISSION_RULES',
-        'maxResubmissions only applies when allowResubmission is true.',
+        'A maximum number of resubmissions can only be set when resubmissions are allowed. Allow resubmissions first, or clear the maximum.',
       );
     }
   }

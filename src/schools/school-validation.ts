@@ -114,6 +114,6 @@ export function schoolSnapshot(s: Record<string, unknown>) {
 
 export function possibleDuplicateError(candidates: DuplicateCandidate[]) {
   return new AppError(HttpStatus.CONFLICT, 'POSSIBLE_DUPLICATE',
-    'A school with the same name already exists nearby. Use it, or repeat the request with confirmPossibleDuplicate: true.',
+    'A school with the same name already exists nearby. Use that school, or confirm that this is a different school to add it anyway.',
     { candidates });
 }

@@ -70,7 +70,7 @@ export class ReportsService {
    */
   async resultsCsv(q: ReportFiltersDto & { assignmentId?: string }, user: AuthUser): Promise<CsvExport> {
     if (!q.assignmentId && !(q.courseId && q.divisionId)) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'FILTER_REQUIRED', 'Provide assignmentId, or courseId and divisionId.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'FILTER_REQUIRED', 'Choose an assignment, or a course and a level, to build this report.');
     }
     const s = await this.scope.resolve(q.assignmentId && !q.academicYearId ? { ...q, academicYearId: 'all' } : q, user);
     const range = this.scope.range(s);

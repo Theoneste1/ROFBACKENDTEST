@@ -369,7 +369,7 @@ export class TestsService {
   async putFile(id: string, kindParam: TestFileKindParam, file: Express.Multer.File | undefined, user: AuthUser) {
     const kind = KIND_OF[kindParam];
     await this.loadInScope(id, user);
-    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the file (multipart field "file").');
+    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the file (a PDF or a photo).');
     const stored = await this.storage.store(file, PURPOSE_OF[kind], user.id);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);

@@ -453,8 +453,8 @@ describe('School administration (PR B)', () => {
         const res = await csvImport(rows, dryRun).expect(200);
         expect(res.body).toMatchObject({ dryRun, totalRows: 6, valid: 3, created: dryRun ? 0 : 3, failed: 3 });
         expect(res.body.errors.map((e: any) => [e.row, e.errors.join(' ')])).toEqual([
-          [4, expect.stringMatching(/"Brand New School" was given by name only/)],
-          [5, expect.stringMatching(/No school has code 229998/)],
+          [4, expect.stringMatching(/"Brand New School" was given by its name only/)],
+          [5, expect.stringMatching(/No school in the official list has the code 229998/)],
           [6, expect.stringMatching(/does not match the school with code 220001 \("GS Ngoma Official"\)/)],
         ]);
         expect(await p().school.count()).toBe(schools);

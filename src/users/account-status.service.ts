@@ -173,7 +173,7 @@ export class AccountStatusService {
     }
     if (confirmationRequired(from, to) && confirm !== true) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CONFIRMATION_REQUIRED',
-        'Restoring an archived account must be confirmed explicitly (confirm: true).', { from, to });
+        'Please confirm that you want to restore this archived account.', { from, to });
     }
     const needed = permissionFor(from, to);
     if (!this.permissions.has(caller, needed)) {

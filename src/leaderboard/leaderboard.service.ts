@@ -162,7 +162,7 @@ export class LeaderboardService {
     }
     if (!isStaff(user)) throw unsupportedRole();
     if (!requested) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Choose a level (division) to see its leaderboard.');
     }
     const exists = await this.prisma.division.findUnique({ where: { id: requested }, select: { id: true } });
     if (!exists) throw new NotFoundException('Division not found.');

@@ -379,7 +379,7 @@ export class NotificationsService {
       }
       seen.add(c.type);
       if (c.inAppEnabled === undefined && c.emailEnabled === undefined) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', `Give inAppEnabled and/or emailEnabled for "${c.type}".`);
+        throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Choose whether to receive this notification in the app, by e-mail, or both.');
       }
       if (c.emailEnabled !== undefined && !info.email) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'EMAIL_NOT_AVAILABLE', `"${info.label}" is only shown in the app, never e-mailed.`);

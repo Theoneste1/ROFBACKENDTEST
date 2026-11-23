@@ -107,7 +107,7 @@ export class AuthService {
   private async registrationSchool(tx: Prisma.TransactionClient, data: RegisterStudentDto) {
     const placeGiven = data.schoolProvince !== undefined;   // all three, or none (DTO)
     if (data.schoolId !== undefined && data.schoolCode !== undefined) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Send either schoolId or schoolCode, not both.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the school once: either from the list or by its code, not both.');
     }
     if ((data.country ?? 'RW') !== 'RW') {
       if (data.schoolId !== undefined) {

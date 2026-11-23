@@ -101,7 +101,7 @@ export class BulkOperationsService {
     if (existing) return this.sameKey(existing, handler);
 
     const { action, params, selection } = await this.prepare(handler, dto, caller);
-    if (dto.confirm !== true) throw new AppError(HttpStatus.BAD_REQUEST, 'CONFIRMATION_REQUIRED', 'Confirm the bulk action (confirm: true).');
+    if (dto.confirm !== true) throw new AppError(HttpStatus.BAD_REQUEST, 'CONFIRMATION_REQUIRED', 'Please confirm this action before it is applied to the selected records.');
     const reason = dto.reason?.trim() || null;
     if (handler.actions[action].reason === 'required' && (!reason || reason.length < REASON_MIN || reason.length > REASON_MAX)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', `Give a reason (${REASON_MIN}–${REASON_MAX} characters).`);
@@ -269,7 +269,7 @@ export class BulkOperationsService {
   /** CSV of the selected records (safe fields only; the type decides which). Audited by the type. */
   async export(entityType: string, dto: { selection: object }, caller: AuthUser, res: Response, requestId: string | null) {
     const handler = this.registry.get(entityType);
-    if (!handler.export) throw new AppError(HttpStatus.NOT_FOUND, 'BULK_EXPORT_UNAVAILABLE', `${handler.entityType} records cannot be exported in bulk.`);
+    if (!handler.export) throw new AppError(HttpStatus.NOT_FOUND, 'BULK_EXPORT_UNAVAILABLE', 'These records cannot be exported together. Export them one at a time.');
     this.assertPermissions(caller, [handler.export.permission]);
     const selection = handler.normaliseSelection(dto.selection as EngineSelection);
     const ids = await this.matchingIds(handler, this.prisma, selection);
@@ -335,7 +335,7 @@ export class BulkOperationsService {
   /** The same idempotency key: the same operation — never a second one, and never another record type's. */
   private sameKey<T extends { entityType: string }>(op: T, handler: BulkEntityHandler) {
     if (op.entityType !== handler.entityType) {
-      throw new AppError(HttpStatus.CONFLICT, 'IDEMPOTENCY_KEY_REUSED', 'This idempotencyKey was already used for another kind of bulk operation.');
+      throw new AppError(HttpStatus.CONFLICT, 'IDEMPOTENCY_KEY_REUSED', 'This action was already started as a different kind of bulk action. Refresh the page and start it again.');
     }
     return { operation: op, alreadyExisted: true };
   }

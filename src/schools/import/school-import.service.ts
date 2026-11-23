@@ -101,7 +101,7 @@ export class SchoolImportService {
     let tokenSnap: { snap: string; exp: number } | null = null;
     if (q.confirmPossibleDuplicates) {
       if (!q.reviewToken) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'REVIEW_TOKEN_REQUIRED', 'Confirming possible duplicates needs the reviewToken of the dry run that showed them.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'REVIEW_TOKEN_REQUIRED', 'Check the file first (the preview), review the possible duplicates it shows, then confirm the import.');
       }
       const check = checkReviewToken(this.key, q.reviewToken, { sub: caller.id, file: fileSha256 });
       if (!check.ok) {
@@ -128,14 +128,14 @@ export class SchoolImportService {
           if (!tokenSnap) {
             const t = this.token(caller, fileSha256, result);
             throw new ImportRefused(new AppError(HttpStatus.CONFLICT, 'POSSIBLE_DUPLICATES_UNCONFIRMED',
-              'Some schools may already exist. Review the candidates, then import again with confirmPossibleDuplicates and this reviewToken.',
+              'Some schools in the file may already exist. Review the possible duplicates shown, then confirm the import.',
               { possibleDuplicates: result.possibleDuplicates, reviewToken: t.token, reviewExpiresAt: t.expiresAt.toISOString() }),
               'POSSIBLE_DUPLICATES_UNCONFIRMED', { totalRows: rows.length, possibleDuplicateRows: flaggedRows.size });
           }
           if (tokenSnap.exp <= this.now().getTime() || tokenSnap.snap !== snap) {
             const t = this.token(caller, fileSha256, result);
             throw new ImportRefused(new AppError(HttpStatus.CONFLICT, 'IMPORT_REVIEW_OUTDATED',
-              'The possible duplicates changed (or the review expired) since your review. Review them again, then confirm with the new reviewToken.',
+              'The possible duplicates changed (or your review expired) since you checked them. Review them again, then confirm the import.',
               { possibleDuplicates: result.possibleDuplicates, reviewToken: t.token, reviewExpiresAt: t.expiresAt.toISOString() }),
               'IMPORT_REVIEW_OUTDATED', { totalRows: rows.length, possibleDuplicateRows: flaggedRows.size });
           }
