@@ -144,6 +144,7 @@ const COACH_ADMIN_ROUTES: string[] = [
   'DELETE /api/v1/admin/tests/:id/questions/:questionId  TestsController.removeQuestion  [HEAD_COACH]',
   'GET /api/v1/admin/activity  ActivityController.list  [HEAD_COACH]',
   'GET /api/v1/admin/activity/summary  ActivityController.summary  [HEAD_COACH]',
+  'GET /api/v1/admin/coaches/:id/programme-access  CoachAccessController.get  [HEAD_COACH]',
   'GET /api/v1/admin/dashboard  DashboardController.get  [HEAD_COACH]',
   'GET /api/v1/admin/mentor-assignments  MentorAssignmentsController.findAll  [HEAD_COACH]',
   'GET /api/v1/admin/programmes/:id/members  AdminProgrammesController.members  [HEAD_COACH]',
@@ -200,6 +201,7 @@ const COACH_ADMIN_ROUTES: string[] = [
   'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/results/publish  AdminTestResultsController.publish  [HEAD_COACH]',
   'POST /api/v1/admin/tests/:id/unpublish  TestsController.unpublish  [HEAD_COACH]',
+  'PUT /api/v1/admin/coaches/:id/programme-access  CoachAccessController.set  [HEAD_COACH]',
   'PUT /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.set  [MENTOR,HEAD_COACH]',
   'PUT /api/v1/admin/tests/:id/files/:kind  TestsController.putFile  [HEAD_COACH]',
   'PUT /api/v1/admin/tests/:id/questions/order  TestsController.reorderQuestions  [HEAD_COACH]',
@@ -239,4 +241,4 @@ const TEACHER_ROUTES_GUARD_ONLY: string[] = [
 // reporting overview, the staff dashboard — never the override); +10 for Administrators and Super Admins (the same and the
 // override).
 // 2026-11-19, generic bulk engine: +8 /admin/bulk/* routes (users.bulkManage: Administrators and Super Admins only).
-const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 116, TEACHER: 107, MENTOR: 131, HEAD_COACH: 184, ADMIN: 374, SUPER_ADMIN: 380 };   /* reports and table layouts (2026-11-22): +9 every signed-in caller; Head Coaches +3 own table layouts (users.view); Administrators +17 */   /* +1 every signed-in caller: the Student Profile Overview (2026-11-22) */   /* +3 Administrators (division courses get / set, coach bulk assignment), +1 Head Coaches (coach bulk assignment) */   // Olympiad levels (2026-11-21): +2 Administrators, Coaches and Head Coaches (a student's level: view / set), +1 Administrators (create a division); locked test submissions (2026-11-21): +4 Administrators (resubmission authorize / cancel, a teacher's test submission get / set); gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)
+const TOTALS: Record<Caller, number> = { anonymous: 26, STUDENT: 116, TEACHER: 107, MENTOR: 135, HEAD_COACH: 186, ADMIN: 376, SUPER_ADMIN: 382 };   /* coaches across their programmes (2026-11-23): Coaches +4 (students, three results), Administrators and Head Coaches +2 (a coach's programme access) */   /* reports and table layouts (2026-11-22): +9 every signed-in caller; Head Coaches +3 own table layouts (users.view); Administrators +17 */   /* +1 every signed-in caller: the Student Profile Overview (2026-11-22) */   /* +3 Administrators (division courses get / set, coach bulk assignment), +1 Head Coaches (coach bulk assignment) */   // Olympiad levels (2026-11-21): +2 Administrators, Coaches and Head Coaches (a student's level: view / set), +1 Administrators (create a division); locked test submissions (2026-11-21): +4 Administrators (resubmission authorize / cancel, a teacher's test submission get / set); gender step (2026-11-20): +1 each signed-in caller (PUT /me/gender)

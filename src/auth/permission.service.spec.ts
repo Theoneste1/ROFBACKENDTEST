@@ -12,6 +12,8 @@ function make() {
   const calls: string[] = [];
   const access = {
     mentorScopes: async (id: string) => { calls.push(id); return SCOPES.map((s) => ({ ...s, extra: 'x' })); },
+    // The course × division pairs reported: explicit assignments and (a Coach, 2026-11-23) their programmes' courses.
+    courseScopes: async (u: { id: string }) => { calls.push(u.id); return SCOPES.map((s) => ({ ...s, extra: 'x' })); },
     headedProgrammes: async (u: { id: string; role: string }) => {
       if (u.role !== 'HEAD_COACH') return [];
       calls.push(`programmes:${u.id}`);

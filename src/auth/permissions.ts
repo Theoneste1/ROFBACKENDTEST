@@ -129,6 +129,10 @@ export const PERMISSIONS = [
   'reports.build',               // build custom reports (any source), see and manage every report and who may use it
                                  // (view / download / edit grants): Administrators (global). Shared reports need no
                                  // permission: their grants decide (src/custom-reports)
+  // ── Coaches across their programmes (owner 2026-11-23): every Coach, for each programme they belong to, every level —
+  //    taken away per coach and programme by an Administrator or the programme's Head Coach (CoachProgrammeRestriction) ──
+  'students.viewProgramme',      // the students of their programmes (name, level, school, subjects; never contacts)
+  'tests.viewProgrammeResults',  // the PUBLISHED results of their programmes' tests (no ranks, codes or markers)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -241,6 +245,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.mark': 'markerAuthorization',
     // Olympiad levels (owner 2026-11-21): the students of the programmes the coach belongs to.
     'students.classifyLevel': 'programme',
+    // Owner 2026-11-23: by default, everything of their programmes at every level (each removable per programme).
+    'students.viewProgramme': 'programme', 'tests.viewProgrammeResults': 'programme',
   },
   HEAD_COACH: {
     'courses.view': 'programme', 'resources.view': 'programme', 'assignments.view': 'programme',
@@ -340,6 +346,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, Olympiad levels, owner 2026-11-21): coaches hold it (their programmes' students); listed so the
     // coach sees the Olympiad level control.
     'students.classifyLevel',
+    // Appended (additive, owner 2026-11-23): coaches hold them (their programmes, every level); listed so the coach portal
+    // shows the Students and Test results pages.
+    'students.viewProgramme', 'tests.viewProgrammeResults',
   ],
   ADMIN: [
     'courses.view', 'resources.view', 'resources.manage',

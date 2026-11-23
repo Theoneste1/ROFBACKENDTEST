@@ -31,7 +31,7 @@ describe('App basics (e2e)', () => {
     expect(res.body.capabilities).toEqual(capabilitiesOf(config));
     // Exactly the approved V1 features for this configuration (the directory sync since 2026-11-14).
     expect(res.body.capabilities.features).toEqual([
-      'academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep',
+      'academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'coachProgrammeAccess', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
       'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'tableLayouts', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts', 'teacherSelfRegistration'] : []),

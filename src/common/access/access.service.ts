@@ -6,7 +6,10 @@
  * (course × division) pair:
  *
  *   ADMIN   — every scope.
- *   MENTOR  — only scopes they are actively assigned to (MentorAssignment).
+ *   MENTOR  — the scopes they are actively assigned to (MentorAssignment) AND, by default (owner 2026-11-23), every
+ *             course of every programme they belong to, at every level the course is offered in — unless an
+ *             Administrator or the programme's Head Coach took that away (CoachProgrammeRestriction COURSES).
+ *             Grading distribution stays with the explicit assignments (SubmissionsService.distribute).
  *   HEAD_COACH — the same, for course × division assignments an Administrator
  *             created for them (H4); never resource management (H6).
  *   STUDENT — only their own division, and only for PUBLISHED courses.
@@ -20,7 +23,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { AppError } from '../errors/app-error.js';
 import type { AuthUser } from '../auth-user.js';
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { CoachCapability, Prisma } from '../../generated/prisma/client.js';
 import { COURSE_WORK_ROLES, isAdmin, isCoach, isCourseWorker, isHeadCoach, isStudent, isTeacher, unsupportedRole } from './roles.js';
 
 export interface Scope {
@@ -40,6 +43,48 @@ export class AccessService {
     });
   }
 
+  /**
+   * The programmes in which a COACH (MENTOR) holds a programme-wide capability (owner 2026-11-23): their ACTIVE programme
+   * memberships, minus the ones where it was taken away (an active CoachProgrammeRestriction). Anyone else: none. Read
+   * fresh on every call.
+   */
+  async coachProgrammes(user: Pick<AuthUser, 'id' | 'role'>, capability: CoachCapability): Promise<string[]> {
+    if (user.role !== 'MENTOR') return [];
+    const rows = await this.prisma.programmeMembership.findMany({
+      where: {
+        userId: user.id, isActive: true, user: { role: 'MENTOR' },
+        discipline: { coachRestrictions: { none: { coachId: user.id, capability, liftedAt: null } } },
+      },
+      select: { disciplineId: true }, orderBy: { disciplineId: 'asc' },
+    });
+    return rows.map((r) => r.disciplineId);
+  }
+
+  /**
+   * Every (course, division) pair a coach or Head Coach works in: their explicit assignments and, for a Coach, every
+   * course of the programmes they hold COURSES in, at every level the course is ACTIVELY offered in.
+   */
+  async courseScopes(user: Pick<AuthUser, 'id' | 'role'>): Promise<Scope[]> {
+    const [explicit, programmes] = await Promise.all([this.mentorScopes(user.id), this.coachProgrammes(user, 'COURSES')]);
+    if (!programmes.length) return explicit;
+    const offered = await this.prisma.courseDivision.findMany({
+      where: { isActive: true, course: { disciplineId: { in: programmes } } }, select: { courseId: true, divisionId: true },
+    });
+    const seen = new Set(explicit.map((s) => `${s.courseId}:${s.divisionId}`));
+    return [...explicit, ...offered.filter((o) => !seen.has(`${o.courseId}:${o.divisionId}`))];
+  }
+
+  /** May this coach / Head Coach work in this scope: an explicit assignment, or (Coach) their programme's course offered there. */
+  async hasCourseScope(user: Pick<AuthUser, 'id' | 'role'>, scope: Scope): Promise<boolean> {
+    if (await this.isAssignedMentor(user.id, scope)) return true;
+    const programmes = await this.coachProgrammes(user, 'COURSES');
+    if (!programmes.length) return false;
+    return (await this.prisma.courseDivision.count({
+      where: { courseId: scope.courseId, divisionId: scope.divisionId, isActive: true, course: { disciplineId: { in: programmes } } },
+    })) > 0;
+  }
+
+  /** An EXPLICIT (course, division) assignment (grading distribution and reviewers use only these). */
   async isAssignedMentor(mentorId: string, scope: Scope): Promise<boolean> {
     const found = await this.prisma.mentorAssignment.findFirst({
       where:  { mentorId, courseId: scope.courseId, divisionId: scope.divisionId, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
@@ -64,7 +109,7 @@ export class AccessService {
         return;
       case 'MENTOR':
       case 'HEAD_COACH':
-        if (await this.isAssignedMentor(user.id, scope)) return;
+        if (await this.hasCourseScope(user, scope)) return;
         throw notAssigned();
       case 'STUDENT': {
         if (user.divisionId !== scope.divisionId) throw new NotFoundException('Not found.');
@@ -85,13 +130,13 @@ export class AccessService {
   /** May the user CREATE/EDIT content in this scope? (admin or assigned mentor) */
   async assertCanManage(user: AuthUser, scope: Scope): Promise<void> {
     if (isAdmin(user)) return;
-    if (isCoach(user) && (await this.isAssignedMentor(user.id, scope))) return;
+    if (isCoach(user) && (await this.hasCourseScope(user, scope))) return;
     throw notAssigned();
   }
 
   /** Course-worker variant: admins are NOT allowed (e.g. preparing assignments). Coaches and assigned Head Coaches (H4). */
   async assertMentorOf(user: AuthUser, scope: Scope): Promise<void> {
-    if (isCourseWorker(user) && (await this.isAssignedMentor(user.id, scope))) return;
+    if (isCourseWorker(user) && (await this.hasCourseScope(user, scope))) return;
     throw notAssigned();
   }
 
@@ -109,7 +154,7 @@ export class AccessService {
       return { divisionId, course: { status: 'PUBLISHED', divisionOfferings: { some: { divisionId, isActive: true } } } };
     }
     if (isCourseWorker(user)) {
-      const scopes = await this.mentorScopes(user.id);
+      const scopes = await this.courseScopes(user);
       // No scopes → match nothing.
       if (scopes.length === 0) return { id: { in: [] } };
       return { OR: scopes.map((s) => ({ courseId: s.courseId, divisionId: s.divisionId })) };

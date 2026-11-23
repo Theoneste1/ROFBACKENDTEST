@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 443 endpoints — 26 public, 262 administrator-only.
+Totals: 449 endpoints — 26 public, 264 administrator-only.
 
 ## Academic years
 
@@ -408,6 +408,22 @@ Totals: 443 endpoints — 26 public, 262 administrator-only.
 | GET | `/api/v1/auth/register/teacher/availability` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/resend-activation` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/reset-password` | ✓ | ✓ | ✓ | ✓ |
+
+## Coach
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/coach/students` |  |  | ✓ |  |
+| GET | `/api/v1/coach/test-results` |  |  | ✓ |  |
+| GET | `/api/v1/coach/test-results/{testId}` |  |  | ✓ |  |
+| GET | `/api/v1/coach/test-results/{testId}/students/{studentId}` |  |  | ✓ |  |
+
+## Coaches
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  | ✓ |
 
 ## Countries
 

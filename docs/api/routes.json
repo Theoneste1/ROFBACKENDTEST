@@ -2323,6 +2323,58 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/coach/students",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/coach/test-results",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/coach/test-results/{testId}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/coach/test-results/{testId}/students/{studentId}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/coaches/{id}/programme-access",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Coaches"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/coaches/{id}/programme-access",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Coaches"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/countries",
     "roles": [
       "PUBLIC"

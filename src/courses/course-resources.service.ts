@@ -144,7 +144,7 @@ export class CourseResourcesService {
       await this.access.assertCanView(user, { courseId, divisionId });
       Object.assign(where, { divisionId, isPublished: true, archivedAt: null });
     } else if (isCourseWorker(user)) {
-      const divisions = (await this.access.mentorScopes(user.id))
+      const divisions = (await this.access.courseScopes(user))
         .filter((s) => s.courseId === courseId)
         .map((s) => s.divisionId);
       if (divisions.length === 0 || (q.divisionId && !divisions.includes(q.divisionId))) {

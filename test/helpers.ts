@@ -218,6 +218,16 @@ async function seedBase(prisma: PrismaService): Promise<BaseIds> {
     data: [studentJunior, studentJunior2, studentSenior, mentorJunior, mentorJunior2, mentorSenior]
       .map((u) => ({ userId: u.id, disciplineId: maths.id, source: 'BACKFILL' as const })),
   });
+  // Coaches across their programmes (owner 2026-11-23): a programme member opens every course of it and marks its tests by
+  // default. The seeded coaches have those two parts TAKEN AWAY (the feature's own mechanism), so the suites written for
+  // the explicit rules — course × division assignments (MentorAssignment) and marker authorisations — keep testing them
+  // unchanged; an authorisation granted in a suite lifts the MARKING restriction, as in production. The programme-wide
+  // default itself is tested with coaches of their own in coach-programme-access.e2e-spec.ts.
+  await prisma.coachProgrammeRestriction.createMany({
+    data: [mentorJunior, mentorJunior2, mentorSenior].flatMap((u) => (['COURSES', 'MARKING'] as const).map((capability) => ({
+      coachId: u.id, disciplineId: maths.id, capability, reason: 'Test fixture: explicit assignments and authorisations only',
+    }))),
+  });
 
   return {
     year: year.id, junior: junior.id, senior: senior.id, algebra: algebra.id, geometry: geometry.id,

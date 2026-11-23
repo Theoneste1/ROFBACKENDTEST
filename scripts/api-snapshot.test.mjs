@@ -335,7 +335,12 @@ const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-division
  * against the Olympiad levels snapshot.
  */
 const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
+/**
+ * Coaches across their programmes (owner 2026-11-23): the coach's students and published results, and a coach's programme
+ * access for Administrators and Head Coaches. Additive only against the school codes snapshot.
+ */
+const COACH_ACCESS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-coach-programme-access.json';
+const CURRENT_SNAPSHOT = COACH_ACCESS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1789,6 +1794,23 @@ describe('approved API contract history', () => {
       'schema GenericBulkExportDto: added',
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
+    ]);
+  });
+
+  test('the school code → coaches across their programmes (2026-11-23): additive only — five operations and one request body', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, COACH_ACCESS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(COACH_ACCESS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/coaches/{id}/programme-access: operation added',
+      'GET /api/v1/coach/students: operation added',
+      'GET /api/v1/coach/test-results/{testId}/students/{studentId}: operation added',
+      'GET /api/v1/coach/test-results/{testId}: operation added',
+      'GET /api/v1/coach/test-results: operation added',
+      'PUT /api/v1/admin/coaches/{id}/programme-access: operation added',
+      'schema SetCoachAccessDto: added',
     ]);
   });
 

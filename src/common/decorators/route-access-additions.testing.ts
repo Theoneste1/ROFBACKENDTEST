@@ -342,4 +342,13 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/reports/:id/export  CustomReportsController.export':                                             SIGNED_IN,
   'GET /api/v1/reports/:id/grants  CustomReportsController.grants':                                             SIGNED_IN,
   'PUT /api/v1/reports/:id/grants  CustomReportsController.setGrants':                                          SIGNED_IN,
+  // Coaches across their programmes (owner 2026-11-23): the coach's Students and Test results pages (students.viewProgramme,
+  // tests.viewProgrammeResults: Coaches only); a coach's programme access (users.manageCoaches: Administrators; Head Coaches,
+  // the programmes they head — HEAD_COACH is not a baseline caller).
+  'GET /api/v1/coach/students  CoachStudentsController.students':                                                COACHES_ONLY,
+  'GET /api/v1/coach/test-results  CoachTestResultsController.list':                                             COACHES_ONLY,
+  'GET /api/v1/coach/test-results/:testId  CoachTestResultsController.results':                                  COACHES_ONLY,
+  'GET /api/v1/coach/test-results/:testId/students/:studentId  CoachTestResultsController.result':               COACHES_ONLY,
+  'GET /api/v1/admin/coaches/:id/programme-access  CoachAccessController.get':                                   ADMINISTRATORS,
+  'PUT /api/v1/admin/coaches/:id/programme-access  CoachAccessController.set':                                   ADMINISTRATORS,
 };

@@ -568,6 +568,9 @@ model User {
   activityLogs                      ActivityLog[]
   teacherApplicationsDecided        TeacherApplication[]            @relation("TeacherApplicationDecidedBy")
   teacherApplication                TeacherApplication?             @relation("TeacherApplicationUser")
+  coachRestrictions                 CoachProgrammeRestriction[]     @relation("CoachRestrictionCoach")
+  coachRestrictionsMade             CoachProgrammeRestriction[]     @relation("CoachRestrictionCreatedBy")
+  coachRestrictionsLifted           CoachProgrammeRestriction[]     @relation("CoachRestrictionLiftedBy")
   teacherApplicationSchoolsVerified TeacherApplication[]            @relation("TeacherApplicationSchoolVerifiedBy")
   applicationInfoRequests           ApplicationInfoRequest[]        @relation("ApplicationInfoRequestedBy")
   notificationOutbox                NotificationOutbox[]
@@ -1342,6 +1345,7 @@ model Discipline {
 
   courses              Course[]
   memberships          ProgrammeMembership[]
+  coachRestrictions    CoachProgrammeRestriction[]
   /// Test Management (WS3): the subject's tests and authorised markers.
   tests                Test[]
   markerAuthorizations MarkerAuthorization[]
@@ -3313,6 +3317,40 @@ model CourseDivision {
 /// A saved column layout of a table (owner 2026-11-22: administrators choose the columns of the user tables). `owner`
 /// is "ORG" (the organization default, set by Administrators) or a user id (that person's own layout). `columns`: the
 /// ordered list of {key, visible}; keys are checked against the table's columns by the service.
+/// What a coach may do across a programme by default (owner 2026-11-23): see its students, open and manage every course of
+/// it at every level, mark its tests, see its published results. Granted to every Coach for each programme they belong to.
+enum CoachCapability {
+  STUDENTS
+  COURSES
+  MARKING
+  RESULTS
+}
+
+/// A programme-wide coach capability taken away from one coach in one programme (owner 2026-11-23), by an Administrator or
+/// a Head Coach of that programme, with a reason. Active while liftedAt is NULL (at most one active per coach, programme
+/// and capability — partial unique index); lifting it gives the capability back. Rows are kept as history.
+model CoachProgrammeRestriction {
+  id           String          @id @default(uuid())
+  coachId      String
+  coach        User            @relation("CoachRestrictionCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  disciplineId String
+  discipline   Discipline      @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  capability   CoachCapability
+  reason       String
+  createdById  String?
+  createdBy    User?           @relation("CoachRestrictionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime        @default(now())
+  liftedAt     DateTime?
+  liftedById   String?
+  liftedBy     User?           @relation("CoachRestrictionLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
+  liftReason   String?
+
+  @@index([coachId, liftedAt])
+  @@index([disciplineId, capability, liftedAt])
+  @@index([createdById])
+  @@index([liftedById])
+}
+
 model TableLayout {
   id          String   @id @default(uuid())
   owner       String

@@ -9689,6 +9689,231 @@
       ]
     },
     {
+      "name": "Coach",
+      "item": [
+        {
+          "name": "GET /coach/students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "students"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "programmeId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "One of my programmes (a Discipline id)."
+                },
+                {
+                  "key": "division",
+                  "value": "division",
+                  "disabled": true,
+                  "description": "An Olympiad level code (JUNIOR, MIDDLE, SENIOR …)."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `students.viewProgramme` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /coach/test-results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/test-results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "test-results"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /coach/test-results/{testId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/test-results/:testId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "test-results",
+                ":testId"
+              ],
+              "variable": [
+                {
+                  "key": "testId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "One of the teacher's schools."
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Student name or username."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /coach/test-results/{testId}/students/{studentId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/test-results/:testId/students/:studentId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "test-results",
+                ":testId",
+                "students",
+                ":studentId"
+              ],
+              "variable": [
+                {
+                  "key": "testId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coaches",
+      "item": [
+        {
+          "name": "GET /admin/coaches/{id}/programme-access",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/coaches/:id/programme-access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coaches",
+                ":id",
+                "programme-access"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/coaches/{id}/programme-access",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/coaches/:id/programme-access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coaches",
+                ":id",
+                "programme-access"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"programmeId\": \"00000000-0000-4000-8000-000000000000\",\n  \"capability\": \"STUDENTS\",\n  \"allowed\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Countries",
       "item": [
         {

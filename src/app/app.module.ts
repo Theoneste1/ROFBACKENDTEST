@@ -26,6 +26,7 @@ import { ReferenceDataModule } from '../reference-data/reference-data.module.js'
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { DivisionsModule } from '../divisions/divisions.module.js';
 import { TableLayoutsModule } from '../table-layouts/table-layouts.module.js';
+import { CoachAccessModule } from '../coach-access/coach-access.module.js';
 import { CustomReportsModule } from '../custom-reports/custom-reports.module.js';
 import { AcademicYearsModule } from '../academic-years/academic-years.module.js';
 import { ActivityModule } from '../activity/activity.module.js';
@@ -105,6 +106,7 @@ import { TestManagementModule } from '../test-management/test-management.module.
     NotificationsModule,
     DivisionsModule,
     TableLayoutsModule,
+    CoachAccessModule,
     CustomReportsModule,
     AcademicYearsModule,
     ActivityModule,

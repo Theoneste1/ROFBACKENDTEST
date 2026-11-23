@@ -46,6 +46,8 @@ describe('permissions', () => {
       'tests.mark',
       // appended 2026-11-21 (Olympiad levels): granted (their programmes' students), reported for the level control
       'students.classifyLevel',
+      // appended 2026-11-23 (owner): coaches across their programmes — the Students and Test results pages
+      'students.viewProgramme', 'tests.viewProgrammeResults',
     ]);
     expect(ROLE_PERMISSIONS.ADMIN).toEqual([
       'courses.view', 'resources.view', 'resources.manage',
@@ -259,6 +261,8 @@ describe('permissions', () => {
         'tests.mark': 'markerAuthorization',
         // Olympiad levels (owner 2026-11-21): the students of the coach's programmes
         'students.classifyLevel': P,
+        // Owner 2026-11-23: every Coach, across the programmes they belong to (each removable per programme)
+        'students.viewProgramme': P, 'tests.viewProgrammeResults': P,
       },
       HEAD_COACH: {
         'courses.view': P, 'resources.view': P, 'assignments.view': P,
