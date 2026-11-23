@@ -27,6 +27,8 @@ export interface EmailContent {
   action?:     EmailAction;
   /** Small print under the button (link validity, "ignore if not you"). */
   note?:       string;
+  /** News subscribers (2026-11-23): this recipient's unsubscribe page, shown in the footer of every subscriber e-mail. */
+  unsubscribeUrl?: string | null;
 }
 
 export interface EmailBrand {
@@ -45,6 +47,9 @@ export interface RenderedEmail {
 
 export const ORGANIZATION = 'Rwanda Olympiad Foundation';
 
+/** Footer line of every e-mail to a news subscriber, before the unsubscribe link. */
+export const SUBSCRIBED_BECAUSE = 'You receive this e-mail because you subscribed to Rwanda Olympiad Foundation news.';
+
 const NAVY   = '#001E4E';
 const ACCENT = '#2B2BB2';
 const MUTED  = '#5B6577';
@@ -62,6 +67,7 @@ function renderText(c: EmailContent, b: EmailBrand): string {
   if (c.note) lines.push('', c.note);
   lines.push('', '—', b.organization);
   if (b.contactEmail) lines.push(`Questions? ${b.contactEmail}`);
+  if (c.unsubscribeUrl) lines.push('', `${SUBSCRIBED_BECAUSE} Unsubscribe: ${c.unsubscribeUrl}`);
   return lines.join('\n');
 }
 
@@ -98,6 +104,9 @@ function renderHtml(c: EmailContent, b: EmailBrand): string {
     `<strong style="color:${NAVY}">${esc(b.organization)}</strong>`,
     b.contactEmail ? `Questions? Write to <a href="mailto:${attr(b.contactEmail)}" style="color:${ACCENT}">${esc(b.contactEmail)}</a>` : '',
     publicUrl ? `<a href="${attr(publicUrl)}" style="color:${ACCENT}">${esc(publicUrl.replace(/^https:\/\//, ''))}</a>` : '',
+    c.unsubscribeUrl && isHttpUrl(c.unsubscribeUrl)
+      ? `<span style="display:inline-block;margin-top:8px">${esc(SUBSCRIBED_BECAUSE)} <a href="${attr(c.unsubscribeUrl)}" style="color:${ACCENT}">Unsubscribe</a></span>`
+      : '',
   ].filter(Boolean).join('<br>');
 
   return `<!doctype html>

@@ -4706,6 +4706,1731 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/public/subscribe": {
+      "post": {
+        "operationId": "PublicSubscribersController_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Subscribe to ROF news. Always the same 202 answer — new address, already subscribed or unsubscribed before (which\nsubscribes it again) — so the answer never tells whether an address is on the list. At most 10 per hour per IP.",
+        "tags": [
+          "Public site"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/public/unsubscribe": {
+      "post": {
+        "operationId": "PublicSubscribersController_unsubscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnsubscribeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The unsubscribe page's button: `id` and `token` from the link in every e-mail. Idempotent. Invalid link → 400.",
+        "tags": [
+          "Public site"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/public/unsubscribe/one-click": {
+      "post": {
+        "operationId": "PublicSubscribersController_oneClick",
+        "parameters": [
+          {
+            "name": "s",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "t",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 200,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "RFC 8058 one-click unsubscribe (List-Unsubscribe-Post): mail clients POST \"List-Unsubscribe=One-Click\" to the URL in\nthe List-Unsubscribe header. The subscriber and token are in the query string; the body is not read.",
+        "tags": [
+          "Public site"
+        ],
+        "x-roles": [
+          "PUBLIC"
+        ],
+        "description": "**Access:** Public (no token)",
+        "security": []
+      }
+    },
+    "/api/v1/admin/subscribers": {
+      "get": {
+        "operationId": "AdminSubscribersController_list",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the e-mail or name.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "UNSUBSCRIBED"
+              ]
+            }
+          },
+          {
+            "name": "interest",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STUDENT",
+                "TEACHER",
+                "OTHER",
+                "PARENT",
+                "SCHOOL"
+              ]
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "WEBSITE",
+                "IMPORT"
+              ]
+            }
+          },
+          {
+            "name": "country",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "newest (default), oldest, name, email.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "newest",
+                "oldest",
+                "name",
+                "email"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Subscribers: q (e-mail or name), status, interest, kind, source, country; sort newest | oldest | name | email.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "AdminSubscribersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubscriberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add one person (source ADMIN). 409 when the address is already listed (or unsubscribed).",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/summary": {
+      "get": {
+        "operationId": "AdminSubscribersController_summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Active and unsubscribed counts; active subscribers by source, kind and interest.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/export": {
+      "get": {
+        "operationId": "AdminSubscribersController_export",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the e-mail or name.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "UNSUBSCRIBED"
+              ]
+            }
+          },
+          {
+            "name": "interest",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STUDENT",
+                "TEACHER",
+                "OTHER",
+                "PARENT",
+                "SCHOOL"
+              ]
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADMIN",
+                "WEBSITE",
+                "IMPORT"
+              ]
+            }
+          },
+          {
+            "name": "country",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "newest (default), oldest, name, email.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "newest",
+                "oldest",
+                "name",
+                "email"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "The filtered list as CSV (every row; streamed). Audited.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/import": {
+      "post": {
+        "operationId": "AdminSubscribersController_import",
+        "parameters": [
+          {
+            "name": "dryRun",
+            "required": false,
+            "in": "query",
+            "description": "Check the file and report only; add nobody.",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import a CSV (at most 1 MB / 5,000 rows): email, name, kind, interests, country. New valid addresses are added;\nlisted ones are left alone; people who unsubscribed are never added again; problems are reported per line.\ndryRun=true checks only (200); an import answers 201.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/mailings": {
+      "get": {
+        "operationId": "AdminSubscribersController_listMailings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "AdminSubscribersController_createMailing",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMailingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Queue a mailing to the ACTIVE subscribers of the audience (sent after a short delay, during which it can be cancelled).",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/mailings/preview": {
+      "post": {
+        "operationId": "AdminSubscribersController_preview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailingAudienceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "How many active subscribers an audience reaches.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/mailings/test": {
+      "post": {
+        "operationId": "AdminSubscribersController_sendTest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestMailingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send the e-mail to yourself only, as subscribers will see it.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/mailings/{id}": {
+      "get": {
+        "operationId": "AdminSubscribersController_mailing",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/mailings/{id}/cancel": {
+      "post": {
+        "operationId": "AdminSubscribersController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Withdraw what has not been sent yet. 409 once the mailing is sent or cancelled.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/subscribers/{id}": {
+      "patch": {
+        "operationId": "AdminSubscribersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Change name, kind, interests, country; unsubscribe (reason optional) or subscribe again (reason required).",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "delete": {
+        "operationId": "AdminSubscribersController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Erase a subscriber (a privacy request); their e-mails not yet sent are withdrawn.",
+        "tags": [
+          "Admin · Subscribers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "subscribers.manage",
+        "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/users": {
+      "get": {
+        "operationId": "EmailController_listUsers",
+        "parameters": [
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "Filter by global role.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "description": "Filter to students enrolled at this school (by school ID).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "divisionId",
+            "required": false,
+            "in": "query",
+            "description": "Filter to students of a division.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Free-text search across firstName, lastName, username, and email.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "isApproved",
+            "required": false,
+            "in": "query",
+            "description": "Filter by isApproved status.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number (1-based).",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size (default: 50, max enforced in service).",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "division": {
+                            "nullable": true,
+                            "properties": {
+                              "code": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "code",
+                              "id",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "gradeLevel": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "isActive": {
+                            "type": "boolean"
+                          },
+                          "isApproved": {
+                            "type": "boolean"
+                          },
+                          "lastName": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "school": {
+                            "nullable": true,
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "location": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "location",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "username": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "createdAt",
+                          "division",
+                          "email",
+                          "firstName",
+                          "gradeLevel",
+                          "id",
+                          "isActive",
+                          "isApproved",
+                          "lastName",
+                          "role",
+                          "school",
+                          "username"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Paginated, filterable user list with email addresses.",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/send": {
+      "post": {
+        "operationId": "EmailController_send",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "alreadyExisted": {
+                      "type": "boolean"
+                    },
+                    "completedAt": {
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "dryRun": {
+                      "type": "boolean"
+                    },
+                    "failedCount": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "sentCount": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "totalRecipients": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "alreadyExisted",
+                    "completedAt",
+                    "createdAt",
+                    "createdBy",
+                    "failedCount",
+                    "id",
+                    "sentCount",
+                    "status",
+                    "subject",
+                    "totalRecipients"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Queue a bulk e-mail. Returns the job immediately; sending happens in the\nbackground. Re-using an idempotencyKey returns the original job\n(`alreadyExisted: true`) instead of sending again.",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/jobs": {
+      "get": {
+        "operationId": "EmailController_listJobs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "completedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "createdBy": {
+                            "properties": {
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "username"
+                            ],
+                            "type": "object"
+                          },
+                          "failedCount": {
+                            "type": "integer"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "sentCount": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          },
+                          "totalRecipients": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "completedAt",
+                          "createdAt",
+                          "createdBy",
+                          "failedCount",
+                          "id",
+                          "sentCount",
+                          "status",
+                          "subject",
+                          "totalRecipients"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Jobs with progress counters (no message bodies).",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/jobs/{id}": {
+      "get": {
+        "operationId": "EmailController_getJob",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "completedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "properties": {
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "failedCount": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "idempotencyKey": {
+                      "type": "string"
+                    },
+                    "sentCount": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "totalRecipients": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "completedAt",
+                    "createdAt",
+                    "createdBy",
+                    "failedCount",
+                    "id",
+                    "idempotencyKey",
+                    "sentCount",
+                    "status",
+                    "subject",
+                    "totalRecipients"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/jobs/{id}/deliveries": {
+      "get": {
+        "operationId": "EmailController_listDeliveries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "attemptedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "attempts": {
+                            "type": "integer"
+                          },
+                          "errorMessage": {
+                            "nullable": true
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "messageId": {
+                            "type": "string"
+                          },
+                          "recipientEmail": {
+                            "type": "string"
+                          },
+                          "recipientId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "attemptedAt",
+                          "attempts",
+                          "errorMessage",
+                          "id",
+                          "messageId",
+                          "recipientEmail",
+                          "recipientId",
+                          "status"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Per-recipient delivery status (filter with ?status=FAILED).",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/deliveries": {
+      "get": {
+        "operationId": "EmailController_listAllDeliveries",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every e-mail delivery, newest first (e.g. ?status=FAILED&kind=TRANSACTIONAL for failed\ninvitations, activation and reset e-mails). Never returns message bodies (one-time links).",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/deliveries/{id}/retry": {
+      "post": {
+        "operationId": "EmailController_retryDelivery",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Re-queue one FAILED delivery (transactional or bulk). Anything else: 409.",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/jobs/{id}/retry": {
+      "post": {
+        "operationId": "EmailController_retryJob",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "jobId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requeued": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "jobId",
+                    "message",
+                    "requeued"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Re-queue FAILED deliveries. SENT deliveries are never re-sent.",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/academic-years": {
       "get": {
         "operationId": "AcademicYearsController_list",
@@ -40094,842 +41819,6 @@
         "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
       }
     },
-    "/api/v1/admin/email/users": {
-      "get": {
-        "operationId": "EmailController_listUsers",
-        "parameters": [
-          {
-            "name": "role",
-            "required": false,
-            "in": "query",
-            "description": "Filter by global role.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "schoolId",
-            "required": false,
-            "in": "query",
-            "description": "Filter to students enrolled at this school (by school ID).",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "name": "divisionId",
-            "required": false,
-            "in": "query",
-            "description": "Filter to students of a division.",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "name": "search",
-            "required": false,
-            "in": "query",
-            "description": "Free-text search across firstName, lastName, username, and email.",
-            "schema": {
-              "minLength": 1,
-              "maxLength": 100,
-              "type": "string"
-            }
-          },
-          {
-            "name": "isApproved",
-            "required": false,
-            "in": "query",
-            "description": "Filter by isApproved status.",
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "description": "Page number (1-based).",
-            "schema": {
-              "minimum": 1,
-              "type": "number"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "description": "Page size (default: 50, max enforced in service).",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "items": {
-                        "properties": {
-                          "createdAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          },
-                          "division": {
-                            "nullable": true,
-                            "properties": {
-                              "code": {
-                                "type": "string"
-                              },
-                              "id": {
-                                "format": "uuid",
-                                "type": "string"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "code",
-                              "id",
-                              "name"
-                            ],
-                            "type": "object"
-                          },
-                          "email": {
-                            "type": "string"
-                          },
-                          "firstName": {
-                            "type": "string"
-                          },
-                          "gradeLevel": {
-                            "nullable": true,
-                            "type": "string"
-                          },
-                          "id": {
-                            "format": "uuid",
-                            "type": "string"
-                          },
-                          "isActive": {
-                            "type": "boolean"
-                          },
-                          "isApproved": {
-                            "type": "boolean"
-                          },
-                          "lastName": {
-                            "type": "string"
-                          },
-                          "role": {
-                            "type": "string"
-                          },
-                          "school": {
-                            "nullable": true,
-                            "properties": {
-                              "id": {
-                                "format": "uuid",
-                                "type": "string"
-                              },
-                              "location": {
-                                "type": "string"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "location",
-                              "name"
-                            ],
-                            "type": "object"
-                          },
-                          "username": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "createdAt",
-                          "division",
-                          "email",
-                          "firstName",
-                          "gradeLevel",
-                          "id",
-                          "isActive",
-                          "isApproved",
-                          "lastName",
-                          "role",
-                          "school",
-                          "username"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "meta": {
-                      "properties": {
-                        "limit": {
-                          "type": "integer"
-                        },
-                        "page": {
-                          "type": "integer"
-                        },
-                        "total": {
-                          "type": "integer"
-                        },
-                        "totalPages": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "limit",
-                        "page",
-                        "total",
-                        "totalPages"
-                      ],
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Paginated, filterable user list with email addresses.",
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/admin/email/send": {
-      "post": {
-        "operationId": "EmailController_send",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SendEmailDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "alreadyExisted": {
-                      "type": "boolean"
-                    },
-                    "completedAt": {
-                      "nullable": true
-                    },
-                    "createdAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "createdBy": {
-                      "properties": {
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "username": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "username"
-                      ],
-                      "type": "object"
-                    },
-                    "dryRun": {
-                      "type": "boolean"
-                    },
-                    "failedCount": {
-                      "type": "integer"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "sentCount": {
-                      "type": "integer"
-                    },
-                    "status": {
-                      "type": "string"
-                    },
-                    "subject": {
-                      "type": "string"
-                    },
-                    "totalRecipients": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "alreadyExisted",
-                    "completedAt",
-                    "createdAt",
-                    "createdBy",
-                    "failedCount",
-                    "id",
-                    "sentCount",
-                    "status",
-                    "subject",
-                    "totalRecipients"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Queue a bulk e-mail. Returns the job immediately; sending happens in the\nbackground. Re-using an idempotencyKey returns the original job\n(`alreadyExisted: true`) instead of sending again.",
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/admin/email/jobs": {
-      "get": {
-        "operationId": "EmailController_listJobs",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "items": {
-                        "properties": {
-                          "completedAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          },
-                          "createdAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          },
-                          "createdBy": {
-                            "properties": {
-                              "id": {
-                                "format": "uuid",
-                                "type": "string"
-                              },
-                              "username": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "username"
-                            ],
-                            "type": "object"
-                          },
-                          "failedCount": {
-                            "type": "integer"
-                          },
-                          "id": {
-                            "format": "uuid",
-                            "type": "string"
-                          },
-                          "sentCount": {
-                            "type": "integer"
-                          },
-                          "status": {
-                            "type": "string"
-                          },
-                          "subject": {
-                            "type": "string"
-                          },
-                          "totalRecipients": {
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "completedAt",
-                          "createdAt",
-                          "createdBy",
-                          "failedCount",
-                          "id",
-                          "sentCount",
-                          "status",
-                          "subject",
-                          "totalRecipients"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "meta": {
-                      "properties": {
-                        "limit": {
-                          "type": "integer"
-                        },
-                        "page": {
-                          "type": "integer"
-                        },
-                        "total": {
-                          "type": "integer"
-                        },
-                        "totalPages": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "limit",
-                        "page",
-                        "total",
-                        "totalPages"
-                      ],
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Jobs with progress counters (no message bodies).",
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/admin/email/jobs/{id}": {
-      "get": {
-        "operationId": "EmailController_getJob",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "completedAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "createdAt": {
-                      "format": "date-time",
-                      "type": "string"
-                    },
-                    "createdBy": {
-                      "properties": {
-                        "id": {
-                          "format": "uuid",
-                          "type": "string"
-                        },
-                        "username": {
-                          "type": "string"
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "username"
-                      ],
-                      "type": "object"
-                    },
-                    "failedCount": {
-                      "type": "integer"
-                    },
-                    "id": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "idempotencyKey": {
-                      "type": "string"
-                    },
-                    "sentCount": {
-                      "type": "integer"
-                    },
-                    "status": {
-                      "type": "string"
-                    },
-                    "subject": {
-                      "type": "string"
-                    },
-                    "totalRecipients": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "completedAt",
-                    "createdAt",
-                    "createdBy",
-                    "failedCount",
-                    "id",
-                    "idempotencyKey",
-                    "sentCount",
-                    "status",
-                    "subject",
-                    "totalRecipients"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/admin/email/jobs/{id}/deliveries": {
-      "get": {
-        "operationId": "EmailController_listDeliveries",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "data": {
-                      "items": {
-                        "properties": {
-                          "attemptedAt": {
-                            "format": "date-time",
-                            "type": "string"
-                          },
-                          "attempts": {
-                            "type": "integer"
-                          },
-                          "errorMessage": {
-                            "nullable": true
-                          },
-                          "id": {
-                            "format": "uuid",
-                            "type": "string"
-                          },
-                          "messageId": {
-                            "type": "string"
-                          },
-                          "recipientEmail": {
-                            "type": "string"
-                          },
-                          "recipientId": {
-                            "format": "uuid",
-                            "type": "string"
-                          },
-                          "status": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "attemptedAt",
-                          "attempts",
-                          "errorMessage",
-                          "id",
-                          "messageId",
-                          "recipientEmail",
-                          "recipientId",
-                          "status"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "meta": {
-                      "properties": {
-                        "limit": {
-                          "type": "integer"
-                        },
-                        "page": {
-                          "type": "integer"
-                        },
-                        "total": {
-                          "type": "integer"
-                        },
-                        "totalPages": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "limit",
-                        "page",
-                        "total",
-                        "totalPages"
-                      ],
-                      "type": "object"
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Per-recipient delivery status (filter with ?status=FAILED).",
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/admin/email/deliveries": {
-      "get": {
-        "operationId": "EmailController_listAllDeliveries",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Every e-mail delivery, newest first (e.g. ?status=FAILED&kind=TRANSACTIONAL for failed\ninvitations, activation and reset e-mails). Never returns message bodies (one-time links).",
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/admin/email/deliveries/{id}/retry": {
-      "post": {
-        "operationId": "EmailController_retryDelivery",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Re-queue one FAILED delivery (transactional or bulk). Anything else: 409.",
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/admin/email/jobs/{id}/retry": {
-      "post": {
-        "operationId": "EmailController_retryJob",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Success. Shape recorded from the end-to-end tests.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "jobId": {
-                      "format": "uuid",
-                      "type": "string"
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "requeued": {
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "jobId",
-                    "message",
-                    "requeued"
-                  ],
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Re-queue FAILED deliveries. SENT deliveries are never re-sent.",
-        "tags": [
-          "Admin · Email"
-        ],
-        "x-roles": [
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "email.bulkSend",
-        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
-      }
-    },
     "/api/v1/public/statistics": {
       "get": {
         "operationId": "PublicSiteController_statistics",
@@ -54172,6 +55061,330 @@
           "newPassword"
         ]
       },
+      "SubscribeDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "OTHER",
+              "PARENT",
+              "SCHOOL"
+            ]
+          },
+          "interests": {
+            "type": "array",
+            "description": "None chosen = every subject.",
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
+          },
+          "country": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string",
+            "description": "Honeypot: hidden from people; when filled in the request is accepted silently and nothing is stored.",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "UnsubscribeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The subscriber id from the link (`s`). Not validated as a UUID so every malformed link gets the same answer.",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "token": {
+            "type": "string",
+            "description": "The token from the link (`t`).",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "id",
+          "token"
+        ]
+      },
+      "CreateSubscriberDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email"
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "OTHER",
+              "PARENT",
+              "SCHOOL"
+            ]
+          },
+          "interests": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
+          },
+          "country": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "AudienceDto": {
+        "type": "object",
+        "properties": {
+          "interests": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
+          },
+          "kinds": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "enum": [
+                "STUDENT",
+                "TEACHER",
+                "OTHER",
+                "PARENT",
+                "SCHOOL"
+              ]
+            }
+          },
+          "countries": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MailingAudienceDto": {
+        "type": "object",
+        "properties": {
+          "audience": {
+            "$ref": "#/components/schemas/AudienceDto"
+          }
+        }
+      },
+      "TestMailingDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 150
+          },
+          "body": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 20000
+          }
+        },
+        "required": [
+          "subject",
+          "body"
+        ]
+      },
+      "CreateMailingDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 150
+          },
+          "body": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 20000
+          },
+          "audience": {
+            "$ref": "#/components/schemas/AudienceDto"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "Repeating a request with the same key returns the same mailing (a double click sends once).",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "subject",
+          "body",
+          "idempotencyKey"
+        ]
+      },
+      "UpdateSubscriberDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "nullable": true,
+            "description": "null clears it.",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "kind": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "STUDENT",
+              "TEACHER",
+              "OTHER",
+              "PARENT",
+              "SCHOOL"
+            ]
+          },
+          "interests": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MATHEMATICS",
+                "COMPUTING",
+                "PHYSICS"
+              ]
+            }
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "UNSUBSCRIBED"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        }
+      },
+      "SendEmailDto": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "description": "Idempotency key supplied by the caller.\nRe-submitting the same key returns the existing job rather than\ndispatching duplicate messages. Use a UUID or a stable hash.",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "recipientMode": {
+            "type": "string",
+            "enum": [
+              "EXPLICIT",
+              "ROLE",
+              "DIVISION",
+              "SCHOOL",
+              "ALL"
+            ]
+          },
+          "recipientUserIds": {
+            "description": "Required when recipientMode is EXPLICIT.\nMaximum 500 recipients per request.",
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "recipientRole": {
+            "type": "string",
+            "description": "Required when recipientMode is ROLE.\nValid values: STUDENT | MENTOR | ADMIN"
+          },
+          "recipientDivisionId": {
+            "type": "string",
+            "description": "Required when recipientMode is DIVISION.",
+            "format": "uuid"
+          },
+          "recipientSchoolId": {
+            "type": "string",
+            "description": "Required when recipientMode is SCHOOL.",
+            "format": "uuid"
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "description": "Plain-text message body.\nHTML is intentionally not supported to reduce XSS risk and simplify\nthe implementation. Add HTML support here when needed.",
+            "minLength": 5,
+            "maxLength": 10000
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "recipientMode",
+          "subject",
+          "body"
+        ]
+      },
       "CreateAcademicYearDto": {
         "type": "object",
         "properties": {
@@ -57507,68 +58720,6 @@
       "RegistrationAvatarDto": {
         "type": "object",
         "properties": {}
-      },
-      "SendEmailDto": {
-        "type": "object",
-        "properties": {
-          "idempotencyKey": {
-            "type": "string",
-            "description": "Idempotency key supplied by the caller.\nRe-submitting the same key returns the existing job rather than\ndispatching duplicate messages. Use a UUID or a stable hash.",
-            "minLength": 8,
-            "maxLength": 128
-          },
-          "recipientMode": {
-            "type": "string",
-            "enum": [
-              "EXPLICIT",
-              "ROLE",
-              "DIVISION",
-              "SCHOOL",
-              "ALL"
-            ]
-          },
-          "recipientUserIds": {
-            "description": "Required when recipientMode is EXPLICIT.\nMaximum 500 recipients per request.",
-            "minItems": 1,
-            "maxItems": 500,
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "recipientRole": {
-            "type": "string",
-            "description": "Required when recipientMode is ROLE.\nValid values: STUDENT | MENTOR | ADMIN"
-          },
-          "recipientDivisionId": {
-            "type": "string",
-            "description": "Required when recipientMode is DIVISION.",
-            "format": "uuid"
-          },
-          "recipientSchoolId": {
-            "type": "string",
-            "description": "Required when recipientMode is SCHOOL.",
-            "format": "uuid"
-          },
-          "subject": {
-            "type": "string",
-            "minLength": 2,
-            "maxLength": 200
-          },
-          "body": {
-            "type": "string",
-            "description": "Plain-text message body.\nHTML is intentionally not supported to reduce XSS risk and simplify\nthe implementation. Add HTML support here when needed.",
-            "minLength": 5,
-            "maxLength": 10000
-          }
-        },
-        "required": [
-          "idempotencyKey",
-          "recipientMode",
-          "subject",
-          "body"
-        ]
       },
       "CreateContactMessageDto": {
         "type": "object",

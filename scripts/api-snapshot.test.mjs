@@ -335,7 +335,12 @@ const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-division
  * against the Olympiad levels snapshot.
  */
 const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
+/**
+ * News subscribers (owner, 2026-11-23): public subscribe / unsubscribe (incl. RFC 8058 one-click) and /admin/subscribers
+ * (list, summary, export, add, import, edit, erase, mailings). Additive only against the school-codes snapshot.
+ */
+const SUBSCRIBERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-subscribers.json';
+const CURRENT_SNAPSHOT = SUBSCRIBERS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1789,6 +1794,40 @@ describe('approved API contract history', () => {
       'schema GenericBulkExportDto: added',
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
+    ]);
+  });
+
+  test('the school code is the identifier → news subscribers (2026-11-23): additive only — 16 routes, 8 request schemas, no existing field changed', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SUBSCRIBERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SUBSCRIBERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      "DELETE /api/v1/admin/subscribers/{id}: operation added",
+      "GET /api/v1/admin/subscribers/export: operation added",
+      "GET /api/v1/admin/subscribers/mailings/{id}: operation added",
+      "GET /api/v1/admin/subscribers/mailings: operation added",
+      "GET /api/v1/admin/subscribers/summary: operation added",
+      "GET /api/v1/admin/subscribers: operation added",
+      "PATCH /api/v1/admin/subscribers/{id}: operation added",
+      "POST /api/v1/admin/subscribers/import: operation added",
+      "POST /api/v1/admin/subscribers/mailings/preview: operation added",
+      "POST /api/v1/admin/subscribers/mailings/test: operation added",
+      "POST /api/v1/admin/subscribers/mailings/{id}/cancel: operation added",
+      "POST /api/v1/admin/subscribers/mailings: operation added",
+      "POST /api/v1/admin/subscribers: operation added",
+      "POST /api/v1/public/subscribe: operation added",
+      "POST /api/v1/public/unsubscribe/one-click: operation added",
+      "POST /api/v1/public/unsubscribe: operation added",
+      "schema AudienceDto: added",
+      "schema CreateMailingDto: added",
+      "schema CreateSubscriberDto: added",
+      "schema MailingAudienceDto: added",
+      "schema SubscribeDto: added",
+      "schema TestMailingDto: added",
+      "schema UnsubscribeDto: added",
+      "schema UpdateSubscriberDto: added",
     ]);
   });
 

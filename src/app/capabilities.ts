@@ -298,6 +298,13 @@ export const FEATURES = {
   /** Table layouts (owner 2026-11-22): /me/table-layouts/:table and /admin/table-layouts/:table; GET /admin/users ?sort&order. */
   tableLayouts: 'always',
   /**
+   * News subscribers (owner 2026-11-23): public POST /public/subscribe (always 202, no enumeration), POST /public/unsubscribe
+   * ({ id, token } from the link /unsubscribe?s=&t= in every e-mail) and RFC 8058 POST /public/unsubscribe/one-click;
+   * /admin/subscribers (subscribers.manage): list, summary, export, add, import, edit, unsubscribe / subscribe again, erase,
+   * and mailings (preview, test to me, send, list, detail, cancel while queued).
+   */
+  subscribers: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

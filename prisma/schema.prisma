@@ -507,6 +507,9 @@ model User {
   studyGroupsCreated                StudyGroup[]                    @relation("StudyGroupCreator")
   studyGroupMemberships             StudyGroupMember[]              @relation("StudyGroupMemberships")
   emailJobsCreated                  EmailJob[]                      @relation("EmailJobCreator")
+  /// News subscriptions whose e-mail matches this account (subscribers, 2026-11-23).
+  newsSubscriptions                 Subscriber[]                    @relation("SubscriberAccount")
+  mailingsCreated                   Mailing[]                       @relation("MailingCreator")
   submissions                       Submission[]                    @relation("StudentSubmissions")
   submissionRevisions               SubmissionRevision[]
   assignmentViews                   AssignmentView[]                @relation("AssignmentViewer")
@@ -2180,6 +2183,7 @@ model EmailJob {
   updatedAt       DateTime       @updatedAt
 
   deliveries EmailDelivery[]
+  mailing    Mailing?
 
   @@index([createdById])
   @@index([status])
@@ -2209,10 +2213,15 @@ model EmailDelivery {
   errorMessage   String?
   attemptedAt    DateTime?
   createdAt      DateTime            @default(now())
+  /// Set for e-mails to a news subscriber (mailings, welcome): the worker adds that subscriber's unsubscribe link and
+  /// the List-Unsubscribe headers at send time, and never sends a mailing to someone who unsubscribed meanwhile.
+  subscriberId   String?
+  subscriber     Subscriber?         @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
 
   @@index([status, nextAttemptAt])
   @@index([jobId, status])
   @@index([recipientEmail])
+  @@index([subscriberId])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2420,6 +2429,98 @@ model ContactMessage {
   @@index([status, createdAt])
   @@index([email, createdAt])
   @@index([ipHash, createdAt])
+}
+
+// ─── News subscribers and mailings (owner 2026-11-23) ───────────────────────
+
+/// Who a news subscriber says they are (optional).
+enum SubscriberKind {
+  PARENT
+  STUDENT
+  TEACHER
+  SCHOOL
+  OTHER
+}
+
+/// How a subscriber was added.
+enum SubscriberSource {
+  WEBSITE
+  ADMIN
+  IMPORT
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+}
+
+/// Someone who asked for ROF news and Olympiad announcements by e-mail (POST /public/subscribe), or was added by an
+/// Administrator. One row per e-mail address (lower-case). Unsubscribing keeps the row (status UNSUBSCRIBED) so the
+/// address is never mailed again by an import; an Administrator can erase it.
+model Subscriber {
+  id                String            @id @default(uuid())
+  /// Trimmed, lower-case.
+  email             String            @unique
+  fullName          String?
+  kind              SubscriberKind?
+  /// No interest chosen = interested in every subject.
+  interests         OlympiadSubject[] @default([])
+  /// ISO 3166-1 alpha-2.
+  country           String?
+  source            SubscriberSource
+  status            SubscriberStatus  @default(ACTIVE)
+  subscribedAt      DateTime          @default(now())
+  unsubscribedAt    DateTime?
+  unsubscribeReason String?
+  /// The account with the same e-mail, when there is one (informative only; never a permission).
+  userId            String?
+  user              User?             @relation("SubscriberAccount", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  deliveries EmailDelivery[]
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+enum MailingStatus {
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+/// An update sent to the ACTIVE subscribers matching an audience. Delivered through the e-mail outbox: one EmailJob
+/// (emailJobId) with one EmailDelivery per recipient (subscriberId set), so the worker's rate limits, retries and
+/// delivery tracking apply. Counts are refreshed from the deliveries.
+model Mailing {
+  id             String        @id @default(uuid())
+  /// Caller-supplied; repeating a request with the same key returns the same mailing.
+  idempotencyKey String        @unique
+  subject        String
+  /// Plain text; blank lines separate paragraphs.
+  body           String
+  /// { interests?: OlympiadSubject[], kinds?: SubscriberKind[], countries?: string[] } — empty = every active subscriber.
+  audience       Json
+  status         MailingStatus @default(QUEUED)
+  recipientCount Int
+  sentCount      Int           @default(0)
+  failedCount    Int           @default(0)
+  /// Deliveries removed by a cancellation before they were sent.
+  cancelledCount Int           @default(0)
+  emailJobId     String?       @unique
+  emailJob       EmailJob?     @relation(fields: [emailJobId], references: [id], onDelete: SetNull)
+  createdById    String
+  createdBy      User          @relation("MailingCreator", fields: [createdById], references: [id])
+  createdAt      DateTime      @default(now())
+  /// When every delivery was finished (sent or failed).
+  sentAt         DateTime?
+  cancelledAt    DateTime?
+  cancelledById  String?
+
+  @@index([createdAt])
 }
 
 /// A teacher's role at a school (owner decision 2026-11-19). PRIMARY: the school's designated main

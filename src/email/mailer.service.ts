@@ -34,6 +34,8 @@ export interface OutgoingEmail {
   html?:    string | null;
   /** Same key → Resend sends at most once (24 h). Use the delivery id. */
   idempotencyKey?: string;
+  /** Extra headers, e.g. List-Unsubscribe on e-mails to news subscribers. */
+  headers?: Record<string, string>;
 }
 
 export interface SendResult {
@@ -131,6 +133,7 @@ export class MailerService implements OnModuleInit {
           text:    mail.text,
           ...(mail.html && { html: mail.html }),
           ...(this.replyTo && { replyTo: this.replyTo }),
+          ...(mail.headers && Object.keys(mail.headers).length > 0 && { headers: mail.headers }),
         },
         mail.idempotencyKey ? { idempotencyKey: mail.idempotencyKey } : {},
       );
