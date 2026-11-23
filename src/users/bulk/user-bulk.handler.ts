@@ -107,7 +107,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     const action = actionName as BulkAction;
     const p = params as P;
     if (action === 'assignRole') {
-      if (!p.role) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.role is required.');
+      if (!p.role) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the role to give the selected accounts.');
       if (p.role === 'SUPER_ADMIN') {
         throw new AppError(HttpStatus.BAD_REQUEST, 'ROLE_NOT_ALLOWED_IN_BULK', 'The Super Administrator role is never assigned in bulk.');
       }
@@ -123,12 +123,12 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
       }
     }
     if (action === 'message' && (!p.subject || !p.body)) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.subject and params.body are required.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Write the e-mail subject and the message before sending.');
     }
     if (TEACHER_STUDENT_ACTIONS.includes(action)) {
       if (!p.teacherId) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.teacherId is required.');
       if ((action === 'grantDelegation' || action === 'revokeDelegation') && !p.permission) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.permission is required.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the permission to change for the selected accounts.');
       }
       const teacher = await this.prisma.user.findUnique({ where: { id: p.teacherId }, select: { role: true } });
       if (!teacher) throw new AppError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Teacher not found.');

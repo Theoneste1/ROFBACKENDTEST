@@ -148,7 +148,7 @@ export function assertEligible(test: EligibilityTest, student: EligibilityStuden
 /** 409 DEADLINE_PASSED (late: blocked) after the applicable deadline. */
 export function assertBeforeDeadline(now: Date, d: ApplicableDeadline): void {
   if (!beforeDeadline(now, d.deadline)) {
-    throw new AppError(HttpStatus.CONFLICT, 'DEADLINE_PASSED', 'The deadline for this test has passed.', { deadline: d.deadline.toISOString() });
+    throw new AppError(HttpStatus.CONFLICT, 'DEADLINE_PASSED', 'The deadline for this test has passed, so answers are no longer accepted. If you think this is a mistake, ask your teacher or coach.', { deadline: d.deadline.toISOString() });
   }
 }
 
@@ -185,7 +185,7 @@ export function assertPagesComplete(pageNumbers: readonly number[], expected: nu
     throw new AppError(HttpStatus.CONFLICT, 'PAGES_INCOMPLETE', 'Some pages are missing; upload them again, then submit.', { missing, extra, expected: n });
   }
   if (n > MAX_ANSWER_PAGES) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_PAGES', `At most ${MAX_ANSWER_PAGES} pages.`, { max: MAX_ANSWER_PAGES });
+    throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_PAGES', `An answer can have at most ${MAX_ANSWER_PAGES} pages. Remove a page before adding another.`, { max: MAX_ANSWER_PAGES });
   }
 }
 

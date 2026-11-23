@@ -391,7 +391,7 @@ export class SchoolAffiliationService {
       const claimedCountry = row.claimedCountry ?? RWANDA;
       if (school.countryCode !== claimedCountry) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_COUNTRY_MISMATCH',
-          `The student's school is in ${claimedCountry}; this school is in ${school.countryCode}.`, { claimed: claimedCountry, school: school.countryCode });
+          'This school is in a different country from the one the student chose. Choose a school in the student\'s country, or correct the student\'s country first.', { claimed: claimedCountry, school: school.countryCode });
       }
       const claimedPlace = { province: row.claimedProvince, district: row.claimedDistrict, sector: row.claimedSector };
       const actualPlace = { province: school.province, district: school.district, sector: school.sector };

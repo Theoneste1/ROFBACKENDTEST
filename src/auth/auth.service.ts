@@ -345,7 +345,7 @@ export class AuthService {
       );
     }
     if (!user.isApproved) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_PENDING_APPROVAL', 'This account is waiting for administrator approval.');
+      throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_PENDING_APPROVAL', 'Your account is waiting for an administrator to approve it. You will receive an e-mail when it is approved; then sign in again.');
     }
 
     const tokens = await this.tokens.issue(user.id, client);
@@ -529,7 +529,7 @@ export class AuthService {
       select: { passwordHash: true, role: true },
     });
     if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'WRONG_PASSWORD', 'Your current password is incorrect.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'WRONG_PASSWORD', 'Your current password is not correct. Type it again, or sign out and use "Forgot password" if you do not remember it.');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);

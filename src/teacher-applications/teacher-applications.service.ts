@@ -193,7 +193,7 @@ export class TeacherApplicationsService {
       if (!school) throw unknownSchool(choice.schoolId);
       if (school.province !== dto.schoolProvince || school.district !== dto.schoolDistrict) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_LOCATION_MISMATCH',
-          'This school is not in the province and district you chose.',
+          'This school is not in the province and district you chose. Choose the province and district again, then the school.',
           { schoolId: school.id, province: dto.schoolProvince, district: dto.schoolDistrict });
       }
     }

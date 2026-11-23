@@ -160,7 +160,7 @@ export class CoursesService {
         select: { division: { select: { id: true, code: true, name: true } } },
       });
       if (divisions.length === 0) {
-        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course.');
+        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course. Ask an administrator or your Head Coach to assign you.');
       }
       return { ...course, divisions: divisions.map((d) => d.division) };
     }

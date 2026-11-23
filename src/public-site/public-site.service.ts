@@ -107,7 +107,7 @@ export class PublicSiteService {
       select: { id: true },
     });
     if (duplicate) {
-      throw new AppError(HttpStatus.CONFLICT, 'DUPLICATE_MESSAGE', 'We have already received this message.');
+      throw new AppError(HttpStatus.CONFLICT, 'DUPLICATE_MESSAGE', 'We have already received this message; there is no need to send it again. We will answer by e-mail.');
     }
 
     const supportEmail = await this.settings.get('platform.supportEmail');
