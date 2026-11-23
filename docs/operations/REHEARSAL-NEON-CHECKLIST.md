@@ -65,7 +65,7 @@ history clean-up, then `main` schema identical and 46/47 tables identical (Audit
 | `.env.production.local` with production `DATABASE_URL` (exists since the P0-04 drill) | guard identifies production to refuse it | exists — verify, don't print |
 | `.env.drill.local` with `DRILL_DATABASE_URL=` (rewritten per branch) | the only target the tools accept | owner writes it |
 | Node 24 + backend `develop` checkout with `npm ci` and `npm run build` | runner, Prisma 7.10 CLI, API | ready |
-| **PostgreSQL 18 client tools** (`pg_dump`, `pg_restore` 18.x; on `PATH` or `PG_BIN`) | Part B only: the runner refuses a `pg_dump` older than the server (18.6) | **missing on this machine** — install needs approval (EDB "Command Line Tools" or `choco install postgresql18`) |
+| **PostgreSQL 18 client tools** (`pg_dump`, `pg_restore` 18.x; on `PATH` or `PG_BIN`, e.g. PowerShell `$env:PG_BIN = "C:\Program Files\PostgreSQL\18\bin"`, Git Bash `export PG_BIN="C:/Program Files/PostgreSQL/18/bin"`; the runner checks the folder holds both tools of one version) | Part B only: the runner refuses a `pg_dump` older than the server (18.6) | **missing on this machine** — install needs approval (EDB "Command Line Tools" or `choco install postgresql18`) |
 | An **EFS-encrypted folder outside the repository and outside OneDrive** (e.g. `mkdir C:\rof-backups; cipher /e C:\rof-backups`) | the dump holds personal data; the runner writes dumps only into such a folder (it checks all three) | owner creates it |
 | Throwaway `JWT_SECRET` (≥ 32 chars) for the local API | API start | generate locally |
 | An administrator login the owner may use on the copy | §R5 checks | owner types it; never shared |

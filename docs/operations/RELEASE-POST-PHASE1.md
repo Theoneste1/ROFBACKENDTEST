@@ -44,9 +44,33 @@ node scripts/release/rehearsal.mjs deploy                --release post-phase1 -
 node scripts/release/rehearsal.mjs postcheck             --release post-phase1
 ```
 
-The kit refuses (exit 5) a checkout without exactly these eleven migrations or with anything after them, a database
-that records anything after them, or a database without all of Phase 1. Without `--release` it is the Phase 1 kit,
-unchanged.
+The kit refuses (exit 5) a checkout without these eleven migrations, a database that records anything after them, or a
+database without all of Phase 1. A checkout with later migrations (e.g. `develop` with the design areas) is refused by
+`deploy`, `diff` and `status` (they act on every migration of the checkout) and accepted by `check-target`, `precheck`,
+`postcheck`, `rollback`, `rollback-history`, `dump` and `restore`, which run only this release's own files and checks.
+Deploy from the release checkout (`b5536fd`, or a release branch from it with the kit fix cherry-picked). Without
+`--release` it is the Phase 1 kit, unchanged.
+
+**Interrupted rollback (staging, 2026-11-19).** `rollback` can be run again after any stop — a guard refusing, a lost
+connection, `--stop-after`. Before running anything it checks every migration against its complete object list
+(`MIGRATION_OBJECTS` in `scripts/release/releases.mjs`): a migration of which nothing remains is skipped ("already
+rolled back"); one that is only partly there (e.g. its table dropped but a column or trigger left) is refused with the
+list of what remains, and none of its files run — restore from the backup or finish it by hand after review. Each file
+runs in one transaction, so a refused or failed file changes nothing. Guards are never bypassed:
+
+```
+node scripts/release/rehearsal.mjs rollback --release post-phase1 --confirm <ep-id> --acknowledge registration-details
+```
+
+`--acknowledge <id>` (repeatable, each once) sets exactly the session setting that file's guard checks, from a fixed
+allow-list (`ACKNOWLEDGEMENTS` in `releases.mjs`; the error lists the ids); an unknown, malformed or repeated id is
+refused before connecting. `PGOPTIONS="-c rof.registration_details_rollback=discard-registration-details"` still works.
+The log prints every acknowledgement in effect. Acknowledge only with approval and after a backup that holds the data.
+`--stop-after <n>` stops after n files (to rehearse an interruption).
+
+`dump` / `restore` need `pg_dump` / `pg_restore` at least as new as the server, on `PATH` or in `PG_BIN`
+(PowerShell: `$env:PG_BIN = "C:\Program Files\PostgreSQL\18\bin"`; Git Bash:
+`export PG_BIN="C:/Program Files/PostgreSQL/18/bin"`). The kit checks the folder, both tools and their versions first.
 
 Backup drill: restore the pre-release dump into an empty branch, then
 `node scripts/db-drill-verify.mjs --baseline pre-post-phase1 --trigger-test` (the state just before this release).
@@ -74,6 +98,6 @@ Backup drill: restore the pre-release dump into an empty branch, then
 
 ## 4. Rollback
 **First, while the NEW release is still serving:** run `docs/migrations/20261210000000_teacher_student_access.pre-switch.sql` (revokes every active ASSIGNED / SELECTED teacher delegation, audited; idempotent). The previous release has no student scope and would apply such a delegation to the teacher's whole school. Then deploy the previous application release, and run the eleven rollbacks newest first, as the kit does:
-- **Data guard:** most refuse (`…_ROLLBACK_REFUSED`) while data would be lost. Each file's header gives the explicit, session-level `SET rof.…_rollback = 'discard-…'` that accepts the loss. Only set it with approval.
+- **Data guard:** most refuse (`…_ROLLBACK_REFUSED`) while data would be lost. Each file's header gives the explicit, session-level `SET rof.…_rollback = 'discard-…'` that accepts the loss (with the kit: `--acknowledge <id>`, §1). Only set it with approval. After a refusal, run the same `rollback` again: migrations already rolled back are skipped (§1).
 - **History:** none edits `_prisma_migrations`. Delete the eleven history rows as their own reviewed step, only after confirming every object is gone. This is what `rollback-history` checks.
 - **`AVATAR`:** the enum value stays. The migration adds it with `IF NOT EXISTS`, so a re-deploy works.

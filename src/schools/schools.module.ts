@@ -15,6 +15,6 @@ import { SchoolsService } from './schools.service.js';
 @Module({
   controllers: [SchoolsController, AdminSchoolsController, SchoolSyncController, SchoolSyncReviewController],
   providers:   [SchoolsService, AdminSchoolsService, SchoolDirectoryDataService, SchoolImportService, SchoolSyncService, SchoolSyncReviewService, SchoolSyncApplyService, SchoolBulkHandler],
-  exports:     [SchoolsService],
+  exports:     [SchoolsService, AdminSchoolsService],
 })
 export class SchoolsModule {}

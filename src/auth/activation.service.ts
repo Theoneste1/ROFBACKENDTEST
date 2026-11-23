@@ -183,7 +183,7 @@ export class ActivationService {
 }
 
 function invalidLink() {
-  return new AppError(HttpStatus.BAD_REQUEST, 'INVALID_ACTIVATION_TOKEN', 'This activation link is invalid or has expired.');
+  return new AppError(HttpStatus.BAD_REQUEST, 'INVALID_ACTIVATION_TOKEN', 'This activation link has expired or was already used. On the sign-in page choose "Forgot password" to get a new link, or simply sign in if your account is already active.');
 }
 
 /** "jean.uwase@example.com" → "j***e@example.com" */

@@ -223,6 +223,30 @@ describe('Primary teacher of a school (owner decision 2026-11-19)', () => {
     expect((await linksOf(s4))[0]).toMatchObject({ isActive: false, role: 'SECONDARY' });
   });
 
+  it('the Users list shows a teacher\'s school: the primary one, else the earliest secondary; ended links never; plus how many (owner 2026-11-22)', async () => {
+    const [s1, s2, s3] = [await school('gs list one'), await school('gs list two'), await school('gs list three')];
+    const [first, other] = await Promise.all(['pt.l1', 'pt.l2'].map(teacher));
+    await assign(first, s1).expect(201);                      // PRIMARY of s1
+    await assign(other, s1).expect(201);                      // SECONDARY of s1 (earliest link of `other`)
+    const ofOther = await assign(other, s2).expect(201);      // PRIMARY of s2, created later: still wins
+    expect(ofOther.body.role).toBe('PRIMARY');
+    const lone = await teacher('pt.l3');
+    await assign(lone, s3).expect(201);
+    await p().teacherSchoolAssignment.updateMany({ where: { teacherId: lone }, data: { isActive: false, endedAt: new Date() } });
+    const none = await teacher('pt.l4');
+
+    const rows = (await http().get('/api/v1/admin/users').query({ role: 'TEACHER', search: 'pt.l', limit: 50 }).set(bearer(admin)).expect(200)).body.data;
+    const row = (id: string) => rows.find((u: any) => u.id === id);
+    expect(row(first)).toMatchObject({ school: { id: s1, name: 'gs list one' }, schoolCount: 1 });
+    expect(row(other)).toMatchObject({ school: { id: s2, name: 'gs list two' }, schoolCount: 2 });
+    expect(row(lone)).toMatchObject({ school: null, schoolCount: 0 });
+    expect(row(none)).toMatchObject({ school: null, schoolCount: 0 });
+    // Students keep their own school field; only TEACHER rows carry schoolCount.
+    const students = (await http().get('/api/v1/admin/users').query({ role: 'STUDENT', limit: 5 }).set(bearer(admin)).expect(200)).body.data;
+    expect(students.length).toBeGreaterThan(0);
+    for (const u of students) { expect(u).toHaveProperty('school'); expect(u).not.toHaveProperty('schoolCount'); }
+  });
+
   it('the role is shown everywhere it applies: School Access, the Users list, the teacher\'s own schools — with the same rights', async () => {
     const s = await school('gs primary views');
     const [a, b] = await Promise.all(['pt.v1', 'pt.v2'].map(teacher));

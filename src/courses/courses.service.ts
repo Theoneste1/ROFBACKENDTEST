@@ -14,6 +14,7 @@ import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { COURSE_WORK_ROLES, isAdmin, isCourseWorker, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { CourseEnrollmentStatus } from '../generated/prisma/client.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
+import { isViewing } from '../common/request-context.js';
 
 // ─── Student-facing display labels ───────────────────────────────────────────
 //
@@ -89,10 +90,13 @@ export class CoursesService {
     }
 
     if (isCourseWorker(user)) {
-      const scopes = await this.prisma.mentorAssignment.findMany({
-        where:  { mentorId: user.id, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
-        select: { courseId: true, division: { select: { id: true, code: true, name: true } } },
-      });
+      // Explicit assignments and (a Coach, 2026-11-23) every course of their programmes at every level it is offered in.
+      const pairs = await this.access.courseScopes(user);
+      const divisionRows = await this.prisma.division.findMany({ where: { id: { in: [...new Set(pairs.map((p) => p.divisionId))] } }, select: { id: true, code: true, name: true, sortOrder: true } });
+      const byId = new Map(divisionRows.map((d) => [d.id, d]));
+      const scopes = pairs.filter((p) => byId.has(p.divisionId))
+        .sort((a, b) => byId.get(a.divisionId)!.sortOrder - byId.get(b.divisionId)!.sortOrder)
+        .map((p) => { const d = byId.get(p.divisionId)!; return { courseId: p.courseId, division: { id: d.id, code: d.code, name: d.name } }; });
       const courseIds = [...new Set(scopes.map((s) => s.courseId))];
       const courses = await this.prisma.course.findMany({
         where:   { id: { in: courseIds } },
@@ -155,12 +159,11 @@ export class CoursesService {
     }
 
     if (isCourseWorker(user)) {
-      const divisions = await this.prisma.mentorAssignment.findMany({
-        where:  { mentorId: user.id, courseId, isActive: true, mentor: { role: { in: [...COURSE_WORK_ROLES] } } },
-        select: { division: { select: { id: true, code: true, name: true } } },
-      });
+      const ids = (await this.access.courseScopes(user)).filter((p) => p.courseId === courseId).map((p) => p.divisionId);
+      const divisions = (await this.prisma.division.findMany({ where: { id: { in: ids } }, orderBy: { sortOrder: 'asc' }, select: { id: true, code: true, name: true } }))
+        .map((division) => ({ division }));
       if (divisions.length === 0) {
-        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course.');
+        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course. Ask an administrator or your Head Coach to assign you.');
       }
       return { ...course, divisions: divisions.map((d) => d.division) };
     }
@@ -348,6 +351,11 @@ export class CoursesService {
    * Uses upsert so concurrent first opens cannot collide.
    */
   private async recordCourseView(courseId: string, studentId: string) {
+    // "View as" (read only): show the stored state; opening it as an administrator changes nothing.
+    if (isViewing()) {
+      const stored = await this.prisma.courseEnrollment.findUnique({ where: { courseId_studentId: { courseId, studentId } } });
+      return stored ?? { status: 'UNROLLED' as const, completedAt: null };
+    }
     const now = new Date();
     const enrollment = await this.prisma.courseEnrollment.upsert({
       where:  { courseId_studentId: { courseId, studentId } },

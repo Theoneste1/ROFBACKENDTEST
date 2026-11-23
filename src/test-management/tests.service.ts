@@ -276,7 +276,7 @@ export class TestsService {
       if (await hasSubmissions(tx, id)) throw lockedBySubmissions('its questions');
       const existing = await tx.testQuestion.findMany({ where: { testId: id }, select: { order: true, maxMarks: true } });
       if (existing.length >= MAX_QUESTIONS) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_QUESTIONS', `A test has at most ${MAX_QUESTIONS} questions.`);
+        throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_QUESTIONS', `A test can have at most ${MAX_QUESTIONS} questions. Remove a question before adding another.`);
       }
       assertQuestionMarks(test.status, test.maxMarks, [...existing.map((q) => q.maxMarks), dto.maxMarks]);
       const order = existing.reduce((m, q) => Math.max(m, q.order), 0) + 1;
@@ -331,7 +331,7 @@ export class TestsService {
       const rest = questions.filter((q) => q.id !== questionId);
       assertQuestionMarks(test.status, test.maxMarks, rest.map((q) => q.maxMarks));
       if (test.status === 'PUBLISHED' && rest.length === 0 && (await tx.testFile.count({ where: { testId: id, kind: 'PAPER' } })) === 0) {
-        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'A published test needs a paper or at least one question.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
+        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'Add the question paper or at least one question before publishing the test.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
       }
       await tx.testQuestion.delete({ where: { id: questionId } });
       await renumber(tx, rest.map((q) => q.id));
@@ -369,7 +369,7 @@ export class TestsService {
   async putFile(id: string, kindParam: TestFileKindParam, file: Express.Multer.File | undefined, user: AuthUser) {
     const kind = KIND_OF[kindParam];
     await this.loadInScope(id, user);
-    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the file (multipart field "file").');
+    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the file (a PDF or a photo).');
     const stored = await this.storage.store(file, PURPOSE_OF[kind], user.id);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
@@ -397,7 +397,7 @@ export class TestsService {
       if (!link) throw fileNotFound();
       if (kind === 'PAPER' && (await hasSubmissions(tx, id))) throw lockedBySubmissions('its paper');
       if (kind === 'PAPER' && test.status === 'PUBLISHED' && (await tx.testQuestion.count({ where: { testId: id } })) === 0) {
-        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'A published test needs a paper or at least one question.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
+        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'Add the question paper or at least one question before publishing the test.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
       }
       await tx.testFile.delete({ where: { id: link.id } });
       await this.audit.log({
@@ -417,12 +417,13 @@ export class TestsService {
     const kind = KIND_OF[kindParam];
     const test = await this.loadInScope(id, user);
     if (kind === 'MARKING_GUIDE' && !(await this.mayReadMarkingGuide(user, test.disciplineId))) throw fileNotFound();
+    const { title } = (await this.prisma.test.findUnique({ where: { id }, select: { title: true } }))!;
     const link = await this.prisma.testFile.findUnique({
       where: { testId_kind: { testId: id, kind } },
       select: { file: { select: { storageKey: true, mimeType: true, size: true } } },
     });
     if (!link) throw fileNotFound();
-    await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey) }, { download });
+    await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey, title) }, { download });
   }
 
   /** Everyone who manages the subject's tests (Administrators, its Head Coaches). Markers: test-marker.service.ts. */
@@ -444,7 +445,7 @@ export class TestsService {
   private async requireSubject(disciplineId: string) {
     const d = await this.prisma.discipline.findUnique({ where: { id: disciplineId }, select: { isActive: true } });
     if (!d) throw new AppError(HttpStatus.BAD_REQUEST, 'SUBJECT_NOT_FOUND', 'Subject not found.', { subjectId: disciplineId });
-    if (!d.isActive) throw new AppError(HttpStatus.BAD_REQUEST, 'SUBJECT_INACTIVE', 'This subject is not active.', { subjectId: disciplineId });
+    if (!d.isActive) throw new AppError(HttpStatus.BAD_REQUEST, 'SUBJECT_INACTIVE', 'This subject is not active. Choose another subject, or ask an administrator to reactivate it.', { subjectId: disciplineId });
   }
 
   /** The full test: details, totals, files and questions in order. */
@@ -490,9 +491,9 @@ async function renumber(tx: Tx, ids: readonly string[]) {
      WHERE q."id" = v.id`;
 }
 
-function fileView(files: FileRow[], kind: TestFileKind) {
+function fileView(files: FileRow[], kind: TestFileKind, title: string) {
   const f = files.find((x) => x.kind === kind);
-  return f ? { fileId: f.file.id, name: neutralFileName(kind, f.file.storageKey), mimeType: f.file.mimeType, size: f.file.size, uploadedAt: f.createdAt } : null;
+  return f ? { fileId: f.file.id, name: neutralFileName(kind, f.file.storageKey, title), mimeType: f.file.mimeType, size: f.file.size, uploadedAt: f.createdAt } : null;
 }
 
 /** The API shape of a test (list rows and the detail). The uploader's own file names are never returned. */
@@ -506,7 +507,7 @@ function testView(t: TestRow, questionMarksTotal: number) {
     deadlineMoved: t.closesAt.getTime() !== t.originalClosesAt.getTime(),
     maxMarks: t.maxMarks, status: t.status, publishedAt: t.publishedAt,
     questionCount: t._count.questions, questionMarksTotal: totals.total, questionsComplete: totals.complete,
-    files: { paper: fileView(t.files, 'PAPER'), markingGuide: fileView(t.files, 'MARKING_GUIDE') },
+    files: { paper: fileView(t.files, 'PAPER', t.title), markingGuide: fileView(t.files, 'MARKING_GUIDE', t.title) },
     createdBy: t.createdBy, createdAt: t.createdAt, updatedAt: t.updatedAt,
   };
 }

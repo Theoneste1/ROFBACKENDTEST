@@ -136,10 +136,37 @@ export class UsersService {
       select: { userId: true },
     })).map((r) => r.userId));
 
+    // A teacher's school is a TeacherSchoolAssignment, not User.schoolId (owner 2026-11-22: the list showed "—"). Each
+    // TEACHER row's `school` is its active primary school, else its earliest active secondary one; `schoolCount` is how
+    // many active schools it has. One query per page.
+    const teacherSchools = new Map<string, { school: { id: string; name: string; location: string | null }; count: number }>();
+    if (teacherIds.length > 0) {
+      const links = await this.prisma.teacherSchoolAssignment.findMany({
+        where: { teacherId: { in: teacherIds }, isActive: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        select: { teacherId: true, role: true, school: { select: { id: true, name: true, location: true } } },
+      });
+      for (const l of links) {
+        const seen = teacherSchools.get(l.teacherId);
+        if (!seen) teacherSchools.set(l.teacherId, { school: l.school, count: 1 });
+        else seen.count += 1;
+      }
+      // The primary school wins over the earliest secondary one.
+      for (const l of links) if (l.role === 'PRIMARY') teacherSchools.get(l.teacherId)!.school = l.school;
+    }
+
     // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
     // Data minimisation (ACC-16 / SEC-03): phones masked and no date of birth in a list; GET /admin/users/:id has both.
     return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(
-      row.role === 'TEACHER' ? { ...row, teacherSchoolRole: roles.get(row.id) ?? null, testSubmissionAllowed: !revoked.has(row.id) } : row,
+      row.role === 'TEACHER'
+        ? {
+          ...row,
+          school: row.school ?? teacherSchools.get(row.id)?.school ?? null,
+          schoolCount: teacherSchools.get(row.id)?.count ?? 0,
+          teacherSchoolRole: roles.get(row.id) ?? null,
+          testSubmissionAllowed: !revoked.has(row.id),
+        }
+        : row,
     )), total, page, limit);
   }
 
@@ -213,6 +240,8 @@ export class UsersService {
       /** Run inside this OUTER transaction (bulk operations); post-commit notices are then queued in afterCommit. */
       tx?: Prisma.TransactionClient;
       afterCommit?: Array<() => Promise<void>>;
+      /** Registration data (Super Administrators, registrationData.manage): Olympiad interests of any account, not only a Coach's. */
+      interestsAnyRole?: boolean;
     } = {},
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
@@ -225,14 +254,14 @@ export class UsersService {
     // The shared seeded account is never promoted to Super Admin, nor renamed out of that rule (P1-08 hardening).
     this.roles.assertSharedAccountRules(existing, { role: data.role, username: data.username });
     // Subject interests are edited here for Coach accounts only (coachOlympiadInterests); students edit theirs on PATCH /me.
-    if ((data.olympiadInterests !== undefined || data.olympiadInterestOther !== undefined) && (data.role ?? existing.role) !== 'MENTOR') {
+    if ((data.olympiadInterests !== undefined || data.olympiadInterestOther !== undefined) && (data.role ?? existing.role) !== 'MENTOR' && !opts.interestsAnyRole) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INTERESTS_COACH_ONLY', 'Olympiad interests can be edited here for Coach accounts only.');
     }
     // schoolCode → the school's id (PR B). Not required to be active here: re-sending a student's
     // current school creates no claim; a NEW claim for an inactive school is refused by claim().
     if (data.schoolCode !== undefined) {
       if (data.schoolId === null) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH', 'schoolId: null clears the school; do not send a schoolCode with it.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH', 'To remove the school, leave the school empty (do not give a school code at the same time).');
       }
       const { schoolCode: _code, ...rest } = data;
       data = { ...rest, schoolId: (await this.schoolFromReference(data, false))! };
@@ -461,7 +490,7 @@ export class UsersService {
     if (data.isActive !== undefined && data.isActive !== before.isActive) {
       if (data.isActive && before.accountStatus === 'ARCHIVED') {
         throw new AppError(HttpStatus.CONFLICT, 'INVALID_STATUS_TRANSITION',
-          'An archived account is restored with POST /admin/users/:id/status-changes (with a reason).', { from: 'ARCHIVED', to: 'ACTIVE' });
+          'This account is archived. Use "Restore" on the account page (with a reason) to bring it back.', { from: 'ARCHIVED', to: 'ACTIVE' });
       }
       await this.accountStatus.change(id,
         { toStatus: data.isActive ? 'ACTIVE' : 'SUSPENDED', reason: data.isActive ? null : LEGACY_SUSPEND_REASON },
@@ -506,7 +535,7 @@ export class UsersService {
     // Account states (2026-11-16): accounts are never deleted through the API — archive them instead (their
     // submissions, results, discussions, enrolments, affiliations, notifications and audit history are kept).
     throw new AppError(HttpStatus.CONFLICT, 'PERMANENT_DELETION_DISABLED',
-      'Accounts are not deleted. Archive the account instead (POST /admin/users/:id/status-changes with toStatus ARCHIVED).');
+      'Accounts are never deleted. Archive the account instead (Change status → Archived).');
   }
 
   // (Annual promotion moved to AcademicYearsService.activate, which also keeps

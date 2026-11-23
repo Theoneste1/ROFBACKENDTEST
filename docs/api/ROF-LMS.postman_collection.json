@@ -1523,7 +1523,7 @@
             "description": "**Access:** permission `forms.manageAvailability` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mode\": \"OPEN\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\"\n}",
+              "raw": "{\n  \"mode\": \"OPEN\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"requireEmailVerification\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3666,6 +3666,12 @@
                   "value": "label",
                   "disabled": true,
                   "description": "A label for this run (default: the dataset name and the file name)."
+                },
+                {
+                  "key": "mode",
+                  "value": "FULL",
+                  "disabled": true,
+                  "description": "FULL (default): every difference with a matched school is proposed. NEW_ONLY: schools already\nin the directory are recognised and left untouched; only schools with a new code are proposed."
                 }
               ]
             },
@@ -4161,6 +4167,42 @@
                   "description": ""
                 },
                 {
+                  "key": "cell",
+                  "value": "cell",
+                  "disabled": true,
+                  "description": "Cell / village (any letter case)."
+                },
+                {
+                  "key": "village",
+                  "value": "village",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "ownership",
+                  "value": "PUBLIC",
+                  "disabled": true,
+                  "description": "PUBLIC, GOVERNMENT_AIDED or PRIVATE."
+                },
+                {
+                  "key": "contact",
+                  "value": "contact",
+                  "disabled": true,
+                  "description": "An active contact (e-mail or phone) containing this text (any letter case; spaces ignored for phones)."
+                },
+                {
+                  "key": "hasEmail",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: has an active e-mail contact; false: has none."
+                },
+                {
+                  "key": "hasPhone",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: has an active phone contact; false: has none."
+                },
+                {
                   "key": "isActive",
                   "value": "true",
                   "disabled": true,
@@ -4183,6 +4225,12 @@
                   "value": "00000000-0000-4000-8000-000000000000",
                   "disabled": true,
                   "description": "Offers this programme (its id)."
+                },
+                {
+                  "key": "programmeCategory",
+                  "value": "OTHER",
+                  "disabled": true,
+                  "description": "Offers a programme of this category (A-Level combination, TVET trade, other)."
                 },
                 {
                   "key": "accommodation",
@@ -4803,6 +4851,474 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin · Subscribers",
+      "item": [
+        {
+          "name": "GET /admin/subscribers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Part of the e-mail or name."
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "interest",
+                  "value": "MATHEMATICS",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "kind",
+                  "value": "STUDENT",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "source",
+                  "value": "ADMIN",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "country",
+                  "value": "country",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "sort",
+                  "value": "newest",
+                  "disabled": true,
+                  "description": "newest (default), oldest, name, email."
+                }
+              ]
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/subscribers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"name@example.org\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PATCH /admin/subscribers/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"fullName\",\n  \"kind\": \"STUDENT\",\n  \"interests\": [\n    \"MATHEMATICS\"\n  ],\n  \"country\": \"country\",\n  \"status\": \"ACTIVE\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/subscribers/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/subscribers/export",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "export"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Part of the e-mail or name."
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "interest",
+                  "value": "MATHEMATICS",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "kind",
+                  "value": "STUDENT",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "source",
+                  "value": "ADMIN",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "country",
+                  "value": "country",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "sort",
+                  "value": "newest",
+                  "disabled": true,
+                  "description": "newest (default), oldest, name, email."
+                }
+              ]
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/subscribers/import",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/import",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "import"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "dryRun",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Check the file and report only; add nobody."
+                }
+              ]
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/subscribers/mailings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/mailings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "mailings"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/subscribers/mailings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/mailings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "mailings"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"subject\",\n  \"body\": \"body body body\",\n  \"idempotencyKey\": \"idempotencyKey idempotencyKey\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/subscribers/mailings/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/mailings/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "mailings",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/subscribers/mailings/{id}/cancel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/mailings/:id/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "mailings",
+                ":id",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/subscribers/mailings/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/mailings/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "mailings",
+                "preview"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"audience\": {\n    \"interests\": [\n      \"MATHEMATICS\"\n    ],\n    \"kinds\": [\n      \"STUDENT\"\n    ],\n    \"countries\": [\n      \"countries\"\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/subscribers/mailings/test",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/mailings/test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "mailings",
+                "test"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"subject\",\n  \"body\": \"body body body\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/subscribers/summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/subscribers/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "subscribers",
+                "summary"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
           }
         }
       ]
@@ -8070,6 +8586,48 @@
           }
         },
         {
+          "name": "POST /admin/users/{id}/view-as",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/view-as",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "view-as"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.impersonate` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "GET /admin/users/bulk",
           "request": {
             "method": "GET",
@@ -9672,6 +10230,293 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"token\": \"token token token token token\",\n  \"newPassword\": \"Str0ng!Passw0rd\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /auth/view-as/end",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/view-as/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "view-as",
+                "end"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)"
+          }
+        },
+        {
+          "name": "POST /auth/view-as/exchange",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/view-as/exchange",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "view-as",
+                "exchange"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticket\": \"ticket ticket ticket ticket\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coach",
+      "item": [
+        {
+          "name": "GET /coach/students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "students"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "programmeId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "One of my programmes (a Discipline id)."
+                },
+                {
+                  "key": "division",
+                  "value": "division",
+                  "disabled": true,
+                  "description": "An Olympiad level code (JUNIOR, MIDDLE, SENIOR …)."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `students.viewProgramme` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /coach/test-results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/test-results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "test-results"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /coach/test-results/{testId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/test-results/:testId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "test-results",
+                ":testId"
+              ],
+              "variable": [
+                {
+                  "key": "testId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "schoolId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "One of the teacher's schools."
+                },
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Student name or username."
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /coach/test-results/{testId}/students/{studentId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/coach/test-results/:testId/students/:studentId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coach",
+                "test-results",
+                ":testId",
+                "students",
+                ":studentId"
+              ],
+              "variable": [
+                {
+                  "key": "testId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "studentId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coaches",
+      "item": [
+        {
+          "name": "GET /admin/coaches/{id}/programme-access",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/coaches/:id/programme-access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coaches",
+                ":id",
+                "programme-access"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/coaches/{id}/programme-access",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/coaches/:id/programme-access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "coaches",
+                ":id",
+                "programme-access"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"programmeId\": \"00000000-0000-4000-8000-000000000000\",\n  \"capability\": \"STUDENTS\",\n  \"allowed\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -13465,6 +14310,541 @@
             },
             "description": "**Access:** Public (no token)"
           }
+        },
+        {
+          "name": "POST /public/subscribe",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/public/subscribe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "subscribe"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"name@example.org\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /public/unsubscribe",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/public/unsubscribe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "unsubscribe"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Public (no token)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"id\",\n  \"token\": \"token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /public/unsubscribe/one-click",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/unsubscribe/one-click",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "public",
+                "unsubscribe",
+                "one-click"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "s",
+                  "disabled": false,
+                  "description": ""
+                },
+                {
+                  "key": "t",
+                  "value": "t",
+                  "disabled": false,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** Public (no token)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "registration-data",
+      "item": [
+        {
+          "name": "POST /admin/registration-data/export",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "export"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "csv",
+                  "disabled": false,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "fields"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "STUDENTS",
+                  "disabled": false,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/layouts/{category}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/layouts/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "layouts",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/registration-data/layouts/{category}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/layouts/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "layouts",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/registration-data/layouts/{category}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/layouts/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "layouts",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/registration-data/query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "query"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/saved-filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "STUDENTS",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/registration-data/saved-filters",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"name\",\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ],\n  \"filter\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PUT /admin/registration-data/saved-filters/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"name\",\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ],\n  \"filter\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/registration-data/saved-filters/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/users/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PATCH /admin/registration-data/users/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"changes\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -15004,7 +16384,7 @@
             "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\",\n  \"approvePicture\": true\n}",
+              "raw": "{\n  \"schoolId\": \"00000000-0000-4000-8000-000000000000\",\n  \"note\": \"note\",\n  \"approvePicture\": true,\n  \"confirmPossibleDuplicate\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"

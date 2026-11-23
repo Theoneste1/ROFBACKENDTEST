@@ -34,6 +34,7 @@ import { RegistrationAvatarService } from '../users/registration-avatar.service.
 import { LOGIN_FAILURES_BEFORE_LOCK, LOGIN_LOCK_MS, LoginLimiter } from './login-limiter.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
+import { settleSchoolCode } from '../schools/school-code-at-registration.js';
 
 export const BCRYPT_COST = 12;
 
@@ -107,7 +108,7 @@ export class AuthService {
   private async registrationSchool(tx: Prisma.TransactionClient, data: RegisterStudentDto) {
     const placeGiven = data.schoolProvince !== undefined;   // all three, or none (DTO)
     if (data.schoolId !== undefined && data.schoolCode !== undefined) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Send either schoolId or schoolCode, not both.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the school once: either from the list or by its code, not both.');
     }
     if ((data.country ?? 'RW') !== 'RW') {
       if (data.schoolId !== undefined) {
@@ -160,7 +161,8 @@ export class AuthService {
     await this.assertIdentityFree(data.username, data.email);
 
     const requiresApproval     = await this.settings.get('registration.studentRequiresApproval');
-    const requiresVerification = await this.settings.get('registration.requireEmailVerification');
+    // Activation per sign-up form (owner 2026-11-23): off unless an Administrator turned it on for this form.
+    const requiresVerification = await this.forms.requiresEmailVerification('STUDENT_REGISTRATION');
     const passwordHash         = await bcrypt.hash(data.password, BCRYPT_COST);
     const divisionId       = await this.divisions.idForGrade(data.gradeLevel);
 
@@ -194,6 +196,11 @@ export class AuthService {
         select: PROFILE_SELECT,
       });
 
+      // A school without a code chosen from the list (owner 2026-11-23): the student gives its code, which becomes the
+      // school's (school-code-at-registration.ts); refused in plain words when missing or not valid.
+      if (school && !school.code && data.schoolId !== undefined) {
+        await settleSchoolCode(tx, this.audit, school.id, data.newSchoolCode, { via: 'STUDENT_REGISTRATION', actorId: created.id, actorRole: 'STUDENT' });
+      }
       // Per-year enrolment record (fails the registration if no year is active).
       await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel, school?.id ?? null);
       // Mathematics programme membership (self-registration: no actor). P1-07, K6.
@@ -345,7 +352,7 @@ export class AuthService {
       );
     }
     if (!user.isApproved) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_PENDING_APPROVAL', 'This account is waiting for administrator approval.');
+      throw new AppError(HttpStatus.FORBIDDEN, 'ACCOUNT_PENDING_APPROVAL', 'Your account is waiting for an administrator to approve it. You will receive an e-mail when it is approved; then sign in again.');
     }
 
     const tokens = await this.tokens.issue(user.id, client);
@@ -529,7 +536,7 @@ export class AuthService {
       select: { passwordHash: true, role: true },
     });
     if (!user?.passwordHash || !(await bcrypt.compare(currentPassword, user.passwordHash))) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'WRONG_PASSWORD', 'Your current password is incorrect.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'WRONG_PASSWORD', 'Your current password is not correct. Type it again, or sign out and use "Forgot password" if you do not remember it.');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);

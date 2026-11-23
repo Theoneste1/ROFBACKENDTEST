@@ -4,6 +4,10 @@
  */
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(296000 + ++codeSeq);
+
 describe('Registration timeline (e2e)', () => {
   let ctx: TestContext;
   let admin: string, coach: string, ngoma: string;
@@ -58,7 +62,7 @@ describe('Registration timeline (e2e)', () => {
     const app = await http().post('/api/v1/auth/register/teacher').send({
       firstName: 'Ted', lastName: 'Line', username: 'tl.teacher', email: 'tl.teacher@test.local', password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
+      proposedSchoolName: 'GS Not Yet Listed', schoolSector: 'Ngoma', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', position: 'Teacher',
     }).expect(201);
     await http().post(`/api/v1/admin/teacher-applications/${app.body.id}/school`).set(bearer(admin)).send({ schoolId: ngoma }).expect(200);
     await http().post(`/api/v1/admin/teacher-applications/${app.body.id}/request-info`).set(bearer(admin)).send({ question: 'Which classes do you teach?' }).expect(200);

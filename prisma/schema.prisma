@@ -410,6 +410,8 @@ enum NotificationCategory {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model User {
+  viewAsSessionsStarted   ViewAsSession[]                 @relation("ViewAsActor")
+  viewAsSessionsReceived  ViewAsSession[]                 @relation("ViewAsTarget")
   resubmissionsAuthorized TestResubmissionAuthorization[] @relation("ResubmissionAuthorizedBy")
   resubmissionsCancelled  TestResubmissionAuthorization[] @relation("ResubmissionCancelledBy")
   id                      String                          @id @default(uuid())
@@ -507,6 +509,9 @@ model User {
   studyGroupsCreated                StudyGroup[]                    @relation("StudyGroupCreator")
   studyGroupMemberships             StudyGroupMember[]              @relation("StudyGroupMemberships")
   emailJobsCreated                  EmailJob[]                      @relation("EmailJobCreator")
+  /// News subscriptions whose e-mail matches this account (subscribers, 2026-11-23).
+  newsSubscriptions                 Subscriber[]                    @relation("SubscriberAccount")
+  mailingsCreated                   Mailing[]                       @relation("MailingCreator")
   submissions                       Submission[]                    @relation("StudentSubmissions")
   submissionRevisions               SubmissionRevision[]
   assignmentViews                   AssignmentView[]                @relation("AssignmentViewer")
@@ -568,6 +573,11 @@ model User {
   activityLogs                      ActivityLog[]
   teacherApplicationsDecided        TeacherApplication[]            @relation("TeacherApplicationDecidedBy")
   teacherApplication                TeacherApplication?             @relation("TeacherApplicationUser")
+  mentorRequest                     MentorRequest?                  @relation("MentorRequestUser")
+  registrationFilters               RegistrationSavedFilter[]       @relation("RegistrationFilterOwner")
+  coachRestrictions                 CoachProgrammeRestriction[]     @relation("CoachRestrictionCoach")
+  coachRestrictionsMade             CoachProgrammeRestriction[]     @relation("CoachRestrictionCreatedBy")
+  coachRestrictionsLifted           CoachProgrammeRestriction[]     @relation("CoachRestrictionLiftedBy")
   teacherApplicationSchoolsVerified TeacherApplication[]            @relation("TeacherApplicationSchoolVerifiedBy")
   applicationInfoRequests           ApplicationInfoRequest[]        @relation("ApplicationInfoRequestedBy")
   notificationOutbox                NotificationOutbox[]
@@ -838,6 +848,9 @@ model SchoolSyncRun {
   fileSha256         String
   format             String
   rowCount           Int
+  /// FULL: every difference with a matched school is proposed. NEW_ONLY: schools already in the
+  /// directory are recognised and left untouched; only schools with a new official code are proposed.
+  mode               SchoolSyncMode      @default(FULL)
   /// The source's own totals (e.g. NESA's Summary tab), as read.
   sourceSummary      Json?
   /// The source totals compared with the rows read.
@@ -1033,6 +1046,10 @@ model MentorRequest {
   /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
   avatarFileId          String?                  @unique
   avatarFile            FileObject?              @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  /// The Coach account the approval created (registration data, 2026-11-23): links the application's details (occupation,
+  /// education, phone …) to the account. Set on approval; filled for earlier approvals from their audit entry.
+  userId                String?                  @unique
+  user                  User?                    @relation("MentorRequestUser", fields: [userId], references: [id], onDelete: SetNull)
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -1074,62 +1091,70 @@ model ApplicationInfoRequest {
 /// At most one PENDING application per username and per e-mail: partial unique indexes
 /// (TeacherApplication_pending_username_key / _pending_email_key, WHERE status = 'PENDING').
 model TeacherApplication {
-  id                    String                   @id @default(uuid())
-  firstName             String
-  lastName              String
-  username              String
-  email                 String
+  id                          String                   @id @default(uuid())
+  firstName                   String
+  lastName                    String
+  username                    String
+  email                       String
   /// Cleared once the application is decided.
-  passwordHash          String?
+  passwordHash                String?
   /// E.164.
-  phone                 String
+  phone                       String
   /// ISO 3166-1 alpha-2.
-  country               String
-  olympiadInterests     OlympiadSubject[]
+  country                     String
+  olympiadInterests           OlympiadSubject[]
   /// Another Olympiad named in words ("Other"; owner 2026-11-21), 2–100 characters (CHECK). Never a subject.
-  olympiadInterestOther String?
+  olympiadInterestOther       String?
   /// Required on new applications (2026-11-20); copied to the Teacher account on approval. NULL for older ones.
-  gender                Gender?
-  status                TeacherApplicationStatus @default(PENDING)
+  gender                      Gender?
+  status                      TeacherApplicationStatus @default(PENDING)
   /// A listed school (official directory) — or NULL with proposedSchoolName ("my school is missing").
-  schoolId              String?
-  school                School?                  @relation("TeacherApplicationSchool", fields: [schoolId], references: [id], onDelete: Restrict)
-  proposedSchoolName    String?
+  schoolId                    String?
+  school                      School?                  @relation("TeacherApplicationSchool", fields: [schoolId], references: [id], onDelete: Restrict)
+  proposedSchoolName          String?
+  /// "My school is not listed" (owner 2026-11-22): the official details the applicant gave, so the approval creates the
+  /// school with no retyping — the 6-digit code (not in the directory when applying), cell and village (optional),
+  /// ownership (PUBLIC / GOVERNMENT_AIDED / PRIVATE) and day / boarding. NULL for applications made before.
+  proposedSchoolCode          String?
+  proposedSchoolCell          String?
+  proposedSchoolVillage       String?
+  proposedSchoolOwnership     String?
+  proposedSchoolAccommodation SchoolAccommodation?
   /// The place the applicant entered (for a listed school: checked against the school's own place).
-  schoolProvince        String
-  schoolDistrict        String
-  schoolSector          String?
+  schoolProvince              String
+  schoolDistrict              String
+  schoolSector                String?
   /// Home location (homeLocationRules, 2026-11-20): `country` is the home country; province, district and sector
   /// only for Rwanda (NULL otherwise; older applications have district and sector without a province).
-  homeProvince          String?
-  homeDistrict          String?
-  homeSector            String?
-  createdAt             DateTime                 @default(now())
-  updatedAt             DateTime                 @updatedAt
-  decidedAt             DateTime?
-  decidedById           String?
-  decidedBy             User?                    @relation("TeacherApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
-  rejectionReason       String?
-  decisionNote          String?
+  homeProvince                String?
+  homeDistrict                String?
+  homeSector                  String?
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+  decidedAt                   DateTime?
+  decidedById                 String?
+  decidedBy                   User?                    @relation("TeacherApplicationDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  rejectionReason             String?
+  decisionNote                String?
   /// The TEACHER account created on approval.
-  userId                String?                  @unique
-  user                  User?                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId                      String?                  @unique
+  user                        User?                    @relation("TeacherApplicationUser", fields: [userId], references: [id], onDelete: SetNull)
   /// The school the approval assigned (TeacherSchoolAssignment).
-  assignedSchoolId      String?
-  assignedSchool        School?                  @relation("TeacherApplicationAssignedSchool", fields: [assignedSchoolId], references: [id], onDelete: Restrict)
+  assignedSchoolId            String?
+  assignedSchool              School?                  @relation("TeacherApplicationAssignedSchool", fields: [assignedSchoolId], references: [id], onDelete: Restrict)
   /// A missing-school application: when and by whom an Administrator linked it to an official school
   /// (POST /admin/teacher-applications/:id/school; schoolId is then that school). Required before approval.
-  schoolVerifiedAt      DateTime?
-  schoolVerifiedById    String?
-  schoolVerifiedBy      User?                    @relation("TeacherApplicationSchoolVerifiedBy", fields: [schoolVerifiedById], references: [id], onDelete: SetNull)
+  schoolVerifiedAt            DateTime?
+  schoolVerifiedById          String?
+  schoolVerifiedBy            User?                    @relation("TeacherApplicationSchoolVerifiedBy", fields: [schoolVerifiedById], references: [id], onDelete: SetNull)
   /// Position or teaching role at the school (e.g. "Mathematics teacher", "Head of sciences"), as entered.
-  position              String?
+  position                    String?
   /// Years of teaching experience (0–60), where the applicant gives it.
-  yearsOfExperience     Int?
-  infoRequests          ApplicationInfoRequest[]
+  yearsOfExperience           Int?
+  infoRequests                ApplicationInfoRequest[]
   /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
-  avatarFileId          String?                  @unique
-  avatarFile            FileObject?              @relation("TeacherApplicationAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  avatarFileId                String?                  @unique
+  avatarFile                  FileObject?              @relation("TeacherApplicationAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([schoolId])
@@ -1236,6 +1261,11 @@ enum SchoolSyncRunStatus {
   SUPERSEDED
 }
 
+enum SchoolSyncMode {
+  FULL
+  NEW_ONLY
+}
+
 enum SchoolSyncItemOutcome {
   MATCHED
   NEW
@@ -1326,6 +1356,7 @@ model Discipline {
 
   courses              Course[]
   memberships          ProgrammeMembership[]
+  coachRestrictions    CoachProgrammeRestriction[]
   /// Test Management (WS3): the subject's tests and authorised markers.
   tests                Test[]
   markerAuthorizations MarkerAuthorization[]
@@ -2164,6 +2195,7 @@ model EmailJob {
   updatedAt       DateTime       @updatedAt
 
   deliveries EmailDelivery[]
+  mailing    Mailing?
 
   @@index([createdById])
   @@index([status])
@@ -2193,10 +2225,15 @@ model EmailDelivery {
   errorMessage   String?
   attemptedAt    DateTime?
   createdAt      DateTime            @default(now())
+  /// Set for e-mails to a news subscriber (mailings, welcome): the worker adds that subscriber's unsubscribe link and
+  /// the List-Unsubscribe headers at send time, and never sends a mailing to someone who unsubscribed meanwhile.
+  subscriberId   String?
+  subscriber     Subscriber?         @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
 
   @@index([status, nextAttemptAt])
   @@index([jobId, status])
   @@index([recipientEmail])
+  @@index([subscriberId])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2242,6 +2279,9 @@ model FormAvailability {
   instructions  String?
   contactEmail  String?
   supportUrl    String?
+  /// Sign-up forms only (owner 2026-11-23): people who sign up with this form must confirm their e-mail (activation
+  /// link) before they can sign in. Off by default; an Administrator may turn it on per form.
+  requireEmailVerification Boolean @default(false)
   updatedById   String?
   updatedBy     User?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt     DateTime  @default(now())
@@ -2404,6 +2444,98 @@ model ContactMessage {
   @@index([status, createdAt])
   @@index([email, createdAt])
   @@index([ipHash, createdAt])
+}
+
+// ─── News subscribers and mailings (owner 2026-11-23) ───────────────────────
+
+/// Who a news subscriber says they are (optional).
+enum SubscriberKind {
+  PARENT
+  STUDENT
+  TEACHER
+  SCHOOL
+  OTHER
+}
+
+/// How a subscriber was added.
+enum SubscriberSource {
+  WEBSITE
+  ADMIN
+  IMPORT
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+}
+
+/// Someone who asked for ROF news and Olympiad announcements by e-mail (POST /public/subscribe), or was added by an
+/// Administrator. One row per e-mail address (lower-case). Unsubscribing keeps the row (status UNSUBSCRIBED) so the
+/// address is never mailed again by an import; an Administrator can erase it.
+model Subscriber {
+  id                String            @id @default(uuid())
+  /// Trimmed, lower-case.
+  email             String            @unique
+  fullName          String?
+  kind              SubscriberKind?
+  /// No interest chosen = interested in every subject.
+  interests         OlympiadSubject[] @default([])
+  /// ISO 3166-1 alpha-2.
+  country           String?
+  source            SubscriberSource
+  status            SubscriberStatus  @default(ACTIVE)
+  subscribedAt      DateTime          @default(now())
+  unsubscribedAt    DateTime?
+  unsubscribeReason String?
+  /// The account with the same e-mail, when there is one (informative only; never a permission).
+  userId            String?
+  user              User?             @relation("SubscriberAccount", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  deliveries EmailDelivery[]
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+enum MailingStatus {
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+/// An update sent to the ACTIVE subscribers matching an audience. Delivered through the e-mail outbox: one EmailJob
+/// (emailJobId) with one EmailDelivery per recipient (subscriberId set), so the worker's rate limits, retries and
+/// delivery tracking apply. Counts are refreshed from the deliveries.
+model Mailing {
+  id             String        @id @default(uuid())
+  /// Caller-supplied; repeating a request with the same key returns the same mailing.
+  idempotencyKey String        @unique
+  subject        String
+  /// Plain text; blank lines separate paragraphs.
+  body           String
+  /// { interests?: OlympiadSubject[], kinds?: SubscriberKind[], countries?: string[] } — empty = every active subscriber.
+  audience       Json
+  status         MailingStatus @default(QUEUED)
+  recipientCount Int
+  sentCount      Int           @default(0)
+  failedCount    Int           @default(0)
+  /// Deliveries removed by a cancellation before they were sent.
+  cancelledCount Int           @default(0)
+  emailJobId     String?       @unique
+  emailJob       EmailJob?     @relation(fields: [emailJobId], references: [id], onDelete: SetNull)
+  createdById    String
+  createdBy      User          @relation("MailingCreator", fields: [createdById], references: [id])
+  createdAt      DateTime      @default(now())
+  /// When every delivery was finished (sent or failed).
+  sentAt         DateTime?
+  cancelledAt    DateTime?
+  cancelledById  String?
+
+  @@index([createdAt])
 }
 
 /// A teacher's role at a school (owner decision 2026-11-19). PRIMARY: the school's designated main
@@ -3294,6 +3426,60 @@ model CourseDivision {
   @@index([divisionId, isActive])
 }
 
+/// Registration data (owner 2026-11-23): a Super Administrator's saved filter — a category, its filter (groups of
+/// conditions joined by AND / OR), the chosen columns in order and the sort. Private to its owner unless shared with the
+/// other holders of registrationData.manage (who may use it, not change it).
+model RegistrationSavedFilter {
+  id        String   @id @default(uuid())
+  ownerId   String
+  owner     User     @relation("RegistrationFilterOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  category  String
+  filter    Json
+  columns   Json
+  sort      Json
+  shared    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, name])
+  @@index([shared])
+}
+
+/// What a coach may do across a programme by default (owner 2026-11-23): see its students, open and manage every course of
+/// it at every level, mark its tests, see its published results. Granted to every Coach for each programme they belong to.
+enum CoachCapability {
+  STUDENTS
+  COURSES
+  MARKING
+  RESULTS
+}
+
+/// A programme-wide coach capability taken away from one coach in one programme (owner 2026-11-23), by an Administrator or
+/// a Head Coach of that programme, with a reason. Active while liftedAt is NULL (at most one active per coach, programme
+/// and capability — partial unique index); lifting it gives the capability back. Rows are kept as history.
+model CoachProgrammeRestriction {
+  id           String          @id @default(uuid())
+  coachId      String
+  coach        User            @relation("CoachRestrictionCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  disciplineId String
+  discipline   Discipline      @relation(fields: [disciplineId], references: [id], onDelete: Restrict)
+  capability   CoachCapability
+  reason       String
+  createdById  String?
+  createdBy    User?           @relation("CoachRestrictionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime        @default(now())
+  liftedAt     DateTime?
+  liftedById   String?
+  liftedBy     User?           @relation("CoachRestrictionLiftedBy", fields: [liftedById], references: [id], onDelete: SetNull)
+  liftReason   String?
+
+  @@index([coachId, liftedAt])
+  @@index([disciplineId, capability, liftedAt])
+  @@index([createdById])
+  @@index([liftedById])
+}
+
 /// A saved column layout of a table (owner 2026-11-22: administrators choose the columns of the user tables). `owner`
 /// is "ORG" (the organization default, set by Administrators) or a user id (that person's own layout). `columns`: the
 /// ordered list of {key, visible}; keys are checked against the table's columns by the service.
@@ -3352,4 +3538,31 @@ model CustomReportGrant {
 
   @@unique([reportId, grantee])
   @@index([userId])
+}
+
+/// "View as" (owner 2026-11-23): an administrator sees the platform exactly as a lower-ranked user does, READ ONLY.
+/// One row per start: a single-use ticket (stored hashed, about 60 seconds) is exchanged for a 30-minute viewing token
+/// (no refresh). Every request re-checks the row (open, not expired), the actor (active, still holds users.impersonate)
+/// and the rank rule. Ending — by the actor, or because a check failed — sets endedAt and endedReason.
+model ViewAsSession {
+  id              String    @id @default(uuid())
+  actorId         String
+  actor           User      @relation("ViewAsActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetId        String
+  target          User      @relation("ViewAsTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  reason          String?
+  /// SHA-256 of the single-use ticket; cleared when the ticket is exchanged.
+  ticketHash      String?   @unique
+  ticketExpiresAt DateTime
+  requestId       String?
+  createdAt       DateTime  @default(now())
+  /// When the ticket was exchanged for the viewing token; expiresAt is then startedAt + 30 minutes.
+  startedAt       DateTime?
+  expiresAt       DateTime?
+  endedAt         DateTime?
+  /// ENDED_BY_ACTOR, PERMISSION_REMOVED, ACTOR_INACTIVE, ACTOR_SIGNED_OUT, TARGET_NOT_VIEWABLE.
+  endedReason     String?
+
+  @@index([actorId, createdAt])
+  @@index([targetId, createdAt])
 }

@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { AppError } from '../common/errors/app-error.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { markDiff, transition, type MarkingAction, type NormalisedMarks, type SubmissionStatus } from './marking-rules.js';
+import { mayMarkWhere } from './marker-reach.js';
 
 type Tx = Prisma.TransactionClient;
 type Db = Pick<Prisma.TransactionClient, '$queryRaw'>;
@@ -96,22 +97,20 @@ export async function writeMarks(
   return changes.length;
 }
 
-/** An ACTIVE Coach account with an ACTIVE marker authorisation for the subject, or the reason it is not one. */
+/** An ACTIVE Coach account that may mark the subject (marker-reach.ts), or the reason it is not one. */
 export async function coachProblems(tx: Tx, coachIds: readonly string[], disciplineId: string): Promise<Map<string, string>> {
-  const rows = await tx.user.findMany({
-    where:  { id: { in: [...coachIds] } },
-    select: {
-      id: true, role: true, accountStatus: true,
-      markerAuthorizations: { where: { disciplineId, revokedAt: null }, select: { id: true } },
-    },
-  });
+  const [rows, may] = await Promise.all([
+    tx.user.findMany({ where: { id: { in: [...coachIds] } }, select: { id: true, role: true, accountStatus: true } }),
+    tx.user.findMany({ where: { AND: [{ id: { in: [...coachIds] } }, mayMarkWhere(disciplineId)] }, select: { id: true } }),
+  ]);
   const byId = new Map(rows.map((r) => [r.id, r]));
+  const allowed = new Set(may.map((m) => m.id));
   const out = new Map<string, string>();
   for (const id of coachIds) {
     const c = byId.get(id);
     if (!c || c.role !== 'MENTOR') out.set(id, 'NOT_A_COACH');
     else if (c.accountStatus !== 'ACTIVE') out.set(id, 'ACCOUNT_NOT_ACTIVE');
-    else if (c.markerAuthorizations.length === 0) out.set(id, 'NOT_AUTHORIZED');
+    else if (!allowed.has(id)) out.set(id, 'NOT_AUTHORIZED');
   }
   return out;
 }
@@ -131,7 +130,7 @@ export async function assertCoachesMayMark(tx: Tx, coachIds: readonly string[], 
  * `ids`), with the moment after which nobody can submit or replace it any more — the latest of the test's closesAt and
  * every ACTIVE extension that could still let someone submit for that student: the whole-test extension, the student's
  * own, and that of any teacher who may submit for them (a teacher of the school of the student's current PENDING or
- * VERIFIED claim — access.service.ts SCHOOL_MEMBER_CLAIMS — or one who
+ * VERIFIED claim — access.service.ts SCHOOL_MEMBER_CLAIMS —, a teacher the student is assigned to, or one who
  * already submitted a version for them). One query (marking-rules.ts markingEligibleAt is the same rule, unit-tested).
  */
 export async function unassignedEligibility(db: Db, testId: string, ids?: readonly string[]): Promise<Array<{ id: string; publicCode: string; eligibleAt: Date }>> {
@@ -150,7 +149,11 @@ export async function unassignedEligibility(db: Db, testId: string, ids?: readon
                OR EXISTS (SELECT 1 FROM "TeacherSchoolAssignment" ta
                             JOIN "StudentSchoolAffiliation" f ON f."schoolId" = ta."schoolId"
                            WHERE ta."teacherId" = e."teacherId" AND ta."isActive"
-                             AND f."studentId" = s."studentId" AND f."status" IN ('PENDING', 'VERIFIED') AND f."supersededAt" IS NULL))))
+                             AND f."studentId" = s."studentId" AND f."status" IN ('PENDING', 'VERIFIED') AND f."supersededAt" IS NULL)
+               -- A teacher the student is assigned to (owner 2026-11-23: they may submit for them too). Any active
+               -- assignment counts here: a wider reach only waits longer before marking, never shorter.
+               OR EXISTS (SELECT 1 FROM "TeacherStudentAssignment" sa
+                           WHERE sa."teacherId" = e."teacherId" AND sa."studentId" = s."studentId" AND sa."isActive"))))
       ) x ON true
      WHERE s."testId" = ${testId} AND s."status" = 'SUBMITTED'
        AND (${only}::text[] IS NULL OR s."id" = ANY(${only}::text[]))

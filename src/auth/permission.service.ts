@@ -125,10 +125,10 @@ export class PermissionService {
       .map((o) => o.permission);
   }
 
-  /** Active course × division assignments of a coach or Head Coach (H4); nobody else has any. */
+  /** The course × division pairs a coach or Head Coach (H4) works in — a Coach's programme courses too (2026-11-23). */
   private async courseDivisions(user: AuthUser) {
     if (isCourseWorker(user)) {
-      const scopes = await this.access.mentorScopes(user.id);
+      const scopes = await this.access.courseScopes(user);
       return scopes.map((s) => ({ courseId: s.courseId, divisionId: s.divisionId }));
     }
     return [];

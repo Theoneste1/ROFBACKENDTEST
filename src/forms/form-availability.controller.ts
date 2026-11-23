@@ -16,7 +16,7 @@ import { FormAvailabilityService, isFormKey } from './form-availability.service.
 @Injectable()
 export class FormKeyPipe implements PipeTransform<string, FormKey> {
   transform(value: string): FormKey {
-    if (!isFormKey(value)) throw new AppError(HttpStatus.NOT_FOUND, 'FORM_NOT_FOUND', `No form "${value}".`);
+    if (!isFormKey(value)) throw new AppError(HttpStatus.NOT_FOUND, 'FORM_NOT_FOUND', 'This form does not exist. Go back to the Forms page and choose a form from the list.');
     return value;
   }
 }

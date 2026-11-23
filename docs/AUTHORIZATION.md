@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 443 endpoints — 26 public, 262 administrator-only.
+Totals: 480 endpoints — 31 public, 278 administrator-only.
 
 ## Academic years
 
@@ -241,6 +241,24 @@ Totals: 443 endpoints — 26 public, 262 administrator-only.
 | GET | `/api/v1/admin/settings` |  |  |  | ✓ |
 | PATCH | `/api/v1/admin/settings` |  |  |  | ✓ |
 
+## Admin · Subscribers
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/subscribers` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers` |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/subscribers/{id}` |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/subscribers/{id}` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/export` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/import` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/mailings` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/mailings/{id}` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/{id}/cancel` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/preview` |  |  |  | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/test` |  |  |  | ✓ |
+| GET | `/api/v1/admin/subscribers/summary` |  |  |  | ✓ |
+
 ## Admin · Teachers
 
 | Method | Path | Public | Student | Mentor | Admin |
@@ -349,6 +367,7 @@ Totals: 443 endpoints — 26 public, 262 administrator-only.
 | PATCH | `/api/v1/admin/users/{id}/status` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/{id}/status-changes` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/{id}/status-history` |  |  |  | ✓ |
+| POST | `/api/v1/admin/users/{id}/view-as` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/bulk` |  |  |  | ✓ |
 | POST | `/api/v1/admin/users/bulk` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/bulk/{id}` |  |  |  | ✓ |
@@ -408,6 +427,24 @@ Totals: 443 endpoints — 26 public, 262 administrator-only.
 | GET | `/api/v1/auth/register/teacher/availability` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/resend-activation` | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/reset-password` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/view-as/end` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/view-as/exchange` | ✓ | ✓ | ✓ | ✓ |
+
+## Coach
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/coach/students` |  |  | ✓ |  |
+| GET | `/api/v1/coach/test-results` |  |  | ✓ |  |
+| GET | `/api/v1/coach/test-results/{testId}` |  |  | ✓ |  |
+| GET | `/api/v1/coach/test-results/{testId}/students/{studentId}` |  |  | ✓ |  |
+
+## Coaches
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  | ✓ |
+| PUT | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  | ✓ |
 
 ## Countries
 
@@ -604,6 +641,26 @@ Totals: 443 endpoints — 26 public, 262 administrator-only.
 |---|---|:-:|:-:|:-:|:-:|
 | POST | `/api/v1/public/contact` | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/public/statistics` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/subscribe` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/unsubscribe` | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/unsubscribe/one-click` | ✓ | ✓ | ✓ | ✓ |
+
+## registration-data
+
+| Method | Path | Public | Student | Mentor | Admin |
+|---|---|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/admin/registration-data/export` |  |  |  |  |
+| GET | `/api/v1/admin/registration-data/fields` |  |  |  |  |
+| GET | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |
+| PUT | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |
+| DELETE | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |
+| POST | `/api/v1/admin/registration-data/query` |  |  |  |  |
+| GET | `/api/v1/admin/registration-data/saved-filters` |  |  |  |  |
+| POST | `/api/v1/admin/registration-data/saved-filters` |  |  |  |  |
+| PUT | `/api/v1/admin/registration-data/saved-filters/{id}` |  |  |  |  |
+| DELETE | `/api/v1/admin/registration-data/saved-filters/{id}` |  |  |  |  |
+| GET | `/api/v1/admin/registration-data/users/{id}` |  |  |  |  |
+| PATCH | `/api/v1/admin/registration-data/users/{id}` |  |  |  |  |
 
 ## Schools
 

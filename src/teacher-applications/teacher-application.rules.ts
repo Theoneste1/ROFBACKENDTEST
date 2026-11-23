@@ -18,28 +18,43 @@ export function teacherRegistrationOpen(teachersEnabled: boolean, selfSignupSett
 }
 
 export const registrationClosed = () =>
-  new AppError(HttpStatus.FORBIDDEN, 'REGISTRATION_CLOSED', 'Teacher registration is currently closed.');
+  new AppError(HttpStatus.FORBIDDEN, 'REGISTRATION_CLOSED', 'Teacher registration is closed at the moment. Please check back later or contact the Rwanda Olympiad Foundation.');
 
 export type SchoolChoice =
   | { kind: 'LISTED'; schoolId: string }
-  | { kind: 'MISSING'; proposedSchoolName: string; schoolSector: string };
+  | {
+      kind: 'MISSING'; proposedSchoolName: string; schoolSector: string;
+      /** The school's official details (owner 2026-11-22): code, ownership and day / boarding required; cell, village optional. */
+      code: string; cell: string | null; village: string | null; ownership: string; accommodation: 'DAY' | 'BOARDING' | 'MIXED';
+    };
+
+type ChoiceInput = {
+  schoolId?: string; proposedSchoolName?: string; schoolSector?: string;
+  proposedSchoolCode?: string; proposedSchoolCell?: string; proposedSchoolVillage?: string;
+  proposedSchoolOwnership?: string; proposedSchoolAccommodation?: 'DAY' | 'BOARDING' | 'MIXED';
+};
 
 /** Exactly one of schoolId / proposedSchoolName (400 SCHOOL_CHOICE_REQUIRED otherwise). */
-export function schoolChoice(dto: { schoolId?: string; proposedSchoolName?: string; schoolSector?: string }): SchoolChoice {
+export function schoolChoice(dto: ChoiceInput): SchoolChoice {
   const listed = dto.schoolId !== undefined;
   const missing = dto.proposedSchoolName !== undefined;
-  // A listed school's sector comes from the directory, never from the client.
-  if (listed === missing || (listed && dto.schoolSector !== undefined)) {
+  const details = [dto.schoolSector, dto.proposedSchoolCode, dto.proposedSchoolCell, dto.proposedSchoolVillage, dto.proposedSchoolOwnership, dto.proposedSchoolAccommodation];
+  // A listed school's sector and details come from the directory, never from the client.
+  if (listed === missing || (listed && details.some((d) => d !== undefined))) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CHOICE_REQUIRED',
-      'Choose your school from the list (schoolId), or name a missing school (proposedSchoolName with its sector) — exactly one.');
+      'Choose your school from the list, or choose “My school is not listed” and give its details (only one of the two).');
   }
   if (listed) return { kind: 'LISTED', schoolId: dto.schoolId! };
-  return { kind: 'MISSING', proposedSchoolName: dto.proposedSchoolName!, schoolSector: dto.schoolSector! };
+  return {
+    kind: 'MISSING', proposedSchoolName: dto.proposedSchoolName!, schoolSector: dto.schoolSector!,
+    code: dto.proposedSchoolCode!, cell: dto.proposedSchoolCell ?? null, village: dto.proposedSchoolVillage ?? null,
+    ownership: dto.proposedSchoolOwnership!, accommodation: dto.proposedSchoolAccommodation!,
+  };
 }
 
 export function assertPasswordsMatch(password: string, confirmPassword: string): void {
   if (password !== confirmPassword) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'PASSWORD_MISMATCH', 'The two passwords do not match.');
+    throw new AppError(HttpStatus.BAD_REQUEST, 'PASSWORD_MISMATCH', 'The two passwords are not the same. Type the same password in both fields.');
   }
 }
 
@@ -52,14 +67,14 @@ export function approvalSchoolId(applicationSchoolId: string | null, requested: 
   if (applicationSchoolId) {
     if (requested !== undefined && requested !== applicationSchoolId) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_MISMATCH',
-        'This application names a listed school; approve it with that school (or without schoolId).',
+        'This applicant chose a school from the official list. Approve the application with that school.',
         { applicationSchoolId });
     }
     return applicationSchoolId;
   }
   if (requested === undefined) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REQUIRED',
-      'This applicant\'s school is missing from the directory: create it (POST /admin/schools) or choose an existing school, then approve with its schoolId.');
+      'This applicant\'s school is not in the official list yet. Verify the school first (add it, or choose an existing school), then approve.');
   }
   return requested;
 }

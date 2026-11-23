@@ -4,7 +4,7 @@ import {
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../../common/pagination.js';
-import { SchoolAccommodation, SchoolSource } from '../../generated/prisma/client.js';
+import { ProgrammeCategory, SchoolAccommodation, SchoolSource } from '../../generated/prisma/client.js';
 import { cleanSchoolName, SCHOOL_OWNERSHIP } from '../school-rules.js';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -26,12 +26,25 @@ export class ListAdminSchoolsDto extends PaginationQueryDto {
   @IsOptional() @IsString() @Length(1, 100) province?: string;
   @IsOptional() @IsString() @Length(1, 100) district?: string;
   @IsOptional() @IsString() @Length(1, 100) sector?: string;
+  /** Cell / village (any letter case). */
+  @IsOptional() @IsString() @Length(1, 100) @Transform(place) cell?: string;
+  @IsOptional() @IsString() @Length(1, 100) @Transform(place) village?: string;
+  /** PUBLIC, GOVERNMENT_AIDED or PRIVATE. */
+  @IsOptional() @Transform(upper) @IsIn(SCHOOL_OWNERSHIP) ownership?: (typeof SCHOOL_OWNERSHIP)[number];
+  /** An active contact (e-mail or phone) containing this text (any letter case; spaces ignored for phones). */
+  @IsOptional() @IsString() @Length(3, 100) @Transform(trim) contact?: string;
+  /** true: has an active e-mail contact; false: has none. */
+  @IsOptional() @Transform(bool) @IsBoolean() hasEmail?: boolean;
+  /** true: has an active phone contact; false: has none. */
+  @IsOptional() @Transform(bool) @IsBoolean() hasPhone?: boolean;
   @IsOptional() @Transform(bool) @IsBoolean() isActive?: boolean;
   @IsOptional() @IsEnum(SchoolSource) source?: SchoolSource;
   /** Offers this education level (e.g. PR, OL, AL). */
   @IsOptional() @Transform(upper) @IsString() @Length(1, 10) level?: string;
   /** Offers this programme (its id). */
   @IsOptional() @IsUUID() programme?: string;
+  /** Offers a programme of this category (A-Level combination, TVET trade, other). */
+  @IsOptional() @IsEnum(ProgrammeCategory) programmeCategory?: ProgrammeCategory;
   @IsOptional() @IsEnum(SchoolAccommodation) accommodation?: SchoolAccommodation;
   /** false: schools without an official code. */
   @IsOptional() @Transform(bool) @IsBoolean() hasCode?: boolean;

@@ -23,14 +23,14 @@ export class BulkRegistry {
 
   get(entityType: string): BulkEntityHandler {
     const h = this.handlers.get(entityType);
-    if (!h) throw new AppError(HttpStatus.NOT_FOUND, 'BULK_ENTITY_UNKNOWN', `There is no bulk record type ${String(entityType).slice(0, 40)}.`);
+    if (!h) throw new AppError(HttpStatus.NOT_FOUND, 'BULK_ENTITY_UNKNOWN', 'This kind of record cannot be changed in bulk. Refresh the page and try again.');
     return h;
   }
 
   action(handler: BulkEntityHandler, action: string) {
     const meta = Object.hasOwn(handler.actions, action) ? handler.actions[action] : undefined;
     if (!meta) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'BULK_ACTION_UNKNOWN', `${handler.entityType} has no bulk action ${String(action).slice(0, 40)}.`,
+      throw new AppError(HttpStatus.BAD_REQUEST, 'BULK_ACTION_UNKNOWN', 'This action is not available for these records in bulk. Refresh the page and try again.',
         { actions: Object.keys(handler.actions) });
     }
     return meta;

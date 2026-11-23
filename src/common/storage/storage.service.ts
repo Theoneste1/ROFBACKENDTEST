@@ -86,13 +86,13 @@ export class StorageService implements OnModuleInit {
     const data = file.buffer;
 
     if (!data || data.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_FILE', 'The uploaded file is empty.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_FILE', 'The file is empty. Choose the file again (check that it opens on your device), then upload it.');
     }
     if (data.length > rule.maxBytes) {
       throw new AppError(
         HttpStatus.PAYLOAD_TOO_LARGE,
         'FILE_TOO_LARGE',
-        `The file exceeds the ${Math.round(rule.maxBytes / (1024 * 1024))} MB limit.`,
+        `The file is larger than ${Math.round(rule.maxBytes / (1024 * 1024))} MB. Choose a smaller file (or a lower-resolution photo) and try again.`,
       );
     }
 

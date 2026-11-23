@@ -1,3 +1,4 @@
+import { countsOf } from './sync-report.js';
 import { directoryPlaces, normaliseNesaRow } from './nesa-normaliser.js';
 import { nesaRow, type NesaRow } from './nesa-fixture.testing.js';
 import { matchRows, type DirectorySchool, type DirectorySnapshot } from './sync-matcher.js';
@@ -61,7 +62,7 @@ describe('sync matcher — matching and conflicts', () => {
     expect(outcomes(run([{ 'School Name': 'EP RENAMED', 'School Code': '220001' }], snapshot([school({ ...existing, district: 'Huye' })])))).toEqual([[2, 'MATCHED', 's1', 'CODE']]);
   });
 
-  it('matching order: external id for the code, the code, a current or superseded fingerprint; then possible duplicates; else NEW', () => {
+  it('matching order: external id for the code, the code, a current or superseded fingerprint; then possible duplicates; else NEW — only with a code (CODE_REQUIRED otherwise)', () => {
     const a = school({ id: 'a', name: 'EP A', code: '220010' });
     const b = school({ id: 'b', name: 'EP B (old name)' });
     const c = school({ id: 'c', name: 'EP C', source: 'LEGACY', district: null, province: null, sector: null });
@@ -71,8 +72,11 @@ describe('sync matcher — matching and conflicts', () => {
       { 'School Name': 'EP B', Village: 'V' },
       { 'School Name': 'EP C' },
       { 'School Name': 'EP NEW' },
+      { 'School Name': 'EP NEW CODED', 'School Code': '220011' },
     ], snap);
-    expect(outcomes(res)).toEqual([[2, 'MATCHED', 'a', 'EXTERNAL_ID_CODE'], [3, 'MATCHED', 'b', 'FINGERPRINT'], [4, 'POSSIBLE_DUPLICATE', null, null], [5, 'NEW', null, null]]);
+    expect(outcomes(res)).toEqual([[2, 'MATCHED', 'a', 'EXTERNAL_ID_CODE'], [3, 'MATCHED', 'b', 'FINGERPRINT'], [4, 'POSSIBLE_DUPLICATE', null, null], [5, 'INVALID', null, null], [6, 'NEW', null, null]]);
+    expect(res.items[3].issues.map((x) => x.code)).toContain('CODE_REQUIRED');
+    expect(res.changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => c.itemIndex)).toEqual([4]);
     expect(res.items[2].details).toMatchObject({ candidates: [expect.objectContaining({ id: 'c' })] });
   });
 
@@ -134,9 +138,11 @@ describe('sync matcher — proposed changes', () => {
   it('a NEW row → CREATE_SCHOOL (+ additions); a new place → one NEW_PLACE per place listing its rows', () => {
     const res = run([
       { 'School Name': 'EP NEW 1', 'School Code': '220777', District: 'Huye', Sector: 'Tumba' },
-      { 'School Name': 'EP NEW 2', District: 'huye', Sector: 'TUMBA' },
+      { 'School Name': 'EP NEW 2', 'School Code': '220778', District: 'huye', Sector: 'TUMBA' },
+      { 'School Name': 'EP NO CODE', District: 'Huye', Sector: 'Tumba' },
     ], snapshot([]));
-    expect(res.changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => (c.publishedValue as any).code)).toEqual(['220777', null]);
+    expect(res.changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => (c.publishedValue as any).code)).toEqual(['220777', '220778']);
+    expect(outcomes(res)[2]).toEqual([4, 'INVALID', null, null]);   // no code: needs attention, never created
     const places = res.changes.filter((c) => c.kind === 'NEW_PLACE');
     expect(places).toHaveLength(1);
     expect(places[0]).toMatchObject({ itemIndex: null, publishedValue: { province: 'Southern Province', district: 'Huye', sector: 'Tumba', rowCount: 2, rows: [2, 3] } });
@@ -181,7 +187,36 @@ describe('sync matcher — reviewer resolutions and identity (S2b)', () => {
     const rows = [{ 'School Name': 'EP ONE', 'School Code': '220500' }, { 'School Name': 'EP TWO', 'School Code': '220500' }, { 'School Name': 'EP PLAIN' }];
     const inputs = rows.map((r, i) => { const raw = nesaRow(r); return { row: i + 2, sourceRef: `x!${i + 2}`, raw, problems: [], n: normaliseNesaRow(raw, places) }; });
     const res = matchRows(inputs, snapshot([]), new Map<number, { action: 'CREATE'; code?: string | null }>([[2, { action: 'CREATE' }], [3, { action: 'CREATE', code: '220888' }], [4, { action: 'CREATE', code: '220999' }]]));
-    expect(outcomes(res)).toEqual([[2, 'NEW', null, null], [3, 'NEW', null, null], [4, 'NEW', null, null]]);
-    expect(res.changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => (c.publishedValue as any).code)).toEqual([null, '220888', null]);
+    // CREATE without a verified code (row 2) and the ignored resolution of a row without a code (row 4):
+    // no usable code → INVALID (CODE_REQUIRED); only the verified code creates a school.
+    expect(outcomes(res)).toEqual([[2, 'INVALID', null, null], [3, 'NEW', null, null], [4, 'INVALID', null, null]]);
+    expect(res.items[0].issues.map((x) => x.code)).toContain('CODE_REQUIRED');
+    expect(res.changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => (c.publishedValue as any).code)).toEqual(['220888']);
+  });
+});
+
+describe('sync matcher — NEW_ONLY mode and the summary (owner decision 2026-11-22)', () => {
+  const rows = [
+    { 'School Name': 'EP OLD', 'School Code': '220001', Cell: 'Butare' },                               // existing (empty cell, new contacts)
+    { 'School Name': 'EP FRESH', 'School Code': '220002', Village: 'Fresh' },                          // new
+    { 'School Name': 'EP FRESH', 'School Code': '220002', Village: 'Fresh' },                          // repeated row of a new school
+    { 'School Name': 'EP NO CODE' },                                                                    // needs attention
+  ];
+  const old = school({ id: 'o', name: 'EP OLD', code: '220001', cell: null });
+
+  it('FULL proposes the differences of a matched school; NEW_ONLY leaves it untouched and only creates the new one', () => {
+    const inputs = rows.map((r, i) => { const raw = nesaRow(r); return { row: i + 2, sourceRef: `x!${i + 2}`, raw, problems: [], n: normaliseNesaRow(raw, places) }; });
+    const full = matchRows(inputs, snapshot([old]));
+    expect(full.changes.filter((c) => c.schoolId === 'o').length).toBeGreaterThan(0);
+    const newOnly = matchRows(inputs, snapshot([old]), undefined, { mode: 'NEW_ONLY' });
+    expect(outcomes(newOnly)).toEqual(outcomes(full));                      // the same recognition
+    expect(newOnly.changes.filter((c) => c.schoolId === 'o')).toEqual([]);  // nothing for the existing school
+    expect(newOnly.changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => (c.publishedValue as any).code)).toEqual(['220002']);
+  });
+
+  it('the summary: total found = existing + new + needs attention (a repeated row counts with its school)', () => {
+    const inputs = rows.map((r, i) => { const raw = nesaRow(r); return { row: i + 2, sourceRef: `x!${i + 2}`, raw, problems: [], n: normaliseNesaRow(raw, places) }; });
+    const res = matchRows(inputs, snapshot([old]), undefined, { mode: 'NEW_ONLY' });
+    expect(countsOf(res.items, res.changes).summary).toEqual({ totalFound: 4, existing: 1, new: 2, needsAttention: 1, newSchools: 1, repeatedRows: 1 });
   });
 });

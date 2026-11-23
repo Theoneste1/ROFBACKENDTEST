@@ -45,7 +45,11 @@ export class StudentOverviewService {
     }
     if (isCourseWorker(viewer)) {
       const [programmes, divisions] = await Promise.all([
-        this.prisma.programmeMembership.findMany({ where: { userId: viewer.id, isActive: true }, select: { disciplineId: true } }),
+        // A Coach's programmes where seeing the students was not taken away (owner 2026-11-23: CoachProgrammeRestriction).
+        this.prisma.programmeMembership.findMany({
+          where: { userId: viewer.id, isActive: true, ...(viewer.role === 'MENTOR' && { discipline: { coachRestrictions: { none: { coachId: viewer.id, capability: 'STUDENTS', liftedAt: null } } } }) },
+          select: { disciplineId: true },
+        }),
         this.prisma.mentorAssignment.findMany({ where: { mentorId: viewer.id, isActive: true }, select: { divisionId: true } }),
       ]);
       if (student.divisionId && divisions.some((d) => d.divisionId === student.divisionId)) return true;

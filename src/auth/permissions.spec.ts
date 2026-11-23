@@ -46,6 +46,8 @@ describe('permissions', () => {
       'tests.mark',
       // appended 2026-11-21 (Olympiad levels): granted (their programmes' students), reported for the level control
       'students.classifyLevel',
+      // appended 2026-11-23 (owner): coaches across their programmes — the Students and Test results pages
+      'students.viewProgramme', 'tests.viewProgrammeResults',
     ]);
     expect(ROLE_PERMISSIONS.ADMIN).toEqual([
       'courses.view', 'resources.view', 'resources.manage',
@@ -82,6 +84,10 @@ describe('permissions', () => {
       'students.classifyLevel',
       // appended 2026-11-22 (owner): custom reports — build and share
       'reports.build',
+      // appended 2026-11-23 (owner): news subscribers — the mailing list and mailings
+      'subscribers.manage',
+      // appended 2026-11-23 (owner): view as another (lower-ranked) user, read only
+      'users.impersonate',
     ]);
   });
 
@@ -102,7 +108,7 @@ describe('permissions', () => {
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
     const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review',
       'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
-      'tests.authorizeResubmission', 'students.classifyLevel', 'reports.build'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions, Olympiad levels), after countries
+      'tests.authorizeResubmission', 'students.classifyLevel', 'reports.build', 'subscribers.manage', 'users.impersonate'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions, Olympiad levels), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -231,6 +237,10 @@ describe('permissions', () => {
       'students.classifyLevel': G,
       // Custom reports (owner 2026-11-22): build and share
       'reports.build': G,
+      // News subscribers (owner 2026-11-23): the mailing list and mailings
+      'subscribers.manage': G,
+      // View as, read only (owner 2026-11-23): lower-ranked users only
+      'users.impersonate': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {
@@ -259,6 +269,8 @@ describe('permissions', () => {
         'tests.mark': 'markerAuthorization',
         // Olympiad levels (owner 2026-11-21): the students of the coach's programmes
         'students.classifyLevel': P,
+        // Owner 2026-11-23: every Coach, across the programmes they belong to (each removable per programme)
+        'students.viewProgramme': P, 'tests.viewProgrammeResults': P,
       },
       HEAD_COACH: {
         'courses.view': P, 'resources.view': P, 'assignments.view': P,
@@ -280,7 +292,7 @@ describe('permissions', () => {
         'students.classifyLevel': P,
       },
       ADMIN: ADMIN_TABLE,
-      SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },
+      SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G, 'registrationData.manage': G },
     };
 
     it('covers exactly the six roles', () => {

@@ -232,7 +232,7 @@ export class SchoolSyncReviewService {
 
       let schoolId: string | null = null;
       if (dto.action === 'LINK') {
-        if (!dto.schoolId) throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REQUIRED', 'A link needs the school (schoolId).');
+        if (!dto.schoolId) throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REQUIRED', 'Choose the school to link this row to.');
         const school = await tx.school.findUnique({ where: { id: dto.schoolId }, select: { id: true, countryCode: true } });
         if (!school || school.countryCode !== 'RW') throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL', 'No such school in Rwanda\'s directory.');
         if (manual === 'POSSIBLE_DUPLICATE' && !(details.candidates ?? []).some((c) => c.id === school.id)) {
@@ -292,7 +292,7 @@ export class SchoolSyncReviewService {
       const rowOf = new Map(items.map((i) => [i.id, i.rowNumber]));
       const itemByRow = new Map(items.filter((i) => i.rowNumber !== null).map((i) => [i.rowNumber!, i]));
       const { snap, places } = await loadDirectorySnapshot(tx, run.dataSourceId);
-      const cmp = compareRows(stagedRows(items), snap, places, approvedResolutions(changes, rowOf));
+      const cmp = compareRows(stagedRows(items), snap, places, approvedResolutions(changes, rowOf), run.mode);
 
       // Items: the fresh comparison (staged raw is unchanged).
       for (const fresh of cmp.items) {
@@ -373,7 +373,7 @@ export class SchoolSyncReviewService {
         select: { id: true, kind: true, field: true, itemId: true, schoolId: true, currentValue: true, publishedValue: true, decision: true },
       }) as ReviewChange[];
       const blockers = this.blockers(items as unknown as ReviewItem[], changes, run, now);
-      if (blockers.length) throw new AppError(HttpStatus.CONFLICT, 'SYNC_REVIEW_INCOMPLETE', 'The review is not complete.', { blockers });
+      if (blockers.length) throw new AppError(HttpStatus.CONFLICT, 'SYNC_REVIEW_INCOMPLETE', 'Some rows still need a decision. Resolve every row marked for review, then approve.', { blockers });
 
       const decisionsDigest = decisionsDigestOf(changes);
       const tokenId = randomUUID();

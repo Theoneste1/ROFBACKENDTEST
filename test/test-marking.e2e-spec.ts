@@ -222,7 +222,7 @@ describe('Test Management Phase 3 — distribution, blind marking, review (e2e)'
       const detail = (await http().get(`${MK}/submissions/${codeS}`).set(bearer(c1)).expect(200)).body;
       expect(detail).toMatchObject({ code: codeS, state: 'NOT_STARTED', canEdit: true, myMarking: null });
       expect(detail.test.questions.map((x: any) => x.maxMarks)).toEqual([5, 15]);
-      expect(detail.test.markingGuide).toMatchObject({ name: 'marking-guide.pdf' });
+      expect(detail.test.markingGuide).toMatchObject({ name: `${detail.test.title} - marking guide.pdf` });
       expect(detail.answer.pages).toEqual([{ page: 1, name: 'page-1.png', mimeType: 'image/png', size: PNG_NAMED.length }]);
       const json = JSON.stringify([queue, detail]);
       for (const leak of ['student.s', 'student.j', stS, stJ, 'Test School', school, 'Uwase', 'IMG_0042', 'underExtension', '"extended"', 'submittedBy',
@@ -233,7 +233,7 @@ describe('Test Management Phase 3 — distribution, blind marking, review (e2e)'
         const file = await http().get(path).set(bearer(c1)).buffer(true).parse((res, cb) => { res.on('data', () => {}); res.on('end', () => cb(null, null)); });
         expect(file.status).toBe(200);
         const headers = JSON.stringify(file.headers);
-        expect(headers).toMatch(/page-1\.png|marking-guide\.pdf/);
+        expect(headers).toMatch(/page-1\.png| - marking guide\.pdf/);   // the guide: named after the test's title; never the uploader's name
         for (const leak of ['student', 'Uwase', 'IMG_0042', 'Test School', stS, 'Kamali', 'Guide by']) expect([path, leak, headers.includes(leak)]).toEqual([path, leak, false]);
       }
       // The file itself: the marker's copy has no identifying metadata; the stored original (staff) is unchanged.

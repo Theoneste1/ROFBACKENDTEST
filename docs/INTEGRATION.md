@@ -4,7 +4,7 @@ Two independent repositories, deployed separately:
 
 | | Repository | Hosting | Production address |
 |---|---|---|---|
-| Frontend (Next.js 16) | `ROFFRONTENDTEST` | Netlify | `https://roflms.netlify.app` |
+| Frontend (Next.js 16) | `ROFFRONTENDTEST` | Vercel (only; Netlify removed 2026-11-24) | `https://lms.rwandaolympiadfoundation.org` |
 | Backend (NestJS, Prisma) | `ROFBACKENDTEST` | Render (+ Neon PostgreSQL, Cloudflare R2, Resend) | `https://rofbackendtest.onrender.com` |
 
 The same text is kept in both repositories (`INTEGRATION.md` in the frontend,
@@ -13,17 +13,17 @@ The same text is kept in both repositories (`INTEGRATION.md` in the frontend,
 ## Request paths
 
 ```
-Browser ──(same origin)──► Netlify site /api/*  ──CDN proxy──► Render backend /api/v1/*
+Browser ──(same origin)──► Vercel site /api/*  ──rewrite proxy──► Render backend /api/v1/*
 Browser ──(cross-origin, uploads only)──────────────────────► Render backend /api/v1/*
 Backend ──► Resend (e-mail) · Neon (database) · R2 (files)
 ```
 
-- **API calls** use `/api/v1/...` on the frontend's own origin. Netlify proxies
-  them to the backend (`netlify.toml` `[[redirects]]`); locally the rewrite in
-  `next.config.ts` does it (`API_PROXY_TARGET`). No CORS is involved.
+- **API calls** use `/api/v1/...` on the frontend's own origin. The rewrite in
+  `next.config.ts` (`API_PROXY_TARGET`) proxies them to the backend, on Vercel
+  and locally. No CORS is involved.
 - **File uploads** (multipart) go straight to the backend
-  (`NEXT_PUBLIC_API_UPLOAD_ORIGIN`), because Netlify's proxy limits bodies to
-  about 8 MB and the backend accepts up to 50 MB. They send the bearer token
+  (`NEXT_PUBLIC_API_UPLOAD_ORIGIN`), because the hosting proxy limits bodies to
+  a few MB and the backend accepts up to 50 MB. They send the bearer token
   only (no cookies). The backend allows them through `CORS_ORIGINS`, and the
   frontend's CSP allows that one origin in `connect-src`.
 - **Downloads** (`/file` endpoints, CSV exports) go through the proxy with the
@@ -203,11 +203,11 @@ as `/assignments/:id`. The frontend serves each of these routes.
 
 ## Settings that must match
 
-| Backend (Render) | Frontend (Netlify, `netlify.toml`) |
+| Backend (Render) | Frontend (Vercel project Environment Variables) |
 |---|---|
-| `APP_URL` = the Netlify site address | — |
-| `CORS_ORIGINS` = the Netlify site address (exact, no trailing slash) | `NEXT_PUBLIC_API_UPLOAD_ORIGIN` = backend address |
-| service address `https://rofbackendtest.onrender.com` | `API_PROXY_TARGET` and the `/api/*` redirect target = backend address |
+| `APP_URL` = `https://lms.rwandaolympiadfoundation.org` | — |
+| `CORS_ORIGINS` = `https://lms.rwandaolympiadfoundation.org` (exact, no trailing slash; no `*.netlify.app` any more) | `NEXT_PUBLIC_API_UPLOAD_ORIGIN` = backend address |
+| service address `https://rofbackendtest.onrender.com` | `API_PROXY_TARGET` = backend address |
 
 ## Test results (2026-11-07)
 

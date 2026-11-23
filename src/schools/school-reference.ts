@@ -43,7 +43,7 @@ export async function resolveSchoolReference(
   if (!ref.schoolId && !ref.schoolCode) {
     if (name) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_REQUIRED',
-        `School "${name}" was given by name only. Give the school's schoolCode (or schoolId); ` +
+        `The school "${name}" was given by its name only. Choose the school from the list or give its official school code; ` +
         'schools are never created from a name here — an Administrator creates them under Schools.');
     }
     return null;
@@ -55,11 +55,11 @@ export async function resolveSchoolReference(
     ? await db.school.findFirst({ where: { code: ref.schoolCode, countryCode: RWANDA }, select: SELECT })
     : null;
   if (ref.schoolCode && !byCode) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL_CODE', `No school has code ${ref.schoolCode}.`, { schoolCode: ref.schoolCode });
+    throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL_CODE', `No school in the official list has the code ${ref.schoolCode}. Check the code, or choose the school from the list.`, { schoolCode: ref.schoolCode });
   }
   if (byId && byCode && byId.id !== byCode.id) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH',
-      `schoolId and schoolCode name different schools ("${byId.name}" and "${byCode.name}").`,
+      `The school chosen ("${byId.name}") and the school code given ("${byCode.name}") are different schools. Choose one of them.`,
       { schoolId: byId.id, schoolCode: ref.schoolCode });
   }
   const school = (byId ?? byCode)!;
@@ -67,7 +67,7 @@ export async function resolveSchoolReference(
   if (name && schoolKey(name) !== schoolKey(school.name)) {
     const label = school.code ? `code ${school.code}` : `id ${school.id}`;
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_NAME_MISMATCH',
-      `School name "${name}" does not match the school with ${label} ("${school.name}").`,
+      `The school name "${name}" does not match the school with ${label} ("${school.name}"). Choose the school from the list again.`,
       { schoolName: name, school: { id: school.id, code: school.code, name: school.name } });
   }
   if (opts.requireActive && !school.isActive) throw schoolInactive(school.id);

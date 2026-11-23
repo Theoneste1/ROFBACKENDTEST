@@ -97,7 +97,7 @@ generated from the same metadata the guards enforce.
 |---|---|
 | Admin creates it with a password (`POST /admin/users`) | immediately |
 | Admin invites (`POST /admin/users/invite`) or imports CSV (`POST /admin/users/import`) | when the person opens the e-mailed link and chooses a password (`POST /auth/activate`, 7 days) |
-| Student self-registers | after confirming their e-mail (48 h) when `registration.requireEmailVerification` is on — the default in production; otherwise immediately |
+| Student self-registers | after confirming their e-mail (48 h) when an administrator turned on e-mail activation for the student form (off by default); otherwise immediately |
 | Mentor applies (`POST /mentor-requests`) and an admin approves | after confirming their e-mail when verification is on (the applicant chose the password); otherwise on approval. Applications an admin rejects never become accounts |
 
 Administrators can create (`POST /admin/users`) or invite any user with any

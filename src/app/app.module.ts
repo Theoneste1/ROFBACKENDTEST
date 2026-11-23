@@ -14,6 +14,8 @@ import { StorageModule } from '../common/storage/storage.module.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
 import { DateOfBirthGuard } from '../auth/guards/date-of-birth.guard.js';
+import { ViewAsReadOnlyGuard } from '../auth/view-as/view-as-read-only.guard.js';
+import { RequestContextMiddleware } from '../common/request-context.js';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -26,7 +28,10 @@ import { ReferenceDataModule } from '../reference-data/reference-data.module.js'
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { DivisionsModule } from '../divisions/divisions.module.js';
 import { TableLayoutsModule } from '../table-layouts/table-layouts.module.js';
+import { RegistrationDataModule } from '../registration-data/registration-data.module.js';
+import { CoachAccessModule } from '../coach-access/coach-access.module.js';
 import { CustomReportsModule } from '../custom-reports/custom-reports.module.js';
+import { SubscribersModule } from '../subscribers/subscribers.module.js';
 import { AcademicYearsModule } from '../academic-years/academic-years.module.js';
 import { ActivityModule } from '../activity/activity.module.js';
 import { AuthModule } from '../auth/auth.module.js';
@@ -105,7 +110,10 @@ import { TestManagementModule } from '../test-management/test-management.module.
     NotificationsModule,
     DivisionsModule,
     TableLayoutsModule,
+    RegistrationDataModule,
+    CoachAccessModule,
     CustomReportsModule,
+    SubscribersModule,
     AcademicYearsModule,
     ActivityModule,
 
@@ -146,6 +154,8 @@ import { TestManagementModule } from '../test-management/test-management.module.
     // Order matters: rate limit → authenticate → authorize.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // "View as" is read only: every non-GET request made with a viewing token is refused (owner 2026-11-23).
+    { provide: APP_GUARD, useClass: ViewAsReadOnlyGuard },
     // A student without a date of birth gives it first (owner decision 9.3).
     { provide: APP_GUARD, useClass: DateOfBirthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
@@ -157,6 +167,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Request id first; then one audit row per state-changing ADMIN / SUPER_ADMIN request,
     // written when the response finishes (so guard refusals are included). P1-08.
-    consumer.apply(RequestIdMiddleware, AdminRequestAuditMiddleware).forRoutes('*path');
+    // The request context ("view as": read-only database) opens before everything else.
+    consumer.apply(RequestContextMiddleware, RequestIdMiddleware, AdminRequestAuditMiddleware).forRoutes('*path');
   }
 }

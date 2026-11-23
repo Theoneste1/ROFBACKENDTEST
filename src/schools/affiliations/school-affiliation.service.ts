@@ -391,14 +391,14 @@ export class SchoolAffiliationService {
       const claimedCountry = row.claimedCountry ?? RWANDA;
       if (school.countryCode !== claimedCountry) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_COUNTRY_MISMATCH',
-          `The student's school is in ${claimedCountry}; this school is in ${school.countryCode}.`, { claimed: claimedCountry, school: school.countryCode });
+          'This school is in a different country from the one the student chose. Choose a school in the student\'s country, or correct the student\'s country first.', { claimed: claimedCountry, school: school.countryCode });
       }
       const claimedPlace = { province: row.claimedProvince, district: row.claimedDistrict, sector: row.claimedSector };
       const actualPlace = { province: school.province, district: school.district, sector: school.sector };
       const differs = (['province', 'district', 'sector'] as const).filter((k) => claimedPlace[k] && claimedPlace[k] !== actualPlace[k]);
       if (differs.length && !dto.confirmDifferentPlace) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_PLACE_MISMATCH',
-          `The school's ${differs.join(', ')} differ from what the student entered. Repeat with confirmDifferentPlace: true to link it anyway.`,
+          `The school's ${differs.join(', ')} differ from what the student entered. Check it is the right school, then confirm to link it anyway.`,
           { claimed: claimedPlace, actual: actualPlace, differs });
       }
       if (!school.isActive) throw schoolInactive(school.id);

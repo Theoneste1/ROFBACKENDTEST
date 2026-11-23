@@ -13,6 +13,10 @@ import { createTestApp, login, bearer, waitForEvents, pendingTeacherApplication,
 import { MailerService } from '../src/email/mailer.service.js';
 import { DecisionNotificationsService } from '../src/decision-notifications/decision-notifications.service.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(293000 + ++codeSeq);
+
 const REGISTER = '/api/v1/auth/register/teacher';
 const ADMIN_APPS = '/api/v1/admin/teacher-applications';
 const DELIVERIES = '/api/v1/admin/notification-deliveries';
@@ -46,7 +50,7 @@ describe('Decision notifications', () => {
   };
   const missingApplication = (over: Record<string, unknown> = {}) => {
     const { schoolId: _drop, ...rest } = application(over);
-    return { ...rest, proposedSchoolName: 'GS Kabeza Hill', schoolSector: 'Tumba', ...over };
+    return { ...rest, proposedSchoolName: 'GS Kabeza Hill', schoolSector: 'Tumba', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY', ...over };
   };
   const register = async (body: Record<string, unknown>) => (await http().post(REGISTER).send(body).expect(201)).body.id as string;
   const approve = (id: string, token = admin) => http().post(`${ADMIN_APPS}/${id}/approve`).set(bearer(token)).send({});
@@ -215,6 +219,8 @@ describe('Decision notifications', () => {
 
     it('missing-school application: verification notice, then the approval notice (two distinct events)', async () => {
       const id = await register(missingApplication({ firstName: 'Paul', username: 'dn.paul', email: 'dn.paul@test.local' }));
+      // An application made before the school's official details were asked (owner 2026-11-22): verified first.
+      await p().teacherApplication.update({ where: { id }, data: { proposedSchoolCode: null } });
       expect(await status(approve(id))).toEqual([400, 'SCHOOL_NOT_VERIFIED']);
       await settle();
       expect(await outbox({ entityId: id })).toHaveLength(0);

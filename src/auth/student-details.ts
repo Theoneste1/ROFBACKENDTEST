@@ -27,7 +27,7 @@ export function homePlaceOf(data: RegisterStudentDto): HomePlace | null {
 /** The 400 for a home place that is not in the official directory. */
 export function unknownHomeLocation(p: HomePlace) {
   return new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_HOME_LOCATION',
-    `${p.sector}, ${p.district} is not a sector of that district in the official directory.`,
+    `${p.sector} is not a sector of ${p.district} in the official list. Choose the province, district and sector again from the lists.`,
     { province: p.province, district: p.district, sector: p.sector });
 }
 

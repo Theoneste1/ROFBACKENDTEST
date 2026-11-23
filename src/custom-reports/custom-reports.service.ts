@@ -65,7 +65,11 @@ export class CustomReportsService {
     if (isAdmin(viewer)) return {};
     if (isHeadCoach(viewer) || isCoach(viewer)) {
       const [programmes, taught] = await Promise.all([
-        this.prisma.programmeMembership.findMany({ where: { userId: viewer.id, isActive: true }, select: { disciplineId: true } }),
+        // A Coach: only programmes where seeing the students was not taken away (owner 2026-11-23).
+        this.prisma.programmeMembership.findMany({
+          where: { userId: viewer.id, isActive: true, ...(viewer.role === 'MENTOR' && { discipline: { coachRestrictions: { none: { coachId: viewer.id, capability: 'STUDENTS', liftedAt: null } } } }) },
+          select: { disciplineId: true },
+        }),
         this.prisma.mentorAssignment.findMany({ where: { mentorId: viewer.id, isActive: true }, select: { divisionId: true } }),
       ]);
       const ids = programmes.map((p) => p.disciplineId);
@@ -91,7 +95,7 @@ export class CustomReportsService {
 
   private assertDefinition(d: ReportDefinition) {
     const problems = definitionProblems(d);
-    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REPORT', 'This report definition is not valid.', { problems });
+    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REPORT', 'This report cannot be saved as it is. Check the chosen columns and filters, then save again.', { problems });
   }
 
   private definitionOf(r: { source: string; columns: unknown; filters: unknown; sort: unknown }): ReportDefinition {

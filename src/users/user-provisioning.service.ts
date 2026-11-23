@@ -192,15 +192,15 @@ export class UserProvisioningService {
     const missing = REQUIRED_COLUMNS.filter((c) => !parsed.headers.includes(c));
     const unknown = parsed.headers.filter((h) => !(KNOWN_COLUMNS as readonly string[]).includes(h));
     if (missing.length || unknown.length) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_CSV_HEADER', 'The header row is not valid.', {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_CSV_HEADER', 'The column names in the first row are not the expected ones. Use the template from the import page.', {
         missing, unknown, expected: KNOWN_COLUMNS,
       });
     }
     if (parsed.records.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_CSV', 'The file has no data rows.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_CSV', 'The file has no people in it. Add one person per row under the first row, then upload again.');
     }
     if (parsed.records.length > IMPORT_MAX_ROWS) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_ROWS', `At most ${IMPORT_MAX_ROWS} rows per import.`);
+      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_ROWS', `At most ${IMPORT_MAX_ROWS} people can be imported at once. Split the file into smaller files.`);
     }
 
     // ── Validate every row ────────────────────────────────────────────────
@@ -414,6 +414,6 @@ export class UserProvisioningService {
       const candidate = `${base}${i}`;
       if (!taken.has(candidate)) return candidate;
     }
-    throw new AppError(HttpStatus.CONFLICT, 'USERNAME_UNAVAILABLE', 'Could not generate a username; provide one.');
+    throw new AppError(HttpStatus.CONFLICT, 'USERNAME_UNAVAILABLE', 'A username could not be made from this name. Enter a username for this person.');
   }
 }

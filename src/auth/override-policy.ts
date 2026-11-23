@@ -10,6 +10,8 @@
  *                                 (GRANT assignments.prepare was removed on 2026-11-14:
  *                                 it needed a course × division TeacherAssignment,
  *                                 which does not exist, so it was always refused)
+ *   HEAD_COACH                    GRANT users.impersonate (view as Students, Teachers and Coaches only,
+ *                                 read only; global scope, the rank rule in view-as.rules.ts — owner 2026-11-23)
  *   STUDENT, MENTOR, HEAD_COACH   DENY any default permission
  *   ADMIN                         DENY any default permission
  *   SUPER_ADMIN                   nothing
@@ -24,7 +26,12 @@ export type OverrideEffectValue = 'GRANT' | 'DENY';
 
 export const GRANTABLE: Readonly<Partial<Record<AppRole, readonly Permission[]>>> = {
   TEACHER: ['students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'],
+  // View as, read only (owner 2026-11-23): never to Students, Teachers or Coaches.
+  HEAD_COACH: ['users.impersonate'],
 };
+
+/** GRANTs that apply everywhere (no course × division, no school): limited by their own rules instead. */
+export const GLOBAL_GRANTS: readonly Permission[] = ['users.impersonate'];
 
 /**
  * Teacher delegations (P1-11): the GRANTs an Administrator may also give or revoke
@@ -33,9 +40,10 @@ export const GRANTABLE: Readonly<Partial<Record<AppRole, readonly Permission[]>>
  */
 export const TEACHER_DELEGATIONS: readonly Permission[] = ['students.viewProfile', 'students.viewProgress', 'submissions.submitOnBehalf'];
 
-/** The scope a GRANT override applies at: school for teacher delegations, course × division otherwise. */
+/** The scope a GRANT override applies at: school for teacher delegations, global for GLOBAL_GRANTS, course × division otherwise. */
 export function grantScopeOf(permission: string): ScopeKind {
-  return (TEACHER_DELEGATIONS as readonly string[]).includes(permission) ? 'school' : 'courseDivision';
+  if ((TEACHER_DELEGATIONS as readonly string[]).includes(permission)) return 'school';
+  return (GLOBAL_GRANTS as readonly string[]).includes(permission) ? 'global' : 'courseDivision';
 }
 export const DENIABLE_ROLES: readonly AppRole[] = ['STUDENT', 'TEACHER', 'MENTOR', 'HEAD_COACH', 'ADMIN'];
 

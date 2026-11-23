@@ -292,11 +292,14 @@ describe('Registration details (e2e)', () => {
       expect(await claimOf(res.body.id)).toMatchObject({ status: 'PENDING', source: 'REGISTRATION' });
     });
 
-    it('by school id (a school without an official code): linked, PENDING, no code invented', async () => {
-      const res = await register({ schoolCode: undefined, schoolId: codeless }).expect(201);
+    it('by school id (a school without an official code): its code is required (owner 2026-11-23); with it, linked, PENDING, the school has the code', async () => {
+      expect((await register({ schoolCode: undefined, schoolId: codeless })).body.code).toBe('SCHOOL_CODE_REQUIRED');
+      const school = await ctx.prisma.school.findUniqueOrThrow({ where: { id: codeless } });
+      const digit = { 'Kigali City': '1', 'Southern Province': '2', 'Western Province': '3', 'Northern Province': '4', 'Eastern Province': '5' }[school.province ?? ''] ?? '1';
+      const res = await register({ schoolCode: undefined, schoolId: codeless, newSchoolCode: `${digit}99881` }).expect(201);
       expect(oldShape(res.body)).toEqual(reference);
       expect(await claimOf(res.body.id)).toMatchObject({ status: 'PENDING', schoolId: codeless });
-      expect((await ctx.prisma.school.findUniqueOrThrow({ where: { id: codeless } })).code).toBeNull();
+      expect((await ctx.prisma.school.findUniqueOrThrow({ where: { id: codeless } })).code).toBe(`${digit}99881`);
     });
 
     it('"my school is not listed": a PENDING claim with the name and place; never approved, never a new school', async () => {

@@ -107,28 +107,28 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     const action = actionName as BulkAction;
     const p = params as P;
     if (action === 'assignRole') {
-      if (!p.role) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.role is required.');
+      if (!p.role) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the role to give the selected accounts.');
       if (p.role === 'SUPER_ADMIN') {
         throw new AppError(HttpStatus.BAD_REQUEST, 'ROLE_NOT_ALLOWED_IN_BULK', 'The Super Administrator role is never assigned in bulk.');
       }
     }
     if (action === 'changeClassification' && !p.gradeLevel) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.gradeLevel is required.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the new grade.');
     }
     if (action === 'setOlympiadLevel') {
-      if (!p.olympiadLevel) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.olympiadLevel is required.');
+      if (!p.olympiadLevel) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the new Olympiad level.');
       if (p.olympiadLevel !== 'AUTOMATIC') {
         const d = await this.prisma.division.findUnique({ where: { code: p.olympiadLevel }, select: { isActive: true } });
         if (!d?.isActive) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_DIVISION', 'Choose an active division or AUTOMATIC.', { olympiadLevel: p.olympiadLevel });
       }
     }
     if (action === 'message' && (!p.subject || !p.body)) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.subject and params.body are required.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Write the e-mail subject and the message before sending.');
     }
     if (TEACHER_STUDENT_ACTIONS.includes(action)) {
-      if (!p.teacherId) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.teacherId is required.');
+      if (!p.teacherId) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the teacher.');
       if ((action === 'grantDelegation' || action === 'revokeDelegation') && !p.permission) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.permission is required.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the permission to change for the selected accounts.');
       }
       const teacher = await this.prisma.user.findUnique({ where: { id: p.teacherId }, select: { role: true } });
       if (!teacher) throw new AppError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Teacher not found.');
@@ -138,7 +138,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     }
     if (action === 'reassignTeacher') {
       // The same checks as POST /admin/teacher-students/reassign (TeacherStudentAssignmentsService.reassign).
-      if (!p.fromTeacherId || !p.toTeacherId) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'params.fromTeacherId and params.toTeacherId are required.');
+      if (!p.fromTeacherId || !p.toTeacherId) throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose both the current teacher and the new teacher.');
       if (p.fromTeacherId === p.toTeacherId) throw new AppError(HttpStatus.BAD_REQUEST, 'SAME_TEACHER', 'Choose a different teacher to move the students to.');
       const [from, to] = await Promise.all([
         this.prisma.user.findUnique({ where: { id: p.fromTeacherId }, select: { role: true } }),

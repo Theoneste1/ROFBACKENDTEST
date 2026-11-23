@@ -30,6 +30,9 @@ const M13_ROLLBACK = body('docs/migrations/20261121001200_school_directory_sync.
 // M14 (S2b) builds on M13: rolled back first and re-applied after it (docs/migrations/README.md order).
 const M14 = body('prisma/migrations/20261121001300_school_directory_sync_approval/migration.sql');
 const M14_ROLLBACK = body('docs/migrations/20261121001300_school_directory_sync_approval.rollback.sql');
+// The sync mode (owner 2026-11-22) builds on M14: rolled back first and re-applied after it.
+const MODE = body('prisma/migrations/20261225000000_school_sync_mode/migration.sql');
+const MODE_ROLLBACK = body('docs/migrations/20261225000000_school_sync_mode.rollback.sql');
 const DATASET = 'NESA:ACCREDITED_SCHOOLS';
 const DIRECTORY_TABLES = [
   'School', 'SchoolContact', 'SchoolEducationLevel', 'SchoolProgramme', 'Programme', 'SchoolExternalId', 'SchoolSourceRecord',
@@ -92,7 +95,7 @@ describe('School directory sync — S2a staging', () => {
     /* 8 */ { 'School Name': 'EP WRONG PROVINCE', 'School Code': '120009' },
     /* 9 */ { 'School Name': 'EP KACYIRU NEW', 'School Code': 'N/A', Province: 'Kigali City', District: 'Gasabo', Sector: 'Kacyiru', Phone: '07881234O6' },
     /* 10 */ { 'School Name': '' },
-    /* 11 */ { 'School Name': 'EP TUMBA NSHYA', Sector: 'Tumba Nshya', 'School Code': 'SDMS CODE: 340209' },
+    /* 11 */ { 'School Name': 'EP TUMBA NSHYA', Sector: 'Tumba Nshya', 'School Code': '220888' },   // a new place (owner 2026-11-22: a new school needs a code)
     /* 12 */ { 'School Name': 'Test School', 'School Code': '-' },
     /* 13 */ { 'School Name': 'EP TOTALLY DIFFERENT', 'School Code': '110001', Province: 'Kigali City', District: 'Nyarugenge', Sector: 'Muhima' },
   ];
@@ -138,15 +141,17 @@ describe('School directory sync — S2a staging', () => {
         (SELECT count(*)::int FROM information_schema.tables WHERE table_name IN ('SchoolSyncRun', 'SchoolSyncItem', 'SchoolSyncChange')) AS tables,
         (SELECT count(*)::int FROM information_schema.columns WHERE table_name = 'SchoolSourceRecord' AND column_name = 'syncRunId') AS col,
         (SELECT count(*)::int FROM pg_proc WHERE proname IN ('school_sync_run_guard', 'school_sync_staging_keep')) AS fns,
-        (SELECT count(*)::int FROM pg_type WHERE typname IN ('SchoolSyncRunStatus', 'SchoolSyncItemOutcome', 'SchoolSyncChangeKind', 'SchoolSyncDecision', 'SchoolSyncConflictState')) AS types`))[0];
+        (SELECT count(*)::int FROM pg_type WHERE typname IN ('SchoolSyncRunStatus', 'SchoolSyncItemOutcome', 'SchoolSyncChangeKind', 'SchoolSyncDecision', 'SchoolSyncConflictState', 'SchoolSyncMode')) AS types`))[0];
     try {
       await c.query('BEGIN');
-      await c.query(M14_ROLLBACK);   // M14 (S2b) first — the documented order
+      await c.query(MODE_ROLLBACK);  // the sync mode first, then M14 (S2b) — the documented order
+      await c.query(M14_ROLLBACK);
       await c.query(M13_ROLLBACK);
       expect(await objects()).toEqual({ tables: 0, col: 0, fns: 0, types: 0 });
       await c.query(M13);
       await c.query(M14);
-      expect(await objects()).toEqual({ tables: 3, col: 1, fns: 2, types: 5 });
+      await c.query(MODE);
+      expect(await objects()).toEqual({ tables: 3, col: 1, fns: 2, types: 6 });
       await c.query('ROLLBACK');
     } finally {
       await c.query('ROLLBACK').catch(() => undefined);
@@ -203,21 +208,24 @@ describe('School directory sync — S2a staging', () => {
     const byRow = Object.fromEntries(items.filter((i) => i.rowNumber).map((i) => [i.rowNumber, [i.outcome, i.schoolId, i.matchedBy]]));
     expect(byRow).toEqual({
       2: ['MATCHED', ngoma, 'CODE'], 3: ['MATCHED', karama, 'CODE'], 4: ['NEW', null, null], 5: ['DUPLICATE_ROW', karama, null],
-      6: ['CONFLICT', null, null], 7: ['CONFLICT', null, null], 8: ['CONFLICT', null, null], 9: ['NEW', null, null],
+      6: ['CONFLICT', null, null], 7: ['CONFLICT', null, null], 8: ['CONFLICT', null, null], 9: ['INVALID', null, null],
       10: ['INVALID', null, null], 11: ['NEW', null, null], 12: ['POSSIBLE_DUPLICATE', null, null], 13: ['CONFLICT', null, null],
     });
     expect(items.find((i) => i.rowNumber === 13).details).toMatchObject({ reasons: ['CODE_MATCHES_A_DIFFERENT_SCHOOL'], schoolId: kacyiru });
     expect(items.find((i) => i.rowNumber === 6)).toMatchObject({ conflictState: 'OPEN', conflictGroup: 'code:220500' });
     expect(items.find((i) => i.rowNumber === 12).details.candidates.map((c: any) => c.id)).toContain(legacy);
     expect(items.filter((i) => i.outcome === 'MISSING_FROM_SOURCE').map((i) => i.schoolId)).toEqual([missing]);
-    expect(items.find((i) => i.rowNumber === 11).issues.map((x: any) => x.code)).toEqual(expect.arrayContaining(['NEW_PLACE', 'CODE_UNUSABLE']));
+    expect(items.find((i) => i.rowNumber === 11).issues.map((x: any) => x.code)).toEqual(expect.arrayContaining(['NEW_PLACE']));
+    // No usable code → needs attention, never created (owner decision 2026-11-22).
+    expect(items.find((i) => i.rowNumber === 9).issues.map((x: any) => x.code)).toContain('CODE_REQUIRED');
+    expect(res.body.counts.summary).toEqual({ totalFound: 12, existing: 3, new: 2, needsAttention: 7, newSchools: 2, repeatedRows: 1 });
 
     const changes = await all(`${R}/${runId}/changes`);
     const of = (kind: string) => changes.filter((c) => c.kind === kind);
     expect(of('NAME_RESTORE').map((c) => [c.schoolId, c.field, c.currentValue, c.publishedValue])).toEqual([[ngoma, 'name', 'GS NGOMA — Huye', 'GS NGOMA']]);
     expect(of('FILL_EMPTY').filter((c) => c.schoolId === karama).map((c) => [c.field, c.publishedValue]).sort((x, y) => x[0].localeCompare(y[0])))
       .toEqual([['accommodation', 'DAY'], ['cell', 'Butare'], ['village', 'Gako']]);
-    expect(of('CREATE_SCHOOL').map((c) => [c.item.rowNumber, c.publishedValue.code])).toEqual([[4, '220777'], [9, null], [11, null]]);
+    expect(of('CREATE_SCHOOL').map((c) => [c.item.rowNumber, c.publishedValue.code])).toEqual([[4, '220777'], [11, '220888']]);
     expect(of('NEW_PLACE').map((c) => [c.publishedValue.sector, c.publishedValue.rows])).toEqual([['Tumba Nshya', [11]]]);
     expect(of('ADD_CONTACT').map((c) => [c.item.rowNumber, c.field, c.publishedValue.masked])).toEqual(expect.arrayContaining([
       [2, 'EMAIL', 'h•••@e•••.org'], [2, 'PHONE', '+250•••01'], [3, 'EMAIL', 'n•••@e•••.org'], [4, 'PHONE', '+250•••02'],
@@ -225,11 +233,11 @@ describe('School directory sync — S2a staging', () => {
     expect(of('ADD_CONTACT').filter((c) => c.schoolId === karama)).toHaveLength(1);   // "known@" is already there
     expect(of('ADD_LEVEL').filter((c) => c.schoolId === karama)).toEqual([]);         // PR already there
     expect(changes.every((c) => c.decision === 'PENDING')).toBe(true);
-    expect(changes.filter((c) => [6, 7, 8, 10, 12, 13].includes(c.item?.rowNumber))).toEqual([]);   // nothing proposed for conflicts, invalid, possible duplicates
+    expect(changes.filter((c) => [6, 7, 8, 9, 10, 12, 13].includes(c.item?.rowNumber))).toEqual([]);   // nothing proposed for conflicts, invalid, possible duplicates
 
     const log = await p().auditLog.findFirstOrThrow({ where: { action: 'SCHOOL_SYNC_DRY_RUN', entityId: runId } });
     expect(log).toMatchObject({ actorId: ctx.ids.admin, entity: 'SchoolSyncRun' });
-    expect(log.metadata).toMatchObject({ datasetKey: DATASET, rows: 12, counts: { outcomes: { MATCHED: 2, NEW: 3, CONFLICT: 4, DUPLICATE_ROW: 1, INVALID: 1, POSSIBLE_DUPLICATE: 1, MISSING_FROM_SOURCE: 1 } } });
+    expect(log.metadata).toMatchObject({ datasetKey: DATASET, rows: 12, counts: { outcomes: { MATCHED: 2, NEW: 2, CONFLICT: 4, DUPLICATE_ROW: 1, INVALID: 2, POSSIBLE_DUPLICATE: 1, MISSING_FROM_SOURCE: 1 } } });
     expect(await directoryChecksum()).toEqual(before);   // the write boundary
   });
 
@@ -367,6 +375,31 @@ describe('School directory sync — S2a staging', () => {
   });
 
   // ─── Size ──────────────────────────────────────────────────────────────────
+
+  it('NEW_ONLY (owner 2026-11-22): existing schools are recognised by code and left untouched; only new codes are proposed; the summary adds up; FULL stays the default', async () => {
+    const before = await directoryChecksum();
+    expect(errorCode(await upload(fixture, admin, { dataset: DATASET, mode: 'EVERYTHING' }))).toBe('VALIDATION_FAILED');
+    const res = await upload(fixture, admin, { dataset: DATASET, mode: 'NEW_ONLY' }).expect(201);
+    expect(res.body).toMatchObject({ mode: 'NEW_ONLY', status: 'PREVIEW' });
+    expect(res.body.counts.summary).toEqual({ totalFound: 12, existing: 3, new: 2, needsAttention: 7, newSchools: 2, repeatedRows: 1 });
+    const items = await all(`${R}/${res.body.id}/items`);
+    expect(items.filter((i) => i.outcome === 'MATCHED').map((i) => i.schoolId).sort()).toEqual([ngoma, karama].sort());   // recognised
+    const changes = await all(`${R}/${res.body.id}/changes`);
+    expect(changes.filter((c) => c.schoolId === ngoma || c.schoolId === karama)).toEqual([]);                            // untouched
+    expect(changes.filter((c) => c.kind === 'CREATE_SCHOOL').map((c) => [c.item.rowNumber, c.publishedValue.code])).toEqual([[4, '220777'], [11, '220888']]);
+    expect(await directoryChecksum()).toEqual(before);                                                                    // a dry run writes no school
+    const full = await upload(fixture).expect(201);
+    expect(full.body.mode).toBe('FULL');
+    // The rollback refuses while a NEW_ONLY run exists (nothing changed).
+    const c = await pgClient();
+    try {
+      await expect(c.query(`BEGIN; ${MODE_ROLLBACK}`)).rejects.toThrow(/NEW_ONLY sync run/);
+    } finally {
+      await c.query('ROLLBACK').catch(() => undefined);
+      await c.end();
+    }
+    expect((await p().schoolSyncRun.findUniqueOrThrow({ where: { id: res.body.id } })).mode).toBe('NEW_ONLY');
+  });
 
   it('a 5,000-school file: one dry run (PostgreSQL in CI, within 60 s), every row staged, the directory untouched', async (test) => {
     if (!(await servesConcurrentConnections())) {

@@ -44,7 +44,7 @@ const json = (v: unknown) => (v === null || v === undefined ? Prisma.DbNull : (v
 
 const RUN_SELECT = {
   id: true, datasetKey: true, normaliserVersion: true, datasetLabel: true, fileName: true, fileSha256: true, format: true,
-  rowCount: true, sourceSummary: true, reconciliation: true, counts: true, reportDigest: true, decisionsDigest: true,
+  rowCount: true, mode: true, sourceSummary: true, reconciliation: true, counts: true, reportDigest: true, decisionsDigest: true,
   reviewGeneration: true, status: true, comparedAt: true, createdAt: true, expiresAt: true, appliedAt: true,
   supersededAt: true, supersededByRunId: true, stagedPurgedAt: true,
   dataSource: { select: { key: true, name: true } },
@@ -67,17 +67,17 @@ export class SchoolSyncService {
 
   async dryRun(file: Express.Multer.File | undefined, q: CreateSyncRunQueryDto, caller: CallerCtx) {
     const dataset = syncDataset(q.dataset);
-    if (!dataset) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SYNC_DATASET', 'Unknown dataset.');
+    if (!dataset) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SYNC_DATASET', 'This kind of school list is not known. Choose a dataset from the list.');
     if (dataset.normaliserVersion !== NESA_NORMALISER_VERSION) throw new Error(`No normaliser ${dataset.normaliserVersion}`);
     const fileName = sanitizeFileName(file?.originalname);
     const parsed = await readSourceFile(dataset, file);
     const fileSha256 = createHash('sha256').update(file!.buffer).digest('hex');
     const source = await this.prisma.schoolDataSource.findUnique({ where: { key: dataset.dataSourceKey }, select: { id: true } });
-    if (!source) throw new AppError(HttpStatus.CONFLICT, 'SYNC_SOURCE_MISSING', `The data source ${dataset.dataSourceKey} is not configured.`);
+    if (!source) throw new AppError(HttpStatus.CONFLICT, 'SYNC_SOURCE_MISSING', `The school list source (${dataset.dataSourceKey}) is not set up yet. Contact the technical team.`);
 
     const runId = await this.prisma.$transaction(async (tx) => {
       const { snap, places } = await loadDirectorySnapshot(tx, source.id);
-      const { inputs, items, changes, reportDigest: digest, pendingDecisionsDigest: decisions, counts } = compareRows(parsed.rows, snap, places);
+      const { inputs, items, changes, reportDigest: digest, pendingDecisionsDigest: decisions, counts } = compareRows(parsed.rows, snap, places, undefined, q.mode ?? 'FULL');
       const reconciliation = reconcile(parsed.summary, inputs.map((x) => x.n));
       const now = this.now();
 
@@ -85,7 +85,7 @@ export class SchoolSyncService {
         data: {
           datasetKey: dataset.key, normaliserVersion: dataset.normaliserVersion, dataSourceId: source.id,
           datasetLabel: q.label ?? `${dataset.name} — ${fileName}`, fileName, fileSha256, format: parsed.format,
-          rowCount: parsed.rows.length, sourceSummary: json(parsed.summary), reconciliation, counts,
+          rowCount: parsed.rows.length, mode: q.mode ?? 'FULL', sourceSummary: json(parsed.summary), reconciliation, counts,
           reportDigest: digest, decisionsDigest: decisions, comparedAt: now, createdAt: now,
           expiresAt: new Date(now.getTime() + SYNC_RUN_TTL_MS), createdById: caller.id,
         },
@@ -113,7 +113,7 @@ export class SchoolSyncService {
       }
       await this.audit.log({
         actorId: caller.id, actorRole: caller.role, action: 'SCHOOL_SYNC_DRY_RUN', entity: 'SchoolSyncRun', entityId: run.id,
-        metadata: { datasetKey: dataset.key, fileName, fileSha256, format: parsed.format, rows: parsed.rows.length, counts, reconciliationMismatches: reconciliation.mismatches },
+        metadata: { datasetKey: dataset.key, mode: q.mode ?? 'FULL', fileName, fileSha256, format: parsed.format, rows: parsed.rows.length, counts, reconciliationMismatches: reconciliation.mismatches },
       }, tx);
       return run.id;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 180_000, maxWait: 10_000 });

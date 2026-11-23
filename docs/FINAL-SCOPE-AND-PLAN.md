@@ -85,3 +85,30 @@ without approval.
 
 **Release policy (owner, 2026-11-17):** no further partial releases while agreed scope is unfinished. Production
 receives the complete, verified product in one approved release (W14), unless the owner decides otherwise.
+
+## 5. Scope reductions and delivery priority (owner, 2026-11-19)
+
+Approved by the owner on 2026-11-19 after an impact assessment. No code, data or database table is removed by these
+decisions; nothing approved or existing breaks.
+
+| Area | Decision | Effect |
+|---|---|---|
+| 7 Targeted e-mail (W11, part) | Not a standalone feature: **Bulk Actions messaging is the one messaging capability** | GRP-05 re-scoped: role and school audiences exist; **country filter added with Bulk Actions**; **subject filter with Area 2**; group audience deferred with Area 6; no saved audiences. EmailJob / EmailDelivery, delivery logs, retries and failed-delivery screens stay. `POST /admin/email/send` and its composer keep working (not removed or broken). Inactive-account handling of the old composer is verified before any future consolidation. GRP-05 is complete only when the country and subject filters exist. |
+| 5 Student support portal (W10) | **Deferred** (SUP-01…06) | The public contact form, the support information page, Admin → Messages and notifications stay. No tickets, internal notes, configurable statuses or coach meeting requests now. |
+| 6 Groups (W11, part) | **Deferred** (GRP-01…04 and group administration) | Programme memberships, coach–student, teacher–school and teacher–student relationships, coach assignments and course discussions unchanged. The study-groups code and tables are kept (module not registered). Group scope removed from SUB-06 and PERM-04 only; subject and course permissions kept. |
+| 10 Account states (W12, part) | **Closed as built** | Four stored states (ACTIVE, DEACTIVATED, SUSPENDED, ARCHIVED) and two derived conditions (not activated, pending approval); REJECTED stays on applications. No new stored states; no combined state badge. ACC-12 stays complete and verified. |
+
+**Delivery priority (replaces the order of W6–W13):**
+
+| # | Work | Notes |
+|---|---|---|
+| 1 | Sign-up redesign (Student, Teacher, Coach): one screen per step | in progress |
+| 2 | Bulk Actions: backend (engine, user relationships, administration, content), then frontend | in progress; includes the country filter |
+| 3 | Test submission, marking, approval and publishing | plan approved 2026-11-19; 4 phases, backend then frontend PR each |
+| 4 | Area 2 subjects and topics (W7) | coordinated with test management so Physics and Computing are supported properly; adds the subject filter to Bulk Actions messaging |
+| 5 | Area 3 enrolment and access (W8) | |
+| 6 | Area 4 publishing and versioning (W9) | |
+| 7 | Area 8 privacy and retention (W12 without account states) | |
+| 8 | Area 9 configurable registration fields (W13) | after the sign-up redesign |
+
+Area 1 (countries, W6) is complete. W14 (final verification and one approved release) is unchanged.

@@ -82,7 +82,7 @@ function makeMocks() {
   const accountEmails = { welcome: vi.fn(), passwordChanged: vi.fn() };
   const events        = { emit: vi.fn() };
   /** The STUDENT_REGISTRATION form: open unless a test closes it. */
-  const forms         = { assertOpen: vi.fn().mockResolvedValue(undefined) };
+  const forms         = { assertOpen: vi.fn().mockResolvedValue(undefined), requiresEmailVerification: vi.fn().mockResolvedValue(false) };
   const activation    = {
     issue:        vi.fn().mockResolvedValue(issued),
     send:         vi.fn().mockResolvedValue({}),
@@ -318,10 +318,10 @@ describe('AuthService', () => {
       expect(result).toEqual({ id: 'u-new', username: 'ab', requiresApproval: false, requiresEmailVerification: false, schoolVerification: 'PENDING', avatarUploadToken: 'avatar-token' });
     });
 
-    it('with e-mail verification on: not activated, token issued in the transaction, e-mail sent after commit', async () => {
-      const { service, prisma, settings, activation, issued } = makeMocks();
-      settings.get.mockImplementation(async (key: string) =>
-        key === 'registration.studentSelfSignup' || key === 'registration.requireEmailVerification');
+    it('with e-mail activation on for the student form: not activated, token issued in the transaction, e-mail sent after commit', async () => {
+      const { service, prisma, settings, activation, issued, forms } = makeMocks();
+      settings.get.mockImplementation(async (key: string) => key === 'registration.studentSelfSignup');
+      forms.requiresEmailVerification.mockImplementation(async (key: string) => key === 'STUDENT_REGISTRATION');
       prisma.school.findMany.mockResolvedValue([{ id: 'sch1', code: '110306', name: 'GS Kigali' }]);   // the one official school with that name (P1-11)
       prisma.user.create.mockResolvedValue({ id: 'u-new', username: 'ab' });
 

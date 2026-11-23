@@ -10,6 +10,10 @@ import { join } from 'node:path';
 
 import { createTestApp, login, bearer, PASSWORD, type TestContext } from './helpers.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(294000 + ++codeSeq);
+
 const STUDENT_DEFAULT = 'Student registration is currently closed. Please contact the Rwanda Olympiad Foundation for further information or check back later.';
 
 describe('Form availability', () => {
@@ -43,7 +47,7 @@ describe('Form availability', () => {
     return {
       firstName: 'Tea', lastName: 'Cher', username: `form.teacher${n}`, email: `form.teacher${n}@test.local`, password: 'Secret123', confirmPassword: 'Secret123', gender: 'MALE',
       country: 'RW', phone: '0788123456', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Nowhere Province', schoolDistrict: 'Nowhere',
-      proposedSchoolName: 'GS Somewhere', schoolSector: 'Nowhere', homeProvince: 'Nowhere', homeDistrict: 'Nowhere', homeSector: 'Nowhere',
+      proposedSchoolName: 'GS Somewhere', schoolSector: 'Nowhere', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY', homeProvince: 'Nowhere', homeDistrict: 'Nowhere', homeSector: 'Nowhere',
     };
   };
   async function makeUser(username: string, role: 'TEACHER' | 'HEAD_COACH') {
@@ -335,6 +339,79 @@ describe('Form availability', () => {
       const view = (await http().get('/api/v1/admin/forms/CONTACT').set(bearer(admin)).expect(200)).body;
       expect(view).toMatchObject({ state: 'NOT_YET_OPEN', updatedBy: { username: 'admin' } });
       await availability('CONTACT', { mode: 'OPEN', opensAt: null }).expect(200);
+    });
+  });
+
+  describe('e-mail activation per sign-up form (owner 2026-11-23): off by default; an Administrator turns it on per form', () => {
+    const SIGN_UP = ['STUDENT_REGISTRATION', 'TEACHER_REGISTRATION', 'COACH_APPLICATION'];
+    const flags = async () => Object.fromEntries(((await http().get('/api/v1/admin/forms').set(bearer(admin)).expect(200)).body as any[])
+      .map((f) => [f.key, f.requireEmailVerification]));
+    const setting = async () => ((await http().get('/api/v1/admin/settings').set(bearer(admin)).expect(200)).body as any[])
+      .find((s) => s.key === 'registration.requireEmailVerification').value;
+    const approveCoach = async () => {
+      const applied = await applyCoach().expect(201);
+      await http().patch(`/api/v1/mentor-requests/${applied.body.id}/approve`).set(bearer(admin)).expect(200);
+      return p().user.findFirstOrThrow({ where: { email: `form.coach${n}@example.com` }, select: { activatedAt: true } });
+    };
+
+    it('by default no sign-up form asks for activation: a new student can sign in at once, an approved coach is active', async () => {
+      expect(await flags()).toEqual({ STUDENT_REGISTRATION: false, TEACHER_REGISTRATION: false, COACH_APPLICATION: false, CONTACT: undefined });
+      expect(await setting()).toBe(false);
+      const reg = await registerStudent().expect(201);
+      expect(reg.body.requiresEmailVerification).toBe(false);
+      await http().post('/api/v1/auth/login').send({ username: `form.student${n}`, password: 'Secret123' }).expect(200);
+      expect((await approveCoach()).activatedAt).toBeInstanceOf(Date);
+    });
+
+    it('turned on for one form, only that form asks for activation; turned off again, it no longer does; audited', async () => {
+      const on = await availability('STUDENT_REGISTRATION', { requireEmailVerification: true }).expect(200);
+      expect(on.body).toMatchObject({ key: 'STUDENT_REGISTRATION', requireEmailVerification: true, mode: 'OPEN' });
+      const pending = await registerStudent().expect(201);
+      expect(pending.body.requiresEmailVerification).toBe(true);
+      expect((await p().user.findFirstOrThrow({ where: { username: `form.student${n}` } })).activatedAt).toBeNull();
+      expect((await http().post('/api/v1/auth/login').send({ username: `form.student${n}`, password: 'Secret123' }).expect(403)).body.code).toBe('ACCOUNT_NOT_ACTIVATED');
+      // The coach form is unaffected.
+      expect((await approveCoach()).activatedAt).toBeInstanceOf(Date);
+      expect(await setting()).toBe(true);   // the old setting: true while any sign-up form requires it
+      const row = await p().auditLog.findFirstOrThrow({ where: { action: 'FORM_AVAILABILITY_CHANGED', entityId: 'STUDENT_REGISTRATION' }, orderBy: { createdAt: 'desc' } });
+      expect(row.metadata).toMatchObject({ form: 'STUDENT_REGISTRATION', via: 'admin', changes: { requireEmailVerification: { from: false, to: true } } });
+      await availability('COACH_APPLICATION', { requireEmailVerification: true }).expect(200);
+      expect((await approveCoach()).activatedAt).toBeNull();
+      // The same value again changes nothing (no audit row).
+      const rows = await p().auditLog.count({ where: { action: 'FORM_AVAILABILITY_CHANGED', entityId: 'COACH_APPLICATION' } });
+      await availability('COACH_APPLICATION', { requireEmailVerification: true }).expect(200);
+      expect(await p().auditLog.count({ where: { action: 'FORM_AVAILABILITY_CHANGED', entityId: 'COACH_APPLICATION' } })).toBe(rows);
+      await availability('STUDENT_REGISTRATION', { requireEmailVerification: false }).expect(200);
+      await availability('COACH_APPLICATION', { requireEmailVerification: false }).expect(200);
+      expect((await registerStudent().expect(201)).body.requiresEmailVerification).toBe(false);
+      // Accounts created while it was on keep waiting for their link (nothing is changed retroactively).
+      expect((await p().user.findFirstOrThrow({ where: { id: pending.body.id } })).activatedAt).toBeNull();
+    });
+
+    it('the old setting writes every sign-up form (audited per form, via "setting"); its stored row is not used', async () => {
+      await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': true }).expect(200);
+      expect(await flags()).toMatchObject(Object.fromEntries(SIGN_UP.map((k) => [k, true])));
+      for (const key of SIGN_UP) {
+        const row = await p().auditLog.findFirstOrThrow({ where: { action: 'FORM_AVAILABILITY_CHANGED', entityId: key }, orderBy: { createdAt: 'desc' } });
+        expect([key, row.metadata]).toMatchObject([key, { via: 'setting', changes: { requireEmailVerification: { from: false, to: true } } }]);
+      }
+      await http().patch('/api/v1/admin/settings').set(bearer(admin)).send({ 'registration.requireEmailVerification': false }).expect(200);
+      expect(await flags()).toMatchObject(Object.fromEntries(SIGN_UP.map((k) => [k, false])));
+      expect(await p().systemSetting.count({ where: { key: 'registration.requireEmailVerification' } })).toBe(0);
+      // A stored row from before (production had it on) is ignored.
+      await p().systemSetting.create({ data: { key: 'registration.requireEmailVerification', value: true } });
+      expect(await setting()).toBe(false);
+      expect((await registerStudent().expect(201)).body.requiresEmailVerification).toBe(false);
+      await p().systemSetting.delete({ where: { key: 'registration.requireEmailVerification' } });
+    });
+
+    it('refused: the contact form (not a sign-up form) → 400 NOT_A_SIGN_UP_FORM; not a boolean → 400; without forms.manageAvailability → 403; nothing changes', async () => {
+      const refused = await availability('CONTACT', { requireEmailVerification: true }).expect(400);
+      expect(refused.body).toMatchObject({ code: 'NOT_A_SIGN_UP_FORM', details: { form: 'CONTACT' } });
+      expect((await availability('STUDENT_REGISTRATION', { requireEmailVerification: 'yes' }).expect(400)).body.code).toBe('VALIDATION_FAILED');
+      const student = await login(ctx, 'student.j');
+      await availability('STUDENT_REGISTRATION', { requireEmailVerification: true }, student).expect(403);
+      expect(await flags()).toMatchObject(Object.fromEntries(SIGN_UP.map((k) => [k, false])));
     });
   });
 

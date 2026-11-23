@@ -85,7 +85,7 @@ export class AuditQueryService {
     const from = q.from ? this.boundary(q.from, 'start') : undefined;
     const to   = q.to   ? this.boundary(q.to, 'end')     : undefined;
     if (from && to && to <= from) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_DATE_RANGE', '`from` must be before `to`.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_DATE_RANGE', 'The start date must be before the end date.');
     }
 
     const categoryActions = q.category && q.category !== 'OTHER' ? [...AUDIT_CATEGORIES[q.category]] : undefined;

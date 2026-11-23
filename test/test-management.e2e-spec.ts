@@ -149,20 +149,21 @@ describe('Test Management Phase 1 (e2e)', () => {
       expect(await status(http().put(`${T}/${id}/files/paper`).set(bearer(admin)).attach('file', EXE, 'paper.pdf'))).toEqual([415, 'FILE_TYPE_NOT_ALLOWED']);
       expect(await status(http().put(`${T}/${id}/files/answers`).set(bearer(admin)).attach('file', PDF, 'x.pdf'))).toEqual([404, 'TEST_FILE_NOT_FOUND']);
       let t = (await http().put(`${T}/${id}/files/paper`).set(bearer(admin)).attach('file', PDF, 'Secret Name Physics.pdf').expect(200)).body;
-      expect(t.files.paper).toMatchObject({ name: 'test-paper.pdf', mimeType: 'application/pdf' });
+      // Named after the test's title (owner 2026-11-22), never the uploader's file name.
+      expect(t.files.paper).toMatchObject({ name: `${t.title}.pdf`, mimeType: 'application/pdf' });
       expect(JSON.stringify(t)).not.toContain('Secret Name');
       t = (await http().put(`${T}/${id}/files/marking-guide`).set(bearer(admin)).attach('file', PNG, 'answers photo.png').expect(200)).body;
-      expect(t.files.markingGuide).toMatchObject({ name: 'marking-guide.png', mimeType: 'image/png' });
+      expect(t.files.markingGuide).toMatchObject({ name: `${t.title} - marking guide.png`, mimeType: 'image/png' });
       const firstPaper = t.files.paper.fileId;
       t = (await http().put(`${T}/${id}/files/paper`).set(bearer(admin)).attach('file', PDF, 'v2.pdf').expect(200)).body;
       expect(t.files.paper.fileId).not.toBe(firstPaper);
       expect(await p().testFile.count({ where: { testId: id } })).toBe(2);
 
       const dl = await http().get(`${T}/${id}/files/paper?download=1`).set(bearer(admin)).expect(200);
-      expect(dl.headers['content-disposition']).toMatch(/^attachment; filename="test-paper\.pdf"/);
+      expect(dl.headers['content-disposition']).toContain(`attachment; filename="${t.title}.pdf"`);
       expect(dl.headers['cache-control']).toBe('private, no-store');
       const guide = await http().get(`${T}/${id}/files/marking-guide`).set(bearer(admin)).expect(200);
-      expect(guide.headers['content-disposition']).toMatch(/filename="marking-guide\.png"/);
+      expect(guide.headers['content-disposition']).toContain('filename="Physics heat 1 - marking guide.png"');
       expect(Buffer.compare(guide.body, PNG)).toBe(0);
       expect(await status(http().get(`${T}/${id}/files/marking-guide`))).toEqual([401, 'UNAUTHORIZED']);
 

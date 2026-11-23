@@ -7,6 +7,10 @@
 import { createTestApp, login, bearer, waitForEvents, type TestContext } from './helpers.js';
 import { bulkKit } from './support/bulk-kit.js';
 
+// An unlisted school's official code (owner 2026-11-22): unique per registration, Southern Province (first digit 2).
+let codeSeq = 0;
+const nextCode = () => String(292000 + ++codeSeq);
+
 describe('Bulk TEACHER_APPLICATION actions', () => {
   let ctx: TestContext;
   let admin: string;
@@ -22,7 +26,7 @@ describe('Bulk TEACHER_APPLICATION actions', () => {
     return (await p().teacherApplication.create({ data: {
       firstName: 'Tina', lastName: `Applicant${n}`, username: `bulkta.${n}`, email: `bulkta.${n}@test.local`, passwordHash: 'x', phone: '+250788123456',
       country: 'RW', olympiadInterests: ['MATHEMATICS'], schoolProvince: 'Southern Province', schoolDistrict: 'Huye',
-      proposedSchoolName: 'GS Bulk Hill', schoolSector: 'Ngoma', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', ...over,
+      proposedSchoolName: 'GS Bulk Hill', schoolSector: 'Ngoma', proposedSchoolCode: nextCode(), proposedSchoolOwnership: 'PRIVATE', proposedSchoolAccommodation: 'DAY', homeProvince: 'Southern Province', homeDistrict: 'Huye', homeSector: 'Ngoma', ...over,
     }, select: { id: true } })).id;
   }
   async function makeAdmin(username: string) {

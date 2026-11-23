@@ -15,6 +15,7 @@ import { isAdmin, isHeadCoach, unsupportedRole } from '../common/access/roles.js
 import type { AuthUser } from '../common/auth-user.js';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { isViewing } from '../common/request-context.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { ActivityType, Prisma } from '../generated/prisma/client.js';
 import { ListActivityDto } from './dto/list-activity.dto.js';
@@ -55,8 +56,12 @@ export class ActivityService {
     throw unsupportedRole();
   }
 
-  /** Record an activity without blocking or failing the caller. */
+  /**
+   * Record an activity without blocking or failing the caller. Nothing is recorded for a request made while an
+   * administrator views the platform as this user ("view as", read only): it is not the user's activity.
+   */
   record(userId: string, type: ActivityType, ctx: ActivityContext = {}): void {
+    if (isViewing()) return;
     this.prisma.activityLog
       .create({
         data: {

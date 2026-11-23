@@ -127,7 +127,7 @@ async function readXlsx(buffer: Buffer): Promise<ImportRow[]> {
     const errors = cells.filter((c) => c.problem && headerCols.includes(c.col)).map((c) => `${c.problem} (cell ${columnLetter(c.col)}${row.number}).`);
     rows.push({ row: row.number, values: pick(header, values), errors });
   });
-  if (!header) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_IMPORT_HEADER', 'The sheet has no header row.', { expected: IMPORT_COLUMNS });
+  if (!header) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_IMPORT_HEADER', 'The file has no header row. Use the template from the import page (its first row names the columns).', { expected: IMPORT_COLUMNS });
   return finish(rows);
 }
 
@@ -227,7 +227,7 @@ function checkHeader(raw: string[]): ImportColumn[] {
   const repeated = names.filter((h, i) => names.indexOf(h) !== i);
   const missing = known.includes('name') && !names.includes('name') ? ['name'] : [];
   if (unknown.length || repeated.length || missing.length) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_IMPORT_HEADER', 'The header row is not valid.', {
+    throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_IMPORT_HEADER', 'The column names in the first row are not the expected ones. Use the template from the import page.', {
       missing, unknown, repeated: [...new Set(repeated)], expected: IMPORT_COLUMNS,
     });
   }
@@ -243,9 +243,9 @@ function pick(header: ImportColumn[], values: string[]): Partial<Record<ImportCo
 /** Blank rows ignored; the limit counts non-empty data rows; none → EMPTY_IMPORT. */
 function finish(rows: ImportRow[]): ImportRow[] {
   const data = rows.filter((r) => Object.keys(r.values).length > 0 || r.errors.length > 0);
-  if (data.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_IMPORT', 'The file has a header but no data rows.');
+  if (data.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_IMPORT', 'The file has column names but no schools. Add the schools under the first row, then upload again.');
   if (data.length > IMPORT_MAX_ROWS) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_ROWS', `At most ${IMPORT_MAX_ROWS} schools per import.`);
+    throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_ROWS', `At most ${IMPORT_MAX_ROWS} schools can be imported at once. Split the file into smaller files.`);
   }
   return data;
 }

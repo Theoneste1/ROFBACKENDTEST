@@ -258,6 +258,8 @@ async function assertNotInMarking(tx: Tx, testId: string, kind: 'TEST' | 'STUDEN
     OR: [
       { versions: { some: { teacherId: teacherId ?? '' } } },
       { student: { schoolAffiliations: { some: { status: { in: [...SCHOOL_MEMBER_CLAIMS] }, supersededAt: null, school: { teachers: { some: { teacherId: teacherId ?? '', isActive: true } } } } } } },
+      // A student assigned to the teacher (owner 2026-11-23: they may submit for them too).
+      { student: { teacherStudentsAsStudent: { some: { teacherId: teacherId ?? '', isActive: true } } } },
     ],
   };
   const where: Prisma.TestSubmissionWhereInput = {
@@ -275,9 +277,9 @@ async function assertNotInMarking(tx: Tx, testId: string, kind: 'TEST' | 'STUDEN
 /** 400 EXTENSION_TARGET_REQUIRED / EXTENSION_TARGET_NOT_ALLOWED: exactly the id the kind needs. */
 function assertTargetShape(dto: CreateTestExtensionDto) {
   const need = dto.kind === 'STUDENT' ? 'studentId' : dto.kind === 'TEACHER' ? 'teacherId' : null;
-  if (need && !dto[need]) throw new AppError(HttpStatus.BAD_REQUEST, 'EXTENSION_TARGET_REQUIRED', `A ${dto.kind.toLowerCase()} extension needs ${need}.`);
+  if (need && !dto[need]) throw new AppError(HttpStatus.BAD_REQUEST, 'EXTENSION_TARGET_REQUIRED', `Choose the ${need === 'studentId' ? 'student' : 'teacher'} this extension is for.`);
   for (const f of ['studentId', 'teacherId'] as const) {
-    if (f !== need && dto[f]) throw new AppError(HttpStatus.BAD_REQUEST, 'EXTENSION_TARGET_NOT_ALLOWED', `A ${dto.kind.toLowerCase()} extension takes no ${f}.`);
+    if (f !== need && dto[f]) throw new AppError(HttpStatus.BAD_REQUEST, 'EXTENSION_TARGET_NOT_ALLOWED', `A ${dto.kind.toLowerCase()} extension is not for one ${f === 'studentId' ? 'student' : 'teacher'}. Remove the ${f === 'studentId' ? 'student' : 'teacher'}, or change the kind of extension.`);
   }
 }
 

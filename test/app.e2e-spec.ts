@@ -31,11 +31,11 @@ describe('App basics (e2e)', () => {
     expect(res.body.capabilities).toEqual(capabilitiesOf(config));
     // Exactly the approved V1 features for this configuration (the directory sync since 2026-11-14).
     expect(res.body.capabilities.features).toEqual([
-      'academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep',
+      'academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'coachProgrammeAccess', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'formEmailVerification', 'genderStep',
       ...(config.get('HEAD_COACHES_ENABLED') === 'true' ? ['headCoachAccounts'] : []),
-      'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'tableLayouts', 'teacherStudentAccess',
+      'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationData', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolCodeAtRegistration', 'schoolDirectorySync', 'schoolListFilters', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'subscribers', 'tableLayouts', 'teacherAssignedTestStudents', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails',
       ...(config.get('TEACHERS_ENABLED') === 'true' ? ['teacherAccounts', 'teacherSelfRegistration'] : []),
-      'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions',
+      'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions', 'viewAs',
     ]);
     const again = await ctx.http().get('/api/v1').expect(200);
     expect(again.body).toEqual(res.body);

@@ -55,5 +55,5 @@ function isPermission(value: unknown): value is Permission {
 }
 
 function denied(permission: unknown) {
-  return new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this.', { permission });
+  return new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this. If you need it, ask an administrator.', { permission });
 }

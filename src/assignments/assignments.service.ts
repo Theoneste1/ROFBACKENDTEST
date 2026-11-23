@@ -49,6 +49,7 @@ import { deriveStudentDisplayStatus } from '../submissions/student-display-statu
 import { CreateAssignmentDto, ListAssignmentsDto, MyAssignmentsQueryDto, type MyAssignmentProgress } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { CloseAssignmentDto, RejectAssignmentDto, ReopenAssignmentDto } from './dto/reject-assignment.dto.js';
+import { isViewing } from '../common/request-context.js';
 
 const EDITABLE_STATUSES: AssignmentStatus[] = ['DRAFT', 'REJECTED'];
 
@@ -202,7 +203,7 @@ export class AssignmentsService {
       );
     }
     if (Object.keys(data).length === 0 && files.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'No fields to update.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Nothing was changed. Edit at least one field, then save.');
     }
     this.assertResubmissionRules(
       data.allowResubmission ?? assignment.allowResubmission,
@@ -406,7 +407,7 @@ export class AssignmentsService {
 
   async addAttachments(assignmentId: string, user: AuthUser, files: Express.Multer.File[]) {
     if (files.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach at least one file (field "files").');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach at least one file.');
     }
     const assignment = await this.findOrThrow(assignmentId);
     await this.access.assertMentorOf(user, assignment);
@@ -698,7 +699,7 @@ export class AssignmentsService {
       where: { assignmentId }, _count: { _all: true }, _max: { sortOrder: true },
     });
     if (existing._count._all + files.length > MAX_ATTACHMENTS) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_FILES', `An assignment can have at most ${MAX_ATTACHMENTS} files.`);
+      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_FILES', `An assignment can have at most ${MAX_ATTACHMENTS} files. Remove a file before adding another.`);
     }
     let order = (existing._max.sortOrder ?? -1) + 1;
     const added: string[] = [];
@@ -741,7 +742,7 @@ export class AssignmentsService {
       throw new AppError(
         HttpStatus.BAD_REQUEST,
         'INVALID_RESUBMISSION_RULES',
-        'maxResubmissions only applies when allowResubmission is true.',
+        'A maximum number of resubmissions can only be set when resubmissions are allowed. Allow resubmissions first, or clear the maximum.',
       );
     }
   }
@@ -767,6 +768,8 @@ export class AssignmentsService {
 
   /** Records that a student opened the assignment (drives "New" vs "Opened"). */
   private async recordView(assignmentId: string, studentId: string): Promise<void> {
+    // "View as" (read only): an administrator's look is not the student's view.
+    if (isViewing()) return;
     try {
       const now = new Date();
       await this.prisma.assignmentView.upsert({

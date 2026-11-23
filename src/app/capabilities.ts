@@ -112,6 +112,15 @@ export const FEATURES = {
    */
   homeLocationRules: 'always',
   /**
+   * "My school is not listed" with the school's official details (owner, 2026-11-22): POST /auth/register/teacher
+   * accepts `proposedSchoolCode` (6 digits, required with `proposedSchoolName`; 400 INVALID_SCHOOL_CODE; 409
+   * SCHOOL_CODE_LISTED naming the listed school), optional `proposedSchoolCell` / `proposedSchoolVillage`,
+   * `proposedSchoolOwnership` and `proposedSchoolAccommodation`. Approving such an application adds the school to the
+   * official list from them in ONE step (schools.manage; 409 POSSIBLE_DUPLICATE unless `confirmPossibleDuplicate`), or
+   * uses the school listed with that code since. Applications without a code still need "Verify school" first.
+   */
+  teacherUnlistedSchoolDetails: 'always',
+  /**
    * Gender step (owner, 2026-11-20): GET /me and the sign-in answer carry `genderRequired`, true for a STUDENT, TEACHER
    * or MENTOR without a gender (accounts from before gender was asked at sign-up); the portal then asks it once:
    * PUT /api/v1/me/gender { gender: FEMALE | MALE } (409 GENDER_ALREADY_SET). PATCH /admin/users/:id accepts `gender`
@@ -166,7 +175,8 @@ export const FEATURES = {
    * designated main contact, at most one active per school) or SECONDARY — the same rights either way. GET
    * /admin/teacher-assignments returns `role` and filters by `?role=`; POST /admin/teacher-assignments/:id/primary makes a
    * teacher the primary (the previous one becomes secondary; users.manageTeachers); School Access rows carry `role`;
-   * GET /admin/users TEACHER rows carry `teacherSchoolRole` (PRIMARY | SECONDARY | null); Teachers read their own schools
+   * GET /admin/users TEACHER rows carry `teacherSchoolRole` (PRIMARY | SECONDARY | null), `school` (the primary school, else
+   * the earliest active one; owner 2026-11-22) and `schoolCount` (active schools); Teachers read their own schools
    * and role at GET /teacher/schools. A school can have no primary teacher (none is promoted automatically).
    */
   primaryTeacher: 'always',
@@ -176,6 +186,20 @@ export const FEATURES = {
    * lastName } or null). `verifiedStudents` counts students whose CURRENT school claim an Administrator verified.
    */
   schoolsTable: 'always',
+  /**
+   * School list filters on every field of the NESA file (owner, 2026-11-23): GET /admin/schools (and the SCHOOL bulk
+   * selection) also filter by `ownership`, `cell`, `village`, `contact` (an active e-mail or phone containing the text;
+   * a phone typed with or without the leading 0 or +250), `hasEmail`, `hasPhone` and `programmeCategory`. Contact values
+   * are still never in the list.
+   */
+  schoolListFilters: 'always',
+  /**
+   * E-mail activation per sign-up form (owner 2026-11-23): GET /admin/forms carries `requireEmailVerification` on the
+   * student, teacher and coach forms (off by default); PATCH /admin/forms/:key/availability accepts it
+   * (forms.manageAvailability; 400 NOT_A_SIGN_UP_FORM for the contact form). The setting
+   * registration.requireEmailVerification reads true while any sign-up form requires it and writing it sets all of them.
+   */
+  formEmailVerification: 'always',
   /**
    * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
    * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
@@ -287,6 +311,44 @@ export const FEATURES = {
   customReports: 'always',
   /** Table layouts (owner 2026-11-22): /me/table-layouts/:table and /admin/table-layouts/:table; GET /admin/users ?sort&order. */
   tableLayouts: 'always',
+  /**
+   * Teachers and their assigned students in Test Management (owner 2026-11-23): a teacher submits answers for, and follows
+   * the results and extensions of, the students of their schools AND the students assigned to them (another school's
+   * too); /teacher/tests lists them; ?schoolId may name an assigned student's school.
+   */
+  teacherAssignedTestStudents: 'always',
+  /**
+   * Registration data (owner 2026-11-23): /admin/registration-data — every eligible registration field read from the database
+   * (fields, query, export, record, edit), saved filters and column layouts. Super Administrators (registrationData.manage).
+   */
+  registrationData: 'always',
+  /**
+   * A school without a code chosen at registration (owner 2026-11-23): student registration and the teacher application
+   * take newSchoolCode — required for such a school (400 SCHOOL_CODE_REQUIRED / INVALID_SCHOOL_CODE, 409 SCHOOL_CODE_TAKEN);
+   * the first valid code becomes the school's.
+   */
+  schoolCodeAtRegistration: 'always',
+  /**
+   * Coaches across their programmes (owner 2026-11-23): every Coach, in each programme they belong to and at every level,
+   * sees its students (GET /coach/students), opens and manages its courses, marks its tests (no authorisation needed) and
+   * sees its published results (GET /coach/test-results); an Administrator or the programme's Head Coach takes any part
+   * away per programme (GET / PUT /admin/coaches/:id/programme-access); /admin/test-markers/candidates says who marks by default.
+   */
+  coachProgrammeAccess: 'always',
+  /**
+   * News subscribers (owner 2026-11-23): public POST /public/subscribe (always 202, no enumeration), POST /public/unsubscribe
+   * ({ id, token } from the link /unsubscribe?s=&t= in every e-mail) and RFC 8058 POST /public/unsubscribe/one-click;
+   * /admin/subscribers (subscribers.manage): list, summary, export, add, import, edit, unsubscribe / subscribe again, erase,
+   * and mailings (preview, test to me, send, list, detail, cancel while queued).
+   */
+  subscribers: 'always',
+  /**
+   * View as, READ ONLY (owner 2026-11-23): POST /admin/users/:id/view-as (users.impersonate; lower-ranked users only) →
+   * a single-use 60-second ticket; POST /auth/view-as/exchange → a 30-minute viewing token (sub = the viewed user, no
+   * refresh, no cookie); every non-GET request with it answers 403 VIEW_AS_READ_ONLY; 401 VIEW_AS_ENDED when it stops
+   * working; POST /auth/view-as/end; GET /me carries `viewAs` { sessionId, actor, target, expiresAt }.
+   */
+  viewAs: 'always',
   /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
