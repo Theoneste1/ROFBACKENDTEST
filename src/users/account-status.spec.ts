@@ -1,4 +1,7 @@
-import { ACCOUNT_STATUSES, allowedTargets, checkTransition, confirmationRequired, loginRefusal, permissionFor, reasonRequired, stillBlockedBy } from './account-status.js';
+import {
+  ACCOUNT_STATUSES, activateNowRefusal, allowedTargets, checkTransition, confirmationRequired, loginRefusal, permissionFor, reasonRequired,
+  stillBlockedBy,
+} from './account-status.js';
 
 const REASON = 'Left the programme';
 
@@ -71,5 +74,48 @@ describe('account states — transitions (the documented table)', () => {
     expect(stillBlockedBy(ok, false, now)).toEqual(['ROLE_DISABLED']);
     expect(stillBlockedBy({ activatedAt: null, isApproved: false, lockedUntil: new Date('2027-01-01') }, false, now))
       .toEqual(['NOT_ACTIVATED', 'PENDING_APPROVAL', 'LOCKED', 'ROLE_DISABLED']);
+  });
+});
+
+describe('activate now (owner 2026-11-24): an account awaiting setup, with its own password', () => {
+  const awaiting = { accountStatus: 'ACTIVE' as const, activatedAt: null, hasPassword: true };
+
+  it('an ACTIVE account never activated, with a password, may be activated', () => {
+    expect(activateNowRefusal(awaiting)).toBeNull();
+  });
+
+  it('already activated → ALREADY_ACTIVATED, in plain words', () => {
+    expect(activateNowRefusal({ ...awaiting, activatedAt: new Date() })).toEqual({
+      code: 'ALREADY_ACTIVATED', message: 'This account is already active. The person can sign in.',
+    });
+  });
+
+  it('invited without a password → NO_PASSWORD_YET: resend the invitation instead', () => {
+    expect(activateNowRefusal({ ...awaiting, hasPassword: false })).toEqual({
+      code: 'NO_PASSWORD_YET', message: 'This person has not set a password yet. Resend the invitation instead; they choose a password from its link.',
+    });
+  });
+
+  it('a deactivated, suspended or archived account → ACCOUNT_NOT_ACTIVE, saying what to do first (before any other check)', () => {
+    for (const [status, step] of [['DEACTIVATED', 'Reactivate it first'], ['SUSPENDED', 'Lift the suspension first'], ['ARCHIVED', 'Restore it first']] as const) {
+      for (const u of [{ ...awaiting, accountStatus: status }, { accountStatus: status, activatedAt: new Date(), hasPassword: false }]) {
+        const r = activateNowRefusal(u);
+        expect(r?.code).toBe('ACCOUNT_NOT_ACTIVE');
+        expect(r?.message).toContain(step);
+        expect(r?.message).toContain(status.toLowerCase());
+      }
+    }
+  });
+
+  it('every refusal is one of the three documented codes', () => {
+    for (const accountStatus of ACCOUNT_STATUSES) {
+      for (const activatedAt of [null, new Date()]) {
+        for (const hasPassword of [true, false]) {
+          const r = activateNowRefusal({ accountStatus, activatedAt, hasPassword });
+          if (r) expect(['ACCOUNT_NOT_ACTIVE', 'ALREADY_ACTIVATED', 'NO_PASSWORD_YET']).toContain(r.code);
+          else expect([accountStatus, activatedAt, hasPassword]).toEqual(['ACTIVE', null, true]);
+        }
+      }
+    }
   });
 });

@@ -220,10 +220,15 @@ export class UsersService {
   }
 
   // ─── Get a single user ──────────────────────────────────────────────────────
+  /**
+   * One account for administrators. `hasPassword` (activate now, 2026-11-24) says whether the person chose a password —
+   * an account awaiting setup can then be activated by an administrator; the password hash itself is never returned.
+   */
   async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, select: SAFE_SELECT });
-    if (!user) throw new NotFoundException(`User ${id} not found.`);
-    return user;
+    const found = await this.prisma.user.findUnique({ where: { id }, select: { ...SAFE_SELECT, passwordHash: true } });
+    if (!found) throw new NotFoundException(`User ${id} not found.`);
+    const { passwordHash, ...user } = found;
+    return { ...user, hasPassword: passwordHash !== null };
   }
 
   // ─── Update a user (admin) ──────────────────────────────────────────────────
