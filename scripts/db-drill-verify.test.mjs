@@ -243,7 +243,7 @@ describe('expected state — derived from this checkout only', () => {
       'TestPublication', 'TestResultWithdrawal',   // + Phase 4 (20261220000400)
       'TestResubmissionAuthorization',   // + locked submissions (20261223000100, owner 2026-11-21)
       'DivisionChange', 'CourseDivision', 'TableLayout', 'CustomReport', 'CustomReportGrant',   // + divisions and Olympiad levels (20261224000000, owner 2026-11-21)
-      'RegistrationSavedFilter'];   // + registration data (20261226000000, owner 2026-11-23)
+      'RegistrationSavedFilter',   // + registration data (20261226000000, owner 2026-11-23)
       'CoachProgrammeRestriction'];   // + coaches across their programmes (20261227000000, owner 2026-11-23)
     assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), [...postTables, ...areaTables].sort());
   });

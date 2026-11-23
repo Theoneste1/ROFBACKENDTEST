@@ -342,15 +342,21 @@ const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-code
 const REGISTRATION_DATA_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-registration-data.json';
 /** A code-less school's code given at registration (owner 2026-11-23): one optional field on two requests. Additive only. */
 const SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-code-at-registration.json';
+/**
  * Coaches across their programmes (owner 2026-11-23): the coach's students and published results, and a coach's programme
  * access for Administrators and Head Coaches. Additive only against the school codes snapshot.
  */
 const COACH_ACCESS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-coach-programme-access.json';
+/**
  * School list filters on every field of the NESA file (owner, 2026-11-23): ownership, cell, village, a contact value,
  * with or without an e-mail or phone, programme category. Additive only against the school codes snapshot.
  */
 const SCHOOL_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-filters.json';
-const CURRENT_SNAPSHOT = SCHOOL_FILTERS_SNAPSHOT;
+/**
+ * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
+ */
+const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
+const CURRENT_SNAPSHOT = INTEGRATION_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1810,12 +1816,6 @@ describe('approved API contract history', () => {
   test('the school code → registration data (2026-11-23): additive only — twelve Super-Administrator operations and their request bodies', () => {
     for (const f of [SCHOOL_CODES_SNAPSHOT, REGISTRATION_DATA_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_DATA_SNAPSHOT, 'utf8')));
-  test('the school code → the code of a code-less school given at registration (2026-11-23): additive only — newSchoolCode on two requests', () => {
-    for (const f of [SCHOOL_CODES_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
-    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, 'utf8')));
-  test('the school code → coaches across their programmes (2026-11-23): additive only — five operations and one request body', () => {
-    for (const f of [SCHOOL_CODES_SNAPSHOT, COACH_ACCESS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
-    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(COACH_ACCESS_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
@@ -1837,8 +1837,28 @@ describe('approved API contract history', () => {
       'schema SaveRegistrationFilterDto: added',
       'schema SaveRegistrationLayoutDto: added',
       'schema UpdateRegistrationRecordDto: added',
+    ]);
+  });
+
+  test('the school code → the code of a code-less school given at registration (2026-11-23): additive only — newSchoolCode on two requests', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
       'POST /api/v1/auth/register/student › request application/json.newSchoolCode: new optional field',
       'POST /api/v1/auth/register/teacher › request application/json.newSchoolCode: new optional field',
+    ]);
+  });
+
+  test('the school code → coaches across their programmes (2026-11-23): additive only — five operations and one request body', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, COACH_ACCESS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(COACH_ACCESS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
       'GET /api/v1/admin/coaches/{id}/programme-access: operation added',
       'GET /api/v1/coach/students: operation added',
       'GET /api/v1/coach/test-results/{testId}/students/{studentId}: operation added',
@@ -1874,6 +1894,20 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive.sort(), ['cell', 'contact', 'hasEmail', 'hasPhone', 'ownership', 'programmeCategory', 'village']
       .map((q) => `GET /api/v1/admin/schools: new optional query parameter "${q}"`));
+  });
+
+  test('the school code is the identifier → integration of the 2026-11-23 branches (audit 2026-11-24): nothing breaking, nothing for review; every branch snapshot is contained', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, INTEGRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const base = JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8'));
+    const res = compare(base, JSON.parse(readFileSync(INTEGRATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    // Each branch's own additions are all present together.
+    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT]) {
+      const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
+      assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
+    }
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {

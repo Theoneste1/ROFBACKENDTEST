@@ -3111,175 +3111,6 @@
       }
     },
     "/api/v1/admin/registration-data/fields": {
-    "/api/v1/coach/students": {
-      "get": {
-        "operationId": "CoachStudentsController_students",
-        "parameters": [
-          {
-            "name": "q",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minLength": 1,
-              "maxLength": 100,
-              "type": "string"
-            }
-          },
-          {
-            "name": "programmeId",
-            "required": false,
-            "in": "query",
-            "description": "One of my programmes (a Discipline id).",
-            "schema": {
-              "format": "uuid",
-              "type": "string"
-            }
-          },
-          {
-            "name": "division",
-            "required": false,
-            "in": "query",
-            "description": "An Olympiad level code (JUNIOR, MIDDLE, SENIOR …).",
-            "schema": {
-              "pattern": "^[A-Z][A-Z0-9_]{1,29}$",
-              "type": "string"
-            }
-          },
-          {
-            "name": "page",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 1,
-              "type": "number"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "type": "number"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Coach"
-        ],
-        "x-roles": [
-          "MENTOR"
-        ],
-        "x-permission": "students.viewProgramme",
-        "description": "**Access:** permission `students.viewProgramme` (MENTOR)"
-      }
-    },
-    "/api/v1/admin/coaches/{id}/programme-access": {
-      "get": {
-        "operationId": "CoachAccessController_get",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "Coaches"
-        ],
-        "x-roles": [
-          "HEAD_COACH",
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "users.manageCoaches",
-        "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
-      },
-      "put": {
-        "operationId": "CoachAccessController_set",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetCoachAccessDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          },
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "summary": "400 REASON_REQUIRED / NOT_A_PROGRAMME_MEMBER; 403 SCOPE_FORBIDDEN (a Head Coach, another programme); 404 not a coach.",
-        "tags": [
-          "Coaches"
-        ],
-        "x-roles": [
-          "HEAD_COACH",
-          "ADMIN",
-          "SUPER_ADMIN"
-        ],
-        "x-permission": "users.manageCoaches",
-        "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
-      }
-    },
-    "/api/v1/reports/sources": {
       "get": {
         "operationId": "RegistrationDataController_fields",
         "parameters": [
@@ -9492,6 +9323,174 @@
           "ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/coach/students": {
+      "get": {
+        "operationId": "CoachStudentsController_students",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "programmeId",
+            "required": false,
+            "in": "query",
+            "description": "One of my programmes (a Discipline id).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "division",
+            "required": false,
+            "in": "query",
+            "description": "An Olympiad level code (JUNIOR, MIDDLE, SENIOR …).",
+            "schema": {
+              "pattern": "^[A-Z][A-Z0-9_]{1,29}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Coach"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "students.viewProgramme",
+        "description": "**Access:** permission `students.viewProgramme` (MENTOR)"
+      }
+    },
+    "/api/v1/admin/coaches/{id}/programme-access": {
+      "get": {
+        "operationId": "CoachAccessController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Coaches"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageCoaches",
+        "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "CoachAccessController_set",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCoachAccessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "400 REASON_REQUIRED / NOT_A_PROGRAMME_MEMBER; 403 SCOPE_FORBIDDEN (a Head Coach, another programme); 404 not a coach.",
+        "tags": [
+          "Coaches"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageCoaches",
+        "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/reports/sources": {
@@ -54596,38 +54595,6 @@
         "properties": {}
       },
       "RegistrationSortDto": {
-      "SetCoachAccessDto": {
-        "type": "object",
-        "properties": {
-          "programmeId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "capability": {
-            "type": "string",
-            "enum": [
-              "STUDENTS",
-              "COURSES",
-              "MARKING",
-              "RESULTS"
-            ]
-          },
-          "allowed": {
-            "type": "boolean"
-          },
-          "reason": {
-            "type": "string",
-            "minLength": 0,
-            "maxLength": 500
-          }
-        },
-        "required": [
-          "programmeId",
-          "capability",
-          "allowed"
-        ]
-      },
-      "ReportFilterDto": {
         "type": "object",
         "properties": {
           "field": {
@@ -54776,563 +54743,6 @@
         },
         "required": [
           "columns"
-        ]
-      },
-      "ReportGrantDto": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "STUDENT",
-              "MENTOR",
-              "ADMIN",
-              "TEACHER",
-              "HEAD_COACH",
-              "SUPER_ADMIN"
-            ]
-          },
-          "canView": {
-            "type": "boolean"
-          },
-          "canDownload": {
-            "type": "boolean"
-          },
-          "canEdit": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "canView",
-          "canDownload",
-          "canEdit"
-        ]
-      },
-      "SetReportGrantsDto": {
-        "type": "object",
-        "properties": {
-          "grants": {
-            "maxItems": 200,
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ReportGrantDto"
-            }
-          }
-        },
-        "required": [
-          "grants"
-        ]
-      },
-      "RegisterStudentDto": {
-        "type": "object",
-        "properties": {
-          "firstName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "lastName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "username": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 30,
-            "pattern": "^[a-z0-9._-]+$"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "password": {
-            "type": "string"
-          },
-          "gradeLevel": {
-            "type": "string",
-            "description": "S1–S3 places the student in the Junior division, S4–S6 in Senior.",
-            "enum": [
-              "S1",
-              "S2",
-              "S3",
-              "S4",
-              "S5",
-              "S6"
-            ]
-          },
-          "country": {
-            "type": "string",
-            "description": "Country of the school (ISO 3166-1 alpha-2). Default RW (Rwanda). Rwanda: the school\ncomes from the official directory (schoolCode). Any other country: the school name\nis recorded as entered, unverified — never matched to a Rwandan school."
-          },
-          "schoolCode": {
-            "type": "string",
-            "description": "Rwanda: official code of the school attended (6 digits, from GET /schools/search or\nthe Province → District → Sector listing). The student is linked to exactly that\nschool. Required unless schoolId or schoolName is sent.",
-            "pattern": "^\\d{6}$"
-          },
-          "schoolId": {
-            "type": "string",
-            "description": "Rwanda (owner decision 2026-11-14): the internal id of the school attended, from\nGET /schools/search — how a school WITHOUT an official code is chosen (any school of the\nlist may be chosen this way). It must be an active Rwandan school (400 UNKNOWN_SCHOOL,\n409 SCHOOL_INACTIVE); the claim is PENDING exactly as with schoolCode. Not with schoolCode\n(400). schoolName and the place fields are ignored when it is sent.",
-            "format": "uuid"
-          },
-          "newSchoolCode": {
-            "type": "string",
-            "description": "A school WITHOUT an official code, chosen by schoolId (owner 2026-11-23): its 6-digit code is required (400\nSCHOOL_CODE_REQUIRED) — the first digit is the school's province, and it must not be another school's (409\nSCHOOL_CODE_TAKEN). The first valid code becomes the school's code at once (an Administrator corrects it later if\nneeded). Ignored when the school already has a code.",
-            "pattern": "^\\d{6}$"
-          },
-          "schoolName": {
-            "type": "string",
-            "description": "Another country: the school's name as entered (unverified; no school is linked).\nRwanda, legacy (until the sign-up form sends schoolCode): it never creates a\nschool and links the student only when it matches exactly one school of the\nofficial list — otherwise no school until an Administrator sets it.\nIgnored when schoolCode or schoolId is sent.",
-            "minLength": 2,
-            "maxLength": 200
-          },
-          "schoolProvince": {
-            "type": "string",
-            "description": "Rwanda, \"My school is not listed\" (PR C): the school's place in the official directory, sent\nwith schoolName — all three together (from GET /schools/locations). The claim keeps the name\nand place, PENDING until an Administrator matches and verifies it; an exact unique match with\nan active official school in that sector links that school (still PENDING).",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "schoolDistrict": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "schoolSector": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "schoolLocation": {
-            "type": "string",
-            "description": "Legacy, with schoolName: city / region of the school (not stored).",
-            "minLength": 2,
-            "maxLength": 200
-          },
-          "homeLocation": {
-            "type": "string",
-            "description": "Student's home city / region (optional free text, kept for older clients). With the official home place it is\nstored as \"Sector, District\" when not sent. Home location rules (homeLocationRules): homeCountry decides.",
-            "minLength": 2,
-            "maxLength": 200
-          },
-          "dateOfBirth": {
-            "type": "string"
-          },
-          "gender": {
-            "type": "string",
-            "description": "FEMALE or MALE. Required (owner, 2026-11-20: gender is asked at every sign-up). Not audited.",
-            "enum": [
-              "FEMALE",
-              "MALE"
-            ]
-          },
-          "phone": {
-            "type": "string",
-            "description": "The student's own phone (optional), stored in E.164 (teacher-application rules). Not audited."
-          },
-          "guardianPhone": {
-            "type": "string",
-            "description": "A close-family member's phone, stored in E.164 (teacher-application rules). Required (owner decision 9.2,\n2026-11-18: the server requires it, not only the form) — missing, empty or not a valid phone number is refused.\nNot audited."
-          },
-          "homeCountry": {
-            "type": "string",
-            "description": "The student's home country (ISO 3166-1 alpha-2), stored in User.country. `country` stays the school's.\nRequired (owner, 2026-11-20: home location on every registration form, homeLocationRules)."
-          },
-          "homeProvince": {
-            "type": "string",
-            "description": "The official home place: required when homeCountry is Rwanda (a place of GET /schools/locations, else 400\nUNKNOWN_HOME_LOCATION); with another homeCountry not asked (sent anyway: 400 HOME_LOCATION_RWANDA_ONLY).",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "homeDistrict": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "homeSector": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "olympiadInterests": {
-            "type": "array",
-            "description": "Olympiads the student is interested in (owner decision 8): one or more of MATHEMATICS, COMPUTING and\nPHYSICS, no duplicates (capability studentOlympiadInterests). Optional for older clients (the account then\nhas none); the sign-up form requires at least one. Information only: no programme membership, no permissions.",
-            "uniqueItems": true,
-            "items": {
-              "type": "string",
-              "enum": [
-                "MATHEMATICS",
-                "COMPUTING",
-                "PHYSICS"
-              ]
-            }
-          },
-          "olympiadInterestOther": {
-            "type": "string",
-            "nullable": true,
-            "description": "Another Olympiad named in words (\"Other\"; owner 2026-11-21; capability olympiadInterestOther), 2–100 characters,\ne.g. \"Chemistry\". With it, olympiadInterests may be empty. null clears it (only beside at least one subject).\nNever a subject: grants nothing, not part of Test Management."
-          }
-        },
-        "required": [
-          "firstName",
-          "lastName",
-          "username",
-          "email",
-          "password",
-          "gradeLevel",
-          "dateOfBirth",
-          "gender",
-          "guardianPhone",
-          "homeCountry"
-        ]
-      },
-      "RegisterAdminDto": {
-        "type": "object",
-        "properties": {
-          "firstName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "lastName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "username": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 30,
-            "pattern": "^[a-z0-9._-]+$"
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "password": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "firstName",
-          "lastName",
-          "username",
-          "email",
-          "password"
-        ]
-      },
-      "LoginDto": {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string",
-            "description": "Username or e-mail address (case-insensitive).",
-            "minLength": 3,
-            "maxLength": 254
-          },
-          "password": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          }
-        },
-        "required": [
-          "username",
-          "password"
-        ]
-      },
-      "RefreshTokenDto": {
-        "type": "object",
-        "properties": {
-          "refreshToken": {
-            "type": "string",
-            "description": "Optional when the refresh token is sent as the httpOnly cookie.",
-            "minLength": 20,
-            "maxLength": 200
-          }
-        }
-      },
-      "ActivationTokenDto": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "token"
-        ]
-      },
-      "ActivateAccountDto": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 200
-          },
-          "password": {
-            "type": "string",
-            "description": "Required for invitations; omitted for e-mail verification."
-          }
-        },
-        "required": [
-          "token"
-        ]
-      },
-      "ResendActivationDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email"
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
-      "ForgotPasswordDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "format": "email"
-          }
-        },
-        "required": [
-          "email"
-        ]
-      },
-      "ResetPasswordDto": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "type": "string",
-            "minLength": 20,
-            "maxLength": 200
-          },
-          "newPassword": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "token",
-          "newPassword"
-        ]
-      },
-      "ChangePasswordDto": {
-        "type": "object",
-        "properties": {
-          "currentPassword": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "newPassword": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "currentPassword",
-          "newPassword"
-        ]
-      },
-      "CreateAcademicYearDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "e.g. \"2027-2028\".",
-            "minLength": 4,
-            "maxLength": 30
-          },
-          "startsOn": {
-            "type": "string",
-            "description": "First day (YYYY-MM-DD)."
-          },
-          "endsOn": {
-            "type": "string",
-            "description": "Last day (YYYY-MM-DD)."
-          }
-        },
-        "required": [
-          "name",
-          "startsOn",
-          "endsOn"
-        ]
-      },
-      "UpdateAcademicYearDto": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 4,
-            "maxLength": 30
-          },
-          "startsOn": {
-            "type": "string"
-          },
-          "endsOn": {
-            "type": "string"
-          }
-        }
-      },
-      "ActivateAcademicYearDto": {
-        "type": "object",
-        "properties": {
-          "promoteStudents": {
-            "type": "boolean",
-            "description": "Move every active student up one grade (true at the start of a new school year)."
-          },
-          "deactivateGraduates": {
-            "type": "boolean",
-            "description": "When promoting, deactivate S6 students who graduate (default true)."
-          },
-          "expectedCurrentYearId": {
-            "type": "string",
-            "nullable": true,
-            "description": "REQUIRED: the academic year the caller saw as current (null: none). When the current year is\nnow another one (another start went through meanwhile), the start is refused with\n409 CURRENT_YEAR_CHANGED instead of closing a year the caller never saw and rolling students\nover a second time. Required so that no client can start a year blind.",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "promoteStudents",
-          "expectedCurrentYearId"
-        ]
-      },
-      "UpdateEnrollmentDto": {
-        "type": "object",
-        "properties": {
-          "gradeLevel": {
-            "type": "string",
-            "description": "Correct the student's grade in the current year (moves division if needed).",
-            "enum": [
-              "S1",
-              "S2",
-              "S3",
-              "S4",
-              "S5",
-              "S6"
-            ]
-          },
-          "status": {
-            "type": "string",
-            "description": "WITHDRAWN ends the enrolment and suspends the account.",
-            "enum": [
-              "WITHDRAWN"
-            ]
-          }
-        }
-      },
-      "CreateOverrideDto": {
-        "type": "object",
-        "properties": {
-          "permission": {
-            "type": "string",
-            "description": "A permission name from the catalogue (GET /admin/permissions/catalogue).",
-            "minLength": 3,
-            "maxLength": 100
-          },
-          "effect": {
-            "type": "string",
-            "description": "GRANT adds a permission (approved list only); DENY removes a default one.",
-            "enum": [
-              "GRANT",
-              "DENY"
-            ]
-          },
-          "reason": {
-            "type": "string",
-            "description": "Why the override is needed (kept in the audit trail).",
-            "minLength": 3,
-            "maxLength": 500
-          },
-          "expiresAt": {
-            "type": "string",
-            "description": "When it stops applying (ISO 8601, in the future). Omit for no expiry."
-          },
-          "courseId": {
-            "type": "string",
-            "description": "GRANT only: the course × division it applies to (must be within the user's existing scope).",
-            "format": "uuid"
-          },
-          "divisionId": {
-            "type": "string",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "permission",
-          "effect",
-          "reason"
-        ]
-      },
-      "SetProgrammeHeadsDto": {
-        "type": "object",
-        "properties": {
-          "userIds": {
-            "description": "Users with the HEAD_COACH role. An empty list removes every head.",
-            "uniqueItems": true,
-            "maxItems": 20,
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        },
-        "required": [
-          "userIds"
-        ]
-      },
-      "AddProgrammeMemberDto": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "description": "A STUDENT (Head Coach or Administrator) or a Coach (Administrator only).",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "userId"
-        ]
-      },
-      "InviteCoachDto": {
-        "type": "object",
-        "properties": {
-          "firstName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "lastName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "email": {
-            "type": "string",
-            "format": "email"
-          },
-          "username": {
-            "type": "string",
-            "description": "Optional; generated from the e-mail address when omitted.",
-            "minLength": 3,
-            "maxLength": 30,
-            "pattern": "^[a-z0-9._-]+$"
-          }
-        },
-        "required": [
-          "firstName",
-          "lastName",
-          "email"
         ]
       },
       "BulkParamsDto": {
@@ -56090,6 +55500,11 @@
             "description": "Rwanda (owner decision 2026-11-14): the internal id of the school attended, from\nGET /schools/search — how a school WITHOUT an official code is chosen (any school of the\nlist may be chosen this way). It must be an active Rwandan school (400 UNKNOWN_SCHOOL,\n409 SCHOOL_INACTIVE); the claim is PENDING exactly as with schoolCode. Not with schoolCode\n(400). schoolName and the place fields are ignored when it is sent.",
             "format": "uuid"
           },
+          "newSchoolCode": {
+            "type": "string",
+            "description": "A school WITHOUT an official code, chosen by schoolId (owner 2026-11-23): its 6-digit code is required (400\nSCHOOL_CODE_REQUIRED) — the first digit is the school's province, and it must not be another school's (409\nSCHOOL_CODE_TAKEN). The first valid code becomes the school's code at once (an Administrator corrects it later if\nneeded). Ignored when the school already has a code.",
+            "pattern": "^\\d{6}$"
+          },
           "schoolName": {
             "type": "string",
             "description": "Another country: the school's name as entered (unverified; no school is linked).\nRwanda, legacy (until the sign-up form sends schoolCode): it never creates a\nschool and links the student only when it matches exactly one school of the\nofficial list — otherwise no school until an Administrator sets it.\nIgnored when schoolCode or schoolId is sent.",
@@ -56347,6 +55762,37 @@
         "required": [
           "currentPassword",
           "newPassword"
+        ]
+      },
+      "SetCoachAccessDto": {
+        "type": "object",
+        "properties": {
+          "programmeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "capability": {
+            "type": "string",
+            "enum": [
+              "STUDENTS",
+              "COURSES",
+              "MARKING",
+              "RESULTS"
+            ]
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "programmeId",
+          "capability",
+          "allowed"
         ]
       },
       "ReportFilterDto": {

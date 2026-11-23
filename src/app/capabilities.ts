@@ -310,15 +310,18 @@ export const FEATURES = {
    * too); /teacher/tests lists them; ?schoolId may name an assigned student's school.
    */
   teacherAssignedTestStudents: 'always',
+  /**
    * Registration data (owner 2026-11-23): /admin/registration-data — every eligible registration field read from the database
    * (fields, query, export, record, edit), saved filters and column layouts. Super Administrators (registrationData.manage).
    */
   registrationData: 'always',
+  /**
    * A school without a code chosen at registration (owner 2026-11-23): student registration and the teacher application
    * take newSchoolCode — required for such a school (400 SCHOOL_CODE_REQUIRED / INVALID_SCHOOL_CODE, 409 SCHOOL_CODE_TAKEN);
    * the first valid code becomes the school's.
    */
   schoolCodeAtRegistration: 'always',
+  /**
    * Coaches across their programmes (owner 2026-11-23): every Coach, in each programme they belong to and at every level,
    * sees its students (GET /coach/students), opens and manages its courses, marks its tests (no authorisation needed) and
    * sees its published results (GET /coach/test-results); an Administrator or the programme's Head Coach takes any part

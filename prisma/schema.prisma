@@ -3320,9 +3320,6 @@ model CourseDivision {
   @@index([divisionId, isActive])
 }
 
-/// A saved column layout of a table (owner 2026-11-22: administrators choose the columns of the user tables). `owner`
-/// is "ORG" (the organization default, set by Administrators) or a user id (that person's own layout). `columns`: the
-/// ordered list of {key, visible}; keys are checked against the table's columns by the service.
 /// Registration data (owner 2026-11-23): a Super Administrator's saved filter — a category, its filter (groups of
 /// conditions joined by AND / OR), the chosen columns in order and the sort. Private to its owner unless shared with the
 /// other holders of registrationData.manage (who may use it, not change it).
@@ -3341,6 +3338,8 @@ model RegistrationSavedFilter {
 
   @@unique([ownerId, name])
   @@index([shared])
+}
+
 /// What a coach may do across a programme by default (owner 2026-11-23): see its students, open and manage every course of
 /// it at every level, mark its tests, see its published results. Granted to every Coach for each programme they belong to.
 enum CoachCapability {
@@ -3375,6 +3374,9 @@ model CoachProgrammeRestriction {
   @@index([liftedById])
 }
 
+/// A saved column layout of a table (owner 2026-11-22: administrators choose the columns of the user tables). `owner`
+/// is "ORG" (the organization default, set by Administrators) or a user id (that person's own layout). `columns`: the
+/// ordered list of {key, visible}; keys are checked against the table's columns by the service.
 model TableLayout {
   id          String   @id @default(uuid())
   owner       String
