@@ -11,6 +11,7 @@
  *     least one active school assignment; school scope, no course × division.
  *     Administrators may give and revoke these too (delegation mode, used by
  *     /admin/teachers/:id/delegations with users.manageTeachers) — nothing else;
+ *     and users.impersonate for a HEAD_COACH ("view as", read only; global scope, owner 2026-11-23);
  *   - never grantable permissions are refused even if the list were edited.
  *   (A course × division GRANT of assignments.prepare to a TEACHER was removed from the
  *   approved list on 2026-11-14: it needed a TeacherAssignment, which does not exist under
@@ -132,8 +133,11 @@ export class PermissionOverridesService {
         throw notAllowed('outside the user’s existing scope (the teacher has no active school and no assigned student)');
       }
       // SELECTED: the listed students are checked inside the transaction below, under the selection lock.
+    } else if (dto.effect === 'GRANT' && grantScopeOf(dto.permission) === 'global') {
+      // A global GRANT (users.impersonate to a Head Coach): no course × division, no students; its own rules limit it.
+      if (dto.courseId || dto.divisionId) throw notAllowed('this permission applies everywhere; omit courseId and divisionId');
     } else if (dto.effect === 'GRANT') {
-      // Unreachable with the approved list (every GRANT on it is a school-scoped delegation); fail closed.
+      // Unreachable with the approved list (every other GRANT on it is a school-scoped delegation); fail closed.
       throw notAllowed('not on the approved GRANT list for this role', { role: target.role, permission: dto.permission, effect: dto.effect });
     } else if (dto.courseId || dto.divisionId) {
       throw notAllowed('a DENY applies to the whole permission; omit courseId and divisionId');
@@ -169,7 +173,7 @@ export class PermissionOverridesService {
         },
         select: { id: true },
       });
-      if (duplicate) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_EXISTS', 'An identical active override already exists.', { id: duplicate.id });
+      if (duplicate) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_EXISTS', 'This person already has exactly this permission change. Nothing was added.', { id: duplicate.id });
       const created = await tx.userPermissionOverride.create({
         data: {
           userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, reason: dto.reason, expiresAt, createdById: actor.id, studentScope,

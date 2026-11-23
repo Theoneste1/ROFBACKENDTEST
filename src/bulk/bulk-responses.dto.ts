@@ -200,19 +200,19 @@ export const EXAMPLES = {
 
 /** Every error code a generic bulk route can answer, with its message (from the code that throws it). */
 const ERROR_MESSAGES: Record<string, [number, string]> = {
-  VALIDATION_FAILED:                [400, 'Request validation failed.'],
+  VALIDATION_FAILED:                [400, 'Title is required.'],
   BAD_REQUEST:                      [400, 'Validation failed (uuid is expected)'],
   BULK_ACTION_UNKNOWN:              [400, 'USER has no bulk action delete.'],
   ROLE_NOT_ALLOWED_IN_BULK:         [400, 'The Super Administrator role is never assigned in bulk.'],
   SAME_TEACHER:                     [400, 'Choose a different teacher to move the students to.'],
   NOT_A_TEACHER:                    [400, 'Only users with the TEACHER role can be given students.'],
   SELECTION_TOO_LARGE:              [400, 'The selection matches 51000 accounts; at most 50000 can be changed in one operation. Narrow the filters.'],
-  CONFIRMATION_REQUIRED:            [400, 'Confirm the bulk action (confirm: true).'],
+  CONFIRMATION_REQUIRED:            [400, 'Please confirm this action before it is applied to the selected records.'],
   REASON_REQUIRED:                  [400, 'Give a reason (3–500 characters).'],
   CONFIRMATION_INVALID:             [400, 'The confirmation is not valid. Preview the action again and confirm.'],
   EMPTY_SELECTION:                  [400, 'No account matches the selection.'],
   UNAUTHORIZED:                     [401, 'Unauthorized'],
-  PERMISSION_REQUIRED:              [403, 'You do not have permission to do this.'],
+  PERMISSION_REQUIRED:              [403, 'You do not have permission to do this. If you need it, ask an administrator.'],
   CONFIRMATION_WRONG_ADMINISTRATOR: [403, 'This confirmation was issued to another administrator. Preview the action yourself.'],
   STEP_UP_REQUIRED:                 [403, 'Confirm with your current password to change an Administrator or Super Administrator role.'],
   BULK_ENTITY_UNKNOWN:              [404, 'There is no bulk record type NOPE.'],

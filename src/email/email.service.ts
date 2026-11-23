@@ -114,7 +114,7 @@ export class EmailService {
 
     const recipients = await this.resolveRecipients(dto);
     if (recipients.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_RECIPIENTS', 'No eligible recipients found for the selected criteria.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_RECIPIENTS', 'Nobody matches the recipients you chose. Change the roles, levels or schools, then try again.');
     }
 
     let job;
@@ -304,7 +304,7 @@ export class EmailService {
           throw new AppError(
             HttpStatus.BAD_REQUEST,
             'RECIPIENTS_NOT_FOUND',
-            `${missing.length} recipient(s) not found or not active.`,
+            `${missing.length} of the chosen recipients no longer exist or are not active. Remove them from the list, then send again.`,
             { userIds: missing.slice(0, 20) },
           );
         }

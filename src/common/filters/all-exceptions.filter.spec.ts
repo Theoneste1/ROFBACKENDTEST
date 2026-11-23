@@ -3,11 +3,13 @@ import {
   BadRequestException,
   ForbiddenException,
   HttpStatus,
+  HttpException,
+  UnauthorizedException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { MulterError } from 'multer';
-import { AllExceptionsFilter } from './all-exceptions.filter.js';
+import { AllExceptionsFilter, PLAIN } from './all-exceptions.filter.js';
 import { AppError } from '../errors/app-error.js';
 import { Prisma } from '../../generated/prisma/client.js';
 
@@ -87,7 +89,8 @@ describe('AllExceptionsFilter', () => {
     expect(status).toBe(400);
     expect(body).toMatchObject({
       code:    'VALIDATION_FAILED',
-      message: 'Request validation failed.',
+      // The first problem in plain words, and how many more; the raw messages stay in details for the form fields.
+      message: 'Email must be a valid e-mail address (like name@example.com). (and 1 more problem — check the form)',
       details: ['email must be an email', 'name is too short'],
     });
   });
@@ -101,7 +104,7 @@ describe('AllExceptionsFilter', () => {
   it('maps Prisma P2025 to 404 NOT_FOUND', () => {
     const { status, body } = run(prismaError('P2025'));
     expect(status).toBe(404);
-    expect(body).toMatchObject({ code: 'NOT_FOUND', message: 'Record not found.' });
+    expect(body).toMatchObject({ code: 'NOT_FOUND', message: PLAIN.notFound });
   });
 
   it('maps Prisma P2003 to 409 REFERENCE_CONSTRAINT', () => {
@@ -151,7 +154,8 @@ describe('AllExceptionsFilter', () => {
   it('returns a generic 500 for unknown errors without leaking the message', () => {
     const { status, body } = run(new Error('password=hunter2 at db.internal:5432'));
     expect(status).toBe(500);
-    expect(body).toMatchObject({ statusCode: 500, code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' });
+    expect(body).toMatchObject({ statusCode: 500, code: 'INTERNAL_ERROR', message: PLAIN.internal });
+    expect(PLAIN.internal).toMatch(/try again.*reference/);
     expect(JSON.stringify(body)).not.toContain('hunter2');
   });
 
@@ -172,5 +176,52 @@ describe('AllExceptionsFilter', () => {
     expect(res.end).toHaveBeenCalled();
     expect(res.status).not.toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
+  });
+});
+
+describe('AllExceptionsFilter: plain words for the framework\'s own refusals (owner 2026-11-22)', () => {
+  beforeEach(() => {
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('an unknown route: NOT_FOUND (code unchanged) in plain words, never "Cannot GET /api/…"', () => {
+    const { status, body } = run(new NotFoundException('Cannot GET /api/v1/nothing'));
+    expect(status).toBe(404);
+    expect(body).toMatchObject({ code: 'NOT_FOUND', message: PLAIN.routeNotFound });
+  });
+
+  it('a malformed id in the address: BAD_REQUEST (code unchanged) in plain words, never "Validation failed (uuid is expected)"', () => {
+    const { status, body } = run(new BadRequestException('Validation failed (uuid is expected)'));
+    expect(status).toBe(400);
+    expect(body).toMatchObject({ code: 'BAD_REQUEST', message: PLAIN.invalidId });
+  });
+
+  it('the default 401 / 403 / 429 texts are rewritten; our own messages are kept', () => {
+    expect(run(new UnauthorizedException()).body).toMatchObject({ message: PLAIN.unauthorized });
+    expect(run(new ForbiddenException()).body).toMatchObject({ message: PLAIN.forbidden });
+    expect(run(new HttpException('ThrottlerException: Too Many Requests', 429)).body).toMatchObject({ message: PLAIN.tooMany });
+    expect(run(new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this.')).body)
+      .toMatchObject({ code: 'PERMISSION_REQUIRED', message: 'You do not have permission to do this.' });
+  });
+
+  it('a body that is not JSON is a 400 the user can act on, not a server failure', () => {
+    const err = Object.assign(new SyntaxError('Unexpected token } in JSON at position 3'), { type: 'entity.parse.failed', status: 400 });
+    const { status, body } = run(err);
+    expect(status).toBe(400);
+    expect(body).toMatchObject({ code: 'INVALID_JSON', message: PLAIN.badJson });
+    expect(JSON.stringify(body)).not.toContain('Unexpected token');
+  });
+
+  it('upload problems say what to do', () => {
+    expect(run(new MulterError('LIMIT_FILE_SIZE')).body).toMatchObject({ code: 'FILE_TOO_LARGE', message: PLAIN.fileTooLarge });
+    expect(run(new MulterError('LIMIT_FILE_COUNT')).body).toMatchObject({ code: 'UPLOAD_REJECTED', message: PLAIN.tooManyFiles });
+    expect(run(new MulterError('LIMIT_UNEXPECTED_FILE', 'avatar')).body).toMatchObject({ code: 'UPLOAD_REJECTED', message: PLAIN.unexpectedFile });
+  });
+
+  it('database refusals in plain words', () => {
+    expect(run(prismaError('P2002', { target: ['email'] })).body).toMatchObject({ message: PLAIN.duplicate });
+    expect(run(prismaError('P2003')).body).toMatchObject({ message: PLAIN.reference });
   });
 });

@@ -98,12 +98,29 @@ describe('membership never feeds student or coach access (plan §7.3, §11.5 cod
     expect(lines[0]).toMatch(/\.\.\.\(programmeScoped && \{ programmeMemberships:/);
   });
 
-  it('AccessService reads membership only in its programme scope helpers, after all student/coach access methods', () => {
-    const text = read('common/access/access.service.ts');
+  it('AccessService reads membership only in its programme scope helpers and in coachProgrammes — the one place coach access may (owner 2026-11-23), always minus the restrictions and for Coaches only', () => {
+    const text = read('common/access/access.service.ts').replace(/\r\n/g, '\n');
     const marker = text.indexOf('Programme scope helpers');
     expect(marker).toBeGreaterThan(0);
-    const accessPart = text.slice(0, marker);
+    // Owner 2026-11-23: every Coach works across the programmes they belong to, unless an Administrator or the programme's
+    // Head Coach took a part away. That decision is read in coachProgrammes only — never by the explicit-assignment methods.
+    const start = text.indexOf('async coachProgrammes(');
+    expect(start).toBeGreaterThan(0);
+    const methodBody = (name: string) => {
+      const from = text.indexOf(`async ${name}(`);
+      expect([name, from > 0]).toEqual([name, true]);
+      return text.slice(from, text.indexOf('\n  }\n', from));
+    };
+    const coachProgrammes = methodBody('coachProgrammes');
+    expect(coachProgrammes).toMatch(/programmeMembership/);
+    expect(coachProgrammes).toMatch(/if \(user\.role !== 'MENTOR'\) return \[\];/);
+    expect(coachProgrammes).toMatch(/coachRestrictions: \{ none: \{ coachId: user\.id, capability, liftedAt: null \} \}/);
+    const accessPart = text.slice(0, marker).replace(coachProgrammes, '');
     expect(accessPart).not.toMatch(/programmeMembership/);
+    // The explicit assignments (grading distribution and reviewers use them) never read membership or the programme-wide rule.
+    for (const m of ['mentorScopes', 'isAssignedMentor']) {
+      expect([m, /coachProgrammes|programmeMembership/.test(methodBody(m))]).toEqual([m, false]);
+    }
     for (const m of ['assertCanView', 'assertCanManage', 'assertMentorOf', 'scopeFilter', 'mentorScopes', 'isAssignedMentor', 'studentDivision']) {
       expect([m, accessPart.includes(`${m}(`)]).toEqual([m, true]);
     }

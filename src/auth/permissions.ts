@@ -129,6 +129,20 @@ export const PERMISSIONS = [
   'reports.build',               // build custom reports (any source), see and manage every report and who may use it
                                  // (view / download / edit grants): Administrators (global). Shared reports need no
                                  // permission: their grants decide (src/custom-reports)
+  // ── Registration data (owner 2026-11-23) ──
+  'registrationData.manage',     // Super Administrators only (never grantable): list, filter, export and edit every eligible
+                                 // registration field of every account (src/registration-data; security data never shown)
+  // ── Coaches across their programmes (owner 2026-11-23): every Coach, for each programme they belong to, every level —
+  //    taken away per coach and programme by an Administrator or the programme's Head Coach (CoachProgrammeRestriction) ──
+  'students.viewProgramme',      // the students of their programmes (name, level, school, subjects; never contacts)
+  'tests.viewProgrammeResults',  // the PUBLISHED results of their programmes' tests (no ranks, codes or markers)
+  // ── News subscribers (owner 2026-11-23) ──
+  'subscribers.manage',          // the news mailing list: see, export, add, import, edit, unsubscribe, erase; compose and send
+                                 // mailings to subscribers (Administrators, global)
+  // ── View as (owner 2026-11-23) ──
+  'users.impersonate',           // view the platform exactly as a LOWER-ranked user sees it, READ ONLY (src/auth/view-as):
+                                 // Administrators and Super Admins by default; grantable to a Head Coach by an individual
+                                 // override (then Students, Teachers and Coaches only); removable per user (DENY)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -196,6 +210,10 @@ const ADMIN_GRANTS: Grants = {
   'students.classifyLevel': 'global',
   // Custom reports (owner 2026-11-22): build reports and share them.
   'reports.build': 'global',
+  // News subscribers (owner 2026-11-23): the mailing list and mailings.
+  'subscribers.manage': 'global',
+  // View as, read only (owner 2026-11-23): lower-ranked users only (view-as.rules.ts).
+  'users.impersonate': 'global',
 };
 
 /**
@@ -241,6 +259,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.mark': 'markerAuthorization',
     // Olympiad levels (owner 2026-11-21): the students of the programmes the coach belongs to.
     'students.classifyLevel': 'programme',
+    // Owner 2026-11-23: by default, everything of their programmes at every level (each removable per programme).
+    'students.viewProgramme': 'programme', 'tests.viewProgrammeResults': 'programme',
   },
   HEAD_COACH: {
     'courses.view': 'programme', 'resources.view': 'programme', 'assignments.view': 'programme',
@@ -291,6 +311,10 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
     'students.classifyLevel': 'global',
     'reports.build': 'global',
+    // Registration data (owner 2026-11-23): Super Administrators only.
+    'registrationData.manage': 'global',
+    'subscribers.manage': 'global',
+    'users.impersonate': 'global',
   },
 };
 
@@ -312,6 +336,8 @@ export const NEVER_GRANTABLE: readonly Permission[] = [
   'tests.overridePublication',
   // Locked submissions (owner 2026-11-21): only Administrators unlock a submitted answer; nobody else may receive it.
   'tests.authorizeResubmission',
+  // Registration data (owner 2026-11-23): every account's personal registration data — Super Administrators alone.
+  'registrationData.manage',
 ];
 
 // ── Legacy lists, returned unchanged by GET /me/permissions (decision A1) ────
@@ -340,6 +366,9 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     // Appended (additive, Olympiad levels, owner 2026-11-21): coaches hold it (their programmes' students); listed so the
     // coach sees the Olympiad level control.
     'students.classifyLevel',
+    // Appended (additive, owner 2026-11-23): coaches hold them (their programmes, every level); listed so the coach portal
+    // shows the Students and Test results pages.
+    'students.viewProgramme', 'tests.viewProgrammeResults',
   ],
   ADMIN: [
     'courses.view', 'resources.view', 'resources.manage',
@@ -388,6 +417,10 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'students.classifyLevel',
     // appended 2026-11-22 (owner): custom reports — build and share
     'reports.build',
+    // appended 2026-11-23 (owner): news subscribers — the mailing list and mailings
+    'subscribers.manage',
+    // appended 2026-11-23 (owner): view as another (lower-ranked) user, read only
+    'users.impersonate',
   ],
 };
 

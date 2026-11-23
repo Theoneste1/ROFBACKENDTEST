@@ -96,6 +96,17 @@ export class RegisterTeacherDto {
   @IsUUID()
   schoolId?: string;
 
+  /**
+   * A school WITHOUT an official code, chosen by schoolId (owner 2026-11-23): its 6-digit code is required (400
+   * SCHOOL_CODE_REQUIRED) — the first digit is the school's province, and it must not be another school's (409
+   * SCHOOL_CODE_TAKEN). The first valid code becomes the school's code at once (an Administrator corrects it later if
+   * needed). Ignored when the school already has a code.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.replace(/\s+/g, '') : value))
+  @Matches(/^\d{6}$/, { message: 'newSchoolCode must be the 6-digit school code.' })
+  newSchoolCode?: string;
+
   /** "My school is missing": its name, with schoolSector. Exactly one of schoolId / proposedSchoolName. */
   @IsOptional()
   @IsString() @Length(2, 200) @Transform(squash)

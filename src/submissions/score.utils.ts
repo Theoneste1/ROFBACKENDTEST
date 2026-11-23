@@ -23,7 +23,7 @@ export function validateScore(score: number, maximumMarks: number, context = 'Sc
     throw new AppError(
       HttpStatus.BAD_REQUEST,
       'INVALID_SCORE',
-      `Assignment has an invalid maximumMarks value (${maximumMarks}).`,
+      `This assignment's maximum marks (${maximumMarks}) are not valid. Ask an administrator to correct the assignment.`,
     );
   }
   if (!Number.isInteger(score)) {
@@ -36,7 +36,7 @@ export function validateScore(score: number, maximumMarks: number, context = 'Sc
     throw new AppError(
       HttpStatus.BAD_REQUEST,
       'INVALID_SCORE',
-      `${context} (${score}) exceeds the assignment's maximum marks (${maximumMarks}).`,
+      `${context} (${score}) is more than the assignment's maximum of ${maximumMarks} marks. Enter a mark from 0 to ${maximumMarks}.`,
     );
   }
 }

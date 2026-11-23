@@ -71,7 +71,7 @@ function requestSizeLimit(maxMb: number) {
     if (length > maxBytes) {
       res.status(413).json({
         statusCode: 413, error: 'Payload Too Large', code: 'PAYLOAD_TOO_LARGE',
-        message: `The request is larger than ${maxMb} MB.`,
+        message: `What you sent is larger than ${maxMb} MB. Choose a smaller file (or a lower-resolution photo) and try again.`,
       });
       return;
     }

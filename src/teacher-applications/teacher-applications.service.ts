@@ -15,7 +15,6 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FormAvailabilityService } from '../forms/form-availability.service.js';
 import { AuditService } from '../audit/audit.service.js';
-import { SettingsService } from '../settings/settings.service.js';
 import { ActivationService, type IssuedActivation } from '../auth/activation.service.js';
 import { BCRYPT_COST } from '../auth/auth.service.js';
 import { RoleAssignmentPolicy, roleFlagOn } from '../auth/role-assignment.policy.js';
@@ -47,6 +46,7 @@ import {
   schoolAlreadyVerified, schoolChoice, schoolNotVerified, teacherRegistrationOpen, unknownSchool,
 } from './teacher-application.rules.js';
 import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
+import { settleSchoolCode } from '../schools/school-code-at-registration.js';
 
 const SCHOOL_SELECT = { id: true, name: true, code: true, province: true, district: true, sector: true } as const;
 
@@ -77,7 +77,6 @@ export class TeacherApplicationsService {
   constructor(
     private readonly prisma:     PrismaService,
     private readonly audit:      AuditService,
-    private readonly settings:   SettingsService,
     private readonly activation: ActivationService,
     private readonly roles:      RoleAssignmentPolicy,
     private readonly config:     ConfigService,
@@ -193,7 +192,7 @@ export class TeacherApplicationsService {
       if (!school) throw unknownSchool(choice.schoolId);
       if (school.province !== dto.schoolProvince || school.district !== dto.schoolDistrict) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_LOCATION_MISMATCH',
-          'This school is not in the province and district you chose.',
+          'This school is not in the province and district you chose. Choose the province and district again, then the school.',
           { schoolId: school.id, province: dto.schoolProvince, district: dto.schoolDistrict });
       }
     }
@@ -209,7 +208,7 @@ export class TeacherApplicationsService {
     // approval (the school link, primary when the school has none, the audit entry). A school that is not listed still
     // needs an Administrator (there is no code to match the school's students with).
     const instant = school !== null && (await this.prisma.school.count({ where: { id: school.id, isActive: true, countryCode: RWANDA } })) === 1;
-    const verify = instant ? await this.settings.get('registration.requireEmailVerification') : false;
+    const verify = instant ? await this.forms.requiresEmailVerification('TEACHER_REGISTRATION') : false;
     let issued: IssuedActivation | null = null;
     let account: { id: string; username: string } | null = null;
 
@@ -233,6 +232,10 @@ export class TeacherApplicationsService {
         },
         select: { id: true, status: true, proposedSchoolName: true },
       });
+      // A listed school without a code (owner 2026-11-23): the applicant gives its code, which becomes the school's.
+      if (school && !school.code) {
+        await settleSchoolCode(tx, this.audit, school.id, dto.newSchoolCode, { via: 'TEACHER_APPLICATION', actorId: null, actorRole: 'ANONYMOUS', applicationId: application.id });
+      }
       await this.audit.log({
         actorId: null, actorRole: 'ANONYMOUS',
         action: 'SUBMIT_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: application.id,
@@ -327,7 +330,7 @@ export class TeacherApplicationsService {
     const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, isActive: true, countryCode: true } });
     if (!school || !school.isActive || school.countryCode !== RWANDA) throw unknownSchool(schoolId);
 
-    const verify = await this.settings.get('registration.requireEmailVerification');
+    const verify = await this.forms.requiresEmailVerification('TEACHER_REGISTRATION');
     let issued: IssuedActivation | null = null;
     let notice: string | null = null;
 

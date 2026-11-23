@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'tableLayouts', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails', 'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'coachProgrammeAccess', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'formEmailVerification', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationData', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolCodeAtRegistration', 'schoolDirectorySync', 'schoolListFilters', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'subscribers', 'tableLayouts', 'teacherAssignedTestStudents', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails', 'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions', 'viewAs'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -28,6 +28,8 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   dateOfBirthCorrection:   'always',   // appended 2026-11-18: Administrator date-of-birth corrections with a reason (owner approval)
   countries:               'always',   // appended 2026-11-19: countries reference list (owner decision, simplified area 1)
   primaryTeacher:          'always',   // appended 2026-11-19: primary / secondary teacher of a school (owner decision)
+  schoolListFilters:       'always',   // appended 2026-11-23: school list filters on every NESA field (owner)
+  formEmailVerification:   'always',   // appended 2026-11-23: e-mail activation per sign-up form, off by default (owner)
   schoolsTable:            'always',   // appended 2026-11-19: schools table sort (name, verified students) and primary teacher
   testManagement:          'always',   // appended 2026-11-19: Test Management Phase 1 (tests, questions, files, marker authorisations)
   testSubmissions:         'always',   // appended 2026-11-19: Test Management Phase 2 (deadlines, extensions, submissions)
@@ -63,6 +65,12 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   studentOverview:         'always',   // appended 2026-11-22: the Student Profile Overview
   customReports:           'always',   // appended 2026-11-22: custom reports with grants
   teacherUnlistedSchoolDetails: 'always', // appended 2026-11-22: unlisted school's official details; one-step approval creates it
+  teacherAssignedTestStudents: 'always', // appended 2026-11-23: teachers submit for (and follow) their assigned students' tests
+  registrationData:        'always',   // appended 2026-11-23: registration data for Super Administrators
+  schoolCodeAtRegistration: 'always',  // appended 2026-11-23: a codeless school's code given at registration
+  coachProgrammeAccess:    'always',   // appended 2026-11-23: coaches across their programmes, every level (removable)
+  subscribers:             'always',   // appended 2026-11-23: news subscribers and mailings
+  viewAs:                  'always',   // appended 2026-11-23: view as a lower-ranked user, read only (owner)
   tableLayouts:            'always',   // appended 2026-11-22: saved table layouts; sortable Users list   // appended 2026-11-21: Junior / Middle / Senior Olympiad levels, separate from the grade (owner)
   genderStep:              'always',   // appended 2026-11-20: existing accounts give their gender once (owner)   // appended 2026-11-20: home country required, Rwanda place only for Rwanda (owner)
 };

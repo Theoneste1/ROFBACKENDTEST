@@ -93,13 +93,13 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   },
   // ── Administrator request audit (P1-08) ────────────────────────────────────
   {
-    file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !isAdmin(user)',
-    reason: 'Chooses whether to WRITE an audit row after the response (ADMIN / SUPER_ADMIN state-changing requests); every other request is unaffected. Not an access decision: guards decide.',
+    file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !actor || !isAdmin(actor)',
+    reason: 'Chooses whether to WRITE an audit row after the response (ADMIN / SUPER_ADMIN state-changing requests; while viewing as someone, the viewer is the actor); every other request is unaffected. Not an access decision: guards decide.',
   },
   // ── Course resources ───────────────────────────────────────────────────────
   {
-    file: 'src/courses/course-resources.service.ts', rule: 'U3', code: 'isStudent(user)',
-    reason: "serveFile(): records a student's resource view (activity tracking) after access was already checked by assertCanRead(); not an access decision.",
+    file: 'src/courses/course-resources.service.ts', rule: 'U3', code: 'isStudent(user) && !isViewing()',
+    reason: "serveFile(): records a student's resource view (activity tracking) after access was already checked by assertCanRead() — not while an administrator views as the student (read only); not an access decision.",
   },
   // ── Leaderboard ────────────────────────────────────────────────────────────
   {
@@ -159,6 +159,17 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   {
     file: 'src/test-management/test-results.service.ts', rule: 'U6', code: 'mayOverride: isAdmin(user)',
     reason: 'doPublish(): decidePublication refuses an override unless this is true (403 OVERRIDE_NOT_ALLOWED) and blocks unapproved results without it; any role other than ADMIN / SUPER_ADMIN gets false — the restrictive branch. The override route also requires tests.overridePublication (Administrators only, NEVER_GRANTABLE).',
+  },
+  // ── Coaches across their programmes (owner 2026-11-23) ──────────────────────
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6',
+    code: "...(viewer.role === 'MENTOR' && { discipline: { coachRestrictions: { none: { coachId: viewer.id, capability: 'STUDENTS', liftedAt: null } } } })",
+    reason: 'scopeFor(): only NARROWS a Coach (a programme where seeing the students was taken away is dropped). Every other role keeps its unchanged scope: a Head Coach heads the programme (restrictions are coach-only), and the branch is reached only for Coaches and Head Coaches.',
+  },
+  {
+    file: 'src/users/student-overview.service.ts', rule: 'U6',
+    code: "...(viewer.role === 'MENTOR' && { discipline: { coachRestrictions: { none: { coachId: viewer.id, capability: 'STUDENTS', liftedAt: null } } } })",
+    reason: 'mayView(): only NARROWS a Coach (see the entry above); the branch is reached only for course workers (Coaches, Head Coaches), and a Head Coach keeps the programmes they belong to.',
   },
   // ── Study groups (module not registered; unchanged by decision P3-4) ───────
   {

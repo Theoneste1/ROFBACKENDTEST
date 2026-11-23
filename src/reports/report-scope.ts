@@ -70,7 +70,7 @@ export class ReportScopeService {
     const from = q.from ? this.boundary(q.from, 'start') : undefined;
     const to   = q.to   ? this.boundary(q.to, 'end')     : undefined;
     if (from && to && to <= from) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_DATE_RANGE', '`from` must be before `to`.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_DATE_RANGE', 'The start date must be before the end date.');
     }
     return { year, divisionId: q.divisionId, courseId: q.courseId, from, to, ...programme };
   }
@@ -230,7 +230,7 @@ export class ReportScopeService {
       return this.prisma.academicYear.findFirst({ where: { isCurrent: true }, select: { id: true, name: true } });
     }
     if (!UUID.test(value)) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'academicYearId must be a UUID or "all".');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose an academic year from the list, or "All years".');
     }
     const year = await this.prisma.academicYear.findUnique({ where: { id: value }, select: { id: true, name: true } });
     if (!year) throw new NotFoundException('Academic year not found.');

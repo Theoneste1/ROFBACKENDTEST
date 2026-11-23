@@ -46,6 +46,7 @@ import { activeStudents, resultNotices, schoolTeachersOf } from './results-store
 import { answerPageName } from './submission-rules.js';
 import { TestDeadlineService } from './test-deadline.service.js';
 import { TestsService, lockTest } from './tests.service.js';
+import { mayMarkWhere } from './marker-reach.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -100,9 +101,10 @@ export class TestMarkingService {
           LEFT JOIN "TestMarking" m ON m."assignmentId" = a."id"
          WHERE s."testId" = ${testId} AND a."endedAt" IS NULL
          GROUP BY a."coachId", a."kind"`,
-      this.prisma.markerAuthorization.findMany({ where: { disciplineId: test.disciplineId, revokedAt: null }, select: { coachId: true } }),
+      // Every coach who may mark the subject (marker-reach.ts: authorised, or a member of its programme; not restricted).
+      this.prisma.user.findMany({ where: { AND: [mayMarkWhere(test.disciplineId), { accountStatus: 'ACTIVE' }] }, select: { id: true } }),
     ]);
-    const authorisedIds = new Set(authorised.map((a) => a.coachId));
+    const authorisedIds = new Set(authorised.map((a) => a.id));
     const coachIds = [...new Set([...authorisedIds, ...progress.map((p) => p.coachId)])];
     const coaches = coachIds.length
       ? await this.prisma.user.findMany({

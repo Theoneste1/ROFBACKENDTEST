@@ -6,7 +6,7 @@
  *                                           questions), the total, the comments of the FINAL marking — never who marked,
  *                                           never another marking, never a rank (STUDENT_RANKINGS_ENABLED is false).
  *   Teacher (tests.viewSchoolResults,       published results of the ACTIVE students (current claim) of their own ACTIVE
- *            school)                        schools (teacher-scope.ts visibleSchoolStudentsWhere) — never a rank, never
+ *            school)                        schools and assigned to them (teacher-scope.ts teacherTestStudentsWhere) — never a rank, never
  *                                           another school's student (404, not revealed).
  * A result is visible only while it is PUBLISHED: an unapproved, approved-but-unpublished or withdrawn (G6) result is
  * not found (404 RESULT_NOT_FOUND), never "hidden". Responses are built from whitelists and checked by assertResultSafe.
@@ -23,7 +23,7 @@ import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { visibleSchoolStudentsWhere } from '../teachers/teacher-scope.js';
+import { teacherTestStudentsWhere } from '../teachers/teacher-scope.js';
 import type { MyResultsQueryDto, SchoolResultsQueryDto } from './dto/results.dto.js';
 import { assertResultSafe, resultView, studentRankingsVisible } from './results-rules.js';
 import { rankingPage } from './results-store.js';
@@ -81,7 +81,7 @@ export class TestResultViewsService {
   /** Tests with published results of my schools' students, with how many (never an average or a rank). */
   async schoolTests(user: AuthUser, q: MyResultsQueryDto) {
     const schools = await this.teacherSchools(user);
-    const students = visibleSchoolStudentsWhere(schools);
+    const students = teacherTestStudentsWhere(user.id, schools);
     const where: Prisma.TestWhereInput = { submissions: { some: { status: 'PUBLISHED', student: students } } };
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total] = await this.prisma.$transaction([
@@ -106,13 +106,15 @@ export class TestResultViewsService {
   /** One test: the published results of my schools' students, by name (never ordered by marks, never ranked). */
   async schoolResults(user: AuthUser, testId: string, q: SchoolResultsQueryDto) {
     const schools = await this.teacherSchools(user);
-    if (q.schoolId && !schools.includes(q.schoolId)) throw new AppError(HttpStatus.NOT_FOUND, 'SCHOOL_NOT_FOUND', 'School not found.');
+    if (q.schoolId && !schools.includes(q.schoolId) && !(await this.prisma.user.count({ where: teacherTestStudentsWhere(user.id, schools, q.schoolId) }))) {
+      throw new AppError(HttpStatus.NOT_FOUND, 'SCHOOL_NOT_FOUND', 'School not found.');
+    }
     const test = await this.prisma.test.findUnique({ where: { id: testId }, select: { ...TEST_SUMMARY, status: true } });
     if (!test || test.status !== 'PUBLISHED') throw resultNotFound();
     const contains = q.q ? { contains: q.q, mode: 'insensitive' as const } : undefined;
     const where: Prisma.TestSubmissionWhereInput = {
       testId, status: 'PUBLISHED',
-      student: { AND: [visibleSchoolStudentsWhere(q.schoolId ? [q.schoolId] : schools), ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : [])] },
+      student: { AND: [teacherTestStudentsWhere(user.id, schools, q.schoolId), ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : [])] },
     };
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total] = await this.prisma.$transaction([
@@ -136,8 +138,80 @@ export class TestResultViewsService {
   /** One of my schools' students: their published result (per question, total, comments). */
   async schoolResult(user: AuthUser, testId: string, studentId: string) {
     const schools = await this.teacherSchools(user);
-    const visible = await this.prisma.user.findFirst({ where: { AND: [{ id: studentId }, visibleSchoolStudentsWhere(schools)] }, select: { id: true } });
+    const visible = await this.prisma.user.findFirst({ where: { AND: [{ id: studentId }, teacherTestStudentsWhere(user.id, schools)] }, select: { id: true } });
     if (!visible) throw resultNotFound();
+    return this.publishedResult(testId, studentId, 'TEACHER');
+  }
+
+  // ── Coach: the published results of my programmes (owner 2026-11-23) ─────────────────
+
+  /** The subjects whose results a Coach sees: their programmes, unless RESULTS was taken away (403 for anyone else). */
+  private async coachResultSubjects(user: AuthUser): Promise<string[]> {
+    if (user.role !== 'MENTOR') throw unsupportedRole();
+    return this.access.coachProgrammes(user, 'RESULTS');
+  }
+
+  /** Tests of my programmes' subjects with published results, with how many (never an average or a rank). */
+  async coachTests(user: AuthUser, q: MyResultsQueryDto) {
+    const subjects = await this.coachResultSubjects(user);
+    const where: Prisma.TestWhereInput = { disciplineId: { in: subjects }, submissions: { some: { status: 'PUBLISHED' } } };
+    const { page, limit, skip, take } = pageArgs(q);
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.test.findMany({ where, skip, take, orderBy: [{ closesAt: 'desc' }, { id: 'asc' }], select: { ...TEST_SUMMARY, closesAt: true } }),
+      this.prisma.test.count({ where }),
+    ]);
+    const ids = rows.map((r) => r.id);
+    const counts = ids.length
+      ? await this.prisma.testSubmission.groupBy({ by: ['testId'], where: { testId: { in: ids }, status: 'PUBLISHED' }, _count: { _all: true }, _max: { publishedAt: true } })
+      : [];
+    const out = paginated(rows.map((t) => {
+      const c = counts.find((x) => x.testId === t.id);
+      return {
+        test: { id: t.id, title: t.title, division: t.division, subject: t.discipline, closesAt: t.closesAt }, maxMarks: t.maxMarks,
+        publishedResults: c?._count._all ?? 0, lastPublishedAt: c?._max.publishedAt ?? null,
+      };
+    }), total, page, limit);
+    assertResultSafe(out);
+    return out;
+  }
+
+  /** One test of my programmes: its published results by name, every level (never ordered by marks, never ranked). */
+  async coachResults(user: AuthUser, testId: string, q: SchoolResultsQueryDto) {
+    const subjects = await this.coachResultSubjects(user);
+    const test = await this.prisma.test.findUnique({ where: { id: testId }, select: { ...TEST_SUMMARY, status: true, disciplineId: true } });
+    if (!test || test.status !== 'PUBLISHED' || !subjects.includes(test.disciplineId)) throw resultNotFound();
+    const contains = q.q ? { contains: q.q, mode: 'insensitive' as const } : undefined;
+    const where: Prisma.TestSubmissionWhereInput = {
+      testId, status: 'PUBLISHED',
+      student: { AND: [
+        ...(q.schoolId ? [{ schoolId: q.schoolId }] : []),
+        ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : []),
+      ] },
+    };
+    const { page, limit, skip, take } = pageArgs(q);
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.testSubmission.findMany({
+        where, skip, take, orderBy: [{ student: { lastName: 'asc' } }, { student: { firstName: 'asc' } }, { id: 'asc' }],
+        select: {
+          publishedAt: true, finalMarking: { select: { totalMarks: true } },
+          student: { select: { id: true, username: true, firstName: true, lastName: true, gradeLevel: true, school: { select: { id: true, name: true } } } },
+        },
+      }),
+      this.prisma.testSubmission.count({ where }),
+    ]);
+    const out = {
+      test: { id: test.id, title: test.title, division: test.division, subject: test.discipline, maxMarks: test.maxMarks },
+      ...paginated(rows.map((r) => ({ student: r.student, totalMarks: r.finalMarking?.totalMarks ?? null, maxMarks: test.maxMarks, publishedAt: r.publishedAt })), total, page, limit),
+    };
+    assertResultSafe(out);
+    return out;
+  }
+
+  /** One student's published result in a test of my programmes (per question, total, comments). */
+  async coachResult(user: AuthUser, testId: string, studentId: string) {
+    const subjects = await this.coachResultSubjects(user);
+    const test = await this.prisma.test.findUnique({ where: { id: testId }, select: { disciplineId: true } });
+    if (!test || !subjects.includes(test.disciplineId)) throw resultNotFound();
     return this.publishedResult(testId, studentId, 'TEACHER');
   }
 
@@ -170,7 +244,7 @@ export class TestResultViewsService {
       this.schoolTests(user, { page: 1, limit: 5 }),
       this.prisma.testExtension.findMany({
         where: { cancelledAt: null, newDeadline: { gt: now }, test: { status: 'PUBLISHED' },
-          OR: [{ kind: 'TEACHER', teacherId: user.id }, { kind: 'STUDENT', student: visibleSchoolStudentsWhere(schools) }] },
+          OR: [{ kind: 'TEACHER', teacherId: user.id }, { kind: 'STUDENT', student: teacherTestStudentsWhere(user.id, schools) }] },
         orderBy: [{ newDeadline: 'asc' }, { id: 'asc' }], take: 20,
         select: { id: true, kind: true, newDeadline: true, test: { select: { id: true, title: true } }, student: PERSON },
       }),
@@ -210,7 +284,15 @@ export class TestResultViewsService {
         SELECT t."disciplineId", count(*)::int AS "n" FROM "TestExtension" e JOIN "Test" t ON t."id" = e."testId"
          WHERE e."cancelledAt" IS NULL AND e."newDeadline" > ${now} AND (${subjectIds}::text[] IS NULL OR t."disciplineId" = ANY(${subjectIds}::text[]))
          GROUP BY t."disciplineId"`,
-      this.prisma.markerAuthorization.groupBy({ by: ['disciplineId'], where: { revokedAt: null, ...(subjectIds && { disciplineId: { in: subjectIds } }) }, orderBy: { disciplineId: 'asc' }, _count: { _all: true } }),
+      // Coaches who may mark each subject (marker-reach.ts): authorised or members of its programme, ACTIVE, not restricted.
+      this.prisma.$queryRaw<Array<{ disciplineId: string; n: number }>>`
+        SELECT d."id" AS "disciplineId", count(DISTINCT u."id")::int AS "n"
+          FROM "Discipline" d JOIN "User" u ON u."role" = 'MENTOR' AND u."accountStatus" = 'ACTIVE'
+         WHERE (${subjectIds}::text[] IS NULL OR d."id" = ANY(${subjectIds}::text[]))
+           AND (EXISTS (SELECT 1 FROM "MarkerAuthorization" a WHERE a."coachId" = u."id" AND a."disciplineId" = d."id" AND a."revokedAt" IS NULL)
+             OR EXISTS (SELECT 1 FROM "ProgrammeMembership" pm WHERE pm."userId" = u."id" AND pm."disciplineId" = d."id" AND pm."isActive"))
+           AND NOT EXISTS (SELECT 1 FROM "CoachProgrammeRestriction" r WHERE r."coachId" = u."id" AND r."disciplineId" = d."id" AND r."capability" = 'MARKING' AND r."liftedAt" IS NULL)
+         GROUP BY d."id"`,
       this.prisma.$queryRaw<Array<{ disciplineId: string; n: number }>>`
         SELECT m."disciplineId", count(DISTINCT m."userId")::int AS "n" FROM "ProgrammeMembership" m JOIN "User" u ON u."id" = m."userId"
          WHERE m."isActive" AND u."role" = 'HEAD_COACH' AND (${subjectIds}::text[] IS NULL OR m."disciplineId" = ANY(${subjectIds}::text[]))
@@ -254,7 +336,7 @@ export class TestResultViewsService {
           pendingReview: counts.byStatus.MARKED ?? 0, returned: counts.byStatus.RETURNED ?? 0, awaitingSecondMarking: counts.byStatus.AWAITING_SECOND_MARKING ?? 0,
           readyToPublish: counts.approved,
           activeExtensions: extensions.find((e) => e.disciplineId === s.id)?.n ?? 0,
-          authorisedMarkers: (markers.find((m) => m.disciplineId === s.id)?._count as { _all: number } | undefined)?._all ?? 0,
+          authorisedMarkers: markers.find((m) => m.disciplineId === s.id)?.n ?? 0,
           headCoaches: heads.find((h) => h.disciplineId === s.id)?.n ?? 0,
         };
       }),

@@ -232,7 +232,8 @@ describe('Test Management — the owner\'s scenarios beyond the phase specs (e2e
 
     it('scenario 17: the marking guide — the assigned marker yes; an authorised but unassigned coach, a teacher, a student: no', async () => {
       const ok = await http().get(`${MK}/submissions/${codeJ}/marking-guide`).set(bearer(c1)).expect(200);
-      expect(ok.headers['content-disposition']).toMatch(/marking-guide\.pdf/);
+      // Named after the test's title (owner 2026-11-22), never the uploader's file name (blind marking).
+      expect(ok.headers['content-disposition']).toContain('filename="Maths marking - marking guide.pdf"');
       expect((await status(http().get(`${MK}/submissions/${codeJ}/marking-guide`).set(bearer(c2))))[0]).toBe(403);
       expect(await status(http().get(`${T}/${mId}/files/marking-guide`).set(bearer(ta)))).toEqual([403, 'PERMISSION_REQUIRED']);
       expect(await status(http().get(`${T}/${mId}/files/marking-guide`).set(bearer(sj)))).toEqual([403, 'PERMISSION_REQUIRED']);

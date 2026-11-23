@@ -24,7 +24,7 @@ DECLARE
 BEGIN
   SELECT count(*) INTO runs FROM "SchoolSyncRun" WHERE "mode" = 'NEW_ONLY';
   IF runs > 0 AND coalesce(current_setting('rof.school_sync_mode_rollback', true), '') <> 'forget-modes' THEN
-    RAISE EXCEPTION 'Refusing: % NEW_ONLY sync run(s) exist. Set rof.school_sync_mode_rollback = ''forget-modes'' to proceed.', runs;
+    RAISE EXCEPTION 'SCHOOL_SYNC_MODE_ROLLBACK_REFUSED: % NEW_ONLY sync run(s) exist; nothing was changed. Set rof.school_sync_mode_rollback = ''forget-modes'' to proceed.', runs;
   END IF;
 END $$;
 

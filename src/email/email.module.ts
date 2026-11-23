@@ -8,6 +8,7 @@ import { MailerService } from './mailer.service.js';
   controllers: [EmailController],
   // Prisma and Audit come from @Global() modules.
   providers:   [EmailService, EmailWorker, MailerService],
-  exports:     [EmailService, MailerService],
+  // EmailWorker: subscriber mailings refresh their e-mail job's counters (src/subscribers).
+  exports:     [EmailService, MailerService, EmailWorker],
 })
 export class EmailModule {}

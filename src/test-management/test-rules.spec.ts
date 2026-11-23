@@ -89,6 +89,15 @@ describe('Test Management rules (WS3, Phase 1)', () => {
   it('files are served under neutral names, never the uploader\'s', () => {
     expect(neutralFileName('PAPER', 'tests/papers/2026/11/abc.pdf')).toBe('test-paper.pdf');
     expect(neutralFileName('MARKING_GUIDE', 'tests/guides/2026/11/abc.JPG')).toBe('marking-guide.jpg');
+    // Named after the test's title (owner 2026-11-22); never the uploader's file name.
+    expect(neutralFileName('PAPER', 'tests/papers/x.pdf', 'Junior Rwanda Mathematics Competition, IST'))
+      .toBe('Junior Rwanda Mathematics Competition, IST.pdf');
+    expect(neutralFileName('MARKING_GUIDE', 'tests/guides/x.png', 'Junior Rwanda Mathematics Competition, IST'))
+      .toBe('Junior Rwanda Mathematics Competition, IST - marking guide.png');
+    expect(neutralFileName('PAPER', 'k.pdf', 'Algebra: part 1/2 "final"?')).toBe('Algebra part 1 2 final.pdf');
+    expect(neutralFileName('PAPER', 'k.pdf', '  ...  ')).toBe('test-paper.pdf');
+    expect(neutralFileName('PAPER', 'k.pdf', 'A'.repeat(300))).toBe(`${'A'.repeat(120)}.pdf`);
+    expect(neutralFileName('PAPER', 'k.pdf', 'Imibare: Ikizamini cy\u2019abato')).toBe('Imibare Ikizamini cy\u2019abato.pdf');
   });
 
   describe('create validation (division mandatory, whole positive marks, answer format enum)', () => {

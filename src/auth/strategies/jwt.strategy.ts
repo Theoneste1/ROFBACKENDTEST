@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthUser } from '../../common/auth-user.js';
+import { activeOverridesSelect } from '../active-overrides.js';
+import { ViewAsService, type ViewAsClaim } from '../view-as/view-as.service.js';
 
 interface AccessTokenPayload {
   sub: string;
@@ -14,6 +16,8 @@ interface AccessTokenPayload {
   iat?: number;
   /** Issued at (milliseconds), set by TokenService. Absent on tokens issued before it existed. */
   iatMs?: number;
+  /** Present only on a "view as" token (read only; sub = the viewed user). */
+  va?: ViewAsClaim;
 }
 
 /**
@@ -35,6 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly viewAs: ViewAsService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -61,6 +66,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
     }
 
+    // A "view as" token: the session, the viewer and the rank rule are checked again on every request.
+    if (payload.va !== undefined) return this.viewAs.resolve(payload.sub, payload.va, payload);
+
     const user = await this.prisma.user.findUnique({
       where:  { id: payload.sub },
       select: {
@@ -68,10 +76,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         divisionId: true, gradeLevel: true, tokensValidAfter: true, dateOfBirth: true,
         // Active individual overrides (P1-09): read fresh on every request, so a
         // revocation applies on the next request and nothing is cached.
-        permissionOverrides: {
-          where:  { revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-          select: { id: true, permission: true, effect: true, courseId: true, divisionId: true, expiresAt: true },
-        },
+        permissionOverrides: activeOverridesSelect(),
       },
     });
 

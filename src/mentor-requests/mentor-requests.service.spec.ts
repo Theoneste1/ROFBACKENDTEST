@@ -44,12 +44,12 @@ function makeMocks() {
     issue: vi.fn().mockResolvedValue({ token: 't', userId: 'u-new', purpose: 'EMAIL_VERIFICATION' }),
     send:  vi.fn().mockResolvedValue(undefined),
   };
-  const settings = { get: vi.fn().mockResolvedValue(false) }; // e-mail verification off
   const notices = { enqueue: vi.fn().mockResolvedValue('outbox-1'), dispatchAfterCommit: vi.fn() };
-  const forms = { assertOpen: vi.fn().mockResolvedValue(undefined) };   // the COACH_APPLICATION form is open
+  // The COACH_APPLICATION form is open; e-mail activation off (the default).
+  const forms = { assertOpen: vi.fn().mockResolvedValue(undefined), requiresEmailVerification: vi.fn().mockResolvedValue(false) };
   const infoRequests = { cancelOpen: vi.fn().mockResolvedValue(undefined), request: vi.fn() };
-  const service = new MentorRequestsService(prisma as any, audit as any, events as any, activation as any, settings as any, notices as any, forms as any, infoRequests as any, { issue: vi.fn().mockReturnValue('avatar-token') } as any);
-  return { service, prisma, audit, events, activation, settings, notices, forms };
+  const service = new MentorRequestsService(prisma as any, audit as any, events as any, activation as any, notices as any, forms as any, infoRequests as any, { issue: vi.fn().mockReturnValue('avatar-token') } as any);
+  return { service, prisma, audit, events, activation, notices, forms };
 }
 
 describe('MentorRequestsService', () => {
@@ -186,9 +186,9 @@ describe('MentorRequestsService', () => {
       expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ role: 'MENTOR', country: 'KE', olympiadInterests: ['COMPUTING'] });
     });
 
-    it('with e-mail verification on, the account waits for the applicant to confirm the address', async () => {
-      const { service, prisma, events, activation, settings, notices } = makeMocks();
-      settings.get.mockResolvedValue(true);
+    it('with e-mail activation on for the coach form, the account waits for the applicant to confirm the address', async () => {
+      const { service, prisma, events, activation, forms, notices } = makeMocks();
+      forms.requiresEmailVerification.mockImplementation(async (key: string) => key === 'COACH_APPLICATION');
 
       const result = await service.approve('mr1', ADMIN);
 

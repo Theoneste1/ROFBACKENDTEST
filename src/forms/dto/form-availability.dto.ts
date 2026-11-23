@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsISO8601, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsISO8601, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 import type { FormMode } from '../../generated/prisma/client.js';
 import { FORM_MODES } from '../form-availability.rules.js';
@@ -23,6 +23,15 @@ export class UpdateFormAvailabilityDto {
   @IsOptional()
   @IsISO8601({ strict: true }, { message: 'closesAt must be an ISO 8601 date and time, e.g. 2026-12-31T17:00:00+02:00.' })
   closesAt?: string | null;
+
+  /**
+   * Sign-up forms only (STUDENT_REGISTRATION, TEACHER_REGISTRATION, COACH_APPLICATION; 400 NOT_A_SIGN_UP_FORM
+   * otherwise): true — people who sign up with this form must confirm their e-mail (activation link) before they can
+   * sign in; false (the default) — no activation. Applies to accounts created from then on.
+   */
+  @IsOptional()
+  @IsBoolean({ message: 'requireEmailVerification must be true or false.' })
+  requireEmailVerification?: boolean;
 }
 
 /**

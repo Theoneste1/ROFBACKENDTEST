@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { allowWritesWhileViewing, viewingContext } from '../common/request-context.js';
 
 export interface AuditEntry {
   /** A pre-assigned id, so the caller can link a record to its audit entry (school directory sync, S2b). */
@@ -39,6 +40,14 @@ export class AuditService {
    *   turns an already-successful action into an error response.
    */
   async log(entry: AuditEntry, tx?: AuditWriter): Promise<void> {
+    // "View as" (read only): what the viewed user's session does is recorded as the VIEWER (the actor), named as such;
+    // the audit row is the only write such a request may make.
+    const viewing = viewingContext();
+    if (viewing) return allowWritesWhileViewing(() => this.write(asViewer(entry, viewing), tx));
+    return this.write(entry, tx);
+  }
+
+  private async write(entry: AuditEntry, tx?: AuditWriter): Promise<void> {
     const data = toRow(entry);
     if (tx) {
       await tx.auditLog.create({ data });
@@ -65,6 +74,15 @@ export class AuditService {
       this.logger.error(`Failed to write ${entries.length} audit entries: ${(err as Error).message}`);
     }
   }
+}
+
+/** An entry written during a viewing request: the viewer is the actor; the viewed user is named in the metadata. */
+function asViewer(entry: AuditEntry, viewing: NonNullable<ReturnType<typeof viewingContext>>): AuditEntry {
+  if (entry.actorId !== viewing.targetId) return entry;
+  return {
+    ...entry, actorId: viewing.actorId, actorRole: viewing.actorRole,
+    metadata: { ...entry.metadata, viewingAs: { userId: viewing.targetId, sessionId: viewing.sessionId } },
+  };
 }
 
 function toRow(entry: AuditEntry) {

@@ -92,8 +92,8 @@ migration is additive and is listed in
     scoped to `/api/v1/auth`, so the frontend and API must be served over
     HTTPS.
 - **Sign-up and accounts:**
-  - e-mail verification for self-registration is on by default in production
-    (system setting `registration.requireEmailVerification`);
+  - e-mail activation is off by default on every sign-up form (owner 2026-11-23);
+    an administrator turns it on per form (student, teacher, coach) on the Forms page;
   - administrators create or invite users of any role;
   - mentor applications need an administrator's approval, followed by e-mail
     confirmation.

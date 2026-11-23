@@ -29,6 +29,10 @@ export const GRANTED_PERMISSION_DESCRIPTIONS: Readonly<Partial<Record<Permission
     label:       'Submit work for students',
     description: 'You can upload a submission on behalf of a student of your assigned schools; the work stays the student’s own.',
   },
+  'users.impersonate': {
+    label:       'View the platform as another user',
+    description: 'You can open a read-only view of the platform exactly as a student, teacher or coach sees it, where nothing can be changed.',
+  },
 };
 
 /** Every permission that can be granted to someone (any role on the GRANT list). */

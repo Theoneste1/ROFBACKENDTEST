@@ -63,3 +63,29 @@ describe('renderEmail greeting', () => {
     expect(mail.html).not.toContain('Hello');
   });
 });
+
+describe('e-mail look and links (owner 2026-11-22)', () => {
+  it('uses only the website blue #00428C (no other blue) for the header, headings, button and links', () => {
+    const { html } = renderEmail({ heading: 'Welcome', body: 'x', action: { label: 'Log in', url: 'https://lms.rwandaolympiadfoundation.org/login' } }, brand);
+    expect(html).not.toMatch(/#001E4E|#2B2BB2/i);
+    const blues = [...new Set(html.match(/#00[0-9A-F]{4}\b/gi)?.map((c) => c.toUpperCase()))];
+    expect(blues).toEqual(['#00428C']);
+  });
+
+  it('never shows the Netlify hosting address: links, logo and footer use the official address', async () => {
+    const { emailSiteUrl, OFFICIAL_SITE_URL } = await import('./email-brand.js');
+    expect(emailSiteUrl('https://roflms.netlify.app')).toBe(OFFICIAL_SITE_URL);
+    expect(emailSiteUrl('https://ROFLMS.netlify.app/')).toBe(OFFICIAL_SITE_URL);
+    expect(emailSiteUrl('https://lms.rwandaolympiadfoundation.org')).toBe('https://lms.rwandaolympiadfoundation.org');
+    expect(emailSiteUrl('https://rof-staging.netlify.app')).toBe('https://rof-staging.netlify.app');   // staging keeps its own site
+    expect(emailSiteUrl('http://localhost:3001')).toBe('http://localhost:3001');
+    expect(emailSiteUrl('')).toBeNull();
+    const { html, text } = renderEmail(
+      { body: 'x', action: { label: 'Log in', url: `${emailSiteUrl('https://roflms.netlify.app')}/login` } },
+      { ...brand, appUrl: emailSiteUrl('https://roflms.netlify.app') },
+    );
+    expect(html + text).not.toContain('netlify');
+    expect(html).toContain('https://lms.rwandaolympiadfoundation.org/login');
+    expect(html).toContain('https://lms.rwandaolympiadfoundation.org/logo.png');
+  });
+});

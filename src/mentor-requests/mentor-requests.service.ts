@@ -16,7 +16,6 @@ import type { MentorRequestStatus, Prisma } from '../generated/prisma/client.js'
 import type { CallerCtx } from '../common/auth-user.js';
 import { BCRYPT_COST } from '../auth/auth.service.js';
 import { ActivationService, type IssuedActivation } from '../auth/activation.service.js';
-import { SettingsService } from '../settings/settings.service.js';
 import { Events } from '../notifications/events.js';
 import { CreateMentorRequestDto, ListMentorRequestsDto } from './dto/create-mentor-request.dto.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
@@ -53,7 +52,6 @@ export class MentorRequestsService {
     private readonly audit:   AuditService,
     private readonly events:  EventEmitter2,
     private readonly activation: ActivationService,
-    private readonly settings:   SettingsService,
     private readonly notices:    DecisionNotificationsService,
     private readonly forms:      FormAvailabilityService,
     private readonly infoRequests: ApplicationInfoRequestsService,
@@ -161,7 +159,7 @@ export class MentorRequestsService {
   // first login — so nobody can apply in someone else's name.
   async approve(requestId: string, caller: CallerCtx, opts: { approvePicture?: boolean } = {}) {
     await this.requireRequest(requestId);
-    const verify = await this.settings.get('registration.requireEmailVerification');
+    const verify = await this.forms.requiresEmailVerification('COACH_APPLICATION');
     const { mentor: result, issued, notice } = await this.prisma.$transaction((tx) => this.approveInTx(tx, requestId, caller, opts, verify));
 
     // With e-mail verification on, the confirmation e-mail is still sent; the approval notice (which replaces
@@ -202,7 +200,7 @@ export class MentorRequestsService {
       select: { id: true },
     });
     if (clash) {
-      throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'A user with this username or email already exists.');
+      throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Someone already uses this username or e-mail address. If it is yours, sign in (or use "Forgot password"); otherwise choose another username or e-mail.');
     }
 
     const mentor = await tx.user.create({
@@ -229,6 +227,8 @@ export class MentorRequestsService {
       select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
     });
     // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
+    // The application → its account (registration data: the application's details belong to this Coach).
+    await tx.mentorRequest.update({ where: { id: requestId }, data: { userId: mentor.id } });
     const picture = !request.avatarFileId ? 'NONE' : opts.approvePicture === true ? 'APPROVED' : 'DISCARDED';
     if (picture === 'APPROVED') await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
     await ensureDefaultMembership(tx, mentor, caller.id);   // approved coach (P1-07, K6)

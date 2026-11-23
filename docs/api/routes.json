@@ -1129,6 +1129,123 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/subscribers",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/subscribers/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/subscribers/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/export",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/import",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/mailings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/mailings/{id}",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings/{id}/cancel",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings/preview",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/subscribers/mailings/test",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/subscribers/summary",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Subscribers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/schools/{id}/access",
     "roles": [
       "ADMIN",
@@ -1930,6 +2047,15 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/view-as",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/admin/users/bulk",
     "roles": [
@@ -2320,6 +2446,74 @@
       "PUBLIC"
     ],
     "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/view-as/end",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/view-as/exchange",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/coach/students",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/coach/test-results",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/coach/test-results/{testId}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/coach/test-results/{testId}/students/{studentId}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Coach"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/coaches/{id}/programme-access",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Coaches"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/coaches/{id}/programme-access",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Coaches"
   },
   {
     "method": "GET",
@@ -3364,6 +3558,126 @@
       "PUBLIC"
     ],
     "tag": "Public site"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/subscribe",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/unsubscribe",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/public/unsubscribe/one-click",
+    "roles": [
+      "PUBLIC"
+    ],
+    "tag": "Public site"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/registration-data/export",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/fields",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/layouts/{category}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/registration-data/layouts/{category}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/registration-data/layouts/{category}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/registration-data/query",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/saved-filters",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/registration-data/saved-filters",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/registration-data/saved-filters/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/registration-data/saved-filters/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/users/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/registration-data/users/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
   },
   {
     "method": "GET",

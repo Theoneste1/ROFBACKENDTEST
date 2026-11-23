@@ -88,7 +88,7 @@ export const STATUS_TEXT: Readonly<Record<SubmissionStatus, string>> = {
  * The moment after which nobody can submit or replace this student's answer any more: the latest of the test's closesAt
  * and every ACTIVE extension that could still let someone submit for the student — the whole-test extension, the
  * student's own, and the extension of any teacher who may submit for them (a teacher of one of the student's verified
- * schools, or one who already submitted a version for them). Marking may begin only strictly AFTER it (a submission at
+ * schools, a teacher the student is assigned to, or one who already submitted a version for them). Marking may begin only strictly AFTER it (a submission at
  * the deadline instant is still on time).
  */
 export function markingEligibleAt(

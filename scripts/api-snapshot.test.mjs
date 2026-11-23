@@ -335,7 +335,44 @@ const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-division
  * against the Olympiad levels snapshot.
  */
 const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
+/**
+ * Registration data (owner 2026-11-23): Super Administrators list, filter, export and edit every eligible registration
+ * field (registrationData.manage), with saved filters and column layouts. Additive only against the school codes snapshot.
+ */
+const REGISTRATION_DATA_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-registration-data.json';
+/** A code-less school's code given at registration (owner 2026-11-23): one optional field on two requests. Additive only. */
+const SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-code-at-registration.json';
+/**
+ * Coaches across their programmes (owner 2026-11-23): the coach's students and published results, and a coach's programme
+ * access for Administrators and Head Coaches. Additive only against the school codes snapshot.
+ */
+const COACH_ACCESS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-coach-programme-access.json';
+/**
+ * School list filters on every field of the NESA file (owner, 2026-11-23): ownership, cell, village, a contact value,
+ * with or without an e-mail or phone, programme category. Additive only against the school codes snapshot.
+ */
+const SCHOOL_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-filters.json';
+/**
+ * E-mail activation per sign-up form, off by default (owner, 2026-11-23): the forms' availability change accepts
+ * requireEmailVerification. Additive only against the school codes snapshot.
+ */
+const FORM_EMAIL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-form-email-verification.json';
+/**
+ * News subscribers (owner, 2026-11-23): public subscribe / unsubscribe (incl. RFC 8058 one-click) and /admin/subscribers
+ * (list, summary, export, add, import, edit, erase, mailings). Additive only against the school-codes snapshot.
+ */
+const SUBSCRIBERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-subscribers.json';
+/**
+ * View as, read only (owner, 2026-11-23): an administrator starts viewing as a lower-ranked user (a single-use ticket),
+ * the viewing tab exchanges it for a 30-minute viewing token and ends the session. Additive only against the school
+ * codes snapshot.
+ */
+const VIEW_AS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-view-as.json';
+/**
+ * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
+ */
+const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
+const CURRENT_SNAPSHOT = INTEGRATION_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1792,6 +1829,62 @@ describe('approved API contract history', () => {
     ]);
   });
 
+  test('the school code → registration data (2026-11-23): additive only — twelve Super-Administrator operations and their request bodies', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, REGISTRATION_DATA_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_DATA_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/admin/registration-data/layouts/{category}: operation added',
+      'DELETE /api/v1/admin/registration-data/saved-filters/{id}: operation added',
+      'GET /api/v1/admin/registration-data/fields: operation added',
+      'GET /api/v1/admin/registration-data/layouts/{category}: operation added',
+      'GET /api/v1/admin/registration-data/saved-filters: operation added',
+      'GET /api/v1/admin/registration-data/users/{id}: operation added',
+      'PATCH /api/v1/admin/registration-data/users/{id}: operation added',
+      'POST /api/v1/admin/registration-data/export: operation added',
+      'POST /api/v1/admin/registration-data/query: operation added',
+      'POST /api/v1/admin/registration-data/saved-filters: operation added',
+      'PUT /api/v1/admin/registration-data/layouts/{category}: operation added',
+      'PUT /api/v1/admin/registration-data/saved-filters/{id}: operation added',
+      'schema RegistrationQueryDto: added',
+      'schema RegistrationSortDto: added',
+      'schema SaveRegistrationFilterDto: added',
+      'schema SaveRegistrationLayoutDto: added',
+      'schema UpdateRegistrationRecordDto: added',
+    ]);
+  });
+
+  test('the school code → the code of a code-less school given at registration (2026-11-23): additive only — newSchoolCode on two requests', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/auth/register/student › request application/json.newSchoolCode: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.newSchoolCode: new optional field',
+    ]);
+  });
+
+  test('the school code → coaches across their programmes (2026-11-23): additive only — five operations and one request body', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, COACH_ACCESS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(COACH_ACCESS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/coaches/{id}/programme-access: operation added',
+      'GET /api/v1/coach/students: operation added',
+      'GET /api/v1/coach/test-results/{testId}/students/{studentId}: operation added',
+      'GET /api/v1/coach/test-results/{testId}: operation added',
+      'GET /api/v1/coach/test-results: operation added',
+      'PUT /api/v1/admin/coaches/{id}/programme-access: operation added',
+      'schema SetCoachAccessDto: added',
+    ]);
+  });
+
   test('Olympiad levels → the school code is the identifier (2026-11-22): additive only — the sync run mode; the details of an unlisted school and the confirmation on its one-step approval', () => {
     for (const f of [OLYMPIAD_LEVELS_SNAPSHOT, SCHOOL_CODES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(OLYMPIAD_LEVELS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')));
@@ -1807,6 +1900,88 @@ describe('approved API contract history', () => {
       'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolOwnership: new optional field',
       'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolVillage: new optional field',
     ]);
+  });
+
+  test('the school code is the identifier → school list filters on every NESA field (2026-11-23): additive only — seven optional query parameters', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_FILTERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), ['cell', 'contact', 'hasEmail', 'hasPhone', 'ownership', 'programmeCategory', 'village']
+      .map((q) => `GET /api/v1/admin/schools: new optional query parameter "${q}"`));
+  });
+
+  test('the school code is the identifier → e-mail activation per sign-up form (2026-11-23): additive only — one optional field', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FORM_EMAIL_VERIFICATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PATCH /api/v1/admin/forms/{key}/availability › request application/json.requireEmailVerification: new optional field']);
+  });
+
+  test('the school code is the identifier → news subscribers (2026-11-23): additive only — 16 routes, 8 request schemas, no existing field changed', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SUBSCRIBERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SUBSCRIBERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      "DELETE /api/v1/admin/subscribers/{id}: operation added",
+      "GET /api/v1/admin/subscribers/export: operation added",
+      "GET /api/v1/admin/subscribers/mailings/{id}: operation added",
+      "GET /api/v1/admin/subscribers/mailings: operation added",
+      "GET /api/v1/admin/subscribers/summary: operation added",
+      "GET /api/v1/admin/subscribers: operation added",
+      "PATCH /api/v1/admin/subscribers/{id}: operation added",
+      "POST /api/v1/admin/subscribers/import: operation added",
+      "POST /api/v1/admin/subscribers/mailings/preview: operation added",
+      "POST /api/v1/admin/subscribers/mailings/test: operation added",
+      "POST /api/v1/admin/subscribers/mailings/{id}/cancel: operation added",
+      "POST /api/v1/admin/subscribers/mailings: operation added",
+      "POST /api/v1/admin/subscribers: operation added",
+      "POST /api/v1/public/subscribe: operation added",
+      "POST /api/v1/public/unsubscribe/one-click: operation added",
+      "POST /api/v1/public/unsubscribe: operation added",
+      "schema AudienceDto: added",
+      "schema CreateMailingDto: added",
+      "schema CreateSubscriberDto: added",
+      "schema MailingAudienceDto: added",
+      "schema SubscribeDto: added",
+      "schema TestMailingDto: added",
+      "schema UnsubscribeDto: added",
+      "schema UpdateSubscriberDto: added",
+    ]);
+  });
+
+  test('the school code is the identifier → view as, read only (2026-11-23): additive only — three operations, two request schemas', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, VIEW_AS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(VIEW_AS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/admin/users/{id}/view-as: operation added',
+      'POST /api/v1/auth/view-as/end: operation added',
+      'POST /api/v1/auth/view-as/exchange: operation added',
+      'schema ExchangeViewAsDto: added',
+      'schema StartViewAsDto: added',
+    ]);
+  });
+
+  test('the school code is the identifier → integration of the 2026-11-23 branches (audit 2026-11-24): nothing breaking, nothing for review; every branch snapshot is contained', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, INTEGRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const base = JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8'));
+    const res = compare(base, JSON.parse(readFileSync(INTEGRATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    // Each branch's own additions are all present together.
+    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT, SUBSCRIBERS_SNAPSHOT, VIEW_AS_SNAPSHOT]) {
+      const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
+      assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
+    }
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {

@@ -194,7 +194,7 @@ describe('User management (e2e)', () => {
       expect(res.body.errors.map((e: any) => e.row)).toEqual([4, 5, 6, 7, 8, 9]);
       expect(res.body.errors.find((e: any) => e.row === 6).errors.join()).toContain('repeats row 2');
       expect(res.body.errors.find((e: any) => e.row === 7).errors.join()).toContain('already exists');
-      expect(res.body.errors.find((e: any) => e.row === 8).errors.join()).toMatch(/"Brand New School" was given by name only/);
+      expect(res.body.errors.find((e: any) => e.row === 8).errors.join()).toMatch(/"Brand New School" was given by its name only/);
       expect(res.body.errors.find((e: any) => e.row === 9).errors.join()).toMatch(/"Lycée De Huye" does not match the school with code 110997 \("Lycée de Kigali, Annexe"\)/);
       expect(await ctx.prisma.user.count()).toBe(before);
       expect(await ctx.prisma.school.count()).toBe(schools);

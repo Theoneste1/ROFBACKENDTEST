@@ -156,13 +156,13 @@ export class LeaderboardService {
   private async resolveDivision(user: AuthUser, requested?: string): Promise<string> {
     if (isStudent(user)) {
       if (!(await this.settings.get('leaderboard.visibleToStudents'))) {
-        throw new AppError(HttpStatus.FORBIDDEN, 'LEADERBOARD_HIDDEN', 'The leaderboard is currently not available.');
+        throw new AppError(HttpStatus.FORBIDDEN, 'LEADERBOARD_HIDDEN', 'The leaderboard is not shown at the moment. Please check again later.');
       }
       return this.access.studentDivision(user);
     }
     if (!isStaff(user)) throw unsupportedRole();
     if (!requested) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Specify divisionId.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DIVISION_REQUIRED', 'Choose a level (division) to see its leaderboard.');
     }
     const exists = await this.prisma.division.findUnique({ where: { id: requested }, select: { id: true } });
     if (!exists) throw new NotFoundException('Division not found.');
