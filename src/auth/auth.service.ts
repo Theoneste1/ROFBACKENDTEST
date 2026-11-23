@@ -34,6 +34,7 @@ import { RegistrationAvatarService } from '../users/registration-avatar.service.
 import { LOGIN_FAILURES_BEFORE_LOCK, LOGIN_LOCK_MS, LoginLimiter } from './login-limiter.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
+import { settleSchoolCode } from '../schools/school-code-at-registration.js';
 
 export const BCRYPT_COST = 12;
 
@@ -194,6 +195,11 @@ export class AuthService {
         select: PROFILE_SELECT,
       });
 
+      // A school without a code chosen from the list (owner 2026-11-23): the student gives its code, which becomes the
+      // school's (school-code-at-registration.ts); refused in plain words when missing or not valid.
+      if (school && !school.code && data.schoolId !== undefined) {
+        await settleSchoolCode(tx, this.audit, school.id, data.newSchoolCode, { via: 'STUDENT_REGISTRATION', actorId: created.id, actorRole: 'STUDENT' });
+      }
       // Per-year enrolment record (fails the registration if no year is active).
       await this.academicYears.enrollInCurrentYear(tx, created.id, data.gradeLevel, school?.id ?? null);
       // Mathematics programme membership (self-registration: no actor). P1-07, K6.

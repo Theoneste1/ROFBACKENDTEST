@@ -340,7 +340,9 @@ const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-code
  * field (registrationData.manage), with saved filters and column layouts. Additive only against the school codes snapshot.
  */
 const REGISTRATION_DATA_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-registration-data.json';
-const CURRENT_SNAPSHOT = REGISTRATION_DATA_SNAPSHOT;
+/** A code-less school's code given at registration (owner 2026-11-23): one optional field on two requests. Additive only. */
+const SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-code-at-registration.json';
+const CURRENT_SNAPSHOT = SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1800,6 +1802,9 @@ describe('approved API contract history', () => {
   test('the school code → registration data (2026-11-23): additive only — twelve Super-Administrator operations and their request bodies', () => {
     for (const f of [SCHOOL_CODES_SNAPSHOT, REGISTRATION_DATA_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_DATA_SNAPSHOT, 'utf8')));
+  test('the school code → the code of a code-less school given at registration (2026-11-23): additive only — newSchoolCode on two requests', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
@@ -1821,6 +1826,8 @@ describe('approved API contract history', () => {
       'schema SaveRegistrationFilterDto: added',
       'schema SaveRegistrationLayoutDto: added',
       'schema UpdateRegistrationRecordDto: added',
+      'POST /api/v1/auth/register/student › request application/json.newSchoolCode: new optional field',
+      'POST /api/v1/auth/register/teacher › request application/json.newSchoolCode: new optional field',
     ]);
   });
 

@@ -95,6 +95,17 @@ export class RegisterStudentDto {
   schoolId?: string;
 
   /**
+   * A school WITHOUT an official code, chosen by schoolId (owner 2026-11-23): its 6-digit code is required (400
+   * SCHOOL_CODE_REQUIRED) — the first digit is the school's province, and it must not be another school's (409
+   * SCHOOL_CODE_TAKEN). The first valid code becomes the school's code at once (an Administrator corrects it later if
+   * needed). Ignored when the school already has a code.
+   */
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.replace(/\s+/g, '') : value))
+  @Matches(/^\d{6}$/, { message: 'newSchoolCode must be the 6-digit school code.' })
+  newSchoolCode?: string;
+
+  /**
    * Another country: the school's name as entered (unverified; no school is linked).
    * Rwanda, legacy (until the sign-up form sends schoolCode): it never creates a
    * school and links the student only when it matches exactly one school of the

@@ -47,6 +47,7 @@ import {
   schoolAlreadyVerified, schoolChoice, schoolNotVerified, teacherRegistrationOpen, unknownSchool,
 } from './teacher-application.rules.js';
 import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
+import { settleSchoolCode } from '../schools/school-code-at-registration.js';
 
 const SCHOOL_SELECT = { id: true, name: true, code: true, province: true, district: true, sector: true } as const;
 
@@ -233,6 +234,10 @@ export class TeacherApplicationsService {
         },
         select: { id: true, status: true, proposedSchoolName: true },
       });
+      // A listed school without a code (owner 2026-11-23): the applicant gives its code, which becomes the school's.
+      if (school && !school.code) {
+        await settleSchoolCode(tx, this.audit, school.id, dto.newSchoolCode, { via: 'TEACHER_APPLICATION', actorId: null, actorRole: 'ANONYMOUS', applicationId: application.id });
+      }
       await this.audit.log({
         actorId: null, actorRole: 'ANONYMOUS',
         action: 'SUBMIT_TEACHER_APPLICATION', entity: 'TeacherApplication', entityId: application.id,

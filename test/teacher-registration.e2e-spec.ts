@@ -247,12 +247,16 @@ describe('Teacher self-registration — TEACHERS_ENABLED on', () => {
       await http().post(`/api/v1/admin/schools/${hill}/verify`).set(bearer(admin)).send({}).expect(200);
       expect((await http().get('/api/v1/schools/search').query({ q: 'Teacher Hill', teacherEligible: 'true' }).expect(200)).body.map((s: any) => [s.id, s.code]))
         .toEqual([[hill, null]]);
-      expect(await status(apply('t.hill.ok'))).toEqual([201, null]);
-      // A listed school (verified by an Administrator, no official code): the account at once, linked to it.
+      // Owner 2026-11-23: its code is required; the first valid one becomes the school's.
+      expect(await status(apply('t.hill.nocode'))).toEqual([400, 'SCHOOL_CODE_REQUIRED']);
+      expect(await status(register(listed({ schoolId: hill, username: 't.hill.wrong', email: 't.hill.wrong@example.org', newSchoolCode: '520077' })))).toEqual([400, 'INVALID_SCHOOL_CODE']);
+      expect(await status(register(listed({ schoolId: hill, username: 't.hill.ok', email: 't.hill.ok@example.org', newSchoolCode: '220088' })))).toEqual([201, null]);
+      // A listed school (verified by an Administrator; its code given by the applicant): the account at once, linked to it.
       const app = await p().teacherApplication.findFirstOrThrow({ where: { username: 't.hill.ok' } });
       expect(app).toMatchObject({ schoolId: hill, status: 'APPROVED', assignedSchoolId: hill });
       expect(await p().teacherSchoolAssignment.count({ where: { teacherId: app.userId!, schoolId: hill, isActive: true } })).toBe(1);
-      expect((await p().school.findUniqueOrThrow({ where: { id: hill } })).code).toBeNull();
+      expect((await p().school.findUniqueOrThrow({ where: { id: hill } })).code).toBe('220088');
+      expect(await p().auditLog.count({ where: { action: 'SCHOOL_CODE_SET_AT_REGISTRATION', entityId: hill, metadata: { path: ['via'], equals: 'TEACHER_APPLICATION' } } })).toBe(1);
     });
 
     it('invalid or fabricated schools: unknown id, inactive, without a code; a school elsewhere is a location mismatch', async () => {
