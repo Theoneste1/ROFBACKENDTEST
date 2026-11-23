@@ -182,7 +182,8 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
     it('photos page by page: a weak connection retries one page; missing pages block the submission; then a typed + 2-page version', async () => {
       const key = randomUUID();
       let pending = (await uploadAs(sj, base(), key, 1).expect(201)).body;
-      expect(pending.pages.map((x: any) => [x.page, x.name])).toEqual([[1, 'page-1.png']]);
+      // The sheet is named after the student and the test (owner 2026-11-23); one page: no page number.
+      expect(pending.pages.map((x: any) => [x.page, x.name])).toEqual([[1, 'student.j Test - Algebra round.png']]);
       // Page 2 "fails" on the phone, then the retry of that one page succeeds (the same number replaces it).
       await uploadAs(sj, base(), key, 2, PNG).expect(201);
       pending = (await uploadAs(sj, base(), key, 2, PDF, 'scan.pdf').expect(201)).body;
@@ -195,16 +196,21 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       const res = (await commit(sj, base(), { clientKey: key, typedAnswer: 'See my pages', pageCount: 2 }).expect(201)).body;
       expect(res.replayed).toBe(false);
       expect(res.submission).toMatchObject({ status: 'SUBMITTED', versionCount: 1, currentVersion: 1 });
-      expect(res.submission.versions[0].pages.map((x: any) => x.name)).toEqual(['page-1.png', 'page-2.pdf']);
+      expect(res.submission.versions[0].pages.map((x: any) => x.name)).toEqual(['student.j Test - Algebra round - page 1.png', 'student.j Test - Algebra round - page 2.pdf']);
       // Submitted: the answer is locked — no further page under this key or any other; a committed page is never removed.
       expect(await status(uploadAs(sj, base(), key, 3))).toEqual([409, 'SUBMISSION_LOCKED']);
       expect(await status(uploadAs(sj, base(), randomUUID(), 1))).toEqual([409, 'SUBMISSION_LOCKED']);
       expect(await status(http().delete(`${base()}/uploads/${key}/pages/1`).set(bearer(sj)))).toEqual([404, 'PAGE_NOT_FOUND']);
-      // Pages are served under neutral names; no student name in the headers.
+      // The download carries the same name: the student's full name and the test's title (owner 2026-11-23).
       const v1 = res.submission.versions[0].id;
       const dl = await http().get(`${base()}/versions/${v1}/pages/1?download=1`).set(bearer(sj)).expect(200);
-      expect(dl.headers['content-disposition']).toMatch(/^attachment; filename="page-1\.png"/);
-      expect(JSON.stringify(dl.headers)).not.toMatch(/Aline|student\.j/);
+      expect(dl.headers['content-disposition']).toMatch(/^attachment; filename="student\.j Test - Algebra round - page 1\.png"/);
+      // Staff (they see the identity) get the same names, in the detail and in the download.
+      const sid = await subOf(id, stJ);
+      const staff = (await http().get(`${T}/${id}/submissions/${sid}`).set(bearer(admin)).expect(200)).body;
+      expect(staff.versions[0].pages.map((x: any) => x.name)).toEqual(['student.j Test - Algebra round - page 1.png', 'student.j Test - Algebra round - page 2.pdf']);
+      const sdl = await http().get(`${T}/${id}/submissions/${sid}/versions/${v1}/pages/2?download=1`).set(bearer(admin)).expect(200);
+      expect(sdl.headers['content-disposition']).toMatch(/^attachment; filename="student\.j Test - Algebra round - page 2\.pdf"/);
       expect(Buffer.compare(dl.body, PNG)).toBe(0);
       // Another student cannot read it.
       expect(await status(http().get(`${base()}/versions/${v1}/pages/1`).set(bearer(sj2)))).toEqual([404, 'PAGE_NOT_FOUND']);
