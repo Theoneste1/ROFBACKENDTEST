@@ -4722,7 +4722,26 @@
         },
         "responses": {
           "202": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "received": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "received"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -4762,7 +4781,22 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "unsubscribed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "unsubscribed"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -4813,7 +4847,22 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "unsubscribed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "unsubscribed"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -4930,7 +4979,123 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "country": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string"
+                          },
+                          "fullName": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "interests": {
+                            "items": {
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          "kind": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "source": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "subscribedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "unsubscribeReason": {
+                            "nullable": true
+                          },
+                          "unsubscribedAt": {
+                            "format": "date-time",
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "userId": {
+                            "format": "uuid",
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "country",
+                          "createdAt",
+                          "email",
+                          "fullName",
+                          "id",
+                          "interests",
+                          "kind",
+                          "source",
+                          "status",
+                          "subscribedAt",
+                          "unsubscribeReason",
+                          "unsubscribedAt",
+                          "updatedAt",
+                          "userId"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -4974,7 +5139,83 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "country": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "interests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "kind": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subscribedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "unsubscribeReason": {
+                      "nullable": true
+                    },
+                    "unsubscribedAt": {
+                      "nullable": true
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "userId": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "country",
+                    "createdAt",
+                    "email",
+                    "fullName",
+                    "id",
+                    "interests",
+                    "kind",
+                    "source",
+                    "status",
+                    "subscribedAt",
+                    "unsubscribeReason",
+                    "unsubscribedAt",
+                    "updatedAt",
+                    "userId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -5010,7 +5251,82 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "active": {
+                      "type": "integer"
+                    },
+                    "byInterest": {
+                      "properties": {
+                        "ALL_SUBJECTS": {
+                          "type": "integer"
+                        },
+                        "COMPUTING": {
+                          "type": "integer"
+                        },
+                        "MATHEMATICS": {
+                          "type": "integer"
+                        },
+                        "PHYSICS": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "ALL_SUBJECTS",
+                        "COMPUTING",
+                        "MATHEMATICS",
+                        "PHYSICS"
+                      ],
+                      "type": "object"
+                    },
+                    "byKind": {
+                      "properties": {
+                        "NOT_GIVEN": {
+                          "type": "integer"
+                        },
+                        "PARENT": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "NOT_GIVEN",
+                        "PARENT"
+                      ],
+                      "type": "object"
+                    },
+                    "bySource": {
+                      "properties": {
+                        "ADMIN": {
+                          "type": "integer"
+                        },
+                        "WEBSITE": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "ADMIN",
+                        "WEBSITE"
+                      ],
+                      "type": "object"
+                    },
+                    "unsubscribed": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "active",
+                    "byInterest",
+                    "byKind",
+                    "bySource",
+                    "unsubscribed"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -5178,11 +5494,131 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": "",
+          "200": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "alreadyListed": {
+                      "type": "integer"
+                    },
+                    "dryRun": {
+                      "type": "boolean"
+                    },
+                    "invalid": {
+                      "type": "integer"
+                    },
+                    "problems": {
+                      "items": {
+                        "properties": {
+                          "email": {
+                            "type": "string"
+                          },
+                          "line": {
+                            "type": "integer"
+                          },
+                          "problem": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "email",
+                          "line",
+                          "problem"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "problemsTruncated": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "integer"
+                    },
+                    "unsubscribed": {
+                      "type": "integer"
+                    },
+                    "wouldAdd": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "alreadyListed",
+                    "dryRun",
+                    "invalid",
+                    "problems",
+                    "problemsTruncated",
+                    "rows",
+                    "unsubscribed",
+                    "wouldAdd"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "added": {
+                      "type": "integer"
+                    },
+                    "alreadyListed": {
+                      "type": "integer"
+                    },
+                    "dryRun": {
+                      "type": "boolean"
+                    },
+                    "invalid": {
+                      "type": "integer"
+                    },
+                    "problems": {
+                      "items": {
+                        "properties": {
+                          "email": {
+                            "type": "string"
+                          },
+                          "line": {
+                            "type": "integer"
+                          },
+                          "problem": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "email",
+                          "line",
+                          "problem"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "problemsTruncated": {
+                      "type": "boolean"
+                    },
+                    "rows": {
+                      "type": "integer"
+                    },
+                    "unsubscribed": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "added",
+                    "alreadyListed",
+                    "dryRun",
+                    "invalid",
+                    "problems",
+                    "problemsTruncated",
+                    "rows",
+                    "unsubscribed"
+                  ],
                   "type": "object"
                 }
               }
@@ -5222,7 +5658,150 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "properties": {
+                          "audience": {
+                            "properties": {
+                              "interests": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "interests"
+                            ],
+                            "type": "object"
+                          },
+                          "cancelledAt": {
+                            "nullable": true
+                          },
+                          "cancelledCount": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "createdBy": {
+                            "properties": {
+                              "firstName": {
+                                "type": "string"
+                              },
+                              "id": {
+                                "format": "uuid",
+                                "type": "string"
+                              },
+                              "lastName": {
+                                "type": "string"
+                              },
+                              "username": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "firstName",
+                              "id",
+                              "lastName",
+                              "username"
+                            ],
+                            "type": "object"
+                          },
+                          "emailJobId": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "failedCount": {
+                            "type": "integer"
+                          },
+                          "id": {
+                            "format": "uuid",
+                            "type": "string"
+                          },
+                          "pendingCount": {
+                            "type": "integer"
+                          },
+                          "recipientCount": {
+                            "type": "integer"
+                          },
+                          "sendsAfter": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "sentAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "sentCount": {
+                            "type": "integer"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "subject": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "audience",
+                          "cancelledAt",
+                          "cancelledCount",
+                          "createdAt",
+                          "createdBy",
+                          "emailJobId",
+                          "failedCount",
+                          "id",
+                          "pendingCount",
+                          "recipientCount",
+                          "sendsAfter",
+                          "sentAt",
+                          "sentCount",
+                          "status",
+                          "subject"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "properties": {
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "limit",
+                        "page",
+                        "total",
+                        "totalPages"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -5265,10 +5844,115 @@
         },
         "responses": {
           "201": {
-            "description": "",
+            "description": "Success. Shape recorded from the end-to-end tests.",
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "alreadyExisted": {
+                      "type": "boolean"
+                    },
+                    "audience": {
+                      "properties": {
+                        "interests": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "cancelledAt": {
+                      "nullable": true
+                    },
+                    "cancelledCount": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "emailJobId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "failedCount": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "pendingCount": {
+                      "type": "integer"
+                    },
+                    "recipientCount": {
+                      "type": "integer"
+                    },
+                    "sendsAfter": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "sentAt": {
+                      "nullable": true
+                    },
+                    "sentCount": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "alreadyExisted",
+                    "audience",
+                    "body",
+                    "cancelledAt",
+                    "cancelledCount",
+                    "createdAt",
+                    "createdBy",
+                    "emailJobId",
+                    "failedCount",
+                    "id",
+                    "pendingCount",
+                    "recipientCount",
+                    "sendsAfter",
+                    "sentAt",
+                    "sentCount",
+                    "status",
+                    "subject"
+                  ],
                   "type": "object"
                 }
               }
@@ -5318,7 +6002,46 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "audience": {
+                      "properties": {
+                        "countries": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "interests": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "kinds": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "recipients": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "audience",
+                    "recipients"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -5364,7 +6087,22 @@
         },
         "responses": {
           "202": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "sentTo": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "sentTo"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -5409,10 +6147,115 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Success. Shape recorded from the end-to-end tests.",
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "audience": {
+                      "properties": {
+                        "interests": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "required": [
+                        "interests"
+                      ],
+                      "type": "object"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "cancelledAt": {
+                      "nullable": true
+                    },
+                    "cancelledCount": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "emailJobId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "failedCount": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "pendingCount": {
+                      "type": "integer"
+                    },
+                    "recipientCount": {
+                      "type": "integer"
+                    },
+                    "sendsAfter": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "sentAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "sentCount": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "audience",
+                    "body",
+                    "cancelledAt",
+                    "cancelledCount",
+                    "createdAt",
+                    "createdBy",
+                    "emailJobId",
+                    "failedCount",
+                    "id",
+                    "pendingCount",
+                    "recipientCount",
+                    "sendsAfter",
+                    "sentAt",
+                    "sentCount",
+                    "status",
+                    "subject"
+                  ],
                   "type": "object"
                 }
               }
@@ -5460,10 +6303,110 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Success. Shape recorded from the end-to-end tests.",
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "audience": {
+                      "properties": {},
+                      "required": [],
+                      "type": "object"
+                    },
+                    "body": {
+                      "type": "string"
+                    },
+                    "cancelledAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "cancelledCount": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "createdBy": {
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "username"
+                      ],
+                      "type": "object"
+                    },
+                    "emailJobId": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "failedCount": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "pendingCount": {
+                      "type": "integer"
+                    },
+                    "recipientCount": {
+                      "type": "integer"
+                    },
+                    "sendsAfter": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "sentAt": {
+                      "nullable": true
+                    },
+                    "sentCount": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    },
+                    "withdrawn": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "audience",
+                    "body",
+                    "cancelledAt",
+                    "cancelledCount",
+                    "createdAt",
+                    "createdBy",
+                    "emailJobId",
+                    "failedCount",
+                    "id",
+                    "pendingCount",
+                    "recipientCount",
+                    "sendsAfter",
+                    "sentAt",
+                    "sentCount",
+                    "status",
+                    "subject",
+                    "withdrawn"
+                  ],
                   "type": "object"
                 }
               }
@@ -5522,7 +6465,84 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "country": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "interests": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "kind": {
+                      "nullable": true
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subscribedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "unsubscribeReason": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "unsubscribedAt": {
+                      "format": "date-time",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "userId": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "country",
+                    "createdAt",
+                    "email",
+                    "fullName",
+                    "id",
+                    "interests",
+                    "kind",
+                    "source",
+                    "status",
+                    "subscribedAt",
+                    "unsubscribeReason",
+                    "unsubscribedAt",
+                    "updatedAt",
+                    "userId"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
@@ -5565,7 +6585,22 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "Success. Shape recorded from the end-to-end tests.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",

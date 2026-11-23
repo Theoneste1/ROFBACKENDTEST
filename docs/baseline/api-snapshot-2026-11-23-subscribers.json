@@ -10,7 +10,7 @@
     "paths": 397,
     "schemas": 174
   },
-  "fingerprint": "19bed568bc05136ea8bc37766a94e5385cc37a2cd01e704f480f2b88cd64e2aa",
+  "fingerprint": "9c302eb3470fa5b93880d934350b99facef20030227b0b8f92c88bf7accb4a9c",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -13436,7 +13436,121 @@
       ],
       "requestBody": null,
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "data",
+              "meta"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "country",
+                    "createdAt",
+                    "email",
+                    "fullName",
+                    "id",
+                    "interests",
+                    "kind",
+                    "source",
+                    "status",
+                    "subscribedAt",
+                    "unsubscribeReason",
+                    "unsubscribedAt",
+                    "updatedAt",
+                    "userId"
+                  ],
+                  "properties": {
+                    "country": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "email": {
+                      "type": "string"
+                    },
+                    "fullName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "interests": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "kind": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subscribedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "unsubscribeReason": {
+                      "nullable": true,
+                      "type": "any"
+                    },
+                    "unsubscribedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "userId": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              },
+              "meta": {
+                "type": "object",
+                "required": [
+                  "limit",
+                  "page",
+                  "total",
+                  "totalPages"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer"
+                  },
+                  "page": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "totalPages": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -13465,7 +13579,83 @@
         }
       },
       "responses": {
-        "201": null,
+        "201": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "country",
+              "createdAt",
+              "email",
+              "fullName",
+              "id",
+              "interests",
+              "kind",
+              "source",
+              "status",
+              "subscribedAt",
+              "unsubscribeReason",
+              "unsubscribedAt",
+              "updatedAt",
+              "userId"
+            ],
+            "properties": {
+              "country": {
+                "nullable": true,
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "email": {
+                "type": "string"
+              },
+              "fullName": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "interests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "nullable": true,
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subscribedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "unsubscribeReason": {
+                "nullable": true,
+                "type": "any"
+              },
+              "unsubscribedAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "userId": {
+                "nullable": true,
+                "type": "any"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -13603,11 +13793,124 @@
       ],
       "requestBody": null,
       "responses": {
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "alreadyListed",
+              "dryRun",
+              "invalid",
+              "problems",
+              "problemsTruncated",
+              "rows",
+              "unsubscribed",
+              "wouldAdd"
+            ],
+            "properties": {
+              "alreadyListed": {
+                "type": "integer"
+              },
+              "dryRun": {
+                "type": "boolean"
+              },
+              "invalid": {
+                "type": "integer"
+              },
+              "problems": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "line",
+                    "problem"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer"
+                    },
+                    "problem": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "problemsTruncated": {
+                "type": "boolean"
+              },
+              "rows": {
+                "type": "integer"
+              },
+              "unsubscribed": {
+                "type": "integer"
+              },
+              "wouldAdd": {
+                "type": "integer"
+              }
+            }
+          }
+        },
         "201": {
           "application/json": {
             "type": "object",
-            "required": [],
-            "properties": {}
+            "required": [
+              "added",
+              "alreadyListed",
+              "dryRun",
+              "invalid",
+              "problems",
+              "problemsTruncated",
+              "rows",
+              "unsubscribed"
+            ],
+            "properties": {
+              "added": {
+                "type": "integer"
+              },
+              "alreadyListed": {
+                "type": "integer"
+              },
+              "dryRun": {
+                "type": "boolean"
+              },
+              "invalid": {
+                "type": "integer"
+              },
+              "problems": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "line",
+                    "problem"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer"
+                    },
+                    "problem": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "problemsTruncated": {
+                "type": "boolean"
+              },
+              "rows": {
+                "type": "integer"
+              },
+              "unsubscribed": {
+                "type": "integer"
+              }
+            }
           }
         },
         "default": {
@@ -13631,7 +13934,148 @@
       "parameters": [],
       "requestBody": null,
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "data",
+              "meta"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "audience",
+                    "cancelledAt",
+                    "cancelledCount",
+                    "createdAt",
+                    "createdBy",
+                    "emailJobId",
+                    "failedCount",
+                    "id",
+                    "pendingCount",
+                    "recipientCount",
+                    "sendsAfter",
+                    "sentAt",
+                    "sentCount",
+                    "status",
+                    "subject"
+                  ],
+                  "properties": {
+                    "audience": {
+                      "type": "object",
+                      "required": [
+                        "interests"
+                      ],
+                      "properties": {
+                        "interests": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "cancelledAt": {
+                      "nullable": true,
+                      "type": "any"
+                    },
+                    "cancelledCount": {
+                      "type": "integer"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "createdBy": {
+                      "type": "object",
+                      "required": [
+                        "firstName",
+                        "id",
+                        "lastName",
+                        "username"
+                      ],
+                      "properties": {
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "emailJobId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "failedCount": {
+                      "type": "integer"
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "pendingCount": {
+                      "type": "integer"
+                    },
+                    "recipientCount": {
+                      "type": "integer"
+                    },
+                    "sendsAfter": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sentAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "sentCount": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "subject": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "meta": {
+                "type": "object",
+                "required": [
+                  "limit",
+                  "page",
+                  "total",
+                  "totalPages"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer"
+                  },
+                  "page": {
+                    "type": "integer"
+                  },
+                  "total": {
+                    "type": "integer"
+                  },
+                  "totalPages": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -13663,8 +14107,114 @@
         "201": {
           "application/json": {
             "type": "object",
-            "required": [],
-            "properties": {}
+            "required": [
+              "alreadyExisted",
+              "audience",
+              "body",
+              "cancelledAt",
+              "cancelledCount",
+              "createdAt",
+              "createdBy",
+              "emailJobId",
+              "failedCount",
+              "id",
+              "pendingCount",
+              "recipientCount",
+              "sendsAfter",
+              "sentAt",
+              "sentCount",
+              "status",
+              "subject"
+            ],
+            "properties": {
+              "alreadyExisted": {
+                "type": "boolean"
+              },
+              "audience": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "interests": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "cancelledAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "cancelledCount": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdBy": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "id",
+                  "lastName",
+                  "username"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              },
+              "emailJobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "failedCount": {
+                "type": "integer"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pendingCount": {
+                "type": "integer"
+              },
+              "recipientCount": {
+                "type": "integer"
+              },
+              "sendsAfter": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "sentCount": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              }
+            }
           }
         },
         "default": {
@@ -13695,7 +14245,44 @@
         }
       },
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "audience",
+              "recipients"
+            ],
+            "properties": {
+              "audience": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                  "countries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "interests": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "kinds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "recipients": {
+                "type": "integer"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -13724,7 +14311,19 @@
         }
       },
       "responses": {
-        "202": null,
+        "202": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "sentTo"
+            ],
+            "properties": {
+              "sentTo": {
+                "type": "string"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -13758,8 +14357,112 @@
         "200": {
           "application/json": {
             "type": "object",
-            "required": [],
-            "properties": {}
+            "required": [
+              "audience",
+              "body",
+              "cancelledAt",
+              "cancelledCount",
+              "createdAt",
+              "createdBy",
+              "emailJobId",
+              "failedCount",
+              "id",
+              "pendingCount",
+              "recipientCount",
+              "sendsAfter",
+              "sentAt",
+              "sentCount",
+              "status",
+              "subject"
+            ],
+            "properties": {
+              "audience": {
+                "type": "object",
+                "required": [
+                  "interests"
+                ],
+                "properties": {
+                  "interests": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "body": {
+                "type": "string"
+              },
+              "cancelledAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "cancelledCount": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdBy": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "id",
+                  "lastName",
+                  "username"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              },
+              "emailJobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "failedCount": {
+                "type": "integer"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pendingCount": {
+                "type": "integer"
+              },
+              "recipientCount": {
+                "type": "integer"
+              },
+              "sendsAfter": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentCount": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              }
+            }
           }
         },
         "default": {
@@ -13795,8 +14498,107 @@
         "200": {
           "application/json": {
             "type": "object",
-            "required": [],
-            "properties": {}
+            "required": [
+              "audience",
+              "body",
+              "cancelledAt",
+              "cancelledCount",
+              "createdAt",
+              "createdBy",
+              "emailJobId",
+              "failedCount",
+              "id",
+              "pendingCount",
+              "recipientCount",
+              "sendsAfter",
+              "sentAt",
+              "sentCount",
+              "status",
+              "subject",
+              "withdrawn"
+            ],
+            "properties": {
+              "audience": {
+                "type": "object",
+                "required": [],
+                "properties": {}
+              },
+              "body": {
+                "type": "string"
+              },
+              "cancelledAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "cancelledCount": {
+                "type": "integer"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdBy": {
+                "type": "object",
+                "required": [
+                  "firstName",
+                  "id",
+                  "lastName",
+                  "username"
+                ],
+                "properties": {
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              },
+              "emailJobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "failedCount": {
+                "type": "integer"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "pendingCount": {
+                "type": "integer"
+              },
+              "recipientCount": {
+                "type": "integer"
+              },
+              "sendsAfter": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sentAt": {
+                "nullable": true,
+                "type": "any"
+              },
+              "sentCount": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "withdrawn": {
+                "type": "integer"
+              }
+            }
           }
         },
         "default": {
@@ -13820,7 +14622,79 @@
       "parameters": [],
       "requestBody": null,
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "active",
+              "byInterest",
+              "byKind",
+              "bySource",
+              "unsubscribed"
+            ],
+            "properties": {
+              "active": {
+                "type": "integer"
+              },
+              "byInterest": {
+                "type": "object",
+                "required": [
+                  "ALL_SUBJECTS",
+                  "COMPUTING",
+                  "MATHEMATICS",
+                  "PHYSICS"
+                ],
+                "properties": {
+                  "ALL_SUBJECTS": {
+                    "type": "integer"
+                  },
+                  "COMPUTING": {
+                    "type": "integer"
+                  },
+                  "MATHEMATICS": {
+                    "type": "integer"
+                  },
+                  "PHYSICS": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "byKind": {
+                "type": "object",
+                "required": [
+                  "NOT_GIVEN",
+                  "PARENT"
+                ],
+                "properties": {
+                  "NOT_GIVEN": {
+                    "type": "integer"
+                  },
+                  "PARENT": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "bySource": {
+                "type": "object",
+                "required": [
+                  "ADMIN",
+                  "WEBSITE"
+                ],
+                "properties": {
+                  "ADMIN": {
+                    "type": "integer"
+                  },
+                  "WEBSITE": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "unsubscribed": {
+                "type": "integer"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -13851,7 +14725,19 @@
       ],
       "requestBody": null,
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "deleted"
+            ],
+            "properties": {
+              "deleted": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -13889,7 +14775,83 @@
         }
       },
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "country",
+              "createdAt",
+              "email",
+              "fullName",
+              "id",
+              "interests",
+              "kind",
+              "source",
+              "status",
+              "subscribedAt",
+              "unsubscribeReason",
+              "unsubscribedAt",
+              "updatedAt",
+              "userId"
+            ],
+            "properties": {
+              "country": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "email": {
+                "type": "string"
+              },
+              "fullName": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "interests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "nullable": true,
+                "type": "any"
+              },
+              "source": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "subscribedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "unsubscribeReason": {
+                "nullable": true,
+                "type": "string"
+              },
+              "unsubscribedAt": {
+                "nullable": true,
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "userId": {
+                "nullable": true,
+                "type": "any"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -37743,7 +38705,23 @@
         }
       },
       "responses": {
-        "202": null,
+        "202": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "message",
+              "received"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "received": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -37771,7 +38749,19 @@
         }
       },
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "unsubscribed"
+            ],
+            "properties": {
+              "unsubscribed": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"
@@ -37813,7 +38803,19 @@
       ],
       "requestBody": null,
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "unsubscribed"
+            ],
+            "properties": {
+              "unsubscribed": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"

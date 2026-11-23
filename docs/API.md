@@ -2046,7 +2046,9 @@ Subscribers: q (e-mail or name), status, interest, kind, source, country; sort n
 | `country` | query | string |  |  |
 | `sort` | query | newest \| oldest \| name \| email |  | newest (default), oldest, name, email. |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/admin/subscribers`
 
@@ -2064,7 +2066,9 @@ Body (JSON):
 | `interests` | string[] |  |  |
 | `country` | string |  |  |
 
-Returns `201` with no body.
+Returns `201` JSON with:
+
+`country` string or null · `createdAt` string (date-time) · `email` string · `fullName` string · `id` string (uuid) · `interests` string[] · `kind` string or null · `source` string · `status` string · `subscribedAt` string (date-time) · `unsubscribeReason` any or null · `unsubscribedAt` any or null · `updatedAt` string (date-time) · `userId` any or null
 
 ### PATCH `/api/v1/admin/subscribers/{id}`
 
@@ -2087,7 +2091,9 @@ Body (JSON):
 | `status` | ACTIVE \| UNSUBSCRIBED |  |  |
 | `reason` | string |  |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`country` string · `createdAt` string (date-time) · `email` string · `fullName` string · `id` string (uuid) · `interests` string[] · `kind` any or null · `source` string · `status` string · `subscribedAt` string (date-time) · `unsubscribeReason` string or null · `unsubscribedAt` string (date-time) or null · `updatedAt` string (date-time) · `userId` any or null
 
 ### DELETE `/api/v1/admin/subscribers/{id}`
 
@@ -2099,7 +2105,9 @@ Erase a subscriber (a privacy request); their e-mails not yet sent are withdrawn
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`deleted` boolean
 
 ### GET `/api/v1/admin/subscribers/export`
 
@@ -2131,13 +2139,17 @@ dryRun=true checks only (200); an import answers 201.
 |---|---|---|:-:|---|
 | `dryRun` | query | boolean |  | Check the file and report only; add nobody. |
 
-Returns `201` JSON.
+Returns `200` JSON with:
+
+`alreadyListed` integer · `dryRun` boolean · `invalid` integer · `problems` object[] · `problemsTruncated` boolean · `rows` integer · `unsubscribed` integer · `wouldAdd` integer
 
 ### GET `/api/v1/admin/subscribers/mailings`
 
 **Access:** ADMIN, SUPER_ADMIN
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`data` object[] · `meta` object
 
 ### POST `/api/v1/admin/subscribers/mailings`
 
@@ -2154,7 +2166,9 @@ Body (JSON):
 | `audience` | object |  |  |
 | `idempotencyKey` | string | ✓ | Repeating a request with the same key returns the same mailing (a double click sends once). |
 
-Returns `201` JSON.
+Returns `201` JSON with:
+
+`alreadyExisted` boolean · `audience` object · `body` string · `cancelledAt` any or null · `cancelledCount` integer · `createdAt` string (date-time) · `createdBy` object · `emailJobId` string (uuid) · `failedCount` integer · `id` string (uuid) · `pendingCount` integer · `recipientCount` integer · `sendsAfter` string (date-time) · `sentAt` any or null · `sentCount` integer · `status` string · `subject` string
 
 ### GET `/api/v1/admin/subscribers/mailings/{id}`
 
@@ -2164,7 +2178,9 @@ Returns `201` JSON.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
-Returns `200` JSON.
+Returns `200` JSON with:
+
+`audience` object · `body` string · `cancelledAt` any or null · `cancelledCount` integer · `createdAt` string (date-time) · `createdBy` object · `emailJobId` string (uuid) · `failedCount` integer · `id` string (uuid) · `pendingCount` integer · `recipientCount` integer · `sendsAfter` string (date-time) · `sentAt` string (date-time) · `sentCount` integer · `status` string · `subject` string
 
 ### POST `/api/v1/admin/subscribers/mailings/{id}/cancel`
 
@@ -2176,7 +2192,9 @@ Withdraw what has not been sent yet. 409 once the mailing is sent or cancelled.
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
-Returns `200` JSON.
+Returns `200` JSON with:
+
+`audience` object · `body` string · `cancelledAt` string (date-time) · `cancelledCount` integer · `createdAt` string (date-time) · `createdBy` object · `emailJobId` string (uuid) · `failedCount` integer · `id` string (uuid) · `pendingCount` integer · `recipientCount` integer · `sendsAfter` string (date-time) · `sentAt` any or null · `sentCount` integer · `status` string · `subject` string · `withdrawn` integer
 
 ### POST `/api/v1/admin/subscribers/mailings/preview`
 
@@ -2190,7 +2208,9 @@ Body (JSON):
 |---|---|:-:|---|
 | `audience` | object |  |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`audience` object · `recipients` integer
 
 ### POST `/api/v1/admin/subscribers/mailings/test`
 
@@ -2205,7 +2225,9 @@ Body (JSON):
 | `subject` | string | ✓ |  |
 | `body` | string | ✓ |  |
 
-Returns `202` with no body.
+Returns `202` JSON with:
+
+`sentTo` string
 
 ### GET `/api/v1/admin/subscribers/summary`
 
@@ -2213,7 +2235,9 @@ Returns `202` with no body.
 
 Active and unsubscribed counts; active subscribers by source, kind and interest.
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`active` integer · `byInterest` object · `byKind` object · `bySource` object · `unsubscribed` integer
 
 ## Admin · Teachers
 
@@ -5986,7 +6010,9 @@ Body (JSON):
 | `country` | string |  |  |
 | `website` | string |  | Honeypot: hidden from people; when filled in the request is accepted silently and nothing is stored. |
 
-Returns `202` with no body.
+Returns `202` JSON with:
+
+`message` string · `received` boolean
 
 ### POST `/api/v1/public/unsubscribe`
 
@@ -6002,7 +6028,9 @@ Body (JSON):
 | `token` | string | ✓ | The token from the link (`t`). |
 | `reason` | string |  |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`unsubscribed` boolean
 
 ### POST `/api/v1/public/unsubscribe/one-click`
 
@@ -6016,7 +6044,9 @@ the List-Unsubscribe header. The subscriber and token are in the query string; t
 | `s` | query | string | ✓ |  |
 | `t` | query | string | ✓ |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`unsubscribed` boolean
 
 ## Schools
 
