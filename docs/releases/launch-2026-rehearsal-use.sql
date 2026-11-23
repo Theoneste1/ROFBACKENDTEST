@@ -30,4 +30,7 @@ INSERT INTO "Mailing" ("id", "idempotencyKey", "subject", "body", "audience", "s
 INSERT INTO "EmailDelivery" ("id", "jobId", "recipientEmail", "status", "subscriberId")
   VALUES ('reh-delivery-news-1', 'reh-job-news', 'parent@example.invalid', 'SENT', 'reh-sub-1'),
          ('reh-delivery-news-2', 'reh-job-news', 'school@example.invalid', 'SENT', 'reh-sub-2');
+-- view-as-sessions: an administrator viewed the platform as a coach (ended).
+INSERT INTO "ViewAsSession" ("id", "actorId", "targetId", "reason", "ticketExpiresAt", "startedAt", "expiresAt", "endedAt", "endedReason")
+  VALUES ('reh-view-1', 'reh-admin-1', 'reh-coach-1', 'Checking what the coach sees', now(), now(), now() + interval '30 minutes', now(), 'ENDED');
 COMMIT;

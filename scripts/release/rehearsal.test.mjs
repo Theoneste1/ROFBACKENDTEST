@@ -288,7 +288,7 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     const later = [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS];
-    assert.equal(later.length, 19);
+    assert.equal(later.length, 20);
     assert.ok(r.stderr.includes(`${later.length} migration(s) after post-Phase-1 (11 migrations after M14)'s last (${later.join(', ')})`), r.stderr);
   });
 });
@@ -595,25 +595,25 @@ test('the runner: levels-2026 passes the checkout guard on its checkout; a later
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'levels-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.ok(r.stderr.includes(`6 migration(s) after divisions and Olympiad levels (1 migration after dec 2026)'s last (${LAUNCH_2026_MIGRATIONS.join(', ')})`), r.stderr);
+    assert.ok(r.stderr.includes(`7 migration(s) after divisions and Olympiad levels (1 migration after dec 2026)'s last (${LAUNCH_2026_MIGRATIONS.join(', ')})`), r.stderr);
   });
 });
 
 // ── launch-2026 release (--release launch-2026; the six migrations after levels-2026, owner 2026-11-22/23) ──────────
 
-test('launch-2026: exactly the six migrations after levels-2026 in this checkout, in apply order; nothing after them; needs the 38 before them', () => {
+test('launch-2026: exactly the seven migrations after levels-2026 in this checkout, in apply order; nothing after them; needs the 38 before them', () => {
   const dirs = migrationDirs(REPO_ROOT);
   assert.deepEqual(dirs.filter((d) => d.slice(0, 14) > RELEASES['levels-2026'].last), LAUNCH_2026_MIGRATIONS);
   assert.deepEqual(LAUNCH_2026_MIGRATIONS, ['20261225000000_school_sync_mode', '20261225000100_teacher_unlisted_school', '20261226000000_registration_data',
-    '20261227000000_coach_programme_access', '20261228000000_form_email_verification', '20261229000000_subscribers']);
+    '20261227000000_coach_programme_access', '20261228000000_form_email_verification', '20261229000000_subscribers', '20261230000000_view_as']);
   assert.deepEqual([...LAUNCH_2026_MIGRATIONS].sort(), LAUNCH_2026_MIGRATIONS);
   const launch = releaseFrom(['--release', 'launch-2026']);
   assert.equal(launch.name, 'launch-2026');
-  assert.equal(launch.last, '20261229000000');
+  assert.equal(launch.last, '20261230000000');
   assert.equal(checkoutProblem(launch, dirs), null);
-  assert.match(checkoutProblem(launch, [...dirs, '20261230000000_view_as']), /1 migration\(s\) after the launch release .* \(20261230000000_view_as\)/);
-  assert.match(checkoutProblem(launch, dirs.filter((d) => d !== LAUNCH_2026_MIGRATIONS[2])), /expected the 6 .* found 5/);
-  assert.equal(checkoutProblem(launch, [...dirs, '20261230000000_view_as'], { allowLater: true }), null);
+  assert.match(checkoutProblem(launch, [...dirs, '20261231000000_next']), /1 migration\(s\) after the launch release .* \(20261231000000_next\)/);
+  assert.match(checkoutProblem(launch, dirs.filter((d) => d !== LAUNCH_2026_MIGRATIONS[2])), /expected the 7 .* found 6/);
+  assert.equal(checkoutProblem(launch, [...dirs, '20261231000000_next'], { allowLater: true }), null);
   assert.equal(launch.requires.count, 38);
   assert.equal(dirs.filter((d) => launch.requires.owns(d)).length, 38);
   for (const m of LAUNCH_2026_MIGRATIONS) assert.equal(launch.requires.owns(m), false);
@@ -643,7 +643,7 @@ test('launch-2026: one rollback file per migration, newest first, each refusing 
   const docs = readdirSync('docs/migrations');
   const files = releaseRollbackFiles(release, docs);
   assert.deepEqual(files, [...LAUNCH_2026_MIGRATIONS].reverse().map((m) => `${m}.rollback.sql`));
-  assert.throws(() => releaseRollbackFiles(release, docs.filter((f) => f !== files[0])), /expected 6 .* found 5/);
+  assert.throws(() => releaseRollbackFiles(release, docs.filter((f) => f !== files[0])), /expected 7 .* found 6/);
   assert.deepEqual(releasePreSwitchFiles(release, docs), []);
   for (const f of files) {
     const text = readFileSync(`docs/migrations/${f}`, 'utf8');
@@ -671,19 +671,19 @@ test('the runner: launch-2026 passes the checkout guard on this checkout; a late
   withCheckoutCopy([], (root) => {
     const ok = run(root, 'deploy', '--release', 'launch-2026', '--confirm', 'ep-anything');
     assert.notEqual(ok.status, 5, ok.stderr);
-    assert.match(ok.stdout, /release: launch-2026 — the launch release \(6 migrations after levels 2026\)/);
+    assert.match(ok.stdout, /release: launch-2026 — the launch release \(7 migrations after levels 2026\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
     const ack = run(root, 'rollback', '--release', 'launch-2026', '--acknowledge', 'tests', '--confirm', 'ep-anything');
     assert.equal(ack.status, 2, ack.stderr);
-    assert.match(ack.stderr, /"tests" is not a guard of launch-2026's rollback files \(allowed for launch-2026: coach-restrictions, form-email-verification, saved-filters, subscribers, sync-modes, unlisted-school-details\)/);
+    assert.match(ack.stderr, /"tests" is not a guard of launch-2026's rollback files \(allowed for launch-2026: coach-restrictions, form-email-verification, saved-filters, subscribers, sync-modes, unlisted-school-details, view-as-sessions\)/);
   });
-  withCheckoutCopy(['20261230000000_view_as'], (root) => {
+  withCheckoutCopy(['20261231000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'launch-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.match(r.stderr, /1 migration\(s\) after the launch release .*20261230000000_view_as/);
+    assert.match(r.stderr, /1 migration\(s\) after the launch release .*20261231000000_next/);
     const rb = run(root, 'rollback', '--release', 'launch-2026', '--confirm', 'ep-anything');
     assert.notEqual(rb.status, 5, rb.stderr);
-    assert.match(rb.stdout, /checkout: 1 later migration\(s\) present \(20261230000000_view_as\)/);
+    assert.match(rb.stdout, /checkout: 1 later migration\(s\) present \(20261231000000_next\)/);
   });
 });
 

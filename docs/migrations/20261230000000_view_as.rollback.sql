@@ -23,7 +23,7 @@ DECLARE
 BEGIN
   SELECT count(*) INTO sessions FROM "ViewAsSession";
   IF sessions > 0 AND coalesce(current_setting('rof.view_as_rollback', true), '') <> 'discard-sessions' THEN
-    RAISE EXCEPTION 'Refusing: % viewing session record(s) would be lost. Back up, then SET rof.view_as_rollback = ''discard-sessions'' to proceed.', sessions;
+    RAISE EXCEPTION 'VIEW_AS_ROLLBACK_REFUSED: % viewing session record(s) would be lost; nothing was changed. Back up, then SET rof.view_as_rollback = ''discard-sessions'' to proceed.', sessions;
   END IF;
 END $$;
 

@@ -487,6 +487,11 @@ export const MIGRATION_OBJECTS = {
       tables: ['Mailing', 'Subscriber'],
     },
   },
+  '20261230000000_view_as': {
+    creates: {
+      tables: ['ViewAsSession'],
+    },
+  },
 };
 
 /**
@@ -530,6 +535,7 @@ export const ACKNOWLEDGEMENTS = {
   'coach-restrictions':         { migration: '20261227000000_coach_programme_access', setting: 'rof.coach_programme_access_rollback', value: 'discard-restrictions' },
   'form-email-verification':    { migration: '20261228000000_form_email_verification', setting: 'rof.form_email_verification_rollback', value: 'discard-verification-switches' },
   'subscribers':                { migration: '20261229000000_subscribers', setting: 'rof.subscribers_rollback', value: 'discard-subscribers' },
+  'view-as-sessions':           { migration: '20261230000000_view_as', setting: 'rof.view_as_rollback', value: 'discard-sessions' },
 };
 
 /** The acknowledgement ids of a release (those of its own migrations), sorted. */
@@ -574,10 +580,9 @@ export const LEVELS_2026_OBJECTS = {
 };
 
 /**
- * The launch-2026 release: the six migrations after levels-2026 (production holds every migration up to and including
- * 20261224000000_divisions_levels, read-only check 2026-11-23). Listed explicitly — a migration added later (e.g.
- * 20261230000000_view_as) is never part of it until it is appended here, with its MIGRATION_OBJECTS entry, its
- * acknowledgements and its objects below, on purpose.
+ * The launch-2026 release: the seven migrations after levels-2026 (production holds every migration up to and including
+ * 20261224000000_divisions_levels, read-only check 2026-11-23). Listed explicitly — a migration added later is never part
+ * of it until it is appended here, with its MIGRATION_OBJECTS entry, its acknowledgements and its objects below, on purpose.
  */
 export const LAUNCH_2026_MIGRATIONS = [
   // Directory sync "new schools only" (owner, 2026-11-22): SchoolSyncRun.mode FULL / NEW_ONLY, default FULL.
@@ -593,11 +598,13 @@ export const LAUNCH_2026_MIGRATIONS = [
   '20261228000000_form_email_verification',
   // News subscribers and mailings (owner, 2026-11-23): Subscriber, Mailing, EmailDelivery.subscriberId, four enums.
   '20261229000000_subscribers',
+  // "View as" (owner, 2026-11-23): ViewAsSession — an administrator's read-only viewing session of a lower-ranked user.
+  '20261230000000_view_as',
 ];
 
 /** What the launch-2026 migrations create (checked against their SQL by the tests); `rollback-history` refuses while any is left. */
 export const LAUNCH_2026_OBJECTS = {
-  tables: ['RegistrationSavedFilter', 'CoachProgrammeRestriction', 'Subscriber', 'Mailing'],
+  tables: ['RegistrationSavedFilter', 'CoachProgrammeRestriction', 'Subscriber', 'Mailing', 'ViewAsSession'],
   enums: ['SchoolSyncMode', 'CoachCapability', 'SubscriberKind', 'SubscriberSource', 'SubscriberStatus', 'MailingStatus'],
   columns: [
     ['SchoolSyncRun', 'mode'],

@@ -1,6 +1,6 @@
--- Launch-2026 release pre-check (BEFORE `prisma migrate deploy` of the six migrations after levels-2026: directory sync
+-- Launch-2026 release pre-check (BEFORE `prisma migrate deploy` of the seven migrations after levels-2026: directory sync
 -- mode, the unlisted school of a teacher application, registration data, coach programme access, activation per sign-up
--- form, news subscribers; owner 2026-11-22/23): READ ONLY.
+-- form, news subscribers, "view as"; owner 2026-11-22/23): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs precheck --release launch-2026   (Neon rehearsal branch or local copy; guarded)
 --   psql "$DIRECT_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/release/launch-2026-precheck.sql   (production, in the window)
@@ -28,7 +28,7 @@ SELECT count(*) FILTER (WHERE migration_name LIKE '2026112100%' AND finished_at 
 
 \echo '== 2. MUST be 0, 0, 0: nothing made by the launch migrations exists yet (tables, types, columns)'
 SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'
-           AND table_name IN ('RegistrationSavedFilter', 'CoachProgrammeRestriction', 'Subscriber', 'Mailing'))              AS launch_tables,
+           AND table_name IN ('RegistrationSavedFilter', 'CoachProgrammeRestriction', 'Subscriber', 'Mailing', 'ViewAsSession'))              AS launch_tables,
        (SELECT count(*) FROM pg_type WHERE typnamespace = 'public'::regnamespace
            AND typname IN ('SchoolSyncMode', 'CoachCapability', 'SubscriberKind', 'SubscriberSource', 'SubscriberStatus', 'MailingStatus')) AS launch_types,
        (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND (

@@ -214,6 +214,8 @@ const SEEDS: Record<string, Seed> = {
     await c.query(`UPDATE "FormAvailability" SET "requireEmailVerification" = true WHERE "key" = (SELECT "key" FROM "FormAvailability" ORDER BY "key" LIMIT 1)`); // activation per form
     await c.query(`INSERT INTO "Subscriber" ("id", "email", "source", "updatedAt", "subscribedAt", "createdAt")
       VALUES ('rel-subscriber-1', 'reader@example.invalid', 'WEBSITE', '2026-12-06', '2026-12-06', '2026-12-06')`);              // subscribers
+    await c.query(`INSERT INTO "ViewAsSession" ("id", "actorId", "targetId", "reason", "ticketExpiresAt", "createdAt")
+      VALUES ('rel-view-as-1', 'pre-user-3', 'pre-user-2', 'Checking what the coach sees', '2026-12-06', '2026-12-06')`);         // view-as sessions
   },
 };
 
@@ -570,7 +572,7 @@ for (const name of RELEASES) {
           ['a table dropped, its column left', 'DROP TABLE "RegistrationSavedFilter"', /20261226000000_registration_data: still there: column MentorRequest\.userId.*already gone: table RegistrationSavedFilter/],
           ['the subscriber tables dropped, the column left', 'ALTER TABLE "EmailDelivery" DROP CONSTRAINT "EmailDelivery_subscriberId_fkey"; DROP TABLE "Mailing"; DROP TABLE "Subscriber"',
             /20261229000000_subscribers: still there: .*column EmailDelivery\.subscriberId.*already gone: .*table Mailing/],
-          ['out of order', 'ALTER TABLE "SchoolSyncRun" DROP COLUMN "mode"; DROP TYPE "SchoolSyncMode"', /20261225000000_school_sync_mode is already rolled back while the newer 20261229000000_subscribers is not/],
+          ['out of order', 'ALTER TABLE "SchoolSyncRun" DROP COLUMN "mode"; DROP TYPE "SchoolSyncMode"', /20261225000000_school_sync_mode is already rolled back while the newer 20261230000000_view_as is not/],
         ],
       };
       for (const [label, sql, message] of cases[name]) {
