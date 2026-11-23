@@ -49,6 +49,36 @@ describe('PermissionService', () => {
     expect(service.scopeOf(user('STUDENT'), 'users.manage')).toBeNull();
   });
 
+  describe('course homework by teachers (owner 2026-11-24): defaults, the switch (DENY) and older delegations (GRANT)', () => {
+    const o = (permission: string, effect: 'GRANT' | 'DENY') => ({ id: `${permission}-${effect}`, permission, effect, courseId: null, divisionId: null, expiresAt: null });
+    const teacher = (...overrides: ReturnType<typeof o>[]) => ({ ...user('TEACHER'), overrides });
+    const HW = ['students.viewProgress', 'submissions.submitOnBehalf'] as const;
+
+    it('every Teacher holds both by default, school scope; the profile stays a delegation', () => {
+      for (const p of HW) expect([p, service.scopeOf(teacher(), p)]).toEqual([p, 'school']);
+      expect(service.has(teacher(), 'students.viewProfile')).toBe(false);
+    });
+
+    it('switched off (a DENY of each): neither is held — whatever the order of an older or newer delegation of the same permission', () => {
+      const denied = HW.map((p) => o(p, 'DENY'));
+      const granted = HW.map((p) => o(p, 'GRANT'));
+      for (const overrides of [[...denied], [...granted, ...denied], [...denied, ...granted]]) {
+        for (const p of HW) expect([p, overrides.map((x) => x.effect).join(','), service.has(teacher(...overrides), p)]).toEqual([p, overrides.map((x) => x.effect).join(','), false]);
+      }
+    });
+
+    it('a DENY of one leaves the other; an expired DENY no longer applies', () => {
+      expect(service.has(teacher(o('submissions.submitOnBehalf', 'DENY')), 'students.viewProgress')).toBe(true);
+      expect(service.has(teacher(o('submissions.submitOnBehalf', 'DENY')), 'submissions.submitOnBehalf')).toBe(false);
+      const expired = { ...o('submissions.submitOnBehalf', 'DENY'), expiresAt: new Date(Date.now() - 1000) };
+      expect(service.has(teacher(expired), 'submissions.submitOnBehalf')).toBe(true);
+    });
+
+    it('a delegation of the profile still adds it (unchanged)', () => {
+      expect(service.has(teacher(o('students.viewProfile', 'GRANT')), 'students.viewProfile')).toBe(true);
+    });
+  });
+
   it('isAdministrative: ADMIN and SUPER_ADMIN only', () => {
     expect(APP_ROLES.filter((r) => service.isAdministrative(user(r)))).toEqual(['ADMIN', 'SUPER_ADMIN']);
   });
