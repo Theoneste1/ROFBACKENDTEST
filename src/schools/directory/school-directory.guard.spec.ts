@@ -69,6 +69,8 @@ describe('school directory guards (S1)', () => {
       'schools/admin-schools.service.ts',
       'schools/directory/school-directory-data.service.ts',
       'schools/import/school-import.service.ts',
+      // Owner 2026-11-23: a codeless school's code given at registration (takes the lock shared, like every school write).
+      'schools/school-code-at-registration.ts',
       'schools/sync/review/school-sync-apply.service.ts',
     ]);
     // Ordinary school writes take it shared; the sync apply (S2b) takes it exclusive.

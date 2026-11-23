@@ -298,6 +298,12 @@ export const FEATURES = {
   /** Table layouts (owner 2026-11-22): /me/table-layouts/:table and /admin/table-layouts/:table; GET /admin/users ?sort&order. */
   tableLayouts: 'always',
   /**
+   * A school without a code chosen at registration (owner 2026-11-23): student registration and the teacher application
+   * take newSchoolCode — required for such a school (400 SCHOOL_CODE_REQUIRED / INVALID_SCHOOL_CODE, 409 SCHOOL_CODE_TAKEN);
+   * the first valid code becomes the school's.
+   */
+  schoolCodeAtRegistration: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

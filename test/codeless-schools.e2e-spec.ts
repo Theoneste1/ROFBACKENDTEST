@@ -85,22 +85,44 @@ describe('Schools without an official code (owner decision 2026-11-14)', () => {
     expect((await p().school.findUniqueOrThrow({ where: { id: codeless } })).code).toBeNull();
   });
 
-  it('registration by schoolId: linked, PENDING (source REGISTRATION), verified by an Administrator; no code is invented', async () => {
-    const res = await reg('cl.reg.id', { schoolId: codeless }).expect(201);
+  it('owner 2026-11-23: registration by schoolId at a school WITHOUT a code requires its code, checked in plain words; the first valid one becomes the school\'s; linked, PENDING, verified by an Administrator', async () => {
+    // A code-less school of its own (the shared one stays code-less for the tests below).
+    const michel = (await http().post('/api/v1/admin/schools').set(bearer(admin)).send({ name: 'Ecole Saint Michel', ...NGOMA, location: 'Ngoma hill' }).expect(201)).body.id as string;
+    const missing = await reg('cl.reg.nocode', { schoolId: michel });
+    expect([missing.status, missing.body.code]).toEqual([400, 'SCHOOL_CODE_REQUIRED']);
+    expect(missing.body.message).toMatch(/Ecole Saint Michel has no official school code .* Enter its 6-digit code/);
+    // Another province's code (Southern schools start with 2), a malformed one, another school's code: refused, nothing set.
+    const wrong = await reg('cl.reg.wrong', { schoolId: michel, newSchoolCode: '120077' });
+    expect([wrong.status, wrong.body.code]).toEqual([400, 'INVALID_SCHOOL_CODE']);
+    expect(wrong.body.message).toMatch(/belongs to Kigali City, not Southern Province/);
+    expect((await reg('cl.reg.short', { schoolId: michel, newSchoolCode: '2207' })).status).toBe(400);
+    const taken = await reg('cl.reg.taken', { schoolId: michel, newSchoolCode: '220001' });
+    expect([taken.status, taken.body.code]).toEqual([409, 'SCHOOL_CODE_TAKEN']);
+    expect(taken.body.message).toMatch(/already belongs to GS Ngoma Official/);
+    expect(await p().user.count({ where: { username: { startsWith: 'cl.reg.' } } })).toBe(0);
+    expect((await p().school.findUniqueOrThrow({ where: { id: michel } })).code).toBeNull();
+    // A valid code: registered, and the school now has it (audited, with who gave it).
+    const res = await reg('cl.reg.id', { schoolId: michel, newSchoolCode: '220 077' }).expect(201);
     expect(res.body.schoolVerification).toBe('PENDING');
     const u = await user('cl.reg.id');
-    expect(u.schoolId).toBe(codeless);
+    expect(u.schoolId).toBe(michel);
+    expect((await p().school.findUniqueOrThrow({ where: { id: michel } })).code).toBe('220077');
+    const given = await p().auditLog.findFirstOrThrow({ where: { action: 'SCHOOL_CODE_SET_AT_REGISTRATION', entityId: michel } });
+    expect(given).toMatchObject({ actorId: u.id, metadata: { code: '220077', via: 'STUDENT_REGISTRATION' } });
     const [claim] = await claims(u.id);
-    expect(claim).toMatchObject({ schoolId: codeless, status: 'PENDING', source: 'REGISTRATION', claimedName: null, claimedProvince: null });
-    expect((await p().studentEnrollment.findFirstOrThrow({ where: { studentId: u.id, academicYearId: ctx.ids.year } })).schoolId).toBe(codeless);
-    const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'REGISTER', entityId: u.id } });
-    expect(audit.metadata).toMatchObject({ schoolId: codeless, schoolCode: null, schoolName: 'Ecole Saint Gabriel', schoolLinked: true });
+    expect(claim).toMatchObject({ schoolId: michel, status: 'PENDING', source: 'REGISTRATION', claimedName: null, claimedProvince: null });
+    expect((await p().studentEnrollment.findFirstOrThrow({ where: { studentId: u.id, academicYearId: ctx.ids.year } })).schoolId).toBe(michel);
+    // The next student needs no code (the school has one now); a code they type is not needed.
+    await reg('cl.reg.next', { schoolId: michel }).expect(201);
+    await reg('cl.reg.next2', { schoolId: michel, newSchoolCode: '220099' }).expect(201);
+    expect((await p().school.findUniqueOrThrow({ where: { id: michel } })).code).toBe('220077');
     // The Administrator's queue shows it like any linked claim; verification works the same.
-    const queue = (await http().get('/api/v1/admin/school-affiliations').query({ schoolId: codeless, status: 'PENDING' }).set(bearer(admin)).expect(200)).body.data;
-    expect(queue.map((c: any) => c.id)).toEqual([claim.id]);
+    const queue = (await http().get('/api/v1/admin/school-affiliations').query({ schoolId: michel, status: 'PENDING' }).set(bearer(admin)).expect(200)).body.data;
+    expect(queue.map((c: any) => c.id)).toContain(claim.id);
     await http().post(`/api/v1/admin/school-affiliations/${claim.id}/verify`).set(bearer(admin)).send({}).expect(200);
-    expect((await claims(u.id))[0]).toMatchObject({ status: 'VERIFIED', schoolId: codeless });
-    expect((await p().school.findUniqueOrThrow({ where: { id: codeless } })).code).toBeNull();
+    expect((await claims(u.id))[0]).toMatchObject({ status: 'VERIFIED', schoolId: michel });
+    // Closed again, so the place's school lists below stay those of the shared fixture.
+    await http().patch(`/api/v1/admin/schools/${michel}/active`).set(bearer(admin)).send({ isActive: false, reason: 'Test school no longer needed' }).expect(200);
     // A school WITH a code may be chosen by id too.
     await reg('cl.reg.id.official', { schoolId: official }).expect(201);
     expect((await claims((await user('cl.reg.id.official')).id))[0]).toMatchObject({ schoolId: official, status: 'PENDING' });

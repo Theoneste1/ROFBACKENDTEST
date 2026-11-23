@@ -53913,6 +53913,11 @@
             "description": "Rwanda (owner decision 2026-11-14): the internal id of the school attended, from\nGET /schools/search — how a school WITHOUT an official code is chosen (any school of the\nlist may be chosen this way). It must be an active Rwandan school (400 UNKNOWN_SCHOOL,\n409 SCHOOL_INACTIVE); the claim is PENDING exactly as with schoolCode. Not with schoolCode\n(400). schoolName and the place fields are ignored when it is sent.",
             "format": "uuid"
           },
+          "newSchoolCode": {
+            "type": "string",
+            "description": "A school WITHOUT an official code, chosen by schoolId (owner 2026-11-23): its 6-digit code is required (400\nSCHOOL_CODE_REQUIRED) — the first digit is the school's province, and it must not be another school's (409\nSCHOOL_CODE_TAKEN). The first valid code becomes the school's code at once (an Administrator corrects it later if\nneeded). Ignored when the school already has a code.",
+            "pattern": "^\\d{6}$"
+          },
           "schoolName": {
             "type": "string",
             "description": "Another country: the school's name as entered (unverified; no school is linked).\nRwanda, legacy (until the sign-up form sends schoolCode): it never creates a\nschool and links the student only when it matches exactly one school of the\nofficial list — otherwise no school until an Administrator sets it.\nIgnored when schoolCode or schoolId is sent.",
@@ -57298,6 +57303,11 @@
             "type": "string",
             "description": "A listed school (GET /schools/search). Exactly one of schoolId / proposedSchoolName.",
             "format": "uuid"
+          },
+          "newSchoolCode": {
+            "type": "string",
+            "description": "A school WITHOUT an official code, chosen by schoolId (owner 2026-11-23): its 6-digit code is required (400\nSCHOOL_CODE_REQUIRED) — the first digit is the school's province, and it must not be another school's (409\nSCHOOL_CODE_TAKEN). The first valid code becomes the school's code at once (an Administrator corrects it later if\nneeded). Ignored when the school already has a code.",
+            "pattern": "^\\d{6}$"
           },
           "proposedSchoolName": {
             "type": "string",
