@@ -381,4 +381,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/subscribers/mailings/:id/cancel  AdminSubscribersController.cancel':                      ADMINISTRATORS,
   'PATCH /api/v1/admin/subscribers/:id  AdminSubscribersController.update':                                     ADMINISTRATORS,
   'DELETE /api/v1/admin/subscribers/:id  AdminSubscribersController.remove':                                    ADMINISTRATORS,
+  // View as, read only (owner 2026-11-23): start (users.impersonate: Administrators and Super Admins; a Head Coach only by
+  // an individual GRANT); the viewing tab's exchange and end are public (the ticket / the viewing token authenticates).
+  'POST /api/v1/admin/users/:id/view-as  ViewAsAdminController.start':                                          ADMINISTRATORS,
+  'POST /api/v1/auth/view-as/exchange  ViewAsAuthController.exchange':                                          PUBLIC,
+  'POST /api/v1/auth/view-as/end  ViewAsAuthController.end':                                                    PUBLIC,
 };

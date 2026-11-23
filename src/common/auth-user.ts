@@ -29,6 +29,26 @@ export interface AuthUser {
    * routes marked @AllowedBeforeDateOfBirth answer (DateOfBirthGuard, owner decision 9.3). Absent otherwise.
    */
   dateOfBirthRequired?: true;
+  /**
+   * Present only on a request made with a "view as" token (src/auth/view-as): this AuthUser is the VIEWED user (so
+   * every page shows exactly their data and permissions); `viewAs` names the administrator who is viewing. Every
+   * non-GET request is refused (ViewAsReadOnlyGuard) and the database refuses writes.
+   */
+  viewAs?: ViewAsInfo;
+}
+
+export interface ViewAsPerson {
+  id:   string;
+  name: string;
+  role: string;
+}
+
+export interface ViewAsInfo {
+  sessionId: string;
+  actor:     ViewAsPerson;
+  target:    ViewAsPerson;
+  /** When the viewing token stops working (30 minutes after it was issued). */
+  expiresAt: Date;
 }
 
 export interface ActiveOverride {

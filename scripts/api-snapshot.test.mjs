@@ -363,6 +363,12 @@ const FORM_EMAIL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-
  */
 const SUBSCRIBERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-subscribers.json';
 /**
+ * View as, read only (owner, 2026-11-23): an administrator starts viewing as a lower-ranked user (a single-use ticket),
+ * the viewing tab exchanges it for a 30-minute viewing token and ends the session. Additive only against the school
+ * codes snapshot.
+ */
+const VIEW_AS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-view-as.json';
+/**
  * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
  */
 const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
@@ -1949,6 +1955,21 @@ describe('approved API contract history', () => {
     ]);
   });
 
+  test('the school code is the identifier → view as, read only (2026-11-23): additive only — three operations, two request schemas', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, VIEW_AS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(VIEW_AS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/admin/users/{id}/view-as: operation added',
+      'POST /api/v1/auth/view-as/end: operation added',
+      'POST /api/v1/auth/view-as/exchange: operation added',
+      'schema ExchangeViewAsDto: added',
+      'schema StartViewAsDto: added',
+    ]);
+  });
+
   test('the school code is the identifier → integration of the 2026-11-23 branches (audit 2026-11-24): nothing breaking, nothing for review; every branch snapshot is contained', () => {
     for (const f of [SCHOOL_CODES_SNAPSHOT, INTEGRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const base = JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8'));
@@ -1957,7 +1978,7 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     // Each branch's own additions are all present together.
-    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT, SUBSCRIBERS_SNAPSHOT]) {
+    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT, SUBSCRIBERS_SNAPSHOT, VIEW_AS_SNAPSHOT]) {
       const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
       assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
     }

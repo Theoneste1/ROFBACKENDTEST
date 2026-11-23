@@ -86,6 +86,8 @@ describe('permissions', () => {
       'reports.build',
       // appended 2026-11-23 (owner): news subscribers — the mailing list and mailings
       'subscribers.manage',
+      // appended 2026-11-23 (owner): view as another (lower-ranked) user, read only
+      'users.impersonate',
     ]);
   });
 
@@ -106,7 +108,7 @@ describe('permissions', () => {
     const REF = ['reference.manage'] as const;   // countries (owner decision 2026-11-19), after the forms
     const TM = ['tests.view', 'tests.manage', 'tests.manageMarkers', 'tests.extensions', 'tests.viewSubmissions', 'tests.distribute', 'tests.review',
       'tests.publishResults', 'tests.overridePublication', 'tests.viewResults', 'tests.viewRankings',
-      'tests.authorizeResubmission', 'students.classifyLevel', 'reports.build', 'subscribers.manage'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions, Olympiad levels), after countries
+      'tests.authorizeResubmission', 'students.classifyLevel', 'reports.build', 'subscribers.manage', 'users.impersonate'] as const;   // Test Management (2026-11-19, Phases 1–4; 2026-11-21 locked submissions, Olympiad levels), after countries
     expect(ROLE_PERMISSIONS.ADMIN.slice(-TM.length)).toEqual([...TM]);
     for (const p of TM) expect([p, ROLE_GRANTS.ADMIN[p]]).toEqual([p, 'global']);
     const tail = FORMS.length + REF.length + TM.length;
@@ -237,6 +239,8 @@ describe('permissions', () => {
       'reports.build': G,
       // News subscribers (owner 2026-11-23): the mailing list and mailings
       'subscribers.manage': G,
+      // View as, read only (owner 2026-11-23): lower-ranked users only
+      'users.impersonate': G,
     };
     const EXPECTED: Record<AppRole, Record<string, ScopeKind>> = {
       STUDENT: {

@@ -93,13 +93,13 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   },
   // ── Administrator request audit (P1-08) ────────────────────────────────────
   {
-    file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !isAdmin(user)',
-    reason: 'Chooses whether to WRITE an audit row after the response (ADMIN / SUPER_ADMIN state-changing requests); every other request is unaffected. Not an access decision: guards decide.',
+    file: 'src/audit/admin-request-audit.middleware.ts', rule: 'U1', code: '!user || !actor || !isAdmin(actor)',
+    reason: 'Chooses whether to WRITE an audit row after the response (ADMIN / SUPER_ADMIN state-changing requests; while viewing as someone, the viewer is the actor); every other request is unaffected. Not an access decision: guards decide.',
   },
   // ── Course resources ───────────────────────────────────────────────────────
   {
-    file: 'src/courses/course-resources.service.ts', rule: 'U3', code: 'isStudent(user)',
-    reason: "serveFile(): records a student's resource view (activity tracking) after access was already checked by assertCanRead(); not an access decision.",
+    file: 'src/courses/course-resources.service.ts', rule: 'U3', code: 'isStudent(user) && !isViewing()',
+    reason: "serveFile(): records a student's resource view (activity tracking) after access was already checked by assertCanRead() — not while an administrator views as the student (read only); not an access decision.",
   },
   // ── Leaderboard ────────────────────────────────────────────────────────────
   {

@@ -14,6 +14,7 @@ import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { COURSE_WORK_ROLES, isAdmin, isCourseWorker, isStudent, unsupportedRole } from '../common/access/roles.js';
 import type { CourseEnrollmentStatus } from '../generated/prisma/client.js';
 import { UpdateCourseDto } from './dto/update-course.dto.js';
+import { isViewing } from '../common/request-context.js';
 
 // ─── Student-facing display labels ───────────────────────────────────────────
 //
@@ -350,6 +351,11 @@ export class CoursesService {
    * Uses upsert so concurrent first opens cannot collide.
    */
   private async recordCourseView(courseId: string, studentId: string) {
+    // "View as" (read only): show the stored state; opening it as an administrator changes nothing.
+    if (isViewing()) {
+      const stored = await this.prisma.courseEnrollment.findUnique({ where: { courseId_studentId: { courseId, studentId } } });
+      return stored ?? { status: 'UNROLLED' as const, completedAt: null };
+    }
     const now = new Date();
     const enrollment = await this.prisma.courseEnrollment.upsert({
       where:  { courseId_studentId: { courseId, studentId } },

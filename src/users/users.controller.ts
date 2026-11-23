@@ -251,8 +251,10 @@ export class MeController {
   @Get()
   @Authenticated()
   @AllowedBeforeDateOfBirth()
-  getMe(@CurrentUser() user: AuthUser) {
-    return this.usersService.getMe(user.id);
+  async getMe(@CurrentUser() user: AuthUser) {
+    const me = await this.usersService.getMe(user.id);
+    // "View as" (read only): the profile is the viewed user's; `viewAs` names who is viewing (the banner).
+    return user.viewAs ? { ...me, viewAs: user.viewAs } : me;
   }
 
   /**

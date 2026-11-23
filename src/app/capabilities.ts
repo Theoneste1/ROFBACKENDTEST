@@ -343,6 +343,13 @@ export const FEATURES = {
    */
   subscribers: 'always',
   /**
+   * View as, READ ONLY (owner 2026-11-23): POST /admin/users/:id/view-as (users.impersonate; lower-ranked users only) →
+   * a single-use 60-second ticket; POST /auth/view-as/exchange → a 30-minute viewing token (sub = the viewed user, no
+   * refresh, no cookie); every non-GET request with it answers 403 VIEW_AS_READ_ONLY; 401 VIEW_AS_ENDED when it stops
+   * working; POST /auth/view-as/end; GET /me carries `viewAs` { sessionId, actor, target, expiresAt }.
+   */
+  viewAs: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

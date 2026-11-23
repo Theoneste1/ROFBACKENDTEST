@@ -10,6 +10,8 @@ import { ActivationService } from './activation.service.js';
 import { TokenCleanupService } from './token-cleanup.service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { LoginLimiter } from './login-limiter.js';
+import { ViewAsAdminController, ViewAsAuthController } from './view-as/view-as.controller.js';
+import { ViewAsService } from './view-as/view-as.service.js';
 
 @Module({
   imports: [
@@ -24,11 +26,11 @@ import { LoginLimiter } from './login-limiter.js';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, ViewAsAdminController, ViewAsAuthController],
   // AuditService, SettingsService, DivisionsService and NotificationsService
   // come from @Global() modules.
   providers: [
-    AuthService, TokenService, ActivationService, JwtStrategy, TokenCleanupService,
+    AuthService, TokenService, ActivationService, JwtStrategy, TokenCleanupService, ViewAsService,
     {
       // Sign-in protection (owner approval 2026-11-18). The username windows follow the test-only throttle switch.
       provide: LoginLimiter, inject: [ConfigService],

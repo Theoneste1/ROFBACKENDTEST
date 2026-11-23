@@ -410,6 +410,8 @@ enum NotificationCategory {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model User {
+  viewAsSessionsStarted   ViewAsSession[]                 @relation("ViewAsActor")
+  viewAsSessionsReceived  ViewAsSession[]                 @relation("ViewAsTarget")
   resubmissionsAuthorized TestResubmissionAuthorization[] @relation("ResubmissionAuthorizedBy")
   resubmissionsCancelled  TestResubmissionAuthorization[] @relation("ResubmissionCancelledBy")
   id                      String                          @id @default(uuid())
@@ -3536,4 +3538,31 @@ model CustomReportGrant {
 
   @@unique([reportId, grantee])
   @@index([userId])
+}
+
+/// "View as" (owner 2026-11-23): an administrator sees the platform exactly as a lower-ranked user does, READ ONLY.
+/// One row per start: a single-use ticket (stored hashed, about 60 seconds) is exchanged for a 30-minute viewing token
+/// (no refresh). Every request re-checks the row (open, not expired), the actor (active, still holds users.impersonate)
+/// and the rank rule. Ending — by the actor, or because a check failed — sets endedAt and endedReason.
+model ViewAsSession {
+  id              String    @id @default(uuid())
+  actorId         String
+  actor           User      @relation("ViewAsActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetId        String
+  target          User      @relation("ViewAsTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  reason          String?
+  /// SHA-256 of the single-use ticket; cleared when the ticket is exchanged.
+  ticketHash      String?   @unique
+  ticketExpiresAt DateTime
+  requestId       String?
+  createdAt       DateTime  @default(now())
+  /// When the ticket was exchanged for the viewing token; expiresAt is then startedAt + 30 minutes.
+  startedAt       DateTime?
+  expiresAt       DateTime?
+  endedAt         DateTime?
+  /// ENDED_BY_ACTOR, PERMISSION_REMOVED, ACTOR_INACTIVE, ACTOR_SIGNED_OUT, TARGET_NOT_VIEWABLE.
+  endedReason     String?
+
+  @@index([actorId, createdAt])
+  @@index([targetId, createdAt])
 }

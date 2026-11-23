@@ -118,6 +118,7 @@ permission guard.
 | `students.viewProgramme` | — | — | programme | — | — | — |
 | `tests.viewProgrammeResults` | — | — | programme | — | — | — |
 | `subscribers.manage` | — | — | — | — | all | all |
+| `users.impersonate` | — | — | — | — | all | all |
 
 ## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
 

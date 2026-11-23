@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 477,
-    "paths": 409,
-    "schemas": 180
+    "operations": 480,
+    "paths": 412,
+    "schemas": 182
   },
-  "fingerprint": "81ff40ee41ce5202d568462f17ed33f6ee231c179ed8b65c2fc40b59d5805f0b",
+  "fingerprint": "a0dd29519522b123b40f3a14e37db925954454cfe0ac2021a08a9e04de0a5b1e",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -23467,6 +23467,44 @@
       }
     },
     {
+      "key": "POST /api/v1/admin/users/{id}/view-as",
+      "operationId": "ViewAsAdminController_start",
+      "tags": [
+        "Admin · Users"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "StartViewAsDto"
+          }
+        }
+      },
+      "responses": {
+        "201": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
       "key": "GET /api/v1/analytics/courses/{courseId}",
       "operationId": "AnalyticsController_course",
       "tags": [
@@ -29954,6 +29992,55 @@
             }
           }
         },
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/auth/view-as/end",
+      "operationId": "ViewAsAuthController_end",
+      "tags": [
+        "Auth"
+      ],
+      "roles": [
+        "PUBLIC"
+      ],
+      "public": true,
+      "parameters": [],
+      "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "POST /api/v1/auth/view-as/exchange",
+      "operationId": "ViewAsAuthController_exchange",
+      "tags": [
+        "Auth"
+      ],
+      "roles": [
+        "PUBLIC"
+      ],
+      "public": true,
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "ExchangeViewAsDto"
+          }
+        }
+      },
+      "responses": {
+        "200": null,
         "default": {
           "application/json": {
             "ref": "Error"
@@ -52317,6 +52404,19 @@
         }
       }
     },
+    "ExchangeViewAsDto": {
+      "type": "object",
+      "required": [
+        "ticket"
+      ],
+      "properties": {
+        "ticket": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 200
+        }
+      }
+    },
     "ForgotPasswordDto": {
       "type": "object",
       "required": [
@@ -54122,6 +54222,16 @@
         "reason": {
           "type": "string",
           "minLength": 0,
+          "maxLength": 500
+        }
+      }
+    },
+    "StartViewAsDto": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "reason": {
+          "type": "string",
           "maxLength": 500
         }
       }

@@ -34,6 +34,7 @@ import type { FileObject, Prisma } from '../generated/prisma/client.js';
 import { Events } from '../notifications/events.js';
 import { CreateResourceDto, ListResourcesDto } from './dto/create-resource.dto.js';
 import { UpdateResourceDto } from './dto/update-resource.dto.js';
+import { isViewing } from '../common/request-context.js';
 
 const RESOURCE_SELECT = {
   id:          true,
@@ -195,7 +196,8 @@ export class CourseResourcesService {
     });
     if (!attachment) throw new NotFoundException('This resource has no such file.');
 
-    if (isStudent(user)) {
+    // "View as" (read only): an administrator's look is not the student's view.
+    if (isStudent(user) && !isViewing()) {
       const now = new Date();
       await this.prisma.resourceView.upsert({
         where:  { resourceId_studentId: { resourceId, studentId: user.id } },

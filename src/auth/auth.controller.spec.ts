@@ -45,12 +45,13 @@ describe('AuthController authorization metadata', () => {
 describe('AuthController.logout (H1)', () => {
   const make = () => {
     const authService = { logout: vi.fn().mockResolvedValue(undefined) };
+    const viewAs = { endFromToken: vi.fn().mockResolvedValue(true) };
     const config = { get: vi.fn().mockReturnValue('production') };
-    const controller = new AuthController(authService as never, config as never, {} as never);
+    const controller = new AuthController(authService as never, config as never, {} as never, viewAs as never);
     const res = { clearCookie: vi.fn() };
     const req = (headers: Record<string, string> = {}, cookies: Record<string, string> = {}) =>
-      ({ cookies, get: (h: string) => headers[h.toLowerCase()] }) as never;
-    return { controller, authService, res, req };
+      ({ cookies, headers, get: (h: string) => headers[h.toLowerCase()] }) as never;
+    return { controller, authService, viewAs, res, req };
   };
 
   it('passes the refresh cookie and the bearer token, then clears the cookie with its attributes', async () => {
@@ -71,6 +72,17 @@ describe('AuthController.logout (H1)', () => {
     const { controller, res, req } = make();
     await expect(controller.logout({} as never, req(), res as never)).resolves.toEqual({ message: 'Logged out successfully.' });
     expect(res.clearCookie).toHaveBeenCalledTimes(1);
+  });
+
+  it('a "view as" tab signing out ends only the viewing session: the viewer\'s own refresh cookie is never revoked or cleared', async () => {
+    const { controller, authService, viewAs, res, req } = make();
+    const payload = Buffer.from(JSON.stringify({ sub: 'student', va: { actorId: 'admin', sessionId: 's1' } })).toString('base64url');
+    const token = `h.${payload}.sig`;
+    await expect(controller.logout({} as never, req({ authorization: `Bearer ${token}` }, { [REFRESH_COOKIE]: 'admins-cookie' }), res as never))
+      .resolves.toEqual({ message: 'The viewing session has ended.' });
+    expect(viewAs.endFromToken).toHaveBeenCalledWith(token);
+    expect(authService.logout).not.toHaveBeenCalled();
+    expect(res.clearCookie).not.toHaveBeenCalled();
   });
 
   it('bearerToken reads only a well-formed Bearer header', () => {

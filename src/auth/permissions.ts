@@ -139,6 +139,10 @@ export const PERMISSIONS = [
   // ── News subscribers (owner 2026-11-23) ──
   'subscribers.manage',          // the news mailing list: see, export, add, import, edit, unsubscribe, erase; compose and send
                                  // mailings to subscribers (Administrators, global)
+  // ── View as (owner 2026-11-23) ──
+  'users.impersonate',           // view the platform exactly as a LOWER-ranked user sees it, READ ONLY (src/auth/view-as):
+                                 // Administrators and Super Admins by default; grantable to a Head Coach by an individual
+                                 // override (then Students, Teachers and Coaches only); removable per user (DENY)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -208,6 +212,8 @@ const ADMIN_GRANTS: Grants = {
   'reports.build': 'global',
   // News subscribers (owner 2026-11-23): the mailing list and mailings.
   'subscribers.manage': 'global',
+  // View as, read only (owner 2026-11-23): lower-ranked users only (view-as.rules.ts).
+  'users.impersonate': 'global',
 };
 
 /**
@@ -308,6 +314,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     // Registration data (owner 2026-11-23): Super Administrators only.
     'registrationData.manage': 'global',
     'subscribers.manage': 'global',
+    'users.impersonate': 'global',
   },
 };
 
@@ -412,6 +419,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'reports.build',
     // appended 2026-11-23 (owner): news subscribers — the mailing list and mailings
     'subscribers.manage',
+    // appended 2026-11-23 (owner): view as another (lower-ranked) user, read only
+    'users.impersonate',
   ],
 };
 
