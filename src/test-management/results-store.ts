@@ -58,20 +58,32 @@ export async function activeStudents(db: Db, studentIds: readonly string[]): Pro
 }
 
 /**
- * The teachers who see these students' published results — ACTIVE Teacher accounts with an ACTIVE link to the school of
- * a student whose current claim (PENDING or VERIFIED) is that school, approved, activated and ACTIVE (the same rule as the teacher's views:
- * teacher-scope.ts visibleSchoolStudentsWhere) — with how many of the students each one sees. One query.
+ * The teachers who see these students' published results (the same rule as the teacher's views, teacher-scope.ts
+ * teacherTestStudentsWhere) — ACTIVE Teacher accounts with (a) an ACTIVE link to the school of a student whose current
+ * claim (PENDING or VERIFIED) is that school, or (b) an ACTIVE assignment of the student made with a reason (crossSchool;
+ * one without a reason only counts while (a) holds, so (a) covers it) — the student approved, activated and ACTIVE —
+ * with how many of the students each one sees (each student once). One query.
  */
 export async function schoolTeachersOf(db: Db, studentIds: readonly string[]): Promise<Array<Recipient & { students: number }>> {
   if (studentIds.length === 0) return [];
   return db.$queryRaw<Array<Recipient & { students: number }>>`
-    SELECT t."id", t."email", t."firstName", t."activatedAt", count(DISTINCT u."id")::int AS "students"
-      FROM "User" u
-      JOIN "StudentSchoolAffiliation" f ON f."studentId" = u."id" AND f."schoolId" = u."schoolId" AND f."status" IN ('PENDING', 'VERIFIED') AND f."supersededAt" IS NULL
-      JOIN "TeacherSchoolAssignment" ta ON ta."schoolId" = u."schoolId" AND ta."isActive"
-      JOIN "User" t ON t."id" = ta."teacherId" AND t."role" = 'TEACHER' AND t."accountStatus" = 'ACTIVE'
-     WHERE u."id" = ANY(${[...studentIds]}::text[]) AND u."role" = 'STUDENT' AND u."isApproved" AND u."activatedAt" IS NOT NULL
-       AND u."accountStatus" = 'ACTIVE'
+    WITH reach AS (
+      SELECT ta."teacherId", u."id" AS "studentId"
+        FROM "User" u
+        JOIN "StudentSchoolAffiliation" f ON f."studentId" = u."id" AND f."schoolId" = u."schoolId" AND f."status" IN ('PENDING', 'VERIFIED') AND f."supersededAt" IS NULL
+        JOIN "TeacherSchoolAssignment" ta ON ta."schoolId" = u."schoolId" AND ta."isActive"
+       WHERE u."id" = ANY(${[...studentIds]}::text[]) AND u."role" = 'STUDENT' AND u."isApproved" AND u."activatedAt" IS NOT NULL
+         AND u."accountStatus" = 'ACTIVE'
+      UNION
+      SELECT sa."teacherId", u."id"
+        FROM "User" u
+        JOIN "TeacherStudentAssignment" sa ON sa."studentId" = u."id" AND sa."isActive" AND sa."crossSchool"
+       WHERE u."id" = ANY(${[...studentIds]}::text[]) AND u."role" = 'STUDENT' AND u."isApproved" AND u."activatedAt" IS NOT NULL
+         AND u."accountStatus" = 'ACTIVE'
+    )
+    SELECT t."id", t."email", t."firstName", t."activatedAt", count(DISTINCT r."studentId")::int AS "students"
+      FROM reach r
+      JOIN "User" t ON t."id" = r."teacherId" AND t."role" = 'TEACHER' AND t."accountStatus" = 'ACTIVE'
      GROUP BY t."id", t."email", t."firstName", t."activatedAt"
      ORDER BY t."id"`;
 }

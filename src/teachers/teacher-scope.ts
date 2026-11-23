@@ -62,6 +62,16 @@ export function teacherStudentsWhere(teacherId: string, schoolIds: readonly stri
   return { AND: [{ OR: [schoolStudentsWhere(schoolIds), assignedStudentsWhere(teacherId, schoolIds)] }, ACTIVE_ACCOUNT] };
 }
 
+/**
+ * Test Management (owner 2026-11-23): the students a teacher submits answers for and follows (tests, results, extensions)
+ * — every student the teacher sees: (a) their schools' students and (b) the students assigned to them, ACTIVE. With
+ * `schoolId`, only that school's (a school of the teacher, or the school of an assigned student).
+ */
+export function teacherTestStudentsWhere(teacherId: string, schoolIds: readonly string[], schoolId?: string): Prisma.UserWhereInput {
+  const all = teacherStudentsWhere(teacherId, schoolIds);
+  return schoolId ? { AND: [all, { OR: [schoolStudentsWhere([schoolId]), { schoolId }] }] } : all;
+}
+
 export async function activeSchoolsOf(db: Db, teacherId: string): Promise<string[]> {
   const rows = await db.teacherSchoolAssignment.findMany({ where: { teacherId, isActive: true }, select: { schoolId: true }, orderBy: { schoolId: 'asc' } });
   return rows.map((r) => r.schoolId);

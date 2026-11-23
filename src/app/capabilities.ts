@@ -298,6 +298,12 @@ export const FEATURES = {
   /** Table layouts (owner 2026-11-22): /me/table-layouts/:table and /admin/table-layouts/:table; GET /admin/users ?sort&order. */
   tableLayouts: 'always',
   /**
+   * Teachers and their assigned students in Test Management (owner 2026-11-23): a teacher submits answers for, and follows
+   * the results and extensions of, the students of their schools AND the students assigned to them (another school's
+   * too); /teacher/tests lists them; ?schoolId may name an assigned student's school.
+   */
+  teacherAssignedTestStudents: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with
