@@ -353,6 +353,11 @@ const COACH_ACCESS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-coach-progr
  */
 const SCHOOL_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-filters.json';
 /**
+ * E-mail activation per sign-up form, off by default (owner, 2026-11-23): the forms' availability change accepts
+ * requireEmailVerification. Additive only against the school codes snapshot.
+ */
+const FORM_EMAIL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-form-email-verification.json';
+/**
  * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
  */
 const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
@@ -1896,6 +1901,15 @@ describe('approved API contract history', () => {
       .map((q) => `GET /api/v1/admin/schools: new optional query parameter "${q}"`));
   });
 
+  test('the school code is the identifier → e-mail activation per sign-up form (2026-11-23): additive only — one optional field', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FORM_EMAIL_VERIFICATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PATCH /api/v1/admin/forms/{key}/availability › request application/json.requireEmailVerification: new optional field']);
+  });
+
   test('the school code is the identifier → integration of the 2026-11-23 branches (audit 2026-11-24): nothing breaking, nothing for review; every branch snapshot is contained', () => {
     for (const f of [SCHOOL_CODES_SNAPSHOT, INTEGRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const base = JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8'));
@@ -1904,7 +1918,7 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     // Each branch's own additions are all present together.
-    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT]) {
+    for (const branch of [REGISTRATION_DATA_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, COACH_ACCESS_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT]) {
       const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
       assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
     }

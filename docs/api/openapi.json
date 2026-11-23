@@ -54425,6 +54425,10 @@
             "type": "string",
             "nullable": true,
             "description": "When the form closes (OPEN or SCHEDULED); null = no closing date. Must be after opensAt."
+          },
+          "requireEmailVerification": {
+            "type": "boolean",
+            "description": "Sign-up forms only (STUDENT_REGISTRATION, TEACHER_REGISTRATION, COACH_APPLICATION; 400 NOT_A_SIGN_UP_FORM\notherwise): true — people who sign up with this form must confirm their e-mail (activation link) before they can\nsign in; false (the default) — no activation. Applies to accounts created from then on."
           }
         }
       },

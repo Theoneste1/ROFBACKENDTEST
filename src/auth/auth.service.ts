@@ -161,7 +161,8 @@ export class AuthService {
     await this.assertIdentityFree(data.username, data.email);
 
     const requiresApproval     = await this.settings.get('registration.studentRequiresApproval');
-    const requiresVerification = await this.settings.get('registration.requireEmailVerification');
+    // Activation per sign-up form (owner 2026-11-23): off unless an Administrator turned it on for this form.
+    const requiresVerification = await this.forms.requiresEmailVerification('STUDENT_REGISTRATION');
     const passwordHash         = await bcrypt.hash(data.password, BCRYPT_COST);
     const divisionId       = await this.divisions.idForGrade(data.gradeLevel);
 

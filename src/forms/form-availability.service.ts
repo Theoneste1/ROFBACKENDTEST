@@ -37,12 +37,15 @@ const CLOSED_CODE: Readonly<Record<FormKey, string>> = {
 };
 
 const SCHEDULE_FIELDS = ['mode', 'opensAt', 'closesAt'] as const;
+/** The sign-up forms: each has its own e-mail activation switch (owner 2026-11-23). */
+export const SIGN_UP_FORMS: readonly FormKey[] = ['STUDENT_REGISTRATION', 'TEACHER_REGISTRATION', 'COACH_APPLICATION'];
+export const isSignUpForm = (key: FormKey) => SIGN_UP_FORMS.includes(key);
 const MESSAGE_FIELDS = ['closedMessage', 'instructions', 'contactEmail', 'supportUrl'] as const;
 
-export interface AvailabilityChange { mode?: FormMode; opensAt?: string | null; closesAt?: string | null }
+export interface AvailabilityChange { mode?: FormMode; opensAt?: string | null; closesAt?: string | null; requireEmailVerification?: boolean }
 export interface MessagesChange { closedMessage?: string | null; instructions?: string | null; contactEmail?: string | null; supportUrl?: string | null }
 
-type Row = Pick<FormAvailability, 'key' | 'mode' | 'opensAt' | 'closesAt' | 'closedMessage' | 'instructions' | 'contactEmail' | 'supportUrl' | 'updatedAt'>
+type Row = Pick<FormAvailability, 'key' | 'mode' | 'opensAt' | 'closesAt' | 'closedMessage' | 'instructions' | 'contactEmail' | 'supportUrl' | 'requireEmailVerification' | 'updatedAt'>
   & { updatedBy?: { id: string; username: string; firstName: string; lastName: string } | null };
 
 /** The acting administrator, with the request id when the change came through the API (recorded in the audit row). */
@@ -117,6 +120,8 @@ export class FormAvailabilityService {
       closedMessageCustom:  r.closedMessage,
       closedMessageDefault: FORM_DEFAULTS[key].closedMessage,
       ...(key === 'TEACHER_REGISTRATION' && { requiresTeacherRole: true, teacherRoleEnabled: roleFlagOn('TEACHER', this.config) }),
+      // Sign-up forms: whether people who sign up with it must confirm their e-mail before signing in.
+      ...(isSignUpForm(key) && { requireEmailVerification: r.requireEmailVerification }),
       updatedAt:            r.updatedAt.toISOString(),
       updatedBy:            r.updatedBy ?? null,
     };
@@ -150,6 +155,30 @@ export class FormAvailabilityService {
       form: key, state: v.state, opensAt: v.opensAt, closesAt: v.closesAt,
       closedMessage: v.closedMessage, contactEmail: v.contactEmail, supportUrl: v.supportUrl,
     });
+  }
+
+  // ─── E-mail activation per sign-up form (owner 2026-11-23) ───────────────────────────────────────────────
+
+  /** Whether people who sign up with this form must confirm their e-mail before they can sign in (off by default). */
+  async requiresEmailVerification(key: FormKey): Promise<boolean> {
+    return isSignUpForm(key) && (await this.row(key)).requireEmailVerification;
+  }
+
+  /** The old setting registration.requireEmailVerification: true while any sign-up form requires it. */
+  async emailVerificationSwitch(): Promise<boolean> {
+    for (const key of SIGN_UP_FORMS) if (await this.requiresEmailVerification(key)) return true;
+    return false;
+  }
+
+  /** Writing the old setting: the same value on every sign-up form (forms.manageAvailability; audited per form). */
+  async setEmailVerificationSwitch(value: boolean, user: AuthUser, tx = this.prisma as unknown as PrismaTx, requestId?: string | null): Promise<void> {
+    this.assertMayManageAvailability(user);
+    const caller: FormCaller = Object.assign({}, user, { requestId });
+    for (const key of SIGN_UP_FORMS) {
+      if ((await this.lockedRow(tx, key)).requireEmailVerification !== value) {
+        await this.applyAvailability(key, { requireEmailVerification: value }, caller, tx, 'setting');
+      }
+    }
   }
 
   // ─── The old switches (registration.studentSelfSignup, registration.teacherSelfSignup) ─────────────────
@@ -211,7 +240,11 @@ export class FormAvailabilityService {
 
   private async applyAvailability(key: FormKey, change: AvailabilityChange, caller: FormCaller, tx: PrismaTx, via: 'admin' | 'setting') {
     const fields = SCHEDULE_FIELDS.filter((f) => change[f] !== undefined);
-    if (fields.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Provide at least one field to change.');
+    const verification = change.requireEmailVerification;
+    if (fields.length === 0 && verification === undefined) throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Provide at least one field to change.');
+    if (verification !== undefined && !isSignUpForm(key)) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_SIGN_UP_FORM', 'E-mail activation can be set only on the student, teacher and coach sign-up forms.', { form: key });
+    }
     const before = await this.lockedRow(tx, key);
     const date = (v: string | null | undefined, cur: Date | null) => (v === undefined ? cur : v === null ? null : new Date(v));
     const next = {
@@ -227,10 +260,14 @@ export class FormAvailabilityService {
     if (next.mode !== before.mode) changes.mode = { from: before.mode, to: next.mode };
     if (iso(next.opensAt) !== iso(before.opensAt)) changes.opensAt = { from: iso(before.opensAt), to: iso(next.opensAt) };
     if (iso(next.closesAt) !== iso(before.closesAt)) changes.closesAt = { from: iso(before.closesAt), to: iso(next.closesAt) };
+    const requireEmailVerification = verification ?? before.requireEmailVerification;
+    if (requireEmailVerification !== before.requireEmailVerification) {
+      changes.requireEmailVerification = { from: before.requireEmailVerification, to: requireEmailVerification };
+    }
     if (Object.keys(changes).length === 0) return;
 
     const now = new Date();
-    await tx.formAvailability.update({ where: { key }, data: { ...next, updatedById: caller.id } });
+    await tx.formAvailability.update({ where: { key }, data: { ...next, requireEmailVerification, updatedById: caller.id } });
     await this.audit.log({
       actorId: caller.id, actorRole: caller.role, action: 'FORM_AVAILABILITY_CHANGED', entity: 'FormAvailability', entityId: key,
       metadata: {
@@ -267,13 +304,13 @@ export class FormAvailabilityService {
   /** The row under a lock for the rest of the transaction (created with its initial mode if it were missing). */
   private async lockedRow(tx: PrismaTx, key: FormKey) {
     await tx.formAvailability.upsert({ where: { key }, create: { key, mode: INITIAL_MODE[key] }, update: {} });
-    const [r] = await tx.$queryRaw<Row[]>`SELECT "key", "mode", "opensAt", "closesAt", "closedMessage", "instructions", "contactEmail", "supportUrl", "updatedAt"
+    const [r] = await tx.$queryRaw<Row[]>`SELECT "key", "mode", "opensAt", "closesAt", "closedMessage", "instructions", "contactEmail", "supportUrl", "requireEmailVerification", "updatedAt"
       FROM "FormAvailability" WHERE "key" = ${key}::"FormKey" FOR UPDATE`;
     return r;
   }
 
   private initialRow(key: FormKey): Row {
-    return { key, mode: INITIAL_MODE[key], opensAt: null, closesAt: null, closedMessage: null, instructions: null, contactEmail: null, supportUrl: null, updatedAt: new Date(0), updatedBy: null };
+    return { key, mode: INITIAL_MODE[key], opensAt: null, closesAt: null, closedMessage: null, instructions: null, contactEmail: null, supportUrl: null, requireEmailVerification: false, updatedAt: new Date(0), updatedBy: null };
   }
 }
 

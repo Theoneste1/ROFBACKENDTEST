@@ -749,6 +749,7 @@ Body (JSON):
 | `mode` | OPEN \| CLOSED \| SCHEDULED |  | OPEN (open now, until closesAt if set), CLOSED, or SCHEDULED (open from opensAt until closesAt). |
 | `opensAt` | string |  | When a SCHEDULED form opens (required for SCHEDULED). null removes it. |
 | `closesAt` | string |  | When the form closes (OPEN or SCHEDULED); null = no closing date. Must be after opensAt. |
+| `requireEmailVerification` | boolean |  | Sign-up forms only (STUDENT_REGISTRATION, TEACHER_REGISTRATION, COACH_APPLICATION; 400 NOT_A_SIGN_UP_FORM otherwise): true — people who sign up with this form must confirm their e-mail (activation link) before they can sign in; false (the default) — no activation. Applies to accounts created from then on. |
 
 Returns `200` with no body.
 

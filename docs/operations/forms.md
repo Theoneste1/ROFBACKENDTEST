@@ -25,7 +25,9 @@ Student and teacher registration keep the code `REGISTRATION_CLOSED`, because th
 
 **Teacher registration** also requires the Teacher role to be enabled (`TEACHERS_ENABLED`). While it is off, the form reports `CLOSED` whatever its settings say; they apply once the role is enabled.
 
-**What closing a form does not affect:** sign-in, existing accounts, applications already waiting for approval, and every other part of the platform. Approval and e-mail-verification settings (`registration.studentRequiresApproval`, `registration.requireEmailVerification`) are unchanged and separate.
+**What closing a form does not affect:** sign-in, existing accounts, applications already waiting for approval, and every other part of the platform. Approval (`registration.studentRequiresApproval`) and e-mail activation are unchanged and separate.
+
+**E-mail activation (owner 2026-11-23):** each sign-up form (student, teacher, coach) has its own switch, off by default. On, people who sign up with that form must confirm their e-mail (an activation link valid 48 hours) before they can sign in; off, they sign in at once. It applies to accounts created from then on; accounts already waiting for their link keep waiting (an administrator can activate them). `PATCH /admin/forms/:key/availability { requireEmailVerification }` (forms.manageAvailability; 400 NOT_A_SIGN_UP_FORM for the contact form); audited as FORM_AVAILABILITY_CHANGED. The old setting `registration.requireEmailVerification` reads true while any sign-up form requires it, and writing it sets all of them.
 
 ## Modes and states
 

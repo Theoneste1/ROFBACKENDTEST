@@ -10,7 +10,7 @@
     "paths": 396,
     "schemas": 172
   },
-  "fingerprint": "299adecb98f4c57aab93f3a71c70500025ee47e4637c9d798c81fb7ea3ed2983",
+  "fingerprint": "e3cc754ed19dfd1e7802b8c87f25bb70bd5cfb58eeb78553a660777699cc6a8e",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -52717,6 +52717,9 @@
         "opensAt": {
           "nullable": true,
           "type": "string"
+        },
+        "requireEmailVerification": {
+          "type": "boolean"
         }
       }
     },

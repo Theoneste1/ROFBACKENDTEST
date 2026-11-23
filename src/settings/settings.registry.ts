@@ -42,11 +42,10 @@ export const SETTINGS = {
     description: 'Self-registered students must be approved by an admin before they can log in.',
   },
   'registration.requireEmailVerification': {
-    category:          'REGISTRATION',
-    type:              'boolean',
-    default:           false,
-    productionDefault: true,
-    description:       'People who sign up themselves (students, and coach applicants once approved) must confirm their e-mail address before they can log in. On by default in production.',
+    category:    'REGISTRATION',
+    type:        'boolean',
+    default:     false,
+    description: 'E-mail activation on sign-up. Each sign-up form (student, teacher, coach) now has its own switch on the Forms page; this reads true while any of them requires activation, and changing it sets all of them. Off by default.',
   },
   'registration.teacherSelfSignup': {
     category:    'REGISTRATION',

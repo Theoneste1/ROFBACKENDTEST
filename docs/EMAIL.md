@@ -47,7 +47,7 @@ mailbox).
 |---|---|---|---|
 | Reset your password | "Forgot password", or an administrator sends a reset link | `/reset-password?token=…` | 30 minutes, once |
 | Activate your account | An administrator invites a user (or a CSV import) | `/activate?token=…` | 7 days, once |
-| Confirm your e-mail address | Self-registration when `registration.requireEmailVerification` is on (default in production); approved coach applications | `/activate?token=…` | 48 hours, once |
+| Confirm your e-mail address | Sign-up when e-mail activation is on for that form (student, teacher or coach; off by default) | `/activate?token=…` | 48 hours, once |
 | Welcome | Account activated, or registered without e-mail confirmation | `/login` | — |
 | Your account has been approved | An administrator approves a pending registration | `/login` | — |
 | Your password was changed | After a password reset or change (security notice) | `/forgot-password` | — |

@@ -98,11 +98,11 @@ describe('validateSettingValue', () => {
     });
   });
 
-  it('e-mail verification is on by default in production only', () => {
+  it('e-mail activation is off by default everywhere, production included (owner 2026-11-23)', () => {
     const before = process.env.NODE_ENV;
     try {
       process.env.NODE_ENV = 'production';
-      expect(defaultValue('registration.requireEmailVerification')).toBe(true);
+      expect(defaultValue('registration.requireEmailVerification')).toBe(false);
       process.env.NODE_ENV = 'development';
       expect(defaultValue('registration.requireEmailVerification')).toBe(false);
       expect(defaultValue('platform.name')).toBe('ROF Learning Platform');

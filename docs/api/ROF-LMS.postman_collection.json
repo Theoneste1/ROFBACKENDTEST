@@ -1523,7 +1523,7 @@
             "description": "**Access:** permission `forms.manageAvailability` (ADMIN, SUPER_ADMIN)",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"mode\": \"OPEN\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\"\n}",
+              "raw": "{\n  \"mode\": \"OPEN\",\n  \"opensAt\": \"opensAt\",\n  \"closesAt\": \"closesAt\",\n  \"requireEmailVerification\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"

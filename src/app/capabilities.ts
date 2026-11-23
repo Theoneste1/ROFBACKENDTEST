@@ -194,6 +194,13 @@ export const FEATURES = {
    */
   schoolListFilters: 'always',
   /**
+   * E-mail activation per sign-up form (owner 2026-11-23): GET /admin/forms carries `requireEmailVerification` on the
+   * student, teacher and coach forms (off by default); PATCH /admin/forms/:key/availability accepts it
+   * (forms.manageAvailability; 400 NOT_A_SIGN_UP_FORM for the contact form). The setting
+   * registration.requireEmailVerification reads true while any sign-up form requires it and writing it sets all of them.
+   */
+  formEmailVerification: 'always',
+  /**
    * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
    * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
    * imported) every route except GET /me, GET /me/permissions, PUT /me/date-of-birth and sign-out answers

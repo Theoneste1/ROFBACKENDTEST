@@ -38,9 +38,12 @@ flowchart LR
   password reset) stops working, and the audit entry records how many were
   revoked. To give an invited user a working link, re-send the invitation:
   it goes to the new address.
-- E-mail verification (`registration.requireEmailVerification`) is on by
-  default in production: self-registered students and approved mentor
-  applicants confirm their address before their first login.
+- E-mail activation is set per sign-up form (owner 2026-11-23) and is off by
+  default: new students, teachers and coaches sign in at once. When an
+  administrator turns it on for a form (Forms page), people who sign up with that
+  form confirm their address before their first login. The old setting
+  `registration.requireEmailVerification` reads true while any form requires it;
+  changing it sets every sign-up form.
 - Accounts that were never activated cannot log in. "Forgot password" sends
   them a fresh activation link instead.
 - Suspending an account, changing its role, or a password change/reset ends

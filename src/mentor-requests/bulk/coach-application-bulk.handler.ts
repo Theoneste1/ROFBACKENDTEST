@@ -16,7 +16,7 @@ import type { BulkEntityHandler, Db, EngineSelection, ItemContext, ItemResult } 
 import { BulkRegistry } from '../../bulk/bulk-registry.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { SettingsService } from '../../settings/settings.service.js';
+import { FormAvailabilityService } from '../../forms/form-availability.service.js';
 import { mentorRequestListWhere, MentorRequestsService } from '../mentor-requests.service.js';
 import { CoachApplicationBulkSelectionDto } from './coach-application-bulk.dto.js';
 import {
@@ -45,7 +45,7 @@ export class CoachApplicationBulkHandler implements BulkEntityHandler, OnModuleI
     private readonly registry: BulkRegistry,
     private readonly prisma: PrismaService,
     private readonly requests: MentorRequestsService,
-    private readonly settings: SettingsService,
+    private readonly forms: FormAvailabilityService,
     private readonly activation: ActivationService,
   ) {}
 
@@ -100,7 +100,7 @@ export class CoachApplicationBulkHandler implements BulkEntityHandler, OnModuleI
     if (skip) return skip;
     const by = { operationId: op.id };
     if (action === 'approve') {
-      const verify = await this.settings.get('registration.requireEmailVerification');
+      const verify = await this.forms.requiresEmailVerification('COACH_APPLICATION');
       // Never the picture in bulk: an Administrator approves a picture only after seeing it, one application at a time.
       const { issued, notice } = await this.requests.approveInTx(tx, entityId, actor, { approvePicture: false }, verify, by);
       noticeIds.push(notice);
