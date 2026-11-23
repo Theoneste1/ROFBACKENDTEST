@@ -27,8 +27,15 @@ const WRITES_SCHOOL_DATA = /\.(school|schoolContact|schoolEducationLevel|schoolP
 describe('school directory guards (S1)', () => {
   it('contacts: SchoolDirectoryDataService reads and writes them; the sync comparison (S2a) only reads them; the sync apply (S2b) only adds them (ADMIN_ONLY, unverified, masked in its audit); the sync reports mask them', () => {
     expect(files(SRC).filter((f) => READS_CONTACTS.test(readFileSync(f, 'utf8'))).map(rel)).toEqual([
-      'schools/directory/school-directory-data.service.ts', 'schools/sync/review/school-sync-apply.service.ts', 'schools/sync/sync-compare.ts',
+      'schools/admin-schools.service.ts', 'schools/directory/school-directory-data.service.ts', 'schools/sync/review/school-sync-apply.service.ts',
+      'schools/sync/sync-compare.ts',
     ]);
+    // The school list (owner 2026-11-23) only FILTERS by contacts (where: { contacts: { some / none } }): it never reads,
+    // selects, includes or returns a contact value.
+    const list = readFileSync(join(SRC, 'schools/admin-schools.service.ts'), 'utf8');
+    expect(list).not.toMatch(/\.schoolContact\./);
+    expect(list).not.toMatch(/contacts:\s*(true|\{\s*(select|where|orderBy|take))/);
+    expect(list.match(/contacts: \{/g)).toEqual(['contacts: {', 'contacts: {']);
     const compare = readFileSync(join(SRC, 'schools/sync/sync-compare.ts'), 'utf8');
     expect(compare).not.toMatch(/\.schoolContact\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/);
     expect(compare).toContain('schoolContact.findMany({ where: { removedAt: null }, select: { schoolId: true, type: true, value: true } })');

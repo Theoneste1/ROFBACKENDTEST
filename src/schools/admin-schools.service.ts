@@ -57,7 +57,26 @@ const SCHOOL_SELECT = {
 
 /** The filters of GET /admin/schools (and of the SCHOOL bulk selection): one where clause for both. */
 export function schoolListWhere(q: SchoolListFilter): Prisma.SchoolWhereInput {
+  const and: Prisma.SchoolWhereInput[] = [];
+  const contactOf = (type: 'EMAIL' | 'PHONE', has: boolean) =>
+    and.push({ contacts: { [has ? 'some' : 'none']: { type, removedAt: null } } });
+  if (q.hasEmail !== undefined) contactOf('EMAIL', q.hasEmail);
+  if (q.hasPhone !== undefined) contactOf('PHONE', q.hasPhone);
+  if (q.contact) {
+    // Phones are stored as E.164 (+250788…) but people type 0788 757 447: match the digits after the leading 0 as well.
+    const digits = q.contact.replace(/[\s()-]/g, '');
+    const terms = [...new Set([q.contact, digits, /^0\d{8,}$/.test(digits) ? digits.slice(1) : digits])];
+    and.push({ contacts: { some: { removedAt: null, OR: terms.flatMap((t) => [
+      { value: { contains: t, mode: 'insensitive' as const } }, { rawValue: { contains: t, mode: 'insensitive' as const } },
+    ]) } } });
+  }
+  // Its own condition: `programme` (an id) uses the same relation.
+  if (q.programmeCategory) and.push({ programmes: { some: { programme: { category: q.programmeCategory } } } });
   return {
+    ...(and.length > 0 && { AND: and }),
+    ...(q.cell && { cell: { equals: q.cell, mode: 'insensitive' } }),
+    ...(q.village && { village: { equals: q.village, mode: 'insensitive' } }),
+    ...(q.ownership && { ownership: q.ownership }),
     ...(q.q && { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { code: { startsWith: q.q } }] }),
     ...(q.countryCode && { countryCode: q.countryCode }),
     ...(q.province && { province: q.province }),

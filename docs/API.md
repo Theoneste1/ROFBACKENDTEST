@@ -1739,10 +1739,17 @@ Every school — official, Administrator-created and legacy; active and inactive
 | `province` | query | string |  |  |
 | `district` | query | string |  |  |
 | `sector` | query | string |  |  |
+| `cell` | query | string |  | Cell / village (any letter case). |
+| `village` | query | string |  |  |
+| `ownership` | query | PUBLIC \| GOVERNMENT_AIDED \| PRIVATE |  | PUBLIC, GOVERNMENT_AIDED or PRIVATE. |
+| `contact` | query | string |  | An active contact (e-mail or phone) containing this text (any letter case; spaces ignored for phones). |
+| `hasEmail` | query | boolean |  | true: has an active e-mail contact; false: has none. |
+| `hasPhone` | query | boolean |  | true: has an active phone contact; false: has none. |
 | `isActive` | query | boolean |  |  |
 | `source` | query | ADMIN \| OFFICIAL_LIST \| LEGACY |  |  |
 | `level` | query | string |  | Offers this education level (e.g. PR, OL, AL). |
 | `programme` | query | string |  | Offers this programme (its id). |
+| `programmeCategory` | query | OTHER \| A_LEVEL_COMBINATION \| TVET_TRADE |  | Offers a programme of this category (A-Level combination, TVET trade, other). |
 | `accommodation` | query | DAY \| BOARDING \| MIXED |  |  |
 | `hasCode` | query | boolean |  | false: schools without an official code. |
 | `hasSourceIssues` | query | boolean |  | true: schools whose source records report data problems. |

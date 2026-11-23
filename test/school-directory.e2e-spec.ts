@@ -544,6 +544,37 @@ describe('School directory S1 (M12)', () => {
       expect(await ids({ hasSourceIssues: false })).not.toContain(officialSouth);
       expect(await status(http().get(S).query({ accommodation: 'HOSTEL' }).set(bearer(admin)))).toEqual([400, 'VALIDATION_FAILED']);
     });
+
+    it('admin list filters (owner 2026-11-23, every field of the NESA file): ownership, cell, village, a contact value, with or without an e-mail or phone, programme category', async () => {
+      const ids = async (q: object) => ((await http().get(S).query({ limit: 100, ...q }).set(bearer(admin)).expect(200)).body.data as any[]).map((s) => s.id);
+      const filtered = (await create({ name: 'Filter Academy', code: '220903', ...RW, ownership: 'PRIVATE', cell: 'Gihanama', village: 'Biryogo' }).expect(201)).body.id;
+      await putContacts(filtered, [{ type: 'EMAIL', value: 'info@filter-academy.rw' }, { type: 'PHONE', value: '0788 757 447' }]).expect(200);
+      expect(await ids({ ...RW, ownership: 'private' })).toEqual([filtered]);
+      expect(await ids({ ...RW, ownership: 'PUBLIC' })).not.toContain(filtered);
+      expect(await ids({ cell: 'gihanama' })).toEqual([filtered]);
+      expect(await ids({ village: ' BIRYOGO ' })).toEqual([filtered]);
+      // A contact as stored, as entered, in another letter case, with or without the leading 0 or the country code.
+      for (const contact of ['FILTER-ACADEMY', 'info@filter-academy.rw', '0788757447', '0788 757 447', '+250788757447', '757447']) {
+        expect([contact, await ids({ contact })]).toEqual([contact, [filtered]]);
+      }
+      expect(await ids({ contact: 'nobody@else.rw' })).toEqual([]);
+      for (const has of ['hasEmail', 'hasPhone']) {
+        const yes = await ids({ [has]: true });
+        const no = await ids({ [has]: false });
+        expect([has, yes.includes(filtered), yes.includes(school), no.includes(filtered), no.includes(school)]).toEqual([has, true, false, false, true]);
+      }
+      // A removed contact no longer counts.
+      await putContacts(filtered, []).expect(200);
+      expect(await ids({ contact: '757447' })).toEqual([]);
+      expect(await ids({ hasEmail: false })).toContain(filtered);
+      expect(await ids({ programmeCategory: 'TVET_TRADE' })).toEqual([school]);
+      expect(await ids({ programmeCategory: 'OTHER' })).toEqual([]);
+      // Programme and category are separate conditions on the same relation: both apply.
+      expect(await ids({ programme: reviewed, programmeCategory: 'TVET_TRADE' })).toEqual([school]);
+      for (const q of [{ ownership: 'NGO' }, { contact: 'ab' }, { programmeCategory: 'COURSE' }, { hasPhone: 'maybe' }]) {
+        expect([q, ...(await status(http().get(S).query(q).set(bearer(admin))))]).toEqual([q, 400, 'VALIDATION_FAILED']);
+      }
+    });
   });
 
   // ─── History ─────────────────────────────────────────────────────────────────
