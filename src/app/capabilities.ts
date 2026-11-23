@@ -318,6 +318,17 @@ export const FEATURES = {
    */
   teacherAssignedTestStudents: 'always',
   /**
+   * Course homework by teachers, by default (owner 2026-11-23, confirmed 2026-11-24): every Teacher sees the homework
+   * progress of, and hands course homework in for (POST /teacher/students/:id/submissions), the students they see — their
+   * schools' students and the students assigned to them, the same students as for tests — without a delegation
+   * (students.viewProgress and submissions.submitOnBehalf are Teacher defaults; `can.viewProgress` / `can.submitOnBehalf`
+   * on GET /teacher/students say so per student). An Administrator switches both off or on again for one teacher with
+   * GET / PUT /admin/teachers/:id/homework-submission (users.manageTeachers; reason required to switch off; audited
+   * TEACHER_HOMEWORK_SUBMISSION_REVOKED / _RESTORED). Switched off, an older delegation of either no longer applies.
+   * Every on-behalf submission still records the teacher as the submitter. Clients stop offering those two delegations.
+   */
+  teacherHomeworkDefault: 'always',
+  /**
    * Registration data (owner 2026-11-23): /admin/registration-data — every eligible registration field read from the database
    * (fields, query, export, record, edit), saved filters and column layouts. Super Administrators (registrationData.manage).
    */

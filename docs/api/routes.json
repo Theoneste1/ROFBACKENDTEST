@@ -1390,6 +1390,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/teachers/{id}/homework-submission",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/teachers/{id}/homework-submission",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Teachers"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/teachers/{id}/test-submission",
     "roles": [
       "ADMIN",

@@ -11,7 +11,7 @@ import { PermissionOverridesService } from '../permission-overrides/permission-o
 import { CreateSubmissionDto } from '../submissions/dto/create-submission.dto.js';
 import {
   AssignTeacherStudentsDto, CreateDelegationDto, CreateTeacherSchoolDto, DelegationStudentsDto, ListTeacherSchoolsDto,
-  ListTeacherStudentAssignmentsDto, ListTeacherStudentsDto, ReassignTeacherStudentsDto, SchoolAccessStudentsDto, SetTeacherTestSubmissionDto,
+  ListTeacherStudentAssignmentsDto, ListTeacherStudentsDto, ReassignTeacherStudentsDto, SchoolAccessStudentsDto, SetTeacherHomeworkSubmissionDto, SetTeacherTestSubmissionDto,
 } from './dto/teacher.dto.js';
 import { TeacherStudentAssignmentsService } from './teacher-student-assignments.service.js';
 import { TeacherSchoolsService } from './teacher-schools.service.js';
@@ -93,6 +93,25 @@ export class TeacherDelegationsController {
   @RequirePermission('users.manageTeachers')
   setTestSubmission(@Param('id', ParseUUIDPipe) id: string, @Body() body: SetTeacherTestSubmissionDto, @CurrentUser() user: AuthUser) {
     return this.overrides.setTeacherTestSubmission(id, body, user);
+  }
+
+  /**
+   * Course homework for their students (owner 2026-11-23, confirmed 2026-11-24): every Teacher sees the homework progress
+   * of, and hands homework in for, the students they see (their schools' and their assigned students) by default; an
+   * Administrator switches both off (reason required) or on again for one teacher — the account and every other teacher
+   * right untouched; while off, an older delegation of either does not apply. Audited
+   * (TEACHER_HOMEWORK_SUBMISSION_REVOKED / _RESTORED).
+   */
+  @Get(':id/homework-submission')
+  @RequirePermission('users.manageTeachers')
+  homeworkSubmission(@Param('id', ParseUUIDPipe) id: string) {
+    return this.overrides.teacherHomeworkSubmission(id);
+  }
+
+  @Put(':id/homework-submission')
+  @RequirePermission('users.manageTeachers')
+  setHomeworkSubmission(@Param('id', ParseUUIDPipe) id: string, @Body() body: SetTeacherHomeworkSubmissionDto, @CurrentUser() user: AuthUser) {
+    return this.overrides.setTeacherHomeworkSubmission(id, body, user);
   }
 
   @Post(':id/delegations')
@@ -251,7 +270,10 @@ export class TeacherStudentsController {
     return this.service.profile(user, id);
   }
 
-  /** A student of your assigned schools: assignment availability and submission history, no scores or feedback. Needs the students.viewProgress delegation. */
+  /**
+   * A student of your schools, or assigned to you: assignment availability and submission history, no scores or feedback.
+   * students.viewProgress — every Teacher by default (owner 2026-11-24) unless an Administrator switched course homework off.
+   */
   @Get(':id/progress')
   @RequirePermission('students.viewProgress')
   progress(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
@@ -259,8 +281,9 @@ export class TeacherStudentsController {
   }
 
   /**
-   * Submit for a student of your assigned schools (multipart, as POST /submissions). Needs the
-   * submissions.submitOnBehalf delegation. The student stays the owner; you are recorded as the submitter.
+   * Hand in course homework for a student of your schools, or assigned to you (multipart, as POST /submissions).
+   * submissions.submitOnBehalf — every Teacher by default (owner 2026-11-24) unless an Administrator switched course
+   * homework off. The student stays the owner; you are recorded as the submitter.
    */
   @Post(':id/submissions')
   @RequirePermission('submissions.submitOnBehalf')

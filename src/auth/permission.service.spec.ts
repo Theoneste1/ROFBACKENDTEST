@@ -121,7 +121,11 @@ describe('PermissionService', () => {
       const { service: svc } = make();
       const { permissions } = await svc.describe(user('TEACHER'));
       // + tests.submitForStudents (Test Management Phase 2, G2: a default, school scope); + tests.viewSchoolResults (Phase 4)
-      expect(permissions).toEqual(['leaderboard.view', 'students.viewScoped', 'tests.submitForStudents', 'tests.viewSchoolResults']);
+      // + students.viewProgress, submissions.submitOnBehalf: changed on purpose — owner decision 2026-11-23 (confirmed
+      //   2026-11-24): teachers hand in course homework for their students by default, like tests (no delegation needed).
+      expect(permissions).toEqual([
+        'leaderboard.view', 'students.viewScoped', 'students.viewProgress', 'submissions.submitOnBehalf', 'tests.submitForStudents', 'tests.viewSchoolResults',
+      ]);
     });
 
     it('SUPER_ADMIN keeps its full effective list, including schools.manage and schools.syncDirectory', async () => {

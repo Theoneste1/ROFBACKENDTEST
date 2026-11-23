@@ -23,11 +23,11 @@ export const GRANTED_PERMISSION_DESCRIPTIONS: Readonly<Partial<Record<Permission
   },
   'students.viewProgress': {
     label:       'View student progress',
-    description: 'You can see which assignments a student of your assigned schools can do and what they have submitted (no grades or feedback).',
+    description: 'You can see which assignments a student of your schools, or a student assigned to you, can do and what they have handed in (no grades or feedback).',
   },
   'submissions.submitOnBehalf': {
     label:       'Submit work for students',
-    description: 'You can upload a submission on behalf of a student of your assigned schools; the work stays the student’s own.',
+    description: 'You can hand in course homework for a student of your schools, or a student assigned to you; the work stays the student’s own and you are recorded as the one who handed it in.',
   },
   'users.impersonate': {
     label:       'View the platform as another user',

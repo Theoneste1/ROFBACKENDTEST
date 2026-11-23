@@ -5919,6 +5919,76 @@
           }
         },
         {
+          "name": "GET /admin/teachers/{id}/homework-submission",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teachers/:id/homework-submission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teachers",
+                ":id",
+                "homework-submission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/teachers/{id}/homework-submission",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/teachers/:id/homework-submission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "teachers",
+                ":id",
+                "homework-submission"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"allowed\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "GET /admin/teachers/{id}/test-submission",
           "request": {
             "method": "GET",
@@ -16220,7 +16290,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** permission `students.viewProgress` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
+            "description": "**Access:** permission `students.viewProgress` (TEACHER) — every Teacher by default (an Administrator switches course homework off per teacher); applies only to the students the teacher sees: their schools' students and the students assigned to them"
           }
         },
         {
@@ -16248,7 +16318,7 @@
               ],
               "query": []
             },
-            "description": "**Access:** permission `submissions.submitOnBehalf` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments",
+            "description": "**Access:** permission `submissions.submitOnBehalf` (TEACHER) — every Teacher by default (an Administrator switches course homework off per teacher); applies only to the students the teacher sees: their schools' students and the students assigned to them",
             "body": {
               "mode": "formdata",
               "formdata": [

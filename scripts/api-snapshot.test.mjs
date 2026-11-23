@@ -372,7 +372,12 @@ const VIEW_AS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-view-as.json';
  * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
  */
 const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
-const CURRENT_SNAPSHOT = INTEGRATION_SNAPSHOT;
+/**
+ * Course homework by teachers, by default (owner, 2026-11-24): an Administrator switches a teacher's homework for their
+ * students off or on again (GET / PUT /admin/teachers/:id/homework-submission). Additive only against the integration snapshot.
+ */
+const TEACHER_HOMEWORK_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-teacher-homework.json';
+const CURRENT_SNAPSHOT = TEACHER_HOMEWORK_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1982,6 +1987,19 @@ describe('approved API contract history', () => {
       const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
       assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
     }
+  });
+
+  test('integration of the 2026-11-23 branches → course homework by teachers (2026-11-24): additive only — the homework switch, two operations, one request schema', () => {
+    for (const f of [INTEGRATION_SNAPSHOT, TEACHER_HOMEWORK_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(INTEGRATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_HOMEWORK_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/teachers/{id}/homework-submission: operation added',
+      'PUT /api/v1/admin/teachers/{id}/homework-submission: operation added',
+      'schema SetTeacherHomeworkSubmissionDto: added',
+    ]);
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {

@@ -16665,6 +16665,103 @@
         "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/teachers/{id}/homework-submission": {
+      "get": {
+        "operationId": "TeacherDelegationsController_homeworkSubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Course homework for their students (owner 2026-11-23, confirmed 2026-11-24): every Teacher sees the homework progress\nof, and hands homework in for, the students they see (their schools' and their assigned students) by default; an\nAdministrator switches both off (reason required) or on again for one teacher — the account and every other teacher\nright untouched; while off, an older delegation of either does not apply. Audited\n(TEACHER_HOMEWORK_SUBMISSION_REVOKED / _RESTORED).",
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "TeacherDelegationsController_setHomeworkSubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTeacherHomeworkSubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Admin · Teachers"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageTeachers",
+        "description": "**Access:** permission `users.manageTeachers` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/teachers/{id}/delegations/{overrideId}": {
       "delete": {
         "operationId": "TeacherDelegationsController_revoke",
@@ -17460,7 +17557,7 @@
             "bearer": []
           }
         ],
-        "summary": "A student of your assigned schools: assignment availability and submission history, no scores or feedback. Needs the students.viewProgress delegation.",
+        "summary": "A student of your schools, or assigned to you: assignment availability and submission history, no scores or feedback.\nstudents.viewProgress — every Teacher by default (owner 2026-11-24) unless an Administrator switched course homework off.",
         "tags": [
           "Teacher"
         ],
@@ -17468,7 +17565,7 @@
           "TEACHER"
         ],
         "x-permission": "students.viewProgress",
-        "description": "**Access:** permission `students.viewProgress` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
+        "description": "**Access:** permission `students.viewProgress` (TEACHER) — every Teacher by default (an Administrator switches course homework off per teacher); applies only to the students the teacher sees: their schools' students and the students assigned to them"
       }
     },
     "/api/v1/teacher/students/{id}/submissions": {
@@ -17514,7 +17611,7 @@
             "bearer": []
           }
         ],
-        "summary": "Submit for a student of your assigned schools (multipart, as POST /submissions). Needs the\nsubmissions.submitOnBehalf delegation. The student stays the owner; you are recorded as the submitter.",
+        "summary": "Hand in course homework for a student of your schools, or assigned to you (multipart, as POST /submissions).\nsubmissions.submitOnBehalf — every Teacher by default (owner 2026-11-24) unless an Administrator switched course\nhomework off. The student stays the owner; you are recorded as the submitter.",
         "tags": [
           "Teacher"
         ],
@@ -17522,7 +17619,7 @@
           "TEACHER"
         ],
         "x-permission": "submissions.submitOnBehalf",
-        "description": "**Access:** permission `submissions.submitOnBehalf` (TEACHER, by individual grant only) — granted individually by an Administrator or Super Admin; applies only to students of the teacher's active school assignments"
+        "description": "**Access:** permission `submissions.submitOnBehalf` (TEACHER) — every Teacher by default (an Administrator switches course homework off per teacher); applies only to the students the teacher sees: their schools' students and the students assigned to them"
       }
     },
     "/api/v1/teacher/schools": {
@@ -58598,6 +58695,23 @@
           "reason": {
             "type": "string",
             "description": "Required to revoke (3–500 characters); optional when restoring. Recorded in the audit log.",
+            "minLength": 0,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "allowed"
+        ]
+      },
+      "SetTeacherHomeworkSubmissionDto": {
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required to switch it off (3–500 characters); optional when switching it on. Recorded in the audit log.",
             "minLength": 0,
             "maxLength": 500
           }

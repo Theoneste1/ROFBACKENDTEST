@@ -311,6 +311,10 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'DELETE /api/v1/admin/tests/:id/submissions/:submissionId/resubmission  AdminTestSubmissionsController.cancelResubmission': ADMINISTRATORS,
   'GET /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.testSubmission':              ADMINISTRATORS,
   'PUT /api/v1/admin/teachers/:id/test-submission  TeacherDelegationsController.setTestSubmission':           ADMINISTRATORS,
+  // Course homework by teachers (owner 2026-11-24): an Administrator switches a teacher's homework for their students
+  // (progress + handing in, Teacher defaults) off or on again (users.manageTeachers).
+  'GET /api/v1/admin/teachers/:id/homework-submission  TeacherDelegationsController.homeworkSubmission':      ADMINISTRATORS,
+  'PUT /api/v1/admin/teachers/:id/homework-submission  TeacherDelegationsController.setHomeworkSubmission':   ADMINISTRATORS,
   // Olympiad levels (owner 2026-11-21): a student's level, its suggestion and history; set it or follow the grade again.
   'GET /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.view':                               ADMINS_AND_COACHES,
   'PUT /api/v1/admin/students/:id/olympiad-level  OlympiadLevelController.set':                                ADMINS_AND_COACHES,
