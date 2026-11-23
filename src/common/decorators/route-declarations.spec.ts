@@ -173,13 +173,13 @@ describe('route declarations (P1-02 §5)', () => {
     expect(failures).toEqual([]);
   });
 
-  it('declarations add up: 26 @Public + 30 @Roles + 329 @RequirePermission + 67 @Authenticated = 452, none undeclared', () => {
+  it('declarations add up: 26 @Public + 30 @Roles + 341 @RequirePermission + 67 @Authenticated = 464, none undeclared', () => {
     const counts: Record<string, number> = {};
     for (const h of handlers) {
       const kind = effectiveDeclaration(h.cls, h.handler) ?? 'undeclared';
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
-    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 329, '@Authenticated': 67 });  // reports and table layouts (2026-11-22): +3 reports.build, +3 users.view, +2 settings.manage, +9 signed in;  // +1 signed in: the Student Profile Overview (2026-11-22);  // Olympiad levels (2026-11-21): +2 students.classifyLevel, +3 divisions.manage (create, courses get / set), +1 mentorAssignments.manage (bulk); locked test submissions (2026-11-21): +2 tests.authorizeResubmission, +2 users.manageTeachers (a teacher's test submission); generic bulk engine (2026-11-19): +8 users.bulkManage; gender step (2026-11-20): +1 signed in (PUT /me/gender); Test Management Phase 4 (2026-11-19): +3 tests.publishResults, +1 tests.overridePublication, +4 tests.viewResults, +1 tests.viewRankings, +2 tests.viewOwnResults, +3 tests.viewSchoolResults, +1 tests.view, +1 tests.submit, +1 tests.submitForStudents, +1 tests.mark (dashboards); Test Management Phase 3 (2026-11-19): +4 tests.distribute, +7 tests.review, +1 tests.adjustMarks, +7 tests.mark; Test Management Phase 2 (2026-11-19): +5 tests.extensions, +3 tests.viewSubmissions, +8 tests.submit, +9 tests.submitForStudents; Test Management Phase 1 (2026-11-19): +4 tests.view, +11 tests.manage, +4 tests.manageMarkers; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
+    expect(counts).toEqual({ '@Public': 26, '@Roles': 30, '@RequirePermission': 341, '@Authenticated': 67 });  // registration data (2026-11-23): +12 registrationData.manage;  // reports and table layouts (2026-11-22): +3 reports.build, +3 users.view, +2 settings.manage, +9 signed in;  // +1 signed in: the Student Profile Overview (2026-11-22);  // Olympiad levels (2026-11-21): +2 students.classifyLevel, +3 divisions.manage (create, courses get / set), +1 mentorAssignments.manage (bulk); locked test submissions (2026-11-21): +2 tests.authorizeResubmission, +2 users.manageTeachers (a teacher's test submission); generic bulk engine (2026-11-19): +8 users.bulkManage; gender step (2026-11-20): +1 signed in (PUT /me/gender); Test Management Phase 4 (2026-11-19): +3 tests.publishResults, +1 tests.overridePublication, +4 tests.viewResults, +1 tests.viewRankings, +2 tests.viewOwnResults, +3 tests.viewSchoolResults, +1 tests.view, +1 tests.submit, +1 tests.submitForStudents, +1 tests.mark (dashboards); Test Management Phase 3 (2026-11-19): +4 tests.distribute, +7 tests.review, +1 tests.adjustMarks, +7 tests.mark; Test Management Phase 2 (2026-11-19): +5 tests.extensions, +3 tests.viewSubmissions, +8 tests.submit, +9 tests.submitForStudents; Test Management Phase 1 (2026-11-19): +4 tests.view, +11 tests.manage, +4 tests.manageMarkers; primary teacher (2026-11-19): +1 users.manageTeachers, +1 students.viewScoped; countries (2026-11-19): +1 public, +2 reference.manage; final review: +2 users.manage (date-of-birth correction, history), +1 users.manageTeachers, +1 mentorRequests.decide (application pictures); first-sign-in date of birth: +1 @Roles('STUDENT'); teacher–student access: +9 users.manageTeachers, +1 students.viewScoped; registration timeline: +1 users.manage; registration avatar: +1 public; request more information: +2 public, +2 permission; account states: +2; bulk user operations: +7; form availability: +2 public, +5 forms.*; +2 e-mail deliveries; +1 programme student candidates; +1 school verification; +2 public, +7 teacher registration / decision notifications; profile pictures: +2 users.manage, +3 signed in
   });
 
   it('P1-06: the converted handlers, by permission (any addition or removal must change this list on purpose)', () => {
@@ -230,7 +230,7 @@ describe('route declarations (P1-02 §5)', () => {
       // Test Management, Phase 2 (2026-11-19): extensions list, targets, grant, edit, cancel; tracking list, detail, page;
       // the student's 8 /me/tests routes; the teacher's 9 /teacher/tests routes
       // + Phase 4: the student's and the teacher's dashboards (tests.submit: 9, tests.submitForStudents: 10)
-      'tests.extensions': 5, 'tests.viewSubmissions': 3, 'tests.authorizeResubmission': 2, 'students.classifyLevel': 2, 'reports.build': 3, 'tests.submit': 9, 'tests.submitForStudents': 10,
+      'tests.extensions': 5, 'tests.viewSubmissions': 3, 'tests.authorizeResubmission': 2, 'students.classifyLevel': 2, 'reports.build': 3, 'registrationData.manage': 12, 'tests.submit': 9, 'tests.submitForStudents': 10,
       // Test Management, Phase 3 (2026-11-19): overview, distribute, assign, reassign (tests.distribute); review list,
       // detail, approve, return, second marking, unlock, history (tests.review); choose (tests.adjustMarks); the coach's 7
       // /marking routes (tests.mark)
@@ -353,7 +353,7 @@ describe('route access — guard-decision regression (P1-02 §6.1)', () => {
   }, 60_000);
 
 
-  it('finds every route handler (211 in the baseline + 204 added since: 406 registered + 9 in the unregistered StudyGroupsController)', () => {
+  it('finds every route handler (211 in the baseline + 216 added since: 418 registered + 9 in the unregistered StudyGroupsController)', () => {
     expect(handlers).toHaveLength(211 + Object.keys(ADDED_SINCE_BASELINE).length);
     expect(new Set(handlers.map(keyOf)).size).toBe(handlers.length);
   });

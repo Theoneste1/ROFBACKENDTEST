@@ -3366,6 +3366,102 @@
     "tag": "Public site"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/registration-data/export",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/fields",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/layouts/{category}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/registration-data/layouts/{category}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/registration-data/layouts/{category}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/registration-data/query",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/saved-filters",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/registration-data/saved-filters",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/registration-data/saved-filters/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/admin/registration-data/saved-filters/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/registration-data/users/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/registration-data/users/{id}",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "registration-data"
+  },
+  {
     "method": "GET",
     "path": "/api/v1/schools",
     "roles": [

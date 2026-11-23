@@ -335,7 +335,12 @@ const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-division
  * against the Olympiad levels snapshot.
  */
 const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
+/**
+ * Registration data (owner 2026-11-23): Super Administrators list, filter, export and edit every eligible registration
+ * field (registrationData.manage), with saved filters and column layouts. Additive only against the school codes snapshot.
+ */
+const REGISTRATION_DATA_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-registration-data.json';
+const CURRENT_SNAPSHOT = REGISTRATION_DATA_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1789,6 +1794,33 @@ describe('approved API contract history', () => {
       'schema GenericBulkExportDto: added',
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
+    ]);
+  });
+
+  test('the school code → registration data (2026-11-23): additive only — twelve Super-Administrator operations and their request bodies', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, REGISTRATION_DATA_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REGISTRATION_DATA_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'DELETE /api/v1/admin/registration-data/layouts/{category}: operation added',
+      'DELETE /api/v1/admin/registration-data/saved-filters/{id}: operation added',
+      'GET /api/v1/admin/registration-data/fields: operation added',
+      'GET /api/v1/admin/registration-data/layouts/{category}: operation added',
+      'GET /api/v1/admin/registration-data/saved-filters: operation added',
+      'GET /api/v1/admin/registration-data/users/{id}: operation added',
+      'PATCH /api/v1/admin/registration-data/users/{id}: operation added',
+      'POST /api/v1/admin/registration-data/export: operation added',
+      'POST /api/v1/admin/registration-data/query: operation added',
+      'POST /api/v1/admin/registration-data/saved-filters: operation added',
+      'PUT /api/v1/admin/registration-data/layouts/{category}: operation added',
+      'PUT /api/v1/admin/registration-data/saved-filters/{id}: operation added',
+      'schema RegistrationQueryDto: added',
+      'schema RegistrationSortDto: added',
+      'schema SaveRegistrationFilterDto: added',
+      'schema SaveRegistrationLayoutDto: added',
+      'schema UpdateRegistrationRecordDto: added',
     ]);
   });
 

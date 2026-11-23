@@ -13475,6 +13475,430 @@
       ]
     },
     {
+      "name": "registration-data",
+      "item": [
+        {
+          "name": "POST /admin/registration-data/export",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "export"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "csv",
+                  "disabled": false,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/fields",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "fields"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "STUDENTS",
+                  "disabled": false,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/layouts/{category}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/layouts/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "layouts",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/registration-data/layouts/{category}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/layouts/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "layouts",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/registration-data/layouts/{category}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/layouts/:category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "layouts",
+                ":category"
+              ],
+              "variable": [
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/registration-data/query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "query"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "limit",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/saved-filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "STUDENTS",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/registration-data/saved-filters",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"name\",\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ],\n  \"filter\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PUT /admin/registration-data/saved-filters/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"name\",\n  \"category\": \"STUDENTS\",\n  \"columns\": [\n    \"columns\"\n  ],\n  \"filter\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE /admin/registration-data/saved-filters/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/saved-filters/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "saved-filters",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/registration-data/users/{id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PATCH /admin/registration-data/users/{id}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/registration-data/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "registration-data",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `registrationData.manage` (SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"changes\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Schools",
       "item": [
         {

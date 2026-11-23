@@ -229,6 +229,8 @@ export class MentorRequestsService {
       select: { id: true, firstName: true, lastName: true, username: true, email: true, role: true },
     });
     // Picture moderation: only a picture the Administrator approved after seeing it (else discarded, cleaned up).
+    // The application → its account (registration data: the application's details belong to this Coach).
+    await tx.mentorRequest.update({ where: { id: requestId }, data: { userId: mentor.id } });
     const picture = !request.avatarFileId ? 'NONE' : opts.approvePicture === true ? 'APPROVED' : 'DISCARDED';
     if (picture === 'APPROVED') await carryApplicationAvatar(tx, mentor.id, request.avatarFileId);   // REG-02
     await ensureDefaultMembership(tx, mentor, caller.id);   // approved coach (P1-07, K6)

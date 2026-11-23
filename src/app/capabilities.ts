@@ -303,6 +303,10 @@ export const FEATURES = {
    * too); /teacher/tests lists them; ?schoolId may name an assigned student's school.
    */
   teacherAssignedTestStudents: 'always',
+   * Registration data (owner 2026-11-23): /admin/registration-data — every eligible registration field read from the database
+   * (fields, query, export, record, edit), saved filters and column layouts. Super Administrators (registrationData.manage).
+   */
+  registrationData: 'always',
   /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
