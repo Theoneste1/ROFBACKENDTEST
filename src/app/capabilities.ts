@@ -298,6 +298,11 @@ export const FEATURES = {
   /** Table layouts (owner 2026-11-22): /me/table-layouts/:table and /admin/table-layouts/:table; GET /admin/users ?sort&order. */
   tableLayouts: 'always',
   /**
+   * Registration data (owner 2026-11-23): /admin/registration-data — every eligible registration field read from the database
+   * (fields, query, export, record, edit), saved filters and column layouts. Super Administrators (registrationData.manage).
+   */
+  registrationData: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

@@ -240,6 +240,8 @@ export class UsersService {
       /** Run inside this OUTER transaction (bulk operations); post-commit notices are then queued in afterCommit. */
       tx?: Prisma.TransactionClient;
       afterCommit?: Array<() => Promise<void>>;
+      /** Registration data (Super Administrators, registrationData.manage): Olympiad interests of any account, not only a Coach's. */
+      interestsAnyRole?: boolean;
     } = {},
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
@@ -252,7 +254,7 @@ export class UsersService {
     // The shared seeded account is never promoted to Super Admin, nor renamed out of that rule (P1-08 hardening).
     this.roles.assertSharedAccountRules(existing, { role: data.role, username: data.username });
     // Subject interests are edited here for Coach accounts only (coachOlympiadInterests); students edit theirs on PATCH /me.
-    if ((data.olympiadInterests !== undefined || data.olympiadInterestOther !== undefined) && (data.role ?? existing.role) !== 'MENTOR') {
+    if ((data.olympiadInterests !== undefined || data.olympiadInterestOther !== undefined) && (data.role ?? existing.role) !== 'MENTOR' && !opts.interestsAnyRole) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INTERESTS_COACH_ONLY', 'Olympiad interests can be edited here for Coach accounts only.');
     }
     // schoolCode → the school's id (PR B). Not required to be active here: re-sending a student's

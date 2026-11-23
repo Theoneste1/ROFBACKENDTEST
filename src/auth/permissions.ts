@@ -129,6 +129,9 @@ export const PERMISSIONS = [
   'reports.build',               // build custom reports (any source), see and manage every report and who may use it
                                  // (view / download / edit grants): Administrators (global). Shared reports need no
                                  // permission: their grants decide (src/custom-reports)
+  // ── Registration data (owner 2026-11-23) ──
+  'registrationData.manage',     // Super Administrators only (never grantable): list, filter, export and edit every eligible
+                                 // registration field of every account (src/registration-data; security data never shown)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -291,6 +294,8 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
     'students.classifyLevel': 'global',
     'reports.build': 'global',
+    // Registration data (owner 2026-11-23): Super Administrators only.
+    'registrationData.manage': 'global',
   },
 };
 
@@ -312,6 +317,8 @@ export const NEVER_GRANTABLE: readonly Permission[] = [
   'tests.overridePublication',
   // Locked submissions (owner 2026-11-21): only Administrators unlock a submitted answer; nobody else may receive it.
   'tests.authorizeResubmission',
+  // Registration data (owner 2026-11-23): every account's personal registration data — Super Administrators alone.
+  'registrationData.manage',
 ];
 
 // ── Legacy lists, returned unchanged by GET /me/permissions (decision A1) ────

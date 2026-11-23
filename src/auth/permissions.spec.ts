@@ -280,7 +280,7 @@ describe('permissions', () => {
         'students.classifyLevel': P,
       },
       ADMIN: ADMIN_TABLE,
-      SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G },
+      SUPER_ADMIN: { ...ADMIN_TABLE, 'permissions.manageOverrides': G, 'settings.manageSystem': G, 'schools.syncDirectory': G, 'registrationData.manage': G },
     };
 
     it('covers exactly the six roles', () => {

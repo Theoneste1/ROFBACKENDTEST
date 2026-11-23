@@ -568,6 +568,8 @@ model User {
   activityLogs                      ActivityLog[]
   teacherApplicationsDecided        TeacherApplication[]            @relation("TeacherApplicationDecidedBy")
   teacherApplication                TeacherApplication?             @relation("TeacherApplicationUser")
+  mentorRequest                     MentorRequest?                  @relation("MentorRequestUser")
+  registrationFilters               RegistrationSavedFilter[]       @relation("RegistrationFilterOwner")
   teacherApplicationSchoolsVerified TeacherApplication[]            @relation("TeacherApplicationSchoolVerifiedBy")
   applicationInfoRequests           ApplicationInfoRequest[]        @relation("ApplicationInfoRequestedBy")
   notificationOutbox                NotificationOutbox[]
@@ -1036,6 +1038,10 @@ model MentorRequest {
   /// Optional profile picture sent with the application (REG-02); becomes the account's picture on approval.
   avatarFileId          String?                  @unique
   avatarFile            FileObject?              @relation("MentorRequestAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  /// The Coach account the approval created (registration data, 2026-11-23): links the application's details (occupation,
+  /// education, phone …) to the account. Set on approval; filled for earlier approvals from their audit entry.
+  userId                String?                  @unique
+  user                  User?                    @relation("MentorRequestUser", fields: [userId], references: [id], onDelete: SetNull)
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
 
@@ -3313,6 +3319,26 @@ model CourseDivision {
 /// A saved column layout of a table (owner 2026-11-22: administrators choose the columns of the user tables). `owner`
 /// is "ORG" (the organization default, set by Administrators) or a user id (that person's own layout). `columns`: the
 /// ordered list of {key, visible}; keys are checked against the table's columns by the service.
+/// Registration data (owner 2026-11-23): a Super Administrator's saved filter — a category, its filter (groups of
+/// conditions joined by AND / OR), the chosen columns in order and the sort. Private to its owner unless shared with the
+/// other holders of registrationData.manage (who may use it, not change it).
+model RegistrationSavedFilter {
+  id        String   @id @default(uuid())
+  ownerId   String
+  owner     User     @relation("RegistrationFilterOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  category  String
+  filter    Json
+  columns   Json
+  sort      Json
+  shared    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, name])
+  @@index([shared])
+}
+
 model TableLayout {
   id          String   @id @default(uuid())
   owner       String

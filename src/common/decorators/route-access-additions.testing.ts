@@ -342,4 +342,17 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/reports/:id/export  CustomReportsController.export':                                             SIGNED_IN,
   'GET /api/v1/reports/:id/grants  CustomReportsController.grants':                                             SIGNED_IN,
   'PUT /api/v1/reports/:id/grants  CustomReportsController.setGrants':                                          SIGNED_IN,
+  // Registration data (owner 2026-11-23): registrationData.manage — Super Administrators only (never grantable).
+  'GET /api/v1/admin/registration-data/fields  RegistrationDataController.fields':                               SUPER_ADMIN_ONLY,
+  'POST /api/v1/admin/registration-data/query  RegistrationDataController.query':                                SUPER_ADMIN_ONLY,
+  'POST /api/v1/admin/registration-data/export  RegistrationDataController.export':                              SUPER_ADMIN_ONLY,
+  'GET /api/v1/admin/registration-data/users/:id  RegistrationDataController.record':                            SUPER_ADMIN_ONLY,
+  'PATCH /api/v1/admin/registration-data/users/:id  RegistrationDataController.update':                          SUPER_ADMIN_ONLY,
+  'GET /api/v1/admin/registration-data/saved-filters  RegistrationDataController.listFilters':                   SUPER_ADMIN_ONLY,
+  'POST /api/v1/admin/registration-data/saved-filters  RegistrationDataController.createFilter':                 SUPER_ADMIN_ONLY,
+  'PUT /api/v1/admin/registration-data/saved-filters/:id  RegistrationDataController.updateFilter':              SUPER_ADMIN_ONLY,
+  'DELETE /api/v1/admin/registration-data/saved-filters/:id  RegistrationDataController.removeFilter':           SUPER_ADMIN_ONLY,
+  'GET /api/v1/admin/registration-data/layouts/:category  RegistrationDataController.layout':                    SUPER_ADMIN_ONLY,
+  'PUT /api/v1/admin/registration-data/layouts/:category  RegistrationDataController.saveLayout':                SUPER_ADMIN_ONLY,
+  'DELETE /api/v1/admin/registration-data/layouts/:category  RegistrationDataController.resetLayout':            SUPER_ADMIN_ONLY,
 };
