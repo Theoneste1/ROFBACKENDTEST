@@ -360,6 +360,45 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       }
     });
 
+    it("owner 2026-11-23: a teacher also submits for the students ASSIGNED to them — including another school's — and only while assigned", async () => {
+      const round = await publishedTest({ title: 'Assigned round' });
+      // Not assigned yet: student.o (Other School) is outside teacher.a's scope.
+      expect(await status(commit(ta, `${TT}/${round}/students/${stO}`, { clientKey: randomUUID(), typedAnswer: 'x' }))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);
+      const assignment = await p().teacherStudentAssignment.create({
+        data: { teacherId: tA, studentId: stO, crossSchool: true, reason: 'Coaching group', assignedById: ctx.ids.admin },
+      });
+      // Listed with the teacher's own school's students, counted in the test list; the school filter finds them too.
+      const list = (await http().get(`${TT}/${round}/students`).set(bearer(ta)).expect(200)).body;
+      expect(list.data.map((r: any) => r.student.username)).toContain('student.o');
+      expect(list.counts.students).toBe(4);
+      expect((await http().get(TT).set(bearer(ta)).expect(200)).body.data.find((t: any) => t.id === round)).toMatchObject({ students: 4 });
+      const bySchool = (await http().get(`${TT}/${round}/students`).query({ schoolId: other }).set(bearer(ta)).expect(200)).body;
+      expect(bySchool.data.map((r: any) => r.student.username)).toEqual(['student.o']);
+      // Submitted by the assigned teacher: stored as the teacher's version; the student sees it.
+      const key = randomUUID();
+      await uploadAs(ta, `${TT}/${round}/students/${stO}`, key, 1).expect(201);
+      const done = (await commit(ta, `${TT}/${round}/students/${stO}`, { clientKey: key, pageCount: 1, typedAnswer: 'From the coaching group' }).expect(201)).body;
+      expect(done.submission.versions[0]).toMatchObject({ number: 1, submitterRole: 'TEACHER', submittedBy: { firstName: 'teacher.a' } });
+      expect((await http().get(`${ME}/${round}`).set(bearer(so)).expect(200)).body.submission.versionCount).toBe(1);
+      // The student's own school's teacher still has them; a teacher with neither link does not.
+      expect((await http().get(`${TT}/${round}/students`).set(bearer(to)).expect(200)).body.data.map((r: any) => r.student.username)).toEqual(['student.o']);
+      expect(await status(http().get(`${TT}/${round}/students/${stO}`).set(bearer(tb)))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);
+      // A school neither of the teacher's nor of an assigned student: 404.
+      const third = await p().school.create({ data: { name: 'Third School', location: 'Musanze' } });
+      expect(await status(http().get(`${TT}/${round}/students`).query({ schoolId: third.id }).set(bearer(ta)))).toEqual([404, 'SCHOOL_NOT_FOUND']);
+      // Marking waits for the assigned teacher's extension too (G5): it could still let them submit for student.o.
+      const { unassignedEligibility } = await import('../src/test-management/marking-store.js');
+      // (Written directly: the extension routes are covered below, and their audit is counted there.)
+      const ext = await p().testExtension.create({ data: { testId: round, kind: 'TEACHER', teacherId: tA, newDeadline: new Date(minutes(240)), reason: 'Group meets later', grantedById: ctx.ids.admin } });
+      const sub = await p().testSubmission.findUniqueOrThrow({ where: { testId_studentId: { testId: round, studentId: stO } } });
+      const eligible = (await unassignedEligibility(p(), round)).find((r) => r.id === sub.id)!;
+      expect(eligible.eligibleAt.toISOString()).toBe(ext.newDeadline.toISOString());
+      // The assignment ends: the student leaves the teacher's scope at once.
+      await p().teacherStudentAssignment.update({ where: { id: assignment.id }, data: { isActive: false, endedAt: new Date() } });
+      expect(await status(http().get(`${TT}/${round}/students/${stO}`).set(bearer(ta)))).toEqual([403, 'STUDENT_NOT_IN_SCOPE']);
+      expect((await http().get(`${TT}/${round}/students`).set(bearer(ta)).expect(200)).body.data.map((r: any) => r.student.username)).not.toContain('student.o');
+    });
+
     it('the course-assignment delegation is unchanged: teachers still cannot submit course work without it', async () => {
       expect(await status(http().post(`/api/v1/teacher/students/${stJ}/submissions`).set(bearer(ta)).send({}))).toEqual([403, 'PERMISSION_REQUIRED']);
     });

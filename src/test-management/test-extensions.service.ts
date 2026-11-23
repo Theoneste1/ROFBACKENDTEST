@@ -258,6 +258,8 @@ async function assertNotInMarking(tx: Tx, testId: string, kind: 'TEST' | 'STUDEN
     OR: [
       { versions: { some: { teacherId: teacherId ?? '' } } },
       { student: { schoolAffiliations: { some: { status: { in: [...SCHOOL_MEMBER_CLAIMS] }, supersededAt: null, school: { teachers: { some: { teacherId: teacherId ?? '', isActive: true } } } } } } },
+      // A student assigned to the teacher (owner 2026-11-23: they may submit for them too).
+      { student: { teacherStudentsAsStudent: { some: { teacherId: teacherId ?? '', isActive: true } } } },
     ],
   };
   const where: Prisma.TestSubmissionWhereInput = {

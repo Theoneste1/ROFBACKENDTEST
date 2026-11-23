@@ -4,9 +4,10 @@
  *
  * Who
  *   Student (tests.submit, own)           their own submission to a PUBLISHED test of their division, once it opened.
- *   Teacher (tests.submitForStudents,     any teacher of the school, primary or secondary: only students (current PENDING or VERIFIED claim) of
- *            school; G2)                  their own ACTIVE schools whose account is ACTIVE (teacher-scope.ts
- *                                         visibleSchoolStudentsWhere). Another student: 403 STUDENT_NOT_IN_SCOPE. The
+ *   Teacher (tests.submitForStudents,     any teacher of the school, primary or secondary: students (current PENDING or VERIFIED claim) of
+ *            school; G2)                  their own ACTIVE schools AND (owner 2026-11-23) the students assigned to them by an
+ *                                         Administrator (TeacherStudentAssignment, another school's too), ACTIVE accounts only
+ *                                         (teacher-scope.ts teacherTestStudentsWhere). Another student: 403 STUDENT_NOT_IN_SCOPE. The
  *                                         course-assignment delegation submissions.submitOnBehalf is separate and unchanged.
  *   Administrator / Head Coach            tracking and every version with the submitter and extension status
  *            (tests.viewSubmissions)      (Head Coaches: the subjects they head, TestsService.loadInScope).
@@ -46,7 +47,7 @@ import { pageArgs, paginated } from '../common/pagination.js';
 import { StorageService } from '../common/storage/storage.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { visibleSchoolStudentsWhere } from '../teachers/teacher-scope.js';
+import { teacherTestStudentsWhere } from '../teachers/teacher-scope.js';
 import type {
   AuthorizeResubmissionDto, ListMyTestsQueryDto, ListTeacherTestStudentsQueryDto, ListTestSubmissionsQueryDto, SubmitTestAnswerDto,
 } from './dto/submission.dto.js';
@@ -137,7 +138,7 @@ export class TestSubmissionsService {
       if (!me) throw unsupportedRole();
       return me;
     }
-    const s = await this.prisma.user.findFirst({ where: { AND: [{ id: studentId }, visibleSchoolStudentsWhere(caller.schools)] }, select: STUDENT_FIELDS });
+    const s = await this.prisma.user.findFirst({ where: { AND: [{ id: studentId }, teacherTestStudentsWhere(caller.user.id, caller.schools)] }, select: STUDENT_FIELDS });
     if (!s) throw notInScope();
     return s;
   }
@@ -222,7 +223,7 @@ export class TestSubmissionsService {
     const mine: Prisma.TestExtensionWhereInput = { cancelledAt: null, OR: [{ kind: 'TEST' }, { kind: 'TEACHER', teacherId: user.id }] };
     const where: Prisma.TestWhereInput = { status: 'PUBLISHED', ...windowWhere(q.window, now, mine) };
     const { page, limit, skip, take } = pageArgs(q);
-    const students = visibleSchoolStudentsWhere(schools);
+    const students = teacherTestStudentsWhere(user.id, schools);
     const [rows, total, all, byDivision] = await this.prisma.$transaction([
       this.prisma.test.findMany({
         where, skip, take, orderBy: [{ opensAt: 'desc' }, { id: 'asc' }],
@@ -257,7 +258,9 @@ export class TestSubmissionsService {
   async teacherTestStudents(user: AuthUser, testId: string, q: ListTeacherTestStudentsQueryDto) {
     const caller = await this.teacherCaller(user);
     const schools = caller.role === 'TEACHER' ? caller.schools : [];
-    if (q.schoolId && !schools.includes(q.schoolId)) throw new AppError(HttpStatus.NOT_FOUND, 'SCHOOL_NOT_FOUND', 'School not found.');
+    if (q.schoolId && !schools.includes(q.schoolId) && !(await this.prisma.user.count({ where: teacherTestStudentsWhere(user.id, schools, q.schoolId) }))) {
+      throw new AppError(HttpStatus.NOT_FOUND, 'SCHOOL_NOT_FOUND', 'School not found.');
+    }
     const test = await this.answererTest(testId);
     const now = await this.deadlines.now();
     const submitter: Submitter = { role: 'TEACHER', teacherId: user.id };
@@ -265,7 +268,7 @@ export class TestSubmissionsService {
     const contains = q.q ? { contains: q.q, mode: 'insensitive' as const } : undefined;
     const population: Prisma.UserWhereInput = {
       AND: [
-        visibleSchoolStudentsWhere(q.schoolId ? [q.schoolId] : schools),
+        teacherTestStudentsWhere(user.id, schools, q.schoolId),
         ...(test.division !== 'ALL' ? [levelWhere(test.division)] : []),
         ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : []),
       ],

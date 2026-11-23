@@ -6,7 +6,7 @@
  *                                           questions), the total, the comments of the FINAL marking — never who marked,
  *                                           never another marking, never a rank (STUDENT_RANKINGS_ENABLED is false).
  *   Teacher (tests.viewSchoolResults,       published results of the ACTIVE students (current claim) of their own ACTIVE
- *            school)                        schools (teacher-scope.ts visibleSchoolStudentsWhere) — never a rank, never
+ *            school)                        schools and assigned to them (teacher-scope.ts teacherTestStudentsWhere) — never a rank, never
  *                                           another school's student (404, not revealed).
  * A result is visible only while it is PUBLISHED: an unapproved, approved-but-unpublished or withdrawn (G6) result is
  * not found (404 RESULT_NOT_FOUND), never "hidden". Responses are built from whitelists and checked by assertResultSafe.
@@ -23,7 +23,7 @@ import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { visibleSchoolStudentsWhere } from '../teachers/teacher-scope.js';
+import { teacherTestStudentsWhere } from '../teachers/teacher-scope.js';
 import type { MyResultsQueryDto, SchoolResultsQueryDto } from './dto/results.dto.js';
 import { assertResultSafe, resultView, studentRankingsVisible } from './results-rules.js';
 import { rankingPage } from './results-store.js';
@@ -81,7 +81,7 @@ export class TestResultViewsService {
   /** Tests with published results of my schools' students, with how many (never an average or a rank). */
   async schoolTests(user: AuthUser, q: MyResultsQueryDto) {
     const schools = await this.teacherSchools(user);
-    const students = visibleSchoolStudentsWhere(schools);
+    const students = teacherTestStudentsWhere(user.id, schools);
     const where: Prisma.TestWhereInput = { submissions: { some: { status: 'PUBLISHED', student: students } } };
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total] = await this.prisma.$transaction([
@@ -106,13 +106,15 @@ export class TestResultViewsService {
   /** One test: the published results of my schools' students, by name (never ordered by marks, never ranked). */
   async schoolResults(user: AuthUser, testId: string, q: SchoolResultsQueryDto) {
     const schools = await this.teacherSchools(user);
-    if (q.schoolId && !schools.includes(q.schoolId)) throw new AppError(HttpStatus.NOT_FOUND, 'SCHOOL_NOT_FOUND', 'School not found.');
+    if (q.schoolId && !schools.includes(q.schoolId) && !(await this.prisma.user.count({ where: teacherTestStudentsWhere(user.id, schools, q.schoolId) }))) {
+      throw new AppError(HttpStatus.NOT_FOUND, 'SCHOOL_NOT_FOUND', 'School not found.');
+    }
     const test = await this.prisma.test.findUnique({ where: { id: testId }, select: { ...TEST_SUMMARY, status: true } });
     if (!test || test.status !== 'PUBLISHED') throw resultNotFound();
     const contains = q.q ? { contains: q.q, mode: 'insensitive' as const } : undefined;
     const where: Prisma.TestSubmissionWhereInput = {
       testId, status: 'PUBLISHED',
-      student: { AND: [visibleSchoolStudentsWhere(q.schoolId ? [q.schoolId] : schools), ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : [])] },
+      student: { AND: [teacherTestStudentsWhere(user.id, schools, q.schoolId), ...(contains ? [{ OR: [{ firstName: contains }, { lastName: contains }, { username: contains }] }] : [])] },
     };
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total] = await this.prisma.$transaction([
@@ -136,7 +138,7 @@ export class TestResultViewsService {
   /** One of my schools' students: their published result (per question, total, comments). */
   async schoolResult(user: AuthUser, testId: string, studentId: string) {
     const schools = await this.teacherSchools(user);
-    const visible = await this.prisma.user.findFirst({ where: { AND: [{ id: studentId }, visibleSchoolStudentsWhere(schools)] }, select: { id: true } });
+    const visible = await this.prisma.user.findFirst({ where: { AND: [{ id: studentId }, teacherTestStudentsWhere(user.id, schools)] }, select: { id: true } });
     if (!visible) throw resultNotFound();
     return this.publishedResult(testId, studentId, 'TEACHER');
   }
@@ -170,7 +172,7 @@ export class TestResultViewsService {
       this.schoolTests(user, { page: 1, limit: 5 }),
       this.prisma.testExtension.findMany({
         where: { cancelledAt: null, newDeadline: { gt: now }, test: { status: 'PUBLISHED' },
-          OR: [{ kind: 'TEACHER', teacherId: user.id }, { kind: 'STUDENT', student: visibleSchoolStudentsWhere(schools) }] },
+          OR: [{ kind: 'TEACHER', teacherId: user.id }, { kind: 'STUDENT', student: teacherTestStudentsWhere(user.id, schools) }] },
         orderBy: [{ newDeadline: 'asc' }, { id: 'asc' }], take: 20,
         select: { id: true, kind: true, newDeadline: true, test: { select: { id: true, title: true } }, student: PERSON },
       }),
