@@ -372,7 +372,13 @@ const VIEW_AS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-view-as.json';
  * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
  */
 const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
-const CURRENT_SNAPSHOT = INTEGRATION_SNAPSHOT;
+/**
+ * Activate now (owner 2026-11-24): an administrator activates an account awaiting setup (POST /admin/users/:id/activate-now)
+ * and bulk action activateNow, whose preview tells how many will be activated (willApply). Additive only against the
+ * integration snapshot.
+ */
+const ACTIVATE_NOW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-activate-now.json';
+const CURRENT_SNAPSHOT = ACTIVATE_NOW_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1967,6 +1973,20 @@ describe('approved API contract history', () => {
       'POST /api/v1/auth/view-as/exchange: operation added',
       'schema ExchangeViewAsDto: added',
       'schema StartViewAsDto: added',
+    ]);
+  });
+
+  test('integration of the 2026-11-23 branches → activate now (2026-11-24): additive only — one operation, one bulk action, the preview\'s willApply', () => {
+    for (const f of [INTEGRATION_SNAPSHOT, ACTIVATE_NOW_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(INTEGRATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(ACTIVATE_NOW_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/admin/bulk/{entityType}/preview › response 200 application/json.willApply: new field',
+      'POST /api/v1/admin/users/bulk › request application/json.action: enum values added: activateNow',
+      'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: activateNow',
+      'POST /api/v1/admin/users/{id}/activate-now: operation added',
     ]);
   });
 

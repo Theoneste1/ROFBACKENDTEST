@@ -8264,6 +8264,34 @@
           }
         },
         {
+          "name": "POST /admin/users/{id}/activate-now",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/activate-now",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "activate-now"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "PUT /admin/users/{id}/avatar",
           "request": {
             "method": "PUT",

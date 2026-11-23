@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 
 import type { AccountStatus, GradeLevel } from '../../generated/prisma/client.js';
 import type { Permission } from '../../auth/permissions.js';
+import { activateNowRefusal, type ActivateNowRefusalCode } from '../account-status.js';
 
 export const BULK_ACTIONS = [
   'activate', 'deactivate', 'suspend', 'archive', 'restore', 'assignRole', 'changeClassification', 'message',
@@ -24,6 +25,9 @@ export const BULK_ACTIONS = [
   // The students' Olympiad level = division (owner 2026-11-21/22): params.olympiadLevel — an active division's code, or
   // AUTOMATIC (follow the grade's suggestion again).
   'setOlympiadLevel',
+  // Activate now (owner 2026-11-24): accounts "Awaiting setup" with their own password are activated without the e-mail
+  // confirmation (AccountStatusService.activateNow, the body of POST /admin/users/:id/activate-now).
+  'activateNow',
 ] as const;
 
 /** Actions on the teacher–student links of the selected students (params.teacherId). */
@@ -116,6 +120,8 @@ export const ACTION_RULES: Readonly<Record<BulkAction, ActionRule>> = {
                       consequence: 'Each selected student assigned to the first teacher moves to the second: the old assignment ends and the new one starts together, or nothing changes for that student (a student outside the new teacher\'s schools needs a reason). Students not assigned to the first teacher are skipped. School links and student ownership never change. The new teacher is told once.' },
   setOlympiadLevel: { permissions: ['students.classifyLevel'], reason: 'required',
                       consequence: 'Each selected student gets this Olympiad level (it then no longer follows the grade), or — Automatic — the level the grade suggests (and follows the grade again). The reason is kept in each student\'s level history. Their tests from now on are those of the new level; results already submitted keep their level. Other accounts, and students already at that level, are skipped.' },
+  activateNow:      { permissions: ['users.manage', 'users.changeStatus'], reason: 'optional',
+                      consequence: 'Each selected account that is awaiting setup and has its own password is activated at once: the person can sign in without confirming their e-mail, and their unused activation links stop working. No e-mail is sent. Accounts already active, people who have not set a password yet (resend the invitation instead), accounts that are not active, and accounts whose role you cannot manage are skipped.' },
 };
 
 /** Status of an account before a status action: SKIPPED (with why), or the transition to make. */
@@ -170,4 +176,36 @@ export function selectionToken(action: BulkAction, params: BulkParams, selection
 export { finalStatus } from '../../bulk/bulk-handler.js';
 
 /** Refusal codes that mean "nothing to do for this account" rather than a failure. */
-export const SKIP_CODES: ReadonlySet<string> = new Set(['STATUS_UNCHANGED', 'INVALID_STATUS_TRANSITION', 'CANNOT_CHANGE_OWN_STATUS', 'NO_SUGGESTED_LEVEL']);
+export const SKIP_CODES: ReadonlySet<string> = new Set([
+  'STATUS_UNCHANGED', 'INVALID_STATUS_TRANSITION', 'CANNOT_CHANGE_OWN_STATUS', 'NO_SUGGESTED_LEVEL',
+  // activateNow (AccountStatusService.activateNow refusals, if the account changed after the item's own check)
+  'ALREADY_ACTIVATED', 'NO_PASSWORD_YET', 'ACCOUNT_NOT_ACTIVE',
+]);
+
+/** activateNow preview: one group of selected accounts (role, state, activated, has a password) and its size. */
+export interface ActivateNowGroup { role: string; accountStatus: AccountStatus; activated: boolean; hasPassword: boolean; n: number }
+
+/**
+ * activateNow preview (pure): how many accounts will be activated and how many are skipped, by reason — in the order the
+ * item applies them: SELF, ROLE_NOT_MANAGEABLE (rank), then activateNowRefusal (ACCOUNT_NOT_ACTIVE, ALREADY_ACTIVATED,
+ * NO_PASSWORD_YET). `manageable` says whether the caller may manage a role.
+ */
+export function activateNowBreakdown(groups: readonly ActivateNowGroup[], manageable: (role: string) => boolean, selfSelected: boolean) {
+  const skipped: Record<'SELF' | 'ROLE_NOT_MANAGEABLE' | ActivateNowRefusalCode, number> = {
+    SELF: selfSelected ? 1 : 0, ROLE_NOT_MANAGEABLE: 0, ACCOUNT_NOT_ACTIVE: 0, ALREADY_ACTIVATED: 0, NO_PASSWORD_YET: 0,
+  };
+  let willActivate = 0;
+  for (const g of groups) {
+    if (!manageable(g.role)) { skipped.ROLE_NOT_MANAGEABLE += g.n; continue; }
+    const refusal = activateNowRefusal({ accountStatus: g.accountStatus, activatedAt: g.activated ? new Date(0) : null, hasPassword: g.hasPassword });
+    if (refusal) skipped[refusal.code] += g.n;
+    else willActivate += g.n;
+  }
+  // The caller's own account is already activated (they are signed in), so it is never counted in willActivate; it sits
+  // in ALREADY_ACTIVATED (or ROLE_NOT_MANAGEABLE) and is reported once, as SELF.
+  if (selfSelected) {
+    if (skipped.ALREADY_ACTIVATED > 0) skipped.ALREADY_ACTIVATED -= 1;
+    else if (skipped.ROLE_NOT_MANAGEABLE > 0) skipped.ROLE_NOT_MANAGEABLE -= 1;
+  }
+  return { willActivate, skipped };
+}
