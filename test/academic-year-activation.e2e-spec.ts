@@ -1,7 +1,7 @@
 /**
  * Starting an academic year is single-flight and retry-safe (capability `academicYearActivation`).
  *
- * The start rewrites every student's enrolment in one transaction that can outlive the Netlify
+ * The start rewrites every student's enrolment in one transaction that can outlive the hosting
  * proxy (~26 s). Before this, a retry while the first start was still running passed the PLANNED
  * check and ran the rollover again; a start of another planned year could close the year just
  * started and promote everyone a second time. Real PostgreSQL, real HTTP.

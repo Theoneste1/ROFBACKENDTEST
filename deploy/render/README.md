@@ -1,8 +1,8 @@
-# Hosting ROF LMS for free (Render + Neon + Netlify)
+# Hosting ROF LMS (Render + Neon + Vercel)
 
 | Part | Service | Free plan |
 |---|---|---|
-| Frontend | Netlify, from the ROFFRONTENDTEST repository | Its `/api/*` requests are proxied to the API, so browsers only ever talk to the Netlify site |
+| Frontend | Vercel (only; Netlify removed 2026-11-24), from the ROFFRONTENDTEST repository | Its `/api/*` requests are proxied to the API, so browsers only ever talk to the frontend's domain |
 | API | Render web service (Docker, Ohio), from [`render.yaml`](../../render.yaml) | sleeps after ~15 idle minutes, wakes on the next request (about a minute) |
 | Database | Neon PostgreSQL (AWS us-east-2, Ohio) | 0.5 GB; sleeps when idle, wakes by itself |
 | Uploaded files | Cloudflare R2 | 10 GB |
@@ -15,7 +15,7 @@ Frankfurt, set `region: frankfurt` in `render.yaml` before creating the service.
 
 Never put connection strings, keys or passwords in git or in chat. They go
 in `.env.production.local` on your computer (git-ignored) and in the Render
-and Netlify dashboards.
+and Vercel dashboards.
 
 ## 1. Database (Neon)
 
@@ -83,7 +83,7 @@ any file in git.
    | Key | Value |
    |---|---|
    | `DATABASE_URL` | the Neon **pooled** string (step 1) |
-   | `CORS_ORIGINS`, `APP_URL` | the Netlify address, e.g. `https://roflms.netlify.app` (no trailing slash). If the site doesn't exist yet, use a placeholder and update both after step 5 |
+   | `CORS_ORIGINS`, `APP_URL` | the frontend's address, `https://lms.rwandaolympiadfoundation.org` (no trailing slash) |
    | `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | from step 2 |
    | `RESEND_API_KEY` | from step 3 (`EMAIL_FROM` and `EMAIL_REPLY_TO` are already set in `render.yaml`) |
 
@@ -92,31 +92,31 @@ any file in git.
 6. Open `https://<your-service>.onrender.com/health` (your exact address is
    shown in Render): `"status":"ok","checks":{"database":"up","storage":"up"}`.
 
-## 5. Frontend (Netlify)
+## 5. Frontend (Vercel)
 
-1. Netlify → **Add new site → Import an existing project → GitHub →**
-   `ROFFRONTENDTEST`, branch `main`. Build settings come from its `netlify.toml`.
-2. **Site configuration → Environment variables → Add**
-   `API_PROXY_TARGET` = `https://<your-service>.onrender.com` (no `/api`, no trailing slash).
-   The build refuses to run without it.
-3. **Deploys → Trigger deploy.**
-4. Back in Render, set `CORS_ORIGINS` and `APP_URL` to the Netlify address
+1. Vercel → **Add New → Project →** import `ROFFRONTENDTEST`; production branch `main`
+   (Next.js is detected; no settings file is needed).
+2. **Settings → Environment Variables:** `API_PROXY_TARGET` and `NEXT_PUBLIC_API_UPLOAD_ORIGIN`
+   = `https://<your-service>.onrender.com` (no `/api`, no trailing slash). The build refuses to run
+   without `API_PROXY_TARGET`. Details: the frontend's `DEPLOYMENT.md`.
+3. **Settings → Domains:** add `lms.rwandaolympiadfoundation.org` (Vercel issues the certificate).
+4. In Render, set `CORS_ORIGINS` and `APP_URL` to `https://lms.rwandaolympiadfoundation.org`
    (Render redeploys by itself).
 
-Browsers call `https://<site>.netlify.app/api/...`, which Netlify forwards to Render.
+Browsers call `https://lms.rwandaolympiadfoundation.org/api/...`, which Vercel forwards to Render.
 Frontend and API are therefore the same site for the browser, and the
 `SameSite=Strict` sign-in cookie works without a custom domain.
 
 ## 6. After the first deploy
 
-1. Sign in at the Netlify address as the administrator and change the password
+1. Sign in at the frontend's address as the administrator and change the password
    (profile → Change password).
 2. **Settings:** platform name and support contacts (the support e-mail receives
    contact-form messages); optionally turn off e-mail copies of notifications.
 3. Invite yourself as a coach to check that e-mail arrives; upload a file
    to check storage.
 4. **Rate-limit check (`TRUST_PROXY`):** sign-in, refresh, logout and contact messages
-   are limited per visitor address. Because requests pass Netlify before Render, the API
+   are limited per visitor address. Because requests pass the frontend's proxy (Vercel) before Render, the API
    may see a proxy's address instead of the visitor's, so visitors could share one limit.
    - Look for **HTTP 429 "Too many requests"** — not for a refused password: after 5 wrong
      passwords an account is **locked** and keeps answering like a wrong password, which
@@ -132,6 +132,5 @@ Frontend and API are therefore the same site for the browser, and the
 
 ## Custom domain (optional)
 
-Add the domain in Netlify (e.g. `lms.<your-domain>`) and set `CORS_ORIGINS` and
-`APP_URL` in Render to `https://lms.<your-domain>`. The API needs no domain of
-its own: it is only reached through the Netlify proxy.
+The domain is added in Vercel (step 5) and `CORS_ORIGINS` / `APP_URL` in Render name it. The API needs no domain
+of its own: browsers reach it through the frontend's proxy (uploads go to the Render address directly).
