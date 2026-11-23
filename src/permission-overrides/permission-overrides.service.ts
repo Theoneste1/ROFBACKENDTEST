@@ -65,6 +65,19 @@ function assertTeacherTarget(target: { role: string }) {
 
 /** The one permission an Administrator revokes / restores per teacher (owner 2026-11-21). */
 const TEST_SUBMISSION = 'tests.submitForStudents';
+/**
+ * Course homework for their students (owner 2026-11-23, confirmed 2026-11-24): Teacher defaults, switched off and on per
+ * teacher with ONE switch like test submission — seeing the students' homework progress and handing homework in for them.
+ */
+const HOMEWORK_SUBMISSION = ['students.viewProgress', 'submissions.submitOnBehalf'] as const;
+export type TeacherSwitch = 'TEST' | 'HOMEWORK';
+const SWITCHES: Readonly<Record<TeacherSwitch, { permissions: readonly string[]; noun: string; revoked: string; restored: string }>> = {
+  TEST: { permissions: [TEST_SUBMISSION], noun: 'revoking test submission', revoked: 'TEACHER_TEST_SUBMISSION_REVOKED', restored: 'TEACHER_TEST_SUBMISSION_RESTORED' },
+  HOMEWORK: { permissions: HOMEWORK_SUBMISSION, noun: 'switching off course homework', revoked: 'TEACHER_HOMEWORK_SUBMISSION_REVOKED', restored: 'TEACHER_HOMEWORK_SUBMISSION_RESTORED' },
+};
+const activeDenyOf = (userId: string, permissions: readonly string[]) => ({
+  userId, permission: { in: [...permissions] }, effect: 'DENY' as const, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+});
 
 const notAllowed = (reason: string, details: Record<string, unknown> = {}) =>
   new AppError(HttpStatus.BAD_REQUEST, 'OVERRIDE_NOT_ALLOWED', `This override is not allowed: ${reason}.`, { reason, ...details });
@@ -235,18 +248,41 @@ export class PermissionOverridesService {
 
   /** Whether this teacher may submit tests for their students now, and the revocation if any. */
   async teacherTestSubmission(userId: string) {
+    return this.teacherSwitch(userId, 'TEST');
+  }
+
+  /** Revoke (allowed false, reason 3–500 required) or restore (allowed true) it. Idempotent; audited when it changes. */
+  async setTeacherTestSubmission(userId: string, dto: { allowed: boolean; reason?: string }, actor: CallerCtx) {
+    return this.setTeacherSwitch(userId, 'TEST', dto, actor);
+  }
+
+  /**
+   * Course homework (owner 2026-11-23): whether this teacher may see their students' homework progress and hand homework
+   * in for them now — false as soon as either is denied (the switch denies both).
+   */
+  async teacherHomeworkSubmission(userId: string) {
+    return this.teacherSwitch(userId, 'HOMEWORK');
+  }
+
+  /** Switch it off (reason 3–500 required; both permissions) or on again (every such DENY lifted). Idempotent; audited when it changes. */
+  async setTeacherHomeworkSubmission(userId: string, dto: { allowed: boolean; reason?: string }, actor: CallerCtx) {
+    return this.setTeacherSwitch(userId, 'HOMEWORK', dto, actor);
+  }
+
+  /** A Teacher default switched off for one teacher: an active DENY override of (one of) exactly its permission(s). */
+  private async teacherSwitch(userId: string, which: TeacherSwitch) {
     const target = await this.requireUser(userId);
     assertTeacherTarget(target);
     const deny = await this.prisma.userPermissionOverride.findFirst({
-      where: { userId, permission: TEST_SUBMISSION, effect: 'DENY', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      where: activeDenyOf(userId, SWITCHES[which].permissions),
       orderBy: { createdAt: 'desc' },
       select: { id: true, reason: true, createdAt: true, createdBy: { select: { id: true, username: true, firstName: true, lastName: true } } },
     });
     return { userId, allowed: !deny, revokedAt: deny?.createdAt ?? null, reason: deny?.reason ?? null, revokedBy: deny?.createdBy ?? null };
   }
 
-  /** Revoke (allowed false, reason 3–500 required) or restore (allowed true) it. Idempotent; audited when it changes. */
-  async setTeacherTestSubmission(userId: string, dto: { allowed: boolean; reason?: string }, actor: CallerCtx) {
+  private async setTeacherSwitch(userId: string, which: TeacherSwitch, dto: { allowed: boolean; reason?: string }, actor: CallerCtx) {
+    const { permissions, noun, revoked, restored } = SWITCHES[which];
     const target = await this.requireUser(userId);
     assertTeacherTarget(target);
     if (target.id === actor.id) {
@@ -254,22 +290,28 @@ export class PermissionOverridesService {
     }
     const reason = dto.reason?.trim() ?? '';
     if (!dto.allowed && (reason.length < 3 || reason.length > 500)) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', 'Give a reason (3–500 characters) for revoking test submission.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', `Give a reason (3–500 characters) for ${noun}.`);
     }
     await this.prisma.$transaction(async (tx) => {
       // The same per-user lock as every override change: a concurrent revoke and restore apply one after the other.
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(${OVERRIDE_LOCK_NAMESPACE}::int, hashtext(${userId}))::text`;
-      const active = await tx.userPermissionOverride.findMany({
-        where: { userId, permission: TEST_SUBMISSION, effect: 'DENY', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-        select: { id: true },
-      });
-      if (!dto.allowed && active.length === 0) {
-        const created = await tx.userPermissionOverride.create({
-          data: { userId, permission: TEST_SUBMISSION, effect: 'DENY', reason, createdById: actor.id }, select: { id: true },
-        });
+      const active = await tx.userPermissionOverride.findMany({ where: activeDenyOf(userId, permissions), select: { id: true, permission: true } });
+      // Switching off denies every permission of the switch not denied yet (one may already be, set by a Super Admin).
+      const missing = permissions.filter((p) => !active.some((a) => a.permission === p));
+      if (!dto.allowed && missing.length > 0) {
+        const created: Array<{ id: string }> = [];
+        for (const permission of missing) {
+          created.push(await tx.userPermissionOverride.create({
+            data: { userId, permission, effect: 'DENY', reason, createdById: actor.id }, select: { id: true },
+          }));
+        }
         await this.audit.log({
-          actorId: actor.id, actorRole: actor.role, action: 'TEACHER_TEST_SUBMISSION_REVOKED', entity: 'User', entityId: userId,
-          metadata: { overrideId: created.id, permission: TEST_SUBMISSION, reason, previous: { allowed: true }, next: { allowed: false } },
+          actorId: actor.id, actorRole: actor.role, action: revoked, entity: 'User', entityId: userId,
+          metadata: {
+            // The test switch keeps its original metadata shape (one permission, overrideId).
+            ...(permissions.length === 1 ? { overrideId: created[0].id, permission: permissions[0] } : { overrideIds: created.map((c) => c.id), permissions: missing }),
+            reason, previous: { allowed: active.length === 0 }, next: { allowed: false },
+          },
         }, tx);
       }
       if (dto.allowed && active.length > 0) {
@@ -278,19 +320,23 @@ export class PermissionOverridesService {
           data: { revokedAt: new Date(), revokedById: actor.id, ...(reason && { revokeReason: reason }) },
         });
         await this.audit.log({
-          actorId: actor.id, actorRole: actor.role, action: 'TEACHER_TEST_SUBMISSION_RESTORED', entity: 'User', entityId: userId,
-          metadata: { overrideIds: active.map((a) => a.id), permission: TEST_SUBMISSION, ...(reason && { reason }), previous: { allowed: false }, next: { allowed: true } },
+          actorId: actor.id, actorRole: actor.role, action: restored, entity: 'User', entityId: userId,
+          metadata: {
+            overrideIds: active.map((a) => a.id),
+            ...(permissions.length === 1 ? { permission: permissions[0] } : { permissions: [...new Set(active.map((a) => a.permission))].sort() }),
+            ...(reason && { reason }), previous: { allowed: false }, next: { allowed: true },
+          },
         }, tx);
       }
     });
-    return this.teacherTestSubmission(userId);
+    return this.teacherSwitch(userId, which);
   }
 
   /** Of these Teacher ids, the ones whose test submission is revoked now (the Users list shows it). */
   async teachersWithoutTestSubmission(ids: readonly string[]): Promise<Set<string>> {
     if (ids.length === 0) return new Set();
     const rows = await this.prisma.userPermissionOverride.findMany({
-      where: { userId: { in: [...ids] }, permission: TEST_SUBMISSION, effect: 'DENY', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      where: { ...activeDenyOf('', [TEST_SUBMISSION]), userId: { in: [...ids] } },
       select: { userId: true },
     });
     return new Set(rows.map((r) => r.userId));

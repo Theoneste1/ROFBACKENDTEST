@@ -14,7 +14,7 @@ The permission layer added in P1-04 ([Phase 1 plan](PHASE-1-PLAN.md) v5.2 §4–
 | Stored value | Label | Today | Intended permissions (summary) |
 |---|---|---|---|
 | `STUDENT` | Student | in use | Own division's courses, resources and assignments; completes courses, submits and sees **own** work; takes part in and reports division discussions; leaderboard. |
-| `TEACHER` | Teacher | after M1 (P1-05) | Students of the teacher's assigned schools (P1-11, school scope): list by default; profile, assignment progress (no grades) and submitting on a student's behalf only by an individual delegation from an Administrator or Super Admin. No grading, no student account or password changes. No course, resource, assignment or discussion access (the unused course × division grants were removed on 2026-11-14). |
+| `TEACHER` | Teacher | after M1 (P1-05) | Students of the teacher's assigned schools and the students assigned to them (P1-11, school scope): list, course-homework progress (no grades) and handing in course homework on a student's behalf by default (owner 2026-11-24; an Administrator switches the homework part off per teacher); the profile only by an individual delegation from an Administrator or Super Admin. No grading, no student account or password changes. No course, resource, assignment or discussion access (the unused course × division grants were removed on 2026-11-14). |
 | `MENTOR` | Coach | in use | Assigned course × division: manage resources, prepare assignments, **grade**, course analytics, discussions; leaderboard. |
 | `HEAD_COACH` | Head Coach | after M1 (P1-05) | Own programme(s): view, analytics, reports, scoped student and user info, manage student membership and coaches (invite → approval), assign coaches, monitor coaches, activity. Grades and prepares **only** through a course × division assignment an Administrator created (H4). No discussion moderation (H7). |
 | `ADMIN` | Administrator | in use | Everything administrative: today's 25 permissions plus the new granular administrative names, including managing Head Coaches (accounts, programme heads and members, coach monitoring — owner decision D-5, 2026-11-14). **Never grades or prepares assignments** (RS1). Never gives or manages `SUPER_ADMIN`. Keeps `users.manageAdmins` until the Super Admin boundary (P1-08, A7). |
@@ -80,8 +80,8 @@ permission guard.
 | `permissions.view` | — | — | — | — | all | all |
 | `permissions.manageOverrides` | — | — | — | — | — | all |
 | `students.viewProfile` | — | — | — | — | — | — |
-| `students.viewProgress` | — | — | — | — | — | — |
-| `submissions.submitOnBehalf` | — | — | — | — | — | — |
+| `students.viewProgress` | — | school | — | — | — | — |
+| `submissions.submitOnBehalf` | — | school | — | — | — | — |
 | `schools.manage` | — | — | — | — | all | all |
 | `schools.syncDirectory` | — | — | — | — | — | all |
 | `users.viewStatusHistory` | — | — | — | — | all | all |
@@ -139,8 +139,16 @@ change is audited in the TESTS category, in the same transaction. Appended to th
   Appended to the frozen STUDENT list additively, so the student portal shows My tests.
 - `tests.submitForStudents` (school; owner decision G2): every Teacher of a school, primary or secondary, by default —
   only for the VERIFIED students of their own ACTIVE schools whose account is active (another student: 403
-  `STUDENT_NOT_IN_SCOPE`). The course-assignment delegation `submissions.submitOnBehalf` is separate and unchanged
-  (individual GRANT only).
+  `STUDENT_NOT_IN_SCOPE`). The course-assignment permission `submissions.submitOnBehalf` is separate (a Teacher default
+  since 2026-11-24, see below).
+- Course homework by teachers (owner decision 2026-11-23, confirmed 2026-11-24; capability `teacherHomeworkDefault`):
+  `students.viewProgress` and `submissions.submitOnBehalf` are Teacher defaults (school scope) for every student the
+  teacher sees — their schools' students and the students assigned to them, the same students as for tests. They stay
+  on the approved GRANT list (existing delegations keep working; they add nothing while the default applies). An
+  Administrator (`users.manageTeachers`) switches both off or on again for one teacher with
+  GET / PUT `/admin/teachers/:id/homework-submission` (reason required to switch off; audited
+  `TEACHER_HOMEWORK_SUBMISSION_REVOKED` / `_RESTORED`): two DENY overrides. A DENY wins over a GRANT of the same
+  permission, whatever their order, so switched off no delegation brings either back.
 - Deadlines come from one service, in database time; a student or teacher sees the deadline that applies to them, never
   an "extended" mark (Administrators and Head Coaches only — never markers). All new; none is in `ADMIN_PROHIBITED` or
   `NEVER_GRANTABLE`; like every default, each can be denied to an individual.

@@ -378,7 +378,14 @@ const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.
  * integration snapshot.
  */
 const ACTIVATE_NOW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-activate-now.json';
-const CURRENT_SNAPSHOT = ACTIVATE_NOW_SNAPSHOT;
+/**
+ * Course homework by teachers, by default (owner, 2026-11-24): an Administrator switches a teacher's homework for their
+ * students off or on again (GET / PUT /admin/teachers/:id/homework-submission). Additive only against the integration snapshot.
+ */
+const TEACHER_HOMEWORK_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-teacher-homework.json';
+/** Release 2026-11-25: activate now + teacher homework together (additive only). */
+const RELEASE_2026_11_25_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-release.json';
+const CURRENT_SNAPSHOT = RELEASE_2026_11_25_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2139,6 +2146,30 @@ describe('approved API contract history', () => {
       'schema GenericBulkPreviewDto: added',
       'schema GenericBulkSelectionDto: added',
     ]);
+  });
+
+  test('integration of the 2026-11-23 branches → course homework by teachers (2026-11-24): additive only — the homework switch, two operations, one request schema', () => {
+    for (const f of [INTEGRATION_SNAPSHOT, TEACHER_HOMEWORK_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(INTEGRATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(TEACHER_HOMEWORK_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/teachers/{id}/homework-submission: operation added',
+      'PUT /api/v1/admin/teachers/{id}/homework-submission: operation added',
+      'schema SetTeacherHomeworkSubmissionDto: added',
+    ]);
+  });
+
+  test('integration → release 2026-11-25 (activate now + teacher homework): nothing breaking, nothing for review; both branch snapshots contained', () => {
+    const base = JSON.parse(readFileSync(INTEGRATION_SNAPSHOT, 'utf8'));
+    const res = compare(base, JSON.parse(readFileSync(RELEASE_2026_11_25_SNAPSHOT, 'utf8')));
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    for (const branch of [ACTIVATE_NOW_SNAPSHOT, TEACHER_HOMEWORK_SNAPSHOT]) {
+      const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
+      assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
+    }
   });
 
   test('the P0-03 snapshot is the recorded historical evidence (fingerprint unchanged)', () => {

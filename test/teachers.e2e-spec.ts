@@ -148,8 +148,10 @@ describe('Teachers (P1-11)', () => {
     const routes: Array<[string, string, string, boolean]> = [
       ['/api/v1/teacher/students', 'get', 'students.viewScoped', false],
       ['/api/v1/teacher/students/{id}', 'get', 'students.viewProfile', true],
-      ['/api/v1/teacher/students/{id}/progress', 'get', 'students.viewProgress', true],
-      ['/api/v1/teacher/students/{id}/submissions', 'post', 'submissions.submitOnBehalf', true],
+      // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): course homework progress and handing in
+      // are Teacher defaults now, documented as such (no longer "granted individually").
+      ['/api/v1/teacher/students/{id}/progress', 'get', 'students.viewProgress', false],
+      ['/api/v1/teacher/students/{id}/submissions', 'post', 'submissions.submitOnBehalf', false],
     ];
     for (const [path, method, permission, delegated] of routes) {
       const o = op(path, method);
@@ -158,19 +160,29 @@ describe('Teachers (P1-11)', () => {
       expect([path, /assigned schools|assigned to you/.test(summary)]).toEqual([path, true]);
       expect(generated.paths[path][method]['x-roles']).toEqual(['TEACHER']);
       if (delegated) expect([path, o.description]).toEqual([path, expect.stringContaining('granted individually by an Administrator or Super Admin')]);
+      if (permission === 'students.viewProgress' || permission === 'submissions.submitOnBehalf') {
+        expect([path, o.description]).toEqual([path, expect.stringContaining('every Teacher by default (an Administrator switches course homework off per teacher)')]);
+      }
     }
   });
 
-  it('without a delegation a Teacher cannot view profiles or progress, nor submit for a student', async () => {
+  it('without a delegation a Teacher cannot view profiles; course homework progress and handing in are Teacher defaults (owner 2026-11-24)', async () => {
     expect(await status(http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}`).set(bearer(t1)))).toEqual([403, 'PERMISSION_REQUIRED']);
-    expect(await status(http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}/progress`).set(bearer(t1)))).toEqual([403, 'PERMISSION_REQUIRED']);
-    expect(await status(submitFor(t1, ctx.ids.studentJunior2, workId))).toEqual([403, 'PERMISSION_REQUIRED']);
+    // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): teachers see their students' homework progress
+    // and hand homework in for them by default, like tests (was: 403 PERMISSION_REQUIRED without a delegation). Still only
+    // for the students they see: another school's student is not found, nothing written.
+    await http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}/progress`).set(bearer(t1)).expect(200);
+    expect(await status(http().get(`/api/v1/teacher/students/${studentO}/progress`).set(bearer(t1)))).toEqual([404, 'NOT_FOUND']);
+    expect(await status(submitFor(t1, studentO, workId))).toEqual([404, 'NOT_FOUND']);
     expect(await p().submission.count({ where: { assignmentId: workId } })).toBe(0);
   });
 
   it('2026-11-14: a Teacher holds no course access — /me/permissions lists only the school-scoped student list and the leaderboard; course routes stay refused', async () => {
     // + tests.submitForStudents (Test Management Phase 2, G2): a test-answer default for verified students of their schools — still no course access; + tests.viewSchoolResults (Phase 4: published results of their schools' students).
-    expect((await http().get('/api/v1/me/permissions').set(bearer(t1)).expect(200)).body.permissions).toEqual(['leaderboard.view', 'students.viewScoped', 'tests.submitForStudents', 'tests.viewSchoolResults']);
+    // + students.viewProgress, submissions.submitOnBehalf: changed on purpose — owner decision 2026-11-24, course homework for their students by default (still no course access).
+    expect((await http().get('/api/v1/me/permissions').set(bearer(t1)).expect(200)).body.permissions).toEqual([
+      'leaderboard.view', 'students.viewScoped', 'students.viewProgress', 'submissions.submitOnBehalf', 'tests.submitForStudents', 'tests.viewSchoolResults',
+    ]);
     // The one route gated by courses.view (the programme list) now refuses at the permission check; the
     // signed-in course and discussion routes were already refused by their services (the grants were dead).
     expect(await status(http().get('/api/v1/programmes').set(bearer(t1)))).toEqual([403, 'PERMISSION_REQUIRED']);
@@ -314,7 +326,11 @@ describe('Teachers (P1-11)', () => {
   it('revocation applies on the next request (same token); Administrators revoke only teacher delegations', async () => {
     const onBehalf = await p().userPermissionOverride.findFirstOrThrow({ where: { userId: t1Id, permission: 'submissions.submitOnBehalf', revokedAt: null } });
     await http().delete(`${delegations(t1Id)}/${onBehalf.id}`).set(bearer(admin)).expect(200);
+    // Changed on purpose — owner decision 2026-11-24: handing in homework is a Teacher default, so revoking the older
+    // delegation leaves it; the Administrator's course homework switch takes it away, on the next request (same token).
+    await http().put(`/api/v1/admin/teachers/${t1Id}/homework-submission`).set(bearer(admin)).send({ allowed: false, reason: 'Pause homework' }).expect(200);
     expect(await status(submitFor(t1, ctx.ids.studentJunior, workId))).toEqual([403, 'PERMISSION_REQUIRED']);
+    await http().put(`/api/v1/admin/teachers/${t1Id}/homework-submission`).set(bearer(admin)).send({ allowed: true }).expect(200);
     expect(await status(http().delete(`${delegations(t1Id)}/${onBehalf.id}`).set(bearer(admin)))).toEqual([409, 'OVERRIDE_ALREADY_REVOKED']);
     expect(await p().auditLog.findFirstOrThrow({ where: { action: 'PERMISSION_OVERRIDE_REVOKE', entityId: onBehalf.id } }))
       .toMatchObject({ actorId: ctx.ids.admin, metadata: { via: 'TEACHER_DELEGATION' } });

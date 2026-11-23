@@ -255,6 +255,9 @@ describe('permissions', () => {
       // 2026-11-14: no course access (the course × division grants were dead — no TeacherAssignment exists).
       TEACHER: {
         'students.viewScoped': 'school', 'leaderboard.view': G,
+        // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): course homework progress and handing in
+        // homework for their students are Teacher defaults (were individual delegations); an Administrator switches both off.
+        'students.viewProgress': 'school', 'submissions.submitOnBehalf': 'school',
         // Test Management, Phase 2 (G2): submit for the verified students of their own schools
         'tests.submitForStudents': 'school',
         // Phase 4: published results of the verified students of their own schools (no ranks)
@@ -361,8 +364,10 @@ describe('permissions', () => {
       expect(ROLE_GRANTS.STUDENT['tests.submit']).toBe('own');
       expect(APP_ROLES.filter((r) => 'tests.submitForStudents' in ROLE_GRANTS[r])).toEqual(['TEACHER']);
       expect(ROLE_GRANTS.TEACHER['tests.submitForStudents']).toBe('school');
-      // The course-assignment delegation stays exactly as it was: nobody holds it by default.
-      expect(APP_ROLES.filter((r) => 'submissions.submitOnBehalf' in ROLE_GRANTS[r])).toEqual([]);
+      // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): the course-assignment on-behalf submission
+      // is now a Teacher default too (was: nobody by default, delegation only), school scope, and still grantable.
+      expect(APP_ROLES.filter((r) => 'submissions.submitOnBehalf' in ROLE_GRANTS[r])).toEqual(['TEACHER']);
+      expect(ROLE_GRANTS.TEACHER['submissions.submitOnBehalf']).toBe('school');
       for (const p of ['tests.extensions', 'tests.viewSubmissions', 'tests.submit', 'tests.submitForStudents'] as const) {
         expect(ADMIN_PROHIBITED).not.toContain(p);
         expect(NEVER_GRANTABLE).not.toContain(p);
