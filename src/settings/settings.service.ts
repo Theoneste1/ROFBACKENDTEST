@@ -31,6 +31,13 @@ const FORM_SWITCHES: Readonly<Partial<Record<string, FormKey>>> = {
   'registration.studentSelfSignup': 'STUDENT_REGISTRATION',
   'registration.teacherSelfSignup': 'TEACHER_REGISTRATION',
 };
+/**
+ * E-mail activation now lives on each sign-up form (owner 2026-11-23): this setting reads true while any sign-up form
+ * requires it, and writing it sets every sign-up form (forms.manageAvailability; FORM_AVAILABILITY_CHANGED per form).
+ * Its SystemSetting row is no longer read or written.
+ */
+const VERIFICATION_SWITCH = 'registration.requireEmailVerification';
+const isFormSwitch = (key: string) => FORM_SWITCHES[key] !== undefined || key === VERIFICATION_SWITCH;
 
 @Injectable()
 export class SettingsService {
@@ -43,6 +50,7 @@ export class SettingsService {
   ) {}
 
   async get<K extends SettingKey>(key: K): Promise<SettingValue<K>> {
+    if (key === VERIFICATION_SWITCH) return (await this.forms.emailVerificationSwitch()) as SettingValue<K>;
     const form = FORM_SWITCHES[key];
     if (form) return (await this.forms.openSwitch(form)) as SettingValue<K>;
     const values = await this.load();
@@ -57,10 +65,11 @@ export class SettingsService {
     const byKey = new Map(rows.map((r) => [r.key, r]));
     const switches = new Map<string, unknown>();
     for (const [key, form] of Object.entries(FORM_SWITCHES)) switches.set(key, await this.forms.openSwitch(form!));
+    switches.set(VERIFICATION_SWITCH, await this.forms.emailVerificationSwitch());
     return Object.entries(SETTINGS).map(([key, d]) => {
       const def: SettingDefinition = d;
       // A form switch reports its form; who changed it last is on the form (GET /admin/forms).
-      const row = FORM_SWITCHES[key] ? undefined : byKey.get(key);
+      const row = isFormSwitch(key) ? undefined : byKey.get(key);
       return {
         key,
         category:    def.category,
@@ -112,7 +121,7 @@ export class SettingsService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SETTINGS', 'Some settings are invalid.', errors);
     }
     // A form switch in the request (changed or not) is a form availability write: one rule for every path.
-    if (entries.some(([key]) => FORM_SWITCHES[key])) this.forms.assertMayManageAvailability(caller);
+    if (entries.some(([key]) => isFormSwitch(key))) this.forms.assertMayManageAvailability(caller);
 
     const current = new Map(Object.keys(SETTINGS).map((k) => [k, undefined as unknown]));
     const values = await this.load(true);
@@ -124,14 +133,16 @@ export class SettingsService {
     this.assertConsistent(next);
 
     for (const [key, form] of Object.entries(FORM_SWITCHES)) current.set(key, await this.forms.openSwitch(form!));
+    current.set(VERIFICATION_SWITCH, await this.forms.emailVerificationSwitch());
     const changed = entries.filter(([key, value]) => JSON.stringify(current.get(key)) !== JSON.stringify(value));
-    const formChanges = changed.filter(([key]) => FORM_SWITCHES[key]);
-    const settingChanges = changed.filter(([key]) => !FORM_SWITCHES[key]);
+    const formChanges = changed.filter(([key]) => isFormSwitch(key));
+    const settingChanges = changed.filter(([key]) => !isFormSwitch(key));
     if (changed.length > 0) {
       await this.prisma.$transaction(async (tx) => {
         // A form switch: open (true) or close (false) the form, audited as FORM_AVAILABILITY_CHANGED.
         for (const [key, value] of formChanges) {
-          await this.forms.setOpenSwitch(FORM_SWITCHES[key]!, value === true, caller, tx as never, requestId);
+          if (key === VERIFICATION_SWITCH) await this.forms.setEmailVerificationSwitch(value === true, caller, tx as never, requestId);
+          else await this.forms.setOpenSwitch(FORM_SWITCHES[key]!, value === true, caller, tx as never, requestId);
         }
         for (const [key, value] of settingChanges) {
           await tx.systemSetting.upsert({

@@ -2258,6 +2258,9 @@ model FormAvailability {
   instructions  String?
   contactEmail  String?
   supportUrl    String?
+  /// Sign-up forms only (owner 2026-11-23): people who sign up with this form must confirm their e-mail (activation
+  /// link) before they can sign in. Off by default; an Administrator may turn it on per form.
+  requireEmailVerification Boolean @default(false)
   updatedById   String?
   updatedBy     User?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt     DateTime  @default(now())

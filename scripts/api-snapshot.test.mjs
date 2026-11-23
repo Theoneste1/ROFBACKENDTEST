@@ -335,7 +335,12 @@ const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-division
  * against the Olympiad levels snapshot.
  */
 const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
+/**
+ * E-mail activation per sign-up form, off by default (owner, 2026-11-23): the forms' availability change accepts
+ * requireEmailVerification. Additive only against the school codes snapshot.
+ */
+const FORM_EMAIL_VERIFICATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-form-email-verification.json';
+const CURRENT_SNAPSHOT = FORM_EMAIL_VERIFICATION_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1807,6 +1812,15 @@ describe('approved API contract history', () => {
       'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolOwnership: new optional field',
       'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolVillage: new optional field',
     ]);
+  });
+
+  test('the school code is the identifier → e-mail activation per sign-up form (2026-11-23): additive only — one optional field', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, FORM_EMAIL_VERIFICATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(FORM_EMAIL_VERIFICATION_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PATCH /api/v1/admin/forms/{key}/availability › request application/json.requireEmailVerification: new optional field']);
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {
