@@ -67,7 +67,7 @@ export class SchoolSyncService {
 
   async dryRun(file: Express.Multer.File | undefined, q: CreateSyncRunQueryDto, caller: CallerCtx) {
     const dataset = syncDataset(q.dataset);
-    if (!dataset) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SYNC_DATASET', 'Unknown dataset.');
+    if (!dataset) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SYNC_DATASET', 'This kind of school list is not known. Choose a dataset from the list.');
     if (dataset.normaliserVersion !== NESA_NORMALISER_VERSION) throw new Error(`No normaliser ${dataset.normaliserVersion}`);
     const fileName = sanitizeFileName(file?.originalname);
     const parsed = await readSourceFile(dataset, file);

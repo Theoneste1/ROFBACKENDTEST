@@ -490,7 +490,7 @@ export class UsersService {
     if (data.isActive !== undefined && data.isActive !== before.isActive) {
       if (data.isActive && before.accountStatus === 'ARCHIVED') {
         throw new AppError(HttpStatus.CONFLICT, 'INVALID_STATUS_TRANSITION',
-          'An archived account is restored with POST /admin/users/:id/status-changes (with a reason).', { from: 'ARCHIVED', to: 'ACTIVE' });
+          'This account is archived. Use "Restore" on the account page (with a reason) to bring it back.', { from: 'ARCHIVED', to: 'ACTIVE' });
       }
       await this.accountStatus.change(id,
         { toStatus: data.isActive ? 'ACTIVE' : 'SUSPENDED', reason: data.isActive ? null : LEGACY_SUSPEND_REASON },

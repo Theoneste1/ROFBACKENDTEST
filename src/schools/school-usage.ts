@@ -21,7 +21,7 @@ import type { Prisma } from '../generated/prisma/client.js';
 
 export function schoolInactive(schoolId: string) {
   return new AppError(HttpStatus.CONFLICT, 'SCHOOL_INACTIVE',
-    'This school is inactive: it accepts no new students, claims or Teacher assignments.', { schoolId });
+    'This school is inactive: it accepts no new students, claims or teacher assignments. Choose another school, or ask an administrator to reactivate it.', { schoolId });
 }
 
 /** Lock each school (FOR SHARE, ascending id) and require it to exist and be active. */

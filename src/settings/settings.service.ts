@@ -118,7 +118,7 @@ export class SettingsService {
       if (err) errors.push(err);
     }
     if (errors.length) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SETTINGS', 'Some settings are invalid.', errors);
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SETTINGS', 'Some settings are not valid (see the list). Correct them, then save again.', errors);
     }
     // A form switch in the request (changed or not) is a form availability write: one rule for every path.
     if (entries.some(([key]) => isFormSwitch(key))) this.forms.assertMayManageAvailability(caller);
@@ -166,7 +166,7 @@ export class SettingsService {
   /** Rules that involve more than one setting. */
   private assertConsistent(values: Map<string, unknown>) {
     if (values.get('assignments.defaultAllowResubmission') === false && (values.get('assignments.defaultMaxResubmissions') as number) > 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SETTINGS', 'Some settings are invalid.', [
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_SETTINGS', 'Some settings are not valid (see the list). Correct them, then save again.', [
         'assignments.defaultMaxResubmissions only applies when assignments.defaultAllowResubmission is true.',
       ]);
     }

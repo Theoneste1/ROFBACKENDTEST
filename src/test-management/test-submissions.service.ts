@@ -103,8 +103,8 @@ const SUBMIT_TX = { maxWait: 15_000, timeout: 30_000 } as const;
 
 const notInScope = () => new AppError(HttpStatus.FORBIDDEN, 'STUDENT_NOT_IN_SCOPE',
   'You can submit only for students of your own schools.');
-const pageNotFound = () => new AppError(HttpStatus.NOT_FOUND, 'PAGE_NOT_FOUND', 'Page not found.');
-const submissionNotFound = () => new AppError(HttpStatus.NOT_FOUND, 'SUBMISSION_NOT_FOUND', 'Submission not found for this test.');
+const pageNotFound = () => new AppError(HttpStatus.NOT_FOUND, 'PAGE_NOT_FOUND', 'That page of the answer was not found. Reload the page to see the current answer.');
+const submissionNotFound = () => new AppError(HttpStatus.NOT_FOUND, 'SUBMISSION_NOT_FOUND', 'No answer was found for this test. Reload the page; if you have not sent an answer yet, send it first.');
 
 @Injectable()
 export class TestSubmissionsService {
@@ -333,7 +333,7 @@ export class TestSubmissionsService {
     const student = await this.studentFor(caller, studentId);
     const test = await this.answererTest(testId, caller.role === 'STUDENT' ? student : undefined);
     if (pageNumber < 1 || pageNumber > MAX_ANSWER_PAGES) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_PAGES', `Pages are numbered 1 to ${MAX_ANSWER_PAGES}.`, { max: MAX_ANSWER_PAGES });
+      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_PAGES', `An answer can have at most ${MAX_ANSWER_PAGES} pages. Remove a page before adding another.`, { max: MAX_ANSWER_PAGES });
     }
     const now = await this.deadlines.now();
     assertEligible(test, student, now);
@@ -419,7 +419,7 @@ export class TestSubmissionsService {
       assertEligible(test, student, now);
       // Phase 3 (G5): once marking began (any later status) nothing replaces the answer — whatever deadline still applies.
       if (sub.status !== 'SUBMITTED') {
-        throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED', 'This submission is being marked; it can no longer be replaced.', { status: sub.status });
+        throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED', 'This answer is already being marked, so it can no longer be replaced. If you must change it, ask your teacher or coach to request a resubmission.', { status: sub.status });
       }
       const deadline = await this.deadlines.forSubmission(tx, test, student.id, submitter);
       assertBeforeDeadline(now, deadline);
@@ -500,7 +500,7 @@ export class TestSubmissionsService {
     const student = caller.role === 'STUDENT' ? await this.studentFor(caller, caller.user.id) : undefined;
     const test = await this.answererTest(testId, student);
     const now = await this.deadlines.now();
-    if (test.opensAt.getTime() > now.getTime()) throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_OPEN', 'This test has not opened yet.', { opensAt: test.opensAt.toISOString() });
+    if (test.opensAt.getTime() > now.getTime()) throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_OPEN', 'This test is not open yet. Check its opening date and come back then.', { opensAt: test.opensAt.toISOString() });
     const paper = test.files[0]?.file;
     if (!paper) throw new AppError(HttpStatus.NOT_FOUND, 'TEST_FILE_NOT_FOUND', 'This test has no paper.');
     await this.storage.send(res, { ...paper, originalName: neutralFileName('PAPER', paper.storageKey, test.title) }, { download });
@@ -721,7 +721,7 @@ export class TestSubmissionsService {
     });
     if (!sub) return;
     if (sub.status !== 'SUBMITTED') {
-      throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED', 'This submission is being marked; it can no longer be replaced.', { status: sub.status });
+      throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED', 'This answer is already being marked, so it can no longer be replaced. If you must change it, ask your teacher or coach to request a resubmission.', { status: sub.status });
     }
     if (sub.versionCount > 0 && sub.resubmissionAuthorizations.length === 0) throw submittedAndLocked();
   }

@@ -146,7 +146,7 @@ export class SubmissionsService {
     const requested = existing?.status === 'RESUBMISSION_REQUESTED';
 
     if (assignment.status === 'CLOSED' && !requested) {
-      throw new AppError(HttpStatus.CONFLICT, 'ASSIGNMENT_CLOSED', 'This assignment is closed and no longer accepts submissions.');
+      throw new AppError(HttpStatus.CONFLICT, 'ASSIGNMENT_CLOSED', 'This assignment is closed and no longer accepts answers. If you think this is a mistake, ask your coach.');
     }
     if (!['PUBLISHED', 'CLOSED'].includes(assignment.status)) throw new NotFoundException('Assignment not found.');
 
@@ -165,28 +165,28 @@ export class SubmissionsService {
         throw new AppError(
           HttpStatus.BAD_REQUEST,
           'RESUBMISSION_LIMIT_REACHED',
-          `You have reached the maximum number of resubmissions (${assignment.maxResubmissions}).`,
+          `You have already sent the maximum number of new versions (${assignment.maxResubmissions}). If you need to change your answer, ask your coach.`,
         );
       }
     } else if (existing) {
       if (isLate) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'DEADLINE_PASSED', 'The deadline has passed. Resubmission is not permitted.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'DEADLINE_PASSED', 'The deadline has passed, so you can no longer send a new version. If you think this is a mistake, ask your coach.');
       }
       if (!assignment.allowResubmission) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'RESUBMISSION_NOT_ALLOWED', 'This assignment does not permit resubmissions.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'RESUBMISSION_NOT_ALLOWED', 'This assignment accepts one answer only, and yours was already sent. If you need to change it, ask your coach.');
       }
       if (assignment.maxResubmissions > 0 && existing.revisionCount >= assignment.maxResubmissions) {
         throw new AppError(
           HttpStatus.BAD_REQUEST,
           'RESUBMISSION_LIMIT_REACHED',
-          `You have reached the maximum number of resubmissions (${assignment.maxResubmissions}).`,
+          `You have already sent the maximum number of new versions (${assignment.maxResubmissions}). If you need to change your answer, ask your coach.`,
         );
       }
       if (!RESUBMITTABLE.includes(existing.status)) {
         throw invalidState('Your work is already under review and can no longer be replaced.');
       }
     } else if (isLate && !assignment.allowLateSubmission) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'DEADLINE_PASSED', 'The deadline for this assignment has passed.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'DEADLINE_PASSED', 'The deadline for this assignment has passed, so answers are no longer accepted. If you think this is a mistake, ask your coach.');
     }
 
     const stored: FileObject[] = [];
@@ -247,7 +247,7 @@ export class SubmissionsService {
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new AppError(HttpStatus.CONFLICT, 'ALREADY_SUBMITTED', 'You have already submitted this assignment.');
+        throw new AppError(HttpStatus.CONFLICT, 'ALREADY_SUBMITTED', 'You have already sent your answer to this assignment. Open it to see what you sent.');
       }
       throw err;
     }
@@ -563,11 +563,11 @@ export class SubmissionsService {
       const notEligible = body.mentorIds.filter((id) => !mentorIds.includes(id));
       if (notEligible.length) {
         throw new AppError(HttpStatus.BAD_REQUEST, 'MENTOR_NOT_ELIGIBLE',
-          'Some coaches are not assigned to this course and division.', { mentorIds: notEligible });
+          'Some of the chosen coaches are not assigned to this course for this level. Choose coaches from the course\'s list.', { mentorIds: notEligible });
       }
     }
     if (mentorIds.length === 0) {
-      throw new AppError(HttpStatus.CONFLICT, 'NO_ELIGIBLE_MENTORS', 'No active coach is assigned to this course and division.');
+      throw new AppError(HttpStatus.CONFLICT, 'NO_ELIGIBLE_MENTORS', 'No active coach is assigned to this course for this level. Assign a coach to it first (Coaches page), then try again.');
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -729,7 +729,7 @@ export class SubmissionsService {
     const a = sub.assignment;
 
     if (!a.allowResubmission) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'RESUBMISSION_NOT_ALLOWED', 'This assignment does not permit resubmissions.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'RESUBMISSION_NOT_ALLOWED', 'This assignment accepts one answer only, and yours was already sent. If you need to change it, ask your coach.');
     }
     if (a.maxResubmissions > 0 && sub.revisionCount >= a.maxResubmissions) {
       throw new AppError(
@@ -954,7 +954,7 @@ export class SubmissionsService {
   async serveFeedbackFile(submissionId: string, user: AuthUser, res: Response, attachmentId?: string) {
     const s = await this.loadForCaller(submissionId, user);
     if (isStudent(user) && s.status !== 'PUBLISHED') {
-      throw new AppError(HttpStatus.FORBIDDEN, 'RESULT_NOT_PUBLISHED', 'Feedback is available once results are published.');
+      throw new AppError(HttpStatus.FORBIDDEN, 'RESULT_NOT_PUBLISHED', 'Your feedback will be visible here once the results are published. Please check again later.');
     }
     const review = isStaff(user) ? (s.currentReview ?? s.publishedReview) : s.publishedReview;
     const attachment = review?.attachments.find((a) => (attachmentId ? a.id === attachmentId : true));
@@ -1285,7 +1285,7 @@ export class SubmissionsService {
   /** The caller must be the mentor of the current review cycle. Returns its id. */
   private requireAssignedMentor(sub: { currentReview: { id: string; mentorId: string } | null }, user: AuthUser) {
     if (!isCourseWorker(user) || sub.currentReview?.mentorId !== user.id) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_MENTOR', 'This submission is not assigned to you.');
+      throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_MENTOR', 'This answer is not assigned to you for marking. Open your marking list to see the answers assigned to you.');
     }
     return sub.currentReview.id;
   }

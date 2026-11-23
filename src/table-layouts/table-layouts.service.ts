@@ -25,7 +25,7 @@ export class TableLayoutsService {
 
   private assertValid(table: string, columns: ColumnSetting[]) {
     const problems = layoutProblems(table, columns);
-    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_LAYOUT', 'This layout is not valid for the table.', { problems });
+    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_LAYOUT', 'This column layout does not fit this table any more. Reset the columns, then choose them again.', { problems });
   }
 
   /** The effective layout for the caller, where it comes from, and every column the table offers. */

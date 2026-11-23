@@ -67,7 +67,7 @@ export async function resolveSchoolReference(
   if (name && schoolKey(name) !== schoolKey(school.name)) {
     const label = school.code ? `code ${school.code}` : `id ${school.id}`;
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_NAME_MISMATCH',
-      `School name "${name}" does not match the school with ${label} ("${school.name}").`,
+      `The school name "${name}" does not match the school with ${label} ("${school.name}"). Choose the school from the list again.`,
       { schoolName: name, school: { id: school.id, code: school.code, name: school.name } });
   }
   if (opts.requireActive && !school.isActive) throw schoolInactive(school.id);

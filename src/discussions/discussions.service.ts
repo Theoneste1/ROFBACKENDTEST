@@ -233,10 +233,10 @@ export class DiscussionsService {
     if (dto.parentId) {
       const parent = await this.prisma.comment.findUnique({ where: { id: dto.parentId } });
       if (!parent || parent.threadId !== threadId) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'WRONG_THREAD', 'Parent comment belongs to a different thread.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'WRONG_THREAD', 'That comment is in another discussion. Reload the page and reply again.');
       }
       if (parent.parentId !== null) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'NESTING_LIMIT', 'Replies to replies are not supported.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'NESTING_LIMIT', 'You can reply to a comment, but not to a reply. Reply to the first comment instead.');
       }
       if (parent.status !== 'ACTIVE') throw invalidState('Cannot reply to a hidden or deleted comment.');
     }
@@ -589,7 +589,7 @@ export class DiscussionsService {
       select: { discussionsEnabled: true },
     });
     if (course && !course.discussionsEnabled) {
-      throw new AppError(HttpStatus.CONFLICT, 'DISCUSSIONS_DISABLED', 'Discussions are turned off for this course.');
+      throw new AppError(HttpStatus.CONFLICT, 'DISCUSSIONS_DISABLED', 'Discussions are turned off for this course. Ask your coach if you have a question.');
     }
   }
 
@@ -635,7 +635,7 @@ export class DiscussionsService {
       return report;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new AppError(HttpStatus.CONFLICT, 'ALREADY_REPORTED', 'You have already reported this.');
+        throw new AppError(HttpStatus.CONFLICT, 'ALREADY_REPORTED', 'You have already reported this. A moderator will look at it; there is nothing more to do.');
       }
       throw err;
     }

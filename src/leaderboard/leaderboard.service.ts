@@ -156,7 +156,7 @@ export class LeaderboardService {
   private async resolveDivision(user: AuthUser, requested?: string): Promise<string> {
     if (isStudent(user)) {
       if (!(await this.settings.get('leaderboard.visibleToStudents'))) {
-        throw new AppError(HttpStatus.FORBIDDEN, 'LEADERBOARD_HIDDEN', 'The leaderboard is currently not available.');
+        throw new AppError(HttpStatus.FORBIDDEN, 'LEADERBOARD_HIDDEN', 'The leaderboard is not shown at the moment. Please check again later.');
       }
       return this.access.studentDivision(user);
     }

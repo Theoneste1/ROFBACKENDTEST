@@ -18,7 +18,7 @@ export function teacherRegistrationOpen(teachersEnabled: boolean, selfSignupSett
 }
 
 export const registrationClosed = () =>
-  new AppError(HttpStatus.FORBIDDEN, 'REGISTRATION_CLOSED', 'Teacher registration is currently closed.');
+  new AppError(HttpStatus.FORBIDDEN, 'REGISTRATION_CLOSED', 'Teacher registration is closed at the moment. Please check back later or contact the Rwanda Olympiad Foundation.');
 
 export type SchoolChoice =
   | { kind: 'LISTED'; schoolId: string }
@@ -54,7 +54,7 @@ export function schoolChoice(dto: ChoiceInput): SchoolChoice {
 
 export function assertPasswordsMatch(password: string, confirmPassword: string): void {
   if (password !== confirmPassword) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'PASSWORD_MISMATCH', 'The two passwords do not match.');
+    throw new AppError(HttpStatus.BAD_REQUEST, 'PASSWORD_MISMATCH', 'The two passwords are not the same. Type the same password in both fields.');
   }
 }
 

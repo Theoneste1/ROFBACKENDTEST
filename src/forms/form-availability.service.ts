@@ -72,7 +72,7 @@ export class FormAvailabilityService {
    */
   assertMayManageAvailability(user: AuthUser): void {
     if (!this.permissions.has(user, 'forms.manageAvailability')) {
-      throw new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this.', { permission: 'forms.manageAvailability' });
+      throw new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this. If you need it, ask an administrator.', { permission: 'forms.manageAvailability' });
     }
   }
 

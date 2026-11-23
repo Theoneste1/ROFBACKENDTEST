@@ -48,7 +48,7 @@ export function validateSchoolFields(p: SchoolFields, opts: { legacy?: boolean }
     if (p.code) problems.push(...codeProblems(p.code, p.province));
   } else {
     if (p.code) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'School codes are for schools in Rwanda.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_CODE_RWANDA_ONLY', 'Only schools in Rwanda have a school code. Leave the code empty for a school in another country.');
     }
     if (p.province || p.district || p.sector || p.cell || p.village) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_DIRECTORY_RWANDA_ONLY',

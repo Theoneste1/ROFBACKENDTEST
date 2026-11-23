@@ -68,7 +68,7 @@ export async function resolveHomePlace(db: Pick<Prisma.TransactionClient, 'schoo
   }
   if (!(await publicDirectoryHasPlace(db, { province, district, sector }))) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_HOME_LOCATION',
-      `${sector}, ${district} (${province}) is not a sector of that district in the official directory.`,
+      `${sector} is not a sector of ${district} (${province}) in the official list. Choose the province, district and sector again from the lists.`,
       { province, district, sector });
   }
   return { country, homeProvince: province, homeDistrict: district, homeSector: sector };

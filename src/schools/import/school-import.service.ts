@@ -105,7 +105,7 @@ export class SchoolImportService {
       }
       const check = checkReviewToken(this.key, q.reviewToken, { sub: caller.id, file: fileSha256 });
       if (!check.ok) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REVIEW_TOKEN', 'This review token is not valid for this file and this Administrator. Run a new dry run.', { reason: check.reason });
+        throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REVIEW_TOKEN', 'This review does not match this file or was made by another administrator. Check the file again, then confirm.', { reason: check.reason });
       }
       tokenSnap = { snap: check.payload.snap, exp: check.payload.exp };
     }

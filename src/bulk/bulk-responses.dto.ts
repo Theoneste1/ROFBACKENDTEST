@@ -212,7 +212,7 @@ const ERROR_MESSAGES: Record<string, [number, string]> = {
   CONFIRMATION_INVALID:             [400, 'The confirmation is not valid. Preview the action again and confirm.'],
   EMPTY_SELECTION:                  [400, 'No account matches the selection.'],
   UNAUTHORIZED:                     [401, 'Unauthorized'],
-  PERMISSION_REQUIRED:              [403, 'You do not have permission to do this.'],
+  PERMISSION_REQUIRED:              [403, 'You do not have permission to do this. If you need it, ask an administrator.'],
   CONFIRMATION_WRONG_ADMINISTRATOR: [403, 'This confirmation was issued to another administrator. Preview the action yourself.'],
   STEP_UP_REQUIRED:                 [403, 'Confirm with your current password to change an Administrator or Super Administrator role.'],
   BULK_ENTITY_UNKNOWN:              [404, 'There is no bulk record type NOPE.'],

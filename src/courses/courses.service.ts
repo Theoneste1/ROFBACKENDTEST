@@ -162,7 +162,7 @@ export class CoursesService {
       const divisions = (await this.prisma.division.findMany({ where: { id: { in: ids } }, orderBy: { sortOrder: 'asc' }, select: { id: true, code: true, name: true } }))
         .map((division) => ({ division }));
       if (divisions.length === 0) {
-        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course.');
+        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course. Ask an administrator or your Head Coach to assign you.');
       }
       return { ...course, divisions: divisions.map((d) => d.division) };
     }

@@ -148,7 +148,7 @@ export class CourseResourcesService {
         .filter((s) => s.courseId === courseId)
         .map((s) => s.divisionId);
       if (divisions.length === 0 || (q.divisionId && !divisions.includes(q.divisionId))) {
-        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course and division.');
+        throw new AppError(HttpStatus.FORBIDDEN, 'NOT_ASSIGNED_TO_SCOPE', 'You are not assigned to this course for this level, so you cannot change it. Ask an administrator or your Head Coach to assign you.');
       }
       where.divisionId = q.divisionId ?? { in: divisions };
       if (!q.includeArchived) where.archivedAt = null;
@@ -217,7 +217,7 @@ export class CourseResourcesService {
     const resource = await this.requireManageable(courseId, resourceId, user);
 
     if (Object.keys(data).length === 0 && files.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'No fields to update.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Nothing was changed. Edit at least one field, then save.');
     }
 
     await this.addAttachmentsInternal(resource.id, files, user);
@@ -338,7 +338,7 @@ export class CourseResourcesService {
       where: { resourceId }, _count: { _all: true }, _max: { sortOrder: true },
     });
     if (existing._count._all + files.length > MAX_ATTACHMENTS) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_FILES', `A resource can have at most ${MAX_ATTACHMENTS} files.`);
+      throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_FILES', `A resource can have at most ${MAX_ATTACHMENTS} files. Remove a file before adding another.`);
     }
     let order = (existing._max.sortOrder ?? -1) + 1;
     for (const f of files) {

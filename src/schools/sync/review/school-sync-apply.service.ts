@@ -81,7 +81,7 @@ export class SchoolSyncApplyService {
     if (!check.ok) {
       await this.refused(runId, caller, `TOKEN_${check.reason}`, { tokenSha256: tokenHash });
       if (check.reason === 'EXPIRED') throw new AppError(HttpStatus.CONFLICT, 'SYNC_REVIEW_OUTDATED', 'The approval has expired; approve the run again.', { reason: 'TOKEN_EXPIRED' });
-      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_APPROVAL_TOKEN', 'This approval token is not valid for this run and this Super Admin.', { reason: check.reason });
+      throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_APPROVAL_TOKEN', 'This approval does not match this run or was made by another Super Administrator. Open the run again and approve it.', { reason: check.reason });
     }
     const started = Date.now();
     try {
@@ -405,7 +405,7 @@ export class SchoolSyncApplyService {
       if (run.status !== 'APPLIED') {
         throw new AppError(HttpStatus.CONFLICT, 'RUN_NOT_APPLICABLE', 'Only an applied run\'s open rows are resolved here (before apply: propose, then decide).', { status: run.status });
       }
-      if (run.normaliserVersion !== NESA_NORMALISER_VERSION) throw new AppError(HttpStatus.CONFLICT, 'RUN_NOT_APPLICABLE', 'This run was read with another normaliser.', { normaliserVersion: run.normaliserVersion });
+      if (run.normaliserVersion !== NESA_NORMALISER_VERSION) throw new AppError(HttpStatus.CONFLICT, 'RUN_NOT_APPLICABLE', 'This run was prepared by an older version of the platform. Upload the file again to start a new run.', { normaliserVersion: run.normaliserVersion });
       await tx.$queryRaw`SELECT 1 FROM "SchoolSyncItem" WHERE "id" = ${itemId} AND "runId" = ${runId} FOR UPDATE`;
       const item = await tx.schoolSyncItem.findFirst({ where: { id: itemId, runId } });
       if (!item) throw new NotFoundException('Row not found in this run.');

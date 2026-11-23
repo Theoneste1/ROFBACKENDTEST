@@ -36,7 +36,7 @@ export function validateScore(score: number, maximumMarks: number, context = 'Sc
     throw new AppError(
       HttpStatus.BAD_REQUEST,
       'INVALID_SCORE',
-      `${context} (${score}) exceeds the assignment's maximum marks (${maximumMarks}).`,
+      `${context} (${score}) is more than the assignment's maximum of ${maximumMarks} marks. Enter a mark from 0 to ${maximumMarks}.`,
     );
   }
 }

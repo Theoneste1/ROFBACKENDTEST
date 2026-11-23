@@ -200,7 +200,7 @@ export class MentorRequestsService {
       select: { id: true },
     });
     if (clash) {
-      throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'A user with this username or email already exists.');
+      throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Someone already uses this username or e-mail address. If it is yours, sign in (or use "Forgot password"); otherwise choose another username or e-mail.');
     }
 
     const mentor = await tx.user.create({

@@ -131,7 +131,7 @@ export class BulkOperationsService {
             `The selected ${handler.noun} changed since the preview. Preview the action again and confirm the new selection.`,
             { total: ids.length, expectedTotal: dto.expectedTotal });
         }
-        if (ids.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_SELECTION', `No ${singular(handler.noun)} matches the selection.`);
+        if (ids.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_SELECTION', `No ${singular(handler.noun)} matches the selection. Change the filters or tick at least one row.`);
         // Single use, re-checked under the guard (the partial unique index BulkOperation_selectionToken_v2_key enforces it).
         await this.assertTokenUnused(tx, dto);
 
@@ -260,7 +260,7 @@ export class BulkOperationsService {
       }, tx);
       return true;
     });
-    if (!done) throw new AppError(HttpStatus.CONFLICT, 'OPERATION_FINISHED', 'This bulk operation has already finished.');
+    if (!done) throw new AppError(HttpStatus.CONFLICT, 'OPERATION_FINISHED', 'This bulk action has already finished; its results are in the bulk actions history.');
     return this.get(id, caller, entityType);
   }
 

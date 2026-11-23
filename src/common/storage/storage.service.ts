@@ -86,7 +86,7 @@ export class StorageService implements OnModuleInit {
     const data = file.buffer;
 
     if (!data || data.length === 0) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_FILE', 'The uploaded file is empty.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_FILE', 'The file is empty. Choose the file again (check that it opens on your device), then upload it.');
     }
     if (data.length > rule.maxBytes) {
       throw new AppError(
