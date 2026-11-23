@@ -35,7 +35,7 @@ services:
         value: "900"
       - key: REFRESH_TOKEN_TTL_DAYS
         value: "30"
-      # The Netlify site's address, e.g. https://roflms.netlify.app (no trailing slash)
+      # The frontend's address (Vercel): https://lms.rwandaolympiadfoundation.org (no trailing slash)
       - key: CORS_ORIGINS
         sync: false
       - key: APP_URL
@@ -43,7 +43,7 @@ services:
       - key: APP_TIMEZONE
         value: Africa/Kigali
       # Proxy hops in front of the API. Render alone = 1. Browsers reach the API through
-      # Netlify's /api proxy, so check after go-live (deploy/render/README.md §6) and
+      # the frontend's /api proxy (Vercel), so check after go-live (deploy/render/README.md §6) and
       # raise to 2 if everyone shares one rate-limit bucket.
       - key: TRUST_PROXY
         value: "1"
