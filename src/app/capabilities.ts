@@ -312,6 +312,12 @@ export const FEATURES = {
    * the first valid code becomes the school's.
    */
   schoolCodeAtRegistration: 'always',
+   * Coaches across their programmes (owner 2026-11-23): every Coach, in each programme they belong to and at every level,
+   * sees its students (GET /coach/students), opens and manages its courses, marks its tests (no authorisation needed) and
+   * sees its published results (GET /coach/test-results); an Administrator or the programme's Head Coach takes any part
+   * away per programme (GET / PUT /admin/coaches/:id/programme-access); /admin/test-markers/candidates says who marks by default.
+   */
+  coachProgrammeAccess: 'always',
   /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and

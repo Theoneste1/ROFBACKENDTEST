@@ -175,6 +175,36 @@ export class TeacherTestResultsController {
   }
 }
 
+/**
+ * Coaches (owner 2026-11-23): the PUBLISHED results of the tests of their programmes' subjects, every level, by name —
+ * never a rank, an unpublished result, a marker or a submission code. An Administrator or the programme's Head Coach may
+ * take it away per programme (CoachProgrammeRestriction RESULTS): those subjects then show nothing (404).
+ */
+@ApiTags('Coach')
+@Controller('coach')
+export class CoachTestResultsController {
+  constructor(private readonly views: TestResultViewsService) {}
+
+  @Get('test-results')
+  @RequirePermission('tests.viewProgrammeResults')
+  list(@Query() q: MyResultsQueryDto, @CurrentUser() user: AuthUser) {
+    return this.views.coachTests(user, q);
+  }
+
+  @Get('test-results/:testId')
+  @RequirePermission('tests.viewProgrammeResults')
+  results(@Param('testId', ParseUUIDPipe) testId: string, @Query() q: SchoolResultsQueryDto, @CurrentUser() user: AuthUser) {
+    return this.views.coachResults(user, testId, q);
+  }
+
+  /** 404 RESULT_NOT_FOUND for a test outside my programmes, or a result not published. */
+  @Get('test-results/:testId/students/:studentId')
+  @RequirePermission('tests.viewProgrammeResults')
+  result(@Param('testId', ParseUUIDPipe) testId: string, @Param('studentId', ParseUUIDPipe) studentId: string, @CurrentUser() user: AuthUser) {
+    return this.views.coachResult(user, testId, studentId);
+  }
+}
+
 /** Coaches: the marking dashboard (spec 12.2) — their own assigned work only, blind. */
 @ApiTags('Marking')
 @Controller('marking')

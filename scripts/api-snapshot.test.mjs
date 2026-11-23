@@ -342,7 +342,11 @@ const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-code
 const REGISTRATION_DATA_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-registration-data.json';
 /** A code-less school's code given at registration (owner 2026-11-23): one optional field on two requests. Additive only. */
 const SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-code-at-registration.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT;
+ * Coaches across their programmes (owner 2026-11-23): the coach's students and published results, and a coach's programme
+ * access for Administrators and Head Coaches. Additive only against the school codes snapshot.
+ */
+const COACH_ACCESS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-coach-programme-access.json';
+const CURRENT_SNAPSHOT = COACH_ACCESS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1805,6 +1809,9 @@ describe('approved API contract history', () => {
   test('the school code → the code of a code-less school given at registration (2026-11-23): additive only — newSchoolCode on two requests', () => {
     for (const f of [SCHOOL_CODES_SNAPSHOT, SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_CODE_AT_REGISTRATION_SNAPSHOT, 'utf8')));
+  test('the school code → coaches across their programmes (2026-11-23): additive only — five operations and one request body', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, COACH_ACCESS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(COACH_ACCESS_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
@@ -1828,6 +1835,13 @@ describe('approved API contract history', () => {
       'schema UpdateRegistrationRecordDto: added',
       'POST /api/v1/auth/register/student › request application/json.newSchoolCode: new optional field',
       'POST /api/v1/auth/register/teacher › request application/json.newSchoolCode: new optional field',
+      'GET /api/v1/admin/coaches/{id}/programme-access: operation added',
+      'GET /api/v1/coach/students: operation added',
+      'GET /api/v1/coach/test-results/{testId}/students/{studentId}: operation added',
+      'GET /api/v1/coach/test-results/{testId}: operation added',
+      'GET /api/v1/coach/test-results: operation added',
+      'PUT /api/v1/admin/coaches/{id}/programme-access: operation added',
+      'schema SetCoachAccessDto: added',
     ]);
   });
 

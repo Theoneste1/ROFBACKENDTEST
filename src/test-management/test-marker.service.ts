@@ -38,9 +38,10 @@ import { stripIdentifyingMetadataForMarker } from './answer-metadata.js';
 import { answerPageName } from './submission-rules.js';
 import { TestDeadlineService } from './test-deadline.service.js';
 import { neutralFileName } from './test-rules.js';
+import { markingSubjectsOf, mayMark } from './marker-reach.js';
 
 type Tx = Prisma.TransactionClient;
-type Db = Pick<Prisma.TransactionClient, 'testSubmission' | 'testMarkerAssignment' | 'markerAuthorization'>;
+type Db = Pick<Prisma.TransactionClient, 'testSubmission' | 'testMarkerAssignment' | 'markerAuthorization' | 'user'>;
 
 const MARKING_TX = { maxWait: 15_000, timeout: 30_000 } as const;
 /** XXXX-XXXX from the code alphabet (submission-rules.ts CODE_ALPHABET). */
@@ -76,8 +77,7 @@ export class TestMarkerService {
    */
   async queue(user: AuthUser, q: MarkingQueueQueryDto) {
     this.coach(user);
-    const subjects = (await this.prisma.markerAuthorization.findMany({ where: { coachId: user.id, revokedAt: null }, select: { disciplineId: true } }))
-      .map((a) => a.disciplineId);
+    const subjects = await markingSubjectsOf(this.prisma, user.id);
     const base: Prisma.TestMarkerAssignmentWhereInput = {
       coachId: user.id, endedAt: null,
       submission: { test: { disciplineId: { in: subjects } }, ...(q.testId && { testId: q.testId }) },
@@ -136,8 +136,7 @@ export class TestMarkerService {
    */
   async dashboard(user: AuthUser) {
     this.coach(user);
-    const subjects = (await this.prisma.markerAuthorization.findMany({ where: { coachId: user.id, revokedAt: null }, select: { disciplineId: true } }))
-      .map((a) => a.disciplineId);
+    const subjects = await markingSubjectsOf(this.prisma, user.id);
     const rows = subjects.length ? await this.prisma.$queryRaw<Array<{ id: string; title: string; subject: string; assigned: number; notStarted: number; inProgress: number; marked: number; returned: number; second: number }>>`
       SELECT t."id", t."title", d."name" AS "subject", count(*)::int AS "assigned",
              count(*) FILTER (WHERE m."id" IS NULL)::int AS "notStarted",
@@ -301,10 +300,7 @@ export class TestMarkerService {
       select: { id: true, kind: true, marking: { select: { id: true, status: true, revision: true, versionId: true } } },
     });
     if (!assignment || assignment.kind === 'ADJUSTMENT') throw notAssigned();
-    const authorised = await db.markerAuthorization.findFirst({
-      where: { coachId: user.id, disciplineId: sub.test.disciplineId, revokedAt: null }, select: { id: true },
-    });
-    if (!authorised) throw notAuthorised();
+    if (!(await mayMark(db, user.id, sub.test.disciplineId))) throw notAuthorised();
     return {
       submissionId: sub.id, code, status: locked?.status ?? sub.status, currentVersionId: locked?.currentVersionId ?? sub.currentVersionId,
       test: { id: sub.test.id, title: sub.test.title, maxMarks: sub.test.maxMarks, disciplineId: sub.test.disciplineId, subject: sub.test.discipline },

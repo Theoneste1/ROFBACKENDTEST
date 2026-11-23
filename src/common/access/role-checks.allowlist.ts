@@ -160,6 +160,17 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/test-management/test-results.service.ts', rule: 'U6', code: 'mayOverride: isAdmin(user)',
     reason: 'doPublish(): decidePublication refuses an override unless this is true (403 OVERRIDE_NOT_ALLOWED) and blocks unapproved results without it; any role other than ADMIN / SUPER_ADMIN gets false — the restrictive branch. The override route also requires tests.overridePublication (Administrators only, NEVER_GRANTABLE).',
   },
+  // ── Coaches across their programmes (owner 2026-11-23) ──────────────────────
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6',
+    code: "...(viewer.role === 'MENTOR' && { discipline: { coachRestrictions: { none: { coachId: viewer.id, capability: 'STUDENTS', liftedAt: null } } } })",
+    reason: 'scopeFor(): only NARROWS a Coach (a programme where seeing the students was taken away is dropped). Every other role keeps its unchanged scope: a Head Coach heads the programme (restrictions are coach-only), and the branch is reached only for Coaches and Head Coaches.',
+  },
+  {
+    file: 'src/users/student-overview.service.ts', rule: 'U6',
+    code: "...(viewer.role === 'MENTOR' && { discipline: { coachRestrictions: { none: { coachId: viewer.id, capability: 'STUDENTS', liftedAt: null } } } })",
+    reason: 'mayView(): only NARROWS a Coach (see the entry above); the branch is reached only for course workers (Coaches, Head Coaches), and a Head Coach keeps the programmes they belong to.',
+  },
   // ── Study groups (module not registered; unchanged by decision P3-4) ───────
   {
     file: 'src/study-groups/study-groups.service.ts', rule: 'U1', code: "caller.role !== 'ADMIN'",

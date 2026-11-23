@@ -89,6 +89,8 @@ export class TestMarkersService {
         select: {
           id: true, username: true, firstName: true, lastName: true, olympiadInterests: true,
           markerAuthorizations: { where: { disciplineId: subject.id, revokedAt: null }, select: { id: true } },
+          programmeMemberships: { where: { disciplineId: subject.id, isActive: true }, select: { id: true } },
+          coachRestrictions: { where: { disciplineId: subject.id, capability: 'MARKING', liftedAt: null }, select: { id: true, reason: true } },
         },
       }),
       this.prisma.user.count({ where }),
@@ -98,6 +100,11 @@ export class TestMarkersService {
       /** A hint only: an interest never grants marking. */
       interestedInSubject: (u.olympiadInterests as string[]).includes(subject.code),
       authorizationId: u.markerAuthorizations[0]?.id ?? null,
+      /** Owner 2026-11-23: a member of the subject's programme marks by default (no authorisation needed). */
+      programmeMember: u.programmeMemberships.length > 0,
+      /** Marking taken away from this coach in this subject (reason shown); authorising gives it back. */
+      markingRemoved: u.coachRestrictions[0] ? { id: u.coachRestrictions[0].id, reason: u.coachRestrictions[0].reason } : null,
+      mayMark: (u.markerAuthorizations.length > 0 || u.programmeMemberships.length > 0) && u.coachRestrictions.length === 0,
     })), total, page, limit);
   }
 
@@ -127,6 +134,8 @@ export class TestMarkersService {
         data: { coachId: coach.id, disciplineId: subject.id, grantedById: user.id, grantReason: dto.reason ?? null },
         select: { id: true },
       });
+      // Authorising gives marking back: a MARKING restriction of this coach in this subject is lifted (marker-reach.ts).
+      await liftMarkingRestriction(tx, coach.id, subject.id, user, dto.reason ?? 'Authorised to mark again');
       await this.audit.log({
         actorId: user.id, actorRole: user.role, action: 'MARKER_AUTHORIZED', entity: 'MarkerAuthorization', entityId: row.id,
         metadata: { coachId: coach.id, subjectId: subject.id, subjectCode: subject.code, reason: dto.reason ?? null },
@@ -151,9 +160,13 @@ export class TestMarkersService {
         throw new AppError(HttpStatus.CONFLICT, 'MARKER_AUTHORIZATION_REVOKED', 'This authorisation was already revoked.');
       }
       const row = await tx.markerAuthorization.findUniqueOrThrow({ where: { id }, select: { coachId: true, disciplineId: true } });
+      // A member of the subject's programme would still mark by default (owner 2026-11-23): revoking takes that away too,
+      // so "revoked" means the coach no longer marks this subject (CoachProgrammeRestriction MARKING, same reason).
+      const member = await tx.programmeMembership.count({ where: { userId: row.coachId, disciplineId: row.disciplineId, isActive: true } });
+      const restricted = member ? await restrictMarking(tx, row.coachId, row.disciplineId, user, dto.reason) : null;
       await this.audit.log({
         actorId: user.id, actorRole: user.role, action: 'MARKER_AUTHORIZATION_REVOKED', entity: 'MarkerAuthorization', entityId: id,
-        metadata: { coachId: row.coachId, subjectId: row.disciplineId, reason: dto.reason },
+        metadata: { coachId: row.coachId, subjectId: row.disciplineId, reason: dto.reason, ...(restricted && { restrictionId: restricted }) },
       }, tx);
     });
     return this.view(id);
@@ -179,4 +192,22 @@ function authView(a: AuthRow) {
     grantedAt: a.grantedAt, grantedBy: a.grantedBy, grantReason: a.grantReason,
     revokedAt: a.revokedAt, revokedBy: a.revokedBy, revokeReason: a.revokeReason,
   };
+}
+
+type Tx = Prisma.TransactionClient;
+type Actor = Pick<AuthUser, 'id' | 'role'>;
+
+/** Record that marking was taken away from the coach in the subject (no-op when already). Returns the restriction id. */
+export async function restrictMarking(tx: Tx, coachId: string, disciplineId: string, actor: Actor, reason: string): Promise<string> {
+  const active = await tx.coachProgrammeRestriction.findFirst({ where: { coachId, disciplineId, capability: 'MARKING', liftedAt: null }, select: { id: true } });
+  if (active) return active.id;
+  return (await tx.coachProgrammeRestriction.create({ data: { coachId, disciplineId, capability: 'MARKING', reason, createdById: actor.id }, select: { id: true } })).id;
+}
+
+/** Lift the coach's MARKING restriction in the subject, if any. */
+export async function liftMarkingRestriction(tx: Tx, coachId: string, disciplineId: string, actor: Actor, reason: string): Promise<void> {
+  await tx.coachProgrammeRestriction.updateMany({
+    where: { coachId, disciplineId, capability: 'MARKING', liftedAt: null },
+    data: { liftedAt: new Date(), liftedById: actor.id, liftReason: reason },
+  });
 }

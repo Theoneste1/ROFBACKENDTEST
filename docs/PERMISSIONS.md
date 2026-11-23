@@ -115,6 +115,8 @@ permission guard.
 | `students.classifyLevel` | — | — | programme | programme | all | all |
 | `reports.build` | — | — | — | — | all | all |
 | `registrationData.manage` | — | — | — | — | — | all |
+| `students.viewProgramme` | — | — | programme | — | — | — |
+| `tests.viewProgrammeResults` | — | — | programme | — | — | — |
 
 ## Test Management (WS3, Phase 1; owner-approved plan 2026-11-19)
 

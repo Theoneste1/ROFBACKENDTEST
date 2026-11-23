@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationData', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolCodeAtRegistration', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'tableLayouts', 'teacherAssignedTestStudents', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails', 'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'coachProgrammeAccess', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationData', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolCodeAtRegistration', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'tableLayouts', 'teacherAssignedTestStudents', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails', 'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -66,6 +66,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   teacherAssignedTestStudents: 'always', // appended 2026-11-23: teachers submit for (and follow) their assigned students' tests
   registrationData:        'always',   // appended 2026-11-23: registration data for Super Administrators
   schoolCodeAtRegistration: 'always',  // appended 2026-11-23: a codeless school's code given at registration
+  coachProgrammeAccess:    'always',   // appended 2026-11-23: coaches across their programmes, every level (removable)
   tableLayouts:            'always',   // appended 2026-11-22: saved table layouts; sortable Users list   // appended 2026-11-21: Junior / Middle / Senior Olympiad levels, separate from the grade (owner)
   genderStep:              'always',   // appended 2026-11-20: existing accounts give their gender once (owner)   // appended 2026-11-20: home country required, Rwanda place only for Rwanda (owner)
 };

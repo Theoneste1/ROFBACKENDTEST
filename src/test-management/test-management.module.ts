@@ -13,7 +13,7 @@ import { TestMarkerService } from './test-marker.service.js';
 import { TestMarkingService } from './test-marking.service.js';
 import { TestsService } from './tests.service.js';
 import {
-  AdminTestReportsController, AdminTestResultsController, MarkingDashboardController, MyTestResultsController, TeacherTestResultsController,
+  AdminTestReportsController, AdminTestResultsController, MarkingDashboardController, MyTestResultsController, TeacherTestResultsController, CoachTestResultsController,
 } from './test-results.controller.js';
 import { TestResultViewsService } from './test-result-views.service.js';
 import { TestResultsService } from './test-results.service.js';
@@ -30,7 +30,7 @@ import { TestResultsService } from './test-results.service.js';
     TestsController, TestMarkersController,
     AdminTestExtensionsController, AdminTestSubmissionsController, MyTestsController, TeacherTestsController,
     AdminTestMarkingController, MarkingController,
-    AdminTestResultsController, AdminTestReportsController, MyTestResultsController, TeacherTestResultsController, MarkingDashboardController,
+    AdminTestResultsController, AdminTestReportsController, MyTestResultsController, TeacherTestResultsController, CoachTestResultsController, MarkingDashboardController,
   ],
   providers: [
     TestsService, TestMarkersService, TestFileKindPipe, TestDeadlineService, TestExtensionsService, TestSubmissionsService,

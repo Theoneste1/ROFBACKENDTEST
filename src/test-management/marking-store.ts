@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { AppError } from '../common/errors/app-error.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { markDiff, transition, type MarkingAction, type NormalisedMarks, type SubmissionStatus } from './marking-rules.js';
+import { mayMarkWhere } from './marker-reach.js';
 
 type Tx = Prisma.TransactionClient;
 type Db = Pick<Prisma.TransactionClient, '$queryRaw'>;
@@ -96,22 +97,20 @@ export async function writeMarks(
   return changes.length;
 }
 
-/** An ACTIVE Coach account with an ACTIVE marker authorisation for the subject, or the reason it is not one. */
+/** An ACTIVE Coach account that may mark the subject (marker-reach.ts), or the reason it is not one. */
 export async function coachProblems(tx: Tx, coachIds: readonly string[], disciplineId: string): Promise<Map<string, string>> {
-  const rows = await tx.user.findMany({
-    where:  { id: { in: [...coachIds] } },
-    select: {
-      id: true, role: true, accountStatus: true,
-      markerAuthorizations: { where: { disciplineId, revokedAt: null }, select: { id: true } },
-    },
-  });
+  const [rows, may] = await Promise.all([
+    tx.user.findMany({ where: { id: { in: [...coachIds] } }, select: { id: true, role: true, accountStatus: true } }),
+    tx.user.findMany({ where: { AND: [{ id: { in: [...coachIds] } }, mayMarkWhere(disciplineId)] }, select: { id: true } }),
+  ]);
   const byId = new Map(rows.map((r) => [r.id, r]));
+  const allowed = new Set(may.map((m) => m.id));
   const out = new Map<string, string>();
   for (const id of coachIds) {
     const c = byId.get(id);
     if (!c || c.role !== 'MENTOR') out.set(id, 'NOT_A_COACH');
     else if (c.accountStatus !== 'ACTIVE') out.set(id, 'ACCOUNT_NOT_ACTIVE');
-    else if (c.markerAuthorizations.length === 0) out.set(id, 'NOT_AUTHORIZED');
+    else if (!allowed.has(id)) out.set(id, 'NOT_AUTHORIZED');
   }
   return out;
 }

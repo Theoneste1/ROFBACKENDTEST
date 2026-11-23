@@ -3111,6 +3111,175 @@
       }
     },
     "/api/v1/admin/registration-data/fields": {
+    "/api/v1/coach/students": {
+      "get": {
+        "operationId": "CoachStudentsController_students",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "programmeId",
+            "required": false,
+            "in": "query",
+            "description": "One of my programmes (a Discipline id).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "division",
+            "required": false,
+            "in": "query",
+            "description": "An Olympiad level code (JUNIOR, MIDDLE, SENIOR …).",
+            "schema": {
+              "pattern": "^[A-Z][A-Z0-9_]{1,29}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Coach"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "students.viewProgramme",
+        "description": "**Access:** permission `students.viewProgramme` (MENTOR)"
+      }
+    },
+    "/api/v1/admin/coaches/{id}/programme-access": {
+      "get": {
+        "operationId": "CoachAccessController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Coaches"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageCoaches",
+        "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "CoachAccessController_set",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCoachAccessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "400 REASON_REQUIRED / NOT_A_PROGRAMME_MEMBER; 403 SCOPE_FORBIDDEN (a Head Coach, another programme); 404 not a coach.",
+        "tags": [
+          "Coaches"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manageCoaches",
+        "description": "**Access:** permission `users.manageCoaches` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/reports/sources": {
       "get": {
         "operationId": "RegistrationDataController_fields",
         "parameters": [
@@ -53977,6 +54146,140 @@
         "description": "**Access:** permission `tests.submitForStudents` (TEACHER)"
       }
     },
+    "/api/v1/coach/test-results": {
+      "get": {
+        "operationId": "CoachTestResultsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Coach"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.viewProgrammeResults",
+        "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+      }
+    },
+    "/api/v1/coach/test-results/{testId}": {
+      "get": {
+        "operationId": "CoachTestResultsController_results",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "schoolId",
+            "required": false,
+            "in": "query",
+            "description": "One of the teacher's schools.",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Student name or username.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Coach"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.viewProgrammeResults",
+        "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+      }
+    },
+    "/api/v1/coach/test-results/{testId}/students/{studentId}": {
+      "get": {
+        "operationId": "CoachTestResultsController_result",
+        "parameters": [
+          {
+            "name": "testId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "studentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "404 RESULT_NOT_FOUND for a test outside my programmes, or a result not published.",
+        "tags": [
+          "Coach"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.viewProgrammeResults",
+        "description": "**Access:** permission `tests.viewProgrammeResults` (MENTOR)"
+      }
+    },
     "/api/v1/marking/dashboard": {
       "get": {
         "operationId": "MarkingDashboardController_dashboard",
@@ -54215,6 +54518,38 @@
         "properties": {}
       },
       "RegistrationSortDto": {
+      "SetCoachAccessDto": {
+        "type": "object",
+        "properties": {
+          "programmeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "capability": {
+            "type": "string",
+            "enum": [
+              "STUDENTS",
+              "COURSES",
+              "MARKING",
+              "RESULTS"
+            ]
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "programmeId",
+          "capability",
+          "allowed"
+        ]
+      },
+      "ReportFilterDto": {
         "type": "object",
         "properties": {
           "field": {

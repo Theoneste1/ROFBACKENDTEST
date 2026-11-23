@@ -422,6 +422,43 @@ describe('Test Management Phase 4 — publication, results, rankings, dashboards
       expect(history.map((h) => h.toStatus).slice(-4)).toEqual(['PUBLISHED', 'MARKED', 'APPROVED', 'PUBLISHED']);
     });
 
+    it("owner 2026-11-23: a coach sees the PUBLISHED results of their programme's tests, every level, by name — never a rank, code, marker or unpublished result; removable per programme", async () => {
+      const CR = '/api/v1/coach/test-results';
+      // mentor.j belongs to the Mathematics programme: the test is listed with ALL its published results — every school and
+      // level (unlike a teacher, who sees their school's) — and only published ones.
+      const published = await p().testSubmission.findMany({ where: { testId: id, status: 'PUBLISHED' }, select: { studentId: true } });
+      expect(published.length).toBeGreaterThan(0);
+      const tests = (await http().get(CR).set(bearer(c1)).expect(200)).body;
+      expect(tests.data.map((t: any) => [t.test.id, t.publishedResults])).toEqual([[id, published.length]]);
+      const res = (await http().get(`${CR}/${id}`).set(bearer(c1)).expect(200)).body;
+      expect(res.data.map((r: any) => r.student.id).sort()).toEqual(published.map((x) => x.studentId).sort());
+      expect(res.data.map((r: any) => r.student.school.id)).toEqual(expect.arrayContaining([school, other]));
+      expect(JSON.stringify(res)).not.toMatch(/"rank"|ranking|publicCode|marker/);
+      expect((await http().get(`${CR}/${id}/students/${stJ}`).set(bearer(c1)).expect(200)).body).toMatchObject({ result: { totalMarks: 17 } });
+      // No published result for that student (here: no submission at all): not found.
+      expect(await status(http().get(`${CR}/${id}/students/${ctx.ids.admin}`).set(bearer(c1)))).toEqual([404, 'RESULT_NOT_FOUND']);
+      // A Physics coach sees none of the Mathematics results.
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      const physicsId = (await p().discipline.findUniqueOrThrow({ where: { code: 'PHYSICS' } })).id;
+      const phy = await p().user.create({ data: { username: 'coach.phy', firstName: 'Phy', lastName: 'Coach', email: 'coach.phy@test.local', role: 'MENTOR', passwordHash: hash, activatedAt: new Date() } });
+      await p().programmeMembership.create({ data: { userId: phy.id, disciplineId: physicsId, source: 'MANUAL' } });
+      const cp = await login(ctx, 'coach.phy');
+      expect((await http().get(CR).set(bearer(cp)).expect(200)).body.meta.total).toBe(0);
+      expect(await status(http().get(`${CR}/${id}`).set(bearer(cp)))).toEqual([404, 'RESULT_NOT_FOUND']);
+      // The Mathematics Head Coach takes it away from mentor.j (a reason is required); the Physics Head Coach cannot.
+      const PA = `/api/v1/admin/coaches/${c1Id}/programme-access`;
+      expect(await status(http().put(PA).set(bearer(hm)).send({ programmeId: maths, capability: 'RESULTS', allowed: false }))).toEqual([400, 'REASON_REQUIRED']);
+      expect((await http().put(PA).set(bearer(hp)).send({ programmeId: maths, capability: 'RESULTS', allowed: false, reason: 'x y z' })).status).toBe(404);
+      await http().put(PA).set(bearer(hm)).send({ programmeId: maths, capability: 'RESULTS', allowed: false, reason: 'Marks the next round' }).expect(200);
+      expect((await http().get(CR).set(bearer(c1)).expect(200)).body.meta.total).toBe(0);
+      expect(await status(http().get(`${CR}/${id}`).set(bearer(c1)))).toEqual([404, 'RESULT_NOT_FOUND']);
+      const back = (await http().put(PA).set(bearer(admin)).send({ programmeId: maths, capability: 'RESULTS', allowed: true }).expect(200)).body;
+      expect(back.programmes[0].access.find((a: any) => a.capability === 'RESULTS')).toMatchObject({ allowed: true, removed: null });
+      expect((await http().get(CR).set(bearer(c1)).expect(200)).body.meta.total).toBe(1);
+      expect((await auditOf('COACH_PROGRAMME_ACCESS_REMOVED', c1Id)).map((a) => (a.metadata as any).reason)).toEqual(['Marks the next round']);
+      expect(await auditOf('COACH_PROGRAMME_ACCESS_RESTORED', c1Id)).toHaveLength(1);
+    });
+
     it('coaches get nothing beyond marking; tests never feed the student leaderboard', async () => {
       for (const path of [MR, `${MR}/${id}`, TR, `${TR}/${id}`, R(id), `${R(id)}/rankings`]) {
         expect([path, await status(http().get(path).set(bearer(c1)))]).toEqual([path, [403, 'PERMISSION_REQUIRED']]);
@@ -446,6 +483,7 @@ describe('Test Management Phase 4 — publication, results, rankings, dashboards
       expect((await http().get(`${MK}/dashboard`).set(bearer(await login(ctx, 'mentor.j2'))).expect(200)).body.counts.total).toBe(0);
       const hd = (await http().get('/api/v1/admin/test-dashboard').set(bearer(hm)).expect(200)).body;
       expect(hd.subjects.map((s: any) => s.subject.code)).toEqual(['MATHEMATICS']);
+      // The two authorised coaches (the seeded coaches' programme-wide marking is taken away in the fixture, test/helpers.ts).
       expect(hd.subjects[0]).toMatchObject({ authorisedMarkers: 2, headCoaches: 1, submissions: { published: 3 } });
       expect(hd.tests.find((t: any) => t.id === id)).toMatchObject({ publications: 3, counts: { published: 3 } });
       expect(hd.coaches.map((c: any) => [c.coach.id, c.marked])).toEqual([[c1Id, 3]]);

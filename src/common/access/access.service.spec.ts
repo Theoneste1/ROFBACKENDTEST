@@ -5,7 +5,7 @@ import { AccessService } from './access.service.js';
 
 const SCOPE = { courseId: 'c1', divisionId: 'd1' };
 
-function makeService(opts: { assigned?: boolean; courseStatus?: string; offered?: boolean } = {}) {
+function makeService(opts: { assigned?: boolean; courseStatus?: string; offered?: boolean; programmes?: string[]; programmeOffers?: Array<{ courseId: string; divisionId: string }> } = {}) {
   const active = [{ courseId: 'c1', divisionId: 'd1' }, { courseId: 'c2', divisionId: 'd2' }];
   const prisma = {
     mentorAssignment: {
@@ -13,6 +13,13 @@ function makeService(opts: { assigned?: boolean; courseStatus?: string; offered?
       findFirst: vi.fn().mockResolvedValue(opts.assigned === false ? null : { id: 'ma1' }),
     },
     course: { findUnique: vi.fn().mockResolvedValue({ status: opts.courseStatus ?? 'PUBLISHED', divisionOfferings: opts.offered === false ? [] : [{ id: 'o1' }] }) },
+    // Programme-wide coach access (owner 2026-11-23): the programmes kept (restrictions already applied by the query).
+    programmeMembership: { findMany: vi.fn().mockResolvedValue((opts.programmes ?? []).map((disciplineId) => ({ disciplineId }))) },
+    courseDivision: {
+      findMany: vi.fn().mockResolvedValue(opts.programmeOffers ?? []),
+      count: vi.fn().mockImplementation(({ where }: { where: { courseId: string; divisionId: string } }) =>
+        Promise.resolve((opts.programmeOffers ?? []).filter((o) => o.courseId === where.courseId && o.divisionId === where.divisionId).length)),
+    },
   };
   return { service: new AccessService(prisma as never), prisma };
 }
@@ -43,6 +50,31 @@ describe('AccessService — known roles keep their behaviour', () => {
     await expect(service.scopeFilter(user('MENTOR'))).resolves.toEqual({
       OR: [{ courseId: 'c1', divisionId: 'd1' }, { courseId: 'c2', divisionId: 'd2' }],
     });
+  });
+
+  it('owner 2026-11-23: a Coach also works in every course of their programmes, at every level it is offered in', async () => {
+    const { service, prisma } = makeService({ assigned: false, programmes: ['maths'], programmeOffers: [{ courseId: 'c1', divisionId: 'd1' }, { courseId: 'c1', divisionId: 'd3' }] });
+    await expect(service.assertCanView(user('MENTOR'), SCOPE)).resolves.toBeUndefined();
+    await expect(service.assertCanManage(user('MENTOR'), SCOPE)).resolves.toBeUndefined();
+    await expect(service.assertMentorOf(user('MENTOR'), { courseId: 'c1', divisionId: 'd3' })).resolves.toBeUndefined();
+    await expect(service.assertCanView(user('MENTOR'), { courseId: 'c9', divisionId: 'd1' })).rejects.toMatchObject({ code: 'NOT_ASSIGNED_TO_SCOPE' });
+    await expect(service.scopeFilter(user('MENTOR'))).resolves.toEqual({ OR: [{ courseId: 'c1', divisionId: 'd1' }, { courseId: 'c1', divisionId: 'd3' }] });
+    // The programmes are read with the restrictions applied (COURSES), for this coach only.
+    expect(prisma.programmeMembership.findMany.mock.calls[0][0].where).toMatchObject({
+      userId: 'u1', isActive: true, discipline: { coachRestrictions: { none: { coachId: 'u1', capability: 'COURSES', liftedAt: null } } },
+    });
+    // Explicit assignments are still the only ones grading uses.
+    await expect(service.isAssignedMentor('u1', SCOPE)).resolves.toBe(false);
+  });
+
+  it('owner 2026-11-23: a Head Coach gets no programme-wide course work (H4 unchanged); explicit and programme scopes are not doubled', async () => {
+    const hc = makeService({ assigned: false, programmes: ['maths'], programmeOffers: [{ courseId: 'c1', divisionId: 'd1' }] });
+    await expect(hc.service.assertMentorOf(user('HEAD_COACH'), SCOPE)).rejects.toMatchObject({ code: 'NOT_ASSIGNED_TO_SCOPE' });
+    expect(hc.prisma.programmeMembership.findMany).not.toHaveBeenCalled();
+    const both = makeService({ programmes: ['maths'], programmeOffers: [{ courseId: 'c1', divisionId: 'd1' }, { courseId: 'c3', divisionId: 'd1' }] });
+    await expect(both.service.courseScopes(user('MENTOR'))).resolves.toEqual([
+      { courseId: 'c1', divisionId: 'd1' }, { courseId: 'c2', divisionId: 'd2' }, { courseId: 'c3', divisionId: 'd1' },
+    ]);
   });
 
   it('coaches without assignments: refused, and scopeFilter matches nothing', async () => {
