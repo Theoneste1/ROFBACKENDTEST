@@ -187,6 +187,13 @@ export const FEATURES = {
    */
   schoolsTable: 'always',
   /**
+   * School list filters on every field of the NESA file (owner, 2026-11-23): GET /admin/schools (and the SCHOOL bulk
+   * selection) also filter by `ownership`, `cell`, `village`, `contact` (an active e-mail or phone containing the text;
+   * a phone typed with or without the leading 0 or +250), `hasEmail`, `hasPhone` and `programmeCategory`. Contact values
+   * are still never in the list.
+   */
+  schoolListFilters: 'always',
+  /**
    * First-sign-in date of birth (owner decision 9.3): GET /api/v1/me and the login profile carry
    * `dateOfBirthRequired`; while true (a STUDENT without a date of birth — created by an Administrator, invited or
    * imported) every route except GET /me, GET /me/permissions, PUT /me/date-of-birth and sign-out answers

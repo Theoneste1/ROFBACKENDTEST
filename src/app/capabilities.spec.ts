@@ -10,7 +10,7 @@ const configOf = (env: Record<string, string | undefined> = {}) => {
   const read: string[] = [];
   return { read, get: (k: string) => { read.push(k); return env[k]; } };
 };
-const ALWAYS = ['academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'tableLayouts', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails', 'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions'];
+const ALWAYS = ['academicYearActivation', 'accountStates', 'adminDivisions', 'applicationDetails', 'applicationPictureReview', 'bulkOperationsGeneric', 'bulkUserOperations', 'coachApplicationDetails', 'coachOlympiadInterests', 'countries', 'customReports', 'dateOfBirthCorrection', 'formAvailability', 'genderStep', 'homeLocationRules', 'notificationDeliveries', 'olympiadInterestOther', 'olympiadLevels', 'permissionScopes', 'primaryTeacher', 'profilePictures', 'registrationAvatar', 'registrationGender', 'reportExportFilters', 'reviewQueueFilters', 'schoolAdministration', 'schoolAffiliations', 'schoolDirectorySync', 'schoolListFilters', 'schoolReferenceRequired', 'schoolsTable', 'studentAssignmentFilters', 'studentDateOfBirthStep', 'studentOlympiadInterests', 'studentOverview', 'studentRegistrationDetails', 'tableLayouts', 'teacherStudentAccess', 'teacherUnlistedSchoolDetails', 'testManagement', 'testMarking', 'testResults', 'testSubmissionLock', 'testSubmissions'];
 
 /**
  * FROZEN — the schemaVersion 1 feature vocabulary and each feature's gate. Append only: a new V1
@@ -28,6 +28,7 @@ const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>>
   dateOfBirthCorrection:   'always',   // appended 2026-11-18: Administrator date-of-birth corrections with a reason (owner approval)
   countries:               'always',   // appended 2026-11-19: countries reference list (owner decision, simplified area 1)
   primaryTeacher:          'always',   // appended 2026-11-19: primary / secondary teacher of a school (owner decision)
+  schoolListFilters:       'always',   // appended 2026-11-23: school list filters on every NESA field (owner)
   schoolsTable:            'always',   // appended 2026-11-19: schools table sort (name, verified students) and primary teacher
   testManagement:          'always',   // appended 2026-11-19: Test Management Phase 1 (tests, questions, files, marker authorisations)
   testSubmissions:         'always',   // appended 2026-11-19: Test Management Phase 2 (deadlines, extensions, submissions)
