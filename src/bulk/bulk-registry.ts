@@ -30,7 +30,7 @@ export class BulkRegistry {
   action(handler: BulkEntityHandler, action: string) {
     const meta = Object.hasOwn(handler.actions, action) ? handler.actions[action] : undefined;
     if (!meta) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'BULK_ACTION_UNKNOWN', `${handler.entityType} has no bulk action ${String(action).slice(0, 40)}.`,
+      throw new AppError(HttpStatus.BAD_REQUEST, 'BULK_ACTION_UNKNOWN', 'This bulk action is not available for these records. Reload the page and choose an action from the list.',
         { actions: Object.keys(handler.actions) });
     }
     return meta;

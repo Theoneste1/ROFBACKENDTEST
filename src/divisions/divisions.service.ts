@@ -60,7 +60,7 @@ export class DivisionsService {
   /** The division with this code; 503 if missing (the seed creates JUNIOR, MIDDLE and SENIOR). */
   async idForCode(code: string): Promise<string> {
     const d = await this.prisma.division.findUnique({ where: { code }, select: { id: true } });
-    if (!d) throw new AppError(HttpStatus.SERVICE_UNAVAILABLE, 'DIVISIONS_NOT_SEEDED', 'Divisions are not configured. Run the database seed.');
+    if (!d) throw new AppError(HttpStatus.SERVICE_UNAVAILABLE, 'DIVISIONS_NOT_SEEDED', 'The Olympiad levels are not set up on this server yet. Contact the technical team.');
     return d.id;
   }
 

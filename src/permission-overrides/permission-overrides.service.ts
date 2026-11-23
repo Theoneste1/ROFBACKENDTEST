@@ -169,7 +169,7 @@ export class PermissionOverridesService {
         },
         select: { id: true },
       });
-      if (duplicate) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_EXISTS', 'An identical active override already exists.', { id: duplicate.id });
+      if (duplicate) throw new AppError(HttpStatus.CONFLICT, 'OVERRIDE_EXISTS', 'This person already has exactly this permission change. Nothing was added.', { id: duplicate.id });
       const created = await tx.userPermissionOverride.create({
         data: {
           userId, permission: dto.permission, effect: dto.effect, courseId, divisionId, reason: dto.reason, expiresAt, createdById: actor.id, studentScope,

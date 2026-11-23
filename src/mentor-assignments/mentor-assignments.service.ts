@@ -85,7 +85,7 @@ export class MentorAssignmentsService {
     if (!division) throw new NotFoundException('Division not found.');
     // Only a course the division offers (administrator-managed divisions, 2026-11-22).
     if (!(await this.prisma.courseDivision.count({ where: { courseId: dto.courseId, divisionId: dto.divisionId, isActive: true } }))) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'COURSE_NOT_OFFERED', 'This division does not offer this course.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'COURSE_NOT_OFFERED', 'This course is not offered at this level. Choose another level, or add the course to the level first.');
     }
 
     // The change and its audit record commit together: if the audit write fails, nothing changes.

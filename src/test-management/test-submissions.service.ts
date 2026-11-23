@@ -337,7 +337,7 @@ export class TestSubmissionsService {
     assertUploadsAllowed(test.answerFormat);
     assertBeforeDeadline(now, await this.deadlines.forSubmission(this.prisma, test, student.id, this.submitterOf(caller)));
     await this.assertAnswerOpen(testId, student.id);
-    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the page (multipart field "file").');
+    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the page (a PDF or a photo), then send it.');
     const stored = await this.storage.store(file, 'TEST_ANSWER', caller.user.id);
 
     await this.prisma.$transaction(async (tx) => {

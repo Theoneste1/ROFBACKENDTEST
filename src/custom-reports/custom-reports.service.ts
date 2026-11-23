@@ -91,7 +91,7 @@ export class CustomReportsService {
 
   private assertDefinition(d: ReportDefinition) {
     const problems = definitionProblems(d);
-    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REPORT', 'This report definition is not valid.', { problems });
+    if (problems.length) throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REPORT', 'This report cannot be saved as it is. Check the chosen columns and filters, then save again.', { problems });
   }
 
   private definitionOf(r: { source: string; columns: unknown; filters: unknown; sort: unknown }): ReportDefinition {

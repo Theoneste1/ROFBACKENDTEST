@@ -218,7 +218,7 @@ function notAssigned() {
   return new AppError(
     HttpStatus.FORBIDDEN,
     'NOT_ASSIGNED_TO_SCOPE',
-    'You are not assigned to this course and division.',
+    'You are not assigned to this course for this level. Ask an administrator or your Head Coach to assign you.',
   );
 }
 

@@ -46,8 +46,8 @@ const MARKING_TX = { maxWait: 15_000, timeout: 30_000 } as const;
 /** XXXX-XXXX from the code alphabet (submission-rules.ts CODE_ALPHABET). */
 const CODE_PATTERN = /^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/;
 
-const notAssigned = () => new AppError(HttpStatus.FORBIDDEN, 'MARKING_NOT_ASSIGNED', 'This submission is not assigned to you.');
-const notAuthorised = () => new AppError(HttpStatus.FORBIDDEN, 'MARKER_NOT_AUTHORIZED', 'You are no longer authorised to mark this subject.');
+const notAssigned = () => new AppError(HttpStatus.FORBIDDEN, 'MARKING_NOT_ASSIGNED', 'This answer is not assigned to you for marking. Open your marking list to see the answers assigned to you.');
+const notAuthorised = () => new AppError(HttpStatus.FORBIDDEN, 'MARKER_NOT_AUTHORIZED', 'You are no longer allowed to mark this subject. If you think this is a mistake, ask your Head Coach.');
 
 interface MarkerContext {
   submissionId: string;

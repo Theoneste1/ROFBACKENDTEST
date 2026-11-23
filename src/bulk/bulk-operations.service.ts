@@ -101,7 +101,7 @@ export class BulkOperationsService {
     if (existing) return this.sameKey(existing, handler);
 
     const { action, params, selection } = await this.prepare(handler, dto, caller);
-    if (dto.confirm !== true) throw new AppError(HttpStatus.BAD_REQUEST, 'CONFIRMATION_REQUIRED', 'Confirm the bulk action (confirm: true).');
+    if (dto.confirm !== true) throw new AppError(HttpStatus.BAD_REQUEST, 'CONFIRMATION_REQUIRED', 'Confirm the action in the confirmation box before it runs.');
     const reason = dto.reason?.trim() || null;
     if (handler.actions[action].reason === 'required' && (!reason || reason.length < REASON_MIN || reason.length > REASON_MAX)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', `Give a reason (${REASON_MIN}–${REASON_MAX} characters).`);
@@ -131,7 +131,7 @@ export class BulkOperationsService {
             `The selected ${handler.noun} changed since the preview. Preview the action again and confirm the new selection.`,
             { total: ids.length, expectedTotal: dto.expectedTotal });
         }
-        if (ids.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_SELECTION', `No ${singular(handler.noun)} matches the selection.`);
+        if (ids.length === 0) throw new AppError(HttpStatus.BAD_REQUEST, 'EMPTY_SELECTION', `No ${singular(handler.noun)} matches the selection. Change the filters or tick at least one row.`);
         // Single use, re-checked under the guard (the partial unique index BulkOperation_selectionToken_v2_key enforces it).
         await this.assertTokenUnused(tx, dto);
 
@@ -260,7 +260,7 @@ export class BulkOperationsService {
       }, tx);
       return true;
     });
-    if (!done) throw new AppError(HttpStatus.CONFLICT, 'OPERATION_FINISHED', 'This bulk operation has already finished.');
+    if (!done) throw new AppError(HttpStatus.CONFLICT, 'OPERATION_FINISHED', 'This bulk action has already finished; its results are in the bulk actions history.');
     return this.get(id, caller, entityType);
   }
 
@@ -335,7 +335,7 @@ export class BulkOperationsService {
   /** The same idempotency key: the same operation — never a second one, and never another record type's. */
   private sameKey<T extends { entityType: string }>(op: T, handler: BulkEntityHandler) {
     if (op.entityType !== handler.entityType) {
-      throw new AppError(HttpStatus.CONFLICT, 'IDEMPOTENCY_KEY_REUSED', 'This idempotencyKey was already used for another kind of bulk operation.');
+      throw new AppError(HttpStatus.CONFLICT, 'IDEMPOTENCY_KEY_REUSED', 'This request was already used for a different bulk action. Reload the page and start the action again.');
     }
     return { operation: op, alreadyExisted: true };
   }

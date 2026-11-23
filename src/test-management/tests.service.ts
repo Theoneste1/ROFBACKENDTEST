@@ -276,7 +276,7 @@ export class TestsService {
       if (await hasSubmissions(tx, id)) throw lockedBySubmissions('its questions');
       const existing = await tx.testQuestion.findMany({ where: { testId: id }, select: { order: true, maxMarks: true } });
       if (existing.length >= MAX_QUESTIONS) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_QUESTIONS', `A test has at most ${MAX_QUESTIONS} questions.`);
+        throw new AppError(HttpStatus.BAD_REQUEST, 'TOO_MANY_QUESTIONS', `A test can have at most ${MAX_QUESTIONS} questions. Remove a question before adding another.`);
       }
       assertQuestionMarks(test.status, test.maxMarks, [...existing.map((q) => q.maxMarks), dto.maxMarks]);
       const order = existing.reduce((m, q) => Math.max(m, q.order), 0) + 1;
@@ -331,7 +331,7 @@ export class TestsService {
       const rest = questions.filter((q) => q.id !== questionId);
       assertQuestionMarks(test.status, test.maxMarks, rest.map((q) => q.maxMarks));
       if (test.status === 'PUBLISHED' && rest.length === 0 && (await tx.testFile.count({ where: { testId: id, kind: 'PAPER' } })) === 0) {
-        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'A published test needs a paper or at least one question.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
+        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'Add the question paper or at least one question before publishing the test.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
       }
       await tx.testQuestion.delete({ where: { id: questionId } });
       await renumber(tx, rest.map((q) => q.id));
@@ -369,7 +369,7 @@ export class TestsService {
   async putFile(id: string, kindParam: TestFileKindParam, file: Express.Multer.File | undefined, user: AuthUser) {
     const kind = KIND_OF[kindParam];
     await this.loadInScope(id, user);
-    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the file (multipart field "file").');
+    if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the file (a PDF or an image), then save.');
     const stored = await this.storage.store(file, PURPOSE_OF[kind], user.id);
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
@@ -397,7 +397,7 @@ export class TestsService {
       if (!link) throw fileNotFound();
       if (kind === 'PAPER' && (await hasSubmissions(tx, id))) throw lockedBySubmissions('its paper');
       if (kind === 'PAPER' && test.status === 'PUBLISHED' && (await tx.testQuestion.count({ where: { testId: id } })) === 0) {
-        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'A published test needs a paper or at least one question.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
+        throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_READY', 'Add the question paper or at least one question before publishing the test.', { problems: ['NO_PAPER_OR_QUESTIONS'] });
       }
       await tx.testFile.delete({ where: { id: link.id } });
       await this.audit.log({
@@ -444,7 +444,7 @@ export class TestsService {
   private async requireSubject(disciplineId: string) {
     const d = await this.prisma.discipline.findUnique({ where: { id: disciplineId }, select: { isActive: true } });
     if (!d) throw new AppError(HttpStatus.BAD_REQUEST, 'SUBJECT_NOT_FOUND', 'Subject not found.', { subjectId: disciplineId });
-    if (!d.isActive) throw new AppError(HttpStatus.BAD_REQUEST, 'SUBJECT_INACTIVE', 'This subject is not active.', { subjectId: disciplineId });
+    if (!d.isActive) throw new AppError(HttpStatus.BAD_REQUEST, 'SUBJECT_INACTIVE', 'This subject is not active. Choose another subject, or ask an administrator to reactivate it.', { subjectId: disciplineId });
   }
 
   /** The full test: details, totals, files and questions in order. */

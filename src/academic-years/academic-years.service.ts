@@ -404,7 +404,7 @@ export class AcademicYearsService {
       if (dto.gradeLevel) {
         return this.writeEnrollment(tx, e.studentId, e.academicYearId, dto.gradeLevel, await studentDivisionFor(tx, e.studentId, dto.gradeLevel), e.schoolId);
       }
-      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Provide gradeLevel or status.');
+      throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Nothing was changed. Choose a new grade or status, then save.');
     });
 
     await this.audit.log({

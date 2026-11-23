@@ -295,7 +295,7 @@ export class ProgrammesService {
   }
 }
 
-const alreadyMember = () => new AppError(HttpStatus.CONFLICT, 'ALREADY_MEMBER', 'This user is already an active member of the programme.');
+const alreadyMember = () => new AppError(HttpStatus.CONFLICT, 'ALREADY_MEMBER', 'This person is already in the programme. Nothing was changed.');
 const inOtherProgramme = () => new AppError(
   HttpStatus.CONFLICT, 'STUDENT_IN_OTHER_PROGRAMME',
   'This student is a member of another programme. Moving a student between programmes is done by an Administrator.',

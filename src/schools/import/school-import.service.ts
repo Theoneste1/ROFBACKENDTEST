@@ -101,11 +101,11 @@ export class SchoolImportService {
     let tokenSnap: { snap: string; exp: number } | null = null;
     if (q.confirmPossibleDuplicates) {
       if (!q.reviewToken) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'REVIEW_TOKEN_REQUIRED', 'Confirming possible duplicates needs the reviewToken of the dry run that showed them.');
+        throw new AppError(HttpStatus.BAD_REQUEST, 'REVIEW_TOKEN_REQUIRED', 'Check the file first ("Check the file") and review the possible duplicates, then confirm the import.');
       }
       const check = checkReviewToken(this.key, q.reviewToken, { sub: caller.id, file: fileSha256 });
       if (!check.ok) {
-        throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REVIEW_TOKEN', 'This review token is not valid for this file and this Administrator. Run a new dry run.', { reason: check.reason });
+        throw new AppError(HttpStatus.BAD_REQUEST, 'INVALID_REVIEW_TOKEN', 'This review does not match this file or was made by another administrator. Check the file again, then confirm.', { reason: check.reason });
       }
       tokenSnap = { snap: check.payload.snap, exp: check.payload.exp };
     }
@@ -135,7 +135,7 @@ export class SchoolImportService {
           if (tokenSnap.exp <= this.now().getTime() || tokenSnap.snap !== snap) {
             const t = this.token(caller, fileSha256, result);
             throw new ImportRefused(new AppError(HttpStatus.CONFLICT, 'IMPORT_REVIEW_OUTDATED',
-              'The possible duplicates changed (or the review expired) since your review. Review them again, then confirm with the new reviewToken.',
+              'The possible duplicates changed (or your review expired). Check the file again, review the duplicates, then confirm.',
               { possibleDuplicates: result.possibleDuplicates, reviewToken: t.token, reviewExpiresAt: t.expiresAt.toISOString() }),
               'IMPORT_REVIEW_OUTDATED', { totalRows: rows.length, possibleDuplicateRows: flaggedRows.size });
           }

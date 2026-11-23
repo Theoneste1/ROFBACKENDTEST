@@ -55,11 +55,11 @@ export async function resolveSchoolReference(
     ? await db.school.findFirst({ where: { code: ref.schoolCode, countryCode: RWANDA }, select: SELECT })
     : null;
   if (ref.schoolCode && !byCode) {
-    throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL_CODE', `No school has code ${ref.schoolCode}.`, { schoolCode: ref.schoolCode });
+    throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_SCHOOL_CODE', `No school has the code ${ref.schoolCode}. Check the code, or choose the school from the list.`, { schoolCode: ref.schoolCode });
   }
   if (byId && byCode && byId.id !== byCode.id) {
     throw new AppError(HttpStatus.BAD_REQUEST, 'SCHOOL_REFERENCE_MISMATCH',
-      `schoolId and schoolCode name different schools ("${byId.name}" and "${byCode.name}").`,
+      `The school chosen ("${byId.name}") and the code given ("${byCode.name}") are different schools. Choose one of them.`,
       { schoolId: byId.id, schoolCode: ref.schoolCode });
   }
   const school = (byId ?? byCode)!;
