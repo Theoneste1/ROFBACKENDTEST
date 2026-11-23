@@ -335,7 +335,12 @@ const OLYMPIAD_LEVELS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-division
  * against the Olympiad levels snapshot.
  */
 const SCHOOL_CODES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-22-school-codes.json';
-const CURRENT_SNAPSHOT = SCHOOL_CODES_SNAPSHOT;
+/**
+ * School list filters on every field of the NESA file (owner, 2026-11-23): ownership, cell, village, a contact value,
+ * with or without an e-mail or phone, programme category. Additive only against the school codes snapshot.
+ */
+const SCHOOL_FILTERS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-23-school-filters.json';
+const CURRENT_SNAPSHOT = SCHOOL_FILTERS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1807,6 +1812,16 @@ describe('approved API contract history', () => {
       'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolOwnership: new optional field',
       'POST /api/v1/auth/register/teacher › request application/json.proposedSchoolVillage: new optional field',
     ]);
+  });
+
+  test('the school code is the identifier → school list filters on every NESA field (2026-11-23): additive only — seven optional query parameters', () => {
+    for (const f of [SCHOOL_CODES_SNAPSHOT, SCHOOL_FILTERS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SCHOOL_FILTERS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), ['cell', 'contact', 'hasEmail', 'hasPhone', 'ownership', 'programmeCategory', 'village']
+      .map((q) => `GET /api/v1/admin/schools: new optional query parameter "${q}"`));
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {

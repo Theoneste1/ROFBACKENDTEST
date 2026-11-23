@@ -26742,6 +26742,70 @@
             }
           },
           {
+            "name": "cell",
+            "required": false,
+            "in": "query",
+            "description": "Cell / village (any letter case).",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "village",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownership",
+            "required": false,
+            "in": "query",
+            "description": "PUBLIC, GOVERNMENT_AIDED or PRIVATE.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PUBLIC",
+                "GOVERNMENT_AIDED",
+                "PRIVATE"
+              ]
+            }
+          },
+          {
+            "name": "contact",
+            "required": false,
+            "in": "query",
+            "description": "An active contact (e-mail or phone) containing this text (any letter case; spaces ignored for phones).",
+            "schema": {
+              "minLength": 3,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "hasEmail",
+            "required": false,
+            "in": "query",
+            "description": "true: has an active e-mail contact; false: has none.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "hasPhone",
+            "required": false,
+            "in": "query",
+            "description": "true: has an active phone contact; false: has none.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "isActive",
             "required": false,
             "in": "query",
@@ -26781,6 +26845,20 @@
             "schema": {
               "format": "uuid",
               "type": "string"
+            }
+          },
+          {
+            "name": "programmeCategory",
+            "required": false,
+            "in": "query",
+            "description": "Offers a programme of this category (A-Level combination, TVET trade, other).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OTHER",
+                "A_LEVEL_COMBINATION",
+                "TVET_TRADE"
+              ]
             }
           },
           {

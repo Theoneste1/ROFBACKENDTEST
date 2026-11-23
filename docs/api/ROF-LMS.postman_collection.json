@@ -4167,6 +4167,42 @@
                   "description": ""
                 },
                 {
+                  "key": "cell",
+                  "value": "cell",
+                  "disabled": true,
+                  "description": "Cell / village (any letter case)."
+                },
+                {
+                  "key": "village",
+                  "value": "village",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "ownership",
+                  "value": "PUBLIC",
+                  "disabled": true,
+                  "description": "PUBLIC, GOVERNMENT_AIDED or PRIVATE."
+                },
+                {
+                  "key": "contact",
+                  "value": "contact",
+                  "disabled": true,
+                  "description": "An active contact (e-mail or phone) containing this text (any letter case; spaces ignored for phones)."
+                },
+                {
+                  "key": "hasEmail",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: has an active e-mail contact; false: has none."
+                },
+                {
+                  "key": "hasPhone",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "true: has an active phone contact; false: has none."
+                },
+                {
                   "key": "isActive",
                   "value": "true",
                   "disabled": true,
@@ -4189,6 +4225,12 @@
                   "value": "00000000-0000-4000-8000-000000000000",
                   "disabled": true,
                   "description": "Offers this programme (its id)."
+                },
+                {
+                  "key": "programmeCategory",
+                  "value": "OTHER",
+                  "disabled": true,
+                  "description": "Offers a programme of this category (A-Level combination, TVET trade, other)."
                 },
                 {
                   "key": "accommodation",
