@@ -56,7 +56,8 @@ export class PermissionService {
   /**
    * Effective grants: permission → scope kind. Empty for an unknown role.
    * Role defaults, then the user's active individual overrides (P1-09): DENY
-   * removes a permission; GRANT adds one only if the approved list allows it for
+   * removes a permission — and wins over a GRANT of the same permission, whatever their order (owner 2026-11-23: a
+   * Teacher's course-homework switch, a DENY, also stops an older delegation of the same permission); GRANT adds one only if the approved list allows it for
    * the role (never a never-grantable one), scoped to course × division, or to the
    * teacher's schools for a teacher delegation (P1-11) — the service then checks that scope. Each override's expiresAt is checked again
    * here, at the moment of the decision. No override ever applies to a
@@ -67,11 +68,9 @@ export class PermissionService {
     const defaults = grantsForRole(role);
     const grants = new Map(Object.entries(defaults ?? {}) as Array<[Permission, ScopeKind]>);
     if (defaults && role !== 'SUPER_ADMIN') {
-      for (const o of activeOverrides(user, now)) {
-        if (overrideRefusal(role, o.permission, o.effect) !== null) continue;
-        if (o.effect === 'DENY') grants.delete(o.permission as Permission);
-        else grants.set(o.permission as Permission, grantScopeOf(o.permission));
-      }
+      const applicable = activeOverrides(user, now).filter((o) => overrideRefusal(role, o.permission, o.effect) === null);
+      for (const o of applicable) if (o.effect === 'GRANT') grants.set(o.permission as Permission, grantScopeOf(o.permission));
+      for (const o of applicable) if (o.effect === 'DENY') grants.delete(o.permission as Permission);
     }
     if ((ADMINISTRATIVE_ROLES as readonly string[]).includes(role)) {
       for (const p of ADMIN_PROHIBITED) grants.delete(p);

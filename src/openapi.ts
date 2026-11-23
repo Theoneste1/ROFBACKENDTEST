@@ -72,9 +72,11 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
       if (!a) continue;
       const served = op['x-served-roles'] as string[] | undefined;
       const roles = served ? a.roles.filter((r) => served.includes(r)) : a.roles;
-      const delegation = a.permission && (TEACHER_DELEGATIONS as readonly string[]).includes(a.permission)
-        ? ' — granted individually by an Administrator or Super Admin; applies only to students of the teacher\'s active school assignments'
-        : '';
+      // Course homework (owner 2026-11-24): a teacher delegation that is also a Teacher default is described as the default.
+      const delegation = !a.permission || !(TEACHER_DELEGATIONS as readonly string[]).includes(a.permission) ? ''
+        : Object.hasOwn(ROLE_GRANTS.TEACHER, a.permission)
+          ? ' — every Teacher by default (an Administrator switches course homework off per teacher); applies only to the students the teacher sees: their schools\' students and the students assigned to them'
+          : ' — granted individually by an Administrator or Super Admin; applies only to students of the teacher\'s active school assignments';
       const who = a.public ? 'Public (no token)'
         : a.permission ? `permission \`${a.permission}\` (${roles.join(', ') || 'nobody'}${a.grantOnly ? ', by individual grant only' : ''})${delegation}`
         : roles.length ? roles.join(', ') : 'Any signed-in user';

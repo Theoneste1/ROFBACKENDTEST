@@ -69,8 +69,9 @@ export const PERMISSIONS = [
   'settings.manageSystem',       // Super Admin only
   'permissions.view',
   'permissions.manageOverrides', // Super Admin only
-  // ── P1-11: teacher delegations — no role holds them by default; granted to an
-  //    individual TEACHER (P1-09 override, GRANT), school scope only ─────────
+  // ── P1-11: teacher delegations — granted to an individual TEACHER (P1-09 override, GRANT), school scope only.
+  //    students.viewProgress and submissions.submitOnBehalf are Teacher DEFAULTS since 2026-11-23 (owner: course
+  //    homework, like tests); students.viewProfile is still a delegation only ─────────
   'students.viewProfile',        // a student's profile (no contact details)
   'students.viewProgress',       // assignment availability and submission history (no grades, D7)
   'submissions.submitOnBehalf',  // submit for a student; the student stays the owner
@@ -240,8 +241,13 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     // (TeacherSchoolAssignment): name, school, grade, division — never grades or contact details.
     'students.viewScoped': 'school',
     'leaderboard.view': 'global',
-    // students.viewProfile, students.viewProgress, submissions.submitOnBehalf: only by
-    // an individual GRANT (Administrator or Super Admin), school scope (P1-11)
+    // students.viewProfile: only by an individual GRANT (Administrator or Super Admin), school scope (P1-11).
+    // Course homework (owner decision 2026-11-23, confirmed 2026-11-24): every Teacher, for every student they see —
+    // their schools' students and the students assigned to them, the same students as for tests (teacher-scope.ts) — by
+    // default: the student's assignments and submission history (never scores or feedback) and handing in work for them
+    // (the student stays the owner; the teacher is recorded as the submitter). An Administrator switches both off per
+    // teacher (PUT /admin/teachers/:id/homework-submission: DENY overrides of the two, which win over any delegation).
+    'students.viewProgress': 'school', 'submissions.submitOnBehalf': 'school',
     // Test Management, Phase 2 (G2, owner decision 2026-11-19): every teacher of a school, primary or secondary, submits
     // test answers for the students of their own schools (verified or pending claim, owner 2026-11-21) — a default, not a
     // delegation; an Administrator revokes it per teacher (a DENY override) without touching the account.

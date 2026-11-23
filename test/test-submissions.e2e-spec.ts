@@ -405,8 +405,11 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       expect((await http().get(`${TT}/${round}/students`).set(bearer(ta)).expect(200)).body.data.map((r: any) => r.student.username)).not.toContain('student.o');
     });
 
-    it('the course-assignment delegation is unchanged: teachers still cannot submit course work without it', async () => {
-      expect(await status(http().post(`/api/v1/teacher/students/${stJ}/submissions`).set(bearer(ta)).send({}))).toEqual([403, 'PERMISSION_REQUIRED']);
+    it('course work for students is a Teacher default too (owner 2026-11-24): the course route lets the teacher through; its own rules apply', async () => {
+      // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): teachers hand in course homework for their
+      // students by default, like tests (was: 403 PERMISSION_REQUIRED without the delegation). An empty request is now
+      // refused by the route's own validation, not by the permission check.
+      expect(await status(http().post(`/api/v1/teacher/students/${stJ}/submissions`).set(bearer(ta)).send({}))).toEqual([400, 'VALIDATION_FAILED']);
     });
   });
 

@@ -19,6 +19,8 @@ export const AUDIT_CATEGORIES = {
     'DELEGATION_STUDENT_ADDED', 'DELEGATION_STUDENT_REMOVED', 'DELEGATION_REVIEWED',
     // A teacher's test submission for students, revoked / restored by an Administrator (owner 2026-11-21)
     'TEACHER_TEST_SUBMISSION_REVOKED', 'TEACHER_TEST_SUBMISSION_RESTORED',
+    // A teacher's course homework for students (progress + handing in), switched off / on by an Administrator (owner 2026-11-24)
+    'TEACHER_HOMEWORK_SUBMISSION_REVOKED', 'TEACHER_HOMEWORK_SUBMISSION_RESTORED',
   ],
   PROGRAMMES: ['PROGRAMME_MEMBERSHIP_BACKFILL', 'PROGRAMME_HEADS_SET', 'PROGRAMME_MEMBER_ADD', 'PROGRAMME_MEMBER_END', 'PROGRAMME_MEMBERSHIPS_ENDED'],
   SCHOOL_AFFILIATIONS: [

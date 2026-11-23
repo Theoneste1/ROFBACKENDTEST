@@ -5,14 +5,17 @@
  * (teacher-scope.ts) — read fresh on each request; any other student → 404 (not revealed). The summary also counts
  * those whose school ROF has not verified yet (pendingVerification; they are among the visible students).
  * A delegation applies to a visible student only when its student scope covers them (SCHOOL / ASSIGNED / SELECTED):
- * otherwise 403 DELEGATION_NOT_FOR_STUDENT.
+ * otherwise 403 DELEGATION_NOT_FOR_STUDENT. A Teacher DEFAULT (course homework, owner 2026-11-23 / 2026-11-24) covers
+ * every visible student — the same students as for tests (teacher-scope.ts teacherTestStudentsWhere) — with no
+ * delegation; switched off by an Administrator (a DENY, which wins over any delegation), it covers nobody.
  *
  *   list      students.viewScoped (Teacher default): name, username, grade, division, school
  *   profile   students.viewProfile (delegation): + account and enrolment status
- *   progress  students.viewProgress (delegation): assignment availability and
- *             submission history — never scores, feedback or reviews (D7)
- *   submit    submissions.submitOnBehalf (delegation): the student stays the
- *             owner; the teacher is recorded as submitter, uploader and audit actor
+ *   progress  students.viewProgress (Teacher default since 2026-11-24, every student they see; an Administrator
+ *             switches course homework off per teacher): assignment availability and submission history — never
+ *             scores, feedback or reviews (D7)
+ *   submit    submissions.submitOnBehalf (Teacher default since 2026-11-24, the same students, the same switch): the
+ *             student stays the owner; the teacher is recorded as submitter, uploader and audit actor
  *
  * Never returned: e-mail, phone, home location, grades, marks, feedback. No
  * route here changes a student's account or password (those need users.manage*,
@@ -32,6 +35,7 @@ import { CreateSubmissionDto } from '../submissions/dto/create-submission.dto.js
 import { SubmissionsService } from '../submissions/submissions.service.js';
 import { ListTeacherStudentsDto } from './dto/teacher.dto.js';
 import { TEACHER_DELEGATIONS } from '../auth/override-policy.js';
+import { ROLE_GRANTS } from '../auth/permissions.js';
 import { activeGrantsOf, delegationCovers, teacherStudentsWhere, visibilityOf, visibleAssignedStudentsWhere, visibleSchoolStudentsWhere } from './teacher-scope.js';
 
 /** The three delegations, by the short names the list returns. */
@@ -60,7 +64,8 @@ export class TeacherStudentsService {
   }
 
   /**
-   * A student visible to the teacher (404 otherwise) whom the route's delegation covers (403
+   * A student visible to the teacher (404 otherwise) whom the route's permission covers: a Teacher default covers every
+   * visible student unless switched off (403 HOMEWORK_SWITCHED_OFF); a delegation only the students of its scope (403
    * DELEGATION_NOT_FOR_STUDENT otherwise: a delegation limited to assigned or selected students).
    */
   private async requireStudent(user: AuthUser, studentId: string, permission: (typeof TEACHER_DELEGATIONS)[number]) {
@@ -70,6 +75,13 @@ export class TeacherStudentsService {
       select: { ...STUDENT_SELECT, divisionId: true, isActive: true, isApproved: true, activatedAt: true, createdAt: true, lastLoginAt: true },
     });
     if (!student) throw new NotFoundException('Student not found.');
+    // A Teacher's default (owner 2026-11-24: course homework) covers every student they see — the same students as for
+    // tests. Switched off for this teacher (a DENY), no delegation brings it back.
+    if (isTeacherDefault(permission)) {
+      if (this.permissions.has(user, permission)) return student;
+      throw new AppError(HttpStatus.FORBIDDEN, 'HOMEWORK_SWITCHED_OFF',
+        'An administrator has switched off course homework for your students on your account. Ask an administrator if you need it back.', { permission });
+    }
     const seen = (await visibilityOf(this.prisma, user.id, schools, [studentId])).get(studentId) ?? { viaSchool: false, viaAssignment: false };
     const grants = await activeGrantsOf(this.prisma, user.id, [permission]);
     if (!delegationCovers(grants, { id: studentId, ...seen })) {
@@ -104,7 +116,8 @@ export class TeacherStudentsService {
     return paginated(rows.map((r) => {
       const v = seen.get(r.id) ?? { viaSchool: false, viaAssignment: false };
       const can = Object.fromEntries(TEACHER_DELEGATIONS.map((p) => [
-        DELEGATION_KEYS[p as keyof typeof DELEGATION_KEYS], delegationCovers(grants.filter((g) => g.permission === p), { id: r.id, ...v }),
+        DELEGATION_KEYS[p as keyof typeof DELEGATION_KEYS],
+        isTeacherDefault(p) ? this.permissions.has(user, p) : delegationCovers(grants.filter((g) => g.permission === p), { id: r.id, ...v }),
       ]));
       return { ...r, access: { school: v.viaSchool, assigned: v.viaAssignment }, can };
     }), total, page, limit);
@@ -225,4 +238,9 @@ export class TeacherStudentsService {
     });
     return { ...saved, submittedBy: { id: user.id, username: user.username, role: user.role } };
   }
+}
+
+/** A permission every Teacher holds by default (owner 2026-11-24: course homework), covering every student they see. */
+function isTeacherDefault(permission: string): boolean {
+  return Object.hasOwn(ROLE_GRANTS.TEACHER, permission);
 }

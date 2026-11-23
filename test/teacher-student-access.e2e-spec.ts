@@ -79,7 +79,8 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     expect(ids).toEqual(expect.arrayContaining([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior, pendingId]));
     expect(ids).not.toContain(notMemberId);
     expect(ids).not.toContain(oId);
-    expect(list.body.data[0]).toMatchObject({ access: { school: true, assigned: false }, can: { viewProfile: false, viewProgress: false, submitOnBehalf: false } });
+    // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): course homework progress and handing in are Teacher defaults for every student the teacher sees (were false without a delegation).
+    expect(list.body.data[0]).toMatchObject({ access: { school: true, assigned: false }, can: { viewProfile: false, viewProgress: true, submitOnBehalf: true } });
     const sum = await http().get('/api/v1/teacher/students/summary').set(bearer(t1)).expect(200);
     expect(sum.body).toEqual({ schools: 1, students: 4, viaSchool: 4, viaAssignment: 0, pendingVerification: 1 });
     // Other roles: the summary is the teacher's (the service answers 403 for anyone else).
@@ -139,7 +140,9 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     const submitFor = (studentId: string) => http().post(`/api/v1/teacher/students/${studentId}/submissions`).set(bearer(t1))
       .field('assignmentId', workId).attach('file', PDF, 'work.pdf');
     expect((await submitFor(oId)).status).toBe(201);
-    expect(await status(submitFor(ctx.ids.studentJunior))).toEqual([403, 'DELEGATION_NOT_FOR_STUDENT']);
+    // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): course homework progress and handing in are Teacher defaults for every student the teacher sees, so a delegation of either limited to some students no longer narrows it (was 403
+    // DELEGATION_NOT_FOR_STUDENT for a school student here). Student scopes still apply to the profile (below).
+    await http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior}/progress`).set(bearer(t1)).expect(200);
 
     // SELECTED: only listed students the teacher sees.
     expect(await status(http().post(delegations(t1Id)).set(bearer(admin))
@@ -157,14 +160,15 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     const list = await http().get('/api/v1/teacher/students').set(bearer(t1)).expect(200);
     const can = Object.fromEntries(list.body.data.map((s: any) => [s.id, s.can]));
     expect(can[oId]).toMatchObject({ submitOnBehalf: true, viewProfile: false });
-    expect(can[ctx.ids.studentJunior]).toMatchObject({ submitOnBehalf: false, viewProfile: true });
+    expect(can[ctx.ids.studentJunior]).toMatchObject({ submitOnBehalf: true, viewProfile: true });   // submitOnBehalf: changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): course homework progress and handing in are Teacher defaults for every student the teacher sees
 
     // The existing form (no scope) is the whole school, as before.
     const school = await http().post(delegations(t2Id)).set(bearer(admin)).send({ permission: 'students.viewProgress', reason: 'Coordinator' }).expect(201);
     expect(school.body.studentScope).toBe('SCHOOL');
     t2 = await login(ctx, 'tsa.t2');
     await http().get(`/api/v1/teacher/students/${ctx.ids.studentJunior2}/progress`).set(bearer(t2)).expect(200);
-    expect(await status(http().get(`/api/v1/teacher/students/${oId}/progress`).set(bearer(t2)))).toEqual([403, 'DELEGATION_NOT_FOR_STUDENT']);
+    // Changed on purpose — owner decision 2026-11-23 (confirmed 2026-11-24): course homework progress and handing in are Teacher defaults for every student the teacher sees: student O, assigned to T2, too (was 403 DELEGATION_NOT_FOR_STUDENT with a school-wide delegation).
+    await http().get(`/api/v1/teacher/students/${oId}/progress`).set(bearer(t2)).expect(200);
   });
 
   it('TS-5: ending an assignment takes the student off selected-student delegations, flags them; nothing is deleted', async () => {

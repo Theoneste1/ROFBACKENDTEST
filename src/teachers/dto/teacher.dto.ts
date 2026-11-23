@@ -167,3 +167,16 @@ export class SetTeacherTestSubmissionDto {
   @IsOptional() @IsString() @Length(0, 500)
   reason?: string;
 }
+
+/**
+ * PUT /admin/teachers/:id/homework-submission (owner 2026-11-24): switch a teacher's course homework for their students
+ * off (allowed false, reason required) or on again.
+ */
+export class SetTeacherHomeworkSubmissionDto {
+  @IsBoolean()
+  allowed: boolean;
+
+  /** Required to switch it off (3–500 characters); optional when switching it on. Recorded in the audit log. */
+  @IsOptional() @IsString() @Length(0, 500)
+  reason?: string;
+}
