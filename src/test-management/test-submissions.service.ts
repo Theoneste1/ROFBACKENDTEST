@@ -51,7 +51,7 @@ import type {
   AuthorizeResubmissionDto, ListMyTestsQueryDto, ListTeacherTestStudentsQueryDto, ListTestSubmissionsQueryDto, SubmitTestAnswerDto,
 } from './dto/submission.dto.js';
 import {
-  MAX_ANSWER_PAGES, answerPageName, answerWindow, applicableDeadline, assertAnswerFormat, assertBeforeDeadline, assertEligible,
+  MAX_ANSWER_PAGES, answerSheetName, answerWindow, applicableDeadline, assertAnswerFormat, assertBeforeDeadline, assertEligible,
   assertPagesComplete, assertUploadsAllowed, divisionMatches, eligibilityProblems, formatPublicCode, levelOf, levelWhere,
   trackingState, type ApplicableDeadline, type Submitter,
 } from './submission-rules.js';
@@ -365,14 +365,17 @@ export class TestSubmissionsService {
   /** The pages uploaded so far under uploadKey and not yet submitted (to resume after a lost connection). */
   async pendingPages(caller: Answerer, testId: string, studentId: string, uploadKey: string) {
     const student = await this.studentFor(caller, studentId);
-    await this.answererTest(testId, caller.role === 'STUDENT' ? student : undefined);
+    const test = await this.answererTest(testId, caller.role === 'STUDENT' ? student : undefined);
     const pages = await this.prisma.testAnswerPage.findMany({
       where: { testId, studentId: student.id, uploadKey, versionId: null, uploadedById: caller.user.id },
       orderBy: { pageNumber: 'asc' }, select: { pageNumber: true, updatedAt: true, file: { select: { mimeType: true, size: true } } },
     });
     return {
       uploadKey,
-      pages: pages.map((p) => ({ page: p.pageNumber, name: answerPageName(p.pageNumber, p.file.mimeType), mimeType: p.file.mimeType, size: p.file.size, uploadedAt: p.updatedAt })),
+      pages: pages.map((p) => ({
+        page: p.pageNumber, name: answerSheetName(p.pageNumber, p.file.mimeType, sheetNaming(student, test.title, pages.length)),
+        mimeType: p.file.mimeType, size: p.file.size, uploadedAt: p.updatedAt,
+      })),
     };
   }
 
@@ -482,10 +485,11 @@ export class TestSubmissionsService {
     const student = await this.studentFor(caller, studentId);
     const page = await this.prisma.testAnswerPage.findFirst({
       where: { versionId, pageNumber, version: { submission: { testId, studentId: student.id } } },
-      select: { pageNumber: true, file: { select: { storageKey: true, mimeType: true, size: true } } },
+      select: { pageNumber: true, file: { select: { storageKey: true, mimeType: true, size: true } }, version: { select: { pageCount: true, submission: { select: { test: { select: { title: true } } } } } } },
     });
     if (!page) throw pageNotFound();
-    await this.storage.send(res, { ...page.file, originalName: answerPageName(page.pageNumber, page.file.mimeType) }, { download });
+    const name = answerSheetName(page.pageNumber, page.file.mimeType, sheetNaming(student, page.version!.submission.test.title, page.version!.pageCount));
+    await this.storage.send(res, { ...page.file, originalName: name }, { download });
   }
 
   /** The test paper for the people who answer it, once the test opened (a student: of their division). */
@@ -576,7 +580,7 @@ export class TestSubmissionsService {
         student: { select: { id: true, username: true, firstName: true, lastName: true, gradeLevel: true, school: { select: { id: true, name: true } } } },
         versions: { orderBy: { number: 'desc' }, select: VERSION_SELECT },
         statusChanges: { orderBy: { createdAt: 'asc' }, select: { fromStatus: true, toStatus: true, actorRole: true, reason: true, createdAt: true, actor: PERSON } },
-        test: { select: { closesAt: true } },
+        test: { select: { closesAt: true, title: true } },
         resubmissionAuthorizations: { orderBy: { createdAt: 'desc' }, select: RESUBMISSION_SELECT },
       },
     });
@@ -586,7 +590,7 @@ export class TestSubmissionsService {
       ...staffSummary(sub),
       student: sub.student,
       deadline: d.deadline, extended: d.extended, extensionKind: d.extensionKind, extensionId: d.extensionId,
-      versions: sub.versions.map((v) => staffVersion(v)),
+      versions: sub.versions.map((v) => staffVersion(v, sub.student, sub.test.title)),
       statusHistory: sub.statusChanges,
       resubmissions: sub.resubmissionAuthorizations.map(resubmissionView),
       // The history above lists every authorization (used and cancelled too): the lock comes from the open one only.
@@ -648,10 +652,15 @@ export class TestSubmissionsService {
     await this.tests.loadInScope(testId, user);
     const page = await this.prisma.testAnswerPage.findFirst({
       where: { versionId, pageNumber, version: { submissionId, submission: { testId } } },
-      select: { pageNumber: true, file: { select: { storageKey: true, mimeType: true, size: true } } },
+      select: {
+        pageNumber: true, file: { select: { storageKey: true, mimeType: true, size: true } },
+        version: { select: { pageCount: true, submission: { select: { test: { select: { title: true } }, student: { select: { firstName: true, lastName: true } } } } } },
+      },
     });
     if (!page) throw pageNotFound();
-    await this.storage.send(res, { ...page.file, originalName: answerPageName(page.pageNumber, page.file.mimeType) }, { download });
+    const sub = page.version!.submission;
+    const name = answerSheetName(page.pageNumber, page.file.mimeType, sheetNaming(sub.student, sub.test.title, page.version!.pageCount));
+    await this.storage.send(res, { ...page.file, originalName: name }, { download });
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -688,7 +697,7 @@ export class TestSubmissionsService {
       submission: sub && {
         status: sub.status, versionCount: sub.versionCount, firstSubmittedAt: sub.firstSubmittedAt, lastSubmittedAt: sub.lastSubmittedAt,
         currentVersion: sub.currentVersion?.number ?? null,
-        versions: sub.versions.map((v) => answererVersion(v)),
+        versions: sub.versions.map((v) => answererVersion(v, student, test.title)),
       },
       // Locked after submission (owner 2026-11-21): a replacement only with an Administrator's open authorization.
       locked,
@@ -792,26 +801,36 @@ function stateWhere(state: 'SUBMITTED' | 'NOT_SUBMITTED' | 'LATE_BLOCKED', testI
   }
 }
 
-function pagesView(pages: VersionRow['pages']) {
-  return pages.map((p) => ({ page: p.pageNumber, name: answerPageName(p.pageNumber, p.file.mimeType), mimeType: p.file.mimeType, size: p.file.size }));
+type Named = { firstName: string; lastName: string };
+
+/** The student's full name and the test's title, for the sheet's name (answerSheetName; never for markers). */
+function sheetNaming(student: Named, testTitle: string, pageCount: number) {
+  return { studentName: `${student.firstName} ${student.lastName}`, testTitle, pageCount };
+}
+
+function pagesView(pages: VersionRow['pages'], student: Named, testTitle: string) {
+  return pages.map((p) => ({
+    page: p.pageNumber, name: answerSheetName(p.pageNumber, p.file.mimeType, sheetNaming(student, testTitle, pages.length)),
+    mimeType: p.file.mimeType, size: p.file.size,
+  }));
 }
 
 /** A version as the student or a teacher sees it: who submitted it and when, the answer — no deadline or extension mark. */
-function answererVersion(v: VersionRow) {
+function answererVersion(v: VersionRow, student: Named, testTitle: string) {
   return {
     id: v.id, number: v.number, submittedAt: v.submittedAt, submitterRole: v.submitterRole,
     submittedBy: { firstName: v.submittedBy.firstName, lastName: v.submittedBy.lastName },
-    typedAnswer: v.typedAnswer, pageCount: v.pageCount, pages: pagesView(v.pages),
+    typedAnswer: v.typedAnswer, pageCount: v.pageCount, pages: pagesView(v.pages, student, testTitle),
   };
 }
 
 /** Administrators and Head Coaches: everything, including the deadline that applied and the under-extension mark. */
-function staffVersion(v: VersionRow) {
+function staffVersion(v: VersionRow, student: Named, testTitle: string) {
   return {
     id: v.id, number: v.number, submittedAt: v.submittedAt, submitterRole: v.submitterRole,
     submittedBy: v.submittedBy, teacher: v.teacher,
     applicableDeadline: v.applicableDeadline, underExtension: v.underExtension, extensionId: v.extensionId,
-    typedAnswer: v.typedAnswer, pageCount: v.pageCount, pages: pagesView(v.pages),
+    typedAnswer: v.typedAnswer, pageCount: v.pageCount, pages: pagesView(v.pages, student, testTitle),
   };
 }
 

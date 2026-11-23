@@ -25,6 +25,7 @@
 import { HttpStatus } from '@nestjs/common';
 
 import { AppError } from '../common/errors/app-error.js';
+import { fileNameFromTitle } from './test-rules.js';
 
 export type ExtensionKind = 'TEST' | 'STUDENT' | 'TEACHER';
 export type SubmitterRole = 'STUDENT' | 'TEACHER';
@@ -207,11 +208,29 @@ export function answerWindow(opensAt: Date, deadline: Date, now: Date): AnswerWi
 
 /** Neutral name of an answer page (no student, school or file name): page-3.jpg. */
 export function answerPageName(pageNumber: number, mimeType: string): string {
-  const ext = mimeType === 'application/pdf' ? 'pdf'
+  return `page-${pageNumber}.${answerExtension(mimeType)}`;
+}
+
+function answerExtension(mimeType: string): string {
+  return mimeType === 'application/pdf' ? 'pdf'
     : mimeType === 'image/jpeg' ? 'jpg'
     : mimeType.startsWith('image/') ? mimeType.slice(6).replace(/[^a-z0-9]/g, '') || 'img'
     : 'bin';
-  return `page-${pageNumber}.${ext}`;
+}
+
+/** Who wrote the sheet and for which test — for the people who may see the student's identity. */
+export interface SheetNaming { studentName: string; testTitle: string; pageCount: number }
+
+/**
+ * An answer sheet's name (owner 2026-11-23): the student's full name and the test's title — "Aline Uwase - Junior
+ * Mathematics Competition.pdf"; with several pages, " - page 2" is added. For the student, their teachers and staff
+ * (who see the identity anyway). Never for markers: marking is blind, they keep answerPageName (page-2.jpg).
+ * Characters a file name cannot hold are removed (fileNameFromTitle); without a usable name: page-N as before.
+ */
+export function answerSheetName(pageNumber: number, mimeType: string, naming: SheetNaming): string {
+  const base = fileNameFromTitle(`${naming.studentName.trim()} - ${naming.testTitle.trim()}`.replace(/^ - | - $/g, ''));
+  if (!base) return answerPageName(pageNumber, mimeType);
+  return `${base}${naming.pageCount > 1 ? ` - page ${pageNumber}` : ''}.${answerExtension(mimeType)}`;
 }
 
 /** Opaque public code of a submission: 8 characters from an unambiguous alphabet, as XXXX-XXXX. No identity in it. */

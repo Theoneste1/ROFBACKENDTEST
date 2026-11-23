@@ -4,7 +4,7 @@ import { validateSync } from 'class-validator';
 import { AppError } from '../common/errors/app-error.js';
 import { CreateTestExtensionDto, SubmitTestAnswerDto } from './dto/submission.dto.js';
 import {
-  CODE_ALPHABET, MAX_ANSWER_PAGES, answerPageName, answerWindow, applicableDeadline, assertAnswerFormat, assertBeforeDeadline,
+  CODE_ALPHABET, MAX_ANSWER_PAGES, answerPageName, answerSheetName, answerWindow, applicableDeadline, assertAnswerFormat, assertBeforeDeadline,
   assertEligible, assertPagesComplete, assertUploadsAllowed, beforeDeadline, divisionMatches, ALL_DIVISIONS, levelOf, levelWhere, eligibilityProblems,
   formatPublicCode, lockedFieldsIn, trackingState, type ExtensionLike,
 } from './submission-rules.js';
@@ -190,6 +190,12 @@ describe('Test Management rules (WS3, Phase 2)', () => {
       expect(answerPageName(1, 'application/pdf')).toBe('page-1.pdf');
       expect(answerPageName(2, 'image/png')).toBe('page-2.png');
       expect(answerPageName(4, 'image/heic')).toBe('page-4.heic');
+      // The answer sheet (owner 2026-11-23): the student's full name and the test's title; a page number only with several pages.
+      const n = (studentName: string, testTitle: string, pageCount: number) => ({ studentName, testTitle, pageCount });
+      expect(answerSheetName(1, 'application/pdf', n('Aline Uwase', 'Junior Mathematics Competition', 1))).toBe('Aline Uwase - Junior Mathematics Competition.pdf');
+      expect(answerSheetName(2, 'image/jpeg', n('Aline Uwase', 'Junior Mathematics Competition', 3))).toBe('Aline Uwase - Junior Mathematics Competition - page 2.jpg');
+      expect(answerSheetName(1, 'image/png', n('Jean-Paul Habimana', 'Algebra: part 1/2 "final"?', 1))).toBe('Jean-Paul Habimana - Algebra part 1 2 final.png');
+      expect(answerSheetName(1, 'application/pdf', n('  ', '  ', 1))).toBe('page-1.pdf');
     });
     it('the public code is 8 unambiguous characters, XXXX-XXXX', () => {
       const code = formatPublicCode([0, 1, 2, 3, 4, 5, 6, 30]);
