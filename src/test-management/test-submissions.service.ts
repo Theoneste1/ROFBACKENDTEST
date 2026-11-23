@@ -496,7 +496,7 @@ export class TestSubmissionsService {
     if (test.opensAt.getTime() > now.getTime()) throw new AppError(HttpStatus.CONFLICT, 'TEST_NOT_OPEN', 'This test has not opened yet.', { opensAt: test.opensAt.toISOString() });
     const paper = test.files[0]?.file;
     if (!paper) throw new AppError(HttpStatus.NOT_FOUND, 'TEST_FILE_NOT_FOUND', 'This test has no paper.');
-    await this.storage.send(res, { ...paper, originalName: neutralFileName('PAPER', paper.storageKey) }, { download });
+    await this.storage.send(res, { ...paper, originalName: neutralFileName('PAPER', paper.storageKey, test.title) }, { download });
   }
 
   // ── Administrators and Head Coaches: tracking and every version ────────────────
@@ -680,7 +680,7 @@ export class TestSubmissionsService {
         maxMarks: test.maxMarks, opensAt: test.opensAt, deadline: deadline.deadline, window,
         hasPaper: opened && test.files.length > 0,
         paper: opened && test.files[0]
-          ? { name: neutralFileName('PAPER', test.files[0].file.storageKey), mimeType: test.files[0].file.mimeType, size: test.files[0].file.size }
+          ? { name: neutralFileName('PAPER', test.files[0].file.storageKey, test.title), mimeType: test.files[0].file.mimeType, size: test.files[0].file.size }
           : null,
         questions: opened ? test.questions : [],
       },

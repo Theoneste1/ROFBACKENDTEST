@@ -196,7 +196,7 @@ export class TestMarkerService {
       where: { testId_kind: { testId: ctx.test.id, kind } }, select: { file: { select: { storageKey: true, mimeType: true, size: true } } },
     });
     if (!link) throw new AppError(HttpStatus.NOT_FOUND, 'TEST_FILE_NOT_FOUND', 'This test has no such file.');
-    await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey) }, { download });
+    await this.storage.send(res, { ...link.file, originalName: neutralFileName(kind, link.file.storageKey, ctx.test.title) }, { download });
   }
 
   // ── Drafts and submitting for approval ─────────────────────────────────────────
@@ -333,7 +333,7 @@ export class TestMarkerService {
     ]);
     const file = (kind: 'PAPER' | 'MARKING_GUIDE') => {
       const f = files.find((x) => x.kind === kind)?.file;
-      return f ? { name: neutralFileName(kind, f.storageKey), mimeType: f.mimeType, size: f.size } : null;
+      return f ? { name: neutralFileName(kind, f.storageKey, ctx.test.title), mimeType: f.mimeType, size: f.size } : null;
     };
     const state = queueState(marking?.status);
     const editable = ['ASSIGNED', 'MARKING_IN_PROGRESS', 'RETURNED', 'AWAITING_SECOND_MARKING'].includes(ctx.status)
