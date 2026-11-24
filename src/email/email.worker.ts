@@ -16,6 +16,13 @@
  * invalid address) fail at once. Each delivery's id is sent to Resend as an
  * idempotency key, so a crash between sending and recording cannot send twice. Bulk-job counters are recomputed from the
  * delivery rows (never incremented), so retries cannot double-count.
+ *
+ * Resend Free plan (docs/EMAIL.md §10): rows are claimed in priority order (CRITICAL, NORMAL, BULK) and only as many as
+ * the budget (UTC calendar day, rolling 31 days) lets each priority send (EmailBudgetService, under the shared budget lock). When the
+ * budget is used up nothing is claimed — rows stay PENDING, attempts untouched — and when not even a CRITICAL e-mail may
+ * go, the worker sleeps until the next slot (just after 00:00 UTC, or when the 31-day window frees one). Account e-mails with a one-time link are checked just
+ * before sending (and swept every minute): a dead link is DISCARDED, never sent. Rows queued before priorities existed
+ * are classified first (src/email/email-links.ts).
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -27,8 +34,13 @@ import { MailerService } from './mailer.service.js';
 import { loadEmailBrand } from './email-brand.js';
 import { renderEmail, type EmailBrand } from './templates.js';
 import { greetingFor, listUnsubscribeHeaders, unsubscribeLinks } from '../subscribers/subscriber-rules.js';
+import { EmailBudgetService } from './email-budget.service.js';
+import { LINK_KINDS, LINK_TTL_MS, PRIORITIES } from './email-kinds.js';
+import { DiscardReasons, classifyLegacyRows, deadLinkReason, discardDelivery, isLinkKind, refreshResetLink } from './email-links.js';
 
 export const MAX_ATTEMPTS = 5;
+/** How often the queued link e-mails are swept for dead links (also checked one by one just before sending). */
+export const LINK_SWEEP_MS = 60_000;
 
 interface ClaimedDelivery {
   id:             string;
@@ -39,6 +51,11 @@ interface ClaimedDelivery {
   html:           string | null;
   attempts:       number;
   subscriberId:   string | null;
+  kind:           string | null;
+  recipientId:    string | null;
+  linkExpiresAt:  Date | null;
+  linkTokenId:    string | null;
+  createdAt:      Date;
 }
 
 interface SubscriberOfDelivery {
@@ -51,8 +68,11 @@ interface SubscriberOfDelivery {
 export class EmailWorker {
   private readonly logger = new Logger(EmailWorker.name);
   private running = false;
-  /** Sending is paused until this time after a provider-limit answer (per instance). */
+  /** Sending is paused until this time after a provider-limit answer (per instance; deferred rows also keep it as nextAttemptAt). */
   private pausedUntil = 0;
+  /** Not even a CRITICAL e-mail fits the budget before this time: no claim is tried until then (per instance). */
+  private budgetWaitUntil = 0;
+  private lastLinkSweep = 0;
 
   /** Whether a provider limit currently pauses sending on this instance. */
   get paused(): boolean {
@@ -64,7 +84,19 @@ export class EmailWorker {
     private readonly mailer:   MailerService,
     private readonly config:   ConfigService,
     private readonly settings: SettingsService,
+    private readonly budget:   EmailBudgetService,
   ) {}
+
+  /** When this instance next tries to claim, if the budget is used up (null: not waiting). */
+  get budgetWait(): Date | null {
+    return this.budgetWaitUntil > Date.now() ? new Date(this.budgetWaitUntil) : null;
+  }
+
+  /** Forget the budget wait (an administrator re-queued e-mails; tests). The budget is still checked on the next claim. */
+  wakeUp() {
+    this.budgetWaitUntil = 0;
+    this.lastLinkSweep = 0;
+  }
 
   @Interval('email-outbox', 10_000)
   async tick() {
@@ -85,24 +117,12 @@ export class EmailWorker {
 
   /** Claim and send one batch. Returns the number of deliveries processed. */
   async processBatch(): Promise<number> {
-    if (this.paused) return 0;
-    // The timestamps are TIMESTAMP WITHOUT TIME ZONE written in UTC by Prisma, so "now" is taken in
-    // UTC explicitly: comparing with NOW() would shift every back-off, pause and lock expiry by the
-    // database's TimeZone offset (on a UTC+2 server a delivery deferred by 1 h would count as due).
-    const claimed = await this.prisma.$queryRaw<ClaimedDelivery[]>`
-      UPDATE "EmailDelivery" d
-      SET "lockedAt" = (NOW() AT TIME ZONE 'UTC'), "attempts" = d."attempts" + 1
-      WHERE d."id" IN (
-        SELECT "id" FROM "EmailDelivery"
-        WHERE "status" = 'PENDING'
-          AND "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC')
-          AND ("lockedAt" IS NULL OR "lockedAt" < (NOW() AT TIME ZONE 'UTC') - INTERVAL '5 minutes')
-        ORDER BY "createdAt" ASC
-        LIMIT ${this.mailer.batchSize}
-        FOR UPDATE SKIP LOCKED
-      )
-      RETURNING d."id", d."jobId", d."recipientEmail", d."subject", d."body", d."html", d."attempts", d."subscriberId"`;
+    // Rows queued before priorities existed get their kind, priority and link expiry first (none after the first run).
+    await classifyLegacyRows(this.prisma);
+    if (Date.now() - this.lastLinkSweep >= LINK_SWEEP_MS) await this.sweepDeadLinks();
+    if (this.paused || Date.now() < this.budgetWaitUntil) return 0;
 
+    const claimed = await this.claim();
     if (claimed.length === 0) return 0;
 
     // Bulk-job deliveries take subject/body from their job.
@@ -135,6 +155,65 @@ export class EmailWorker {
 
     for (const jobId of jobIds) await this.refreshJob(jobId);
     return claimed.length;
+  }
+
+  /**
+   * Claim due PENDING rows in priority order, each priority only up to the budget it may still use (under the budget
+   * lock, so concurrent workers and the decision sender never share out the same slot). Claiming spends an attempt;
+   * deferring gives it back.
+   */
+  private claim(): Promise<ClaimedDelivery[]> {
+    return this.budget.withBudgetLock(async (tx, snapshot) => {
+      const claimed: ClaimedDelivery[] = [];
+      for (const priority of PRIORITIES) {
+        const take = Math.min(this.budget.room(snapshot, priority) - claimed.length, this.mailer.batchSize - claimed.length);
+        if (take <= 0) continue;
+        // The timestamps are TIMESTAMP WITHOUT TIME ZONE written in UTC by Prisma, so "now" is taken in
+        // UTC explicitly: comparing with NOW() would shift every back-off, pause and lock expiry by the
+        // database's TimeZone offset (on a UTC+2 server a delivery deferred by 1 h would count as due).
+        claimed.push(...await tx.$queryRaw<ClaimedDelivery[]>`
+          UPDATE "EmailDelivery" d
+          SET "lockedAt" = (NOW() AT TIME ZONE 'UTC'), "attempts" = d."attempts" + 1
+          WHERE d."id" IN (
+            SELECT "id" FROM "EmailDelivery"
+            WHERE "status" = 'PENDING'
+              AND "priority" = ${priority}::"EmailPriority"
+              AND "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC')
+              AND ("lockedAt" IS NULL OR "lockedAt" < (NOW() AT TIME ZONE 'UTC') - INTERVAL '5 minutes')
+            ORDER BY "createdAt" ASC
+            LIMIT ${take}
+            FOR UPDATE SKIP LOCKED
+          )
+          RETURNING d."id", d."jobId", d."recipientEmail", d."subject", d."body", d."html", d."attempts", d."subscriberId",
+                    d."kind", d."recipientId", d."linkExpiresAt", d."linkTokenId", d."createdAt"`);
+      }
+      if (claimed.length === 0 && this.budget.room(snapshot, 'CRITICAL') === 0) {
+        // Nothing at all may be sent before the next slot frees: sleep until then (no polling meanwhile).
+        const next = await this.budget.nextFreeAt(snapshot, 'CRITICAL', tx);
+        this.budgetWaitUntil = next?.getTime() ?? 0;
+        if (next) this.logger.warn(`E-mail budget used up (${snapshot.usedDay} today UTC, ${snapshot.usedMonth} in 31 days); next slot ${next.toISOString()}.`);
+      }
+      return claimed;
+    });
+  }
+
+  /** Discard queued link e-mails whose link is already dead (every LINK_SWEEP_MS; keeps the waiting count honest). */
+  async sweepDeadLinks(now = new Date()): Promise<number> {
+    this.lastLinkSweep = Date.now();
+    const rows = await this.prisma.emailDelivery.findMany({
+      where:  {
+        status: 'PENDING', kind: { in: [...LINK_KINDS] },
+        OR: [{ lockedAt: null }, { lockedAt: { lt: new Date(now.getTime() - 5 * 60_000) } }],
+      },
+      select: { id: true, kind: true, recipientId: true, linkExpiresAt: true, linkTokenId: true, createdAt: true },
+      orderBy: { createdAt: 'asc' }, take: 500,
+    });
+    let discarded = 0;
+    for (const row of rows) {
+      const reason = await deadLinkReason(this.prisma, row, now);
+      if (reason && await discardDelivery(this.prisma, row.id, reason, now)) discarded++;
+    }
+    return discarded;
   }
 
   /**
@@ -176,12 +255,25 @@ export class EmailWorker {
     // Paused by a limit met earlier in this batch: back to the queue, attempt not spent.
     if (this.paused) return this.defer(d, this.pausedUntil, null);
 
+    // Never send a dead link: checked again right before sending (the link may have died while the e-mail waited).
+    if (isLinkKind(d.kind)) {
+      const dead = await deadLinkReason(this.prisma, d);
+      // A reset link's 30 minutes start now, when it is sent (email-links.ts refreshResetLink).
+      const usable = !dead && await refreshResetLink(this.prisma, d, LINK_TTL_MS.PASSWORD_RESET!);
+      if (dead || !usable) {
+        await discardDelivery(this.prisma, d.id, dead ?? (await deadLinkReason(this.prisma, d)) ?? DiscardReasons.resetExpired);
+        return;
+      }
+    }
+
     const result = await this.mailer.sendOne({
       to: d.recipientEmail, subject, text: body, html, idempotencyKey: `email-delivery/${d.id}`, ...(headers && { headers }),
     });
 
     if (result.deferMs) {
-      this.pausedUntil = Math.max(this.pausedUntil, Date.now() + result.deferMs);
+      // Daily quota: until just after 00:00 UTC; monthly: 12-24 h; rate limit: 60 s.
+      const until = await this.budget.pauseForProvider(result.limit ?? 'DAILY_QUOTA', result.error).catch(() => new Date(Date.now() + result.deferMs!));
+      this.pausedUntil = Math.max(this.pausedUntil, until.getTime());
       return this.defer(d, this.pausedUntil, result.error);
     }
 
@@ -192,17 +284,23 @@ export class EmailWorker {
         // activation): their text is not kept once delivered.
         data:  { status: 'SENT', messageId: result.messageId, errorMessage: null, lockedAt: null, attemptedAt: new Date(), ...(!d.jobId && { body: null, html: null }) },
       });
+      await this.budget.providerAccepted();
       return;
     }
 
     const giveUp = result.permanent || d.attempts >= MAX_ATTEMPTS;
     const backoffMs = 60_000 * 2 ** (d.attempts - 1);
+    // A plain reason for administrators on the final failure; the provider's answer is kept after it.
+    const error = result.error ?? 'The e-mail provider did not accept the e-mail.';
+    const message = !giveUp ? error
+      : result.permanent ? `Not sent: the e-mail provider refused this e-mail (check the address). ${error}`
+      : `Not sent after ${MAX_ATTEMPTS} attempts. Last error: ${error}`;
     await this.prisma.emailDelivery.update({
       where: { id: d.id },
       data: {
         status:        giveUp ? 'FAILED' : 'PENDING',
         ...(giveUp && !d.jobId && { body: null, html: null }),
-        errorMessage:  result.error?.slice(0, 1000),
+        errorMessage:  message.slice(0, 1000),
         lockedAt:      null,
         attemptedAt:   new Date(),
         nextAttemptAt: new Date(Date.now() + backoffMs),

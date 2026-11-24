@@ -35,7 +35,7 @@ export class AccountEmailsService {
             ? 'An administrator will review your registration. We will e-mail you as soon as it is approved, and you can then log in.'
             : 'You can now log in to follow your courses, submit assignments and see your results.'),
         {
-          firstName: user.firstName, recipientId: user.id, heading: `Welcome, ${user.firstName}!`,
+          firstName: user.firstName, recipientId: user.id, heading: `Welcome, ${user.firstName}!`, kind: 'WELCOME',
           ...(!pending && { link: '/login', actionLabel: 'Log in' }),
         },
       );
@@ -51,7 +51,7 @@ export class AccountEmailsService {
         user.email,
         'Your account has been approved',
         `Good news: your registration has been approved. You can now log in with the username "${user.username}".`,
-        { firstName: user.firstName, recipientId: user.id, link: '/login', actionLabel: 'Log in' },
+        { firstName: user.firstName, recipientId: user.id, link: '/login', actionLabel: 'Log in', kind: 'ACCOUNT_APPROVED' },
       );
     });
   }
@@ -67,7 +67,7 @@ export class AccountEmailsService {
         `The password of your account "${user.username}" was just changed, and you have been signed out on your other devices.\n\n` +
           'If you made this change, there is nothing else to do.',
         {
-          firstName: user.firstName, recipientId: user.id, link: '/forgot-password', actionLabel: 'I did not do this — reset my password',
+          firstName: user.firstName, recipientId: user.id, link: '/forgot-password', actionLabel: 'I did not do this — reset my password', kind: 'PASSWORD_CHANGED',
           note: 'If you did not change your password, reset it now with the button above and tell us by replying to this e-mail.',
         },
       );
@@ -93,7 +93,7 @@ export class AccountEmailsService {
             (change.actorUsername ? ` by "${change.actorUsername}"` : ' (operator command)') + '.' +
             (change.reason ? `\n\nReason recorded: ${change.reason}` : '') +
             '\n\nIf you did not expect this change, review the audit log immediately.',
-          { firstName: r.firstName, recipientId: r.id, link: '/admin/audit', actionLabel: 'Open the audit log' },
+          { firstName: r.firstName, recipientId: r.id, link: '/admin/audit', actionLabel: 'Open the audit log', kind: 'SECURITY_NOTICE' },
         );
       }
     });

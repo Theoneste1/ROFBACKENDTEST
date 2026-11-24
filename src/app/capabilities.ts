@@ -350,6 +350,15 @@ export const FEATURES = {
    */
   viewAs: 'always',
   /**
+   * E-mail within the Resend Free plan (owner 2026-11-24: 100 a day, 3,000 a month): every e-mail counts against a budget per
+   * UTC calendar day and per rolling 31 days, with a safety margin (95 / 2,900 by default; 0 = no limit), sent most urgent first (CRITICAL > NORMAL > BULK,
+   * part of each day kept for CRITICAL); account e-mails whose one-time link died while waiting are DISCARDED, never sent.
+   * GET /admin/email/usage (email.bulkSend): used and remaining, next free slot, waiting by priority, failed, discarded
+   * (reasons), paused and why, dry run; POST /admin/email/usage/recover re-queues e-mails that failed only because of the
+   * provider's limit. Deliveries can have the status DISCARDED.
+   */
+  emailBudget: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

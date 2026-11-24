@@ -348,6 +348,24 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/email/usage",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/email/usage/recover",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Email"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/email/users",
     "roles": [
       "ADMIN",

@@ -35,6 +35,7 @@ import { LOGIN_FAILURES_BEFORE_LOCK, LOGIN_LOCK_MS, LoginLimiter } from './login
 import type { CallerCtx } from '../common/auth-user.js';
 import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
 import { settleSchoolCode } from '../schools/school-code-at-registration.js';
+import { DiscardReasons } from '../email/email-links.js';
 
 export const BCRYPT_COST = 12;
 
@@ -467,19 +468,22 @@ export class AuthService {
     });
 
     const token = randomBytes(32).toString('base64url');
-    await this.prisma.$transaction([
+    const [, created] = await this.prisma.$transaction([
       // Only the newest link works: earlier unused ones are retired.
       this.prisma.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } }),
       this.prisma.passwordResetToken.create({
         data: { userId: user.id, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
+        select: { id: true, expiresAt: true },
       }),
     ]);
+    // Their e-mails still waiting for the daily e-mail budget are dropped: only the newest link is sent.
+    await this.notifications.supersedePendingLinks(user.id, ['PASSWORD_RESET'], DiscardReasons.resetReplaced);
     await this.notifications.queueEmail(
       user.email,
       'Reset your password',
       'We received a request to reset the password of your account. Click the button below to choose a new password.',
       {
-        firstName: user.firstName, recipientId: user.id,
+        firstName: user.firstName, recipientId: user.id, kind: 'PASSWORD_RESET', linkTokenId: created.id, linkExpiresAt: created.expiresAt,
         link: `/reset-password?token=${encodeURIComponent(token)}`, actionLabel: 'Reset my password',
         note: 'This link is valid for 30 minutes and can be used once. If you did not ask for a new password, ' +
           'you can ignore this e-mail: your password will not change.',

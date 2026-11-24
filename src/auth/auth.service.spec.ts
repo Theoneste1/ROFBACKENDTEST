@@ -22,7 +22,7 @@ function makeMocks() {
     mentorRequest:      { findFirst: vi.fn().mockResolvedValue(null) },
     teacherApplication: { findFirst: vi.fn().mockResolvedValue(null) },
     passwordResetToken: {
-      create:     vi.fn(),
+      create:     vi.fn().mockResolvedValue({ id: 'prt1', expiresAt: new Date(Date.now() + 30 * 60_000) }),
       findUnique: vi.fn().mockResolvedValue(null),
       updateMany: vi.fn(),
     },
@@ -75,7 +75,7 @@ function makeMocks() {
   const audit         = { log: vi.fn() };
   const settings      = { get: vi.fn() };
   const divisions     = { idForGrade: vi.fn().mockResolvedValue('div-junior') };
-  const notifications = { queueEmail: vi.fn() };
+  const notifications = { queueEmail: vi.fn(), supersedePendingLinks: vi.fn().mockResolvedValue(0) };
   const academicYears = { enrollInCurrentYear: vi.fn().mockResolvedValue({ id: 'enr1' }) };
   const activity      = { record: vi.fn() };
   const issued        = { token: 't', expiresAt: new Date(), purpose: 'EMAIL_VERIFICATION', userId: 'u-new', email: 'a@x.rw', firstName: 'A' };
@@ -393,6 +393,9 @@ describe('AuthService', () => {
       // Earlier unused links stop working.
       expect(prisma.passwordResetToken.updateMany.mock.calls[0][0]).toMatchObject({ where: { userId: 'u1', usedAt: null } });
       expect(stored.tokenHash).not.toBe(token);
+      // Resend Free plan: older reset e-mails still waiting are dropped; the new one records its token and expiry.
+      expect(notifications.supersedePendingLinks).toHaveBeenCalledWith('u1', ['PASSWORD_RESET'], expect.stringContaining('newer password-reset link'));
+      expect(opts).toMatchObject({ kind: 'PASSWORD_RESET', linkTokenId: 'prt1', linkExpiresAt: expect.any(Date) });
     });
   });
 

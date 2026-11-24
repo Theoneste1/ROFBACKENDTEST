@@ -372,7 +372,13 @@ const VIEW_AS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-view-as.json';
  * Integration of the 2026-11-23 branches (audit 2026-11-24): every branch above together. Breaking and review: none.
  */
 const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.json';
-const CURRENT_SNAPSHOT = INTEGRATION_SNAPSHOT;
+/**
+ * E-mail within the Resend Free plan (owner, 2026-11-24): the sending budget (GET /admin/email/usage) and the recovery of
+ * e-mails that failed only because of the provider's limit (POST /admin/email/usage/recover). Additive only against the
+ * integration snapshot.
+ */
+const EMAIL_BUDGET_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-email-budget.json';
+const CURRENT_SNAPSHOT = EMAIL_BUDGET_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1982,6 +1988,18 @@ describe('approved API contract history', () => {
       const own = compare(base, JSON.parse(readFileSync(branch, 'utf8'))).additive;
       assert.deepEqual([branch, own.filter((a) => !res.additive.includes(a))], [branch, []]);
     }
+  });
+
+  test('integration (2026-11-24) → e-mail within the Resend Free plan (2026-11-24): additive only — two operations', () => {
+    for (const f of [INTEGRATION_SNAPSHOT, EMAIL_BUDGET_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(INTEGRATION_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(EMAIL_BUDGET_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/email/usage: operation added',
+      'POST /api/v1/admin/email/usage/recover: operation added',
+    ]);
   });
 
   test('teacher self-service → divisions, Olympiad levels, course offerings, the profile overview, custom reports and table layouts (2026-11-22): additive only — each change listed', () => {

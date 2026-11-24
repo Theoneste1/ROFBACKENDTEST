@@ -138,6 +138,8 @@ export class EmailService {
               jobId:          created.id,
               recipientEmail: r.email,
               recipientId:    r.id,
+              kind:           'BULK_EMAIL',
+              priority:       'BULK' as const,
             })),
           });
         }
@@ -212,12 +214,13 @@ export class EmailService {
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
         select: {
           id: true, jobId: true, recipientEmail: true, recipientId: true, subject: true, status: true,
-          attempts: true, errorMessage: true, attemptedAt: true, createdAt: true,
+          attempts: true, errorMessage: true, attemptedAt: true, createdAt: true, priority: true, kind: true,
         },
       }),
       this.prisma.emailDelivery.count({ where }),
     ]);
-    return paginated(rows.map((r) => ({ ...r, kind: r.jobId ? 'BULK' : 'TRANSACTIONAL' })), total, page, limit);
+    // kind: TRANSACTIONAL / BULK (as before); emailKind: what the e-mail is (PASSWORD_RESET, WELCOME…, null before 2026-11-24).
+    return paginated(rows.map(({ kind, ...r }) => ({ ...r, emailKind: kind, kind: r.jobId ? 'BULK' : 'TRANSACTIONAL' })), total, page, limit);
   }
 
   /** Re-queue one FAILED delivery; its job's counters are refreshed. Conditional, so a double click re-queues once. */

@@ -1314,6 +1314,49 @@
           }
         },
         {
+          "name": "GET /admin/email/usage",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/email/usage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "email",
+                "usage"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/email/usage/recover",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/email/usage/recover",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "email",
+                "usage",
+                "recover"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "GET /admin/email/users",
           "request": {
             "method": "GET",

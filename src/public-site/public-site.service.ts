@@ -126,7 +126,7 @@ export class PublicSiteService {
         supportEmail,
         `Contact form: ${dto.subject}`,
         [`New message from the website contact form.`, '', `From: ${dto.fullName} <${dto.email}>`, `Subject: ${dto.subject}`, '', dto.message].join('\n'),
-        { link: '/admin/messages' },
+        { link: '/admin/messages', kind: 'CONTACT_FORM' },
       );
     }
     return { received: true, id: saved.id, notification };

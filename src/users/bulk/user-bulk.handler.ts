@@ -246,7 +246,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     if (action === 'message') {
       if (user.accountStatus !== 'ACTIVE' || !user.email) return { outcome: 'SKIPPED', code: 'ACCOUNT_NOT_ACTIVE', message: 'Only active accounts are e-mailed.' };
       // The outbox row is written in this transaction: a cancelled or rolled-back item never sends anything.
-      await tx.emailDelivery.create({ data: { jobId: op.emailJobId!, recipientEmail: user.email, recipientId: user.id } });
+      await tx.emailDelivery.create({ data: { jobId: op.emailJobId!, recipientEmail: user.email, recipientId: user.id, kind: 'BULK_EMAIL', priority: 'BULK' } });
       return { outcome: 'SUCCEEDED' };
     }
     if (action === 'setOlympiadLevel') {

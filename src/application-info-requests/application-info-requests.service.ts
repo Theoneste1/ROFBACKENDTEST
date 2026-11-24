@@ -77,7 +77,7 @@ export class ApplicationInfoRequestsService {
       `Thank you for applying to join the Rwanda Olympiad Foundation platform as a ${LABEL[kind]}.\n\n` +
         `Before we can decide on your application, an administrator needs some more information:\n\n` +
         `"${question}"\n\nPlease answer through the link below within 14 days. Your application stays open until then.`,
-      { firstName: app.row.firstName, link: `/applications/respond?token=${encodeURIComponent(token)}`, actionLabel: 'Answer the question' },
+      { firstName: app.row.firstName, link: `/applications/respond?token=${encodeURIComponent(token)}`, actionLabel: 'Answer the question', kind: 'APPLICATION_INFO_REQUEST' },
     );
     return app.created;
   }

@@ -14,6 +14,7 @@ import { EmailWorker, MAX_ATTEMPTS } from '../src/email/email.worker.js';
 import { MailerService } from '../src/email/mailer.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { SettingsService } from '../src/settings/settings.service.js';
+import { EmailBudgetService } from '../src/email/email-budget.service.js';
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
 interface Received { to: string[]; subject: string; text: string; html: string; from: string; replyTo: string | null; key: string | null }
@@ -298,7 +299,7 @@ describe('E-mail delivery through Resend (e2e)', () => {
   // ── Provider limits under stress ──────────────────────────────────────────────────────────────
   /** A worker as after a process restart: a fresh instance (no in-memory pause), same services. */
   const restartedWorker = () => new EmailWorker(
-    ctx.app.get(PrismaService), ctx.app.get(MailerService), ctx.app.get(ConfigService), ctx.app.get(SettingsService),
+    ctx.app.get(PrismaService), ctx.app.get(MailerService), ctx.app.get(ConfigService), ctx.app.get(SettingsService), ctx.app.get(EmailBudgetService),
   );
   const pauseOver = async (w: EmailWorker, ids: string[]) => {
     (w as unknown as { pausedUntil: number }).pausedUntil = 0;
@@ -357,9 +358,11 @@ describe('E-mail delivery through Resend (e2e)', () => {
 
   it('a per-second rate limit (429) pauses sending for 60 s; the rest of the batch is not even tried; then each is sent once', async () => {
     limit = 'rate_limit_exceeded'; limitBudget = Number.POSITIVE_INFINITY; limited = 0;
-    // More than one in-flight group (the worker sends 5 at a time): 8 queued reset e-mails.
+    // More than one in-flight group (the worker sends 5 at a time): 8 queued e-mails — a reset link for each of four
+    // accounts (a second request would replace the first, email-free-plan) and four notices.
     for (const email of ['mentor.j@test.local', 'student.s@test.local', 'mentor.j2@test.local', 'student.j@test.local']) {
-      for (let i = 0; i < 2; i++) await ctx.http().post('/api/v1/auth/forgot-password').send({ email }).expect(200);
+      await ctx.http().post('/api/v1/auth/forgot-password').send({ email }).expect(200);
+      await ctx.prisma.emailDelivery.create({ data: { recipientEmail: email, subject: 'Rate-limit password notice', body: 'Hello', kind: 'NOTIFICATION', priority: 'NORMAL' } });
     }
     const rows = await ctx.prisma.emailDelivery.findMany({ where: { status: 'PENDING', jobId: null, subject: { contains: 'password' } } });
     expect(rows.length).toBeGreaterThanOrEqual(8);

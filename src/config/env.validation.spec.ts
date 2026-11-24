@@ -28,6 +28,15 @@ describe('validateEnv', () => {
     expect((env as Record<string, unknown>)['SOMETHING_ELSE']).toBe('kept');
   });
 
+  it('e-mail plan limits (Resend): numbers; 0 = no limit; empty = the default (never 0 = unlimited by accident); negative refused', () => {
+    const env = validateEnv(minimal({ EMAIL_DAILY_LIMIT: '0', EMAIL_MONTHLY_LIMIT: '50000', EMAIL_DAILY_SAFETY_MARGIN: '', EMAIL_BULK_SHARE_PERCENT: '40' })) as Record<string, unknown>;
+    expect(env).toMatchObject({ EMAIL_DAILY_LIMIT: 0, EMAIL_MONTHLY_LIMIT: 50000, EMAIL_BULK_SHARE_PERCENT: 40 });
+    expect(env.EMAIL_DAILY_SAFETY_MARGIN).toBeUndefined();
+    expect((validateEnv(minimal({ EMAIL_DAILY_LIMIT: '' })) as Record<string, unknown>).EMAIL_DAILY_LIMIT).toBeUndefined();
+    expect(() => validateEnv(minimal({ EMAIL_MONTHLY_LIMIT: '-1' }))).toThrow(/EMAIL_MONTHLY_LIMIT/);
+    expect(() => validateEnv(minimal({ EMAIL_NORMAL_SHARE_PERCENT: '120' }))).toThrow(/EMAIL_NORMAL_SHARE_PERCENT/);
+  });
+
   it('rejects a JWT_SECRET shorter than 32 characters', () => {
     expect(() => validateEnv(minimal({ JWT_SECRET: 'short' })))
       .toThrow('JWT_SECRET must be at least 32 characters.');

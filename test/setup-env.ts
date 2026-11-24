@@ -34,3 +34,8 @@ process.env.APP_URL         = 'http://localhost:5173';
 // variables that are MISSING from process.env with the values in .env (which
 // may hold a real Resend key); an empty value counts as "not set".
 for (const key of ['RESEND_API_KEY', 'RESEND_BASE_URL', 'EMAIL_REDIRECT_TO', 'EMAIL_FROM', 'EMAIL_REPLY_TO']) process.env[key] = '';
+// The Resend Free plan budget (95 a day by default, docs/EMAIL.md §10) is tested with its real defaults in
+// test/email-budget.e2e-spec.ts (which sets them itself); every other file sends far more than 95 e-mails a day in a few
+// seconds and is not about the budget, so it runs with a budget it never reaches.
+process.env.EMAIL_DAILY_LIMIT   = '1000000';
+process.env.EMAIL_MONTHLY_LIMIT = '30000000';

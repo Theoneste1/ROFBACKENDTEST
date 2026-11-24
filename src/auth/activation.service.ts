@@ -22,6 +22,7 @@ import { AccountEmailsService } from '../notifications/account-emails.service.js
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import type { ActivationPurpose, Prisma } from '../generated/prisma/client.js';
 import { hashToken } from './token.service.js';
+import { DiscardReasons } from '../email/email-links.js';
 
 export const ACTIVATION_TTL_MS: Record<ActivationPurpose, number> = {
   INVITATION:         7 * 24 * 60 * 60 * 1000,
@@ -34,6 +35,8 @@ type Tx = Prisma.TransactionClient;
 
 export interface IssuedActivation {
   token:     string;
+  /** The AccountActivationToken row (the e-mail records it, so a dead link is never sent). */
+  tokenId?:  string;
   expiresAt: Date;
   purpose:   ActivationPurpose;
   userId:    string;
@@ -69,17 +72,21 @@ export class ActivationService {
 
     const token     = randomBytes(32).toString('base64url');
     const expiresAt = new Date(now.getTime() + ACTIVATION_TTL_MS[purpose]);
-    await tx.accountActivationToken.create({
+    const created = await tx.accountActivationToken.create({
       data: { userId, purpose, tokenHash: hashToken(token), expiresAt, createdById },
+      select: { id: true },
     });
 
-    return { token, expiresAt, purpose, userId: user.id, email: user.email, firstName: user.firstName };
+    return { token, tokenId: created.id, expiresAt, purpose, userId: user.id, email: user.email, firstName: user.firstName };
   }
 
   /** Queue the activation e-mail (outbox). */
   async send(issued: IssuedActivation) {
     const invitation = issued.purpose === 'INVITATION';
     const link = `/activate?token=${encodeURIComponent(issued.token)}`;
+    // issue() revoked the older links: their e-mails still waiting for the e-mail budget are dropped.
+    await this.notifications.supersedePendingLinks(issued.userId, ['INVITATION', 'EMAIL_VERIFICATION'], DiscardReasons.linkReplaced);
+    const tracked = { kind: issued.purpose, linkExpiresAt: issued.expiresAt, ...(issued.tokenId && { linkTokenId: issued.tokenId }) };
     await this.notifications.queueEmail(
       issued.email,
       invitation ? 'Activate your account' : 'Confirm your e-mail address',
@@ -89,11 +96,11 @@ export class ActivationService {
         : 'Thank you for registering. Please confirm your e-mail address to activate your account.',
       invitation
         ? {
-            firstName: issued.firstName, recipientId: issued.userId, link, actionLabel: 'Activate my account',
+            firstName: issued.firstName, recipientId: issued.userId, link, actionLabel: 'Activate my account', ...tracked,
             note: 'This link is valid for 7 days and can be used once. If you were not expecting this invitation, you can ignore this e-mail.',
           }
         : {
-            firstName: issued.firstName, recipientId: issued.userId, link, actionLabel: 'Confirm my e-mail address',
+            firstName: issued.firstName, recipientId: issued.userId, link, actionLabel: 'Confirm my e-mail address', ...tracked,
             note: 'This link is valid for 48 hours and can be used once. If you did not create an account, you can ignore this e-mail.',
           },
     );

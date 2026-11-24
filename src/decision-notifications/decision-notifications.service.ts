@@ -16,7 +16,15 @@
  *                        and marks it SENT, or FAILED with a sanitised lastError and a backoff. Never throws.
  *   sweep()              the retry worker (WORKERS_ENABLED pattern, every 30 s): recovers rows left SENDING
  *                        past their lease (a crashed sender) and sends due PENDING / FAILED rows, at most
- *                        MAX_ATTEMPTS automatic attempts each. An Administrator can retry any FAILED row.
+ *                        MAX_ATTEMPTS automatic attempts each, most urgent first. An Administrator can retry any FAILED row.
+ *
+ * Resend Free plan (docs/EMAIL.md §10): these e-mails count against the same budget (UTC calendar day, rolling 31 days) as the
+ * EmailDelivery outbox (EmailBudgetService). Approvals and grants are CRITICAL, a results publication BULK, the rest
+ * NORMAL (email-kinds.ts decisionPriority). The claim is admitted under the shared budget lock; when the budget (or a
+ * provider pause) does not allow it the row stays PENDING — attempts untouched — until the moment a slot frees. A
+ * provider limit answer (429: daily / monthly quota, rate limit) is never a failure either: the row goes back to
+ * PENDING with its attempt given back and every sender pauses (before 2026-11-24 it was counted as a failed attempt,
+ * which lost seven approval notices in production; EmailBudgetService.recoverQuotaFailures re-queues such rows).
  *
  * Teacher-registration notices (owner decision 10): every notice about a teacher application (entity
  * TeacherApplication: teacher.application.approved, and school.request.verified for an applicant's missing
@@ -54,6 +62,8 @@ import {
   DecisionEvents, decisionEmail, decisionInApp, sanitiseError, type DecisionEventType, type DecisionPayload,
 } from './decision-content.js';
 import type { ListDeliveriesDto } from './dto/list-deliveries.dto.js';
+import { EmailBudgetService } from '../email/email-budget.service.js';
+import { PRIORITIES, decisionPriority } from '../email/email-kinds.js';
 
 /** Automatic attempts per row (the retry sweep stops after this; an Administrator can still retry). */
 export const MAX_ATTEMPTS = 5;
@@ -102,6 +112,7 @@ export class DecisionNotificationsService {
     private readonly config:        ConfigService,
     private readonly events:        EventEmitter2,
     private readonly audit:         AuditService,
+    private readonly budget:        EmailBudgetService,
   ) {}
 
   // ─── Inside the Administrator's transaction ────────────────────────────────
@@ -258,15 +269,28 @@ export class DecisionNotificationsService {
     await this.dispatch(e.id);
   }
 
-  /** Claim, render, send and record one row. Never throws. */
-  async dispatch(id: string): Promise<'SENT' | 'FAILED' | 'SKIPPED'> {
+  /**
+   * Claim, render, send and record one row. Never throws. DEFERRED: the e-mail budget or a provider pause holds it back —
+   * the row stays PENDING (attempts unchanged) until the time a slot frees.
+   */
+  async dispatch(id: string): Promise<'SENT' | 'FAILED' | 'SKIPPED' | 'DEFERRED'> {
     try {
-      // The claim: only one dispatcher can move the row to SENDING; SENT rows are never sent again.
-      const { count } = await this.prisma.notificationOutbox.updateMany({
+      const head = await this.prisma.notificationOutbox.findUnique({ where: { id }, select: { type: true, status: true } });
+      if (!head || !['PENDING', 'FAILED'].includes(head.status)) return 'SKIPPED';
+      // The claim, admitted by the shared e-mail budget: only one dispatcher can move the row to SENDING; SENT rows are
+      // never sent again.
+      const admission = await this.budget.admit(decisionPriority(head.type), async (tx) => (await tx.notificationOutbox.updateMany({
         where: { id, status: { in: ['PENDING', 'FAILED'] } },
         data:  { status: 'SENDING', attempts: { increment: 1 }, nextAttemptAt: new Date(Date.now() + SENDING_LEASE_MS) },
-      });
-      if (count === 0) return 'SKIPPED';
+      })).count > 0);
+      if (!admission.admitted) {
+        await this.prisma.notificationOutbox.updateMany({
+          where: { id, status: { in: ['PENDING', 'FAILED'] } },
+          data:  { status: 'PENDING', nextAttemptAt: admission.until },
+        });
+        return 'DEFERRED';
+      }
+      if (!admission.claimed) return 'SKIPPED';
       const row = await this.prisma.notificationOutbox.findUniqueOrThrow({ where: { id } });
 
       // Decision 10: a teacher-registration notice queued while self-registration was on is not e-mailed
@@ -302,7 +326,19 @@ export class DecisionNotificationsService {
           where: ours,
           data:  { status: 'SENT', sentAt: new Date(), lastError: null, nextAttemptAt: null },
         });
+        await this.budget.providerAccepted();
         return 'SENT';
+      }
+      // A provider limit (429) is not a failure: back to PENDING, the attempt given back, every sender paused.
+      if (result.deferMs) {
+        const until = await this.budget.pauseForProvider(result.limit ?? 'DAILY_QUOTA', sanitiseError(result.error ?? ''))
+          .catch(() => new Date(Date.now() + result.deferMs!));
+        await this.prisma.notificationOutbox.updateMany({
+          where: ours,
+          data:  { status: 'PENDING', attempts: Math.max(row.attempts - 1, 0), lastError: sanitiseError(result.error ?? 'Provider limit.'), nextAttemptAt: until },
+        });
+        this.logger.warn(`Decision notification ${row.type} deferred by a provider limit until ${until.toISOString()}.`);
+        return 'DEFERRED';
       }
       const giveUp = result.permanent || row.attempts >= MAX_ATTEMPTS;
       await this.prisma.notificationOutbox.updateMany({
@@ -347,15 +383,18 @@ export class DecisionNotificationsService {
       data:  { status: 'FAILED', lastError: 'Interrupted while sending.', nextAttemptAt: null },
     });
 
-    const due = await this.prisma.notificationOutbox.findMany({
+    const candidates = await this.prisma.notificationOutbox.findMany({
       where: {
         OR: [
           { status: 'PENDING', nextAttemptAt: { lte: now } },
           { status: 'FAILED', nextAttemptAt: { lte: now }, attempts: { lt: MAX_ATTEMPTS } },
         ],
       },
-      orderBy: { createdAt: 'asc' }, take: SWEEP_BATCH, select: { id: true },
+      orderBy: { createdAt: 'asc' }, take: SWEEP_BATCH * 4, select: { id: true, type: true },
     });
+    // Most urgent first (a stable sort keeps the oldest first within a priority).
+    const rank = (type: string) => PRIORITIES.indexOf(decisionPriority(type));
+    const due = [...candidates].sort((a, b) => rank(a.type) - rank(b.type)).slice(0, SWEEP_BATCH);
     let sent = 0;
     for (const { id } of due) if ((await this.dispatch(id)) === 'SENT') sent++;
     return { recovered: recoveredRetry.count + recoveredFinal.count, processed: due.length, sent };

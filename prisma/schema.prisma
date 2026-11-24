@@ -374,6 +374,19 @@ enum EmailDeliveryStatus {
   PENDING
   SENT
   FAILED
+  /// Not sent on purpose and never will be: its one-time link was dead before it could be sent (expired, already used,
+  /// replaced by a newer link, account already activated). errorMessage says why in plain words; body/html are cleared.
+  DISCARDED
+}
+
+/// Sending order and the share of the daily e-mail budget a queued e-mail may use (Resend Free plan, docs/EMAIL.md):
+/// CRITICAL (password reset, invitation, e-mail confirmation, security notices, application approvals) may use the whole
+/// budget; NORMAL (welcome, other notices) at most EMAIL_NORMAL_SHARE_PERCENT of it; BULK (bulk e-mails, mailings) at
+/// most EMAIL_BULK_SHARE_PERCENT. The rest is kept for CRITICAL.
+enum EmailPriority {
+  CRITICAL
+  NORMAL
+  BULK
 }
 
 /// What a stored file is used for. Drives size/type limits and access rules.
@@ -2174,6 +2187,8 @@ model NotificationOutbox {
   @@index([recipientUserId])
   @@index([type, createdAt])
   @@index([createdAt])
+  /// The sending budget (UTC day, rolling 31 days) counts SENT rows by sentAt.
+  @@index([status, sentAt])
 }
 
 /// One per admin bulk-send request.
@@ -2229,11 +2244,38 @@ model EmailDelivery {
   /// the List-Unsubscribe headers at send time, and never sends a mailing to someone who unsubscribed meanwhile.
   subscriberId   String?
   subscriber     Subscriber?         @relation(fields: [subscriberId], references: [id], onDelete: SetNull)
+  /// Sending order / budget share (email-free-plan). NULL only on rows queued before it: the worker fills it in.
+  priority       EmailPriority?
+  /// What the e-mail is (PASSWORD_RESET, INVITATION, EMAIL_VERIFICATION, WELCOME, BULK_EMAIL… — src/email/email-kinds.ts).
+  /// NULL only on rows queued before it: the worker derives it from the subject.
+  kind           String?
+  /// When the one-time link in the e-mail stops working (account e-mails with a link). Checked just before sending.
+  linkExpiresAt  DateTime?
+  /// The PasswordResetToken / AccountActivationToken the link belongs to (no foreign key: the token may be deleted).
+  linkTokenId    String?
 
   @@index([status, nextAttemptAt])
   @@index([jobId, status])
   @@index([recipientEmail])
   @@index([subscriberId])
+  /// The sending budget (UTC day, rolling 31 days) counts SENT rows by attemptedAt.
+  @@index([status, attemptedAt])
+  /// The worker claims due rows in priority order.
+  @@index([status, priority, nextAttemptAt])
+  /// A new password-reset or activation link supersedes the person's older unsent ones.
+  @@index([recipientId, status])
+}
+
+/// Shared e-mail sending state (one row per key; key "provider"): set when Resend answers with a quota or rate limit
+/// (429), so every API instance and the decision-notification sender pause until pausedUntil. Never holds secrets.
+model EmailSendingState {
+  key               String    @id
+  pausedUntil       DateTime?
+  /// DAILY_QUOTA, MONTHLY_QUOTA or RATE_LIMIT.
+  pauseReason       String?
+  /// The provider's answer, e.g. "Resend 429 daily_quota_exceeded: …" (no addresses, keys or tokens).
+  lastProviderError String?
+  updatedAt         DateTime  @updatedAt
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

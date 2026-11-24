@@ -14,6 +14,7 @@ function make(selfRegistration: { teachers?: boolean; selfSignup?: boolean } = {
       update:              vi.fn().mockResolvedValue({}),
       updateMany:          vi.fn().mockResolvedValue({ count: 1 }),
       findUniqueOrThrow:   vi.fn().mockResolvedValue({ ...ROW }),
+      findUnique:          vi.fn().mockResolvedValue({ type: ROW.type, status: 'PENDING' }),
       findMany:            vi.fn().mockResolvedValue([]),
     },
   };
@@ -23,8 +24,14 @@ function make(selfRegistration: { teachers?: boolean; selfSignup?: boolean } = {
   const config = { get: vi.fn((k: string) => (k === 'APP_URL' ? 'https://app.example.org' : k === 'TEACHERS_ENABLED' ? String(teachers) : undefined)) };
   const events = { emit: vi.fn() };
   const audit = { log: vi.fn() };
-  const service = new DecisionNotificationsService(prisma as any, notifications as any, mailer as any, settings as any, config as any, events as any, audit as any);
-  return { service, prisma, notifications, mailer, events };
+  // The e-mail budget (Resend Free plan): admits every claim here unless a test says otherwise.
+  const budget = {
+    admit: vi.fn(async (_priority: string, claim: (tx: unknown) => Promise<boolean>) => ({ admitted: true, claimed: await claim(prisma) })),
+    pauseForProvider: vi.fn(async () => new Date(Date.now() + 3_600_000)),
+    providerAccepted: vi.fn(async () => undefined),
+  };
+  const service = new DecisionNotificationsService(prisma as any, notifications as any, mailer as any, settings as any, config as any, events as any, audit as any, budget as any);
+  return { service, prisma, notifications, mailer, events, budget };
 }
 
 const EVENT = {
@@ -206,6 +213,35 @@ describe('DecisionNotificationsService', () => {
       await expect(service.dispatch('o1')).resolves.toBe('FAILED');
     });
 
+    it('a provider quota answer (429) is NOT a failure: back to PENDING, the attempt given back, sending paused (the bug that lost seven approvals)', async () => {
+      const { service, prisma, mailer, budget } = make();
+      prisma.notificationOutbox.findUniqueOrThrow.mockResolvedValue({ ...ROW, attempts: MAX_ATTEMPTS });
+      mailer.sendOne.mockResolvedValue({
+        accepted: false, messageId: null, permanent: false, deferMs: 3_600_000, limit: 'DAILY_QUOTA',
+        error: 'Resend 429 daily_quota_exceeded: You have reached your daily email sending quota.',
+      });
+      await expect(service.dispatch('o1')).resolves.toBe('DEFERRED');
+      expect(budget.pauseForProvider).toHaveBeenCalledWith('DAILY_QUOTA', expect.stringContaining('daily_quota_exceeded'));
+      const update = prisma.notificationOutbox.updateMany.mock.calls[1][0];
+      expect(update.where).toEqual({ id: 'o1', status: 'SENDING', attempts: MAX_ATTEMPTS });
+      expect(update.data).toMatchObject({ status: 'PENDING', attempts: MAX_ATTEMPTS - 1 });
+      expect(update.data.nextAttemptAt.getTime()).toBeGreaterThan(Date.now() + 59 * 60_000);
+      expect(prisma.notificationOutbox.updateMany).toHaveBeenCalledTimes(2);   // the claim and the deferral: never FAILED
+    });
+
+    it('the e-mail budget is used up: nothing is claimed or sent; the row waits, PENDING, until the next free slot', async () => {
+      const { service, prisma, mailer, budget } = make();
+      const until = new Date(Date.now() + 2 * 3_600_000);
+      budget.admit.mockResolvedValueOnce({ admitted: false, until } as any);
+      await expect(service.dispatch('o1')).resolves.toBe('DEFERRED');
+      expect(budget.admit).toHaveBeenCalledWith('CRITICAL', expect.any(Function));   // an approval notice is CRITICAL
+      expect(mailer.sendOne).not.toHaveBeenCalled();
+      expect(prisma.notificationOutbox.updateMany).toHaveBeenCalledOnce();
+      expect(prisma.notificationOutbox.updateMany.mock.calls[0][0]).toEqual({
+        where: { id: 'o1', status: { in: ['PENDING', 'FAILED'] } }, data: { status: 'PENDING', nextAttemptAt: until },
+      });
+    });
+
     it('dispatchAfterCommit emits one event per queued row and skips duplicates (null)', () => {
       const { service, events } = make();
       service.dispatchAfterCommit(['o1', null, undefined, 'o2']);
@@ -224,6 +260,15 @@ describe('DecisionNotificationsService', () => {
       expect(due).toContainEqual(expect.objectContaining({ status: 'FAILED', attempts: { lt: MAX_ATTEMPTS } }));
       expect(res.processed).toBe(1);
       expect(res.sent).toBe(1);
+    });
+
+    it('sends the most urgent first: approvals before a results publication queued earlier', async () => {
+      const { service, prisma, budget } = make();
+      const rows = [{ id: 'r1', type: 'test.results.published' }, { id: 'a1', type: 'teacher.application.approved' }];
+      prisma.notificationOutbox.findMany.mockResolvedValue(rows);
+      prisma.notificationOutbox.findUnique.mockImplementation((async ({ where }: any) => ({ type: rows.find((r) => r.id === where.id)!.type, status: 'PENDING' })) as any);
+      await service.sweep(new Date());
+      expect(budget.admit.mock.calls.map((c) => c[0])).toEqual(['CRITICAL', 'BULK']);
     });
 
     it('the interval does nothing while WORKERS_ENABLED=false', async () => {

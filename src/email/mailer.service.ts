@@ -14,9 +14,12 @@
  *   EMAIL_BATCH_SIZE     – Deliveries the worker claims per batch (default 50).
  *
  * Provider limits: a 429 answer (rate limit, daily or monthly quota) is reported
- * as deferMs, not as a failure — the worker re-queues the delivery without
- * spending an attempt and pauses sending (QUOTA_PAUSE_MS for a quota,
- * RATE_PAUSE_MS for the per-second limit).
+ * as deferMs + limit, not as a failure — the senders re-queue the e-mail without
+ * spending an attempt and pause every sender (EmailBudgetService.pauseForProvider:
+ * a daily quota until just after 00:00 UTC, when Resend resets it;
+ * a monthly quota 12–24 hours; the per-second limit RATE_PAUSE_MS). The platform's
+ * own budget (EMAIL_DAILY_LIMIT / EMAIL_MONTHLY_LIMIT, docs/EMAIL.md §10) normally
+ * keeps it from ever reaching a quota.
  *
  * Never logs message bodies (they can carry one-time links); recipients are
  * masked in logs.
@@ -47,7 +50,12 @@ export interface SendResult {
   permanent: boolean;
   /** The provider refused for a limit (429): send again after this many ms; not a failed attempt. */
   deferMs?:  number;
+  /** Which provider limit answered (with deferMs). */
+  limit?:    ProviderLimit;
 }
+
+/** A provider limit answer (429): the daily or monthly quota, or the per-second rate limit. */
+export type ProviderLimit = 'DAILY_QUOTA' | 'MONTHLY_QUOTA' | 'RATE_LIMIT';
 
 /** Pause after a daily or monthly quota answer. */
 export const QUOTA_PAUSE_MS = 60 * 60_000;
@@ -143,8 +151,9 @@ export class MailerService implements OnModuleInit {
         const message   = error ? `Resend ${error.statusCode ?? 'network'} ${error.name}: ${error.message}` : 'Resend returned no data.';
         if (error && (error.statusCode === 429 || QUOTA_ERRORS.has(error.name))) {
           const deferMs = QUOTA_ERRORS.has(error.name) ? QUOTA_PAUSE_MS : RATE_PAUSE_MS;
-          this.logger.warn(`E-mail to ${maskEmail(to)} deferred by a provider limit (${error.name}); sending pauses for ${deferMs / 1000} s.`);
-          return { messageId: null, accepted: false, error: message, permanent: false, deferMs };
+          const limit: ProviderLimit = error.name === 'monthly_quota_exceeded' ? 'MONTHLY_QUOTA' : error.name === 'daily_quota_exceeded' ? 'DAILY_QUOTA' : 'RATE_LIMIT';
+          this.logger.warn(`E-mail to ${maskEmail(to)} deferred by a provider limit (${error.name}); sending pauses.`);
+          return { messageId: null, accepted: false, error: message, permanent: false, deferMs, limit };
         }
         this.logger.error(`E-mail to ${maskEmail(to)} failed (${permanent ? 'permanent' : 'will retry'}): ${message}`);
         return { messageId: null, accepted: false, error: message, permanent };

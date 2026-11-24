@@ -174,7 +174,7 @@ export class SubscribersService {
       unsubscribeUrl: links.pageUrl,
     }, await loadEmailBrand(this.settings, this.config));
     await this.prisma.emailDelivery.create({
-      data: { recipientEmail: email, subscriberId: row.id, subject, body: mail.text, html: mail.html },
+      data: { recipientEmail: email, subscriberId: row.id, subject, body: mail.text, html: mail.html, kind: 'SUBSCRIBER_WELCOME', priority: 'NORMAL' },
     });
   }
 

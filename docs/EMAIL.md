@@ -191,6 +191,14 @@ aligned DKIM signature (`resend._domainkey`).
 | `API_PUBLIC_URL` | Unset | Optional: the API's public https address (no `/api/v1`). When set, e-mails to news subscribers offer one-click unsubscribe (RFC 8058); see `docs/SUBSCRIBERS.md` |
 | `EMAIL_MAX_PER_SECOND` | 2 | 2 (raise only if Resend raised your limit) |
 | `EMAIL_BATCH_SIZE` | 50 | 50 |
+| `EMAIL_DAILY_LIMIT` | 100 | 100 (Resend Free plan, §10). `0` = no daily limit (Resend Pro) |
+| `EMAIL_MONTHLY_LIMIT` | 3000 | 3000 (Resend Free plan, §10). Pro: `50000`. `0` = no monthly limit |
+| `EMAIL_DAILY_SAFETY_MARGIN` | 5 | 5 → at most **95** e-mails per UTC day |
+| `EMAIL_MONTHLY_SAFETY_MARGIN` | 100 | 100 → at most **2,900** e-mails in any 31 days |
+| `EMAIL_NORMAL_SHARE_PERCENT` | 80 | 80 → ordinary e-mails stop at 76 a day; the rest is kept for urgent ones |
+| `EMAIL_BULK_SHARE_PERCENT` | 50 | 50 → bulk e-mails and mailings stop at 47 a day |
+
+All six are optional: unset or empty means the safe default above (an empty value never means "no limit").
 
 In production the API **refuses to start** without `RESEND_API_KEY`,
 `EMAIL_FROM` and `APP_URL`. Without a key it never runs in dry run silently.
@@ -276,9 +284,91 @@ e2e test `email-delivery` runs the real SDK against a fake Resend API.
 | `Resend 403 … You can only send testing emails to your own email address` | The domain is not verified yet; until then Resend only delivers to the account owner's address |
 | `Resend 422 validation_error` (delivery FAILED after 1 attempt) | The recipient address is invalid. Correct the user's e-mail |
 | `Resend 429 rate_limit_exceeded` | Not a failure: the delivery is re-queued without spending an attempt and this instance pauses sending for 60 s. If it recurs, lower `EMAIL_MAX_PER_SECOND` to the plan's limit |
-| `daily_quota_exceeded` / `monthly_quota_exceeded` | Not a failure: queued e-mails stay PENDING (attempts not spent, one-time links kept) and sending pauses for 1 h at a time until the quota resets, then drains by itself. Free plan: 100/day, 3,000/month; a paid plan sized to the volume is required in production |
+| `daily_quota_exceeded` / `monthly_quota_exceeded` | Not a failure (e-mails and decision notices alike): queued e-mails stay PENDING (attempts not spent, one-time links kept) and every sender pauses — daily: until just after 00:00 UTC; monthly: 12–24 h — then drains by itself. With the budget of §10 this should not happen; if it does, something else sends with the same key. Rows that FAILED for this reason before 2026-11-24 can be queued again from the admin E-mail page (§10) |
+| Admin E-mail page: "Daily e-mail limit reached — N e-mails are waiting" | Normal on the Free plan (§10): the day's budget is used up; urgent e-mails (password resets, invitations, confirmations) go first right after 00:00 UTC (02:00 Kigali time) |
+| Delivery status DISCARDED | Not sent on purpose: its one-time link died while it waited (expired, replaced by a newer link, account already activated). The reason is shown; the person requests a new link (§10) |
 | Accepted by Resend but not received | Resend → Emails → the message: *Bounced* (address does not exist), *Complained*, or *Delivered* (then look in spam/quarantine; in Google Workspace check the admin quarantine) |
 | Lands in spam | DKIM/SPF/DMARC not all PASS (§8); avoid link shorteners; set the support e-mail setting so the footer has a real contact |
 | Links point to the wrong site | `APP_URL` is wrong (it must be the frontend, not the API) |
 | Reset link "invalid or has expired" | Older than 30 minutes, already used, or a newer link was requested. Request a new one |
 | Nothing is sent at all, no errors | `WORKERS_ENABLED=false` on every instance, or the instance is asleep (Render free plan wakes on the next request) |
+
+## 10. Staying within the Resend Free plan (100 a day, 3,000 a month)
+
+Owner decision 2026-11-24: the platform stays on Resend's **Free plan permanently** — at most **100 e-mails a day and
+3,000 a month**. The API enforces this itself, so the provider's limit is never the thing that stops mail.
+
+**What is counted.** Every e-mail handed to Resend: outbox e-mails (`EmailDelivery` SENT, by `attemptedAt`) and decision
+notices (`NotificationOutbox` SENT, by `sentAt`), plus those being sent at that moment. Resend counts every To/CC/BCC
+recipient as one e-mail; the platform sends each e-mail to exactly one recipient (no CC/BCC), so one row is one e-mail.
+On the Free plan Resend also counts *received* e-mails; the platform receives none through Resend (replies go to the
+Google Workspace mailbox) — if inbound e-mail is ever enabled in Resend, lower the limits accordingly.
+
+Two windows:
+- **Day = the UTC calendar day.** Resend's daily quota resets at **00:00 UTC** (02:00 in Kigali)
+  ([account quotas and limits](https://resend.com/docs/knowledge-base/account-quotas-and-limits)), so the platform counts
+  the same day and resumes right after 00:00 UTC.
+- **Month = a rolling 31 days.** Resend's monthly period (calendar month or billing cycle) is at most 31 days long, so
+  it always lies inside some 31-day window: 2,900 in *any* 31 days can never be more than 2,900 in Resend's month,
+  whichever way it is aligned. (A calendar month of our own could be misaligned with a billing cycle; a rolling 30 days
+  could let 31-day months through over the limit.)
+
+**The budget** = limit − safety margin: **95 per UTC day** and **2,900 per 31 days** by default (§5). A limit of `0`
+means "no limit" for that window, so a move to Resend Pro is two settings: `EMAIL_DAILY_LIMIT=0`,
+`EMAIL_MONTHLY_LIMIT=50000`. E-mails are sent most urgent first, and part of each day is kept for the urgent ones:
+
+| Priority | E-mails | May send while today (UTC) / the last 31 days hold fewer than |
+|---|---|---|
+| CRITICAL | password reset, invitation, e-mail confirmation, "password changed", Super Admin security notices, application approvals (coach, teacher), school verified, permissions granted | 95 / 2,900 (the whole budget) |
+| NORMAL | welcome, account approved, application declined, information requests, notifications, subscriber welcome, contact form, test mailings, other decision notices | 76 / 2,320 (80 %) |
+| BULK | administrators' bulk e-mails, subscriber mailings, test results published to students | 47 / 1,450 (50 %) |
+
+So a mailing can never use the last 48 slots of a day, and ordinary e-mails never the last 19: a password reset still
+goes out when only the reserve is left.
+
+**When the budget is used up** nothing is sent and nothing fails: e-mails stay PENDING with their attempts untouched.
+The worker computes the next slot — just after 00:00 UTC for the day, or when the oldest e-mail leaves the 31 days —
+and sleeps until then (no polling of Resend), then sends by itself, most urgent first. A provider quota answer
+(429) pauses every sender the same way: daily until just after 00:00 UTC, monthly 12–24 hours. Several API instances share one budget (a database lock around the check and the claim).
+
+**Never a dead link.** Account e-mails carry their link's expiry and token. Just before sending (and every minute while
+they wait) the link is checked; when it cannot work any more the e-mail is **DISCARDED** — never sent, its text (which
+holds the link) erased — with a plain reason, e.g. *"Not sent: the password-reset link expired before it could be sent
+(daily e-mail limit). The person can request a new link."* Discarded when:
+
+- password reset: the link expired, was used, or a newer reset was requested (only the newest is ever sent — a new
+  request drops the older waiting ones);
+- invitation / e-mail confirmation: the account is already activated (e.g. by an administrator), the link was used or
+  replaced by a newer one, the account no longer exists, or the link expired (48 h / 7 days).
+
+Nothing that cannot be proved dead is discarded.
+
+**Password reset: 30 minutes from sending.** A reset may wait for budget. When its e-mail is handed to Resend the
+token's expiry is moved to *now + 30 minutes* (only ever later, only while unused and unexpired; the token itself — and
+so the e-mail text — never changes, which keeps the idempotency key safe). If it could not be sent within 30 minutes of
+the request it is discarded instead, and the person asks again: "Forgot password" always answers the same generic
+message, whether or not the account exists.
+
+**E-mails queued before 2026-11-24** (no kind, no expiry) are classified by the worker from their subject (exact
+titles of the templates) and `createdAt` + the template's lifetime, the token matched by account and time, and then
+treated exactly like new ones — no manual SQL is needed after the release.
+
+**Administrators: Admin → E-mail → "Sending today"** (`GET /api/v1/admin/email/usage`, permission `email.bulkSend`):
+e-mails used today (UTC day, `sent.today`) and in the last 31 days (`sent.last31d`) — plus the last 24 hours and this
+calendar month for information — the limits and margins (`null` = no limit), what is left, when the day resets
+(`dayResetsAt`), the next free slot (shown in Kigali time), what is waiting by priority, failed and discarded counts with
+the discard reasons, whether sending is paused and why (budget, or the provider's last limit answer — never a key,
+address or e-mail text), and whether this is a dry run.
+
+**Recovery of e-mails lost to the old quota handling.** Before 2026-11-24 a 429 quota answer on the decision-notice path
+counted as a failed attempt, so notices ended FAILED ("Resend 429 daily_quota_exceeded …"). The panel offers *"Retry
+e-mails that failed only because of the daily limit (N)"* (`POST /api/v1/admin/email/usage/recover`, audited as
+`RECOVER_QUOTA_FAILED_EMAILS`): it re-queues FAILED e-mails and decision notices whose **only** recorded failure is a
+provider limit answer, and only if still meaningful — the recipient account still exists and is active, a mailing's
+subscriber is still subscribed, the e-mail's text was kept, and for approvals the decision still stands (the teacher or
+coach application is still APPROVED, the permission grant still exists). Link e-mails are checked again before sending.
+It is an explicit administrator action, never automatic, so nothing is re-sent until someone decides to; a second click
+finds nothing (409).
+
+**Tests and staging.** Dry-run mode counts too (the SENT rows are real rows), so staging behaves like production. The
+e2e suites run with a budget they never reach, except `test/email-budget.e2e-spec.ts`, which uses the real defaults.

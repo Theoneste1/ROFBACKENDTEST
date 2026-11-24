@@ -9,7 +9,7 @@ function makeMocks() {
       update:            vi.fn(),
     },
     accountActivationToken: {
-      create:     vi.fn(),
+      create:     vi.fn().mockResolvedValue({ id: 'aat1' }),
       findUnique: vi.fn(),
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
@@ -17,7 +17,7 @@ function makeMocks() {
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
   const audit         = { log: vi.fn() };
-  const notifications = { queueEmail: vi.fn() };
+  const notifications = { queueEmail: vi.fn(), supersedePendingLinks: vi.fn().mockResolvedValue(0) };
   const accountEmails = { welcome: vi.fn() };
   const service = new ActivationService(prisma as any, audit as any, notifications as any, accountEmails as any);
   return { service, prisma, audit, notifications, accountEmails };
@@ -53,6 +53,9 @@ describe('ActivationService', () => {
       const [to, , , opts] = notifications.queueEmail.mock.calls[0];
       expect(to).toBe('ada@x.rw');
       expect(decodeURIComponent(opts.link.split('token=')[1])).toBe(issued.token);
+      // Resend Free plan: the older links' e-mails still waiting are dropped; this one records its token and expiry.
+      expect(notifications.supersedePendingLinks).toHaveBeenCalledWith('u1', ['INVITATION', 'EMAIL_VERIFICATION'], expect.stringContaining('newer activation link'));
+      expect(opts).toMatchObject({ kind: 'INVITATION', linkTokenId: 'aat1', linkExpiresAt: issued.expiresAt });
     });
 
     it('refuses to issue for an account that is already active', async () => {

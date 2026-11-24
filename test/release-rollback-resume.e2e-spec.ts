@@ -4,7 +4,7 @@
  * after seven newer rollbacks had run; running it again failed at once on a table those rollbacks had already dropped.
  *
  * For every release the kit supports and whose migrations this checkout has (phase1, post-phase1, areas-2026, late-2026,
- * dec-2026, levels-2026, launch-2026):
+ * dec-2026, levels-2026, launch-2026, email-2026):
  *  - each migration's object list equals what its SQL changes in the catalogue, and names every object its SQL names;
  *  - a fresh database is migrated to the release's state and seeded, including data that makes EVERY guard refuse;
  *  - a clean full rollback (all acknowledgements) is the reference: every object gone (schema = before the release, but
@@ -217,6 +217,14 @@ const SEEDS: Record<string, Seed> = {
     await c.query(`INSERT INTO "ViewAsSession" ("id", "actorId", "targetId", "reason", "ticketExpiresAt", "createdAt")
       VALUES ('rel-view-as-1', 'pre-user-3', 'pre-user-2', 'Checking what the coach sees', '2026-12-06', '2026-12-06')`);         // view-as sessions
   },
+  'email-2026': async (c) => {
+    await c.query(`INSERT INTO "EmailDelivery" ("id", "recipientEmail", "subject", "status", "errorMessage", "kind", "priority")
+      VALUES ('rel-mail-discarded', 'gone@example.invalid', 'Reset your password', 'DISCARDED', 'Not sent: the link expired.', 'PASSWORD_RESET', 'CRITICAL')`);
+    await c.query(`INSERT INTO "EmailDelivery" ("id", "recipientEmail", "subject", "body", "kind", "priority")
+      VALUES ('rel-mail-waiting', 'wait@example.invalid', 'Welcome', 'Hello', 'WELCOME', 'NORMAL')`);                             // budget data
+    await c.query(`INSERT INTO "EmailSendingState" ("key", "pausedUntil", "pauseReason", "updatedAt")
+      VALUES ('provider', '2026-12-31', 'DAILY_QUOTA', '2026-12-31')`);                                                           // provider pause
+  },
 };
 
 /** A test and one submission to it (release-time rows "rel-…"): the Test Management guards need them. */
@@ -228,7 +236,7 @@ async function seedTestAndSubmission(c: Client) {
     VALUES ('rel-sub-1', 'rel-test-1', 'pre-user-2', 'REL-0001', '2026-12-02')`);
 }
 
-const RELEASES = ['phase1', 'post-phase1', 'areas-2026', 'late-2026', 'dec-2026', 'levels-2026', 'launch-2026'];
+const RELEASES = ['phase1', 'post-phase1', 'areas-2026', 'late-2026', 'dec-2026', 'levels-2026', 'launch-2026', 'email-2026'];
 
 // ── Pure checks: object lists against the SQL, the acknowledgement allow-list, PG_BIN ───────────────────────────────
 
@@ -573,6 +581,10 @@ for (const name of RELEASES) {
           ['the subscriber tables dropped, the column left', 'ALTER TABLE "EmailDelivery" DROP CONSTRAINT "EmailDelivery_subscriberId_fkey"; DROP TABLE "Mailing"; DROP TABLE "Subscriber"',
             /20261229000000_subscribers: still there: .*column EmailDelivery\.subscriberId.*already gone: .*table Mailing/],
           ['out of order', 'ALTER TABLE "SchoolSyncRun" DROP COLUMN "mode"; DROP TYPE "SchoolSyncMode"', /20261225000000_school_sync_mode is already rolled back while the newer 20261230000000_view_as is not/],
+        ],
+        'email-2026': [
+          ['the table dropped, the columns left', 'DROP TABLE "EmailSendingState"', /20261231000000_email_free_plan: still there: .*column EmailDelivery\.kind.*already gone: table EmailSendingState/],
+          ['an index dropped by hand', 'DROP INDEX "NotificationOutbox_status_sentAt_idx"', /20261231000000_email_free_plan: still there: .*already gone: index NotificationOutbox\.NotificationOutbox_status_sentAt_idx/],
         ],
       };
       for (const [label, sql, message] of cases[name]) {

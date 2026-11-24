@@ -18,6 +18,7 @@ import { AppError } from '../common/errors/app-error.js';
 import { configurableTypesFor, isConfigurableType } from './notification-types.js';
 import { renderEmail, type EmailBrand, type RenderedEmail } from '../email/templates.js';
 import { loadEmailBrand } from '../email/email-brand.js';
+import { priorityOf, type EmailKind } from '../email/email-kinds.js';
 
 export interface NotificationPayload {
   category: NotificationCategory;
@@ -59,6 +60,12 @@ export interface QueueEmailOptions {
   /** Title in the e-mail (default: the subject title). */
   heading?:     string;
   recipientId?: string;
+  /** What the e-mail is (sets its priority; Resend Free plan, docs/EMAIL.md §10). Default NOTIFICATION (NORMAL). */
+  kind?:        EmailKind;
+  /** When the one-time link in it stops working (checked just before sending: a dead link is never sent). */
+  linkExpiresAt?: Date;
+  /** The PasswordResetToken / AccountActivationToken the link carries. */
+  linkTokenId?: string;
 }
 
 @Injectable()
@@ -130,7 +137,7 @@ export class NotificationsService {
         data: await Promise.all(
           users.map((u) => {
             const mail = this.compose(brand, { firstName: u.firstName, heading: payload.title, link: payload.link }, payload.body);
-            return { recipientEmail: u.email, recipientId: u.id, subject, body: mail.text, html: mail.html };
+            return { recipientEmail: u.email, recipientId: u.id, subject, body: mail.text, html: mail.html, kind: 'NOTIFICATION', priority: 'NORMAL' as const };
           }),
         ),
       });
@@ -180,6 +187,7 @@ export class NotificationsService {
   /** Queue a transactional e-mail to an address that may not belong to a user. */
   async queueEmail(to: string, title: string, body: string, opts: QueueEmailOptions = {}) {
     const mail = this.compose(await this.brand(), { heading: title, ...opts }, body);
+    const kind = opts.kind ?? 'NOTIFICATION';
     await this.prisma.emailDelivery.create({
       data: {
         recipientEmail: to,
@@ -187,8 +195,27 @@ export class NotificationsService {
         subject:        await this.subject(title),
         body:           mail.text,
         html:           mail.html,
+        kind,
+        priority:       priorityOf(kind),
+        linkExpiresAt:  opts.linkExpiresAt ?? null,
+        linkTokenId:    opts.linkTokenId ?? null,
       },
     });
+  }
+
+  /**
+   * A new one-time link replaces the account's older ones: their e-mails that are still waiting in the queue (not being
+   * sent right now) are DISCARDED, so only the newest link is ever sent. Returns how many were discarded.
+   */
+  async supersedePendingLinks(userId: string, kinds: EmailKind[], reason: string): Promise<number> {
+    const { count } = await this.prisma.emailDelivery.updateMany({
+      where: {
+        recipientId: userId, status: 'PENDING', kind: { in: kinds },
+        OR: [{ lockedAt: null }, { lockedAt: { lt: new Date(Date.now() - 5 * 60_000) } }],
+      },
+      data: { status: 'DISCARDED', errorMessage: reason, body: null, html: null, lockedAt: null, attemptedAt: new Date() },
+    });
+    return count;
   }
 
   /** Recipients who switched a type off, per channel. Only "off" rows exist to read. */

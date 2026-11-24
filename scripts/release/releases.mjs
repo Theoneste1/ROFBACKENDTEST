@@ -492,6 +492,18 @@ export const MIGRATION_OBJECTS = {
       tables: ['ViewAsSession'],
     },
   },
+  '20261231000000_email_free_plan': {
+    creates: {
+      columns: [['EmailDelivery', 'kind'], ['EmailDelivery', 'linkExpiresAt'], ['EmailDelivery', 'linkTokenId'], ['EmailDelivery', 'priority']],
+      enums: ['EmailPriority'],
+      indexes: [
+        ['EmailDelivery', 'EmailDelivery_recipientId_status_idx'], ['EmailDelivery', 'EmailDelivery_status_attemptedAt_idx'],
+        ['EmailDelivery', 'EmailDelivery_status_priority_nextAttemptAt_idx'], ['NotificationOutbox', 'NotificationOutbox_status_sentAt_idx'],
+      ],
+      tables: ['EmailSendingState'],
+    },
+    kept: { enumValues: [['EmailDeliveryStatus', 'DISCARDED']] },
+  },
 };
 
 /**
@@ -536,6 +548,7 @@ export const ACKNOWLEDGEMENTS = {
   'form-email-verification':    { migration: '20261228000000_form_email_verification', setting: 'rof.form_email_verification_rollback', value: 'discard-verification-switches' },
   'subscribers':                { migration: '20261229000000_subscribers', setting: 'rof.subscribers_rollback', value: 'discard-subscribers' },
   'view-as-sessions':           { migration: '20261230000000_view_as', setting: 'rof.view_as_rollback', value: 'discard-sessions' },
+  'email-budget':               { migration: '20261231000000_email_free_plan', setting: 'rof.email_free_plan_rollback', value: 'discard-email-budget-data' },
 };
 
 /** The acknowledgement ids of a release (those of its own migrations), sorted. */
@@ -612,6 +625,26 @@ export const LAUNCH_2026_OBJECTS = {
     ['TeacherApplication', 'proposedSchoolOwnership'], ['TeacherApplication', 'proposedSchoolAccommodation'],
     ['MentorRequest', 'userId'], ['FormAvailability', 'requireEmailVerification'], ['EmailDelivery', 'subscriberId'],
   ],
+  triggers: [],
+  functions: [],
+};
+
+/**
+ * The email-2026 release: e-mail within the Resend Free plan (owner decision 2026-11-24: 100 e-mails a day, 3,000 a month,
+ * never upgrade) — after launch-2026. Listed explicitly — a migration added later is never part of it until it is appended
+ * here on purpose.
+ */
+export const EMAIL_2026_MIGRATIONS = [
+  // EmailDeliveryStatus DISCARDED (kept by the rollback), EmailPriority, EmailDelivery priority / kind / linkExpiresAt /
+  // linkTokenId, EmailSendingState (the shared provider pause), four indexes for the rolling-window counts and the claim.
+  '20261231000000_email_free_plan',
+];
+
+/** What the email-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
+export const EMAIL_2026_OBJECTS = {
+  tables: ['EmailSendingState'],
+  enums: ['EmailPriority'],
+  columns: [['EmailDelivery', 'priority'], ['EmailDelivery', 'kind'], ['EmailDelivery', 'linkExpiresAt'], ['EmailDelivery', 'linkTokenId']],
   triggers: [],
   functions: [],
 };
@@ -722,6 +755,25 @@ export const RELEASES = {
         + LEVELS_2026_MIGRATIONS.length,
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
         || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name),
+    },
+  },
+  'email-2026': {
+    label: `e-mail within the Resend Free plan (${EMAIL_2026_MIGRATIONS.length} migration after the launch release)`,
+    count: EMAIL_2026_MIGRATIONS.length,
+    owns: (name) => EMAIL_2026_MIGRATIONS.includes(name),
+    last: EMAIL_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/email-2026-precheck.sql',
+    postcheck: 'scripts/release/email-2026-postcheck.sql',
+    migrations: EMAIL_2026_MIGRATIONS,
+    objects: EMAIL_2026_OBJECTS,
+    // The target must already hold every release before it, launch-2026 included.
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas, late 2026, dec 2026, levels 2026 and the launch release',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length
+        + LEVELS_2026_MIGRATIONS.length + LAUNCH_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name)
+        || LAUNCH_2026_MIGRATIONS.includes(name),
     },
   },
 };

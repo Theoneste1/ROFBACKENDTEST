@@ -386,4 +386,8 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/users/:id/view-as  ViewAsAdminController.start':                                          ADMINISTRATORS,
   'POST /api/v1/auth/view-as/exchange  ViewAsAuthController.exchange':                                          PUBLIC,
   'POST /api/v1/auth/view-as/end  ViewAsAuthController.end':                                                    PUBLIC,
+  // E-mail within the Resend Free plan (owner 2026-11-24): the sending budget and the recovery of e-mails that failed only
+  // because of the provider's limit — email.bulkSend, like the other admin e-mail pages.
+  'GET /api/v1/admin/email/usage  EmailController.usage':                                                        ADMINISTRATORS,
+  'POST /api/v1/admin/email/usage/recover  EmailController.recover':                                             ADMINISTRATORS,
 };

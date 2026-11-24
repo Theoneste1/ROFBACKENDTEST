@@ -426,7 +426,7 @@ export class NotificationListener {
         e.approved
           ? 'Your coach application has been approved. You can now log in with the username and password you chose.'
           : 'Thank you for applying to be a coach. Your application was not approved at this time.' + (e.reason ? `\n\nReason: ${e.reason}` : ''),
-        { firstName: e.firstName, link: e.approved ? '/login' : undefined },
+        { firstName: e.firstName, link: e.approved ? '/login' : undefined, kind: e.approved ? 'APPLICATION_APPROVED' : 'APPLICATION_DECISION' },
       );
     });
   }

@@ -539,7 +539,7 @@ export class TeacherApplicationsService {
     return this.notifications.queueEmail(rejected.email, 'Your teacher application',
       'Thank you for applying to join the Rwanda Olympiad Foundation platform as a Teacher. ' +
       `Your application was not approved at this time.\n\nReason: ${reason}`,
-      { firstName: rejected.firstName }).catch(() => undefined);
+      { firstName: rejected.firstName, kind: 'APPLICATION_DECISION' }).catch(() => undefined);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

@@ -12,6 +12,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { IsEnum, IsIn, IsOptional } from 'class-validator';
 
 import { EmailService } from './email.service.js';
+import { EmailBudgetService } from './email-budget.service.js';
+import { EmailWorker } from './email.worker.js';
 import { SendEmailDto } from './dto/send-email.dto.js';
 import { ListUsersDto } from './dto/list-users.dto.js';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
@@ -42,7 +44,35 @@ class ListDeliveriesDto extends PaginationQueryDto {
 @ApiTags('Admin · Email')
 @Controller('admin/email')
 export class EmailController {
-  constructor(private readonly emailService: EmailService) {}
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly budget:       EmailBudgetService,
+    private readonly worker:       EmailWorker,
+  ) {}
+
+  /**
+   * The e-mail budget (Resend Free plan, docs/EMAIL.md §10): e-mails sent today (UTC day) / in 31 days, the limits and
+   * safety margin, what is left for each priority and when the next slot frees, what is waiting (by priority), failed and
+   * discarded counts (discard reasons grouped), whether sending is paused and why. No addresses, bodies, tokens or keys.
+   */
+  @Get('usage')
+  @RequirePermission('email.bulkSend')
+  usage() {
+    return this.budget.usage();
+  }
+
+  /**
+   * Queue again the e-mails and decision notices that FAILED only because of the provider's daily/monthly limit (before
+   * the budget existed) and still make sense (account active, decision still standing). Audited; 409 when there is none.
+   */
+  @Post('usage/recover')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @RequirePermission('email.bulkSend')
+  async recover(@CurrentUser() user: AuthUser) {
+    const result = await this.budget.recoverQuotaFailures(user);
+    this.worker.wakeUp();
+    return result;
+  }
 
   /** Paginated, filterable user list with email addresses. */
   @Get('users')

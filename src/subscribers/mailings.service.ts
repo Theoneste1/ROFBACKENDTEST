@@ -68,7 +68,7 @@ export class MailingsService {
       unsubscribeUrl: appUrl ? `${appUrl.replace(/\/+$/, '')}/unsubscribe` : null,
     }, await loadEmailBrand(this.settings, this.config));
     await this.prisma.emailDelivery.create({
-      data: { recipientEmail: me.email, recipientId: user.id, subject: `[Test] ${dto.subject}`, body: mail.text, html: mail.html },
+      data: { recipientEmail: me.email, recipientId: user.id, subject: `[Test] ${dto.subject}`, body: mail.text, html: mail.html, kind: 'MAILING_TEST', priority: 'NORMAL' },
     });
     await this.audit.log({ actorId: user.id, actorRole: user.role, action: 'MAILING_TEST_SENT', entity: 'Mailing' });
     return { sentTo: me.email };
@@ -100,7 +100,7 @@ export class MailingsService {
         });
         for (let i = 0; i < unique.length; i += CHUNK) {
           await tx.emailDelivery.createMany({
-            data: unique.slice(i, i + CHUNK).map((r) => ({ jobId: job.id, recipientEmail: r.email, subscriberId: r.id, nextAttemptAt: sendAfter })),
+            data: unique.slice(i, i + CHUNK).map((r) => ({ jobId: job.id, recipientEmail: r.email, subscriberId: r.id, nextAttemptAt: sendAfter, kind: 'MAILING', priority: 'BULK' as const })),
           });
         }
         const mailing = await tx.mailing.create({

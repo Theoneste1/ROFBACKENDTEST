@@ -103,7 +103,9 @@ export const AUDIT_CATEGORIES = {
   ],
   /** "View as", read only (owner 2026-11-23): an administrator viewing the platform as another user. */
   VIEW_AS: ['VIEW_AS_STARTED', 'VIEW_AS_ENDED'],
-  DATA_EXPORTS: ['EXPORT_REPORT', 'EXPORT_AUDIT_LOG', 'CREATE_EMAIL_JOB', 'RETRY_EMAIL_JOB', 'RETRY_EMAIL_DELIVERY', 'RETRY_NOTIFICATION_DELIVERY'],
+  DATA_EXPORTS: ['EXPORT_REPORT', 'EXPORT_AUDIT_LOG', 'CREATE_EMAIL_JOB', 'RETRY_EMAIL_JOB', 'RETRY_EMAIL_DELIVERY', 'RETRY_NOTIFICATION_DELIVERY',
+    // E-mail within the Resend Free plan (2026-11-24): e-mails that failed only because of the provider's limit, queued again.
+    'RECOVER_QUOTA_FAILED_EMAILS'],
   /** News subscribers and mailings (owner 2026-11-23). */
   SUBSCRIBERS: [
     'SUBSCRIBER_SUBSCRIBED', 'SUBSCRIBER_UNSUBSCRIBED', 'SUBSCRIBER_RESUBSCRIBED', 'SUBSCRIBER_ADDED', 'SUBSCRIBER_UPDATED',

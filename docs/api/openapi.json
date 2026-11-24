@@ -12096,6 +12096,68 @@
         "description": "**Access:** permission `subscribers.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/email/usage": {
+      "get": {
+        "operationId": "EmailController_usage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The e-mail budget (Resend Free plan, docs/EMAIL.md §10): e-mails sent today (UTC day) / in 31 days, the limits and\nsafety margin, what is left for each priority and when the next slot frees, what is waiting (by priority), failed and\ndiscarded counts (discard reasons grouped), whether sending is paused and why. No addresses, bodies, tokens or keys.",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/email/usage/recover": {
+      "post": {
+        "operationId": "EmailController_recover",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Queue again the e-mails and decision notices that FAILED only because of the provider's daily/monthly limit (before\nthe budget existed) and still make sense (account active, decision still standing). Audited; 409 when there is none.",
+        "tags": [
+          "Admin · Email"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "email.bulkSend",
+        "description": "**Access:** permission `email.bulkSend` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/email/users": {
       "get": {
         "operationId": "EmailController_listUsers",

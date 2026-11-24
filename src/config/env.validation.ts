@@ -27,6 +27,10 @@ import {
 const emptyToUndefined = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value;
 
+/** A number; an empty value means "not set" (so the default applies, never 0). */
+const emptyOrNumber = ({ value }: { value: unknown }) =>
+  value === undefined || value === null || (typeof value === 'string' && value.trim() === '') ? undefined : Number(value);
+
 /**
  * Trims a value and removes quotes wrapped around all of it. Hosting
  * dashboards (Render, …) keep quotes literally, unlike .env files, so a value
@@ -143,6 +147,15 @@ export class EnvironmentVariables {
   /** Testing safeguard: deliver EVERY e-mail to this address instead of the real recipient. */
   @IsOptional() @Transform(unquoted) @IsEmail() EMAIL_REDIRECT_TO?: string;
   @IsOptional() @Type(() => Number) @IsInt() EMAIL_BATCH_SIZE?: number;
+  /** Resend plan limits (docs/EMAIL.md §10): e-mails per UTC day / per month (rolling 31 days); defaults 100 / 3000 (Free); 0 = no limit (Pro: 0 / 50000). Empty = default. */
+  @IsOptional() @Transform(emptyOrNumber) @IsInt() @Min(0) EMAIL_DAILY_LIMIT?: number;
+  @IsOptional() @Transform(emptyOrNumber) @IsInt() @Min(0) EMAIL_MONTHLY_LIMIT?: number;
+  /** Kept unused below each limit (defaults 5 / 100 → 95 a day, 2,900 a month). */
+  @IsOptional() @Transform(emptyOrNumber) @IsInt() @Min(0) EMAIL_DAILY_SAFETY_MARGIN?: number;
+  @IsOptional() @Transform(emptyOrNumber) @IsInt() @Min(0) EMAIL_MONTHLY_SAFETY_MARGIN?: number;
+  /** Share of the budget ordinary (default 80) and bulk (default 50) e-mails may use; the rest is kept for urgent ones. */
+  @IsOptional() @Transform(emptyOrNumber) @IsInt() @Min(0) @Max(100) EMAIL_NORMAL_SHARE_PERCENT?: number;
+  @IsOptional() @Transform(emptyOrNumber) @IsInt() @Min(0) @Max(100) EMAIL_BULK_SHARE_PERCENT?: number;
   /** Most e-mails sent per second (Resend's default account limit is 2). */
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) EMAIL_MAX_PER_SECOND?: number;
   /**
