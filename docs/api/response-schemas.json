@@ -23880,6 +23880,75 @@
     ],
     "type": "object"
   },
+  "POST /api/v1/admin/users/:id/activate-now 200": {
+    "properties": {
+      "message": {
+        "type": "string"
+      },
+      "stillBlockedBy": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "user": {
+        "properties": {
+          "accountStatus": {
+            "type": "string"
+          },
+          "activatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isApproved": {
+            "type": "boolean"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accountStatus",
+          "activatedAt",
+          "firstName",
+          "id",
+          "isActive",
+          "isApproved",
+          "lastName",
+          "role",
+          "updatedAt",
+          "username"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "message",
+      "stillBlockedBy",
+      "user"
+    ],
+    "type": "object"
+  },
   "POST /api/v1/admin/users/:id/resend-invitation 200": {
     "properties": {
       "expiresAt": {

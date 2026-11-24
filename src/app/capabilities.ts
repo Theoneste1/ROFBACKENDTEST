@@ -350,6 +350,14 @@ export const FEATURES = {
    */
   viewAs: 'always',
   /**
+   * Activate now (owner 2026-11-24): POST /admin/users/:id/activate-now (users.manage + users.changeStatus, and the right
+   * to manage the account's role) activates an account "Awaiting setup" whose person chose their own password, so they
+   * sign in without confirming their e-mail (their unused activation links stop working; no e-mail is sent); bulk action
+   * activateNow on USER does the same per account, and its preview carries `willApply` and a warning per skip reason.
+   * 409 ALREADY_ACTIVATED / NO_PASSWORD_YET / ACCOUNT_NOT_ACTIVE in plain words.
+   */
+  adminActivateNow: 'always',
+  /**
    * Form availability: GET /api/v1/forms and /forms/:key (public: open, state OPEN | CLOSED | NOT_YET_OPEN | ENDED,
    * schedule, closed message, instructions, contact e-mail, support link, timezone Africa/Kigali, server time) and
    * /api/v1/admin/forms (forms.view; PATCH :key/availability with forms.manageAvailability, PATCH :key/messages with

@@ -16,7 +16,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import type { Request, Response } from 'express';
 
@@ -184,6 +184,26 @@ export class UsersController {
     @Req() req: Request & { id?: string },
   ) {
     return this.accountStatus.change(id, { toStatus: body.toStatus, reason: body.reason, confirm: body.confirm }, user, { requestId: req.id ?? null });
+  }
+
+  /**
+   * Activate now (capability adminActivateNow, owner 2026-11-24): an account "Awaiting setup" (never activated) whose
+   * person chose their own password is activated at once, so they sign in without confirming their e-mail. Their unused
+   * activation links stop working; audited ACTIVATE_ACCOUNT { via: 'admin' }; no e-mail is sent. Needs users.changeStatus
+   * and the right to manage the account's role. 409 ALREADY_ACTIVATED / NO_PASSWORD_YET (resend the invitation instead) /
+   * ACCOUNT_NOT_ACTIVE (reactivate, lift or restore first), 400 CANNOT_CHANGE_OWN_STATUS, 403 PERMISSION_REQUIRED /
+   * ROLE_NOT_ASSIGNABLE. Returns the account, `stillBlockedBy` (PENDING_APPROVAL, LOCKED, ROLE_DISABLED) and a message.
+   */
+  @Post(':id/activate-now')
+  @HttpCode(200)
+  @ApiOkResponse({ description: 'The account was activated. `user`: its state fields; `stillBlockedBy`: what still stops it signing in (PENDING_APPROVAL, LOCKED, ROLE_DISABLED; empty when it can sign in now); `message`: the same in plain words.' })
+  @RequirePermission('users.manage')
+  activateNow(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request & { id?: string },
+  ) {
+    return this.accountStatus.activateNow(id, user, { requestId: req.id ?? null });
   }
 
   /**

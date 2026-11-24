@@ -32,6 +32,7 @@ import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { InviteUserDto } from './dto/invite-user.dto.js';
+import { identityTakenForAdmin } from './identity-taken.js';
 
 export const IMPORT_MAX_ROWS  = 1000;
 export const IMPORT_MAX_BYTES = 1024 * 1024;
@@ -68,7 +69,7 @@ export class UserProvisioningService {
 
   async invite(dto: InviteUserDto, caller: CallerCtx) {
     await this.roles.assertCanAssign(caller, dto.role ?? 'STUDENT');
-    await this.assertFree(dto.email, dto.username);
+    await this.assertFree(dto.email, dto.username, { sayWhich: true });
     const username = dto.username ?? (await this.generateUsername(dto.email));
 
     const { user, issued } = await this.prisma.$transaction(
@@ -391,12 +392,19 @@ export class UserProvisioningService {
     return { user, issued };
   }
 
-  private async assertFree(email: string, username?: string) {
-    const clash = await this.prisma.user.findFirst({
+  /**
+   * `sayWhich`: the Administrators' invitation (users.manage) says which field is taken (identity-taken.ts); a Head
+   * Coach's programme invitation keeps the combined answer (they cannot list accounts).
+   */
+  private async assertFree(email: string, username?: string, opts: { sayWhich?: boolean } = {}) {
+    const clashes = await this.prisma.user.findMany({
       where:  { OR: [{ email }, ...(username ? [{ username }] : [])] },
-      select: { id: true },
+      select: { username: true, email: true },
+      take:   2,
     });
-    if (clash) throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
+    if (!clashes.length) return;
+    if (opts.sayWhich) throw identityTakenForAdmin(clashes, username, email);
+    throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
   }
 
   /** "Jean.Uwase+rof@x.org" → "jean.uwase", then "jean.uwase2", … if taken. */

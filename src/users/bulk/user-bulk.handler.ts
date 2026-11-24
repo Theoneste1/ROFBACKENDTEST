@@ -6,6 +6,7 @@
  *   assignRole, changeClassification → UsersService.update             (PATCH /admin/users/:id: RoleAssignmentPolicy,
  *                                                                        Super Admin rules, step-up)
  *   message                   → one EmailDelivery of the operation's EmailJob (the bulk e-mail outbox)
+ *   activateNow               → AccountStatusService.activateNow       (POST /admin/users/:id/activate-now)
  *   assignTeacher … revokeDelegation, reassignTeacher → teacher-student-ops *InTx helpers
  *                                                      (POST /admin/teacher-students, …/reassign, delegation students)
  * The selection is GET /admin/users's filters (userListWhere); membership is guarded by trigger
@@ -15,6 +16,7 @@ import { HttpStatus, Injectable, OnModuleInit } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { AuditService } from '../../audit/audit.service.js';
+import { RoleAssignmentPolicy } from '../../auth/role-assignment.policy.js';
 import type { BulkEntityHandler, Db, EngineSelection, ItemContext, ItemResult, PreviewWarning } from '../../bulk/bulk-handler.js';
 import { auditSelection } from '../../bulk/bulk-operations.service.js';
 import { BulkRegistry } from '../../bulk/bulk-registry.js';
@@ -34,9 +36,10 @@ import { AccountStatusService } from '../account-status.service.js';
 import { OlympiadLevelService } from '../olympiad-level.service.js';
 import { userListWhere, UsersService } from '../users.service.js';
 import {
-  ACTION_RULES, BULK_MEMBERSHIP_KEY, MAX_IDS, MAX_SELECTION, normaliseParams, normaliseSelection, SKIP_CODES, statusDecision,
-  TEACHER_LINK_ACTIONS, TEACHER_STUDENT_ACTIONS, type BulkAction, type BulkParams, type BulkSelection,
+  ACTION_RULES, activateNowBreakdown, BULK_MEMBERSHIP_KEY, MAX_IDS, MAX_SELECTION, normaliseParams, normaliseSelection, SKIP_CODES, statusDecision,
+  TEACHER_LINK_ACTIONS, TEACHER_STUDENT_ACTIONS, type ActivateNowGroup, type BulkAction, type BulkParams, type BulkSelection,
 } from './bulk-rules.js';
+import { activateNowRefusal } from '../account-status.js';
 import { BulkParamsDto, BulkSelectionDto } from './bulk.dto.js';
 
 const SAMPLE_SELECT = { id: true, username: true, firstName: true, lastName: true, role: true, accountStatus: true } as const;
@@ -65,6 +68,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     private readonly audit: AuditService,
     private readonly notices: DecisionNotificationsService,
     private readonly levels: OlympiadLevelService,
+    private readonly roles: RoleAssignmentPolicy,
   ) {}
 
   onModuleInit() {
@@ -176,11 +180,38 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     if (action === 'setOlympiadLevel') warn('NOT_STUDENTS', count((g) => g.role !== 'STUDENT'), 'Only students have an Olympiad level; other accounts will be skipped.');
     if (action === 'message') warn('BLOCKED_ACCOUNTS', count((g) => g.accountStatus !== 'ACTIVE'), 'Accounts that are not active will not be e-mailed.');
     if (TEACHER_LINK_ACTIONS.includes(action)) warn('NOT_STUDENTS', count((g) => g.role !== 'STUDENT'), 'Only students are linked to a teacher; other accounts will be skipped.');
+    if (action === 'activateNow') return this.activateNowPreview(ids, caller, sample);
     if (action === 'reassignTeacher' && ids.length) {
       const assigned = await this.prisma.teacherStudentAssignment.count({ where: { teacherId: p.fromTeacherId, isActive: true, studentId: { in: ids } } });
       warn('NOT_ASSIGNED_TO_SOURCE', count((g) => g.role === 'STUDENT') - assigned, 'Students not assigned to the first teacher will be skipped.');
     }
     return { sample, warnings, requiresStepUp: this.stepUp(action, p, privileged) };
+  }
+
+  /**
+   * activateNow: exactly how many accounts will be activated, and each skip reason with its count (the same order of
+   * checks as the item: own account, rank, state, already activated, no password yet).
+   */
+  private async activateNowPreview(ids: string[], caller: AuthUser, sample: unknown[]) {
+    const groups: ActivateNowGroup[] = [];
+    for (let i = 0; i < ids.length; i += 5000) {
+      const rows = await this.prisma.$queryRaw<Array<{ role: string; accountStatus: string; activated: boolean; hasPassword: boolean; n: bigint }>>`
+        SELECT "role"::text AS "role", "accountStatus"::text AS "accountStatus", ("activatedAt" IS NOT NULL) AS "activated",
+               ("passwordHash" IS NOT NULL) AS "hasPassword", count(*) AS "n"
+          FROM "User" WHERE "id" = ANY(${ids.slice(i, i + 5000)}::text[]) GROUP BY 1, 2, 3, 4`;
+      for (const r of rows) groups.push({ role: r.role, accountStatus: r.accountStatus as never, activated: r.activated, hasPassword: r.hasPassword, n: Number(r.n) });
+    }
+    const roles = [...new Set(groups.map((g) => g.role))];
+    const may = new Map(await Promise.all(roles.map(async (r) => [r, await this.roles.canManage(caller, r)] as const)));
+    const { willActivate, skipped } = activateNowBreakdown(groups, (r) => may.get(r) === true, ids.includes(caller.id));
+    const warnings: PreviewWarning[] = [];
+    const warn = (code: string, n: number, message: string) => { if (n > 0) warnings.push({ code, count: n, message }); };
+    warn('INCLUDES_YOURSELF', skipped.SELF, 'Your own account is in the selection; it will be skipped.');
+    warn('ROLE_NOT_MANAGEABLE', skipped.ROLE_NOT_MANAGEABLE, 'Accounts whose role you cannot manage will be skipped.');
+    warn('ACCOUNT_NOT_ACTIVE', skipped.ACCOUNT_NOT_ACTIVE, 'Accounts that are deactivated, suspended or archived will be skipped: reactivate, lift or restore them first.');
+    warn('ALREADY_ACTIVATED', skipped.ALREADY_ACTIVATED, 'Accounts that are already active will be skipped; those people can already sign in.');
+    warn('NO_PASSWORD_YET', skipped.NO_PASSWORD_YET, 'People who have not set a password yet will be skipped: resend their invitation instead.');
+    return { sample, warnings, requiresStepUp: false, willApply: willActivate };
   }
 
   /** Step-up (the administrator's current password) when a role change involves Administrator-level roles. */
@@ -248,6 +279,18 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
       // The outbox row is written in this transaction: a cancelled or rolled-back item never sends anything.
       await tx.emailDelivery.create({ data: { jobId: op.emailJobId!, recipientEmail: user.email, recipientId: user.id } });
       return { outcome: 'SUCCEEDED' };
+    }
+    if (action === 'activateNow') {
+      // The rank and the account's own state are checked here first so that they are SKIPPED with a reason; the service
+      // then checks everything again under the account's row lock (its refusals are skip codes too).
+      if (!(await this.roles.canManage(actor, user.role))) {
+        return { outcome: 'SKIPPED', code: 'ROLE_NOT_MANAGEABLE', message: 'You cannot manage accounts with this role.' };
+      }
+      const state = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { activatedAt: true, passwordHash: true } });
+      const refusal = activateNowRefusal({ accountStatus: user.accountStatus, activatedAt: state.activatedAt, hasPassword: state.passwordHash !== null });
+      if (refusal) return { outcome: 'SKIPPED', code: refusal.code, message: refusal.message };
+      const r = await this.accountStatus.activateNow(user.id, actor, { operationId: op.id, tx });
+      return { outcome: 'SUCCEEDED', stillBlockedBy: r.stillBlockedBy };
     }
     if (action === 'setOlympiadLevel') {
       if (user.role !== 'STUDENT') return { outcome: 'SKIPPED', code: 'NOT_A_STUDENT', message: 'Only students have an Olympiad level.' };

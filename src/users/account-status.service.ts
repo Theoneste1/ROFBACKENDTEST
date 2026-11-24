@@ -32,7 +32,7 @@ import { ConfigService } from '@nestjs/config';
 import { roleFlagOn } from '../auth/role-assignment.policy.js';
 import type { AppRole } from '../auth/permissions.js';
 import { clearPrimaryOfAccount } from '../teachers/primary-teacher.js';
-import { checkTransition, confirmationRequired, permissionFor, stillBlockedBy, type SignInBlock } from './account-status.js';
+import { activateNowRefusal, checkTransition, confirmationRequired, permissionFor, stillBlockedBy, type SignInBlock } from './account-status.js';
 
 export interface StatusChangeContext {
   requestId?: string | null;
@@ -149,6 +149,65 @@ export class AccountStatusService {
       if (isLastSuperAdminError(err) && !(err instanceof AppError)) throw lastSuperAdmin();
       throw err;
     }
+  }
+
+  /**
+   * "Activate now" (owner 2026-11-24; POST /admin/users/:id/activate-now and bulk action activateNow): an account that
+   * is ACTIVE but never activated (activatedAt null — "Awaiting setup") and has its own password becomes activated, so
+   * the person signs in without confirming their e-mail. Needs users.changeStatus and the right to manage the account's
+   * role (the same rules as a status change). In one transaction under the account's row lock: activatedAt = now; the
+   * account's unused activation links (EMAIL_VERIFICATION, INVITATION) are revoked, never deleted; audit ACTIVATE_ACCOUNT
+   * { via: 'admin', activatedBy, … } with the administrator as the actor. No e-mail is sent.
+   * Refusals (409, nothing changed): ACCOUNT_NOT_ACTIVE, ALREADY_ACTIVATED, NO_PASSWORD_YET (account-status.ts).
+   */
+  async activateNow(
+    targetId: string,
+    caller: AuthUser,
+    ctx: Pick<StatusChangeContext, 'requestId' | 'operationId' | 'tx'> = {},
+  ): Promise<{ user: Record<string, unknown>; stillBlockedBy: SignInBlock[]; message: string }> {
+    if (targetId === caller.id) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_CHANGE_OWN_STATUS', 'You cannot activate your own account.');
+    }
+    const db = ctx.tx ?? this.prisma;
+    const target = await db.user.findUnique({ where: { id: targetId }, select: { id: true, role: true } });
+    if (!target) throw new NotFoundException(`User ${targetId} not found.`);
+    await this.roles.assertCanManage(caller, target.role);
+    if (!this.permissions.has(caller, 'users.changeStatus')) {
+      throw new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this.', { permission: 'users.changeStatus' });
+    }
+
+    const inTx = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => (ctx.tx ? fn(ctx.tx) : this.prisma.$transaction(fn));
+    return inTx(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${targetId} FOR NO KEY UPDATE`;
+      const current = await tx.user.findUniqueOrThrow({
+        where: { id: targetId }, select: { role: true, accountStatus: true, activatedAt: true, passwordHash: true },
+      });
+      if (current.role !== target.role) await this.roles.assertCanManage(caller, current.role);
+      const refusal = activateNowRefusal({ accountStatus: current.accountStatus, activatedAt: current.activatedAt, hasPassword: current.passwordHash !== null });
+      if (refusal) throw new AppError(HttpStatus.CONFLICT, refusal.code, refusal.message, { accountStatus: current.accountStatus });
+
+      const now = new Date();
+      const updated = await tx.user.update({
+        where: { id: targetId }, data: { activatedAt: now }, select: { ...STATUS_USER_SELECT, lockedUntil: true },
+      });
+      const { lockedUntil, ...user } = updated;
+      const revoked = await tx.accountActivationToken.updateMany({
+        where: { userId: targetId, usedAt: null, revokedAt: null, purpose: { in: ['EMAIL_VERIFICATION', 'INVITATION'] } },
+        data: { revokedAt: now },
+      });
+      const blocks = stillBlockedBy({ activatedAt: updated.activatedAt, isApproved: updated.isApproved, lockedUntil }, roleFlagOn(updated.role as AppRole, this.config));
+      await this.audit.log({
+        actorId: caller.id, actorRole: caller.role, action: 'ACTIVATE_ACCOUNT', entity: 'User', entityId: targetId,
+        metadata: {
+          via: 'admin', activatedBy: caller.id, linksRevoked: revoked.count,
+          requestId: ctx.requestId ?? null, operationId: ctx.operationId ?? null, stillBlockedBy: blocks,
+        },
+      }, tx);
+      const message = blocks.length === 0
+        ? 'The account is active. The person can sign in now.'
+        : 'The account is activated. Something else still stops the person signing in: see stillBlockedBy.';
+      return { user, stillBlockedBy: blocks, message };
+    });
   }
 
   /** The account's state changes, newest first. */

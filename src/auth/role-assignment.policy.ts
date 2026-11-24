@@ -137,6 +137,11 @@ export class RoleAssignmentPolicy {
     }
   }
 
+  /** The same rule as assertCanManage, as a boolean (bulk previews count the accounts it would refuse). */
+  canManage(actor: CallerCtx, currentRole: string): Promise<boolean> {
+    return this.mayManage(actor, currentRole);
+  }
+
   private async mayManage(actor: CallerCtx, role: string): Promise<boolean> {
     if (role === 'SUPER_ADMIN') return isSuperAdmin(actor);
     const permission = Object.hasOwn(MANAGE_PERMISSION, role) ? MANAGE_PERMISSION[role as AppRole] : null;

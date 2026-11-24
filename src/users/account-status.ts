@@ -86,6 +86,34 @@ export function stillBlockedBy(
   return out;
 }
 
+/**
+ * "Activate now" (owner 2026-11-24): an administrator activates an account that is still "Awaiting setup" (activatedAt
+ * null) on the person's behalf, so they can sign in without confirming their e-mail. Only for a person who chose their
+ * own password (self-registered students, teachers and coaches); an invited person without a password must use the
+ * invitation link. An account that is not ACTIVE is reactivated, lifted or restored first. null = may be activated.
+ */
+export type ActivateNowRefusalCode = 'ACCOUNT_NOT_ACTIVE' | 'ALREADY_ACTIVATED' | 'NO_PASSWORD_YET';
+
+const NOT_ACTIVE_NEXT_STEP: Readonly<Record<Exclude<AccountStatus, 'ACTIVE'>, string>> = {
+  DEACTIVATED: 'This account is deactivated. Reactivate it first, then use Activate now.',
+  SUSPENDED:   'This account is suspended. Lift the suspension first, then use Activate now.',
+  ARCHIVED:    'This account is archived. Restore it first, then use Activate now.',
+};
+
+export const ACTIVATE_NOW_MESSAGES = {
+  ALREADY_ACTIVATED: 'This account is already active. The person can sign in.',
+  NO_PASSWORD_YET:   'This person has not set a password yet. Resend the invitation instead; they choose a password from its link.',
+} as const;
+
+export function activateNowRefusal(
+  u: { accountStatus: AccountStatus; activatedAt: Date | null; hasPassword: boolean },
+): { code: ActivateNowRefusalCode; message: string } | null {
+  if (u.accountStatus !== 'ACTIVE') return { code: 'ACCOUNT_NOT_ACTIVE', message: NOT_ACTIVE_NEXT_STEP[u.accountStatus] };
+  if (u.activatedAt) return { code: 'ALREADY_ACTIVATED', message: ACTIVATE_NOW_MESSAGES.ALREADY_ACTIVATED };
+  if (!u.hasPassword) return { code: 'NO_PASSWORD_YET', message: ACTIVATE_NOW_MESSAGES.NO_PASSWORD_YET };
+  return null;
+}
+
 /** Restoring an archived account needs an explicit confirmation (and a reason — checkTransition). */
 export const confirmationRequired = (from: AccountStatus, to: AccountStatus) => from === 'ARCHIVED' && to === 'ACTIVE';
 

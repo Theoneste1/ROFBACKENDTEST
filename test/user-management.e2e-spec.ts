@@ -111,11 +111,32 @@ describe('User management (e2e)', () => {
       const dup = await ctx.http().post('/api/v1/admin/users/invite').set(bearer(admin))
         .send({ firstName: 'X', lastName: 'Y', email: 'aline.m@example.com', gradeLevel: 'S2' }).expect(409);
       expect(dup.body.code).toBe('IDENTITY_TAKEN');
+      // Administrators are told which field is taken (they can list every account anyway).
+      expect(dup.body.details).toEqual({ fields: ['email'] });
+      expect(dup.body.message).toBe('This e-mail address is already used by another account. Use a different e-mail address, or find the existing account in Users.');
       const noGrade = await ctx.http().post('/api/v1/admin/users/invite').set(bearer(admin))
         .send({ firstName: 'X', lastName: 'Y', email: 'x.y@example.com' }).expect(400);
       expect(noGrade.body.code).toBe('VALIDATION_FAILED');
       await ctx.http().post('/api/v1/admin/users/invite').set(bearer(mentorJ))
         .send({ firstName: 'X', lastName: 'Y', email: 'x.y@example.com', gradeLevel: 'S2' }).expect(403);
+    });
+
+    it('an Administrator creating or editing an account is told which of the username and e-mail is taken (QA 2026-11-24)', async () => {
+      const create = (username: string, email: string) => ctx.http().post('/api/v1/admin/users').set(bearer(admin))
+        .send({ firstName: 'Dup', lastName: 'Check', username, email, password: 'Str0ng!Passw0rd', role: 'MENTOR' });
+      const name = await create('student.j', 'dup.check.one@example.com').expect(409);
+      expect(name.body).toMatchObject({ code: 'IDENTITY_TAKEN', details: { fields: ['username'] },
+        message: 'This username is already used by another account. Choose a different username.' });
+      const mail = await create('dup.check.two', 'ALINE.M@example.com').expect(409);
+      expect(mail.body).toMatchObject({ code: 'IDENTITY_TAKEN', details: { fields: ['email'] } });
+      const both = await create('student.j', 'aline.m@example.com').expect(409);
+      expect(both.body.details).toEqual({ fields: ['username', 'email'] });
+      expect(both.body.message).toMatch(/^This username and this e-mail address are already used by other accounts\./);
+      expect(await ctx.prisma.user.count({ where: { username: { in: ['dup.check.two'] } } })).toBe(0);
+
+      const ok = await create('dup.check.three', 'dup.check.three@example.com').expect(201);
+      const edit = await ctx.http().patch(`/api/v1/admin/users/${ok.body.id}`).set(bearer(admin)).send({ username: 'student.j' }).expect(409);
+      expect(edit.body).toMatchObject({ code: 'IDENTITY_TAKEN', details: { fields: ['username'] } });
     });
 
     it('lists pending invitations', async () => {

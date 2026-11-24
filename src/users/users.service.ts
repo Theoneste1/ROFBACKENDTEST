@@ -32,6 +32,7 @@ import {
   UpdateUserStatusDto,
 } from './dto/update-user.dto.js';
 import { storedOtherInterest } from './olympiad-interests.rules.js';
+import { identityTakenForAdmin } from './identity-taken.js';
 
 /** Fields that are safe to return to admins — passwordHash is never included. */
 const SAFE_SELECT = {
@@ -220,10 +221,15 @@ export class UsersService {
   }
 
   // ─── Get a single user ──────────────────────────────────────────────────────
+  /**
+   * One account for administrators. `hasPassword` (activate now, 2026-11-24) says whether the person chose a password —
+   * an account awaiting setup can then be activated by an administrator; the password hash itself is never returned.
+   */
   async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id }, select: SAFE_SELECT });
-    if (!user) throw new NotFoundException(`User ${id} not found.`);
-    return user;
+    const found = await this.prisma.user.findUnique({ where: { id }, select: { ...SAFE_SELECT, passwordHash: true } });
+    if (!found) throw new NotFoundException(`User ${id} not found.`);
+    const { passwordHash, ...user } = found;
+    return { ...user, hasPassword: passwordHash !== null };
   }
 
   // ─── Update a user (admin) ──────────────────────────────────────────────────
@@ -712,10 +718,9 @@ export class UsersService {
       ...(email ? [{ email }] : []),
     ];
     if (or.length === 0) return;
-    const existing = await this.prisma.user.findFirst({ where: { OR: or }, select: { id: true } });
-    if (existing) {
-      throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
-    }
+    // Administrators only (users.manage): the answer says which field is taken (identity-taken.ts).
+    const clashes = await this.prisma.user.findMany({ where: { OR: or }, select: { username: true, email: true }, take: 2 });
+    if (clashes.length) throw identityTakenForAdmin(clashes, username, email);
   }
 
   // ─── Super Admin safeguards (P1-08, plan §8.2) ───────────────────────────────
