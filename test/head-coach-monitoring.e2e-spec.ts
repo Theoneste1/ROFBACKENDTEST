@@ -200,6 +200,9 @@ describe('Head Coach monitoring and coach invitation (P1-10 part 3)', () => {
     expect((await invite(hm, physics, 'm3.elsewhere')).status).toBe(404);
     expect(await p().user.count({ where: { username: 'm3.elsewhere' } })).toBe(0);
     expect(await status(invite(hm, maths, 'm3.invited'))).toEqual([409, 'IDENTITY_TAKEN']);
+    // A Head Coach is not told which one is taken (they cannot list accounts).
+    expect((await invite(hm, maths, 'm3.invited')).body).toMatchObject({ message: 'Username or email is already in use.' });
+    expect((await invite(hm, maths, 'm3.invited')).body.details?.fields).toBeUndefined();
     // Only Coaches: the endpoint has no role field, and extra fields are rejected.
     expect((await http().post(`/api/v1/admin/programmes/${maths}/coach-invitations`).set(bearer(hm))
       .send({ firstName: 'X', lastName: 'Y', email: 'm3.admin@test.local', role: 'ADMIN' })).status).toBe(400);

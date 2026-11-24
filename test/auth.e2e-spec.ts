@@ -105,6 +105,9 @@ describe('Authentication (e2e)', () => {
   it('refuses a taken username or email with one generic message', async () => {
     const res = await register({ username: 'ada2' }).expect(409);
     expect(res.body.code).toBe('IDENTITY_TAKEN');
+    // Public sign-up never says which one (no probing for existing usernames or addresses).
+    expect(res.body.message).toBe('Username or email is already in use.');
+    expect(res.body.details?.fields).toBeUndefined();
   });
 
   it('respects the self-signup setting', async () => {

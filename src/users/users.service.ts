@@ -32,6 +32,7 @@ import {
   UpdateUserStatusDto,
 } from './dto/update-user.dto.js';
 import { storedOtherInterest } from './olympiad-interests.rules.js';
+import { identityTakenForAdmin } from './identity-taken.js';
 
 /** Fields that are safe to return to admins — passwordHash is never included. */
 const SAFE_SELECT = {
@@ -717,10 +718,9 @@ export class UsersService {
       ...(email ? [{ email }] : []),
     ];
     if (or.length === 0) return;
-    const existing = await this.prisma.user.findFirst({ where: { OR: or }, select: { id: true } });
-    if (existing) {
-      throw new AppError(HttpStatus.CONFLICT, 'IDENTITY_TAKEN', 'Username or email is already in use.');
-    }
+    // Administrators only (users.manage): the answer says which field is taken (identity-taken.ts).
+    const clashes = await this.prisma.user.findMany({ where: { OR: or }, select: { username: true, email: true }, take: 2 });
+    if (clashes.length) throw identityTakenForAdmin(clashes, username, email);
   }
 
   // ─── Super Admin safeguards (P1-08, plan §8.2) ───────────────────────────────
