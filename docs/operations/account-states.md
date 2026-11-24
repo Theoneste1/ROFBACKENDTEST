@@ -83,7 +83,10 @@ an ACTIVE account that was never activated ("Awaiting setup") and whose person c
 in without confirming their e-mail. `activatedAt` is set; their unused activation links are revoked (never deleted); audit
 `ACTIVATE_ACCOUNT` `{ via: 'admin', activatedBy, linksRevoked, operationId }`; no e-mail is sent. Needs `users.manage`,
 `users.changeStatus` and the right to manage the account's role. 409 `ALREADY_ACTIVATED`, `NO_PASSWORD_YET` (resend the
-invitation instead), `ACCOUNT_NOT_ACTIVE` (reactivate, lift or restore first). Bulk: USER action `activateNow` (preview
+invitation instead), `ACCOUNT_NOT_ACTIVE` (reactivate, lift or restore first). Response 200: `{ user, stillBlockedBy,
+message }` — `user` is the account's state fields (`id`, `username`, `firstName`, `lastName`, `role`, `accountStatus`,
+`isActive`, `isApproved`, `activatedAt`, `updatedAt`), `stillBlockedBy` lists what still stops sign-in (`PENDING_APPROVAL`,
+`LOCKED`, `ROLE_DISABLED`; empty when they can sign in now) and `message` says so in plain words. Bulk: USER action `activateNow` (preview
 `willApply` and one warning per skip reason; items SKIPPED with the same codes, or `ROLE_NOT_MANAGEABLE`).
 `GET /admin/users/:id` carries `hasPassword` (never the hash).
 

@@ -3472,7 +3472,9 @@ ROLE_NOT_ASSIGNABLE. Returns the account, `stillBlockedBy` (PENDING_APPROVAL, LO
 |---|---|---|:-:|---|
 | `id` | path | string | ✓ |  |
 
-Returns `200` with no body.
+Returns `200` JSON with:
+
+`message` string · `stillBlockedBy` string[] · `user` object
 
 ### PUT `/api/v1/admin/users/{id}/avatar`
 

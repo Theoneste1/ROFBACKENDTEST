@@ -1990,6 +1990,20 @@ describe('approved API contract history', () => {
     ]);
   });
 
+  test('activate now (2026-11-24): the documented 200 response is { user, stillBlockedBy, message } — the shape the frontend reads', () => {
+    const op = JSON.parse(readFileSync('docs/api/openapi.json', 'utf8')).paths['/api/v1/admin/users/{id}/activate-now'].post;
+    const schema = op.responses['200'].content['application/json'].schema;
+    assert.deepEqual(schema.required, ['message', 'stillBlockedBy', 'user']);
+    assert.equal(schema.properties.message.type, 'string');
+    assert.equal(schema.properties.stillBlockedBy.type, 'array');
+    assert.equal(schema.properties.stillBlockedBy.items.type, 'string');
+    assert.deepEqual(schema.properties.user.required,
+      ['accountStatus', 'activatedAt', 'firstName', 'id', 'isActive', 'isApproved', 'lastName', 'role', 'updatedAt', 'username']);
+    assert.match(op.responses['200'].description, /stillBlockedBy/);
+    const saved = JSON.parse(readFileSync(ACTIVATE_NOW_SNAPSHOT, 'utf8')).operations.find((o) => o.key === 'POST /api/v1/admin/users/{id}/activate-now');
+    assert.notEqual(saved.responses['200'], null, 'the saved contract has the response body');
+  });
+
   test('the school code is the identifier → integration of the 2026-11-23 branches (audit 2026-11-24): nothing breaking, nothing for review; every branch snapshot is contained', () => {
     for (const f of [SCHOOL_CODES_SNAPSHOT, INTEGRATION_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
     const base = JSON.parse(readFileSync(SCHOOL_CODES_SNAPSHOT, 'utf8'));

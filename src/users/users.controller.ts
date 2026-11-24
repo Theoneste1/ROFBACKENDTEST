@@ -16,7 +16,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import type { Request, Response } from 'express';
 
@@ -196,6 +196,7 @@ export class UsersController {
    */
   @Post(':id/activate-now')
   @HttpCode(200)
+  @ApiOkResponse({ description: 'The account was activated. `user`: its state fields; `stillBlockedBy`: what still stops it signing in (PENDING_APPROVAL, LOCKED, ROLE_DISABLED; empty when it can sign in now); `message`: the same in plain words.' })
   @RequirePermission('users.manage')
   activateNow(
     @Param('id', ParseUUIDPipe) id: string,

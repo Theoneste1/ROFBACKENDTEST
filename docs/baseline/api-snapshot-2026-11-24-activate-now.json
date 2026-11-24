@@ -10,7 +10,7 @@
     "paths": 413,
     "schemas": 182
   },
-  "fingerprint": "db8ea11e797a54063f5787e5b280807563c113504516afd252b0156965bf344b",
+  "fingerprint": "f0c8ae27528f3ddf0dc0a842137eaa8d67ea6a2a41f25b0ccc04e97149506886",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -22178,7 +22178,77 @@
       ],
       "requestBody": null,
       "responses": {
-        "200": null,
+        "200": {
+          "application/json": {
+            "type": "object",
+            "required": [
+              "message",
+              "stillBlockedBy",
+              "user"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "stillBlockedBy": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "user": {
+                "type": "object",
+                "required": [
+                  "accountStatus",
+                  "activatedAt",
+                  "firstName",
+                  "id",
+                  "isActive",
+                  "isApproved",
+                  "lastName",
+                  "role",
+                  "updatedAt",
+                  "username"
+                ],
+                "properties": {
+                  "accountStatus": {
+                    "type": "string"
+                  },
+                  "activatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  },
+                  "isApproved": {
+                    "type": "boolean"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "username": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
         "default": {
           "application/json": {
             "ref": "Error"

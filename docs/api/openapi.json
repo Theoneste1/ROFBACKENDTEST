@@ -7051,7 +7051,80 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "The account was activated. `user`: its state fields; `stillBlockedBy`: what still stops it signing in (PENDING_APPROVAL, LOCKED, ROLE_DISABLED; empty when it can sign in now); `message`: the same in plain words.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "stillBlockedBy": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "user": {
+                      "properties": {
+                        "accountStatus": {
+                          "type": "string"
+                        },
+                        "activatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "isApproved": {
+                          "type": "boolean"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "accountStatus",
+                        "activatedAt",
+                        "firstName",
+                        "id",
+                        "isActive",
+                        "isApproved",
+                        "lastName",
+                        "role",
+                        "updatedAt",
+                        "username"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "stillBlockedBy",
+                    "user"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
           },
           "default": {
             "description": "Error",
