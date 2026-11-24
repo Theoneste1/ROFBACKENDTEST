@@ -62,6 +62,18 @@ describe('Activate now', () => {
 
   // ─── One account ────────────────────────────────────────────────────────────
 
+  it('the same account activated twice at the same moment (double click, two administrators): one succeeds, the other is told it is already active; one audit entry (QA 2026-11-24)', async () => {
+    const u = await awaiting('an.twice');
+    const results = await Promise.all([activateNow(u.id), activateNow(u.id), activateNow(u.id)]);
+    const statuses = results.map((r) => r.status).sort();
+    expect(statuses).toEqual([200, 409, 409]);
+    for (const r of results.filter((x) => x.status === 409)) {
+      expect(r.body).toMatchObject({ code: 'ALREADY_ACTIVATED', message: 'This account is already active. The person can sign in.' });
+    }
+    expect(await auditsFor(u.id)).toHaveLength(1);
+    expect(await loginCode('an.twice')).toBe('OK');
+  });
+
   it.each([['STUDENT', 'an.student'], ['TEACHER', 'an.teacher'], ['MENTOR', 'an.coach']] as const)(
     'a self-registered %s awaiting setup is activated and signs in at once; links revoked; audited', async (role, username) => {
       const u = await awaiting(username, role);
