@@ -7036,6 +7036,119 @@
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/users/{id}/activate-now": {
+      "post": {
+        "operationId": "UsersController_activateNow",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The account was activated. `user`: its state fields; `stillBlockedBy`: what still stops it signing in (PENDING_APPROVAL, LOCKED, ROLE_DISABLED; empty when it can sign in now); `message`: the same in plain words.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "stillBlockedBy": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "user": {
+                      "properties": {
+                        "accountStatus": {
+                          "type": "string"
+                        },
+                        "activatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "firstName": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        "isActive": {
+                          "type": "boolean"
+                        },
+                        "isApproved": {
+                          "type": "boolean"
+                        },
+                        "lastName": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "accountStatus",
+                        "activatedAt",
+                        "firstName",
+                        "id",
+                        "isActive",
+                        "isApproved",
+                        "lastName",
+                        "role",
+                        "updatedAt",
+                        "username"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "message",
+                    "stillBlockedBy",
+                    "user"
+                  ],
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Activate now (capability adminActivateNow, owner 2026-11-24): an account \"Awaiting setup\" (never activated) whose\nperson chose their own password is activated at once, so they sign in without confirming their e-mail. Their unused\nactivation links stop working; audited ACTIVATE_ACCOUNT { via: 'admin' }; no e-mail is sent. Needs users.changeStatus\nand the right to manage the account's role. 409 ALREADY_ACTIVATED / NO_PASSWORD_YET (resend the invitation instead) /\nACCOUNT_NOT_ACTIVE (reactivate, lift or restore first), 400 CANNOT_CHANGE_OWN_STATUS, 403 PERMISSION_REQUIRED /\nROLE_NOT_ASSIGNABLE. Returns the account, `stillBlockedBy` (PENDING_APPROVAL, LOCKED, ROLE_DISABLED) and a message.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/users/{id}/registration-timeline": {
       "get": {
         "operationId": "UsersController_registrationTimeline",
@@ -56968,7 +57081,8 @@
               "grantDelegation",
               "revokeDelegation",
               "reassignTeacher",
-              "setOlympiadLevel"
+              "setOlympiadLevel",
+              "activateNow"
             ]
           },
           "params": {
@@ -57001,7 +57115,8 @@
               "grantDelegation",
               "revokeDelegation",
               "reassignTeacher",
-              "setOlympiadLevel"
+              "setOlympiadLevel",
+              "activateNow"
             ],
             "type": "string"
           },
@@ -59583,6 +59698,10 @@
           },
           "total": {
             "type": "integer"
+          },
+          "willApply": {
+            "type": "integer",
+            "description": "How many of them the action will change, when it can be told in advance (USER activateNow); the warnings say why the others are skipped."
           },
           "sample": {
             "type": "array",

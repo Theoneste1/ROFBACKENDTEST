@@ -72,6 +72,8 @@ export class BulkPreviewResult {
   @ApiProperty(FREE_OBJECT) params: Record<string, unknown>;
   @ApiProperty(FREE_OBJECT) selection: Record<string, unknown>;
   @ApiProperty({ type: 'integer' }) total: number;
+  /** How many of them the action will change, when it can be told in advance (USER activateNow); the warnings say why the others are skipped. */
+  @ApiPropertyOptional({ type: 'integer' }) willApply?: number;
   /** At most 10 matching records (USER: id, username, firstName, lastName, role, accountStatus). */
   @ApiProperty({ type: 'array', items: FREE_OBJECT }) sample: Array<Record<string, unknown>>;
   @ApiProperty({ type: () => [BulkPreviewWarning] }) warnings: BulkPreviewWarning[];
