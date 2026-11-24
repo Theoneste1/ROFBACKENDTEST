@@ -16,6 +16,7 @@ function makeMocks() {
     user: {
       findUnique: vi.fn().mockResolvedValue({ id: 'u2', username: 'bob' }),
       findFirst:  vi.fn().mockResolvedValue(null),
+      findMany:   vi.fn().mockResolvedValue([]),
       update:     vi.fn().mockResolvedValue({ id: 'u2' }),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       delete:     vi.fn().mockResolvedValue({}),
@@ -145,9 +146,11 @@ describe('UsersService', () => {
     it('rejects a username already in use', async () => {
       const { service, prisma } = makeMocks();
       prisma.user.findUnique.mockResolvedValue(existing);
-      prisma.user.findFirst.mockResolvedValue({ id: 'u3' });
-      await expect(service.update('u2', { username: 'taken' } as any, ADMIN))
-        .rejects.toMatchObject({ code: 'IDENTITY_TAKEN' });
+      prisma.user.findMany.mockResolvedValue([{ username: 'taken', email: 'someone@example.com' }]);
+      const err = await service.update('u2', { username: 'taken' } as any, ADMIN).catch((e) => e);
+      expect(err).toMatchObject({ code: 'IDENTITY_TAKEN' });
+      // An Administrator is told which field is taken (identity-taken.ts).
+      expect(err.getResponse()).toMatchObject({ details: { fields: ['username'] } });
     });
 
     it('refuses (409 USER_CHANGED_CONCURRENTLY) when the user changed between the first read and the row lock — nothing is written', async () => {
