@@ -1957,6 +1957,15 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "POST",
+    "path": "/api/v1/admin/users/{id}/activate-now",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "PUT",
     "path": "/api/v1/admin/users/{id}/avatar",
     "roles": [

@@ -85,7 +85,8 @@ export interface BulkEntityHandler {
   count(db: Db, s: EngineSelection): Promise<number>;
   /** Every matching id, sorted ascending (the order the confirmation digest uses). */
   scanIds(db: Db, s: EngineSelection): Promise<string[]>;
-  preview(ids: string[], action: string, params: Record<string, unknown>, caller: AuthUser): Promise<{ sample: unknown[]; warnings: PreviewWarning[]; requiresStepUp: boolean }>;
+  /** `willApply`: how many records the action will change, when the type can tell in advance (USER activateNow). */
+  preview(ids: string[], action: string, params: Record<string, unknown>, caller: AuthUser): Promise<{ sample: unknown[]; warnings: PreviewWarning[]; requiresStepUp: boolean; willApply?: number }>;
   /** At execution, before the transaction: true when the caller's current password must be checked (assertStepUp). */
   stepUpRequired?(action: string, params: Record<string, unknown>, s: EngineSelection): Promise<boolean>;
   assertStepUp?(caller: AuthUser, currentPassword: string | undefined): Promise<void>;

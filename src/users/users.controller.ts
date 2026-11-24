@@ -187,6 +187,25 @@ export class UsersController {
   }
 
   /**
+   * Activate now (capability adminActivateNow, owner 2026-11-24): an account "Awaiting setup" (never activated) whose
+   * person chose their own password is activated at once, so they sign in without confirming their e-mail. Their unused
+   * activation links stop working; audited ACTIVATE_ACCOUNT { via: 'admin' }; no e-mail is sent. Needs users.changeStatus
+   * and the right to manage the account's role. 409 ALREADY_ACTIVATED / NO_PASSWORD_YET (resend the invitation instead) /
+   * ACCOUNT_NOT_ACTIVE (reactivate, lift or restore first), 400 CANNOT_CHANGE_OWN_STATUS, 403 PERMISSION_REQUIRED /
+   * ROLE_NOT_ASSIGNABLE. Returns the account, `stillBlockedBy` (PENDING_APPROVAL, LOCKED, ROLE_DISABLED) and a message.
+   */
+  @Post(':id/activate-now')
+  @HttpCode(200)
+  @RequirePermission('users.manage')
+  activateNow(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request & { id?: string },
+  ) {
+    return this.accountStatus.activateNow(id, user, { requestId: req.id ?? null });
+  }
+
+  /**
    * Registration timeline (REG-13): the current stages and every registration-related event, oldest first
    * (registration / invitation, application, activation, approval, state and role changes, school claims).
    */

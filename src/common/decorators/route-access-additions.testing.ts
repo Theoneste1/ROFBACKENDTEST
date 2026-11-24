@@ -386,4 +386,6 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/users/:id/view-as  ViewAsAdminController.start':                                          ADMINISTRATORS,
   'POST /api/v1/auth/view-as/exchange  ViewAsAuthController.exchange':                                          PUBLIC,
   'POST /api/v1/auth/view-as/end  ViewAsAuthController.end':                                                    PUBLIC,
+  // Activate now (owner 2026-11-24): users.manage at the route, users.changeStatus and the role rule in the service.
+  'POST /api/v1/admin/users/:id/activate-now  UsersController.activateNow':                                    ADMINISTRATORS,
 };

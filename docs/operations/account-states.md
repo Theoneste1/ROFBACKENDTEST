@@ -78,6 +78,15 @@ stays active (`409 LAST_SUPER_ADMIN`, also enforced by the database).
 
 Capability: `accountStates` (GET /api/v1).
 
+**Activate now** (capability `adminActivateNow`, owner 2026-11-24): `POST /api/v1/admin/users/:id/activate-now` activates
+an ACTIVE account that was never activated ("Awaiting setup") and whose person chose their own password — they then sign
+in without confirming their e-mail. `activatedAt` is set; their unused activation links are revoked (never deleted); audit
+`ACTIVATE_ACCOUNT` `{ via: 'admin', activatedBy, linksRevoked, operationId }`; no e-mail is sent. Needs `users.manage`,
+`users.changeStatus` and the right to manage the account's role. 409 `ALREADY_ACTIVATED`, `NO_PASSWORD_YET` (resend the
+invitation instead), `ACCOUNT_NOT_ACTIVE` (reactivate, lift or restore first). Bulk: USER action `activateNow` (preview
+`willApply` and one warning per skip reason; items SKIPPED with the same codes, or `ROLE_NOT_MANAGEABLE`).
+`GET /admin/users/:id` carries `hasPassword` (never the hash).
+
 ## Existing data
 
 The migration (`20261206000000_account_states`) gives every account a state: `isActive = false` accounts — the

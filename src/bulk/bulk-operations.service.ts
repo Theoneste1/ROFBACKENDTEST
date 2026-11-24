@@ -75,6 +75,7 @@ export class BulkOperationsService {
     return {
       action, params, selection,
       total: ids.length,
+      ...(pv.willApply !== undefined && { willApply: pv.willApply }),
       sample: pv.sample,
       warnings: pv.warnings,
       consequences: [rule.consequence],

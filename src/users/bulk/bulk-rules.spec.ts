@@ -6,7 +6,10 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { ListUsersQueryDto } from '../dto/update-user.dto.js';
 import { userListWhere } from '../users.service.js';
 import { BulkFilterDto } from './bulk.dto.js';
-import { ACTION_RULES, BULK_ACTIONS, finalStatus, MEMBERSHIP_COLUMNS, normaliseParams, normaliseSelection, selectionToken, statusDecision } from './bulk-rules.js';
+import {
+  ACTION_RULES, activateNowBreakdown, BULK_ACTIONS, finalStatus, MEMBERSHIP_COLUMNS, normaliseParams, normaliseSelection, SKIP_CODES, selectionToken,
+  statusDecision,
+} from './bulk-rules.js';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -132,5 +135,45 @@ describe('bulk rules', () => {
       expect(guarded).toEqual([...MEMBERSHIP_COLUMNS].sort());
       for (const c of ['lastLoginAt', 'failedLoginCount', 'lockedUntil', 'tokensValidAfter', 'passwordHash']) expect(guarded).not.toContain(c);
     });
+  });
+});
+
+describe('activateNow (owner 2026-11-24)', () => {
+  it('needs the single route\'s permissions (users.manage, users.changeStatus); no reason required; no parameters', () => {
+    expect(ACTION_RULES.activateNow).toMatchObject({ permissions: ['users.manage', 'users.changeStatus'], reason: 'optional' });
+    expect(ACTION_RULES.activateNow.toStatus).toBeUndefined();
+    expect(normaliseParams('activateNow', { role: 'ADMIN', subject: 'x' })).toEqual({});
+  });
+
+  it('the service\'s refusals are skips, not failures', () => {
+    for (const c of ['ALREADY_ACTIVATED', 'NO_PASSWORD_YET', 'ACCOUNT_NOT_ACTIVE']) expect(SKIP_CODES.has(c)).toBe(true);
+  });
+
+  it('preview breakdown: how many will be activated and each skip reason, in the item\'s order (rank, state, activated, password)', () => {
+    const g = (role: string, accountStatus: 'ACTIVE' | 'DEACTIVATED' | 'SUSPENDED' | 'ARCHIVED', activated: boolean, hasPassword: boolean, n: number) =>
+      ({ role, accountStatus, activated, hasPassword, n });
+    const groups = [
+      g('STUDENT', 'ACTIVE', false, true, 5),      // activated
+      g('TEACHER', 'ACTIVE', false, true, 2),      // activated
+      g('MENTOR', 'ACTIVE', false, false, 3),      // invited, no password yet
+      g('STUDENT', 'ACTIVE', true, true, 4),       // already active
+      g('STUDENT', 'SUSPENDED', false, true, 1),   // not active
+      g('STUDENT', 'ARCHIVED', true, false, 1),    // not active (the state is checked first)
+      g('ADMIN', 'ACTIVE', false, true, 2),        // rank: the caller may not manage Administrators
+    ];
+    const r = activateNowBreakdown(groups, (role) => role !== 'ADMIN', false);
+    expect(r).toEqual({ willActivate: 7, skipped: { SELF: 0, ROLE_NOT_MANAGEABLE: 2, ACCOUNT_NOT_ACTIVE: 2, ALREADY_ACTIVATED: 4, NO_PASSWORD_YET: 3 } });
+    const total = groups.reduce((n, x) => n + x.n, 0);
+    expect(r.willActivate + Object.values(r.skipped).reduce((n, x) => n + x, 0)).toBe(total);
+  });
+
+  it('the caller\'s own (activated) account is counted once, as SELF', () => {
+    const r = activateNowBreakdown([{ role: 'ADMIN', accountStatus: 'ACTIVE', activated: true, hasPassword: true, n: 1 },
+      { role: 'STUDENT', accountStatus: 'ACTIVE', activated: false, hasPassword: true, n: 1 }], () => true, true);
+    expect(r).toEqual({ willActivate: 1, skipped: { SELF: 1, ROLE_NOT_MANAGEABLE: 0, ACCOUNT_NOT_ACTIVE: 0, ALREADY_ACTIVATED: 0, NO_PASSWORD_YET: 0 } });
+  });
+
+  it('an empty selection activates nobody', () => {
+    expect(activateNowBreakdown([], () => true, false).willActivate).toBe(0);
   });
 });
