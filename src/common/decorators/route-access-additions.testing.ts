@@ -395,4 +395,5 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/me/banking  MyBankingController.mine':                                                           BANKING_ROLES_ONLY,
   'PUT /api/v1/me/banking  MyBankingController.save':                                                           BANKING_ROLES_ONLY,
   'GET /api/v1/admin/users/:id/banking  AdminBankingController.view':                                           ADMINISTRATORS,
+  'PUT /api/v1/admin/users/:id/banking  AdminBankingController.update':                                         ADMINISTRATORS,
 };

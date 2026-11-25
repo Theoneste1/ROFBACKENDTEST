@@ -4,13 +4,16 @@
  * administrators' views) and for saving (PUT /me/banking). Pure (unit-tested); the frontend mirrors it.
  *
  * The agreed rules, and only those (final requirements, owner 2026-11-25):
- *  - Teachers give all six fields: personal and school. Both banks are Umwalimu SACCO (fixed, never chosen); the
- *    personal account number is exactly 12 digits ("Your Umwalimu SACCO account number must contain exactly 12 digits.").
+ *  - Teachers give all six fields: personal and school. Both banks are Umwalimu SACCO (fixed, never chosen); both
+ *    account numbers are exactly 12 digits, as every Umwalimu SACCO number ("Your Umwalimu SACCO account number must
+ *    contain exactly 12 digits." / "The school's Umwalimu SACCO account number must contain exactly 12 digits.";
+ *    owner 2026-11-25, after the release: the school number was accepted in any format).
  *  - Coaches and Head Coaches give the three PERSONAL fields only; the personal bank is chosen from BANKS. School bank
  *    details are neither asked nor required of them: never counted as missing, never checked, and any saved earlier
  *    are kept as they are (never deleted or overwritten).
  *  - Every required field is required.
- *  - No other format is imposed: other account numbers and account names are kept exactly as given (ROF agreed no
+ *  - Account names (personal and school, every role) contain no digit (owner 2026-11-25).
+ *  - No other format is imposed: other account numbers, and names otherwise, are kept exactly as given (ROF agreed no
  *    rule for them). The request caps lengths (200 characters for names, 40 for numbers: SaveBankingDto) only as a
  *    technical guard against oversized input, far above any real account name or number.
  *  - Students, Administrators and Super Administrators: not asked.
@@ -76,6 +79,12 @@ export const FIELD_LABELS: Record<BankingField, string> = {
 };
 
 export const TEACHER_NUMBER_MESSAGE = 'Your Umwalimu SACCO account number must contain exactly 12 digits.';
+export const SCHOOL_NUMBER_MESSAGE = "The school's Umwalimu SACCO account number must contain exactly 12 digits.";
+/** An account name with a digit (owner 2026-11-25: names contain no digit). */
+export const NAME_DIGIT_MESSAGES = {
+  personalAccountName: 'The bank account name must not contain numbers. Write the name exactly as on the account.',
+  schoolAccountName: "The school's bank account name must not contain numbers. Write the name exactly as on the account.",
+} as const;
 
 export type BankingStatus = 'COMPLETE' | 'PARTIAL' | 'NOT_STARTED' | 'NEEDS_CORRECTION';
 
@@ -93,6 +102,8 @@ export function bankRules(role: string) {
     banks: teacher ? [UMWALIMU_SACCO] : [...BANKS],
     /** Exactly this many digits for the personal account number (teachers); null: no format rule. */
     personalNumberDigits: teacher ? 12 : null,
+    /** Exactly this many digits for the school account number (Teachers: Umwalimu SACCO); null: not asked. */
+    schoolNumberDigits: teacher ? 12 : null,
     /** Whether the school's bank details are asked (Teachers only). */
     schoolRequired: teacher,
     /** The fields this role gives, in form order. */
@@ -120,6 +131,12 @@ export function fieldProblem(role: string, field: BankingField, value: string): 
     case 'personalAccountNumber':
       if (rules.personalNumberDigits) return /^\d{12}$/.test(value) ? null : TEACHER_NUMBER_MESSAGE;
       return null;
+    case 'schoolAccountNumber':
+      if (rules.schoolNumberDigits) return /^\d{12}$/.test(value) ? null : SCHOOL_NUMBER_MESSAGE;
+      return null;
+    case 'personalAccountName':
+    case 'schoolAccountName':
+      return /\d/.test(value) ? NAME_DIGIT_MESSAGES[field] : null;
     default:
       return null;
   }
@@ -212,7 +229,9 @@ export function checkSubmission(
       if (!filled(v)) v = UMWALIMU_SACCO;
     }
     if (!filled(v)) {
-      errors[f] = f === 'personalAccountNumber' && rules.personalNumberDigits ? TEACHER_NUMBER_MESSAGE : `${FIELD_LABELS[f]} is required.`;
+      errors[f] = f === 'personalAccountNumber' && rules.personalNumberDigits ? TEACHER_NUMBER_MESSAGE
+        : f === 'schoolAccountNumber' && rules.schoolNumberDigits ? SCHOOL_NUMBER_MESSAGE
+        : `${FIELD_LABELS[f]} is required.`;
       continue;
     }
     const value = f.endsWith('AccountName') ? v.trim() : v;

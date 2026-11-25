@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BANKS, bankConflicts, bankingIncomplete, bankingRequiredFor, bankingSummary, bankRules, checkSubmission, confirmReplaceMessage,
-  maskAccountNumber, requiredFields, TEACHER_NUMBER_MESSAGE, UMWALIMU_SACCO,
+  maskAccountNumber, NAME_DIGIT_MESSAGES, requiredFields, SCHOOL_NUMBER_MESSAGE, TEACHER_NUMBER_MESSAGE, UMWALIMU_SACCO,
 } from './banking-rules.js';
 
 const teacher = {
   personalAccountName: 'Jean Uwase', personalBankName: UMWALIMU_SACCO, personalAccountNumber: '123456789012',
-  schoolAccountName: 'GS Kigali', schoolBankName: UMWALIMU_SACCO, schoolAccountNumber: '4001234567',
+  schoolAccountName: 'GS Kigali', schoolBankName: UMWALIMU_SACCO, schoolAccountNumber: '400100004567',
 };
 /** A coach's three personal fields (the final requirements: no school details for coaches). */
 const coach = { personalAccountName: 'Eric Coach', personalBankName: 'Bank of Kigali Plc', personalAccountNumber: '00012345678' };
@@ -30,8 +30,8 @@ describe('banking rules: who is asked, and what', () => {
     expect(BANKS).toHaveLength(12);
     expect(BANKS).toContain(UMWALIMU_SACCO);
     expect(BANKS).toContain('Zigama Credit and Savings Bank');
-    expect(bankRules('TEACHER')).toMatchObject({ personalBank: 'FIXED', schoolBank: 'FIXED', fixedBank: UMWALIMU_SACCO, banks: [UMWALIMU_SACCO], personalNumberDigits: 12, schoolRequired: true });
-    expect(bankRules('MENTOR')).toMatchObject({ personalBank: 'LIST', personalNumberDigits: null, schoolRequired: false, fields: ['personalAccountName', 'personalBankName', 'personalAccountNumber'] });
+    expect(bankRules('TEACHER')).toMatchObject({ personalBank: 'FIXED', schoolBank: 'FIXED', fixedBank: UMWALIMU_SACCO, banks: [UMWALIMU_SACCO], personalNumberDigits: 12, schoolNumberDigits: 12, schoolRequired: true });
+    expect(bankRules('MENTOR')).toMatchObject({ personalBank: 'LIST', personalNumberDigits: null, schoolNumberDigits: null, schoolRequired: false, fields: ['personalAccountName', 'personalBankName', 'personalAccountNumber'] });
     expect(bankRules('HEAD_COACH')).toEqual(bankRules('MENTOR'));
   });
 });
@@ -85,12 +85,21 @@ describe('banking rules: a submission', () => {
     expect(Object.keys((r as { errors: object }).errors).sort()).toEqual(['personalBankName', 'schoolBankName']);
     const noSchool = checkSubmission('TEACHER', { personalAccountName: 'Jean', personalAccountNumber: '123456789012' });
     expect(Object.keys((noSchool as { errors: object }).errors).sort()).toEqual(['schoolAccountName', 'schoolAccountNumber']);
+    expect((noSchool as { errors: Record<string, string> }).errors.schoolAccountNumber).toBe(SCHOOL_NUMBER_MESSAGE);
   });
 
-  it('Teacher: no format is imposed on the school number', () => {
-    for (const n of ['1', '4001-2345-6789', 'SCH 001 22']) {
-      expect(checkSubmission('TEACHER', { ...teacher, schoolAccountNumber: n })).toEqual({ ok: true, values: { ...teacher, schoolAccountNumber: n } });
-    }
+  it.each([
+    ['1 digit', '1'], ['10 digits', '4001234567'], ['11 digits', '40012345678'], ['13 digits', '4001234567890'],
+    ['letters', '40012345678A'], ['spaces', '4001 2345 6789'], ['symbols', '4001-2345-6789'], ['empty', ''],
+  ])('Teacher: a school number of %s refused with the exact message, nothing changed or cut', (_label, n) => {
+    const r = checkSubmission('TEACHER', { ...teacher, schoolAccountNumber: n });
+    expect(r).toMatchObject({ ok: false, errors: { schoolAccountNumber: SCHOOL_NUMBER_MESSAGE } });
+    expect(Object.keys((r as { errors: object }).errors)).toEqual(['schoolAccountNumber']);
+  });
+
+  it('Teacher: a 12-digit school number is accepted as given; a saved one of another length needs correcting', () => {
+    expect(checkSubmission('TEACHER', { ...teacher, schoolAccountNumber: '000000000123' })).toEqual({ ok: true, values: { ...teacher, schoolAccountNumber: '000000000123' } });
+    expect(bankingSummary('TEACHER', { ...teacher, schoolAccountNumber: '4001234567' })).toMatchObject({ status: 'NEEDS_CORRECTION', invalid: ['schoolAccountNumber'] });
   });
 
   it.each(['MENTOR', 'HEAD_COACH'])('%s: only the three personal fields are checked and saved; school fields sent are ignored', (role) => {
@@ -104,6 +113,21 @@ describe('banking rules: a submission', () => {
     for (const n of ['1', '00-1234-5678', 'ACC 77']) expect(checkSubmission(role, { ...coach, personalAccountNumber: n })).toMatchObject({ ok: true, values: { personalAccountNumber: n } });
   });
 
+  it.each([['TEACHER', 'personalAccountName'], ['TEACHER', 'schoolAccountName'], ['MENTOR', 'personalAccountName'], ['HEAD_COACH', 'personalAccountName']] as const)(
+    '%s %s: a name with a digit is refused with the exact message; a saved one needs correcting', (role, f) => {
+      const base = role === 'TEACHER' ? teacher : coach;
+      for (const name of ['Jean Uwase 2', 'GS 1', '0', 'Ecole8']) {
+        expect(checkSubmission(role, { ...base, [f]: name })).toEqual({ ok: false, errors: { [f]: NAME_DIGIT_MESSAGES[f] }, confirmationNeeded: [] });
+      }
+      expect(bankingSummary(role, { ...base, [f]: 'Name 2' })).toMatchObject({ status: 'NEEDS_CORRECTION', invalid: [f] });
+      // Letters, spaces, hyphens, apostrophes, dots and accents are fine.
+      for (const name of ["Jean-Pierre N'Dayisaba", 'G.S. Saint-Joseph', 'Éric Uwimana']) expect(checkSubmission(role, { ...base, [f]: name }).ok).toBe(true);
+    });
+
+  it('a coach\'s saved school account name with a digit is not checked (school details are not asked)', () => {
+    expect(bankingSummary('MENTOR', { ...coach, schoolAccountName: 'School 2' }).status).toBe('COMPLETE');
+  });
+
   it('account names: any non-empty name, trimmed at its ends only', () => {
     expect(checkSubmission('MENTOR', { ...coach, personalAccountName: ' J ' })).toMatchObject({ ok: true, values: { personalAccountName: 'J' } });
     expect(checkSubmission('TEACHER', { ...teacher, schoolAccountName: '   ' })).toMatchObject({ ok: false, errors: { schoolAccountName: 'School bank account name is required.' } });
@@ -111,7 +135,7 @@ describe('banking rules: a submission', () => {
 });
 
 describe('saved banks that conflict with the rules: never replaced without the user\'s confirmation', () => {
-  const kept = { personalAccountName: 'Old Name', personalAccountNumber: '123456789012', schoolAccountName: 'Old School', schoolAccountNumber: '555' };
+  const kept = { personalAccountName: 'Old Name', personalAccountNumber: '123456789012', schoolAccountName: 'Old School', schoolAccountNumber: '555500000555' };
 
   it('teacher: a saved personal and school bank other than Umwalimu SACCO are conflicts', () => {
     const saved = { ...kept, personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc' };
