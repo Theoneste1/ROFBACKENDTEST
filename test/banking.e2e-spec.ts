@@ -304,6 +304,46 @@ describe('Banking information (e2e)', () => {
       }
     });
 
+    it("an administrator edits a Teacher's details: the same rules per field; saved; audited without values; masked answer", async () => {
+      const url = `/api/v1/admin/users/${ids['bank.teacher']}/banking`;
+      const bad = await http().put(url).set(bearer(t.admin)).send({ ...teacherDetails, schoolAccountNumber: '123', personalAccountName: 'Name 2' });
+      expect([bad.status, bad.body.code, Object.keys(bad.body.details.fields).sort()]).toEqual([400, 'BANKING_INVALID', ['personalAccountName', 'schoolAccountNumber']]);
+      expect(bad.body.details.fields.schoolAccountNumber).toBe(SCHOOL_MSG);
+      const ok = await http().put(url).set(bearer(t.admin)).send({ ...teacherDetails, personalAccountNumber: '999988887777', schoolAccountNumber: '400100009999' });
+      expect(ok.status).toBe(200);
+      expect(ok.body).toMatchObject({ status: 'COMPLETE', details: { personalAccountNumber: '•••• 7777', schoolAccountNumber: '•••• 9999', revealed: false } });
+      const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.teacher'] } });
+      expect([row.personalAccountNumber, row.schoolAccountNumber, row.personalBankName, row.schoolBankName]).toEqual(['999988887777', '400100009999', SACCO, SACCO]);
+      const audit = await ctx.prisma.auditLog.findMany({ where: { action: 'BANK_DETAILS_UPDATED_BY_ADMIN', entityId: ids['bank.teacher'] } });
+      expect(audit).toHaveLength(1);
+      expect([...(audit[0].metadata as { changed: string[] }).changed].sort()).toEqual(['personalAccountNumber', 'schoolAccountNumber']);
+      expect(JSON.stringify(audit)).not.toMatch(/999988887777|400100009999/);
+    });
+
+    it("an administrator edits a Coach's details: personal fields only; the saved school details stay", async () => {
+      const r = await http().put(`/api/v1/admin/users/${ids['bank.legacy.c']}/banking`).set(bearer(t.admin))
+        .send({ personalAccountName: 'Legacy Coach', personalBankName: 'Equity Bank Rwanda Plc', personalAccountNumber: '5550001', schoolAccountName: 'Ignored' });
+      expect([r.status, r.body.status]).toEqual([200, 'COMPLETE']);
+      const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.c'] } });
+      expect(row).toMatchObject({ personalBankName: 'Equity Bank Rwanda Plc', personalAccountNumber: '5550001', schoolAccountName: 'GS Legacy C', schoolBankName: 'Bank of Kigali Plc', schoolAccountNumber: '4002222' });
+    });
+
+    it("editing: refused for other roles' accounts and for anyone but an administrator", async () => {
+      const student = await http().put(`/api/v1/admin/users/${ctx.ids.studentJunior}/banking`).set(bearer(t.admin)).send(coachDetails);
+      expect([student.status, student.body.code]).toEqual([400, 'BANKING_NOT_APPLICABLE']);
+      for (const who of ['bank.teacher', 'mentor', 'student']) {
+        const r = await http().put(`/api/v1/admin/users/${ids['bank.coach']}/banking`).set(bearer(t[who])).send(coachDetails);
+        expect([who, r.status]).toEqual([who, 403]);
+      }
+    });
+
+    it('the owner updates their own details at any time after completing them', async () => {
+      const r = await put(t['bank.hc'], { ...coachDetails, personalBankName: 'NCBA Bank Rwanda Plc', personalAccountNumber: '77007700' });
+      expect([r.status, r.body.status, r.body.details.personalAccountNumber]).toEqual([200, 'COMPLETE', '77007700']);
+      expect((await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.hc'] } })).personalBankName).toBe('NCBA Bank Rwanda Plc');
+      expect((await get('/me/banking', t['bank.hc'])).body.details.personalAccountNumber).toBe('77007700');
+    });
+
     it('a bulk action never uses the banking filter', async () => {
       const r = await http().post('/api/v1/admin/users/bulk/preview').set(bearer(t.admin))
         .send({ action: 'message', params: { subject: 'Hi', body: 'Hello' }, selection: { mode: 'filter', filter: { role: 'TEACHER', banking: 'INCOMPLETE' } } });

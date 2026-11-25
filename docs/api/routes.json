@@ -2000,6 +2000,15 @@
   },
   {
     "method": "PUT",
+    "path": "/api/v1/admin/users/{id}/banking",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "PUT",
     "path": "/api/v1/admin/users/{id}/date-of-birth",
     "roles": [
       "ADMIN",
