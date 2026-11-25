@@ -13204,7 +13204,7 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** Any signed-in user"
+            "description": "**Access:** TEACHER, MENTOR, HEAD_COACH"
           }
         },
         {
@@ -13229,10 +13229,10 @@
               "variable": [],
               "query": []
             },
-            "description": "**Access:** Any signed-in user",
+            "description": "**Access:** TEACHER, MENTOR, HEAD_COACH",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"personalAccountName\": \"personalAccountName\",\n  \"personalBankName\": \"personalBankName\",\n  \"personalAccountNumber\": \"personalAccountNumber\",\n  \"schoolAccountName\": \"schoolAccountName\",\n  \"schoolBankName\": \"schoolBankName\",\n  \"schoolAccountNumber\": \"schoolAccountNumber\"\n}",
+              "raw": "{\n  \"personalAccountName\": \"personalAccountName\",\n  \"personalBankName\": \"personalBankName\",\n  \"personalAccountNumber\": \"personalAccountNumber\",\n  \"schoolAccountName\": \"schoolAccountName\",\n  \"schoolBankName\": \"schoolBankName\",\n  \"schoolAccountNumber\": \"schoolAccountNumber\",\n  \"confirmReplace\": [\n    \"personalBankName\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -3,13 +3,13 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { RequirePermission } from '../auth/decorators/require-permission.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
-import { Authenticated } from '../common/decorators/authenticated.decorator.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
 import { AllowedBeforeBankingDetails } from '../common/decorators/banking-step.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { AdminBankingQueryDto, SaveBankingDto } from './banking.dto.js';
 import { BankingService } from './banking.service.js';
 
-/** The signed-in user's own banking information (owner 2026-11-25): Teachers, Coaches and Head Coaches. */
+/** The signed-in user's own banking information (owner 2026-11-25): Teachers, Coaches and Head Coaches only (@Roles). */
 @ApiTags('Me')
 @Controller('me/banking')
 export class MyBankingController {
@@ -17,15 +17,15 @@ export class MyBankingController {
 
   /** What is saved, what is missing or to correct, and how this role's banks are given (fixed or from the list). */
   @Get()
-  @Authenticated()
+  @Roles('TEACHER', 'MENTOR', 'HEAD_COACH')
   @AllowedBeforeBankingDetails()
   mine(@CurrentUser() user: AuthUser) {
     return this.banking.mine(user);
   }
 
-  /** Save all six fields (checked per field: 400 BANKING_INVALID). Other roles: 403 BANKING_NOT_APPLICABLE. */
+  /** Save all six fields (checked per field: 400 BANKING_INVALID; a conflicting saved bank needs confirmReplace). */
   @Put()
-  @Authenticated()
+  @Roles('TEACHER', 'MENTOR', 'HEAD_COACH')
   @AllowedBeforeBankingDetails()
   save(@CurrentUser() user: AuthUser, @Body() body: SaveBankingDto) {
     return this.banking.save(user, body);

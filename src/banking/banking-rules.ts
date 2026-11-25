@@ -3,17 +3,24 @@
  * bank details before using the platform. One set of rules for the completion check (sign-in lock, GET /me, the
  * administrators' views) and for saving (PUT /me/banking). Pure (unit-tested); the frontend mirrors it.
  *
- *  - Teachers: both banks are Umwalimu SACCO (fixed, never chosen); the personal account number is exactly 12 digits.
+ * The agreed rules, and only those (review of PR #101, 2026-11-25):
+ *  - Every field is required.
+ *  - Teachers: both banks are Umwalimu SACCO (fixed, never chosen); the personal account number is exactly 12 digits
+ *    ("Your Umwalimu SACCO account number must contain exactly 12 digits.").
  *  - Coaches and Head Coaches: the personal bank is chosen from BANKS; the school bank is Umwalimu SACCO (fixed).
- *  - Every other account number: digits only, 6 to 20 (never changed or cut).
+ *  - No other format is imposed: other account numbers and account names are kept exactly as given (ROF agreed no
+ *    rule for them). The request caps lengths (200 characters for names, 40 for numbers: SaveBankingDto) only as a
+ *    technical guard against oversized input, far above any real account name or number.
  *  - Students, Administrators and Super Administrators: not asked.
- * A saved value that breaks the rules (e.g. another bank for a teacher, after a role change) is never overwritten by
- * the system: it is reported as NEEDS_CORRECTION until the user submits the form again.
+ *
+ * A saved value that breaks the current rules (e.g. a Coach's bank kept after the account became a Teacher) is never
+ * replaced by the system. It is reported (NEEDS_CORRECTION, the field named), shown to the user, and replaced by
+ * Umwalimu SACCO only when the user explicitly confirms it for that field (`confirmReplace`).
  */
 
 export const UMWALIMU_SACCO = 'Umwalimu SACCO';
 
-/** The banks a Coach or Head Coach may choose (owner's list, 2026-11-25). */
+/** The banks a Coach or Head Coach may choose: the owner's agreed list (2026-11-25), names exactly as agreed. */
 export const BANKS = [
   'Access Bank Rwanda Plc',
   'Bank of Kigali Plc',
@@ -25,7 +32,7 @@ export const BANKS = [
   'I&M Bank Rwanda Plc',
   'NCBA Bank Rwanda Plc',
   'Rwanda Development Bank (BRD)',
-  'Zigama Credit and Savings Bank (Zigama CSS)',
+  'Zigama Credit and Savings Bank',
   UMWALIMU_SACCO,
 ] as const;
 
@@ -37,6 +44,10 @@ export const BANKING_FIELDS = [
   'schoolAccountName', 'schoolBankName', 'schoolAccountNumber',
 ] as const;
 export type BankingField = (typeof BANKING_FIELDS)[number];
+
+/** The bank fields that may be fixed to Umwalimu SACCO (and so may need a confirmed replacement). */
+export const FIXABLE_BANK_FIELDS = ['personalBankName', 'schoolBankName'] as const;
+export type FixableBankField = (typeof FIXABLE_BANK_FIELDS)[number];
 
 /** Prisma select of the six fields (the sign-in check reads them with the user). */
 export const BANK_DETAILS_SELECT = {
@@ -56,7 +67,6 @@ export const FIELD_LABELS: Record<BankingField, string> = {
 };
 
 export const TEACHER_NUMBER_MESSAGE = 'Your Umwalimu SACCO account number must contain exactly 12 digits.';
-export const ACCOUNT_NUMBER_MESSAGE = 'Enter the account number with digits only (6 to 20 digits).';
 
 export type BankingStatus = 'COMPLETE' | 'PARTIAL' | 'NOT_STARTED' | 'NEEDS_CORRECTION';
 
@@ -72,20 +82,22 @@ export function bankRules(role: string) {
     schoolBank: 'FIXED' as const,
     fixedBank: UMWALIMU_SACCO,
     banks: teacher ? [UMWALIMU_SACCO] : [...BANKS],
-    /** Exactly this many digits for the personal account number (teachers), else null (6 to 20 digits). */
+    /** Exactly this many digits for the personal account number (teachers); null: no format rule. */
     personalNumberDigits: teacher ? 12 : null,
   };
 }
 
 const filled = (v: string | null | undefined): v is string => typeof v === 'string' && v.trim().length > 0;
 
-/** Why a filled value breaks the role's rules (null: fine). Names 2–120 characters; numbers digits only. */
+/** Whether this bank field is fixed to Umwalimu SACCO for the role. */
+export function isFixedBank(role: string, field: BankingField): field is FixableBankField {
+  return field === 'schoolBankName' || (field === 'personalBankName' && bankRules(role).personalBank === 'FIXED');
+}
+
+/** Why a filled value breaks the role's rules (null: fine). Only the agreed rules (see the top of this file). */
 export function fieldProblem(role: string, field: BankingField, value: string): string | null {
   const rules = bankRules(role);
   switch (field) {
-    case 'personalAccountName':
-    case 'schoolAccountName':
-      return value.trim().length < 2 || value.trim().length > 120 ? 'Enter the account name as the bank shows it (2 to 120 characters).' : null;
     case 'personalBankName':
       if (rules.personalBank === 'FIXED') return value === UMWALIMU_SACCO ? null : `Teachers' personal bank is ${UMWALIMU_SACCO}.`;
       return (BANKS as readonly string[]).includes(value) ? null : 'Choose your bank from the list.';
@@ -93,10 +105,26 @@ export function fieldProblem(role: string, field: BankingField, value: string): 
       return value === UMWALIMU_SACCO ? null : `The school bank is ${UMWALIMU_SACCO}.`;
     case 'personalAccountNumber':
       if (rules.personalNumberDigits) return /^\d{12}$/.test(value) ? null : TEACHER_NUMBER_MESSAGE;
-      return /^\d{6,20}$/.test(value) ? null : ACCOUNT_NUMBER_MESSAGE;
-    case 'schoolAccountNumber':
-      return /^\d{6,20}$/.test(value) ? null : ACCOUNT_NUMBER_MESSAGE;
+      return null;
+    default:
+      return null;
   }
+}
+
+export interface BankingConflict {
+  field: FixableBankField;
+  /** The bank saved earlier, which this role may not use. */
+  saved: string;
+}
+
+/** Saved banks this role may not use, which only an explicit confirmation replaces with Umwalimu SACCO. */
+export function bankConflicts(role: string, saved: BankingDetails | null | undefined): BankingConflict[] {
+  const out: BankingConflict[] = [];
+  for (const f of FIXABLE_BANK_FIELDS) {
+    const v = saved?.[f];
+    if (isFixedBank(role, f) && filled(v) && v !== UMWALIMU_SACCO) out.push({ field: f, saved: v });
+  }
+  return out;
 }
 
 export interface BankingSummary {
@@ -131,20 +159,40 @@ export function bankingIncomplete(role: string, details: BankingDetails | null |
   return status !== null && status !== 'COMPLETE';
 }
 
+export const confirmReplaceMessage = (saved: string) =>
+  `Your saved bank “${saved}” cannot be used here. Confirm that ${UMWALIMU_SACCO} replaces it.`;
+
 /**
- * A submission (all six fields, PUT /me/banking) checked against the role's rules. The fixed banks are set by the
- * backend whatever was sent; sending another bank for them is refused (never silently replaced). Returns the values to
- * save, or the problem of each field. Nothing is trimmed inside numbers or otherwise changed.
+ * A submission (all six fields, PUT /me/banking) checked against the role's rules and what is already saved.
+ *  - A fixed bank not sent is Umwalimu SACCO; another bank sent for it is refused (never silently replaced).
+ *  - A conflicting SAVED bank (bankConflicts) is replaced only if `confirmReplace` names that field; otherwise the
+ *    field is refused with confirmReplaceMessage, and nothing is saved.
+ * Account names are trimmed at their ends; nothing else is changed. Returns the values to save, or the problem of
+ * each field (and the fields still needing a confirmation).
  */
-export function checkSubmission(role: string, input: BankingDetails):
-  { ok: true; values: Record<BankingField, string> } | { ok: false; errors: Partial<Record<BankingField, string>> } {
+export function checkSubmission(
+  role: string,
+  input: BankingDetails,
+  saved: BankingDetails | null | undefined = null,
+  confirmReplace: readonly string[] = [],
+): { ok: true; values: Record<BankingField, string> }
+  | { ok: false; errors: Partial<Record<BankingField, string>>; confirmationNeeded: FixableBankField[] } {
   const rules = bankRules(role);
   const errors: Partial<Record<BankingField, string>> = {};
   const values = {} as Record<BankingField, string>;
+  const conflicts = bankConflicts(role, saved);
+  const confirmationNeeded: FixableBankField[] = [];
   for (const f of BANKING_FIELDS) {
     let v = input[f];
-    const fixed = f === 'schoolBankName' || (f === 'personalBankName' && rules.personalBank === 'FIXED');
-    if (fixed && !filled(v)) v = UMWALIMU_SACCO;
+    if (isFixedBank(role, f)) {
+      const conflict = conflicts.find((c) => c.field === f);
+      if (conflict && !confirmReplace.includes(f) && (!filled(v) || v === UMWALIMU_SACCO)) {
+        errors[f] = confirmReplaceMessage(conflict.saved);
+        confirmationNeeded.push(f);
+        continue;
+      }
+      if (!filled(v)) v = UMWALIMU_SACCO;
+    }
     if (!filled(v)) {
       errors[f] = f === 'personalAccountNumber' && rules.personalNumberDigits ? TEACHER_NUMBER_MESSAGE : `${FIELD_LABELS[f]} is required.`;
       continue;
@@ -154,10 +202,10 @@ export function checkSubmission(role: string, input: BankingDetails):
     if (problem) errors[f] = problem;
     else values[f] = value;
   }
-  return Object.keys(errors).length ? { ok: false, errors } : { ok: true, values };
+  return Object.keys(errors).length ? { ok: false, errors, confirmationNeeded } : { ok: true, values };
 }
 
-/** An account number for a summary: the last 4 digits only ("•••• 1234"); null stays null. */
+/** An account number for a summary: the last 4 characters only ("•••• 1234"); null stays null. */
 export function maskAccountNumber(n: string | null | undefined): string | null {
   if (!filled(n)) return null;
   return n.length <= 4 ? '••••' : `•••• ${n.slice(-4)}`;

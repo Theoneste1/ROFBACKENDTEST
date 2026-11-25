@@ -38,9 +38,18 @@ describe('Banking information (e2e)', () => {
       } })).id;
       t[username] = await login(ctx, username);
     };
-    for (const [u, r] of [['bank.teacher', 'TEACHER'], ['bank.teacher2', 'TEACHER'], ['bank.coach', 'MENTOR'], ['bank.hc', 'HEAD_COACH'], ['bank.partial', 'MENTOR'], ['help.super', 'SUPER_ADMIN']] as const) await make(u, r);
+    for (const [u, r] of [['bank.teacher', 'TEACHER'], ['bank.teacher2', 'TEACHER'], ['bank.coach', 'MENTOR'], ['bank.hc', 'HEAD_COACH'], ['bank.partial', 'MENTOR'], ['bank.legacy.t', 'TEACHER'], ['bank.legacy.c', 'MENTOR'], ['help.super', 'SUPER_ADMIN']] as const) await make(u, r);
     // Details already given in part (e.g. by an earlier version of the form): kept, never overwritten.
     await ctx.prisma.userBankDetails.create({ data: { userId: ids['bank.partial'], personalAccountName: 'Partial Person', personalBankName: 'Ecobank Rwanda Plc' } });
+    // Details saved before the rules (e.g. a coach's details kept after the account became a teacher): conflicting banks.
+    await ctx.prisma.userBankDetails.create({ data: {
+      userId: ids['bank.legacy.t'], personalAccountName: 'Legacy Teacher', personalBankName: 'Bank of Kigali Plc', personalAccountNumber: '123456789012',
+      schoolAccountName: 'GS Legacy', schoolBankName: 'Equity Bank Rwanda Plc', schoolAccountNumber: '4001111',
+    } });
+    await ctx.prisma.userBankDetails.create({ data: {
+      userId: ids['bank.legacy.c'], personalAccountName: 'Legacy Coach', personalBankName: 'Ecobank Rwanda Plc', personalAccountNumber: '009988',
+      schoolAccountName: 'GS Legacy C', schoolBankName: 'Bank of Kigali Plc', schoolAccountNumber: '4002222',
+    } });
     t.student = await login(ctx, 'student.j');
     t.admin = await login(ctx, 'admin');
     t.mentor = await login(ctx, 'mentor.j');   // a seeded coach with complete (test) details
@@ -73,13 +82,14 @@ describe('Banking information (e2e)', () => {
 
     it('other roles are never asked: Students, Administrators, Super Administrators, and coaches with complete details', async () => {
       for (const who of ['student', 'admin', 'help.super', 'mentor']) {
-        const token = who in t ? t[who] : t[who];
-        expect([who, (await get('/me', token)).body.bankingRequired]).toEqual([who, false]);
-        expect([who, (await get('/notifications', token)).status]).toEqual([who, 200]);
+        expect([who, (await get('/me', t[who])).body.bankingRequired]).toEqual([who, false]);
+        expect([who, (await get('/notifications', t[who])).status]).toEqual([who, 200]);
       }
-      const r = await put(t.student, coachDetails);
-      expect([r.status, r.body.code]).toEqual([403, 'BANKING_NOT_APPLICABLE']);
-      expect((await get('/me/banking', t.student)).body).toMatchObject({ required: false, details: null });
+      // The banking routes are for Teachers, Coaches and Head Coaches only (@Roles): every other role is refused.
+      for (const who of ['student', 'admin', 'help.super']) {
+        expect([who, (await get('/me/banking', t[who])).status]).toEqual([who, 403]);
+        expect([who, (await put(t[who], coachDetails)).status]).toEqual([who, 403]);
+      }
     });
   });
 
@@ -139,6 +149,57 @@ describe('Banking information (e2e)', () => {
       const r = await get('/me/banking', t['bank.partial']);
       expect(r.body).toMatchObject({ status: 'PARTIAL', details: { personalAccountName: 'Partial Person', personalBankName: 'Ecobank Rwanda Plc' } });
       expect(r.body.missing).toEqual(['personalAccountNumber', 'schoolAccountName', 'schoolBankName', 'schoolAccountNumber']);
+    });
+  });
+
+  describe('details saved earlier that conflict with the rules: shown, never replaced without the user\'s confirmation', () => {
+    it('teacher: both conflicting banks are reported with their saved values; the account is held at the step', async () => {
+      const r = await get('/me/banking', t['bank.legacy.t']);
+      expect(r.body).toMatchObject({
+        status: 'NEEDS_CORRECTION', invalid: ['personalBankName', 'schoolBankName'],
+        conflicts: [{ field: 'personalBankName', saved: 'Bank of Kigali Plc' }, { field: 'schoolBankName', saved: 'Equity Bank Rwanda Plc' }],
+        details: { personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc', personalAccountName: 'Legacy Teacher' },
+      });
+      expect((await get('/notifications', t['bank.legacy.t'])).body.code).toBe('BANKING_DETAILS_REQUIRED');
+    });
+
+    it('teacher: without confirmation nothing is replaced — each field named with its saved bank; one confirmation is not enough', async () => {
+      const body = { personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '4001111' };
+      const none = await put(t['bank.legacy.t'], body);
+      expect([none.status, none.body.code]).toEqual([400, 'BANKING_INVALID']);
+      expect(none.body.details.confirmationNeeded).toEqual(['personalBankName', 'schoolBankName']);
+      expect(none.body.details.fields.personalBankName).toContain('Bank of Kigali Plc');
+      expect(none.body.details.fields.schoolBankName).toContain('Equity Bank Rwanda Plc');
+      const one = await put(t['bank.legacy.t'], { ...body, confirmReplace: ['personalBankName'] });
+      expect([one.status, one.body.details.confirmationNeeded]).toEqual([400, ['schoolBankName']]);
+      const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.t'] } });
+      expect([row.personalBankName, row.schoolBankName]).toEqual(['Bank of Kigali Plc', 'Equity Bank Rwanda Plc']);
+    });
+
+    it('teacher: confirmed for both, Umwalimu SACCO replaces them; every other saved value is kept; the step ends', async () => {
+      const r = await put(t['bank.legacy.t'], {
+        personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '4001111',
+        confirmReplace: ['personalBankName', 'schoolBankName'],
+      });
+      expect([r.status, r.body.status]).toEqual([200, 'COMPLETE']);
+      const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.t'] } });
+      expect(row).toMatchObject({
+        personalAccountName: 'Legacy Teacher', personalBankName: SACCO, personalAccountNumber: '123456789012',
+        schoolAccountName: 'GS Legacy', schoolBankName: SACCO, schoolAccountNumber: '4001111',
+      });
+      expect((await get('/notifications', t['bank.legacy.t'])).status).toBe(200);
+    });
+
+    it('coach: a conflicting saved school bank needs the confirmation; the personal bank from the list is kept', async () => {
+      const form = await get('/me/banking', t['bank.legacy.c']);
+      expect(form.body.conflicts).toEqual([{ field: 'schoolBankName', saved: 'Bank of Kigali Plc' }]);
+      const body = { personalAccountName: 'Legacy Coach', personalBankName: 'Ecobank Rwanda Plc', personalAccountNumber: '009988', schoolAccountName: 'GS Legacy C', schoolAccountNumber: '4002222' };
+      const refused = await put(t['bank.legacy.c'], body);
+      expect([refused.status, refused.body.details.confirmationNeeded]).toEqual([400, ['schoolBankName']]);
+      const ok = await put(t['bank.legacy.c'], { ...body, confirmReplace: ['schoolBankName'] });
+      expect([ok.status, ok.body.status]).toEqual([200, 'COMPLETE']);
+      const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.c'] } });
+      expect([row.personalBankName, row.schoolBankName, row.personalAccountNumber]).toEqual(['Ecobank Rwanda Plc', SACCO, '009988']);
     });
   });
 

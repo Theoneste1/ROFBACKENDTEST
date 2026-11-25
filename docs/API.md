@@ -5647,7 +5647,7 @@ Returns `200` JSON.
 
 ### GET `/api/v1/me/banking`
 
-**Access:** STUDENT, MENTOR, ADMIN
+**Access:** TEACHER, MENTOR, HEAD_COACH
 
 What is saved, what is missing or to correct, and how this role's banks are given (fixed or from the list).
 
@@ -5655,9 +5655,9 @@ Returns `200` JSON.
 
 ### PUT `/api/v1/me/banking`
 
-**Access:** STUDENT, MENTOR, ADMIN
+**Access:** TEACHER, MENTOR, HEAD_COACH
 
-Save all six fields (checked per field: 400 BANKING_INVALID). Other roles: 403 BANKING_NOT_APPLICABLE.
+Save all six fields (checked per field: 400 BANKING_INVALID; a conflicting saved bank needs confirmReplace).
 
 Body (JSON):
 
@@ -5669,6 +5669,7 @@ Body (JSON):
 | `schoolAccountName` | string |  |  |
 | `schoolBankName` | string |  |  |
 | `schoolAccountNumber` | string |  |  |
+| `confirmReplace` | string[] |  | The saved banks the user explicitly agrees to replace with Umwalimu SACCO (GET /me/banking `conflicts`). Without it, a conflicting saved bank is never replaced: 400 BANKING_INVALID names the field (confirmationNeeded). |
 
 Returns `200` JSON.
 

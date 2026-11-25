@@ -3221,9 +3221,9 @@
     "method": "GET",
     "path": "/api/v1/me/banking",
     "roles": [
-      "STUDENT",
+      "TEACHER",
       "MENTOR",
-      "ADMIN"
+      "HEAD_COACH"
     ],
     "tag": "Me"
   },
@@ -3231,9 +3231,9 @@
     "method": "PUT",
     "path": "/api/v1/me/banking",
     "roles": [
-      "STUDENT",
+      "TEACHER",
       "MENTOR",
-      "ADMIN"
+      "HEAD_COACH"
     ],
     "tag": "Me"
   },

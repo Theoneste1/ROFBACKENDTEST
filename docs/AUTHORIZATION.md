@@ -569,8 +569,8 @@ Totals: 484 endpoints — 31 public, 280 administrator-only.
 | GET | `/api/v1/me/assignments` |  | ✓ |  |  |
 | PUT | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
 | DELETE | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/me/banking` |  | ✓ | ✓ | ✓ |
-| PUT | `/api/v1/me/banking` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/me/banking` |  |  | ✓ |  |
+| PUT | `/api/v1/me/banking` |  |  | ✓ |  |
 | GET | `/api/v1/me/courses` |  | ✓ |  |  |
 | PUT | `/api/v1/me/date-of-birth` |  | ✓ |  |  |
 | GET | `/api/v1/me/enrollments` |  | ✓ |  |  |

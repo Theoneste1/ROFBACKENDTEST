@@ -26,6 +26,8 @@ const COACHES_ONLY:     AddedRouteDecisions = { anonymous: '401', STUDENT: '403'
 const ADMINS_AND_COACHES: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: '403' };
 /** @Authenticated: every signed-in caller, whatever the role (own data only, or data shown to every member). */
 const SIGNED_IN:        AddedRouteDecisions = { anonymous: '401', STUDENT: 'allow', MENTOR: 'allow', ADMIN: 'allow', UNKNOWN_ROLE: 'allow' };
+/** @Roles('TEACHER', 'MENTOR', 'HEAD_COACH') (banking information): of the baseline callers, coaches only. */
+const BANKING_ROLES_ONLY: AddedRouteDecisions = { anonymous: '401', STUDENT: '403', MENTOR: 'allow', ADMIN: '403', UNKNOWN_ROLE: '403' };
 
 export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>> = {
   // P1-09 — individual permission overrides (permissions.manageOverrides: Super Admin only)
@@ -388,9 +390,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/auth/view-as/end  ViewAsAuthController.end':                                                    PUBLIC,
   // Activate now (owner 2026-11-24): users.manage at the route, users.changeStatus and the role rule in the service.
   'POST /api/v1/admin/users/:id/activate-now  UsersController.activateNow':                                    ADMINISTRATORS,
-  // Banking information (owner 2026-11-25): the person's own (any signed-in caller; the service answers 403
-  // BANKING_NOT_APPLICABLE to other roles), and the administrators' masked view (users.manage).
-  'GET /api/v1/me/banking  MyBankingController.mine':                                                           SIGNED_IN,
-  'PUT /api/v1/me/banking  MyBankingController.save':                                                           SIGNED_IN,
+  // Banking information (owner 2026-11-25): the person's own — @Roles('TEACHER', 'MENTOR', 'HEAD_COACH'): of the
+  // baseline callers only MENTOR is admitted — and the administrators' masked view (users.manage).
+  'GET /api/v1/me/banking  MyBankingController.mine':                                                           BANKING_ROLES_ONLY,
+  'PUT /api/v1/me/banking  MyBankingController.save':                                                           BANKING_ROLES_ONLY,
   'GET /api/v1/admin/users/:id/banking  AdminBankingController.view':                                           ADMINISTRATORS,
 };

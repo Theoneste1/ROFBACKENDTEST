@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  BANKS, bankingIncomplete, bankingRequiredFor, bankingSummary, bankRules, checkSubmission, maskAccountNumber,
-  TEACHER_NUMBER_MESSAGE, UMWALIMU_SACCO,
+  BANKS, bankConflicts, bankingIncomplete, bankingRequiredFor, bankingSummary, bankRules, checkSubmission, confirmReplaceMessage,
+  maskAccountNumber, TEACHER_NUMBER_MESSAGE, UMWALIMU_SACCO,
 } from './banking-rules.js';
 
 const teacher = {
@@ -22,6 +22,8 @@ describe('banking rules: who is asked', () => {
   it('the bank list is exactly the owner\'s twelve, Umwalimu SACCO included', () => {
     expect(BANKS).toHaveLength(12);
     expect(BANKS).toContain(UMWALIMU_SACCO);
+    expect(BANKS).toContain('Zigama Credit and Savings Bank');
+    expect(BANKS.some((b) => b.includes('Zigama CSS'))).toBe(false);
     expect(bankRules('TEACHER')).toMatchObject({ personalBank: 'FIXED', schoolBank: 'FIXED', personalNumberDigits: 12, banks: [UMWALIMU_SACCO] });
     expect(bankRules('MENTOR')).toMatchObject({ personalBank: 'LIST', schoolBank: 'FIXED', personalNumberDigits: null });
     expect(bankRules('HEAD_COACH')).toEqual(bankRules('MENTOR'));
@@ -59,7 +61,8 @@ describe('banking rules: a submission', () => {
     ['symbols', '123456-789012'], ['empty', ''],
   ])('Teacher: %s refused with the exact message, nothing changed or cut', (_label, n) => {
     const r = checkSubmission('TEACHER', { ...teacher, personalAccountNumber: n });
-    expect(r).toEqual({ ok: false, errors: { personalAccountNumber: TEACHER_NUMBER_MESSAGE } });
+    expect(r).toMatchObject({ ok: false, errors: { personalAccountNumber: TEACHER_NUMBER_MESSAGE } });
+    expect(Object.keys((r as { errors: object }).errors)).toEqual(['personalAccountNumber']);
   });
 
   it('Teacher: another personal or school bank is refused (never silently replaced)', () => {
@@ -68,8 +71,10 @@ describe('banking rules: a submission', () => {
     expect(Object.keys((r as { errors: object }).errors).sort()).toEqual(['personalBankName', 'schoolBankName']);
   });
 
-  it('Teacher: the 12-digit rule is for the personal number only (the school number: 6 to 20 digits)', () => {
-    expect(checkSubmission('TEACHER', { ...teacher, schoolAccountNumber: '123456' }).ok).toBe(true);
+  it('Teacher: the 12-digit rule is for the personal number only; no format is imposed on the school number', () => {
+    for (const n of ['1', '123456', '4001-2345-6789', 'SCH 001 22', '1234567890123456789012345']) {
+      expect(checkSubmission('TEACHER', { ...teacher, schoolAccountNumber: n })).toEqual({ ok: true, values: { ...teacher, schoolAccountNumber: n } });
+    }
   });
 
   it('Coach and Head Coach: a bank from the list is accepted; an arbitrary bank, or a school bank other than Umwalimu SACCO, refused', () => {
@@ -80,8 +85,16 @@ describe('banking rules: a submission', () => {
       expect(checkSubmission(role, { ...coach, schoolBankName: 'Bank of Kigali Plc' })).toMatchObject({ ok: false, errors: { schoolBankName: expect.stringContaining(UMWALIMU_SACCO) } });
       // The personal bank is required (never defaulted for coaches); the 12-digit rule does not apply to them.
       expect(checkSubmission(role, { ...coach, personalBankName: undefined })).toMatchObject({ ok: false, errors: { personalBankName: 'Bank name is required.' } });
-      expect(checkSubmission(role, { ...coach, personalAccountNumber: '123456' }).ok).toBe(true);
+      // No format is imposed on a coach's account numbers (only the teachers' 12-digit rule was agreed); kept as given.
+      for (const n of ['1', '123456', '00-1234-5678', 'ACC 77']) {
+        expect(checkSubmission(role, { ...coach, personalAccountNumber: n })).toMatchObject({ ok: true, values: { personalAccountNumber: n } });
+      }
     }
+  });
+
+  it('account names: any non-empty name, trimmed at its ends only', () => {
+    expect(checkSubmission('MENTOR', { ...coach, personalAccountName: ' J ' })).toMatchObject({ ok: true, values: { personalAccountName: 'J' } });
+    expect(checkSubmission('MENTOR', { ...coach, schoolAccountName: '   ' })).toMatchObject({ ok: false, errors: { schoolAccountName: 'School bank account name is required.' } });
   });
 
   it('missing fields are each reported; account names are trimmed, numbers never touched', () => {
@@ -99,5 +112,54 @@ describe('masking', () => {
     expect(maskAccountNumber('123')).toBe('••••');
     expect(maskAccountNumber(null)).toBeNull();
     expect(maskAccountNumber('')).toBeNull();
+  });
+});
+
+describe('saved banks that conflict with the rules: never replaced without the user\'s confirmation', () => {
+  const kept = { personalAccountName: 'Old Name', personalAccountNumber: '123456789012', schoolAccountName: 'Old School', schoolAccountNumber: '555' };
+
+  it('teacher: a saved personal and school bank other than Umwalimu SACCO are conflicts; the rest is not', () => {
+    const saved = { ...kept, personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc' };
+    expect(bankConflicts('TEACHER', saved)).toEqual([{ field: 'personalBankName', saved: 'Bank of Kigali Plc' }, { field: 'schoolBankName', saved: 'Equity Bank Rwanda Plc' }]);
+    expect(bankingSummary('TEACHER', saved)).toMatchObject({ status: 'NEEDS_CORRECTION', invalid: ['personalBankName', 'schoolBankName'] });
+  });
+
+  it('teacher: without confirmation each conflicting field is refused, named, with the saved value; nothing to save', () => {
+    const saved = { ...kept, personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc' };
+    const r = checkSubmission('TEACHER', { ...kept, personalBankName: UMWALIMU_SACCO }, saved, []);
+    expect(r).toEqual({
+      ok: false,
+      errors: { personalBankName: confirmReplaceMessage('Bank of Kigali Plc'), schoolBankName: confirmReplaceMessage('Equity Bank Rwanda Plc') },
+      confirmationNeeded: ['personalBankName', 'schoolBankName'],
+    });
+    // One confirmed, the other not: still refused for the other only.
+    const one = checkSubmission('TEACHER', kept, saved, ['personalBankName']);
+    expect(one).toMatchObject({ ok: false, confirmationNeeded: ['schoolBankName'] });
+    expect(Object.keys((one as { errors: object }).errors)).toEqual(['schoolBankName']);
+  });
+
+  it('teacher: confirmed, Umwalimu SACCO replaces both; every other value is kept exactly as sent', () => {
+    const saved = { ...kept, personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc' };
+    expect(checkSubmission('TEACHER', kept, saved, ['personalBankName', 'schoolBankName']))
+      .toEqual({ ok: true, values: { ...kept, personalBankName: UMWALIMU_SACCO, schoolBankName: UMWALIMU_SACCO } });
+  });
+
+  it('coach: a saved school bank other than Umwalimu SACCO needs the confirmation; the personal bank from the list is not a conflict', () => {
+    const saved = { ...kept, personalBankName: 'Ecobank Rwanda Plc', schoolBankName: 'Bank of Kigali Plc' };
+    expect(bankConflicts('MENTOR', saved)).toEqual([{ field: 'schoolBankName', saved: 'Bank of Kigali Plc' }]);
+    expect(checkSubmission('HEAD_COACH', { ...kept, personalBankName: 'Ecobank Rwanda Plc' }, saved, [])).toMatchObject({ ok: false, confirmationNeeded: ['schoolBankName'] });
+    expect(checkSubmission('HEAD_COACH', { ...kept, personalBankName: 'Ecobank Rwanda Plc' }, saved, ['schoolBankName']))
+      .toEqual({ ok: true, values: { ...kept, personalBankName: 'Ecobank Rwanda Plc', schoolBankName: UMWALIMU_SACCO } });
+  });
+
+  it('a confirmation never lets another bank through: sending a non-Umwalimu bank for a fixed field is refused', () => {
+    const saved = { ...kept, personalBankName: 'Bank of Kigali Plc', schoolBankName: UMWALIMU_SACCO };
+    expect(checkSubmission('TEACHER', { ...kept, personalBankName: 'Bank of Kigali Plc' }, saved, ['personalBankName']))
+      .toMatchObject({ ok: false, errors: { personalBankName: `Teachers' personal bank is ${UMWALIMU_SACCO}.` } });
+  });
+
+  it('no conflict, no confirmation needed (a first submission, or saved banks already Umwalimu SACCO)', () => {
+    expect(checkSubmission('TEACHER', kept, null, [])).toMatchObject({ ok: true });
+    expect(checkSubmission('TEACHER', kept, { personalBankName: UMWALIMU_SACCO, schoolBankName: UMWALIMU_SACCO }, [])).toMatchObject({ ok: true });
   });
 });

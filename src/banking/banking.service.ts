@@ -14,7 +14,7 @@ import type { AuthUser } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
-  BANK_DETAILS_SELECT, BANKING_FIELDS, bankingRequiredFor, bankingSummary, bankRules, checkSubmission, FIELD_LABELS, maskAccountNumber,
+  BANK_DETAILS_SELECT, BANKING_FIELDS, bankConflicts, bankingRequiredFor, bankingSummary, bankRules, checkSubmission, FIELD_LABELS, maskAccountNumber,
   type BankingDetails,
 } from './banking-rules.js';
 import type { SaveBankingDto } from './banking.dto.js';
@@ -32,10 +32,11 @@ export class BankingService {
   /** The caller's own banking information (full numbers: their own data). */
   async mine(user: AuthUser) {
     if (!bankingRequiredFor(user.role)) {
-      return { required: false, status: null, missing: [], invalid: [], rules: null, details: null, fieldLabels: FIELD_LABELS };
+      return { required: false, status: null, missing: [], invalid: [], conflicts: [], rules: null, details: null, fieldLabels: FIELD_LABELS };
     }
     const details = await this.detailsOf(user.id);
-    return { ...bankingSummary(user.role, details), rules: bankRules(user.role), details, fieldLabels: FIELD_LABELS };
+    // `conflicts`: saved banks this role may not use — shown, and replaced only when the user confirms it (confirmReplace).
+    return { ...bankingSummary(user.role, details), conflicts: bankConflicts(user.role, details), rules: bankRules(user.role), details, fieldLabels: FIELD_LABELS };
   }
 
   /** Save all six fields (the caller's own row only). 400 BANKING_INVALID with the problem of each field. */
@@ -43,11 +44,13 @@ export class BankingService {
     if (!bankingRequiredFor(user.role)) {
       throw new AppError(HttpStatus.FORBIDDEN, 'BANKING_NOT_APPLICABLE', 'Banking information is asked only of Teachers, Coaches and Head Coaches.');
     }
-    const checked = checkSubmission(user.role, dto);
-    if (!checked.ok) {
-      throw new AppError(HttpStatus.BAD_REQUEST, 'BANKING_INVALID', 'Check the highlighted fields and try again.', { fields: checked.errors });
-    }
     const before = await this.detailsOf(user.id);
+    const { confirmReplace = [], ...input } = dto;
+    const checked = checkSubmission(user.role, input, before, confirmReplace);
+    if (!checked.ok) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'BANKING_INVALID', 'Check the highlighted fields and try again.',
+        { fields: checked.errors, confirmationNeeded: checked.confirmationNeeded });
+    }
     await this.prisma.$transaction(async (tx) => {
       await tx.userBankDetails.upsert({ where: { userId: user.id }, create: { userId: user.id, ...checked.values }, update: checked.values });
       await this.audit.log({

@@ -44097,11 +44097,11 @@
           "Me"
         ],
         "x-roles": [
-          "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH"
         ],
-        "description": "**Access:** Any signed-in user"
+        "description": "**Access:** TEACHER, MENTOR, HEAD_COACH"
       },
       "put": {
         "operationId": "MyBankingController_save",
@@ -44138,16 +44138,16 @@
             }
           }
         },
-        "summary": "Save all six fields (checked per field: 400 BANKING_INVALID). Other roles: 403 BANKING_NOT_APPLICABLE.",
+        "summary": "Save all six fields (checked per field: 400 BANKING_INVALID; a conflicting saved bank needs confirmReplace).",
         "tags": [
           "Me"
         ],
         "x-roles": [
-          "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH"
         ],
-        "description": "**Access:** Any signed-in user"
+        "description": "**Access:** TEACHER, MENTOR, HEAD_COACH"
       }
     },
     "/api/v1/admin/users/{id}/banking": {
@@ -61365,6 +61365,18 @@
           "schoolAccountNumber": {
             "type": "string",
             "maxLength": 40
+          },
+          "confirmReplace": {
+            "type": "array",
+            "description": "The saved banks the user explicitly agrees to replace with Umwalimu SACCO (GET /me/banking `conflicts`). Without\nit, a conflicting saved bank is never replaced: 400 BANKING_INVALID names the field (confirmationNeeded).",
+            "maxItems": 2,
+            "items": {
+              "type": "string",
+              "enum": [
+                "personalBankName",
+                "schoolBankName"
+              ]
+            }
           }
         }
       },
