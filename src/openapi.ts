@@ -79,7 +79,8 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
         : a.permission ? `permission \`${a.permission}\` (${roles.join(', ') || 'nobody'}${a.grantOnly ? ', by individual grant only' : ''})${delegation}`
         : roles.length ? roles.join(', ') : 'Any signed-in user';
       // A permission route lists exactly its callers (never the "any signed-in user" fallback).
-      op['x-roles'] = a.public ? ['PUBLIC'] : roles.length || a.permission ? roles : ['STUDENT', 'MENTOR', 'ADMIN'];
+      // A route with neither @Roles nor @RequirePermission admits every signed-in user: all the application's roles.
+      op['x-roles'] = a.public ? ['PUBLIC'] : roles.length || a.permission ? roles : [...APP_ROLES];
       if (a.permission) op['x-permission'] = a.permission;
       op.description = `**Access:** ${who}${op.description ? `\n\n${op.description as string}` : ''}`;
       if (a.public) op.security = [];

@@ -1720,8 +1720,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -1801,8 +1804,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -1857,8 +1863,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -1964,8 +1973,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -2018,8 +2030,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -2072,8 +2087,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -2117,8 +2135,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -2174,8 +2195,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -2238,8 +2262,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -7614,8 +7641,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -7803,8 +7833,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -7851,8 +7884,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -7935,8 +7971,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -7971,8 +8010,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -8107,8 +8149,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -8274,8 +8319,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -8406,8 +8454,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -9091,8 +9142,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -9448,8 +9502,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -9803,8 +9860,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -9941,8 +10001,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -9989,8 +10052,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -10027,8 +10093,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -10096,8 +10165,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -10155,8 +10227,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -10207,8 +10282,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -10247,8 +10325,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -10295,8 +10376,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -13157,8 +13241,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -13239,8 +13326,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -19097,8 +19187,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -19295,8 +19388,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -19674,8 +19770,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -19730,8 +19829,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -19786,8 +19888,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -19834,8 +19939,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -19890,8 +19998,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -32219,8 +32330,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -32357,8 +32471,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -32946,8 +33063,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -33165,8 +33285,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -33520,8 +33643,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -33590,8 +33716,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -35543,8 +35672,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -36944,8 +37076,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -37568,8 +37703,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -40729,8 +40867,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -40791,8 +40932,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -41409,8 +41553,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -41602,8 +41749,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -44404,8 +44554,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -44562,8 +44715,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -44771,8 +44927,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -44928,8 +45087,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -45085,8 +45247,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -45243,8 +45408,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -45306,8 +45474,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -45480,8 +45651,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -45623,8 +45797,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -45792,8 +45969,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -45944,8 +46124,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       },
@@ -46007,8 +46190,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -46076,8 +46262,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -46154,8 +46343,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }
@@ -46232,8 +46424,11 @@
         ],
         "x-roles": [
           "STUDENT",
+          "TEACHER",
           "MENTOR",
-          "ADMIN"
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
         ],
         "description": "**Access:** Any signed-in user"
       }

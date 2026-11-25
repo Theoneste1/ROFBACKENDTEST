@@ -4,7 +4,9 @@
 
 Who may call each endpoint, read from the `@Roles` / `@RequirePermission` / `@Public` metadata the guards enforce
 (`JwtAuthGuard` → `RolesGuard` → `PermissionGuard`). A ✓ means the role passes those checks; the
-service then applies record-level rules:
+service then applies record-level rules. Columns: the six roles of ROF (a Coach is `MENTOR` in the backend). `@Roles`
+admits exactly the roles it names; a permission route admits the roles holding the permission by default
+(individual overrides can add or remove it for one person); a route with neither admits every signed-in role.
 
 | Rule | Applies to |
 |---|---|
@@ -15,793 +17,793 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 484 endpoints — 31 public, 280 administrator-only.
+Totals: 484 endpoints — 31 public, 230 administrator-only (Admin and / or Super Admin).
 
 ## Academic years
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/academic-years` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/academic-years/current` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/academic-years` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/academic-years/current` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Admin · Academic years
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/admin/academic-years` |  |  |  | ✓ |
-| GET | `/api/v1/admin/academic-years/{id}` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/academic-years/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/academic-years/{id}/activate` |  |  |  | ✓ |
-| GET | `/api/v1/admin/academic-years/{id}/enrollments` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/enrollments/{id}` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/admin/academic-years` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/academic-years/{id}` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/academic-years/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/academic-years/{id}/activate` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/academic-years/{id}/enrollments` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/enrollments/{id}` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Activity
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/activity` |  |  |  | ✓ |
-| GET | `/api/v1/admin/activity/summary` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/activity` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/activity/summary` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Audit
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/audit-logs` |  |  |  | ✓ |
-| GET | `/api/v1/admin/audit-logs/{id}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/audit-logs/actions` |  |  |  | ✓ |
-| GET | `/api/v1/admin/audit-logs/export.csv` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/audit-logs` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/audit-logs/{id}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/audit-logs/actions` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/audit-logs/export.csv` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Bulk operations
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/admin/bulk/{entityType}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/bulk/{entityType}/export` |  |  |  | ✓ |
-| POST | `/api/v1/admin/bulk/{entityType}/preview` |  |  |  | ✓ |
-| GET | `/api/v1/admin/bulk/actions` |  |  |  | ✓ |
-| GET | `/api/v1/admin/bulk/operations` |  |  |  | ✓ |
-| GET | `/api/v1/admin/bulk/operations/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/bulk/operations/{id}/cancel` |  |  |  | ✓ |
-| GET | `/api/v1/admin/bulk/operations/{id}/items` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/admin/bulk/{entityType}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/bulk/{entityType}/export` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/bulk/{entityType}/preview` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/bulk/actions` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/bulk/operations` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/bulk/operations/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/bulk/operations/{id}/cancel` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/bulk/operations/{id}/items` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Contact messages
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/contact-messages` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/contact-messages/{id}` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/contact-messages` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/contact-messages/{id}` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Countries
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/countries` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/countries/{code}` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/countries` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/countries/{code}` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Courses
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| PATCH | `/api/v1/admin/courses/{id}` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/courses/{id}/archive` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/courses/{id}/publish` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/courses/{id}/unpublish` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| PATCH | `/api/v1/admin/courses/{id}` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/courses/{id}/archive` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/courses/{id}/publish` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/courses/{id}/unpublish` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Dashboard
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/dashboard` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/dashboard` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Email
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/email/deliveries` |  |  |  | ✓ |
-| POST | `/api/v1/admin/email/deliveries/{id}/retry` |  |  |  | ✓ |
-| GET | `/api/v1/admin/email/jobs` |  |  |  | ✓ |
-| GET | `/api/v1/admin/email/jobs/{id}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/email/jobs/{id}/deliveries` |  |  |  | ✓ |
-| POST | `/api/v1/admin/email/jobs/{id}/retry` |  |  |  | ✓ |
-| POST | `/api/v1/admin/email/send` |  |  |  | ✓ |
-| GET | `/api/v1/admin/email/users` |  |  |  | ✓ |
-| GET | `/api/v1/admin/notification-deliveries` |  |  |  | ✓ |
-| POST | `/api/v1/admin/notification-deliveries/{id}/retry` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/email/deliveries` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/email/deliveries/{id}/retry` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/email/jobs` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/email/jobs/{id}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/email/jobs/{id}/deliveries` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/email/jobs/{id}/retry` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/email/send` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/email/users` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/notification-deliveries` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/notification-deliveries/{id}/retry` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Forms
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/forms` |  |  |  | ✓ |
-| GET | `/api/v1/admin/forms/{key}` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/forms/{key}/availability` |  |  |  | ✓ |
-| GET | `/api/v1/admin/forms/{key}/history` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/forms/{key}/messages` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/forms` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/forms/{key}` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/forms/{key}/availability` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/forms/{key}/history` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/forms/{key}/messages` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Leaderboard
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/admin/leaderboard/recompute` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/admin/leaderboard/recompute` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Mentor assignments
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/mentor-assignments` |  |  |  | ✓ |
-| POST | `/api/v1/admin/mentor-assignments` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/mentor-assignments/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/mentor-assignments/bulk` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/mentor-assignments` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/mentor-assignments` |  |  |  |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/admin/mentor-assignments/{id}` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/mentor-assignments/bulk` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Permissions
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/permissions/catalogue` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/{id}/permission-overrides` |  |  |  |  |
-| POST | `/api/v1/admin/users/{id}/permission-overrides` |  |  |  |  |
-| DELETE | `/api/v1/admin/users/{id}/permission-overrides/{overrideId}` |  |  |  |  |
-| GET | `/api/v1/admin/users/{id}/permissions` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/permissions/catalogue` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/{id}/permission-overrides` |  |  |  |  |  |  | ✓ |
+| POST | `/api/v1/admin/users/{id}/permission-overrides` |  |  |  |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/users/{id}/permission-overrides/{overrideId}` |  |  |  |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/{id}/permissions` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Programmes
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/admin/programmes/{id}/coach-invitations` |  |  |  | ✓ |
-| GET | `/api/v1/admin/programmes/{id}/heads` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/programmes/{id}/heads` |  |  |  | ✓ |
-| GET | `/api/v1/admin/programmes/{id}/members` |  |  |  | ✓ |
-| POST | `/api/v1/admin/programmes/{id}/members` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/programmes/{id}/members/{userId}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/programmes/{id}/student-candidates` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/admin/programmes/{id}/coach-invitations` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/programmes/{id}/heads` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/programmes/{id}/heads` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/programmes/{id}/members` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/programmes/{id}/members` |  |  |  |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/admin/programmes/{id}/members/{userId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/programmes/{id}/student-candidates` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Reports
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/reports/assignments` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/assignments.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/course-participation` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/course-participation.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/enrollment` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/enrollment.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/mentor-activity` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/mentor-activity.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/mentor-workload.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/mentors` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/mentors.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/overview` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/results-publication` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/results-publication.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/results.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/reviews` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/reviews.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/student-progress.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/students` |  |  |  | ✓ |
-| GET | `/api/v1/admin/reports/students.csv` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/reports/assignments` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/assignments.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/course-participation` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/course-participation.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/enrollment` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/enrollment.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/mentor-activity` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/mentor-activity.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/mentor-workload.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/mentors` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/mentors.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/overview` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/results-publication` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/results-publication.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/results.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/reviews` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/reviews.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/student-progress.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/students` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/reports/students.csv` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · School affiliations
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/school-affiliations` |  |  |  | ✓ |
-| GET | `/api/v1/admin/school-affiliations/{id}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/school-affiliations/{id}/candidates` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-affiliations/{id}/match` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-affiliations/{id}/reject` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-affiliations/{id}/reopen` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-affiliations/{id}/revoke` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-affiliations/{id}/verify` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/{id}/school-affiliations` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/school-affiliations` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/school-affiliations/{id}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/school-affiliations/{id}/candidates` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/match` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/reject` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/reopen` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/revoke` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-affiliations/{id}/verify` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/{id}/school-affiliations` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · School directory sync
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/school-sync/runs` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-sync/runs` |  |  |  | ✓ |
-| GET | `/api/v1/admin/school-sync/runs/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-sync/runs/{id}/apply` |  |  |  |  |
-| POST | `/api/v1/admin/school-sync/runs/{id}/approve` |  |  |  |  |
-| GET | `/api/v1/admin/school-sync/runs/{id}/categories` |  |  |  | ✓ |
-| GET | `/api/v1/admin/school-sync/runs/{id}/changes` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-sync/runs/{id}/decisions` |  |  |  | ✓ |
-| GET | `/api/v1/admin/school-sync/runs/{id}/items` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-sync/runs/{id}/items/{itemId}/proposal` |  |  |  | ✓ |
-| POST | `/api/v1/admin/school-sync/runs/{id}/items/{itemId}/resolve` |  |  |  |  |
-| POST | `/api/v1/admin/school-sync/runs/{id}/recompare` |  |  |  | ✓ |
-| GET | `/api/v1/admin/school-sync/runs/{id}/report.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/school-sync/runs/{id}/review` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/school-sync/runs` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-sync/runs` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/apply` |  |  |  |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/approve` |  |  |  |  |  |  | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/categories` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/changes` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/decisions` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/items` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/items/{itemId}/proposal` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/items/{itemId}/resolve` |  |  |  |  |  |  | ✓ |
+| POST | `/api/v1/admin/school-sync/runs/{id}/recompare` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/report.csv` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/school-sync/runs/{id}/review` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Schools
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/schools` |  |  |  | ✓ |
-| POST | `/api/v1/admin/schools` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/{id}` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/schools/{id}` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/schools/{id}/active` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/{id}/contacts` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/schools/{id}/contacts` |  |  |  | ✓ |
-| POST | `/api/v1/admin/schools/{id}/contacts/{contactId}/verify` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/{id}/history` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/{id}/offerings` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/schools/{id}/offerings` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/{id}/students` |  |  |  | ✓ |
-| POST | `/api/v1/admin/schools/{id}/verify` |  |  |  | ✓ |
-| POST | `/api/v1/admin/schools/import` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/import-template` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/reference-data` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/schools` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/schools` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/{id}` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/schools/{id}` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/schools/{id}/active` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/{id}/contacts` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/schools/{id}/contacts` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/schools/{id}/contacts/{contactId}/verify` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/{id}/history` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/{id}/offerings` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/schools/{id}/offerings` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/{id}/students` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/schools/{id}/verify` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/schools/import` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/import-template` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/reference-data` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Settings
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/settings` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/settings` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/settings` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/settings` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Subscribers
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/subscribers` |  |  |  | ✓ |
-| POST | `/api/v1/admin/subscribers` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/subscribers/{id}` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/subscribers/{id}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/subscribers/export` |  |  |  | ✓ |
-| POST | `/api/v1/admin/subscribers/import` |  |  |  | ✓ |
-| GET | `/api/v1/admin/subscribers/mailings` |  |  |  | ✓ |
-| POST | `/api/v1/admin/subscribers/mailings` |  |  |  | ✓ |
-| GET | `/api/v1/admin/subscribers/mailings/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/subscribers/mailings/{id}/cancel` |  |  |  | ✓ |
-| POST | `/api/v1/admin/subscribers/mailings/preview` |  |  |  | ✓ |
-| POST | `/api/v1/admin/subscribers/mailings/test` |  |  |  | ✓ |
-| GET | `/api/v1/admin/subscribers/summary` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/subscribers` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/subscribers` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/subscribers/{id}` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/subscribers/{id}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/subscribers/export` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/subscribers/import` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/subscribers/mailings` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/subscribers/mailings/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/{id}/cancel` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/preview` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/subscribers/mailings/test` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/subscribers/summary` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Teachers
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/schools/{id}/access` |  |  |  | ✓ |
-| GET | `/api/v1/admin/schools/{id}/access/students` |  |  |  | ✓ |
-| GET | `/api/v1/admin/teacher-assignments` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-assignments` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/teacher-assignments/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-assignments/{id}/primary` |  |  |  | ✓ |
-| GET | `/api/v1/admin/teacher-students` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-students` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/teacher-students/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-students/reassign` |  |  |  | ✓ |
-| GET | `/api/v1/admin/teachers/{id}/delegations` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teachers/{id}/delegations` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/schools/{id}/access` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/schools/{id}/access/students` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/teacher-assignments` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-assignments` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/teacher-assignments/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-assignments/{id}/primary` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/teacher-students` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-students` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/teacher-students/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-students/reassign` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/teachers/{id}/delegations` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teachers/{id}/delegations` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/reviewed` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/teachers/{id}/delegations/{overrideId}/students/{studentId}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/teachers/{id}/test-submission` |  |  |  |  |  | ✓ | ✓ |
 
 ## Admin · Test marking
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/tests/{id}/marking` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/marking/assign` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/marking/distribute` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/marking/history` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/marking/submissions` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose` |  |  |  |  |
-| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/tests/{id}/marking` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/assign` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/distribute` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/history` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/submissions` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/approve` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/choose` |  |  |  |  | ✓ |  |  |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/reassign` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/return` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/second-marking` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/marking/submissions/{submissionId}/unlock` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Test results
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/test-dashboard` |  |  |  | ✓ |
-| GET | `/api/v1/admin/test-reports` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/results` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/results/export.csv` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/results/preview` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/results/publications` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/results/publish` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/results/publish/override` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/results/rankings` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/results/report` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/test-dashboard` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/test-reports` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/export.csv` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/preview` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/publications` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/results/publish` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/results/publish/override` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/rankings` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/results/report` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Tests
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/test-markers` |  |  |  | ✓ |
-| POST | `/api/v1/admin/test-markers` |  |  |  | ✓ |
-| POST | `/api/v1/admin/test-markers/{id}/revoke` |  |  |  | ✓ |
-| GET | `/api/v1/admin/test-markers/candidates` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/tests/{id}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/extension-targets` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/extensions` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/extensions` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/tests/{id}/extensions/{extensionId}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/extensions/{extensionId}/cancel` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/publish` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/questions` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/submissions` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/tests/{id}/unpublish` |  |  |  | ✓ |
-| GET | `/api/v1/admin/tests/subjects` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/test-markers` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/test-markers` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/test-markers/{id}/revoke` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/test-markers/candidates` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}` |  |  |  |  | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}` |  |  |  |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/extension-targets` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/extensions` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/extensions` |  |  |  |  | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}/extensions/{extensionId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/extensions/{extensionId}/cancel` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/files/{kind}` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/publish` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/questions` |  |  |  |  | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/questions/{questionId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/unpublish` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/subjects` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Users
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/users` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/users/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/{id}/activate-now` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/{id}/banking` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/users/{id}/date-of-birth` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/{id}/date-of-birth-history` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/{id}/registration-timeline` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/{id}/resend-invitation` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/{id}/send-password-reset` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/users/{id}/status` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/{id}/status-changes` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/{id}/status-history` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/{id}/view-as` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/bulk` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/bulk` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/bulk/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/bulk/{id}/cancel` |  |  |  | ✓ |
-| GET | `/api/v1/admin/users/bulk/{id}/items` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/bulk/export` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/bulk/preview` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/import` |  |  |  | ✓ |
-| POST | `/api/v1/admin/users/invite` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/users` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/{id}` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/users/{id}` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/users/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/{id}/activate-now` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/{id}/banking` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/users/{id}/date-of-birth` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/{id}/date-of-birth-history` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/{id}/registration-timeline` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/{id}/resend-invitation` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/{id}/send-password-reset` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/users/{id}/status` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/{id}/status-changes` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/{id}/status-history` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/{id}/view-as` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/bulk` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/bulk` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/bulk/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/bulk/{id}/cancel` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/users/bulk/{id}/items` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/bulk/export` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/bulk/preview` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/import` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/users/invite` |  |  |  |  |  | ✓ | ✓ |
 
 ## Analytics
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/analytics/courses/{courseId}` |  |  | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/analytics/courses/{courseId}` |  |  |  | ✓ | ✓ | ✓ | ✓ |
 
 ## Assignments
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/assignments` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/assignments` |  |  | ✓ |  |
-| GET | `/api/v1/assignments/{id}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/assignments/{id}` |  |  | ✓ |  |
-| PATCH | `/api/v1/assignments/{id}/archive` |  |  |  | ✓ |
-| POST | `/api/v1/assignments/{id}/attachments` |  |  | ✓ |  |
-| DELETE | `/api/v1/assignments/{id}/attachments/{attachmentId}` |  |  | ✓ |  |
-| GET | `/api/v1/assignments/{id}/attachments/{attachmentId}/file` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/assignments/{id}/close` |  |  |  | ✓ |
-| GET | `/api/v1/assignments/{id}/file` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/assignments/{id}/history` |  |  | ✓ | ✓ |
-| PATCH | `/api/v1/assignments/{id}/publish` |  |  |  | ✓ |
-| PATCH | `/api/v1/assignments/{id}/recall` |  |  | ✓ |  |
-| PATCH | `/api/v1/assignments/{id}/reject` |  |  |  | ✓ |
-| PATCH | `/api/v1/assignments/{id}/reopen` |  |  |  | ✓ |
-| PATCH | `/api/v1/assignments/{id}/submit` |  |  | ✓ |  |
-| PATCH | `/api/v1/assignments/{id}/unpublish` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/assignments` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/assignments` |  |  |  | ✓ | ✓ |  |  |
+| GET | `/api/v1/assignments/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/assignments/{id}` |  |  |  | ✓ | ✓ |  |  |
+| PATCH | `/api/v1/assignments/{id}/archive` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/assignments/{id}/attachments` |  |  |  | ✓ | ✓ |  |  |
+| DELETE | `/api/v1/assignments/{id}/attachments/{attachmentId}` |  |  |  | ✓ | ✓ |  |  |
+| GET | `/api/v1/assignments/{id}/attachments/{attachmentId}/file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/assignments/{id}/close` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/assignments/{id}/file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/assignments/{id}/history` |  |  |  | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/assignments/{id}/publish` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/assignments/{id}/recall` |  |  |  | ✓ | ✓ |  |  |
+| PATCH | `/api/v1/assignments/{id}/reject` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/assignments/{id}/reopen` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/assignments/{id}/submit` |  |  |  | ✓ | ✓ |  |  |
+| PATCH | `/api/v1/assignments/{id}/unpublish` |  |  |  |  |  | ✓ | ✓ |
 
 ## Auth
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/applications/info-requests/answer` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/applications/info-requests/view` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/activate` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/activation/inspect` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/forgot-password` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/login` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/logout` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/logout-all` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/auth/password` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/refresh` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/register/admin` |  |  |  | ✓ |
-| PUT | `/api/v1/auth/register/avatar` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/register/student` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/register/teacher` | ✓ | ✓ | ✓ | ✓ |
-| GET | `/api/v1/auth/register/teacher/availability` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/resend-activation` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/reset-password` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/view-as/end` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/auth/view-as/exchange` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/applications/info-requests/answer` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/applications/info-requests/view` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/activate` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/activation/inspect` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/forgot-password` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/login` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/logout` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/logout-all` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/auth/password` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/refresh` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/register/admin` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/auth/register/avatar` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/register/student` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/register/teacher` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/auth/register/teacher/availability` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/resend-activation` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/reset-password` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/view-as/end` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/view-as/exchange` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Coach
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/coach/students` |  |  | ✓ |  |
-| GET | `/api/v1/coach/test-results` |  |  | ✓ |  |
-| GET | `/api/v1/coach/test-results/{testId}` |  |  | ✓ |  |
-| GET | `/api/v1/coach/test-results/{testId}/students/{studentId}` |  |  | ✓ |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/coach/students` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/coach/test-results` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/coach/test-results/{testId}` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/coach/test-results/{testId}/students/{studentId}` |  |  |  | ✓ |  |  |  |
 
 ## Coaches
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/admin/coaches/{id}/programme-access` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Countries
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/countries` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/countries` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Courses
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/courses` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/courses/{courseId}/resources` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/courses/{courseId}/resources` |  |  | ✓ | ✓ |
-| GET | `/api/v1/courses/{courseId}/resources/{resourceId}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}` |  |  | ✓ | ✓ |
-| DELETE | `/api/v1/courses/{courseId}/resources/{resourceId}` |  |  | ✓ | ✓ |
-| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/archive` |  |  | ✓ | ✓ |
-| POST | `/api/v1/courses/{courseId}/resources/{resourceId}/attachments` |  |  | ✓ | ✓ |
-| DELETE | `/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}` |  |  | ✓ | ✓ |
-| GET | `/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}/file` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/courses/{courseId}/resources/{resourceId}/file` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/publish` |  |  | ✓ | ✓ |
-| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/restore` |  |  | ✓ | ✓ |
-| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/unpublish` |  |  | ✓ | ✓ |
-| GET | `/api/v1/courses/{id}` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/courses/{id}/complete` |  | ✓ |  |  |
-| GET | `/api/v1/disciplines` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/courses` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/courses/{courseId}/resources` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/courses/{courseId}/resources` |  |  |  | ✓ |  | ✓ | ✓ |
+| GET | `/api/v1/courses/{courseId}/resources/{resourceId}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}` |  |  |  | ✓ |  | ✓ | ✓ |
+| DELETE | `/api/v1/courses/{courseId}/resources/{resourceId}` |  |  |  | ✓ |  | ✓ | ✓ |
+| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/archive` |  |  |  | ✓ |  | ✓ | ✓ |
+| POST | `/api/v1/courses/{courseId}/resources/{resourceId}/attachments` |  |  |  | ✓ |  | ✓ | ✓ |
+| DELETE | `/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}` |  |  |  | ✓ |  | ✓ | ✓ |
+| GET | `/api/v1/courses/{courseId}/resources/{resourceId}/attachments/{attachmentId}/file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/courses/{courseId}/resources/{resourceId}/file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/publish` |  |  |  | ✓ |  | ✓ | ✓ |
+| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/restore` |  |  |  | ✓ |  | ✓ | ✓ |
+| PATCH | `/api/v1/courses/{courseId}/resources/{resourceId}/unpublish` |  |  |  | ✓ |  | ✓ | ✓ |
+| GET | `/api/v1/courses/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/courses/{id}/complete` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/disciplines` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## custom-reports
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/reports` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/reports` |  |  |  | ✓ |
-| GET | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
-| PUT | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
-| DELETE | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/reports/{id}/export` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ |
-| PUT | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/reports/{id}/preview` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/reports/{id}/run` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/reports/preview` |  |  |  | ✓ |
-| GET | `/api/v1/reports/sources` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/reports` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/export` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/{id}/preview` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/run` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/preview` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/reports/sources` |  |  |  |  |  | ✓ | ✓ |
 
 ## Discussions
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/comments/hidden` |  |  |  | ✓ |
-| GET | `/api/v1/admin/moderation/actions` |  |  |  | ✓ |
-| GET | `/api/v1/admin/moderation/reports` |  |  |  | ✓ |
-| GET | `/api/v1/admin/moderation/reports/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/moderation/reports/{id}/resolve` |  |  |  | ✓ |
-| GET | `/api/v1/assignments/{assignmentId}/threads` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/assignments/{assignmentId}/threads` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/comments/{id}` |  | ✓ | ✓ | ✓ |
-| DELETE | `/api/v1/comments/{id}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/comments/{id}/hide` |  |  |  | ✓ |
-| POST | `/api/v1/comments/{id}/reactions` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/comments/{id}/replies` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/comments/{id}/report` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/comments/{id}/restore` |  |  |  | ✓ |
-| GET | `/api/v1/courses/{courseId}/threads` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/courses/{courseId}/threads` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/threads/{id}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/threads/{id}` |  | ✓ | ✓ | ✓ |
-| DELETE | `/api/v1/threads/{id}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/threads/{id}/{op}` |  |  |  | ✓ |
-| GET | `/api/v1/threads/{id}/comments` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/threads/{id}/comments` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/threads/{id}/report` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/comments/hidden` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/moderation/actions` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/moderation/reports` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/moderation/reports/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/moderation/reports/{id}/resolve` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/assignments/{assignmentId}/threads` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/assignments/{assignmentId}/threads` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/comments/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/comments/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/comments/{id}/hide` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/comments/{id}/reactions` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/comments/{id}/replies` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/comments/{id}/report` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/comments/{id}/restore` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/courses/{courseId}/threads` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/courses/{courseId}/threads` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/threads/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/threads/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/threads/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/threads/{id}/{op}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/threads/{id}/comments` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/threads/{id}/comments` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/threads/{id}/report` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Divisions
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/divisions` |  |  |  | ✓ |
-| POST | `/api/v1/admin/divisions` |  |  |  | ✓ |
-| PATCH | `/api/v1/admin/divisions/{id}` |  |  |  | ✓ |
-| GET | `/api/v1/admin/divisions/{id}/courses` |  |  |  | ✓ |
-| PUT | `/api/v1/admin/divisions/{id}/courses` |  |  |  | ✓ |
-| GET | `/api/v1/divisions` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/divisions` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/divisions` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/admin/divisions/{id}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/divisions/{id}/courses` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/divisions/{id}/courses` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/divisions` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Forms
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/forms` | ✓ | ✓ | ✓ | ✓ |
-| GET | `/api/v1/forms/{key}` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/forms` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/forms/{key}` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Health
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1` | ✓ | ✓ | ✓ | ✓ |
-| GET | `/health` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/health` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Leaderboard
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/leaderboard` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/leaderboard/me` |  | ✓ |  |  |
-| GET | `/api/v1/leaderboard/schools` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/leaderboard` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/leaderboard/me` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/leaderboard/schools` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Marking
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/marking/dashboard` |  |  | ✓ |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/marking/dashboard` |  |  |  | ✓ |  |  |  |
 
 ## Me
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/me` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/me` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/me/assignments` |  | ✓ |  |  |
-| PUT | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
-| DELETE | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/me/banking` |  |  | ✓ |  |
-| PUT | `/api/v1/me/banking` |  |  | ✓ |  |
-| GET | `/api/v1/me/courses` |  | ✓ |  |  |
-| PUT | `/api/v1/me/date-of-birth` |  | ✓ |  |  |
-| GET | `/api/v1/me/enrollments` |  | ✓ |  |  |
-| PUT | `/api/v1/me/gender` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/me/permissions` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/me/results` |  | ✓ |  |  |
-| GET | `/api/v1/me/results/{submissionId}` |  | ✓ |  |  |
-| GET | `/api/v1/me/results/{submissionId}/feedback-files/{attachmentId}` |  | ✓ |  |  |
-| GET | `/api/v1/me/school-affiliation` |  | ✓ |  |  |
-| POST | `/api/v1/me/school-affiliation` |  | ✓ |  |  |
-| GET | `/api/v1/me/submissions` |  | ✓ |  |  |
-| GET | `/api/v1/me/teaching` |  |  | ✓ |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/me` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/me/assignments` |  | ✓ |  |  |  |  |  |
+| PUT | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/me/banking` |  |  | ✓ | ✓ | ✓ |  |  |
+| PUT | `/api/v1/me/banking` |  |  | ✓ | ✓ | ✓ |  |  |
+| GET | `/api/v1/me/courses` |  | ✓ |  |  |  |  |  |
+| PUT | `/api/v1/me/date-of-birth` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/enrollments` |  | ✓ |  |  |  |  |  |
+| PUT | `/api/v1/me/gender` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/me/permissions` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/me/results` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/results/{submissionId}` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/results/{submissionId}/feedback-files/{attachmentId}` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/school-affiliation` |  | ✓ |  |  |  |  |  |
+| POST | `/api/v1/me/school-affiliation` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/submissions` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/teaching` |  |  |  | ✓ | ✓ |  |  |
 
 ## Mentor
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/mentor/reviews` |  |  | ✓ |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/mentor/reviews` |  |  |  | ✓ | ✓ |  |  |
 
 ## Mentor requests
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/mentor-requests` |  |  |  | ✓ |
-| POST | `/api/v1/mentor-requests` | ✓ | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/mentor-requests/{id}/approve` |  |  |  | ✓ |
-| GET | `/api/v1/mentor-requests/{id}/avatar` |  |  |  | ✓ |
-| PATCH | `/api/v1/mentor-requests/{id}/reject` |  |  |  | ✓ |
-| POST | `/api/v1/mentor-requests/{id}/request-info` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/mentor-requests` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/mentor-requests` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/mentor-requests/{id}/approve` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/mentor-requests/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/mentor-requests/{id}/reject` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/mentor-requests/{id}/request-info` |  |  |  |  |  | ✓ | ✓ |
 
 ## My tests
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/me/test-dashboard` |  | ✓ |  |  |
-| GET | `/api/v1/me/test-results` |  | ✓ |  |  |
-| GET | `/api/v1/me/test-results/{testId}` |  | ✓ |  |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me/test-dashboard` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/test-results` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/test-results/{testId}` |  | ✓ |  |  |  |  |  |
 
 ## Notifications
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/me/notification-preferences` |  | ✓ | ✓ | ✓ |
-| PUT | `/api/v1/me/notification-preferences` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/me/notification-settings` |  |  | ✓ | ✓ |
-| PATCH | `/api/v1/me/notification-settings` |  |  | ✓ | ✓ |
-| POST | `/api/v1/me/notification-settings/reset` |  |  | ✓ | ✓ |
-| GET | `/api/v1/notifications` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/notifications/{id}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/notifications/{id}/read` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/notifications/{id}/unread` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/notifications/read` |  | ✓ | ✓ | ✓ |
-| POST | `/api/v1/notifications/read-all` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/notifications/unread-count` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me/notification-preferences` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/me/notification-preferences` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/me/notification-settings` |  |  |  | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/me/notification-settings` |  |  |  | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/me/notification-settings/reset` |  |  |  | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/notifications` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/notifications/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/notifications/{id}/read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/notifications/{id}/unread` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/notifications/read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/notifications/read-all` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/notifications/unread-count` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## olympiad-levels
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/students/{id}/olympiad-level` |  |  | ✓ | ✓ |
-| PUT | `/api/v1/admin/students/{id}/olympiad-level` |  |  | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/students/{id}/olympiad-level` |  |  |  | ✓ | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/admin/students/{id}/olympiad-level` |  |  |  | ✓ | ✓ | ✓ | ✓ |
 
 ## Programmes
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/programmes` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/programmes` |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |
 
 ## Public site
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/public/contact` | ✓ | ✓ | ✓ | ✓ |
-| GET | `/api/v1/public/statistics` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/public/subscribe` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/public/unsubscribe` | ✓ | ✓ | ✓ | ✓ |
-| POST | `/api/v1/public/unsubscribe/one-click` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/public/contact` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/public/statistics` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/subscribe` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/unsubscribe` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/public/unsubscribe/one-click` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## registration-data
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/admin/registration-data/export` |  |  |  |  |
-| GET | `/api/v1/admin/registration-data/fields` |  |  |  |  |
-| GET | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |
-| PUT | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |
-| DELETE | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |
-| POST | `/api/v1/admin/registration-data/query` |  |  |  |  |
-| GET | `/api/v1/admin/registration-data/saved-filters` |  |  |  |  |
-| POST | `/api/v1/admin/registration-data/saved-filters` |  |  |  |  |
-| PUT | `/api/v1/admin/registration-data/saved-filters/{id}` |  |  |  |  |
-| DELETE | `/api/v1/admin/registration-data/saved-filters/{id}` |  |  |  |  |
-| GET | `/api/v1/admin/registration-data/users/{id}` |  |  |  |  |
-| PATCH | `/api/v1/admin/registration-data/users/{id}` |  |  |  |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/admin/registration-data/export` |  |  |  |  |  |  | ✓ |
+| GET | `/api/v1/admin/registration-data/fields` |  |  |  |  |  |  | ✓ |
+| GET | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |  |  | ✓ |
+| PUT | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/registration-data/layouts/{category}` |  |  |  |  |  |  | ✓ |
+| POST | `/api/v1/admin/registration-data/query` |  |  |  |  |  |  | ✓ |
+| GET | `/api/v1/admin/registration-data/saved-filters` |  |  |  |  |  |  | ✓ |
+| POST | `/api/v1/admin/registration-data/saved-filters` |  |  |  |  |  |  | ✓ |
+| PUT | `/api/v1/admin/registration-data/saved-filters/{id}` |  |  |  |  |  |  | ✓ |
+| DELETE | `/api/v1/admin/registration-data/saved-filters/{id}` |  |  |  |  |  |  | ✓ |
+| GET | `/api/v1/admin/registration-data/users/{id}` |  |  |  |  |  |  | ✓ |
+| PATCH | `/api/v1/admin/registration-data/users/{id}` |  |  |  |  |  |  | ✓ |
 
 ## Schools
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/schools` |  |  |  | ✓ |
-| GET | `/api/v1/schools/{id}` |  |  |  | ✓ |
-| GET | `/api/v1/schools/locations` | ✓ | ✓ | ✓ | ✓ |
-| GET | `/api/v1/schools/search` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/schools` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/schools/{id}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/schools/locations` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/schools/search` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Students
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/students/{id}/overview` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/students/{id}/overview` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Submissions
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| POST | `/api/v1/assignments/{assignmentId}/distribute` |  |  |  | ✓ |
-| GET | `/api/v1/assignments/{assignmentId}/distribution-batches` |  |  |  | ✓ |
-| GET | `/api/v1/assignments/{assignmentId}/result-releases` |  |  |  | ✓ |
-| POST | `/api/v1/assignments/{assignmentId}/results/publish` |  |  |  | ✓ |
-| GET | `/api/v1/submissions` |  |  |  | ✓ |
-| POST | `/api/v1/submissions` |  | ✓ |  |  |
-| GET | `/api/v1/submissions/{id}` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/submissions/{id}/approve` |  |  |  | ✓ |
-| PATCH | `/api/v1/submissions/{id}/assign` |  |  |  | ✓ |
-| GET | `/api/v1/submissions/{id}/attachments/{attachmentId}/file` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/submissions/{id}/feedback-file` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/submissions/{id}/feedback-files/{attachmentId}` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/submissions/{id}/file` |  | ✓ | ✓ | ✓ |
-| GET | `/api/v1/submissions/{id}/history` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/submissions/{id}/mark` |  |  | ✓ |  |
-| PATCH | `/api/v1/submissions/{id}/publish` |  |  |  | ✓ |
-| PATCH | `/api/v1/submissions/{id}/reassign` |  |  |  | ✓ |
-| PATCH | `/api/v1/submissions/{id}/reject` |  |  |  | ✓ |
-| PATCH | `/api/v1/submissions/{id}/reopen` |  |  |  | ✓ |
-| PATCH | `/api/v1/submissions/{id}/request-resubmission` |  |  | ✓ |  |
-| GET | `/api/v1/submissions/{id}/result-history` |  |  |  | ✓ |
-| DELETE | `/api/v1/submissions/{id}/review/attachments/{attachmentId}` |  |  | ✓ |  |
-| GET | `/api/v1/submissions/{id}/reviews` |  |  | ✓ | ✓ |
-| GET | `/api/v1/submissions/{id}/revisions/{revisionNumber}/file` |  | ✓ | ✓ | ✓ |
-| PATCH | `/api/v1/submissions/{id}/start-review` |  |  | ✓ |  |
-| PATCH | `/api/v1/submissions/{id}/submit-to-admin` |  |  | ✓ |  |
-| PATCH | `/api/v1/submissions/{id}/withdraw-resubmission-request` |  |  | ✓ |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| POST | `/api/v1/assignments/{assignmentId}/distribute` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/assignments/{assignmentId}/distribution-batches` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/assignments/{assignmentId}/result-releases` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/assignments/{assignmentId}/results/publish` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/submissions` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/submissions` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/submissions/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/approve` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/assign` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/submissions/{id}/attachments/{attachmentId}/file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/submissions/{id}/feedback-file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/submissions/{id}/feedback-files/{attachmentId}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/submissions/{id}/file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/submissions/{id}/history` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/mark` |  |  |  | ✓ | ✓ |  |  |
+| PATCH | `/api/v1/submissions/{id}/publish` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/reassign` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/reject` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/reopen` |  |  |  |  |  | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/request-resubmission` |  |  |  | ✓ | ✓ |  |  |
+| GET | `/api/v1/submissions/{id}/result-history` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/submissions/{id}/review/attachments/{attachmentId}` |  |  |  | ✓ | ✓ |  |  |
+| GET | `/api/v1/submissions/{id}/reviews` |  |  |  | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/submissions/{id}/revisions/{revisionNumber}/file` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/submissions/{id}/start-review` |  |  |  | ✓ | ✓ |  |  |
+| PATCH | `/api/v1/submissions/{id}/submit-to-admin` |  |  |  | ✓ | ✓ |  |  |
+| PATCH | `/api/v1/submissions/{id}/withdraw-resubmission-request` |  |  |  | ✓ | ✓ |  |  |
 
 ## Support
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/support` | ✓ | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/support` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## table-layouts
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| PUT | `/api/v1/admin/table-layouts/{table}` |  |  |  | ✓ |
-| DELETE | `/api/v1/admin/table-layouts/{table}` |  |  |  | ✓ |
-| GET | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
-| PUT | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
-| DELETE | `/api/v1/me/table-layouts/{table}` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| PUT | `/api/v1/admin/table-layouts/{table}` |  |  |  |  |  | ✓ | ✓ |
+| DELETE | `/api/v1/admin/table-layouts/{table}` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/me/table-layouts/{table}` |  |  |  |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/me/table-layouts/{table}` |  |  |  |  | ✓ | ✓ | ✓ |
+| DELETE | `/api/v1/me/table-layouts/{table}` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Teacher
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/teacher/schools` |  |  |  |  |
-| GET | `/api/v1/teacher/students` |  |  |  |  |
-| GET | `/api/v1/teacher/students/{id}` |  |  |  |  |
-| GET | `/api/v1/teacher/students/{id}/progress` |  |  |  |  |
-| POST | `/api/v1/teacher/students/{id}/submissions` |  |  |  |  |
-| GET | `/api/v1/teacher/students/summary` |  |  |  |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/schools` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/students` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/students/{id}` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/students/{id}/progress` |  |  | ✓ |  |  |  |  |
+| POST | `/api/v1/teacher/students/{id}/submissions` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/students/summary` |  |  | ✓ |  |  |  |  |
 
 ## Teacher applications
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/admin/teacher-applications` |  |  |  | ✓ |
-| GET | `/api/v1/admin/teacher-applications/{id}` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-applications/{id}/approve` |  |  |  | ✓ |
-| GET | `/api/v1/admin/teacher-applications/{id}/avatar` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  | ✓ |
-| POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/teacher-applications` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/teacher-applications/{id}` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/approve` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/teacher-applications/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/reject` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/request-info` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/teacher-applications/{id}/school` |  |  |  |  |  | ✓ | ✓ |
 
 ## Teacher tests
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/teacher/test-dashboard` |  |  |  |  |
-| GET | `/api/v1/teacher/test-results` |  |  |  |  |
-| GET | `/api/v1/teacher/test-results/{testId}` |  |  |  |  |
-| GET | `/api/v1/teacher/test-results/{testId}/students/{studentId}` |  |  |  |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/test-dashboard` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/test-results` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/test-results/{testId}` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/test-results/{testId}/students/{studentId}` |  |  | ✓ |  |  |  |  |
 
 ## Tests · Marking
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/marking/queue` |  |  | ✓ |  |
-| GET | `/api/v1/marking/submissions/{code}` |  |  | ✓ |  |
-| PUT | `/api/v1/marking/submissions/{code}/marking` |  |  | ✓ |  |
-| GET | `/api/v1/marking/submissions/{code}/marking-guide` |  |  | ✓ |  |
-| POST | `/api/v1/marking/submissions/{code}/marking/submit` |  |  | ✓ |  |
-| GET | `/api/v1/marking/submissions/{code}/pages/{page}` |  |  | ✓ |  |
-| GET | `/api/v1/marking/submissions/{code}/paper` |  |  | ✓ |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/marking/queue` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/submissions/{code}` |  |  |  | ✓ |  |  |  |
+| PUT | `/api/v1/marking/submissions/{code}/marking` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/submissions/{code}/marking-guide` |  |  |  | ✓ |  |  |  |
+| POST | `/api/v1/marking/submissions/{code}/marking/submit` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/submissions/{code}/pages/{page}` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/submissions/{code}/paper` |  |  |  | ✓ |  |  |  |
 
 ## Tests · Students
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/me/tests` |  | ✓ |  |  |
-| GET | `/api/v1/me/tests/{id}` |  | ✓ |  |  |
-| GET | `/api/v1/me/tests/{id}/paper` |  | ✓ |  |  |
-| POST | `/api/v1/me/tests/{id}/submission` |  | ✓ |  |  |
-| GET | `/api/v1/me/tests/{id}/uploads/{uploadKey}` |  | ✓ |  |  |
-| POST | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |
-| DELETE | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |
-| GET | `/api/v1/me/tests/{id}/versions/{versionId}/pages/{page}` |  | ✓ |  |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/me/tests` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/tests/{id}` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/tests/{id}/paper` |  | ✓ |  |  |  |  |  |
+| POST | `/api/v1/me/tests/{id}/submission` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/tests/{id}/uploads/{uploadKey}` |  | ✓ |  |  |  |  |  |
+| POST | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |  |  |  |
+| DELETE | `/api/v1/me/tests/{id}/uploads/{uploadKey}/pages/{page}` |  | ✓ |  |  |  |  |  |
+| GET | `/api/v1/me/tests/{id}/versions/{versionId}/pages/{page}` |  | ✓ |  |  |  |  |  |
 
 ## Tests · Teachers
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/teacher/tests` |  |  |  |  |
-| GET | `/api/v1/teacher/tests/{id}/paper` |  |  |  |  |
-| GET | `/api/v1/teacher/tests/{id}/students` |  |  |  |  |
-| GET | `/api/v1/teacher/tests/{id}/students/{studentId}` |  |  |  |  |
-| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/submission` |  |  |  |  |
-| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}` |  |  |  |  |
-| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  |  |  |
-| DELETE | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  |  |  |
-| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}` |  |  |  |  |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/teacher/tests` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/paper` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}` |  |  | ✓ |  |  |  |  |
+| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/submission` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}` |  |  | ✓ |  |  |  |  |
+| POST | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  | ✓ |  |  |  |  |
+| DELETE | `/api/v1/teacher/tests/{id}/students/{studentId}/uploads/{uploadKey}/pages/{page}` |  |  | ✓ |  |  |  |  |
+| GET | `/api/v1/teacher/tests/{id}/students/{studentId}/versions/{versionId}/pages/{page}` |  |  | ✓ |  |  |  |  |
 
 ## Users
 
-| Method | Path | Public | Student | Mentor | Admin |
-|---|---|:-:|:-:|:-:|:-:|
-| GET | `/api/v1/users/{id}/avatar` |  | ✓ | ✓ | ✓ |
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/users/{id}/avatar` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
