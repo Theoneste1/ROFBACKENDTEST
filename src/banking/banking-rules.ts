@@ -3,11 +3,13 @@
  * bank details before using the platform. One set of rules for the completion check (sign-in lock, GET /me, the
  * administrators' views) and for saving (PUT /me/banking). Pure (unit-tested); the frontend mirrors it.
  *
- * The agreed rules, and only those (review of PR #101, 2026-11-25):
- *  - Every field is required.
- *  - Teachers: both banks are Umwalimu SACCO (fixed, never chosen); the personal account number is exactly 12 digits
- *    ("Your Umwalimu SACCO account number must contain exactly 12 digits.").
- *  - Coaches and Head Coaches: the personal bank is chosen from BANKS; the school bank is Umwalimu SACCO (fixed).
+ * The agreed rules, and only those (final requirements, owner 2026-11-25):
+ *  - Teachers give all six fields: personal and school. Both banks are Umwalimu SACCO (fixed, never chosen); the
+ *    personal account number is exactly 12 digits ("Your Umwalimu SACCO account number must contain exactly 12 digits.").
+ *  - Coaches and Head Coaches give the three PERSONAL fields only; the personal bank is chosen from BANKS. School bank
+ *    details are neither asked nor required of them: never counted as missing, never checked, and any saved earlier
+ *    are kept as they are (never deleted or overwritten).
+ *  - Every required field is required.
  *  - No other format is imposed: other account numbers and account names are kept exactly as given (ROF agreed no
  *    rule for them). The request caps lengths (200 characters for names, 40 for numbers: SaveBankingDto) only as a
  *    technical guard against oversized input, far above any real account name or number.
@@ -44,6 +46,13 @@ export const BANKING_FIELDS = [
   'schoolAccountName', 'schoolBankName', 'schoolAccountNumber',
 ] as const;
 export type BankingField = (typeof BANKING_FIELDS)[number];
+
+export const PERSONAL_FIELDS = ['personalAccountName', 'personalBankName', 'personalAccountNumber'] as const;
+
+/** The fields this role must give: all six for Teachers, the three personal ones for Coaches and Head Coaches. */
+export function requiredFields(role: string): readonly BankingField[] {
+  return role === 'TEACHER' ? BANKING_FIELDS : PERSONAL_FIELDS;
+}
 
 /** The bank fields that may be fixed to Umwalimu SACCO (and so may need a confirmed replacement). */
 export const FIXABLE_BANK_FIELDS = ['personalBankName', 'schoolBankName'] as const;
@@ -84,14 +93,19 @@ export function bankRules(role: string) {
     banks: teacher ? [UMWALIMU_SACCO] : [...BANKS],
     /** Exactly this many digits for the personal account number (teachers); null: no format rule. */
     personalNumberDigits: teacher ? 12 : null,
+    /** Whether the school's bank details are asked (Teachers only). */
+    schoolRequired: teacher,
+    /** The fields this role gives, in form order. */
+    fields: [...requiredFields(role)],
   };
 }
 
 const filled = (v: string | null | undefined): v is string => typeof v === 'string' && v.trim().length > 0;
 
-/** Whether this bank field is fixed to Umwalimu SACCO for the role. */
+/** Whether this bank field is fixed to Umwalimu SACCO for the role (a school bank only where school details are asked). */
 export function isFixedBank(role: string, field: BankingField): field is FixableBankField {
-  return field === 'schoolBankName' || (field === 'personalBankName' && bankRules(role).personalBank === 'FIXED');
+  const teacher = role === 'TEACHER';
+  return (field === 'schoolBankName' && teacher) || (field === 'personalBankName' && teacher);
 }
 
 /** Why a filled value breaks the role's rules (null: fine). Only the agreed rules (see the top of this file). */
@@ -141,14 +155,16 @@ export function bankingSummary(role: string, details: BankingDetails | null | un
   if (!bankingRequiredFor(role)) return { required: false, status: null, missing: [], invalid: [] };
   const missing: BankingField[] = [];
   const invalid: BankingField[] = [];
-  for (const f of BANKING_FIELDS) {
+  const fields = requiredFields(role);
+  // Only the role's required fields count (a coach's saved school details are neither missing nor checked).
+  for (const f of fields) {
     const v = details?.[f];
     if (!filled(v)) missing.push(f);
     else if (fieldProblem(role, f, v)) invalid.push(f);
   }
   const status: BankingStatus = invalid.length ? 'NEEDS_CORRECTION'
     : missing.length === 0 ? 'COMPLETE'
-    : missing.length === BANKING_FIELDS.length ? 'NOT_STARTED'
+    : missing.length === fields.length ? 'NOT_STARTED'
     : 'PARTIAL';
   return { required: true, status, missing, invalid };
 }
@@ -163,7 +179,9 @@ export const confirmReplaceMessage = (saved: string) =>
   `Your saved bank “${saved}” cannot be used here. Confirm that ${UMWALIMU_SACCO} replaces it.`;
 
 /**
- * A submission (all six fields, PUT /me/banking) checked against the role's rules and what is already saved.
+ * A submission (PUT /me/banking: the role's required fields — six for Teachers, the three personal ones for Coaches and
+ * Head Coaches) checked against the role's rules and what is already saved. Fields the role does not give are ignored
+ * (never saved), so a coach's saved school details stay as they are.
  *  - A fixed bank not sent is Umwalimu SACCO; another bank sent for it is refused (never silently replaced).
  *  - A conflicting SAVED bank (bankConflicts) is replaced only if `confirmReplace` names that field; otherwise the
  *    field is refused with confirmReplaceMessage, and nothing is saved.
@@ -175,14 +193,14 @@ export function checkSubmission(
   input: BankingDetails,
   saved: BankingDetails | null | undefined = null,
   confirmReplace: readonly string[] = [],
-): { ok: true; values: Record<BankingField, string> }
+): { ok: true; values: Partial<Record<BankingField, string>> }
   | { ok: false; errors: Partial<Record<BankingField, string>>; confirmationNeeded: FixableBankField[] } {
   const rules = bankRules(role);
   const errors: Partial<Record<BankingField, string>> = {};
-  const values = {} as Record<BankingField, string>;
+  const values: Partial<Record<BankingField, string>> = {};
   const conflicts = bankConflicts(role, saved);
   const confirmationNeeded: FixableBankField[] = [];
-  for (const f of BANKING_FIELDS) {
+  for (const f of requiredFields(role)) {
     let v = input[f];
     if (isFixedBank(role, f)) {
       const conflict = conflicts.find((c) => c.field === f);

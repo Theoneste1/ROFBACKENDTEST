@@ -2,8 +2,9 @@ import { Transform } from 'class-transformer';
 import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
- * PUT /me/banking: the six fields. Their rules (required, the fixed Umwalimu SACCO, the bank list, the teachers'
- * 12-digit personal number) are checked by the service (banking-rules.ts), which answers per field. Here only the type
+ * PUT /me/banking: the role's fields — all six for Teachers, the three personal ones for Coaches and Head Coaches (school
+ * fields a coach sends are ignored, never saved). Their rules (required, the fixed Umwalimu SACCO, the bank list, the
+ * teachers' 12-digit personal number) are checked by the service (banking-rules.ts), which answers per field. Here only the type
  * and a length cap — a technical guard against oversized input, not an agreed rule (far above any real value).
  */
 export class SaveBankingDto {

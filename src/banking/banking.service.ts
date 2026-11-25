@@ -1,7 +1,9 @@
 /**
  * Banking information (owner 2026-11-25; rules in banking-rules.ts).
  *  - GET /me/banking: the caller's own details, what is missing or to correct, and how their banks are given.
- *  - PUT /me/banking: all six fields at once; checked here (the frontend only mirrors it). The fixed banks are set
+ *  - PUT /me/banking: the role's fields at once (six for Teachers, the three personal ones for Coaches and Head
+ *    Coaches); checked here (the frontend only mirrors it). Only those are written: a coach's saved school details are
+ *    kept. The fixed banks are set
  *    here; another bank for them is refused. Saving ends the sign-in lock on the next request.
  *  - GET /admin/users/:id/banking (users.manage): the status and the details with account numbers masked; ?reveal=true
  *    shows them in full and is audited (BANK_DETAILS_VIEWED).
@@ -14,7 +16,7 @@ import type { AuthUser } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
-  BANK_DETAILS_SELECT, BANKING_FIELDS, bankConflicts, bankingRequiredFor, bankingSummary, bankRules, checkSubmission, FIELD_LABELS, maskAccountNumber,
+  BANK_DETAILS_SELECT, BANKING_FIELDS, bankConflicts, bankingRequiredFor, requiredFields, bankingSummary, bankRules, checkSubmission, FIELD_LABELS, maskAccountNumber,
   type BankingDetails,
 } from './banking-rules.js';
 import type { SaveBankingDto } from './banking.dto.js';
@@ -55,8 +57,8 @@ export class BankingService {
       await tx.userBankDetails.upsert({ where: { userId: user.id }, create: { userId: user.id, ...checked.values }, update: checked.values });
       await this.audit.log({
         actorId: user.id, actorRole: user.role, action: 'BANK_DETAILS_SAVED', entity: 'User', entityId: user.id,
-        // Which fields changed — never their values.
-        metadata: { changed: BANKING_FIELDS.filter((f) => (before?.[f] ?? null) !== checked.values[f]), first: before === null },
+        // Which of the role's fields changed — never their values.
+        metadata: { changed: BANKING_FIELDS.filter((f) => f in checked.values && (before?.[f] ?? null) !== checked.values[f]), first: before === null },
       }, tx);
     });
     return this.mine(user);
@@ -73,6 +75,8 @@ export class BankingService {
     }
     return {
       ...summary,
+      // The fields this person's role gives (six for a Teacher, three personal ones for a Coach or Head Coach).
+      requiredFields: bankingRequiredFor(u.role) ? requiredFields(u.role) : [],
       missingLabels: summary.missing.map((f) => FIELD_LABELS[f]),
       invalidLabels: summary.invalid.map((f) => FIELD_LABELS[f]),
       details: details && {

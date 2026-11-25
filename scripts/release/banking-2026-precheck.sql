@@ -1,5 +1,5 @@
--- Banking-2026 release pre-check (BEFORE `prisma migrate deploy` of 20261231000000_user_bank_details: the personal and
--- school bank details of Teachers, Coaches and Head Coaches; owner 2026-11-25): READ ONLY.
+-- Banking-2026 release pre-check (BEFORE `prisma migrate deploy` of 20261231000000_user_bank_details: the bank details
+-- of Teachers (personal and school), Coaches and Head Coaches (personal only); owner 2026-11-25): READ ONLY.
 --
 --   node scripts/release/rehearsal.mjs precheck --release banking-2026   (Neon rehearsal branch or local copy; guarded)
 --   psql "$DIRECT_DATABASE_URL" -X -v ON_ERROR_STOP=1 -f scripts/release/banking-2026-precheck.sql   (production, in the window)
