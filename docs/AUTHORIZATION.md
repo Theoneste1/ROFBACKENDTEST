@@ -17,7 +17,7 @@ admits exactly the roles it names; a permission route admits the roles holding t
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 484 endpoints — 31 public, 230 administrator-only (Admin and / or Super Admin).
+Totals: 485 endpoints — 31 public, 231 administrator-only (Admin and / or Super Admin).
 
 ## Academic years
 
@@ -363,6 +363,7 @@ Totals: 484 endpoints — 31 public, 230 administrator-only (Admin and / or Supe
 | PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
 | DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/users/{id}/banking` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/users/{id}/banking` |  |  |  |  |  | ✓ | ✓ |
 | PUT | `/api/v1/admin/users/{id}/date-of-birth` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/users/{id}/date-of-birth-history` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/users/{id}/registration-timeline` |  |  |  |  |  | ✓ | ✓ |

@@ -43,4 +43,15 @@ export class AdminBankingController {
   view(@Param('id', ParseUUIDPipe) id: string, @Query() q: AdminBankingQueryDto, @CurrentUser() user: AuthUser) {
     return this.banking.forAdmin(id, q.reveal === 'true', user);
   }
+
+  /**
+   * Change a Teacher's, Coach's or Head Coach's banking information (owner 2026-11-25): the person's role rules, per
+   * field (400 BANKING_INVALID); audited (BANK_DETAILS_UPDATED_BY_ADMIN: which fields, never their values). Answers the
+   * masked view.
+   */
+  @Put(':id/banking')
+  @RequirePermission('users.manage')
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() body: SaveBankingDto, @CurrentUser() user: AuthUser) {
+    return this.banking.saveForAdmin(id, body, user);
+  }
 }

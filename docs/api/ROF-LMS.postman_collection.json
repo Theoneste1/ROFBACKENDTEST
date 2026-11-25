@@ -8389,6 +8389,48 @@
           }
         },
         {
+          "name": "PUT /admin/users/{id}/banking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/banking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "banking"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalAccountName\": \"personalAccountName\",\n  \"personalBankName\": \"personalBankName\",\n  \"personalAccountNumber\": \"personalAccountNumber\",\n  \"schoolAccountName\": \"schoolAccountName\",\n  \"schoolBankName\": \"schoolBankName\",\n  \"schoolAccountNumber\": \"schoolAccountNumber\",\n  \"confirmReplace\": [\n    \"personalBankName\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "PUT /admin/users/{id}/date-of-birth",
           "request": {
             "method": "PUT",

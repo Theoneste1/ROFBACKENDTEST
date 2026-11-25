@@ -6,11 +6,11 @@
     "openapi": "3.0.0"
   },
   "counts": {
-    "operations": 484,
+    "operations": 485,
     "paths": 415,
     "schemas": 183
   },
-  "fingerprint": "d87f21196b3cc0818b909651f65fe956943dbee749050e46c27b538538e547b9",
+  "fingerprint": "7fab8b72c6c5c2bb1e9266028842263c9843810dbd29c39961de4c49d9e10114",
   "operations": [
     {
       "key": "GET /api/v1",
@@ -22373,6 +22373,44 @@
         }
       ],
       "requestBody": null,
+      "responses": {
+        "200": null,
+        "default": {
+          "application/json": {
+            "ref": "Error"
+          }
+        }
+      }
+    },
+    {
+      "key": "PUT /api/v1/admin/users/{id}/banking",
+      "operationId": "AdminBankingController_update",
+      "tags": [
+        "Admin · Users"
+      ],
+      "roles": [
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "public": false,
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "ref": "SaveBankingDto"
+          }
+        }
+      },
       "responses": {
         "200": null,
         "default": {

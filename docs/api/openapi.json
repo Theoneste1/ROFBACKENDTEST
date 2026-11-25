@@ -44349,6 +44349,54 @@
         ],
         "x-permission": "users.manage",
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "AdminBankingController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBankingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change a Teacher's, Coach's or Head Coach's banking information (owner 2026-11-25): the person's role rules, per\nfield (400 BANKING_INVALID); audited (BANK_DETAILS_UPDATED_BY_ADMIN: which fields, never their values). Answers the\nmasked view.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/threads": {
