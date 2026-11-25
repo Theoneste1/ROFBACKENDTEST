@@ -56,6 +56,18 @@ const asDate = (v: unknown): Date | null => {
 };
 const ins = { mode: 'insensitive' as const };
 
+/**
+ * Columns that may be empty (NULL) in the database. Only these may be tested for NULL or sorted with "empty last":
+ * Prisma refuses both on a required column, which surfaced as a server error (owner report 2026-11-25).
+ */
+const NULLABLE = new Set(['country', 'gradeLevel', 'gender', 'lastLoginAt']);
+/** A filter that matches no row / every row (for "is empty" / "is not empty" on a column that is never empty). */
+const NONE: Prisma.UserWhereInput = { id: { in: [] } };
+const ALL: Prisma.UserWhereInput = {};
+/** Sort by a User column: empty values last where the column may be empty. */
+const sortBy = (column: string, dir: 'asc' | 'desc') =>
+  [{ [column]: NULLABLE.has(column) ? { sort: dir, nulls: 'last' } : dir } as Prisma.UserOrderByWithRelationInput];
+
 /** Text column of the User row. */
 function text(key: string, label: string, column: 'firstName' | 'lastName' | 'username' | 'email' | 'country'): FieldDef {
   return {
@@ -66,12 +78,12 @@ function text(key: string, label: string, column: 'firstName' | 'lastName' | 'us
         case 'eq': return { [column]: { equals: s, ...ins } };
         case 'neq': return { NOT: { [column]: { equals: s, ...ins } } };
         case 'contains': return { [column]: { contains: s, ...ins } };
-        case 'isEmpty': return { OR: [{ [column]: null }, { [column]: '' }] };
-        case 'isNotEmpty': return { AND: [{ [column]: { not: null } }, { NOT: { [column]: '' } }] };
+        case 'isEmpty': return NULLABLE.has(column) ? { OR: [{ [column]: null }, { [column]: '' }] } : { [column]: '' };
+        case 'isNotEmpty': return NULLABLE.has(column) ? { AND: [{ [column]: { not: null } }, { NOT: { [column]: '' } }] } : { NOT: { [column]: '' } };
         default: return null;
       }
     },
-    orderBy: (dir) => [{ [column]: { sort: dir, nulls: 'last' } } as Prisma.UserOrderByWithRelationInput],
+    orderBy: (dir) => sortBy(column, dir),
   };
 }
 
@@ -85,12 +97,12 @@ function enumField(key: string, label: string, column: 'role' | 'accountStatus' 
         case 'eq': return list[0] ? { [column]: list[0] } : null;
         case 'neq': return list[0] ? { NOT: { [column]: list[0] } } : null;
         case 'in': return list.length ? { [column]: { in: list } } : null;
-        case 'isEmpty': return { [column]: null };
-        case 'isNotEmpty': return { [column]: { not: null } };
+        case 'isEmpty': return NULLABLE.has(column) ? { [column]: null } : NONE;
+        case 'isNotEmpty': return NULLABLE.has(column) ? { [column]: { not: null } } : ALL;
         default: return null;
       }
     },
-    orderBy: (dir) => [{ [column]: { sort: dir, nulls: 'last' } } as Prisma.UserOrderByWithRelationInput],
+    orderBy: (dir) => sortBy(column, dir),
   };
 }
 
@@ -103,12 +115,12 @@ function dateField(key: string, label: string, column: 'createdAt' | 'lastLoginA
       switch (op) {
         case 'gte': return d ? { [column]: { gte: d } } : null;
         case 'lte': return d ? { [column]: { lte: d } } : null;
-        case 'isEmpty': return { [column]: null };
-        case 'isNotEmpty': return { [column]: { not: null } };
+        case 'isEmpty': return NULLABLE.has(column) ? { [column]: null } : NONE;
+        case 'isNotEmpty': return NULLABLE.has(column) ? { [column]: { not: null } } : ALL;
         default: return null;
       }
     },
-    orderBy: (dir) => [{ [column]: column === 'lastLoginAt' ? { sort: dir, nulls: 'last' } : dir } as Prisma.UserOrderByWithRelationInput],
+    orderBy: (dir) => sortBy(column, dir),
   };
 }
 
