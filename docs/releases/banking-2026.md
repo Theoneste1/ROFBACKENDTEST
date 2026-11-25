@@ -9,7 +9,7 @@ lists it in `scripts/release/releases.mjs` (`BANKING_2026_MIGRATIONS`), and its 
 
 | # | Migration | What it adds | Existing rows |
 |---|---|---|---|
-| 1 | `20261231000000_user_bank_details` | `UserBankDetails`: one row per Teacher, Coach or Head Coach with their personal and school bank details (account name, bank, number) | untouched; the table starts empty |
+| 1 | `20261231000000_user_bank_details` | `UserBankDetails`: one row per Teacher, Coach or Head Coach with their bank details (account name, bank, number): personal and school for Teachers, personal only for Coaches and Head Coaches (the school columns are nullable) | untouched; the table starts empty |
 
 The migration is additive. The previous backend ignores the new table. So the order is: migration first, then the new
 backend, then the frontend. The frontend shows the banking step and the administrators' views only when `GET /api/v1`
@@ -20,6 +20,13 @@ every Teacher, Coach and Head Coach is asked for their banking information at th
 else until it is complete (they can still sign out, change their password and read their profile). Nobody has bank
 details yet, so all of them are asked. Tell them before the release. Students, Administrators and Super Administrators
 are not affected.
+
+What "complete" means (final requirements, owner 2026-11-25):
+- **Teachers:** all six fields — personal account name, bank (Umwalimu SACCO, fixed), account number (exactly 12
+  digits); school account name, bank (Umwalimu SACCO, fixed), account number.
+- **Coaches and Head Coaches:** the three personal fields only — account name, bank (from the approved list), account
+  number. School bank details are never asked of them and never block them. School details saved earlier are kept
+  as they are (never deleted or overwritten) and still shown, masked, to administrators.
 
 ## 1. Prerequisites (go / no-go before the window)
 
@@ -37,7 +44,8 @@ Go only if every line holds:
 2. `scripts/release/banking-2026-postcheck.sql`: section 1 `1, 0, 0`; section 2 `1, 0`; section 3 equal to the
    pre-check's.
 3. Deploy the backend, then the frontend. Check: `GET /api/v1` lists `bankingDetails`; a Teacher test account sees
-   "Complete Your Banking Information"; a Student does not.
+   "Complete Your Banking Information" with personal and school sections; a Coach test account sees the personal
+   section only; a Student does not see the step.
 
 ## 3. Rollback
 

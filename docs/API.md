@@ -5657,7 +5657,7 @@ Returns `200` JSON.
 
 **Access:** TEACHER, MENTOR, HEAD_COACH
 
-Save all six fields (checked per field: 400 BANKING_INVALID; a conflicting saved bank needs confirmReplace).
+Save the role's fields (six for Teachers, three personal for Coaches and Head Coaches; 400 BANKING_INVALID per field).
 
 Body (JSON):
 

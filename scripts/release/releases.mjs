@@ -618,8 +618,8 @@ export const LAUNCH_2026_OBJECTS = {
 };
 
 /**
- * The banking-2026 release (owner, 2026-11-25): one migration after launch-2026 — UserBankDetails, the personal and
- * school bank details of Teachers, Coaches and Head Coaches. Additive; production must hold launch-2026 first.
+ * The banking-2026 release (owner, 2026-11-25): one migration after launch-2026 — UserBankDetails, the bank details of
+ * Teachers (personal and school), Coaches and Head Coaches (personal only). Additive; production must hold launch-2026 first.
  */
 export const BANKING_2026_MIGRATIONS = [
   '20261231000000_user_bank_details',
