@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AuthUser } from '../../common/auth-user.js';
 import { activeOverridesSelect } from '../active-overrides.js';
 import { ViewAsService, type ViewAsClaim } from '../view-as/view-as.service.js';
+import { BANK_DETAILS_SELECT, bankingIncomplete } from '../../banking/banking-rules.js';
 
 interface AccessTokenPayload {
   sub: string;
@@ -77,6 +78,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         // Active individual overrides (P1-09): read fresh on every request, so a
         // revocation applies on the next request and nothing is cached.
         permissionOverrides: activeOverridesSelect(),
+        // Banking information (owner 2026-11-25): one row by primary key, read with the user — no extra round trip.
+        bankDetails: { select: BANK_DETAILS_SELECT },
       },
     });
 
@@ -100,6 +103,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       exp:        payload.exp,
       overrides:  user.permissionOverrides,
       ...(user.role === 'STUDENT' && user.dateOfBirth === null && { dateOfBirthRequired: true as const }),
+      ...(bankingIncomplete(user.role, user.bankDetails) && { bankingRequired: true as const }),
     };
   }
 }

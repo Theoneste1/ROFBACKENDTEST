@@ -30,6 +30,12 @@ export interface AuthUser {
    */
   dateOfBirthRequired?: true;
   /**
+   * A TEACHER, MENTOR or HEAD_COACH whose banking information is not complete (src/banking/banking-rules.ts): until
+   * they complete it, only routes marked @AllowedBeforeBankingDetails answer (BankingDetailsGuard, owner 2026-11-25).
+   * Absent otherwise, and in a "view as" session.
+   */
+  bankingRequired?: true;
+  /**
    * Present only on a request made with a "view as" token (src/auth/view-as): this AuthUser is the VIEWED user (so
    * every page shows exactly their data and permissions); `viewAs` names the administrator who is viewing. Every
    * non-GET request is refused (ViewAsReadOnlyGuard) and the database refuses writes.

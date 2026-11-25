@@ -310,5 +310,12 @@ export class ListUsersQueryDto extends PaginationQueryDto {
   /** asc or desc (default desc for dates, asc otherwise). */
   @IsOptional() @IsIn(['asc', 'desc'])
   order?: 'asc' | 'desc';
+
+  /**
+   * Banking information of Teachers, Coaches and Head Coaches (capability bankingDetails, owner 2026-11-25): COMPLETE,
+   * INCOMPLETE (any of the next three), PARTIAL, NOT_STARTED or NEEDS_CORRECTION. Lists only those three roles.
+   */
+  @IsOptional() @IsIn(['COMPLETE', 'INCOMPLETE', 'PARTIAL', 'NOT_STARTED', 'NEEDS_CORRECTION'])
+  banking?: 'COMPLETE' | 'INCOMPLETE' | 'PARTIAL' | 'NOT_STARTED' | 'NEEDS_CORRECTION';
 }
 

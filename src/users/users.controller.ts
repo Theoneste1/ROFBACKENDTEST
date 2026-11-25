@@ -46,6 +46,7 @@ import type { AuthUser } from '../common/auth-user.js';
 import { PermissionService } from '../auth/permission.service.js';
 import { Authenticated } from '../common/decorators/authenticated.decorator.js';
 import { AllowedBeforeDateOfBirth } from '../common/decorators/date-of-birth-step.decorator.js';
+import { AllowedBeforeBankingDetails } from '../common/decorators/banking-step.decorator.js';
 
 @ApiTags('Admin · Users')
 @Controller('admin/users')
@@ -271,10 +272,12 @@ export class MeController {
   @Get()
   @Authenticated()
   @AllowedBeforeDateOfBirth()
+  @AllowedBeforeBankingDetails()
   async getMe(@CurrentUser() user: AuthUser) {
     const me = await this.usersService.getMe(user.id);
     // "View as" (read only): the profile is the viewed user's; `viewAs` names who is viewing (the banner).
-    return user.viewAs ? { ...me, viewAs: user.viewAs } : me;
+    // A viewing session is read only: the banking step is never asked there.
+    return user.viewAs ? { ...me, bankingRequired: false, viewAs: user.viewAs } : me;
   }
 
   /**
@@ -284,6 +287,7 @@ export class MeController {
    */
   @Put('gender')
   @Authenticated()
+  @AllowedBeforeBankingDetails()
   setGender(@CurrentUser() user: AuthUser, @Body() body: SetGenderDto) {
     return this.usersService.setOwnGender(user, body.gender);
   }
@@ -330,6 +334,7 @@ export class MeController {
   @Get('permissions')
   @Authenticated()
   @AllowedBeforeDateOfBirth()
+  @AllowedBeforeBankingDetails()
   permissions(@CurrentUser() user: AuthUser) {
     return this.permissionService.describe(user);
   }

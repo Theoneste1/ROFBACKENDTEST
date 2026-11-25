@@ -378,7 +378,13 @@ const INTEGRATION_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-integration.
  * integration snapshot.
  */
 const ACTIVATE_NOW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-activate-now.json';
-const CURRENT_SNAPSHOT = ACTIVATE_NOW_SNAPSHOT;
+/**
+ * Banking information (owner 2026-11-25): GET / PUT /me/banking (Teachers, Coaches and Head Coaches), GET
+ * /admin/users/:id/banking, the Users list's ?banking= filter, and the documentation correction: a route open to every
+ * signed-in user lists all six roles in x-roles (it listed STUDENT, MENTOR, ADMIN). Additive only.
+ */
+const BANKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-details.json';
+const CURRENT_SNAPSHOT = BANKING_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -1988,6 +1994,33 @@ describe('approved API contract history', () => {
       'POST /api/v1/admin/users/bulk/preview › request application/json.action: enum values added: activateNow',
       'POST /api/v1/admin/users/{id}/activate-now: operation added',
     ]);
+  });
+
+  test('activate now → banking information (2026-11-25): additive only — the banking operations, the list filter, and every-role x-roles on the any-signed-in routes', () => {
+    for (const f of [ACTIVATE_NOW_SNAPSHOT, BANKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(ACTIVATE_NOW_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BANKING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    const ROLES_ADDED = ': roles added: HEAD_COACH, SUPER_ADMIN, TEACHER';
+    assert.deepEqual(res.additive.filter((c) => !c.endsWith(ROLES_ADDED)).sort(), [
+      'GET /api/v1/admin/users/{id}/banking: operation added',
+      'GET /api/v1/admin/users: new optional query parameter "banking"',
+      'GET /api/v1/me/banking: operation added',
+      'PUT /api/v1/me/banking: operation added',
+      'schema SaveBankingDto: added',
+    ]);
+    // The documentation correction: exactly the routes open to any signed-in user (neither @Roles nor a permission) —
+    // they now list every role, as the guards admit every role there.
+    const corrected = res.additive.filter((c) => c.endsWith(ROLES_ADDED)).map((c) => c.slice(0, -ROLES_ADDED.length));
+    const doc = JSON.parse(readFileSync('docs/api/openapi.json', 'utf8'));
+    const anySignedIn = Object.entries(doc.paths).flatMap(([path, item]) => Object.entries(item)
+      .filter(([, op]) => op && op.operationId && !op['x-permission'] && op['x-roles']?.length === 6)
+      .map(([method]) => `${method.toUpperCase()} ${path}`));
+    assert.equal(corrected.length, 65);
+    for (const key of corrected) assert.ok(anySignedIn.includes(key), `${key}: open to every signed-in role`);
+    const banking = doc.paths['/api/v1/me/banking'];
+    for (const m of ['get', 'put']) assert.deepEqual([...banking[m]['x-roles']].sort(), ['HEAD_COACH', 'MENTOR', 'TEACHER']);
   });
 
   test('activate now (2026-11-24): the documented 200 response is { user, stillBlockedBy, message } — the shape the frontend reads', () => {

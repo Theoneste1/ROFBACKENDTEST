@@ -296,6 +296,14 @@ export const FEATURES = {
    */
   olympiadLevels: 'always',
   /**
+   * Banking information (owner 2026-11-25): Teachers, Coaches and Head Coaches give their personal and school bank
+   * details (GET / PUT /me/banking; Teachers: Umwalimu SACCO for both, personal number exactly 12 digits; Coaches and
+   * Head Coaches: personal bank from the list, school bank Umwalimu SACCO). `bankingRequired` on the profile; until it is
+   * false every other route answers 403 BANKING_DETAILS_REQUIRED. Administrators (users.manage): GET
+   * /admin/users/:id/banking (masked; ?reveal=true audited), `banking` on Users list rows and ?banking= filter.
+   */
+  bankingDetails: 'always',
+  /**
    * Administrator-managed divisions (owner 2026-11-22): POST /admin/divisions; PATCH with suggestedGrades and sortOrder
    * (grades given to a division are taken from the one that had them); deactivation guarded; GET / PUT
    * /admin/divisions/:id/courses (which courses a division offers; students see only those);

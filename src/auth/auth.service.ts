@@ -35,6 +35,7 @@ import { LOGIN_FAILURES_BEFORE_LOCK, LOGIN_LOCK_MS, LoginLimiter } from './login
 import type { CallerCtx } from '../common/auth-user.js';
 import { storedOtherInterest } from '../users/olympiad-interests.rules.js';
 import { settleSchoolCode } from '../schools/school-code-at-registration.js';
+import { BANK_DETAILS_SELECT, bankingIncomplete, type BankingDetails } from '../banking/banking-rules.js';
 
 export const BCRYPT_COST = 12;
 
@@ -59,12 +60,21 @@ export const PROFILE_SELECT = {
 } as const;
 
 /**
+ * PROFILE_SELECT plus what the profile steps need (the banking check, owner 2026-11-25). Only for a profile that goes
+ * through withProfileSteps, which removes the bank details: no bank detail ever leaves in a profile.
+ */
+export const PROFILE_WITH_STEPS_SELECT = { ...PROFILE_SELECT, bankDetails: { select: BANK_DETAILS_SELECT } } as const;
+
+/**
  * A profile (PROFILE_SELECT) with `dateOfBirthRequired`: true for a STUDENT without a date of birth, who must give it
  * before anything else (owner decision 9.3, PUT /api/v1/me/date-of-birth). Returned on login and by GET /me.
  */
-export function withProfileSteps<T extends { role: string; dateOfBirth: Date | null; gender: string | null }>(profile: T): T & { dateOfBirthRequired: boolean; genderRequired: boolean } {
+export function withProfileSteps<T extends { role: string; dateOfBirth: Date | null; gender: string | null; bankDetails?: BankingDetails | null }>(profile: T): Omit<T, 'bankDetails'> & { dateOfBirthRequired: boolean; genderRequired: boolean; bankingRequired: boolean } {
+  const { bankDetails, ...rest } = profile;
   return {
-    ...profile,
+    ...rest,
+    // Banking information (owner 2026-11-25): a Teacher, Coach or Head Coach completes it before anything else.
+    bankingRequired: bankingIncomplete(profile.role, bankDetails),
     dateOfBirthRequired: profile.role === 'STUDENT' && profile.dateOfBirth === null,
     // Gender step (capability genderStep; owner 2026-11-20): students, teachers and coaches without a gender (accounts
     // created before gender was asked at sign-up, or by an Administrator) give it once (PUT /me/gender).
@@ -359,7 +369,7 @@ export class AuthService {
     const profile = await this.prisma.user.update({
       where:  { id: user.id },
       data:   { lastLoginAt: new Date(), failedLoginCount: 0, lockedUntil: null },
-      select: PROFILE_SELECT,
+      select: PROFILE_WITH_STEPS_SELECT,
     });
 
     await this.audit.log({

@@ -84,6 +84,7 @@ describe('bulk rules', () => {
       limit: 'pagination only (PaginationQueryDto); never reaches the where clause',
       sort:  'the order of the list only (userListOrder, 2026-11-22); never reaches the where clause',
       order: 'the order of the list only (userListOrder, 2026-11-22); never reaches the where clause',
+      banking: 'computed from the bank details and the role (UsersService.findAll matches ids, 2026-11-25); bulk actions refuse it (BULK_BANKING_FILTER)',
     };
     const keysOf = (cls: new () => object) =>
       [...new Set(getMetadataStorage().getTargetValidationMetadatas(cls, '', true, false).map((m) => m.propertyName))].sort();
