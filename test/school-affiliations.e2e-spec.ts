@@ -345,13 +345,14 @@ describe('Student–school affiliation (school administration PR A)', () => {
 
   // ─── Leaderboard ───────────────────────────────────────────────────────────
 
-  it('leaderboard: a school list and the school totals count verified students only; an unverified school is never shown next to a name', async () => {
+  it('leaderboard: a school list and the school totals count verified students only; every row names its school, an unverified one marked so (owner 2026-11-25)', async () => {
     const verified = await student(schoolA, { points: 900 }); await verify(verified);
     const unverified = await student(schoolA, { points: 950 });
     const byId = (rows: any[]) => Object.fromEntries(rows.map((r) => [r.id, r]));
     const general = byId((await http().get('/api/v1/leaderboard').query({ divisionId: ctx.ids.junior, limit: 100 }).set(bearer(admin)).expect(200)).body.data);
-    expect(general[verified].school).toMatchObject({ id: schoolA });
-    expect(general[unverified].school).toBeNull();
+    expect(general[verified].school).toMatchObject({ id: schoolA, verified: true });
+    expect(general[unverified].school).toMatchObject({ id: schoolA, verified: false });
+    expect(general[verified].level).toMatchObject({ code: 'JUNIOR' });
     const ofSchool = (await http().get('/api/v1/leaderboard').query({ divisionId: ctx.ids.junior, schoolId: schoolA, limit: 100 }).set(bearer(admin)).expect(200)).body.data.map((r: any) => r.id);
     expect(ofSchool).toContain(verified);
     expect(ofSchool).not.toContain(unverified);
