@@ -3,8 +3,8 @@
  *  - GET /me/banking: the caller's own details, what is missing or to correct, and how their banks are given.
  *  - PUT /me/banking: the role's fields at once (six for Teachers, the three personal ones for Coaches and Head
  *    Coaches); checked here (the frontend only mirrors it). Only those are written: a coach's saved school details are
- *    kept. The fixed banks are set
- *    here; another bank for them is refused. Saving ends the sign-in lock on the next request.
+ *    kept. The fixed banks are set here; another bank for them is refused. Saving ends the sign-in lock on the next
+ *    request.
  *  - GET /admin/users/:id/banking (users.manage): the status and the details with account numbers masked; ?reveal=true
  *    shows them in full and is audited (BANK_DETAILS_VIEWED).
  * Account numbers never appear in the audit log, an error message or a URL.
@@ -41,7 +41,7 @@ export class BankingService {
     return { ...bankingSummary(user.role, details), conflicts: bankConflicts(user.role, details), rules: bankRules(user.role), details, fieldLabels: FIELD_LABELS };
   }
 
-  /** Save all six fields (the caller's own row only). 400 BANKING_INVALID with the problem of each field. */
+  /** Save the role's fields (the caller's own row only). 400 BANKING_INVALID with the problem of each field. */
   async save(user: AuthUser, dto: SaveBankingDto) {
     if (!bankingRequiredFor(user.role)) {
       throw new AppError(HttpStatus.FORBIDDEN, 'BANKING_NOT_APPLICABLE', 'Banking information is asked only of Teachers, Coaches and Head Coaches.');

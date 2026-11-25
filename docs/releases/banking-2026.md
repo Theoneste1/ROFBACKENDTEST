@@ -3,9 +3,17 @@
 The owner's runbook for releasing the banking information feature (owner 2026-11-25). Every production step needs the
 owner's separate approval. Nothing here has been run against production.
 
-It needs the launch-2026 release in production first (its seven migrations). This release adds one migration. The kit
-lists it in `scripts/release/releases.mjs` (`BANKING_2026_MIGRATIONS`), and its tests check that list against
-`prisma/migrations`.
+It needs the launch-2026 release in production first (its seven migrations). The release record says they were applied
+to production on 2026-11-23 (with a backup taken first). That is not proof of today's state: pre-check section 1 must
+still show it in the window. This release adds one migration. The kit lists it in `scripts/release/releases.mjs`
+(`BANKING_2026_MIGRATIONS`), and its tests check that list against `prisma/migrations`.
+
+What ships: `develop` = production `main` plus the banking work only: backend PR #101 (the feature and this
+migration) and PR #102 (Coaches and Head Coaches give personal details only), frontend PR #86. PR #102 adds **no**
+migration: it changes only which fields are required, and the school columns of `UserBankDetails` are already
+nullable. Production still needs this release's one migration before the new backend runs, because without the
+`UserBankDetails` table the new backend fails on every signed-in request. No new environment variable, in either
+repository. The feature has no switch: `bankingDetails` is always on in the new backend.
 
 | # | Migration | What it adds | Existing rows |
 |---|---|---|---|
@@ -43,11 +51,31 @@ Go only if every line holds:
    banking-2026` on a rehearsal branch first).
 2. `scripts/release/banking-2026-postcheck.sql`: section 1 `1, 0, 0`; section 2 `1, 0`; section 3 equal to the
    pre-check's.
-3. Deploy the backend, then the frontend. Check: `GET /api/v1` lists `bankingDetails`; a Teacher test account sees
-   "Complete Your Banking Information" with personal and school sections; a Coach test account sees the personal
-   section only; a Student does not see the step.
+3. Deploy the backend, then **at once** the frontend. Between the two, the previous frontend has no banking step: a
+   Teacher, Coach or Head Coach who is signed in gets "Complete your banking information to continue." on every page
+   and cannot fix it there until the new frontend is live. Keep that gap short and choose a quiet time.
+4. Check: `GET /api/v1` lists `bankingDetails`; a Teacher test account sees "Complete Your Banking Information" with
+   personal and school sections; a Coach test account sees the personal section only; a Student does not see the
+   step.
 
-## 3. Rollback
+## 3. Staging test before production (optional; see docs/operations/STAGING-AND-RESTORE.md)
+
+The staging setup is a Neon branch of production, the Render service `rof-backend-staging` (auto-deploy off) and a
+frontend preview whose `API_PROXY_TARGET` is the staging backend. To test this release there:
+1. 🔑 A **new** Neon branch of production (it must hold launch-2026, as production does), and `.env.drill.local`
+   pointing at it, with `DRILL_DATABASE_URL` defined **once** (the kit refuses a file that defines it twice).
+2. `node scripts/release/rehearsal.mjs precheck --release banking-2026`, then `deploy --release banking-2026 --confirm
+   <ep-id>`, then `postcheck` (branch only; the kit refuses production).
+3. 🔑 `rof-backend-staging` deployed at the `develop` commit, `DATABASE_URL` set to the branch, and
+   `TEACHERS_ENABLED=true` and `HEAD_COACHES_ENABLED=true` (on in production and in the current staging service) so
+   that Teacher and Head Coach test accounts can be created; e-mail stays dry run. A frontend preview of `develop`
+   pointing at it.
+4. Test accounts: `scripts/release/staging-accounts.mjs` creates a synthetic Administrator and Student only. Create one
+   Teacher, one Coach and one Head Coach as that Administrator in the staging site (synthetic names, `@staging.invalid`
+   addresses); never sign in as a real person. The branch holds a copy of real people's data: keep the URLs private
+   and delete the branch and the staging deploy afterwards.
+
+## 4. Rollback
 
 Deploy the previous backend first (the new one reads the table on every Teacher, Coach and Head Coach request). Then
 run `docs/migrations/20261231000000_user_bank_details.rollback.sql` (kit: `node scripts/release/rehearsal.mjs rollback
