@@ -15,7 +15,7 @@ service then applies record-level rules:
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 481 endpoints — 31 public, 279 administrator-only.
+Totals: 484 endpoints — 31 public, 280 administrator-only.
 
 ## Academic years
 
@@ -360,6 +360,7 @@ Totals: 481 endpoints — 31 public, 279 administrator-only.
 | POST | `/api/v1/admin/users/{id}/activate-now` |  |  |  | ✓ |
 | PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
 | DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  | ✓ |
+| GET | `/api/v1/admin/users/{id}/banking` |  |  |  | ✓ |
 | PUT | `/api/v1/admin/users/{id}/date-of-birth` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/{id}/date-of-birth-history` |  |  |  | ✓ |
 | GET | `/api/v1/admin/users/{id}/registration-timeline` |  |  |  | ✓ |
@@ -568,6 +569,8 @@ Totals: 481 endpoints — 31 public, 279 administrator-only.
 | GET | `/api/v1/me/assignments` |  | ✓ |  |  |
 | PUT | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
 | DELETE | `/api/v1/me/avatar` |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/me/banking` |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/me/banking` |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/me/courses` |  | ✓ |  |  |
 | PUT | `/api/v1/me/date-of-birth` |  | ✓ |  |  |
 | GET | `/api/v1/me/enrollments` |  | ✓ |  |  |

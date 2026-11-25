@@ -86,6 +86,11 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
   }
 
   private whereOf(s: EngineSelection): Prisma.UserWhereInput {
+    // The banking status is computed, not a column: a bulk action never acts on "every account with this status" (it
+    // would be re-evaluated later); the administrator ticks the accounts instead (owner 2026-11-25).
+    if (s.mode !== 'ids' && (s.filter as { banking?: unknown } | undefined)?.banking) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'BULK_BANKING_FILTER', 'Bulk actions cannot use the banking filter. Tick the accounts you want instead.');
+    }
     return s.mode === 'ids' ? { id: { in: s.ids } } : userListWhere(s.filter as never);
   }
 

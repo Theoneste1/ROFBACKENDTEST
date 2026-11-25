@@ -388,4 +388,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/auth/view-as/end  ViewAsAuthController.end':                                                    PUBLIC,
   // Activate now (owner 2026-11-24): users.manage at the route, users.changeStatus and the role rule in the service.
   'POST /api/v1/admin/users/:id/activate-now  UsersController.activateNow':                                    ADMINISTRATORS,
+  // Banking information (owner 2026-11-25): the person's own (any signed-in caller; the service answers 403
+  // BANKING_NOT_APPLICABLE to other roles), and the administrators' masked view (users.manage).
+  'GET /api/v1/me/banking  MyBankingController.mine':                                                           SIGNED_IN,
+  'PUT /api/v1/me/banking  MyBankingController.save':                                                           SIGNED_IN,
+  'GET /api/v1/admin/users/:id/banking  AdminBankingController.view':                                           ADMINISTRATORS,
 };

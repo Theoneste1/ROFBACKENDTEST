@@ -7,7 +7,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { DivisionsService } from '../divisions/divisions.service.js';
 import { TokenService } from '../auth/token.service.js';
 import { AccountEmailsService } from '../notifications/account-emails.service.js';
-import { BCRYPT_COST, PROFILE_SELECT, withProfileSteps } from '../auth/auth.service.js';
+import { BCRYPT_COST, PROFILE_SELECT, PROFILE_WITH_STEPS_SELECT, withProfileSteps } from '../auth/auth.service.js';
 import { maskContacts } from './contact-masking.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -33,6 +33,7 @@ import {
 } from './dto/update-user.dto.js';
 import { storedOtherInterest } from './olympiad-interests.rules.js';
 import { identityTakenForAdmin } from './identity-taken.js';
+import { BankingService } from '../banking/banking.service.js';
 
 /** Fields that are safe to return to admins — passwordHash is never included. */
 const SAFE_SELECT = {
@@ -52,6 +53,11 @@ const SAFE_SELECT = {
  * Every User column read here must be in MEMBERSHIP_COLUMNS (src/users/bulk/bulk-rules.ts) and in the trigger
  * user_bulk_membership_guard (migration 20261207000100) — checked by bulk-rules.spec.ts.
  */
+/** A list row with its banking status (Teachers, Coaches and Head Coaches only; absent for other roles). */
+function withBanking<T extends object>(banking: { status: string; missing: string[]; invalid: string[] } | undefined, row: T): T {
+  return banking ? { ...row, banking } : row;
+}
+
 export function userListWhere(q: Omit<ListUsersQueryDto, 'page' | 'limit'>): Prisma.UserWhereInput {
   const where: Prisma.UserWhereInput = {
     ...(q.role       && { role: q.role }),
@@ -105,12 +111,18 @@ export class UsersService {
     private readonly roles:     RoleAssignmentPolicy,
     private readonly affiliations: SchoolAffiliationService,
     private readonly accountStatus: AccountStatusService,
+    private readonly banking: BankingService,
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
   async findAll(q: ListUsersQueryDto) {
     const { page, limit, skip, take } = pageArgs(q);
-    const where = userListWhere(q);
+    let where = userListWhere(q);
+    // Banking information (owner 2026-11-25): the status depends on the role, so it is computed, then matched by id.
+    if (q.banking) {
+      const statuses = q.banking === 'INCOMPLETE' ? ['PARTIAL', 'NOT_STARTED', 'NEEDS_CORRECTION'] : [q.banking];
+      where = { AND: [where, { id: { in: await this.banking.idsWithStatus(statuses, q.role) } }] };
+    }
 
     const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({ where, select: SAFE_SELECT, orderBy: userListOrder(q), skip, take }),
@@ -156,9 +168,13 @@ export class UsersService {
       for (const l of links) if (l.role === 'PRIMARY') teacherSchools.get(l.teacherId)!.school = l.school;
     }
 
+    // Banking information (owner 2026-11-25): each Teacher, Coach and Head Coach row says complete, partial, not started
+    // or to correct, and which fields are missing — never a bank detail. One query per page.
+    const banking = await this.banking.statusOf(users);
+
     // Lists show phone numbers masked (ACC-16): the full numbers only on one account (GET /admin/users/:id).
     // Data minimisation (ACC-16 / SEC-03): phones masked and no date of birth in a list; GET /admin/users/:id has both.
-    return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(
+    return paginated(users.map(({ dateOfBirth: _dob, ...row }) => maskContacts(withBanking(banking.get(row.id),
       row.role === 'TEACHER'
         ? {
           ...row,
@@ -168,7 +184,7 @@ export class UsersService {
           testSubmissionAllowed: !revoked.has(row.id),
         }
         : row,
-    )), total, page, limit);
+    ))), total, page, limit);
   }
 
 
@@ -549,7 +565,7 @@ export class UsersService {
 
   // ─── Self-service profile ───────────────────────────────────────────────────
   async getMe(userId: string) {
-    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: PROFILE_SELECT });
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: PROFILE_WITH_STEPS_SELECT });
     if (!me) throw new NotFoundException('User not found.');
     return withProfileSteps(me);
   }

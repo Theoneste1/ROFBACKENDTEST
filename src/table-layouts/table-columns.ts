@@ -19,10 +19,11 @@ export const TABLES: Readonly<Record<string, readonly ColumnDef[]>> = {
     col('name', 'Full name', true), col('email', 'Email', true), col('school', 'School', true), col('grade', 'Grade', true),
     col('olympiadLevel', 'Olympiad level', true), col('subjects', 'Olympiad subjects', false), ...COMMON_END,
   ],
-  'users.coaches': [col('name', 'Full name', true), col('email', 'Email', true), col('subjects', 'Olympiad subjects', true), ...COMMON_END],
-  'users.headCoaches': [col('name', 'Full name', true), col('email', 'Email', true), col('subjects', 'Olympiad subjects', true), ...COMMON_END],
+  'users.coaches': [col('name', 'Full name', true), col('email', 'Email', true), col('subjects', 'Olympiad subjects', true), col('banking', 'Banking information', true), ...COMMON_END],
+  'users.headCoaches': [col('name', 'Full name', true), col('email', 'Email', true), col('subjects', 'Olympiad subjects', true), col('banking', 'Banking information', true), ...COMMON_END],
   'users.teachers': [
-    col('name', 'Full name', true), col('email', 'Email', true), col('school', 'School', true), col('testSubmission', 'Test submission', true), ...COMMON_END,
+    col('name', 'Full name', true), col('email', 'Email', true), col('school', 'School', true), col('testSubmission', 'Test submission', true),
+    col('banking', 'Banking information', true), ...COMMON_END,
   ],
   'users.admins': [col('name', 'Full name', true), col('email', 'Email', true), col('role', 'Role', true), ...COMMON_END],
 };

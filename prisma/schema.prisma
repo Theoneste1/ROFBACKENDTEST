@@ -466,6 +466,8 @@ model User {
   divisionChanges    DivisionChange[]    @relation("DivisionChangeStudent")
   divisionsChanged   DivisionChange[]    @relation("DivisionChangeActor")
   customReports      CustomReport[]      @relation("CustomReportCreator")
+  /// Teachers, Coaches and Head Coaches: personal and school bank details (owner 2026-11-25), one row at most.
+  bankDetails        UserBankDetails?
   customReportGrants CustomReportGrant[] @relation("CustomReportGrantee")
   schoolId           String?
   school             School?             @relation(fields: [schoolId], references: [id])
@@ -3565,4 +3567,25 @@ model ViewAsSession {
 
   @@index([actorId, createdAt])
   @@index([targetId, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Banking information (owner 2026-11-25). Migration 20261231000000_user_bank_details.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// A Teacher's, Coach's or Head Coach's personal and school bank details (src/banking/banking-rules.ts): one row per
+/// person, written only by that person (PUT /me/banking, all six fields at once). Completion is computed from the
+/// values and the person's current role, never stored, so a role change can never leave a stale status. Account
+/// numbers are never logged and appear masked in administrators' summaries.
+model UserBankDetails {
+  userId                String   @id
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personalAccountName   String?
+  personalBankName      String?
+  personalAccountNumber String?
+  schoolAccountName     String?
+  schoolBankName        String?
+  schoolAccountNumber   String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }

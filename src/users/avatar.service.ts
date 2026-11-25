@@ -22,7 +22,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { AuditService } from '../audit/audit.service.js';
-import { PROFILE_SELECT, withProfileSteps } from '../auth/auth.service.js';
+import { PROFILE_WITH_STEPS_SELECT, withProfileSteps } from '../auth/auth.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { PermissionService } from '../auth/permission.service.js';
@@ -161,6 +161,6 @@ export class AvatarService {
 
   private async profile(userId: string) {
     // The same shape as GET /me (including dateOfBirthRequired).
-    return withProfileSteps(await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PROFILE_SELECT }));
+    return withProfileSteps(await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: PROFILE_WITH_STEPS_SELECT }));
   }
 }

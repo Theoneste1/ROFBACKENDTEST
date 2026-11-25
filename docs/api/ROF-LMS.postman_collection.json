@@ -8128,6 +8128,12 @@
                   "value": "asc",
                   "disabled": true,
                   "description": "asc or desc (default desc for dates, asc otherwise)."
+                },
+                {
+                  "key": "banking",
+                  "value": "COMPLETE",
+                  "disabled": true,
+                  "description": "Banking information of Teachers, Coaches and Head Coaches (capability bankingDetails, owner 2026-11-25): COMPLETE,\nINCOMPLETE (any of the next three), PARTIAL, NOT_STARTED or NEEDS_CORRECTION. Lists only those three roles."
                 }
               ]
             },
@@ -8343,6 +8349,41 @@
                 }
               ],
               "query": []
+            },
+            "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/users/{id}/banking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:id/banking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":id",
+                "banking"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "reveal",
+                  "value": "true",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
             },
             "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
           }
@@ -13144,6 +13185,60 @@
               "query": []
             },
             "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "GET /me/banking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/banking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "banking"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "PUT /me/banking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/me/banking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "me",
+                "banking"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalAccountName\": \"personalAccountName\",\n  \"personalBankName\": \"personalBankName\",\n  \"personalAccountNumber\": \"personalAccountNumber\",\n  \"schoolAccountName\": \"schoolAccountName\",\n  \"schoolBankName\": \"schoolBankName\",\n  \"schoolAccountNumber\": \"schoolAccountNumber\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         },
         {

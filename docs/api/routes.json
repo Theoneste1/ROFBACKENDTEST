@@ -1984,6 +1984,15 @@
     "tag": "Admin · Users"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/users/{id}/banking",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
     "method": "PUT",
     "path": "/api/v1/admin/users/{id}/date-of-birth",
     "roles": [
@@ -3201,6 +3210,26 @@
   {
     "method": "DELETE",
     "path": "/api/v1/me/avatar",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/banking",
+    "roles": [
+      "STUDENT",
+      "MENTOR",
+      "ADMIN"
+    ],
+    "tag": "Me"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/banking",
     "roles": [
       "STUDENT",
       "MENTOR",

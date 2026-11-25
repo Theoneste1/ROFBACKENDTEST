@@ -42,6 +42,7 @@ import { SubmissionsController } from '../src/submissions/submissions.controller
 import { MeController, UserAvatarController } from '../src/users/users.controller.js';
 import { StudentOverviewController } from '../src/users/student-overview.controller.js';
 import { CustomReportsController } from '../src/custom-reports/custom-reports.controller.js';
+import { MyBankingController } from '../src/banking/banking.controller.js';
 
 // ── Outcomes and fakes ───────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     years: AcademicYearsController; assignments: AssignmentsController; auth: AuthController; courses: CoursesController;
     disciplines: DisciplinesController; discussions: DiscussionsController; leaderboard: LeaderboardController;
     notifications: NotificationsController; submissions: SubmissionsController; me: MeController;
-    avatars: UserAvatarController; overview: StudentOverviewController; reports: CustomReportsController;
+    avatars: UserAvatarController; overview: StudentOverviewController; reports: CustomReportsController; banking: MyBankingController;
   };
   const f = {} as {
     assignmentId: string; resourceId: string; resourceAttachmentId: string; courseThreadId: string; courseCommentId: string;
@@ -141,6 +142,7 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
       leaderboard: ctx.app.get(LeaderboardController), notifications: ctx.app.get(NotificationsController),
       submissions: ctx.app.get(SubmissionsController), me: ctx.app.get(MeController),
       avatars: ctx.app.get(UserAvatarController), overview: ctx.app.get(StudentOverviewController), reports: ctx.app.get(CustomReportsController),
+      banking: ctx.app.get(MyBankingController),
     };
     const [mentorJ, studentJ] = await Promise.all(['mentor.j', 'student.j'].map((u) => login(ctx, u)));
 
@@ -299,6 +301,9 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     { id: 'UR-64', route: 'GET /api/v1/reports/:id/export', kind: '404', run: (u, res) => c.reports.export(randomUUID(), { format: 'csv' } as never, u, res) },
     { id: 'UR-65', route: 'GET /api/v1/reports/:id/grants', kind: '404', run: (u) => c.reports.grants(randomUUID(), u) },
     { id: 'UR-66', route: 'PUT /api/v1/reports/:id/grants', kind: '404', run: (u) => c.reports.setGrants(randomUUID(), { grants: [] } as never, u) },
+    // Banking information (owner 2026-11-25): an unsupported role is not asked (nothing to read) and may not save any.
+    { id: 'UR-67', route: 'GET /api/v1/me/banking', kind: 'same', run: (u) => c.banking.mine(u) },
+    { id: 'UR-68', route: 'PUT /api/v1/me/banking', kind: 'same', run: (u) => c.banking.save(u, {} as never) },
   ];
   /** Read-only role-independent cases: the unsupported caller must get exactly the same value. */
   const READ_ONLY = new Set(['UR-35', 'UR-36', 'UR-40', 'UR-41', 'UR-43', 'UR-46', 'UR-47', 'UR-52', 'UR-55', 'UR-58']);
@@ -306,11 +311,11 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
   /** Ids of cases whose route is no longer @Authenticated; never reused. */
   const RETIRED = new Set(['UR-37']);   // POST /auth/logout → @Public (H1)
 
-  it('the UR cases cover exactly the registered @Authenticated routes (65), numbered UR-01…UR-66 without the retired UR-37', async () => {
+  it('the UR cases cover exactly the registered @Authenticated routes (67), numbered UR-01…UR-68 without the retired UR-37', async () => {
     expect(CASES.map((x) => x.id)).toEqual(
-      Array.from({ length: 66 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
+      Array.from({ length: 68 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
     );
-    expect(CASES).toHaveLength(65);
+    expect(CASES).toHaveLength(67);
     expect(CASES.map((x) => x.route).sort()).toEqual(await registeredAuthenticatedRoutes());
   });
 
@@ -336,6 +341,15 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
           ok: true,
           value: { role: 'UNKNOWN_ROLE', roleLabel: null, permissions: [], scopes: { courseDivisions: [], programmes: [] }, overrides: [] },
         });
+        return;
+      }
+      if (cs.id === 'UR-67') {
+        // Not asked: nothing to read, no rules, no details (a coach with their real role is asked).
+        expect(unknown).toMatchObject({ ok: true, value: { required: false, status: null, rules: null, details: null } });
+        return;
+      }
+      if (cs.id === 'UR-68') {
+        expect(unknown).toMatchObject({ ok: false, status: 403, code: 'BANKING_NOT_APPLICABLE' });
         return;
       }
       expect(unknown.ok).toBe(known.ok);

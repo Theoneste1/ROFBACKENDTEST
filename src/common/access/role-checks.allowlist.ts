@@ -19,6 +19,23 @@ export interface AllowlistEntry {
 }
 
 export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
+  // ── Banking information (src/banking) ───────────────────────────────────────
+  {
+    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'bankingRequiredFor(user.role)',
+    reason: "Banking information (owner 2026-11-25): only TEACHER, MENTOR and HEAD_COACH give bank details; any other or unknown role gets required: false and no rules or details (GET), or 403 BANKING_NOT_APPLICABLE (PUT) — the least-privileged result. The caller's own data only.",
+  },
+  {
+    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'bankingSummary(user.role, details)',
+    reason: "Banking information (owner 2026-11-25): the rules are applied only after bankingRequiredFor(user.role) let the caller through (one of TEACHER, MENTOR, HEAD_COACH); anything else is refused or answers 'not required' first. The caller's own row only.",
+  },
+  {
+    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'bankRules(user.role)',
+    reason: "Banking information (owner 2026-11-25): the rules are applied only after bankingRequiredFor(user.role) let the caller through (one of TEACHER, MENTOR, HEAD_COACH); anything else is refused or answers 'not required' first. The caller's own row only.",
+  },
+  {
+    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'checkSubmission(user.role, dto)',
+    reason: "Banking information (owner 2026-11-25): the rules are applied only after bankingRequiredFor(user.role) let the caller through (one of TEACHER, MENTOR, HEAD_COACH); anything else is refused or answers 'not required' first. The caller's own row only.",
+  },
   // ── Permission layer (/me/permissions) ─────────────────────────────────────
   {
     file: 'src/auth/permission.service.ts', rule: 'U6', code: 'return user.role;',

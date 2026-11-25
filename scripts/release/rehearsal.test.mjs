@@ -9,24 +9,26 @@ import { endpointId, segments, rollbackFiles, childEnv, checkDumpDir, conninfoFr
   PHASE1, M9_M14_TABLES, M9_M14_ENUMS } from './rehearsal.mjs';
 import { LAST_PHASE1_TIMESTAMP, laterMigrations, migrationDirs } from './phase1.mjs';
 import { REPO_ROOT } from '../db-drill-verify.mjs';
-import { AREAS_2026_MIGRATIONS, AREAS_2026_OBJECTS, DEC_2026_MIGRATIONS, DEC_2026_OBJECTS, LEVELS_2026_MIGRATIONS, LEVELS_2026_OBJECTS, LAUNCH_2026_MIGRATIONS, LAUNCH_2026_OBJECTS, LATE_2026_MIGRATIONS, LATE_2026_OBJECTS, POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
+import { AREAS_2026_MIGRATIONS, AREAS_2026_OBJECTS, BANKING_2026_MIGRATIONS, BANKING_2026_OBJECTS, DEC_2026_MIGRATIONS, DEC_2026_OBJECTS, LEVELS_2026_MIGRATIONS, LEVELS_2026_OBJECTS, LAUNCH_2026_MIGRATIONS, LAUNCH_2026_OBJECTS, LATE_2026_MIGRATIONS, LATE_2026_OBJECTS, POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
 
 /**
  * This checkout as it was for Phase 1: its migrations without the eleven post-Phase-1 ones and the design-area ones
  * (the Phase 1 tests' fixture). Each later release is removed the same way, as the eleven were.
  */
-const AFTER_PHASE1 = [...POST_PHASE1_MIGRATIONS, ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS];
+const AFTER_PHASE1 = [...POST_PHASE1_MIGRATIONS, ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS];
 const phase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !AFTER_PHASE1.includes(d));
 /** This checkout as it was for post-Phase-1: without the design-area migrations (the post-Phase-1 tests' fixture). */
-const postPhase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !AREAS_2026_MIGRATIONS.includes(d) && !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d));
+const postPhase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !AREAS_2026_MIGRATIONS.includes(d) && !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
 /** This checkout as it was for the design areas: without the late-2026 migrations (the design-area tests' fixture). */
-const areasDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d));
+const areasDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
 /** This checkout as it was for late-2026: without the dec-2026 migration (the late-2026 tests' fixture). */
-const lateDirs = () => migrationDirs(REPO_ROOT).filter((d) => !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d));
+const lateDirs = () => migrationDirs(REPO_ROOT).filter((d) => !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
 /** This checkout as it was for dec-2026: without the levels-2026 migration (the dec-2026 tests' fixture). */
-const decDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d));
+const decDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
 /** This checkout as it was for levels-2026: without the launch-2026 migrations (the levels-2026 tests' fixture). */
-const levelsDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LAUNCH_2026_MIGRATIONS.includes(d));
+const levelsDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
+/** This checkout as it was for launch-2026: without the banking-2026 migration (the launch-2026 tests' fixture). */
+const launchDirs = () => migrationDirs(REPO_ROOT).filter((d) => !BANKING_2026_MIGRATIONS.includes(d));
 
 // ── Later-migration guard (owner decision 2026-11-13) ─────────────────────────────────────────────
 
@@ -271,24 +273,24 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
     const bad = run(root, 'precheck', '--release', 'phase2');
     assert.equal(bad.status, 2);
     assert.match(bad.stderr, /--release must be one of: phase1, post-phase1/);
-  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy(['20261211000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after post-Phase-1 .*20261211000000_next/);
-  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'post-phase1');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /expected the 11 migrations of post-Phase-1 .* found 10/);
-  }, { drop: ['20261206000000_account_states', ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: ['20261206000000_account_states', ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   // This checkout as it is (the design-area and late-2026 migrations after the eleven): post-phase1 refuses it, as the kit's rule
   // "nothing after the release's last" requires — run post-phase1 from a checkout whose last migration is its last.
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    const later = [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS];
-    assert.equal(later.length, 20);
+    const later = [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS];
+    assert.equal(later.length, 21);
     assert.ok(r.stderr.includes(`${later.length} migration(s) after post-Phase-1 (11 migrations after M14)'s last (${later.join(', ')})`), r.stderr);
   });
 });
@@ -362,17 +364,17 @@ test('the runner: areas-2026 passes the checkout guard on this checkout; a later
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: areas-2026 — design areas \(7 migrations after post-Phase-1\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy(['20261221000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'areas-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after design areas .*20261221000000_next/);
-  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'areas-2026');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /expected the 7 migrations of design areas .* found 6/);
-  }, { drop: ['20261211000000_countries_reference', ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: ['20261211000000_countries_reference', ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
 });
 
 // ── late-2026 release (--release late-2026; the sign-up work, owner 2026-11-20: gender; home location) ──────────────
@@ -444,17 +446,17 @@ test('the runner: late-2026 passes the checkout guard on this checkout; a later 
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: late-2026 — late 2026 \(3 migrations after the design areas\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy(['20261230000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'late-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after late 2026 .*20261230000000_next/);
-  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'late-2026');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /expected the 3 migrations of late 2026 .* found 2/);
-  }, { drop: ['20261221000000_registration_gender', ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: ['20261221000000_registration_gender', ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
 });
 
 // ── dec-2026 release (--release dec-2026; the "Other" Olympiad interest, owner 2026-11-21) ──────────────────────────
@@ -514,12 +516,12 @@ test('the runner: dec-2026 passes the checkout guard on its checkout; a later mi
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: dec-2026 — dec 2026 \(2 migrations after late 2026\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: [...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS] });
+  }, { drop: [...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'dec-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after dec 2026 .*20261224000000_divisions_levels/);
-  }, { drop: LAUNCH_2026_MIGRATIONS });
+  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
 });
 
 // ── levels-2026 release (--release levels-2026; Olympiad levels, owner 2026-11-21) ────────────────────────────────
@@ -585,24 +587,24 @@ test('the runner: levels-2026 passes the checkout guard on its checkout; a later
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: levels-2026 — divisions and Olympiad levels \(1 migration after dec 2026\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: LAUNCH_2026_MIGRATIONS });
+  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
   withCheckoutCopy(['20261231000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'levels-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after divisions and Olympiad levels .*20261231000000_next/);
-  }, { drop: LAUNCH_2026_MIGRATIONS });
-  // This checkout as it is (the launch migrations after it): deploy refuses, naming all six.
+  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  // This checkout as it is (the launch and banking migrations after it): deploy refuses, naming all eight.
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'levels-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.ok(r.stderr.includes(`7 migration(s) after divisions and Olympiad levels (1 migration after dec 2026)'s last (${LAUNCH_2026_MIGRATIONS.join(', ')})`), r.stderr);
+    assert.ok(r.stderr.includes(`8 migration(s) after divisions and Olympiad levels (1 migration after dec 2026)'s last (${[...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS].join(', ')})`), r.stderr);
   });
 });
 
 // ── launch-2026 release (--release launch-2026; the six migrations after levels-2026, owner 2026-11-22/23) ──────────
 
 test('launch-2026: exactly the seven migrations after levels-2026 in this checkout, in apply order; nothing after them; needs the 38 before them', () => {
-  const dirs = migrationDirs(REPO_ROOT);
+  const dirs = launchDirs();
   assert.deepEqual(dirs.filter((d) => d.slice(0, 14) > RELEASES['levels-2026'].last), LAUNCH_2026_MIGRATIONS);
   assert.deepEqual(LAUNCH_2026_MIGRATIONS, ['20261225000000_school_sync_mode', '20261225000100_teacher_unlisted_school', '20261226000000_registration_data',
     '20261227000000_coach_programme_access', '20261228000000_form_email_verification', '20261229000000_subscribers', '20261230000000_view_as']);
@@ -676,7 +678,7 @@ test('the runner: launch-2026 passes the checkout guard on this checkout; a late
     const ack = run(root, 'rollback', '--release', 'launch-2026', '--acknowledge', 'tests', '--confirm', 'ep-anything');
     assert.equal(ack.status, 2, ack.stderr);
     assert.match(ack.stderr, /"tests" is not a guard of launch-2026's rollback files \(allowed for launch-2026: coach-restrictions, form-email-verification, saved-filters, subscribers, sync-modes, unlisted-school-details, view-as-sessions\)/);
-  });
+  }, { drop: BANKING_2026_MIGRATIONS });
   withCheckoutCopy(['20261231000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'launch-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
@@ -684,8 +686,80 @@ test('the runner: launch-2026 passes the checkout guard on this checkout; a late
     const rb = run(root, 'rollback', '--release', 'launch-2026', '--confirm', 'ep-anything');
     assert.notEqual(rb.status, 5, rb.stderr);
     assert.match(rb.stdout, /checkout: 1 later migration\(s\) present \(20261231000000_next\)/);
+  }, { drop: BANKING_2026_MIGRATIONS });
+});
+// ── banking-2026 release (--release banking-2026; the banking information after launch-2026, owner 2026-11-25) ────────
+
+test('banking-2026: exactly the one migration after launch-2026 in this checkout; nothing after it; needs the 45 before it', () => {
+  const dirs = migrationDirs(REPO_ROOT);
+  assert.deepEqual(dirs.filter((d) => d.slice(0, 14) > RELEASES['launch-2026'].last), BANKING_2026_MIGRATIONS);
+  assert.deepEqual(BANKING_2026_MIGRATIONS, ['20261231000000_user_bank_details']);
+  const banking = releaseFrom(['--release', 'banking-2026']);
+  assert.equal(banking.name, 'banking-2026');
+  assert.equal(banking.last, '20261231000000');
+  assert.equal(checkoutProblem(banking, dirs), null);
+  assert.match(checkoutProblem(banking, [...dirs, '20270101000000_next']), /1 migration\(s\) after the banking release .* \(20270101000000_next\)/);
+  assert.match(checkoutProblem(banking, dirs.filter((d) => d !== BANKING_2026_MIGRATIONS[0])), /expected the 1 .* found 0/);
+  assert.equal(banking.requires.count, 45);
+  assert.equal(dirs.filter((d) => banking.requires.owns(d)).length, 45);
+  for (const m of BANKING_2026_MIGRATIONS) assert.equal(banking.requires.owns(m), false);
+  for (const m of LAUNCH_2026_MIGRATIONS) assert.equal(banking.owns(m), false);
+});
+
+test('banking-2026: rollback-history checks exactly the table its migration creates (no type, column, trigger or function)', () => {
+  const o = BANKING_2026_OBJECTS;
+  assert.deepEqual(createdBy(BANKING_2026_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g), [...o.tables].sort());
+  assert.deepEqual(createdBy(BANKING_2026_MIGRATIONS, /CREATE TYPE "([A-Za-z]+)"/g), [...o.enums].sort());
+  assert.deepEqual(createdBy(BANKING_2026_MIGRATIONS, /CREATE (?:OR REPLACE )?TRIGGER ([a-z_]+)/g), [...o.triggers].sort());
+  assert.deepEqual(createdBy(BANKING_2026_MIGRATIONS, /CREATE (?:OR REPLACE )?FUNCTION ([a-z_]+)/g), [...o.functions].sort());
+  assert.doesNotMatch(readFileSync(`prisma/migrations/${BANKING_2026_MIGRATIONS[0]}/migration.sql`, 'utf8'), /ADD COLUMN/);
+});
+
+test('banking-2026: its rollback file refuses while bank details exist (acknowledgeable); history is a separate step', () => {
+  const release = releaseFrom(['--release', 'banking-2026']);
+  const docs = readdirSync('docs/migrations');
+  const files = releaseRollbackFiles(release, docs);
+  assert.deepEqual(files, ['20261231000000_user_bank_details.rollback.sql']);
+  assert.deepEqual(releasePreSwitchFiles(release, docs), []);
+  const text = readFileSync(`docs/migrations/${files[0]}`, 'utf8');
+  assert.doesNotThrow(() => segments(text));
+  assert.match(text, /RAISE EXCEPTION 'BANK_DETAILS_ROLLBACK_REFUSED/);
+  assert.match(text.replace(/--[^\n]*/g, ''), /current_setting\('rof\.bank_details_rollback', true\)/);
+  assert.doesNotMatch(text.replace(/--[^\n]*/g, ''), /_prisma_migrations/);
+  assert.equal(releaseRollbackFiles(releaseFrom(['--release', 'launch-2026']), docs).includes(files[0]), false);
+});
+
+test('banking-2026: the pre- and post-check SQL are read only, use only \\echo, and name the table', () => {
+  for (const file of [RELEASES['banking-2026'].precheck, RELEASES['banking-2026'].postcheck]) {
+    const text = readFileSync(file, 'utf8');
+    const segs = segments(text).filter((s) => typeof s === 'string');
+    assert.match(segs[0], /BEGIN TRANSACTION READ ONLY;/, file);
+    assert.match(segs.at(-1), /ROLLBACK;\s*$/, file);
+    assert.doesNotMatch(segs.join('\n').replace(/--[^\n]*/g, ''), /\b(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE)\b/i, file);
+    for (const name of BANKING_2026_OBJECTS.tables) assert.ok(text.includes(`'${name}'`), `${file}: ${name}`);
+  }
+});
+
+test('the runner: banking-2026 passes the checkout guard on this checkout; a later migration is refused by deploy, accepted by the release-only commands', () => {
+  withCheckoutCopy([], (root) => {
+    const ok = run(root, 'deploy', '--release', 'banking-2026', '--confirm', 'ep-anything');
+    assert.notEqual(ok.status, 5, ok.stderr);
+    assert.match(ok.stdout, /release: banking-2026 — the banking release \(1 migration after the launch release\)/);
+    assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
+    const ack = run(root, 'rollback', '--release', 'banking-2026', '--acknowledge', 'tests', '--confirm', 'ep-anything');
+    assert.equal(ack.status, 2, ack.stderr);
+    assert.match(ack.stderr, /"tests" is not a guard of banking-2026's rollback files \(allowed for banking-2026: bank-details\)/);
+  });
+  withCheckoutCopy(['20270101000000_next'], (root) => {
+    const r = run(root, 'deploy', '--release', 'banking-2026', '--confirm', 'ep-anything');
+    assert.equal(r.status, 5, r.stderr);
+    assert.match(r.stderr, /1 migration\(s\) after the banking release .*20270101000000_next/);
+    const rb = run(root, 'rollback', '--release', 'banking-2026', '--confirm', 'ep-anything');
+    assert.notEqual(rb.status, 5, rb.stderr);
+    assert.match(rb.stdout, /checkout: 1 later migration\(s\) present \(20270101000000_next\)/);
   });
 });
+
 
 // ── Migration role (DRILL_MIGRATION_DATABASE_URL): the branch owner for schema changes, never production's password ──
 import { resolveMigrationTarget, MIGRATION_ROLE_COMMANDS } from './rehearsal.mjs';

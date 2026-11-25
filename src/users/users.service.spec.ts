@@ -51,7 +51,8 @@ function makeMocks() {
   const roles = { assertCanAssign: vi.fn(), assertCanManage: vi.fn(), assertSharedAccountRules: vi.fn() };
   const affiliations = { claim: vi.fn().mockResolvedValue('aff1'), supersede: vi.fn(), beginUserChange: vi.fn().mockResolvedValue(null) };
   const accountStatus = { change: vi.fn().mockResolvedValue({}) };
-  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any, accountStatus as any);
+  const service = new UsersService(prisma as any, audit as any, divisions as any, tokens as any, academicYears as any, accountEmails as any, roles as any, affiliations as any, accountStatus as any,
+    { statusOf: vi.fn().mockResolvedValue(new Map()), idsWithStatus: vi.fn().mockResolvedValue([]) } as any);
   return { service, prisma, audit, divisions, tokens, academicYears, accountEmails, roles, affiliations, accountStatus };
 }
 

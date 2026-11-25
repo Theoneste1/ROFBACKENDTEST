@@ -5144,6 +5144,22 @@
                 "desc"
               ]
             }
+          },
+          {
+            "name": "banking",
+            "required": false,
+            "in": "query",
+            "description": "Banking information of Teachers, Coaches and Head Coaches (capability bankingDetails, owner 2026-11-25): COMPLETE,\nINCOMPLETE (any of the next three), PARTIAL, NOT_STARTED or NEEDS_CORRECTION. Lists only those three roles.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "COMPLETE",
+                "INCOMPLETE",
+                "PARTIAL",
+                "NOT_STARTED",
+                "NEEDS_CORRECTION"
+              ]
+            }
           }
         ],
         "responses": {
@@ -44050,6 +44066,141 @@
         "description": "**Access:** ADMIN, SUPER_ADMIN"
       }
     },
+    "/api/v1/me/banking": {
+      "get": {
+        "operationId": "MyBankingController_mine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "What is saved, what is missing or to correct, and how this role's banks are given (fixed or from the list).",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      },
+      "put": {
+        "operationId": "MyBankingController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBankingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Save all six fields (checked per field: 400 BANKING_INVALID). Other roles: 403 BANKING_NOT_APPLICABLE.",
+        "tags": [
+          "Me"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "MENTOR",
+          "ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/admin/users/{id}/banking": {
+      "get": {
+        "operationId": "AdminBankingController_view",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reveal",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/courses/{courseId}/threads": {
       "get": {
         "operationId": "DiscussionsController_listCourseThreads",
@@ -61187,6 +61338,35 @@
         "required": [
           "status"
         ]
+      },
+      "SaveBankingDto": {
+        "type": "object",
+        "properties": {
+          "personalAccountName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "personalBankName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "personalAccountNumber": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "schoolAccountName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "schoolBankName": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "schoolAccountNumber": {
+            "type": "string",
+            "maxLength": 40
+          }
+        }
       },
       "CreateThreadDto": {
         "type": "object",
