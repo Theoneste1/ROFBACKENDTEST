@@ -3,8 +3,8 @@
  *  - a Teacher, Coach or Head Coach without complete bank details is held at the step: every route but the profile,
  *    permissions, the banking form, the gender step, password change and "sign out everywhere" answers 403
  *    BANKING_DETAILS_REQUIRED — whatever page, tab or direct API call; saving complete details ends it at once;
- *  - Teachers give all six fields: Umwalimu SACCO for both banks, personal number exactly 12 digits (the exact
- *    message). Coaches and Head Coaches give the three personal fields only (bank from the list): school details are
+ *  - Teachers give all six fields: Umwalimu SACCO for both banks, personal and school numbers exactly 12 digits (the
+ *    exact messages). Coaches and Head Coaches give the three personal fields only (bank from the list): school details are
  *    never asked, never block them, and any saved earlier are kept untouched; every field checked on the server;
  *  - details already saved are kept and shown; only the missing fields are reported;
  *  - Students, Administrators and Super Administrators are never asked;
@@ -16,9 +16,10 @@ import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
 const SACCO = 'Umwalimu SACCO';
 const TEACHER_MSG = 'Your Umwalimu SACCO account number must contain exactly 12 digits.';
+const SCHOOL_MSG = "The school's Umwalimu SACCO account number must contain exactly 12 digits.";
 const teacherDetails = {
   personalAccountName: 'Bank Teacher', personalAccountNumber: '123456789012',
-  schoolAccountName: 'GS Kigali', schoolAccountNumber: '4001234567',
+  schoolAccountName: 'GS Kigali', schoolAccountNumber: '400100004567',
 };
 /** A coach's three personal fields: all a Coach or Head Coach gives. */
 const coachDetails = { personalAccountName: 'Bank Coach', personalBankName: 'Bank of Kigali Plc', personalAccountNumber: '00012345678' };
@@ -46,7 +47,7 @@ describe('Banking information (e2e)', () => {
     // Details saved before the rules (e.g. a coach's details kept after the account became a teacher): conflicting banks.
     await ctx.prisma.userBankDetails.create({ data: {
       userId: ids['bank.legacy.t'], personalAccountName: 'Legacy Teacher', personalBankName: 'Bank of Kigali Plc', personalAccountNumber: '123456789012',
-      schoolAccountName: 'GS Legacy', schoolBankName: 'Equity Bank Rwanda Plc', schoolAccountNumber: '4001111',
+      schoolAccountName: 'GS Legacy', schoolBankName: 'Equity Bank Rwanda Plc', schoolAccountNumber: '400100001111',
     } });
     await ctx.prisma.userBankDetails.create({ data: {
       userId: ids['bank.legacy.c'], personalAccountName: 'Legacy Coach', personalBankName: 'Ecobank Rwanda Plc', personalAccountNumber: '009988',
@@ -115,10 +116,29 @@ describe('Banking information (e2e)', () => {
         expect(await ctx.prisma.userBankDetails.findUnique({ where: { userId: ids['bank.teacher'] } })).toBeNull();
       });
 
+    it.each([['10 digits', '4001234567'], ['13 digits', '4001234567890'], ['letters', '40012345678A'], ['symbols', '4001-2345-678']])(
+      'school number of %s: refused with the exact message; nothing saved', async (_l, n) => {
+        const r = await put(t['bank.teacher'], { ...teacherDetails, schoolAccountNumber: n });
+        expect([r.status, r.body.code, r.body.details?.fields?.schoolAccountNumber]).toEqual([400, 'BANKING_INVALID', SCHOOL_MSG]);
+        expect(Object.keys(r.body.details.fields)).toEqual(['schoolAccountNumber']);
+        expect(JSON.stringify(r.body)).not.toContain(n);
+        expect(await ctx.prisma.userBankDetails.findUnique({ where: { userId: ids['bank.teacher'] } })).toBeNull();
+      });
+
     it('another bank (personal or school) refused; nothing replaced silently', async () => {
       const r = await put(t['bank.teacher'], { ...teacherDetails, personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc' });
       expect(r.status).toBe(400);
       expect(Object.keys(r.body.details.fields).sort()).toEqual(['personalBankName', 'schoolBankName']);
+    });
+
+    it('an account name with a digit refused, each name named with the exact message; nothing saved', async () => {
+      const r = await put(t['bank.teacher'], { ...teacherDetails, personalAccountName: 'Bank Teacher 2', schoolAccountName: 'GS Kigali 1' });
+      expect([r.status, r.body.code]).toEqual([400, 'BANKING_INVALID']);
+      expect(r.body.details.fields).toEqual({
+        personalAccountName: 'The bank account name must not contain numbers. Write the name exactly as on the account.',
+        schoolAccountName: "The school's bank account name must not contain numbers. Write the name exactly as on the account.",
+      });
+      expect(await ctx.prisma.userBankDetails.findUnique({ where: { userId: ids['bank.teacher'] } })).toBeNull();
     });
 
     it('missing fields refused, each named', async () => {
@@ -135,7 +155,7 @@ describe('Banking information (e2e)', () => {
       expect((await get('/notifications', t['bank.teacher'])).status).toBe(200);
       const audit = await ctx.prisma.auditLog.findMany({ where: { action: 'BANK_DETAILS_SAVED', entityId: ids['bank.teacher'] } });
       expect(audit).toHaveLength(1);
-      expect(JSON.stringify(audit)).not.toMatch(/123456789012|4001234567/);
+      expect(JSON.stringify(audit)).not.toMatch(/123456789012|400100004567/);
     });
   });
 
@@ -146,6 +166,8 @@ describe('Banking information (e2e)', () => {
       expect(form.body.rules.banks).toHaveLength(12);
       expect(form.body.missing).toEqual(['personalAccountName', 'personalBankName', 'personalAccountNumber']);
       expect((await put(t[u], { ...coachDetails, personalBankName: 'My Own Bank' })).body.details.fields).toEqual({ personalBankName: 'Choose your bank from the list.' });
+      expect((await put(t[u], { ...coachDetails, personalAccountName: 'Bank Coach 3' })).body.details.fields)
+        .toEqual({ personalAccountName: 'The bank account name must not contain numbers. Write the name exactly as on the account.' });
       for (const f of ['personalAccountName', 'personalBankName', 'personalAccountNumber']) {
         const r = await put(t[u], { ...coachDetails, [f]: undefined });
         expect([f, r.status, Object.keys(r.body.details.fields)]).toEqual([f, 400, [f]]);
@@ -187,7 +209,7 @@ describe('Banking information (e2e)', () => {
     });
 
     it('teacher: without confirmation nothing is replaced — each field named with its saved bank; one confirmation is not enough', async () => {
-      const body = { personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '4001111' };
+      const body = { personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '400100001111' };
       const none = await put(t['bank.legacy.t'], body);
       expect([none.status, none.body.code]).toEqual([400, 'BANKING_INVALID']);
       expect(none.body.details.confirmationNeeded).toEqual(['personalBankName', 'schoolBankName']);
@@ -201,14 +223,14 @@ describe('Banking information (e2e)', () => {
 
     it('teacher: confirmed for both, Umwalimu SACCO replaces them; every other saved value is kept; the step ends', async () => {
       const r = await put(t['bank.legacy.t'], {
-        personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '4001111',
+        personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '400100001111',
         confirmReplace: ['personalBankName', 'schoolBankName'],
       });
       expect([r.status, r.body.status]).toEqual([200, 'COMPLETE']);
       const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.t'] } });
       expect(row).toMatchObject({
         personalAccountName: 'Legacy Teacher', personalBankName: SACCO, personalAccountNumber: '123456789012',
-        schoolAccountName: 'GS Legacy', schoolBankName: SACCO, schoolAccountNumber: '4001111',
+        schoolAccountName: 'GS Legacy', schoolBankName: SACCO, schoolAccountNumber: '400100001111',
       });
       expect((await get('/notifications', t['bank.legacy.t'])).status).toBe(200);
     });
@@ -249,7 +271,7 @@ describe('Banking information (e2e)', () => {
       expect(row('bank.teacher2').banking.status).toBe('NOT_STARTED');
       expect(row('bank.partial').banking).toMatchObject({ status: 'PARTIAL', missing: ['personalAccountNumber'] });
       expect(row('student.j').banking).toBeUndefined();
-      expect(JSON.stringify(list.body)).not.toMatch(/123456789012|4001234567|00012345678|bankDetails/);
+      expect(JSON.stringify(list.body)).not.toMatch(/123456789012|400100004567|00012345678|bankDetails/);
 
       const incomplete = await get('/admin/users?limit=100&role=TEACHER&banking=INCOMPLETE', t.admin);
       expect(incomplete.body.data.map((u: { username: string }) => u.username)).toEqual(['bank.teacher2']);
