@@ -24,8 +24,8 @@ export class CustomReportsController {
   /** The sources and their fields, and the filter conditions (for the builder). */
   @Get('sources')
   @RequirePermission('reports.build')
-  sources() {
-    return this.reports.catalogue();
+  sources(@CurrentUser() user: AuthUser) {
+    return this.reports.catalogue(user);
   }
 
   /** The reports the caller may open, with their levels on each. */

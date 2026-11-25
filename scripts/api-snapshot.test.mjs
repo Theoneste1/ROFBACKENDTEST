@@ -384,7 +384,9 @@ const ACTIVATE_NOW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-activate-no
  * signed-in user lists all six roles in x-roles (it listed STUDENT, MENTOR, ADMIN). Additive only.
  */
 const BANKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-details.json';
-const CURRENT_SNAPSHOT = BANKING_SNAPSHOT;
+/** Reports with any data (owner 2026-11-25): templates (isTemplate on create / save). Additive only. */
+const REPORT_TEMPLATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-report-templates.json';
+const CURRENT_SNAPSHOT = REPORT_TEMPLATES_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2021,6 +2023,18 @@ describe('approved API contract history', () => {
     for (const key of corrected) assert.ok(anySignedIn.includes(key), `${key}: open to every signed-in role`);
     const banking = doc.paths['/api/v1/me/banking'];
     for (const m of ['get', 'put']) assert.deepEqual([...banking[m]['x-roles']].sort(), ['HEAD_COACH', 'MENTOR', 'TEACHER']);
+  });
+
+  test("banking information → report templates (2026-11-25): additive only — isTemplate on saving a report", () => {
+    for (const f of [BANKING_SNAPSHOT, REPORT_TEMPLATES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BANKING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REPORT_TEMPLATES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/reports › request application/json.isTemplate: new optional field',
+      'PUT /api/v1/reports/{id} › request application/json.isTemplate: new optional field',
+    ]);
   });
 
   test('activate now (2026-11-24): the documented 200 response is { user, stillBlockedBy, message } — the shape the frontend reads', () => {
