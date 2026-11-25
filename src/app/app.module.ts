@@ -62,6 +62,8 @@ import { DiscussionsModule } from '../discussions/discussions.module.js';
 import { AnalyticsModule } from '../analytics/analytics.module.js';
 import { ReportsModule } from '../reports/reports.module.js';
 import { TestManagementModule } from '../test-management/test-management.module.js';
+import { BankingModule } from '../banking/banking.module.js';
+import { BankingDetailsGuard } from '../auth/guards/banking-details.guard.js';
 
 @Module({
   imports: [
@@ -139,6 +141,7 @@ import { TestManagementModule } from '../test-management/test-management.module.
     RegistrationAvatarModule,
     DecisionNotificationsModule,
     PublicSiteModule,
+    BankingModule,
     // StudyGroupsModule is intentionally not registered: the programme has no
     // separate study groups (all discussion is in course and assignment threads).
     // Its code and tables are kept; re-add it here to switch it back on.
@@ -158,6 +161,8 @@ import { TestManagementModule } from '../test-management/test-management.module.
     { provide: APP_GUARD, useClass: ViewAsReadOnlyGuard },
     // A student without a date of birth gives it first (owner decision 9.3).
     { provide: APP_GUARD, useClass: DateOfBirthGuard },
+    // A Teacher, Coach or Head Coach completes their banking information first (owner 2026-11-25).
+    { provide: APP_GUARD, useClass: BankingDetailsGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     // No-op on routes without @RequirePermission (P1-04: none yet).
     { provide: APP_GUARD, useClass: PermissionGuard },

@@ -3,7 +3,7 @@
  * Migration rehearsal on a Neon BRANCH of production — never production itself.
  * Checklist: docs/operations/REHEARSAL-NEON-CHECKLIST.md (Phase 1) and docs/operations/RELEASE-POST-PHASE1.md.
  *
- * Every command takes --release <phase1|post-phase1|areas-2026|late-2026|dec-2026|levels-2026|launch-2026> (default phase1, the kit's original behaviour):
+ * Every command takes --release <phase1|post-phase1|areas-2026|late-2026|dec-2026|levels-2026|launch-2026|banking-2026> (default phase1, the kit's original behaviour):
  *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
  *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
  *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
@@ -19,6 +19,8 @@
  *   launch-2026  the launch release (owner, 2026-11-22/23): directory sync mode, the unlisted school of a teacher
  *                application, registration data, coach programme access, activation per sign-up form, news subscribers;
  *                the target must already hold the six releases before it. Runbook: docs/releases/launch-2026.md.
+ *   banking-2026 the banking information of Teachers, Coaches and Head Coaches (owner, 2026-11-25): one table; the
+ *                target must already hold the seven releases before it. Runbook: docs/releases/banking-2026.md.
  *   For every release but phase1, a NEWER checkout (later migrations after the release's) is accepted by the commands
  *   that run only the release's own files and checks: check-target, precheck, postcheck, rollback, rollback-history,
  *   dump, restore. deploy, diff and status act on every migration of the checkout and still refuse it (exit 5).

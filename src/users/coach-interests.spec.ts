@@ -69,6 +69,7 @@ function makeService(target: { id: string; role: string; olympiadInterests?: str
   const service = new UsersService(
     prisma as any, audit as any, { idForGrade: vi.fn() } as any, { revokeAllForUser: vi.fn(), lockSessions: vi.fn() } as any,
     { enrollInCurrentYear: vi.fn() } as any, {} as any, roles as any, affiliations as any, {} as any,
+    { statusOf: vi.fn().mockResolvedValue(new Map()), idsWithStatus: vi.fn().mockResolvedValue([]) } as any,
   );
   return { service, prisma, audit, roles };
 }

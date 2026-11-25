@@ -536,6 +536,7 @@ export const ACKNOWLEDGEMENTS = {
   'form-email-verification':    { migration: '20261228000000_form_email_verification', setting: 'rof.form_email_verification_rollback', value: 'discard-verification-switches' },
   'subscribers':                { migration: '20261229000000_subscribers', setting: 'rof.subscribers_rollback', value: 'discard-subscribers' },
   'view-as-sessions':           { migration: '20261230000000_view_as', setting: 'rof.view_as_rollback', value: 'discard-sessions' },
+  'bank-details':               { migration: '20261231000000_user_bank_details', setting: 'rof.bank_details_rollback', value: 'discard-bank-details' },
 };
 
 /** The acknowledgement ids of a release (those of its own migrations), sorted. */
@@ -612,6 +613,23 @@ export const LAUNCH_2026_OBJECTS = {
     ['TeacherApplication', 'proposedSchoolOwnership'], ['TeacherApplication', 'proposedSchoolAccommodation'],
     ['MentorRequest', 'userId'], ['FormAvailability', 'requireEmailVerification'], ['EmailDelivery', 'subscriberId'],
   ],
+  triggers: [],
+  functions: [],
+};
+
+/**
+ * The banking-2026 release (owner, 2026-11-25): one migration after launch-2026 — UserBankDetails, the bank details of
+ * Teachers (personal and school), Coaches and Head Coaches (personal only). Additive; production must hold launch-2026 first.
+ */
+export const BANKING_2026_MIGRATIONS = [
+  '20261231000000_user_bank_details',
+];
+
+/** What the banking-2026 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
+export const BANKING_2026_OBJECTS = {
+  tables: ['UserBankDetails'],
+  enums: [],
+  columns: [],
   triggers: [],
   functions: [],
 };
@@ -722,6 +740,25 @@ export const RELEASES = {
         + LEVELS_2026_MIGRATIONS.length,
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
         || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name),
+    },
+  },
+  'banking-2026': {
+    label: `the banking release (${BANKING_2026_MIGRATIONS.length} migration after the launch release)`,
+    count: BANKING_2026_MIGRATIONS.length,
+    owns: (name) => BANKING_2026_MIGRATIONS.includes(name),
+    last: BANKING_2026_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/banking-2026-precheck.sql',
+    postcheck: 'scripts/release/banking-2026-postcheck.sql',
+    migrations: BANKING_2026_MIGRATIONS,
+    objects: BANKING_2026_OBJECTS,
+    // The target must already hold the seven releases before it, launch-2026 included.
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas, late 2026, dec 2026, levels 2026 and the launch release',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length
+        + LEVELS_2026_MIGRATIONS.length + LAUNCH_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name)
+        || LAUNCH_2026_MIGRATIONS.includes(name),
     },
   },
 };

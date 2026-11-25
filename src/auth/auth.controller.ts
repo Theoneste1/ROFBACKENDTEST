@@ -38,6 +38,7 @@ import { AllowedBeforeDateOfBirth } from '../common/decorators/date-of-birth-ste
 import { AllowedWhileViewing } from './view-as/allowed-while-viewing.decorator.js';
 import { bearerClaimsViewAs } from './view-as/view-as.errors.js';
 import { ViewAsService } from './view-as/view-as.service.js';
+import { AllowedBeforeBankingDetails } from '../common/decorators/banking-step.decorator.js';
 
 export const REFRESH_COOKIE = 'rof_refresh';
 
@@ -149,6 +150,7 @@ export class AuthController {
   @Post('logout-all')
   @Authenticated()
   @AllowedBeforeDateOfBirth()
+  @AllowedBeforeBankingDetails()
   async logoutAll(@CurrentUser() user: AuthUser, @Res({ passthrough: true }) res: Response) {
     await this.authService.logoutAll(user);
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions());
@@ -205,6 +207,7 @@ export class AuthController {
   @Throttle(CREDENTIAL_LIMIT)
   @Patch('password')
   @Authenticated()
+  @AllowedBeforeBankingDetails()
   changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto) {
     return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
   }

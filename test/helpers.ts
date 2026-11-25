@@ -120,9 +120,35 @@ export async function createTestApp(): Promise<TestContext> {
 
   const prisma = app.get(PrismaService);
   await resetDatabase(prisma);
+  await completeStaffBankDetails(prisma);
   const ids = await seedBase(prisma);
 
   return { app, prisma, http: () => request(app.getHttpServer()), ids };
+}
+
+/**
+ * Banking information (owner 2026-11-25): a Teacher, Coach or Head Coach without complete bank details is held at the
+ * banking step (403 BANKING_DETAILS_REQUIRED). So that every other e2e test keeps testing what it was written for, the
+ * TEST database gives each such account complete, valid details as it is created or becomes one of those roles
+ * (Umwalimu SACCO, 12-digit numbers: valid for all three roles). Accounts whose username starts with "bank." are left
+ * alone: test/banking.e2e-spec.ts tests the step itself with them. Test database only (setup-env.ts guards it).
+ */
+export async function completeStaffBankDetails(prisma: PrismaService) {
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION test_complete_staff_bank_details() RETURNS trigger AS $$
+    BEGIN
+      INSERT INTO "UserBankDetails" ("userId", "personalAccountName", "personalBankName", "personalAccountNumber",
+                                     "schoolAccountName", "schoolBankName", "schoolAccountNumber", "updatedAt")
+      VALUES (NEW."id", 'Test Account', 'Umwalimu SACCO', '100000000001', 'Test School', 'Umwalimu SACCO', '200000000002', now())
+      ON CONFLICT ("userId") DO NOTHING;
+      RETURN NULL;
+    END;
+    $$ LANGUAGE plpgsql`);
+  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS test_complete_staff_bank_details ON "User"`);
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER test_complete_staff_bank_details AFTER INSERT OR UPDATE OF "role" ON "User"
+    FOR EACH ROW WHEN (NEW."role" IN ('TEACHER', 'MENTOR', 'HEAD_COACH') AND NEW."username" NOT LIKE 'bank.%')
+    EXECUTE FUNCTION test_complete_staff_bank_details()`);
 }
 
 /** Remove every row (test database only — guarded in setup-env.ts). */

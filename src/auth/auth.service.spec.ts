@@ -173,7 +173,7 @@ describe('AuthService', () => {
       // The attempt reservation increments first; the success write sets lastLoginAt and resets the lockout.
       const success = prisma.user.update.mock.calls.find((c) => c[0].data.lastLoginAt);
       expect(success![0].data).toMatchObject({ lastLoginAt: expect.any(Date), failedLoginCount: 0, lockedUntil: null });
-      expect(result).toEqual({ access_token: 'a', refresh_token: 'r', user: { id: 'u1', username: 'alice', dateOfBirthRequired: false, genderRequired: false } });
+      expect(result).toEqual({ access_token: 'a', refresh_token: 'r', user: { id: 'u1', username: 'alice', bankingRequired: false, dateOfBirthRequired: false, genderRequired: false } });
       expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'LOGIN', actorId: 'u1' }));
     });
 

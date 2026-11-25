@@ -35,6 +35,10 @@ interface RankedRow {
   problemsSolved: number;
   schoolId:       string | null;
   schoolName:     string | null;
+  /** General board only: the level (division) and whether the school is verified. */
+  levelCode?:     string | null;
+  levelName?:     string | null;
+  schoolVerified?: boolean | null;
 }
 
 /** The student (`u`) holds a current VERIFIED affiliation for their school. */
@@ -51,8 +55,9 @@ export class LeaderboardService {
 
   /**
    * Ranked students of one division, optionally narrowed to a school. A school filter lists
-   * only students whose membership of that school is VERIFIED, and a student's school is
-   * shown only when verified (an unverified claim is never displayed).
+   * only students whose membership of that school is VERIFIED. Each row (owner 2026-11-25): the picture, the name,
+   * the school the student studies at — with `verified` false while the school has not confirmed it —
+   * the level (division) and the points.
    */
   async findGeneral(user: AuthUser, q: LeaderboardQueryDto) {
     const divisionId = await this.resolveDivision(user, q.divisionId);
@@ -66,9 +71,11 @@ export class LeaderboardService {
       this.prisma.$queryRaw<RankedRow[]>`
         SELECT RANK() OVER (ORDER BY u."points" DESC, u."problemsSolved" DESC) AS "rank",
                u."id", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
-               s."id" AS "schoolId", s."name" AS "schoolName"
+               s."id" AS "schoolId", s."name" AS "schoolName", (${VERIFIED_AT_SCHOOL}) AS "schoolVerified",
+               d."code" AS "levelCode", d."name" AS "levelName"
         FROM "User" u
-        LEFT JOIN "School" s ON s."id" = u."schoolId" AND ${VERIFIED_AT_SCHOOL}
+        LEFT JOIN "School" s ON s."id" = u."schoolId"
+        LEFT JOIN "Division" d ON d."id" = u."divisionId"
         WHERE ${filter}
         ORDER BY "rank" ASC, u."createdAt" ASC
         LIMIT ${take} OFFSET ${skip}`,
@@ -178,7 +185,9 @@ export class LeaderboardService {
       avatarUrl:      r.avatarUrl,
       points:         r.points,
       problemsSolved: r.problemsSolved,
-      school:         r.schoolId ? { id: r.schoolId, name: r.schoolName } : null,
+      // The school the student studies at; `verified` false while the school has not confirmed it (general board).
+      school:         r.schoolId ? { id: r.schoolId, name: r.schoolName, ...(r.schoolVerified != null && { verified: r.schoolVerified }) } : null,
+      ...(r.levelCode !== undefined && { level: r.levelCode ? { code: r.levelCode, name: r.levelName } : null }),
       isMe:           r.id === user.id,
     };
   }
