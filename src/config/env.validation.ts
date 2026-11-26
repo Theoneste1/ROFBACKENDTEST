@@ -181,6 +181,11 @@ export class EnvironmentVariables {
   @Matches(/^(true|false)$/, { message: 'TEACHERS_ENABLED must be "true" or "false".' })
   TEACHERS_ENABLED?: string;
 
+  /** "true" turns on question-level marking (design Rev 5.2); off by default. */
+  @IsOptional()
+  @Matches(/^(true|false)$/, { message: 'QUESTION_MARKING_ENABLED must be "true" or "false".' })
+  QUESTION_MARKING_ENABLED?: string;
+
   /** "true" lets administrators assign the HEAD_COACH role. */
   @IsOptional()
   @Matches(/^(true|false)$/, { message: 'HEAD_COACHES_ENABLED must be "true" or "false".' })

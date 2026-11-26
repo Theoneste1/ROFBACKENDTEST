@@ -9,26 +9,26 @@ import { endpointId, segments, rollbackFiles, childEnv, checkDumpDir, conninfoFr
   PHASE1, M9_M14_TABLES, M9_M14_ENUMS } from './rehearsal.mjs';
 import { LAST_PHASE1_TIMESTAMP, laterMigrations, migrationDirs } from './phase1.mjs';
 import { REPO_ROOT } from '../db-drill-verify.mjs';
-import { AREAS_2026_MIGRATIONS, AREAS_2026_OBJECTS, BANKING_2026_MIGRATIONS, BANKING_2026_OBJECTS, DEC_2026_MIGRATIONS, DEC_2026_OBJECTS, LEVELS_2026_MIGRATIONS, LEVELS_2026_OBJECTS, LAUNCH_2026_MIGRATIONS, LAUNCH_2026_OBJECTS, LATE_2026_MIGRATIONS, LATE_2026_OBJECTS, POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
+import { AREAS_2026_MIGRATIONS, AREAS_2026_OBJECTS, BANKING_2026_MIGRATIONS, BANKING_2026_OBJECTS, QUESTION_MARKING_2027_MIGRATIONS, QUESTION_MARKING_2027_OBJECTS, QUESTION_MARKING_EVIDENCE, MIGRATION_OBJECTS, evidenceManifest, evidenceProblem, evidenceQueries, DEC_2026_MIGRATIONS, DEC_2026_OBJECTS, LEVELS_2026_MIGRATIONS, LEVELS_2026_OBJECTS, LAUNCH_2026_MIGRATIONS, LAUNCH_2026_OBJECTS, LATE_2026_MIGRATIONS, LATE_2026_OBJECTS, POST_PHASE1_MIGRATIONS, POST_PHASE1_OBJECTS, RELEASES, afterRelease, checkoutProblem, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles } from './releases.mjs';
 
 /**
  * This checkout as it was for Phase 1: its migrations without the eleven post-Phase-1 ones and the design-area ones
  * (the Phase 1 tests' fixture). Each later release is removed the same way, as the eleven were.
  */
-const AFTER_PHASE1 = [...POST_PHASE1_MIGRATIONS, ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS];
+const AFTER_PHASE1 = [...POST_PHASE1_MIGRATIONS, ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS];
 const phase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !AFTER_PHASE1.includes(d));
 /** This checkout as it was for post-Phase-1: without the design-area migrations (the post-Phase-1 tests' fixture). */
-const postPhase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !AREAS_2026_MIGRATIONS.includes(d) && !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
+const postPhase1Dirs = () => migrationDirs(REPO_ROOT).filter((d) => !AREAS_2026_MIGRATIONS.includes(d) && !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d) && !QUESTION_MARKING_2027_MIGRATIONS.includes(d));
 /** This checkout as it was for the design areas: without the late-2026 migrations (the design-area tests' fixture). */
-const areasDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
+const areasDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LATE_2026_MIGRATIONS.includes(d) && !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d) && !QUESTION_MARKING_2027_MIGRATIONS.includes(d));
 /** This checkout as it was for late-2026: without the dec-2026 migration (the late-2026 tests' fixture). */
-const lateDirs = () => migrationDirs(REPO_ROOT).filter((d) => !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
+const lateDirs = () => migrationDirs(REPO_ROOT).filter((d) => !DEC_2026_MIGRATIONS.includes(d) && !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d) && !QUESTION_MARKING_2027_MIGRATIONS.includes(d));
 /** This checkout as it was for dec-2026: without the levels-2026 migration (the dec-2026 tests' fixture). */
-const decDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
+const decDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LEVELS_2026_MIGRATIONS.includes(d) && !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d) && !QUESTION_MARKING_2027_MIGRATIONS.includes(d));
 /** This checkout as it was for levels-2026: without the launch-2026 migrations (the levels-2026 tests' fixture). */
-const levelsDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d));
-/** This checkout as it was for launch-2026: without the banking-2026 migration (the launch-2026 tests' fixture). */
-const launchDirs = () => migrationDirs(REPO_ROOT).filter((d) => !BANKING_2026_MIGRATIONS.includes(d));
+const levelsDirs = () => migrationDirs(REPO_ROOT).filter((d) => !LAUNCH_2026_MIGRATIONS.includes(d) && !BANKING_2026_MIGRATIONS.includes(d) && !QUESTION_MARKING_2027_MIGRATIONS.includes(d));
+/** This checkout as it was for launch-2026: without the banking-2026 and question-marking-2027 migrations (the launch-2026 tests' fixture). */
+const launchDirs = () => migrationDirs(REPO_ROOT).filter((d) => !BANKING_2026_MIGRATIONS.includes(d) && !QUESTION_MARKING_2027_MIGRATIONS.includes(d));
 
 // ── Later-migration guard (owner decision 2026-11-13) ─────────────────────────────────────────────
 
@@ -273,24 +273,24 @@ test('the runner: post-phase1 passes the checkout guard on this checkout; a late
     const bad = run(root, 'precheck', '--release', 'phase2');
     assert.equal(bad.status, 2);
     assert.match(bad.stderr, /--release must be one of: phase1, post-phase1/);
-  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy(['20261211000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after post-Phase-1 .*20261211000000_next/);
-  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'post-phase1');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /expected the 11 migrations of post-Phase-1 .* found 10/);
-  }, { drop: ['20261206000000_account_states', ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: ['20261206000000_account_states', ...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   // This checkout as it is (the design-area and late-2026 migrations after the eleven): post-phase1 refuses it, as the kit's rule
   // "nothing after the release's last" requires — run post-phase1 from a checkout whose last migration is its last.
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'post-phase1', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    const later = [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS];
-    assert.equal(later.length, 21);
+    const later = [...AREAS_2026_MIGRATIONS, ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS];
+    assert.equal(later.length, 23);
     assert.ok(r.stderr.includes(`${later.length} migration(s) after post-Phase-1 (11 migrations after M14)'s last (${later.join(', ')})`), r.stderr);
   });
 });
@@ -364,17 +364,17 @@ test('the runner: areas-2026 passes the checkout guard on this checkout; a later
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: areas-2026 — design areas \(7 migrations after post-Phase-1\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy(['20261221000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'areas-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after design areas .*20261221000000_next/);
-  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'areas-2026');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /expected the 7 migrations of design areas .* found 6/);
-  }, { drop: ['20261211000000_countries_reference', ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: ['20261211000000_countries_reference', ...LATE_2026_MIGRATIONS, ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
 });
 
 // ── late-2026 release (--release late-2026; the sign-up work, owner 2026-11-20: gender; home location) ──────────────
@@ -446,17 +446,17 @@ test('the runner: late-2026 passes the checkout guard on this checkout; a later 
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: late-2026 — late 2026 \(3 migrations after the design areas\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy(['20261230000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'late-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after late 2026 .*20261230000000_next/);
-  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'status', '--release', 'late-2026');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /expected the 3 migrations of late 2026 .* found 2/);
-  }, { drop: ['20261221000000_registration_gender', ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: ['20261221000000_registration_gender', ...DEC_2026_MIGRATIONS, ...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
 });
 
 // ── dec-2026 release (--release dec-2026; the "Other" Olympiad interest, owner 2026-11-21) ──────────────────────────
@@ -516,12 +516,12 @@ test('the runner: dec-2026 passes the checkout guard on its checkout; a later mi
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: dec-2026 — dec 2026 \(2 migrations after late 2026\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: [...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...LEVELS_2026_MIGRATIONS, ...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'dec-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after dec 2026 .*20261224000000_divisions_levels/);
-  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
 });
 
 // ── levels-2026 release (--release levels-2026; Olympiad levels, owner 2026-11-21) ────────────────────────────────
@@ -587,17 +587,17 @@ test('the runner: levels-2026 passes the checkout guard on its checkout; a later
     assert.notEqual(ok.status, 5, ok.stderr);
     assert.match(ok.stdout, /release: levels-2026 — divisions and Olympiad levels \(1 migration after dec 2026\)/);
     assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
-  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
+  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy(['20261231000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'levels-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
     assert.match(r.stderr, /1 migration\(s\) after divisions and Olympiad levels .*20261231000000_next/);
-  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS] });
-  // This checkout as it is (the launch and banking migrations after it): deploy refuses, naming all eight.
+  }, { drop: [...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
+  // This checkout as it is (the launch, banking and question-marking migrations after it): deploy refuses, naming all ten.
   withCheckoutCopy([], (root) => {
     const r = run(root, 'deploy', '--release', 'levels-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
-    assert.ok(r.stderr.includes(`8 migration(s) after divisions and Olympiad levels (1 migration after dec 2026)'s last (${[...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS].join(', ')})`), r.stderr);
+    assert.ok(r.stderr.includes(`10 migration(s) after divisions and Olympiad levels (1 migration after dec 2026)'s last (${[...LAUNCH_2026_MIGRATIONS, ...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS].join(', ')})`), r.stderr);
   });
 });
 
@@ -678,7 +678,7 @@ test('the runner: launch-2026 passes the checkout guard on this checkout; a late
     const ack = run(root, 'rollback', '--release', 'launch-2026', '--acknowledge', 'tests', '--confirm', 'ep-anything');
     assert.equal(ack.status, 2, ack.stderr);
     assert.match(ack.stderr, /"tests" is not a guard of launch-2026's rollback files \(allowed for launch-2026: coach-restrictions, form-email-verification, saved-filters, subscribers, sync-modes, unlisted-school-details, view-as-sessions\)/);
-  }, { drop: BANKING_2026_MIGRATIONS });
+  }, { drop: [...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
   withCheckoutCopy(['20261231000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'launch-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
@@ -686,12 +686,13 @@ test('the runner: launch-2026 passes the checkout guard on this checkout; a late
     const rb = run(root, 'rollback', '--release', 'launch-2026', '--confirm', 'ep-anything');
     assert.notEqual(rb.status, 5, rb.stderr);
     assert.match(rb.stdout, /checkout: 1 later migration\(s\) present \(20261231000000_next\)/);
-  }, { drop: BANKING_2026_MIGRATIONS });
+  }, { drop: [...BANKING_2026_MIGRATIONS, ...QUESTION_MARKING_2027_MIGRATIONS] });
 });
 // ── banking-2026 release (--release banking-2026; the banking information after launch-2026, owner 2026-11-25) ────────
 
 test('banking-2026: exactly the one migration after launch-2026 in this checkout; nothing after it; needs the 45 before it', () => {
-  const dirs = migrationDirs(REPO_ROOT);
+  // This checkout as it was for banking-2026 (the question-marking-2027 migrations come after it).
+  const dirs = migrationDirs(REPO_ROOT).filter((d) => !QUESTION_MARKING_2027_MIGRATIONS.includes(d));
   assert.deepEqual(dirs.filter((d) => d.slice(0, 14) > RELEASES['launch-2026'].last), BANKING_2026_MIGRATIONS);
   assert.deepEqual(BANKING_2026_MIGRATIONS, ['20261231000000_user_bank_details']);
   const banking = releaseFrom(['--release', 'banking-2026']);
@@ -749,7 +750,7 @@ test('the runner: banking-2026 passes the checkout guard on this checkout; a lat
     const ack = run(root, 'rollback', '--release', 'banking-2026', '--acknowledge', 'tests', '--confirm', 'ep-anything');
     assert.equal(ack.status, 2, ack.stderr);
     assert.match(ack.stderr, /"tests" is not a guard of banking-2026's rollback files \(allowed for banking-2026: bank-details\)/);
-  });
+  }, { drop: QUESTION_MARKING_2027_MIGRATIONS });
   withCheckoutCopy(['20270101000000_next'], (root) => {
     const r = run(root, 'deploy', '--release', 'banking-2026', '--confirm', 'ep-anything');
     assert.equal(r.status, 5, r.stderr);
@@ -757,7 +758,7 @@ test('the runner: banking-2026 passes the checkout guard on this checkout; a lat
     const rb = run(root, 'rollback', '--release', 'banking-2026', '--confirm', 'ep-anything');
     assert.notEqual(rb.status, 5, rb.stderr);
     assert.match(rb.stdout, /checkout: 1 later migration\(s\) present \(20270101000000_next\)/);
-  });
+  }, { drop: QUESTION_MARKING_2027_MIGRATIONS });
 });
 
 
@@ -827,7 +828,7 @@ test('--acknowledge / --stop-after: refused before any target is read when unkno
 
 test('a newer checkout: post-phase1 rollback, rollback-history, precheck, postcheck, check-target, dump, restore pass the checkout rule; deploy, diff, status do not', () => {
   // This checkout as it is (on develop: the design-area migrations come after the eleven), plus one more.
-  const later = [...afterRelease(releaseFrom(['--release', 'post-phase1']), migrationDirs(REPO_ROOT)), '20261299000000_later'];
+  const later = [...afterRelease(releaseFrom(['--release', 'post-phase1']), migrationDirs(REPO_ROOT)), '20261299000000_later'].sort();
   withCheckoutCopy(['20261299000000_later'], (root) => {
     for (const command of ['check-target', 'precheck', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore']) {
       const r = run(root, command, '--release', 'post-phase1', '--confirm', 'ep-x');
@@ -847,4 +848,128 @@ test('a newer checkout: post-phase1 rollback, rollback-history, precheck, postch
     assert.match(r.stderr, /expected the 11 migrations of post-Phase-1 .* found 10/);
   }, { drop: ['20261204000000_registration_details'] });
   // Phase 1 keeps its original rule for every command (owner decision 2026-11-13), as the test above shows.
+});
+
+// ── question-marking-2027 release (--release question-marking-2027; design Rev 5.2, owner approval 2026-11-26) ────────
+
+test('question-marking-2027: exactly the two migrations after banking-2026 in this checkout; nothing after them; needs the 46 before them', () => {
+  const dirs = migrationDirs(REPO_ROOT);
+  assert.deepEqual(dirs.filter((d) => d.slice(0, 14) > RELEASES['banking-2026'].last), QUESTION_MARKING_2027_MIGRATIONS);
+  assert.deepEqual(QUESTION_MARKING_2027_MIGRATIONS, ['20270101000000_question_marking_kind', '20270101000100_question_marking']);
+  const qm = releaseFrom(['--release', 'question-marking-2027']);
+  assert.equal(qm.name, 'question-marking-2027');
+  assert.equal(qm.last, '20270101000100');
+  assert.equal(checkoutProblem(qm, dirs), null);
+  assert.match(checkoutProblem(qm, [...dirs, '20270102000000_next']), /1 migration\(s\) after question-level marking .* \(20270102000000_next\)/);
+  assert.match(checkoutProblem(qm, dirs.filter((d) => d !== QUESTION_MARKING_2027_MIGRATIONS[1])), /expected the 2 .* found 1/);
+  assert.equal(qm.requires.count, 46);
+  assert.equal(dirs.filter((d) => qm.requires.owns(d)).length, 46);
+  for (const m of QUESTION_MARKING_2027_MIGRATIONS) assert.equal(qm.requires.owns(m), false);
+  for (const m of BANKING_2026_MIGRATIONS) assert.equal(qm.owns(m), false);
+});
+
+test('question-marking-2027: rollback-history checks every table, type, column, trigger and function its migrations create', () => {
+  const o = QUESTION_MARKING_2027_OBJECTS;
+  assert.deepEqual(createdBy(QUESTION_MARKING_2027_MIGRATIONS, /CREATE TABLE "([A-Za-z]+)"/g), [...o.tables].sort());
+  assert.deepEqual(createdBy(QUESTION_MARKING_2027_MIGRATIONS, /CREATE TYPE "([A-Za-z]+)"/g), [...o.enums].sort());
+  assert.deepEqual(createdBy(QUESTION_MARKING_2027_MIGRATIONS, /CREATE (?:OR REPLACE )?FUNCTION ([a-z_]+)/g), [...o.functions].sort());
+  // Triggers on the tables the migration creates go with those tables; the ones on existing tables are listed.
+  const allTriggers = createdBy(QUESTION_MARKING_2027_MIGRATIONS, /CREATE (?:CONSTRAINT )?TRIGGER ([a-z_]+)/g);
+  for (const t of o.triggers) assert.ok(allTriggers.includes(t), t);
+  assert.equal(allTriggers.length, 19);
+  assert.deepEqual(o.columns, [['Test', 'markingMode'], ['TestQuestion', 'promptVersion']]);
+  assert.equal(MIGRATION_OBJECTS['20270101000000_question_marking_kind'].checkOnly, true);
+  assert.deepEqual(MIGRATION_OBJECTS['20270101000000_question_marking_kind'].kept.enumValues, [['TestMarkingKind', 'COMPOSED']]);
+});
+
+test('question-marking-2027: the rollback files need backup EVIDENCE (never an acknowledgement); refuse while COMPOSED exists; history is separate', () => {
+  const release = releaseFrom(['--release', 'question-marking-2027']);
+  const docs = readdirSync('docs/migrations');
+  const files = releaseRollbackFiles(release, docs);
+  assert.deepEqual(files, ['20270101000100_question_marking.rollback.sql', '20270101000000_question_marking_kind.rollback.sql']);
+  assert.deepEqual(releasePreSwitchFiles(release, docs), []);
+  const main = readFileSync(`docs/migrations/${files[0]}`, 'utf8');
+  const code = main.replace(/--[^\n]*/g, '');
+  assert.doesNotThrow(() => segments(main));
+  assert.match(code, /current_setting\('rof\.question_marking_manifest', true\)/);
+  assert.match(code, /'verified'\) IS DISTINCT FROM 'true'/);
+  assert.match(code, /WHERE "kind" = 'COMPOSED'[\s\S]*QUESTION_MARKING_ROLLBACK_REFUSED/);
+  // No acknowledgement form: an id cannot bypass it.
+  assert.doesNotMatch(code, /IS DISTINCT FROM 'discard/);
+  assert.doesNotMatch(code, /_prisma_migrations/);
+  // The checksums the rollback recomputes are the kit's (same expressions), for every table and subset of the manifest.
+  for (const t of QUESTION_MARKING_EVIDENCE.tables) assert.ok(main.includes(`'${t}'`), t);
+  for (const k of Object.keys(QUESTION_MARKING_EVIDENCE.subsets)) assert.ok(main.includes(`'${k}'`), k);
+  assert.ok(code.includes(`md5(coalesce(string_agg(x::text, E''\\n'' ORDER BY x."id"), ''''))`));
+  for (const q of evidenceQueries(QUESTION_MARKING_EVIDENCE).slice(0, 1)) assert.ok(q.sql.includes(`md5(coalesce(string_agg(x::text, E'\\n' ORDER BY x."id"), ''))`), q.sql);
+  // The original CHECK is restored.
+  assert.ok(code.includes(`CHECK (("kind" = 'ADJUSTMENT') = ("assignmentId" IS NULL))`));
+  const kind = readFileSync(`docs/migrations/${files[1]}`, 'utf8').replace(/--[^\n]*/g, '');
+  assert.match(kind, /QUESTION_MARKING_KIND_ROLLBACK_REFUSED/);
+  assert.doesNotMatch(kind, /\b(DROP|ALTER|DELETE|UPDATE|INSERT)\b/);
+});
+
+test('question-marking-2027: the pre- and post-check SQL are read only, use only \\echo, and name every table', () => {
+  for (const file of [RELEASES['question-marking-2027'].precheck, RELEASES['question-marking-2027'].postcheck]) {
+    const text = readFileSync(file, 'utf8');
+    const segs = segments(text).filter((s) => typeof s === 'string');
+    assert.match(segs[0], /BEGIN TRANSACTION READ ONLY;/, file);
+    assert.match(segs.at(-1), /ROLLBACK;\s*$/, file);
+    assert.doesNotMatch(segs.join('\n').replace(/--[^\n]*/g, ''), /\b(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|TRUNCATE)\b/i, file);
+    for (const name of QUESTION_MARKING_2027_OBJECTS.tables) assert.ok(text.includes(`'${name}'`), `${file}: ${name}`);
+  }
+});
+
+test('question-marking-2027 evidence: a manifest only when the restored backup equals the target; every flaw refused', () => {
+  const release = releaseFrom(['--release', 'question-marking-2027']);
+  const keys = [...QUESTION_MARKING_EVIDENCE.tables, ...Object.keys(QUESTION_MARKING_EVIDENCE.subsets)];
+  assert.equal(evidenceQueries(QUESTION_MARKING_EVIDENCE).length, 13);
+  const sums = Object.fromEntries(keys.map((k, i) => [k, { count: String(i), md5: String(i).padStart(32, 'a') }]));
+  const dump = { file: 'C:/backup/x.dump', sha256: 'f'.repeat(64), bytes: 10 };
+  const good = evidenceManifest({ release: release.name, scratch: sums, target: sums, dump });
+  assert.equal(good.ok, true);
+  assert.equal(good.manifest.verified, true);
+  assert.equal(good.manifest.dumpSha256, dump.sha256);
+  assert.equal(evidenceProblem(good.manifest, release, dump.sha256), null);
+  // A row written after the backup: no manifest.
+  const changed = evidenceManifest({ release: release.name, scratch: sums, target: { ...sums, TestTaskClaim: { count: '8', md5: 'b'.repeat(32) } }, dump });
+  assert.equal(changed.ok, false);
+  assert.match(changed.differences.join(), /TestTaskClaim: backup \d+ row\(s\), target 8 row\(s\)/);
+  // Same count, different contents.
+  const edited = evidenceManifest({ release: release.name, scratch: sums, target: { ...sums, TestQuestionTask: { ...sums.TestQuestionTask, md5: 'c'.repeat(32) } }, dump });
+  assert.match(edited.differences.join(), /TestQuestionTask: .*contents differ/);
+  // The manifest file itself: wrong release, unverified, a changed dump, a missing check, another release.
+  assert.match(evidenceProblem({ ...good.manifest, release: 'banking-2026' }, release, dump.sha256), /for banking-2026/);
+  assert.match(evidenceProblem({ ...good.manifest, verified: 'true' }, release, dump.sha256), /not verified/);
+  assert.match(evidenceProblem(good.manifest, release, 'e'.repeat(64)), /sha256 does not equal/);
+  assert.match(evidenceProblem(good.manifest, release, null), /sha256 does not equal/);
+  const { TestTaskEvent, ...rest } = good.manifest.tables;
+  assert.ok(TestTaskEvent);
+  assert.match(evidenceProblem({ ...good.manifest, tables: rest }, release, dump.sha256), /lacks checks for: TestTaskEvent/);
+  assert.match(evidenceProblem(good.manifest, releaseFrom(['--release', 'banking-2026']), dump.sha256), /takes no --evidence/);
+});
+
+test('the runner: question-marking-2027 passes the checkout guard; --evidence is refused unless it is a verified manifest of this release, and only on rollback', () => {
+  withCheckoutCopy([], (root) => {
+    const ok = run(root, 'deploy', '--release', 'question-marking-2027', '--confirm', 'ep-anything');
+    assert.notEqual(ok.status, 5, ok.stderr);
+    assert.match(ok.stdout, /release: question-marking-2027 — question-level marking \(2 migrations after the banking release\)/);
+    assert.ok(ok.status !== 0, 'no target configured, so the target guard refuses next (fail-closed)');
+    const ack = run(root, 'rollback', '--release', 'question-marking-2027', '--acknowledge', 'bank-details', '--confirm', 'ep-anything');
+    assert.equal(ack.status, 2, ack.stderr);
+    assert.match(ack.stderr, /not a guard of question-marking-2027's rollback files \(allowed for question-marking-2027: none\)/);
+    const missing = run(root, 'rollback', '--release', 'question-marking-2027', '--evidence', join(root, 'nope.json'), '--confirm', 'ep-anything');
+    assert.equal(missing.status, 2, missing.stderr);
+    assert.match(missing.stderr, /--evidence must name an existing manifest file/);
+    const bad = join(root, 'bad.json');
+    writeFileSync(bad, JSON.stringify({ release: 'question-marking-2027', verified: true, dumpFile: join(root, 'gone.dump'), dumpSha256: 'a'.repeat(64), tables: {} }));
+    const unverifiable = run(root, 'rollback', '--release', 'question-marking-2027', '--evidence', bad, '--confirm', 'ep-anything');
+    assert.equal(unverifiable.status, 2, unverifiable.stderr);
+    assert.match(unverifiable.stderr, /sha256 does not equal/);
+    const elsewhere = run(root, 'deploy', '--release', 'question-marking-2027', '--evidence', bad);
+    assert.equal(elsewhere.status, 2, elsewhere.stderr);
+    assert.match(elsewhere.stderr, /--evidence is an option of `rollback` only/);
+    const vb = run(root, 'verify-backup', '--release', 'question-marking-2027', '--confirm', 'ep-anything');
+    assert.notEqual(vb.status, 5, vb.stderr);
+  });
 });

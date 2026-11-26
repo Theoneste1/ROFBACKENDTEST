@@ -145,6 +145,7 @@ export class TestMarkingService {
   /** Share every unassigned, markable submission evenly between the given authorised coaches. */
   async distribute(testId: string, dto: DistributeMarkingDto, user: AuthUser) {
     await this.tests.loadInScope(testId, user);
+    await this.paperOnly(testId);
     const actor: Actor = { id: user.id, actorRole: user.role };
     const op = dto.clientKey ?? randomUUID();
     const notices: Array<string | null> = [];
@@ -176,6 +177,7 @@ export class TestMarkingService {
   /** Give these submissions (unassigned, markable) to one authorised coach. Already theirs: nothing changes (idempotent). */
   async assign(testId: string, dto: AssignMarkingDto, user: AuthUser) {
     await this.tests.loadInScope(testId, user);
+    await this.paperOnly(testId);
     const actor: Actor = { id: user.id, actorRole: user.role };
     const notices: Array<string | null> = [];
     const result = await this.prisma.$transaction(async (tx) => {
@@ -228,6 +230,7 @@ export class TestMarkingService {
    */
   async reassign(testId: string, submissionId: string, dto: ReassignMarkingDto, user: AuthUser) {
     await this.tests.loadInScope(testId, user);
+    await this.paperOnly(testId);
     const actor: Actor = { id: user.id, actorRole: user.role };
     const kind = dto.kind ?? 'FIRST';
     const notices: Array<string | null> = [];
@@ -594,6 +597,14 @@ export class TestMarkingService {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
+  /** Question-level marking (Rev 5.2): a QUESTION-mode test is never distributed or reviewed paper by paper. */
+  private async paperOnly(testId: string) {
+    const t = await this.prisma.test.findUnique({ where: { id: testId }, select: { markingMode: true } });
+    if (t?.markingMode === 'QUESTION') {
+      throw new AppError(HttpStatus.CONFLICT, 'WRONG_MARKING_MODE', 'This test is marked question by question. Use the question marking screens for it.', { markingMode: 'QUESTION' });
+    }
+  }
+
   /**
    * One reviewer decision: scope, the submission row FOR UPDATE, idempotency (clientKey), the expected status, the step
    * itself, then the review record and the audit entry — one transaction.
@@ -607,6 +618,7 @@ export class TestMarkingService {
     }>,
   ) {
     await this.tests.loadInScope(testId, user);
+    await this.paperOnly(testId);
     const actor: Actor = { id: user.id, actorRole: user.role };
     const replayed = await this.prisma.$transaction(async (tx) => {
       const sub = await lockSubmission(tx, { id: submissionId, testId });

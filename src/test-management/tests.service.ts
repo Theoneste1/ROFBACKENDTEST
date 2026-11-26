@@ -366,7 +366,7 @@ export class TestsService {
   // ── Files (private; neutral download names) ─────────────────────────────────
 
   /** Upload or replace the paper or the marking guide. Authorisation runs BEFORE anything is stored. */
-  async putFile(id: string, kindParam: TestFileKindParam, file: Express.Multer.File | undefined, user: AuthUser) {
+  async putFile(id: string, kindParam: TestFileKindParam, file: Express.Multer.File | undefined, user: AuthUser, correctionReason?: string) {
     const kind = KIND_OF[kindParam];
     await this.loadInScope(id, user);
     if (!file) throw new AppError(HttpStatus.BAD_REQUEST, 'FILE_REQUIRED', 'Attach the file (a PDF or a photo).');
@@ -374,6 +374,16 @@ export class TestsService {
     await this.prisma.$transaction(async (tx) => {
       const test = await lockTest(tx, id);
       if (kind === 'PAPER' && (await hasSubmissions(tx, id))) throw lockedBySubmissions('its paper');
+      // Question-level marking (Rev 5.2 addendum 5.2 §4): the guide is frozen once tasks exist; only a Super Admin corrects
+      // it, with a reason (the old file stays referenced by the assessments made against it).
+      const guideFrozen = kind === 'MARKING_GUIDE' && test.markingMode === 'QUESTION'
+        && (await tx.testQuestionTask.count({ where: { submission: { testId: id } } })) > 0;
+      if (guideFrozen) {
+        if (user.role !== 'SUPER_ADMIN' || !correctionReason || correctionReason.trim().length < 3) {
+          throw new AppError(HttpStatus.CONFLICT, 'GUIDE_FROZEN', 'Marking has begun on this test, so its marking guide can only be corrected by a Super Administrator, with a reason.');
+        }
+        await tx.$executeRaw`SELECT set_config('rof.question_guide_correction', 'on', true)`;
+      }
       const previous = await tx.testFile.findUnique({ where: { testId_kind: { testId: id, kind } }, select: { id: true, fileId: true } });
       if (previous) await tx.testFile.delete({ where: { id: previous.id } });
       const link = await tx.testFile.create({ data: { testId: id, kind, fileId: stored.id }, select: { id: true } });
@@ -382,6 +392,7 @@ export class TestsService {
         metadata: {
           testId: id, subjectId: test.disciplineId, kind, fileId: stored.id, mimeType: stored.mimeType, size: stored.size,
           ...(previous && { previousFileId: previous.fileId }),
+          ...(guideFrozen && { correctionReason: correctionReason!.trim() }),
         },
       }, tx);
     });

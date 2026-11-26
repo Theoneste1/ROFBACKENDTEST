@@ -300,7 +300,7 @@ export class TestMarkerService {
       where: { submissionId: sub.id, coachId: user.id, endedAt: null },
       select: { id: true, kind: true, marking: { select: { id: true, status: true, revision: true, versionId: true } } },
     });
-    if (!assignment || assignment.kind === 'ADJUSTMENT') throw notAssigned();
+    if (!assignment || assignment.kind === 'ADJUSTMENT' || assignment.kind === 'COMPOSED') throw notAssigned();
     if (!(await mayMark(db, user.id, sub.test.disciplineId))) throw notAuthorised();
     return {
       submissionId: sub.id, code, status: locked?.status ?? sub.status, currentVersionId: locked?.currentVersionId ?? sub.currentVersionId,

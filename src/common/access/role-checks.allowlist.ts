@@ -241,4 +241,24 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/study-groups/study-groups.service.ts', rule: 'U3', code: "caller.role !== 'ADMIN'",
     reason: 'Same restrictive membership check as the U1 entry above (no else branch; the body refuses non-members).',
   },
+  {
+    file: 'src/coach-access/coach-access.service.ts', rule: 'U6', code: "role: actor.role",
+    reason: 'Question-level marking (Rev 5.2): the actor role is only recorded in the task events of a MARKING restriction (who ended the claims); it grants nothing — the route already required its permission.',
+  },
+  {
+    file: 'src/test-management/test-markers.service.ts', rule: 'U6', code: "role: user.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever revoked a marker authorisation is only recorded in the task events of the claims it ended; it grants nothing.',
+  },
+  {
+    file: 'src/test-management/question/question-marker.service.ts', rule: 'U6', code: "role: user.role",
+    reason: 'Question-level marking (Rev 5.2): the coach actor (role recorded in task events) is built only after isCoach(user) refused every other role; it grants nothing.',
+  },
+  {
+    file: 'src/test-management/question/question-marking.service.ts', rule: 'U6', code: "role: user.role",
+    reason: 'Question-level marking (Rev 5.2): the staff actor role is only recorded in task events and decisions; every staff route already required its permission and scope (loadInScope).',
+  },
+  {
+    file: 'src/test-management/question/question-marking.service.ts', rule: 'U6', code: "allowedActions(task.status as TaskStatus, second?.status as TaskStatus | undefined, user.role)",
+    reason: 'Question-level marking (Rev 5.2): only hints which buttons to show; decide is offered to HEAD_COACH only (any other or unknown role: false), and the server checks tests.adjustMarks again on the action itself.',
+  },
 ];

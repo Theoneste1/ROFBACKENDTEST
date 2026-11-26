@@ -417,9 +417,16 @@ export const FEATURES = {
    * /teacher/test-results (tests.viewSchoolResults), /me/test-dashboard, /teacher/test-dashboard, /marking/dashboard.
    */
   testResults: 'always',
+  /**
+   * Question-level marking (design Rev 5.2, 2027-01): /api/v1/marking/tasks (tests.mark: the shared pool of question tasks —
+   * claim, heartbeat, marks, submit, release; blind) and /api/v1/admin/tests/:id/question-marking (mode, question markers,
+   * task generation, assignment, review per question, second-assessment cycles, decisions, reopen, progress, history).
+   * Off until QUESTION_MARKING_ENABLED=true; the routes answer 404 FEATURE_DISABLED meanwhile.
+   */
+  questionMarking: 'env:QUESTION_MARKING_ENABLED',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
-} as const satisfies Record<string, 'always' | AppRole>;
+} as const satisfies Record<string, 'always' | AppRole | `env:${string}`>;
 
 export type Feature = keyof typeof FEATURES;
 
@@ -450,8 +457,10 @@ export const API_INFO_RESPONSE_DESCRIPTION = [
 export function capabilitiesOf(config: { get(key: string): unknown }): Capabilities {
   const features = (Object.keys(FEATURES) as Feature[])
     .filter((f) => {
-      const gate: 'always' | AppRole = FEATURES[f];
-      return gate === 'always' || roleFlagOn(gate, config);
+      const gate: 'always' | AppRole | `env:${string}` = FEATURES[f];
+      if (gate === 'always') return true;
+      if (gate.startsWith('env:')) return String(config.get(gate.slice(4)) ?? '').toLowerCase() === 'true';
+      return roleFlagOn(gate as AppRole, config);
     })
     .sort();
   return { schemaVersion: CAPABILITIES_SCHEMA_VERSION, roles: [...APP_ROLES], features };

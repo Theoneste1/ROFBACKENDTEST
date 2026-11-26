@@ -492,6 +492,35 @@ export const MIGRATION_OBJECTS = {
       tables: ['ViewAsSession'],
     },
   },
+  '20261231000000_user_bank_details': {
+    creates: {
+      tables: ['UserBankDetails'],
+    },
+  },
+  // Adds the TestMarkingKind value COMPOSED only; its rollback KEEPS it (PostgreSQL cannot drop an enum value) and only
+  // checks (the question-marking tables gone, no COMPOSED marking): check-only, like test_file_purposes.
+  '20270101000000_question_marking_kind': {
+    checkOnly: true,
+    kept: { enumValues: [['TestMarkingKind', 'COMPOSED']] },
+  },
+  // Question-level marking (design Rev 5.2, owner approval 2026-11-26). TestMarking_assignment_matches_kind is dropped and
+  // re-created under the same name (it also accepts COMPOSED); its rollback restores the original definition.
+  '20270101000100_question_marking': {
+    creates: {
+      columns: [['Test', 'markingMode'], ['TestQuestion', 'promptVersion']],
+      constraints: [['TestQuestion', 'TestQuestion_prompt_version']],
+      enums: ['PaperAccessKind', 'QuestionAssessmentStatus', 'QuestionDecisionSource', 'QuestionTaskRound', 'QuestionTaskStatus',
+        'TaskClaimEndReason', 'TaskClaimMethod', 'TestMarkingMode'],
+      functions: ['can_mark_subject', 'check_question_decision_invariant', 'check_question_paper_invariant', 'question_marking_append_only',
+        'question_marking_started', 'question_paper_status', 'question_paper_status_of', 'test_guide_guard', 'test_marking_mode_guard',
+        'test_max_marks_guard', 'test_paper_access_guard', 'test_question_assessment_guard', 'test_question_decision_guard',
+        'test_question_marker_guard', 'test_question_structure_guard', 'test_question_task_guard', 'test_task_claim_guard'],
+      tables: ['TestAssessmentVersion', 'TestMarkDraftChange', 'TestPaperAccess', 'TestQuestionAssessment', 'TestQuestionDecision',
+        'TestQuestionMarker', 'TestQuestionPromptHistory', 'TestQuestionTask', 'TestStaffPaperAccess', 'TestTaskClaim', 'TestTaskEvent'],
+      triggers: [['Test', 'test_marking_mode_guard'], ['Test', 'test_max_marks_guard'], ['TestFile', 'test_guide_guard'],
+        ['TestQuestion', 'test_question_structure_guard'], ['TestSubmission', 'question_paper_invariant_submission']],
+    },
+  },
 };
 
 /**
@@ -635,6 +664,43 @@ export const BANKING_2026_OBJECTS = {
 };
 
 /**
+ * The question-marking-2027 release (owner approval 2026-11-26, design Rev 5.2): question-level marking behind
+ * QUESTION_MARKING_ENABLED. Two migrations because a new enum value cannot be used in the transaction that adds it.
+ * Additive; every existing test stays PAPER. Production must hold banking-2026 first.
+ */
+export const QUESTION_MARKING_2027_MIGRATIONS = [
+  // TestMarkingKind.COMPOSED (the final marking composed from approved question assessments).
+  '20270101000000_question_marking_kind',
+  // Test.markingMode, TestQuestion.promptVersion, eleven tables, eight enums, the guards and the commit-time invariants.
+  '20270101000100_question_marking',
+];
+
+/** What the question-marking-2027 migrations create; `rollback-history` refuses while any is left. */
+export const QUESTION_MARKING_2027_OBJECTS = {
+  tables: MIGRATION_OBJECTS['20270101000100_question_marking'].creates.tables,
+  enums: MIGRATION_OBJECTS['20270101000100_question_marking'].creates.enums,
+  columns: MIGRATION_OBJECTS['20270101000100_question_marking'].creates.columns,
+  triggers: MIGRATION_OBJECTS['20270101000100_question_marking'].creates.triggers.map(([, t]) => t),
+  functions: MIGRATION_OBJECTS['20270101000100_question_marking'].creates.functions,
+};
+
+/**
+ * Backup EVIDENCE for the question-marking rollback (design 5.1 point 6: evidence, not acknowledgement). `verify-backup`
+ * restores a dump into a separate scratch database and computes these checksums there and on the target; when they are
+ * equal it writes a manifest. `rollback --evidence <manifest>` puts the manifest in `setting` on the rollback connection;
+ * the rollback file recomputes the live checksums in its own transaction and refuses on any difference.
+ * Each check: a table (every row as text, in id order) or a column subset ([table, column, where]).
+ */
+export const QUESTION_MARKING_EVIDENCE = {
+  setting: 'rof.question_marking_manifest',
+  tables: QUESTION_MARKING_2027_OBJECTS.tables.slice().sort((a, b) => a.localeCompare(b)),
+  subsets: {
+    'Test.markingMode': { table: 'Test', column: 'markingMode', where: `"markingMode" = 'QUESTION'` },
+    'TestQuestion.promptVersion': { table: 'TestQuestion', column: 'promptVersion', where: '"promptVersion" > 1' },
+  },
+};
+
+/**
  * Each release: `owns(name)` — the migration belongs to it; `last` — its last timestamp (a migration sorting after it
  * is never deployed by the kit for this release); the read-only SQL checks; and the rollback-history rule.
  */
@@ -761,7 +827,76 @@ export const RELEASES = {
         || LAUNCH_2026_MIGRATIONS.includes(name),
     },
   },
+  'question-marking-2027': {
+    label: `question-level marking (${QUESTION_MARKING_2027_MIGRATIONS.length} migrations after the banking release)`,
+    count: QUESTION_MARKING_2027_MIGRATIONS.length,
+    owns: (name) => QUESTION_MARKING_2027_MIGRATIONS.includes(name),
+    last: QUESTION_MARKING_2027_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/question-marking-2027-precheck.sql',
+    postcheck: 'scripts/release/question-marking-2027-postcheck.sql',
+    // Rollback level 2 (the previous code on the new schema): read-only guard query.
+    codeRollbackCheck: 'scripts/release/question-marking-2027-code-rollback-check.sql',
+    migrations: QUESTION_MARKING_2027_MIGRATIONS,
+    objects: QUESTION_MARKING_2027_OBJECTS,
+    // Its rollback needs backup EVIDENCE (verify-backup → rollback --evidence) whenever question-marking data exists.
+    evidence: QUESTION_MARKING_EVIDENCE,
+    // The target must already hold the eight releases before it, banking-2026 included.
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas, late 2026, dec 2026, levels 2026, the launch release and banking',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length
+        + LEVELS_2026_MIGRATIONS.length + LAUNCH_2026_MIGRATIONS.length + BANKING_2026_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name)
+        || LAUNCH_2026_MIGRATIONS.includes(name) || BANKING_2026_MIGRATIONS.includes(name),
+    },
+  },
 };
+
+/**
+ * The evidence checksums of a release (pure SQL text): one query per table and column subset, each returning
+ * { key, count, md5 }. The SAME expressions as the rollback file (md5 of every row as text in id order; for a subset,
+ * id:value lines), so the manifest and the rollback's recomputation agree exactly.
+ */
+export function evidenceQueries(evidence) {
+  const q = (s) => `"${s.replace(/"/g, '""')}"`;
+  return [
+    ...evidence.tables.map((t) => ({ key: t,
+      sql: `SELECT count(*)::text AS count, md5(coalesce(string_agg(x::text, E'\\n' ORDER BY x."id"), '')) AS md5 FROM ${q(t)} x` })),
+    ...Object.entries(evidence.subsets).map(([key, s]) => ({ key,
+      sql: `SELECT count(*)::text AS count, md5(coalesce(string_agg("id" || ':' || ${q(s.column)}::text, E'\\n' ORDER BY "id"), '')) AS md5 FROM ${q(s.table)} WHERE ${s.where}` })),
+  ];
+}
+
+/**
+ * Compares the checksums of the restored scratch copy with the target's (pure). Equal → a manifest with verified: true;
+ * any difference → { ok: false, differences }.
+ */
+export function evidenceManifest({ release, scratch, target, dump }) {
+  const keys = Object.keys(target).sort();
+  const differences = keys.filter((k) => !scratch[k] || scratch[k].count !== target[k].count || scratch[k].md5 !== target[k].md5)
+    .map((k) => `${k}: backup ${scratch[k]?.count ?? 'missing'} row(s), target ${target[k].count} row(s)${scratch[k]?.count === target[k].count ? ' (contents differ)' : ''}`);
+  if (Object.keys(scratch).length !== keys.length) differences.push('the backup and the target do not have the same checks');
+  if (differences.length) return { ok: false, differences };
+  return { ok: true, manifest: { release, verified: true, dumpFile: dump.file, dumpSha256: dump.sha256, dumpBytes: dump.bytes,
+    verifiedAt: new Date().toISOString(), tables: Object.fromEntries(keys.map((k) => [k, target[k]])) } };
+}
+
+/**
+ * Checks a manifest file's content before `rollback --evidence` uses it (pure): the release, verified, a sha256 that equals
+ * the dump file's, every check of the release present. Returns a refusal message or null.
+ */
+export function evidenceProblem(manifest, release, dumpSha256) {
+  if (!release.evidence) return `${release.name} takes no --evidence`;
+  if (!manifest || typeof manifest !== 'object') return 'the manifest is not a JSON object';
+  if (manifest.release !== release.name) return `the manifest is for ${manifest.release ?? 'no release'}, not ${release.name}`;
+  if (manifest.verified !== true) return 'the manifest is not verified (run verify-backup)';
+  if (!/^[0-9a-f]{64}$/.test(manifest.dumpSha256 ?? '')) return 'the manifest has no dump sha256';
+  if (dumpSha256 !== manifest.dumpSha256) return 'the dump file\'s sha256 does not equal the manifest\'s (the backup changed or is missing)';
+  const needed = [...release.evidence.tables, ...Object.keys(release.evidence.subsets)];
+  const missing = needed.filter((k) => !manifest.tables?.[k] || !/^\d+$/.test(manifest.tables[k].count) || !/^[0-9a-f]{32}$/.test(manifest.tables[k].md5));
+  if (missing.length) return `the manifest lacks checks for: ${missing.join(', ')}`;
+  return null;
+}
 
 export const RELEASE_NAMES = Object.keys(RELEASES);
 
