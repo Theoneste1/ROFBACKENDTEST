@@ -357,7 +357,7 @@ export class UsersService {
       // (lock order sessions → User row, token.service.ts), or a refresh of this user — which holds
       // the session lock and needs a KEY SHARE lock on this row — would deadlock with this edit.
       // Question-level marking lock order: L1 (coach) before the User row (a claim holds L1, then KEY SHARE on the row).
-      if (data.role) await lockCoaches(tx, [id]);
+      if (data.role && existing.role === 'MENTOR' && data.role !== 'MENTOR') await lockCoaches(tx, [id]);
       if (endsSessions) await this.tokens.lockSessions(tx, id);
       await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${id} FOR UPDATE`;
       const locked = await tx.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });

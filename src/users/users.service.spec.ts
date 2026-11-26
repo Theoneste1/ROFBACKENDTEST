@@ -1,6 +1,11 @@
 import { NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { LEGACY_SUSPEND_REASON, UsersService } from './users.service.js';
+import { endQuestionWorkIfUnauthorised } from '../test-management/question/question-withdraw.js';
+
+// Question-level marking: a coach whose role changes has their question work ended (tested against PostgreSQL in
+// test/question-marking.e2e-spec.ts); here only that it is called, in the same transaction.
+vi.mock('../test-management/question/question-withdraw.js', () => ({ endQuestionWorkIfUnauthorised: vi.fn().mockResolvedValue(0) }));
 
 /** The acting admin's password and hash, for step-up (P1-08). */
 const STEP_UP = 'Admin-Pass-1';
@@ -35,6 +40,8 @@ function makeMocks() {
     programmeMembership: { upsert: vi.fn().mockResolvedValue({}) },
     // Admin edits lock the user row first (PR A.1).
     $queryRaw: vi.fn().mockResolvedValue([{ schoolId: null }]),
+    // Question-level marking: the coach advisory lock (L1) of a coach whose role changes.
+    $executeRaw: vi.fn().mockResolvedValue(0),
     $transaction: vi.fn(),
   };
   prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
@@ -223,6 +230,14 @@ describe('UsersService', () => {
       expect(rowLock).toBeGreaterThanOrEqual(0);
       expect(tokens.lockSessions.mock.invocationCallOrder[0]).toBeLessThan(prisma.$queryRaw.mock.invocationCallOrder[rowLock]);
       expect(tokens.lockSessions.mock.invocationCallOrder[0]).toBeLessThan(tokens.revokeAllForUser.mock.invocationCallOrder[0]);
+      if ('role' in data) {
+        // A coach's role change: the coach lock (L1) comes first — before the session lock and the User row — and their
+        // question work ends in this transaction.
+        const l1 = prisma.$executeRaw.mock.calls.findIndex((call: unknown[]) => (call[0] as TemplateStringsArray).join('?').includes('pg_advisory_xact_lock'));
+        expect(l1).toBeGreaterThanOrEqual(0);
+        expect(prisma.$executeRaw.mock.invocationCallOrder[l1]).toBeLessThan(tokens.lockSessions.mock.invocationCallOrder[0]);
+        expect(endQuestionWorkIfUnauthorised).toHaveBeenCalledWith(tx, 'u2', expect.anything(), expect.stringContaining('Role changed'));
+      }
     });
 
     it('withdraws the active enrolment when a student becomes a mentor', async () => {

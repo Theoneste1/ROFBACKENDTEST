@@ -367,15 +367,19 @@ export class QuestionMarkerService {
   async release(user: AuthUser, code: string, ref: string) {
     const actor = this.coach(user);
     const r = await this.resolve(this.prisma, code, ref);
-    await this.prisma.$transaction(async (tx) => {
+    await this.onMyClaim(user.id, () => this.prisma.$transaction(async (tx) => {
       await lockCoaches(tx, [user.id]);
       await lockPapers(tx, [r.submissionId], 'NO KEY UPDATE');
       const task = (await lockTasks(tx, [r.id])).get(r.id)!;
       const t = await lockedNow(tx);
       if (!(task.status === 'IN_PROGRESS' && task.holderId === user.id)) throw qmErrors.claimLost('RELEASED');
+      // Giving work back is a marking action too: a coach who may no longer mark is refused, and the claim ends
+      // AUTHORISATION_LOST (onMyClaim), never recorded as an ordinary release.
+      const can = await canMark(tx, user.id, task.questionId);
+      if (!can.subject || !can.marker) throw new AuthorisationLost();
       await endCurrentClaim(tx, task, t, actor, 'RELEASED', { expectCoach: user.id });
       await projectPapers(tx, [task.submissionId], actor, t);
-    }, WRITE_TX);
+    }, WRITE_TX));
     return { released: true };
   }
 }

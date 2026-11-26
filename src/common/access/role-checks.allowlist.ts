@@ -261,4 +261,16 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/test-management/question/question-marking.service.ts', rule: 'U6', code: "allowedActions(task.status as TaskStatus, second?.status as TaskStatus | undefined, user.role)",
     reason: 'Question-level marking (Rev 5.2): only hints which buttons to show; decide is offered to HEAD_COACH only (any other or unknown role: false), and the server checks tests.adjustMarks again on the action itself.',
   },
+  {
+    file: 'src/users/account-status.service.ts', rule: 'U6', code: "role: caller.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever changed the account status is only recorded in the task events of the question claims it ended; it grants nothing.',
+  },
+  {
+    file: 'src/users/users.service.ts', rule: 'U6', code: "role: caller.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever changed a coach role is only recorded in the task events of the question claims it ended; it grants nothing.',
+  },
+  {
+    file: 'src/programmes/programmes.service.ts', rule: 'U6', code: "role: caller.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever ended the programme membership is only recorded in the task events of the question claims it ended; it grants nothing.',
+  },
 ];

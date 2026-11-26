@@ -443,6 +443,14 @@ describe('Question-level marking (Rev 5.2) — e2e', () => {
       const lost = await http().post(`${MT}/${code}/q2/heartbeat`).set(bearer(cx)).send({});
       expect([lost.status, lost.body.code, lost.body.details?.reason]).toEqual([409, 'CLAIM_LOST', 'AUTHORISATION_LOST']);
       await release(cy, code, 'q2').expect(200);
+      // 5. Giving the work back is refused too: the claim ends AUTHORISATION_LOST, never as an ordinary release.
+      await restoreX();
+      await claim(cx, code, 'q1').expect(200);   // q1 is back in the pool since step 1
+      await loseX();
+      const rel = await release(cx, code, 'q1');
+      expect([rel.status, rel.body.code, rel.body.details?.reason]).toEqual([409, 'CLAIM_LOST', 'AUTHORISATION_LOST']);
+      expect(await p().testQuestionTask.findUniqueOrThrow({ where: { id: t1 }, select: { status: true, holderId: true } })).toEqual({ status: 'NOT_STARTED', holderId: null });
+      expect((await p().testTaskClaim.findFirstOrThrow({ where: { taskId: t1, coachId: xId }, orderBy: { claimedAt: 'desc' } })).endReason).toBe('AUTHORISATION_LOST');
     } finally {
       await restoreX();
     }
