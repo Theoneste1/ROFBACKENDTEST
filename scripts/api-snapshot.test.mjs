@@ -388,10 +388,12 @@ const BANKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-details.
 const BANKING_EDIT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-edit.json';
 /** Reports with any data (owner 2026-11-25): templates (isTemplate on create / save). Additive only. */
 const REPORT_TEMPLATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-report-templates.json';
+/** The coach queue's "To mark" filter (2026-11-26): state=TO_MARK on GET /api/v1/marking/queue. Additive only. */
+const QUEUE_TO_MARK_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-queue-to-mark.json';
 /**
- * Question-level marking (design Rev 5.2, 2027-01) and the coach queue's "To mark" filter: /api/v1/marking/tasks (the
+ * Question-level marking (design Rev 5.2, 2027-01), after the queue's "To mark" filter: /api/v1/marking/tasks (the
  * shared pool), /api/v1/admin/tests/{id}/question-marking (mode, markers, tasks, review, cycles, decisions, progress,
- * history, corrections), the queue's state=TO_MARK and the Super Admin's guide correctionReason. Additive only.
+ * history, corrections) and the Super Admin's guide correctionReason. Additive only.
  */
 const QUESTION_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-question-marking.json';
 const CURRENT_SNAPSHOT = QUESTION_MARKING_SNAPSHOT;
@@ -2056,9 +2058,20 @@ describe('approved API contract history', () => {
     ]);
   });
 
-  test('report templates → question-level marking (Rev 5.2): additive only — the 31 routes, their request schemas, TO_MARK, correctionReason', () => {
-    for (const f of [REPORT_TEMPLATES_SNAPSHOT, QUESTION_MARKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
-    const res = compare(JSON.parse(readFileSync(REPORT_TEMPLATES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(QUESTION_MARKING_SNAPSHOT, 'utf8')));
+  test('report templates → the queue "To mark" filter (2026-11-26): additive only — state=TO_MARK', () => {
+    for (const f of [REPORT_TEMPLATES_SNAPSHOT, QUEUE_TO_MARK_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REPORT_TEMPLATES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(QUEUE_TO_MARK_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/marking/queue › query parameter state: enum values added: TO_MARK',
+    ]);
+  });
+
+  test('the queue "To mark" filter → question-level marking (Rev 5.2): additive only — the 31 routes, their request schemas, correctionReason', () => {
+    for (const f of [QUEUE_TO_MARK_SNAPSHOT, QUESTION_MARKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(QUEUE_TO_MARK_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(QUESTION_MARKING_SNAPSHOT, 'utf8')));
     assert.equal(res.versionMismatch, false);
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
@@ -2070,7 +2083,6 @@ describe('approved API contract history', () => {
       "GET /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}: operation added",
       "GET /api/v1/admin/tests/{id}/question-marking/tasks: operation added",
       "GET /api/v1/admin/tests/{id}/question-marking: operation added",
-      "GET /api/v1/marking/queue › query parameter state: enum values added: TO_MARK",
       "GET /api/v1/marking/tasks/{code}/{ref}/marking-guide: operation added",
       "GET /api/v1/marking/tasks/{code}/{ref}/pages/{page}: operation added",
       "GET /api/v1/marking/tasks/{code}/{ref}/paper: operation added",
