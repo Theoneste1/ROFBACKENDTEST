@@ -315,7 +315,7 @@ describe('Question-level marking — locks and races (real PostgreSQL)', () => {
       SELECT (SELECT count(*) FROM (SELECT "taskId" FROM "TestTaskClaim" WHERE "endedAt" IS NULL GROUP BY "taskId" HAVING count(*) > 1) x)::int
            + (SELECT count(*) FROM (SELECT "taskId" FROM "TestQuestionAssessment" WHERE "status" IN ('DRAFT','RETURNED') GROUP BY "taskId" HAVING count(*) > 1) y)::int
            + (SELECT count(*) FROM "TestSubmission" s JOIN "Test" t ON t."id" = s."testId" WHERE t."markingMode" = 'QUESTION' AND s."status"::text <> question_paper_status(s."id") AND s."status" <> 'PUBLISHED')::int AS "n"`;
-    console.log('QM_LOAD_REPORT', JSON.stringify({ seconds, operations: ops, errors5xx, deadlocks: dl1 - dl0, invariantViolations: bad[0].n })); qmReport('load', { seconds, operations: ops, errors5xx, transportErrors: transport.length, deadlocks: dl1 - dl0, invariantViolations: bad[0].n });
+    console.log('QM_LOAD_REPORT', JSON.stringify({ seconds, operations: ops, errors5xx, deadlocks: dl1 - dl0, invariantViolations: bad[0].n })); qmReport('load', { seconds, operations: ops, errors5xx, transportErrors: transport.length, transportSamples: [...new Set(transport)].slice(0, 5), deadlocks: dl1 - dl0, invariantViolations: bad[0].n });
     expect({ errors5xx, deadlocks: dl1 - dl0, invariantViolations: bad[0].n }).toEqual({ errors5xx: 0, deadlocks: 0, invariantViolations: 0 });
   }, 600_000);
 });
