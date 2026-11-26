@@ -388,7 +388,9 @@ const BANKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-details.
 const BANKING_EDIT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-edit.json';
 /** Reports with any data (owner 2026-11-25): templates (isTemplate on create / save). Additive only. */
 const REPORT_TEMPLATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-report-templates.json';
-const CURRENT_SNAPSHOT = REPORT_TEMPLATES_SNAPSHOT;
+/** The coach queue's "To mark" filter (2026-11-26): state=TO_MARK on GET /api/v1/marking/queue. Additive only. */
+const QUEUE_TO_MARK_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-queue-to-mark.json';
+const CURRENT_SNAPSHOT = QUEUE_TO_MARK_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2047,6 +2049,17 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive.sort(), [
       'POST /api/v1/reports › request application/json.isTemplate: new optional field',
       'PUT /api/v1/reports/{id} › request application/json.isTemplate: new optional field',
+    ]);
+  });
+
+  test('report templates → the queue "To mark" filter (2026-11-26): additive only — state=TO_MARK', () => {
+    for (const f of [REPORT_TEMPLATES_SNAPSHOT, QUEUE_TO_MARK_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REPORT_TEMPLATES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(QUEUE_TO_MARK_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/marking/queue › query parameter state: enum values added: TO_MARK',
     ]);
   });
 
