@@ -32,6 +32,8 @@ export class ReportDefinitionDto {
 export class SaveReportDto extends ReportDefinitionDto {
   @Transform(trim) @IsString() @Length(2, 120) name: string;
   @IsOptional() @Transform(trim) @IsString() @Length(0, 1000) description?: string;
+  /** Save as a template every Administrator may start from (the Super Admin only; 403 REPORT_TEMPLATE_SUPER_ADMIN_ONLY). */
+  @IsOptional() @IsBoolean() isTemplate?: boolean;
 }
 
 /** One grant: a user OR a role, and its levels (view, download, edit; all three = full access). */

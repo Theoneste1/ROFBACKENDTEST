@@ -29,7 +29,9 @@ describe('Custom reports: no combination ends in a server error (e2e)', () => {
       const r = await preview(body);
       if (r.status >= 500) fails.push(`${label}: ${r.status}`);
     };
-    for (const src of Object.values(SOURCES)) {
+    // As an Administrator: the Super-Admin-only source and protected fields are refused to them (covered as the Super
+    // Admin in custom-reports-data.e2e-spec.ts).
+    for (const src of Object.values(SOURCES).filter((x) => !x.superAdminOnly).map((x) => ({ ...x, fields: x.fields.filter((f) => !f.protected) }))) {
       const columns = src.fields.map((f) => f.key);
       await check(`${src.key} all columns`, { source: src.key, columns });
       for (const f of src.fields) {
@@ -59,7 +61,7 @@ describe('Custom reports: no combination ends in a server error (e2e)', () => {
 
   it('a saved report: run, CSV and Excel exports, grants', async () => {
     const created = await ctx.http().post('/api/v1/reports').set(bearer(admin))
-      .send({ name: 'Every student', source: 'STUDENTS', columns: SOURCES.STUDENTS.fields.map((f) => f.key), sort: [{ field: 'lastName', dir: 'asc' }] });
+      .send({ name: 'Every student', source: 'STUDENTS', columns: SOURCES.STUDENTS.fields.filter((f) => !f.protected).map((f) => f.key), sort: [{ field: 'lastName', dir: 'asc' }] });
     expect(created.status).toBe(201);
     for (const url of ['', '/run', '/export?format=csv', '/export?format=xlsx', '/grants']) {
       const r = await ctx.http().get(`/api/v1/reports/${created.body.id}${url}`).set(bearer(admin));

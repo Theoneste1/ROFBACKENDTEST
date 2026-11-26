@@ -18,7 +18,8 @@ const ALWAYS = ['academicYearActivation', 'accountStates', 'adminActivateNow', '
  * (what it means), is a breaking change for clients: it requires raising
  * CAPABILITIES_SCHEMA_VERSION and a new frozen list — never an edit of this one.
  */
-const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH'>> = {
+const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH' | 'env:QUESTION_MARKING_ENABLED'>> = {
+  questionMarking:         'env:QUESTION_MARKING_ENABLED', // appended 2027-01: question-level marking (design Rev 5.2), off until its flag
   academicYearActivation:  'always',   // appended 2026-11-13: single-flight, retry-safe year start
   coachApplicationDetails: 'always',   // appended 2026-11-15: coach application country, occupation, education, interests
   applicationDetails:      'always',
@@ -128,12 +129,18 @@ describe('GET /api/v1 capabilities', () => {
 
     it('every feature has a gate; the role gates name real roles', () => {
       for (const gate of Object.values(FEATURES)) {
-        expect(gate === 'always' || (APP_ROLES as readonly string[]).includes(gate)).toBe(true);
+        expect(gate === 'always' || (APP_ROLES as readonly string[]).includes(gate) || /^env:[A-Z_]+_ENABLED$/.test(gate)).toBe(true);
       }
     });
   });
 
   describe('frozen V1 vocabulary', () => {
+    it('question marking is advertised only while QUESTION_MARKING_ENABLED=true (off by default)', () => {
+      expect(capabilitiesOf(configOf()).features).not.toContain('questionMarking');
+      expect(capabilitiesOf(configOf({ QUESTION_MARKING_ENABLED: 'false' })).features).not.toContain('questionMarking');
+      expect(capabilitiesOf(configOf({ QUESTION_MARKING_ENABLED: 'true' })).features).toEqual([...ALWAYS, 'questionMarking'].sort());
+    });
+
     it('while schemaVersion is 1, every frozen V1 feature still exists with the same gate (none silently removed, renamed or redefined)', () => {
       expect(CAPABILITIES_SCHEMA_VERSION).toBe(1);
       for (const [name, gate] of Object.entries(V1_FEATURES)) {
@@ -182,7 +189,7 @@ describe('GET /api/v1 capabilities', () => {
       };
       const config = configOf(secrets);
       const json = JSON.stringify(new AppService(config as never).getInfo());
-      expect([...new Set(config.read)].sort()).toEqual(['HEAD_COACHES_ENABLED', 'TEACHERS_ENABLED']);
+      expect([...new Set(config.read)].sort()).toEqual(['HEAD_COACHES_ENABLED', 'QUESTION_MARKING_ENABLED', 'TEACHERS_ENABLED']);
       for (const s of [...Object.keys(secrets), ...Object.values(secrets), 'ENABLED', 'process', 'env']) {
         expect(json).not.toContain(s);
       }

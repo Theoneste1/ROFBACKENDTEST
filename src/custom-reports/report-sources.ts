@@ -1,12 +1,19 @@
 /**
  * Custom report sources (owner 2026-11-22): what a report may list, field by field. Every row is a user account; each
  * source fixes which accounts (students, coaches, teachers, every user) and which fields may be chosen, filtered and
- * sorted. Sensitive personal data — phone numbers, guardian contacts, date of birth, home address, passwords, tokens —
- * is NOT a field of any source, so no report can show it, whoever runs it.
+ * sorted. Personal data (phone numbers, a guardian's phone, date of birth, home place, bank account numbers) are
+ * PROTECTED fields (owner 2026-11-25): only the Super Admin may add them to a report, every run or download that shows
+ * them is recorded in the audit log, bank account numbers are always masked (last 4), and anyone else who runs a shared
+ * report sees them blank. Passwords and tokens are a field of no source.
+ *
+ * Sources (owner 2026-11-25): the people lists (scope "people": each viewer within their own scope) and, for
+ * Administrators only (scope "admin"), schools, learning, applications and administration data — each with its own
+ * table (`model`), rows and fields (report-sources-admin.ts).
  */
 import type { Prisma } from '../generated/prisma/client.js';
+import { ADMIN_SOURCES } from './report-sources-admin.js';
 
-export type FieldType = 'text' | 'enum' | 'date' | 'boolean' | 'list';
+export type FieldType = 'text' | 'enum' | 'date' | 'boolean' | 'list' | 'number';
 export type FilterOp = 'eq' | 'neq' | 'in' | 'contains' | 'gte' | 'lte' | 'isEmpty' | 'isNotEmpty';
 
 /** A row as read from the database (ROW_SELECT). */
@@ -19,6 +26,9 @@ export interface Row {
   teacherSchools: Array<{ school: { name: string } }>;
   mentorAssignments: Array<{ course: { title: string }; division: { name: string } }>;
   _count: { mentorAssignments: number };
+  phone: string | null; guardianPhone: string | null; dateOfBirth: Date | null;
+  homeProvince: string | null; homeDistrict: string | null; homeSector: string | null;
+  bankDetails: { personalAccountNumber: string | null; schoolAccountNumber: string | null } | null;
 }
 
 export const ROW_SELECT = {
@@ -29,6 +39,9 @@ export const ROW_SELECT = {
   teacherSchools: { where: { isActive: true }, select: { school: { select: { name: true } } } },
   mentorAssignments: { where: { isActive: true }, select: { course: { select: { title: true } }, division: { select: { name: true } } } },
   _count: { select: { mentorAssignments: { where: { isActive: true } } } },
+  // Protected fields (shown only to the Super Admin; see the file header).
+  phone: true, guardianPhone: true, dateOfBirth: true, homeProvince: true, homeDistrict: true, homeSector: true,
+  bankDetails: { select: { personalAccountNumber: true, schoolAccountNumber: true } },
 } as const satisfies Prisma.UserSelect;
 
 export interface FieldDef {
@@ -37,11 +50,14 @@ export interface FieldDef {
   type: FieldType;
   /** enum fields: the allowed values. */
   values?: readonly string[];
-  value: (r: Row) => string | number | boolean | Date | null;
-  /** Filter: a where clause for (op, value); absent: not filterable. */
-  where?: (op: FilterOp, v: unknown) => Prisma.UserWhereInput | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each source reads its own table's row
+  value: (r: any) => string | number | boolean | Date | null;
+  /** Filter: a where clause (of the source's table) for (op, value); absent: not filterable. */
+  where?: (op: FilterOp, v: unknown) => object | null;
   /** Sort: absent: not sortable. */
-  orderBy?: (dir: 'asc' | 'desc') => Prisma.UserOrderByWithRelationInput[];
+  orderBy?: (dir: 'asc' | 'desc') => object[];
+  /** Personal data: only the Super Admin may add it; blank for anyone else (see the file header). */
+  protected?: boolean;
 }
 
 const SUBJECTS = ['MATHEMATICS', 'PHYSICS', 'COMPUTING'] as const;
@@ -60,7 +76,7 @@ const ins = { mode: 'insensitive' as const };
  * Columns that may be empty (NULL) in the database. Only these may be tested for NULL or sorted with "empty last":
  * Prisma refuses both on a required column, which surfaced as a server error (owner report 2026-11-25).
  */
-const NULLABLE = new Set(['country', 'gradeLevel', 'gender', 'lastLoginAt']);
+const NULLABLE = new Set(['country', 'gradeLevel', 'gender', 'lastLoginAt', 'phone', 'guardianPhone', 'dateOfBirth', 'homeProvince', 'homeDistrict', 'homeSector']);
 /** A filter that matches no row / every row (for "is empty" / "is not empty" on a column that is never empty). */
 const NONE: Prisma.UserWhereInput = { id: { in: [] } };
 const ALL: Prisma.UserWhereInput = {};
@@ -69,7 +85,7 @@ const sortBy = (column: string, dir: 'asc' | 'desc') =>
   [{ [column]: NULLABLE.has(column) ? { sort: dir, nulls: 'last' } : dir } as Prisma.UserOrderByWithRelationInput];
 
 /** Text column of the User row. */
-function text(key: string, label: string, column: 'firstName' | 'lastName' | 'username' | 'email' | 'country'): FieldDef {
+function text(key: string, label: string, column: 'firstName' | 'lastName' | 'username' | 'email' | 'country' | 'phone' | 'guardianPhone' | 'homeProvince' | 'homeDistrict' | 'homeSector'): FieldDef {
   return {
     key, label, type: 'text', value: (r) => r[column] ?? null,
     where: (op, v) => {
@@ -107,7 +123,7 @@ function enumField(key: string, label: string, column: 'role' | 'accountStatus' 
 }
 
 /** Date column of the User row. */
-function dateField(key: string, label: string, column: 'createdAt' | 'lastLoginAt'): FieldDef {
+function dateField(key: string, label: string, column: 'createdAt' | 'lastLoginAt' | 'dateOfBirth'): FieldDef {
   return {
     key, label, type: 'date', value: (r) => r[column],
     where: (op, v) => {
@@ -167,17 +183,61 @@ const F = {
   coachAssignments: { key: 'coachAssignments', label: 'Number of course assignments', type: 'text', value: (r: Row) => r._count.mentorAssignments } satisfies FieldDef,
 };
 
-export interface SourceDef { key: string; label: string; rows: Prisma.UserWhereInput; fields: readonly FieldDef[] }
+/** A bank account number for a report: the last 4 only, always (even for the Super Admin). */
+export const maskedNumber = (n: string | null | undefined) => (n ? (n.length <= 4 ? '••••' : `•••• ${n.slice(-4)}`) : null);
+
+/** Protected personal fields (Super Admin only; see the file header). */
+const P = {
+  phone: { ...text('phone', 'Phone number', 'phone'), protected: true },
+  guardianPhone: { ...text('guardianPhone', "Guardian's phone", 'guardianPhone'), protected: true },
+  dateOfBirth: { ...dateField('dateOfBirth', 'Date of birth', 'dateOfBirth'), protected: true },
+  homeProvince: { ...text('homeProvince', 'Home province', 'homeProvince'), protected: true },
+  homeDistrict: { ...text('homeDistrict', 'Home district', 'homeDistrict'), protected: true },
+  homeSector: { ...text('homeSector', 'Home sector', 'homeSector'), protected: true },
+  personalAccount: { key: 'personalAccount', label: 'Personal bank account number (masked)', type: 'text', protected: true,
+    value: (r: Row) => maskedNumber(r.bankDetails?.personalAccountNumber) } satisfies FieldDef,
+  schoolAccount: { key: 'schoolAccount', label: 'School bank account number (masked)', type: 'text', protected: true,
+    value: (r: Row) => maskedNumber(r.bankDetails?.schoolAccountNumber) } satisfies FieldDef,
+};
+
+export type SourceGroup = 'People' | 'Schools' | 'Learning' | 'Applications' | 'Administration';
+
+export interface SourceDef {
+  key: string;
+  label: string;
+  group: SourceGroup;
+  /** The table (Prisma model) the rows come from. */
+  model: string;
+  /** What is read of each row. */
+  select: object;
+  /** Which rows of the table. */
+  rows: object;
+  /** "people": each viewer within their own scope of accounts; "admin": Administrators only. */
+  scope: 'people' | 'admin';
+  /** Only the Super Admin may use this source (e.g. banking information). */
+  superAdminOnly?: boolean;
+  /** The order when the report has none (then by the key column). */
+  defaultOrder: object[];
+  /** The table's key column (default "id"): the last sort key, so pages never overlap. */
+  idField?: string;
+  fields: readonly FieldDef[];
+}
 
 const COMMON = [F.fullName, F.firstName, F.lastName, F.username, F.email, F.accountStatus, F.registeredAt, F.lastLoginAt, F.neverLoggedIn, F.country, F.gender];
+const PERSONAL = [P.phone, P.dateOfBirth, P.homeProvince, P.homeDistrict, P.homeSector];
+const people = (key: string, label: string, rows: Prisma.UserWhereInput, fields: readonly FieldDef[]): SourceDef => ({
+  key, label, group: 'People', model: 'user', select: ROW_SELECT, rows, scope: 'people',
+  defaultOrder: [{ lastName: 'asc' }, { firstName: 'asc' }], fields,
+});
 
 export const SOURCES: Readonly<Record<string, SourceDef>> = {
-  STUDENTS: { key: 'STUDENTS', label: 'Students', rows: { role: 'STUDENT' },
-    fields: [...COMMON, F.school, F.province, F.district, F.grade, F.olympiadLevel, F.subjects] },
-  COACHES: { key: 'COACHES', label: 'Coaches and Head Coaches', rows: { role: { in: ['MENTOR', 'HEAD_COACH'] } },
-    fields: [...COMMON, F.role, F.subjects, F.coachCourses, F.coachAssignments] },
-  TEACHERS: { key: 'TEACHERS', label: 'Teachers', rows: { role: 'TEACHER' }, fields: [...COMMON, F.teacherSchools, F.subjects] },
-  USERS: { key: 'USERS', label: 'All users', rows: {}, fields: [...COMMON, F.role, F.school] },
+  STUDENTS: people('STUDENTS', 'Students', { role: 'STUDENT' },
+    [...COMMON, F.school, F.province, F.district, F.grade, F.olympiadLevel, F.subjects, ...PERSONAL, P.guardianPhone]),
+  COACHES: people('COACHES', 'Coaches and Head Coaches', { role: { in: ['MENTOR', 'HEAD_COACH'] } },
+    [...COMMON, F.role, F.subjects, F.coachCourses, F.coachAssignments, ...PERSONAL, P.personalAccount]),
+  TEACHERS: people('TEACHERS', 'Teachers', { role: 'TEACHER' }, [...COMMON, F.teacherSchools, F.subjects, ...PERSONAL, P.personalAccount, P.schoolAccount]),
+  USERS: people('USERS', 'All users', {}, [...COMMON, F.role, F.school, ...PERSONAL]),
+  ...ADMIN_SOURCES,
 };
 
 export const FILTER_OPS: readonly FilterOp[] = ['eq', 'neq', 'in', 'contains', 'gte', 'lte', 'isEmpty', 'isNotEmpty'];
@@ -189,12 +249,21 @@ export interface ReportDefinition {
   sort: Array<{ field: string; dir: 'asc' | 'desc' }>;
 }
 
-/** Problems of a report definition (empty: valid): known source, its fields only, filterable / sortable ones. */
-export function definitionProblems(d: ReportDefinition): string[] {
+/**
+ * Problems of a report definition (empty: valid): known source, its fields only, filterable / sortable ones. With the
+ * author's role: a source for Administrators only, and protected fields only for the Super Admin.
+ */
+export function definitionProblems(d: ReportDefinition, role?: string): string[] {
   const src = SOURCES[d.source];
   if (!src) return [`unknown source ${d.source}`];
   const field = (k: string) => src.fields.find((f) => f.key === k);
   const out: string[] = [];
+  if (role !== undefined) {
+    if (src.superAdminOnly && role !== 'SUPER_ADMIN') out.push(`${src.label}: only the Super Admin can use this data`);
+    else if (src.scope === 'admin' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') out.push(`${src.label}: only Administrators can use this data`);
+    const used = new Set([...d.columns, ...d.filters.map((f) => f.field), ...d.sort.map((s) => s.field)]);
+    if (role !== 'SUPER_ADMIN') for (const k of used) if (field(k)?.protected) out.push(`${field(k)!.label}: only the Super Admin can add personal data`);
+  }
   if (!d.columns.length) out.push('choose at least one column');
   for (const c of d.columns) if (!field(c)) out.push(`unknown column ${c}`);
   if (new Set(d.columns).size !== d.columns.length) out.push('a column appears twice');
@@ -208,24 +277,37 @@ export function definitionProblems(d: ReportDefinition): string[] {
 }
 
 /** The where clause of a (valid) definition, inside the viewer's scope. */
-export function definitionWhere(d: ReportDefinition, scope: Prisma.UserWhereInput): Prisma.UserWhereInput {
+export function definitionWhere(d: ReportDefinition, scope: object): object {
   const src = SOURCES[d.source];
   const field = (k: string) => src.fields.find((f) => f.key === k)!;
   return { AND: [src.rows, scope, ...d.filters.map((f) => field(f.field).where!(f.op, f.value)!)] };
 }
 
-/** The order of a (valid) definition; by name, then id, by default. */
-export function definitionOrder(d: ReportDefinition): Prisma.UserOrderByWithRelationInput[] {
+/** The order of a (valid) definition; the source's default order, then id. */
+export function definitionOrder(d: ReportDefinition): object[] {
   const src = SOURCES[d.source];
   const by = d.sort.flatMap((s) => src.fields.find((f) => f.key === s.field)!.orderBy!(s.dir));
-  return [...(by.length ? by : [{ lastName: 'asc' as const }, { firstName: 'asc' as const }]), { id: 'asc' }];
+  return [...(by.length ? by : src.defaultOrder), { [src.idField ?? 'id']: 'asc' }];
 }
 
-/** A row's cells for the chosen columns (dates as ISO text). */
-export function cells(d: ReportDefinition, r: Row): Array<string | number | boolean | null> {
+/** Whether the definition shows protected (personal) fields: columns, filters or sort. */
+export function usesProtected(d: ReportDefinition): boolean {
+  const src = SOURCES[d.source];
+  const keys = [...d.columns, ...d.filters.map((f) => f.field), ...d.sort.map((s) => s.field)];
+  return keys.some((k) => src?.fields.find((f) => f.key === k)?.protected);
+}
+
+/**
+ * A row's cells for the chosen columns (dates as ISO text). `showProtected` false (anyone but the Super Admin): the
+ * protected columns are blank.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- each source reads its own table's row
+export function cells(d: ReportDefinition, r: any, showProtected = false): Array<string | number | boolean | null> {
   const src = SOURCES[d.source];
   return d.columns.map((c) => {
-    const v = src.fields.find((f) => f.key === c)!.value(r);
+    const f = src.fields.find((x) => x.key === c)!;
+    if (f.protected && !showProtected) return null;
+    const v = f.value(r);
     return v instanceof Date ? v.toISOString() : v;
   });
 }

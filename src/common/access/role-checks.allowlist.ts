@@ -19,6 +19,47 @@ export interface AllowlistEntry {
 }
 
 export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
+  // ── Custom reports: any data, templates, protected fields (src/custom-reports) ──
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U2', code: "viewer.role === 'SUPER_ADMIN' ? {} : { [src.idField ?? 'id']: { in: [] } }",
+    reason: "Reports with any data (owner 2026-11-25): a source for the Super Admin only (banking information); any other or unknown role gets a where clause matching no row — the least-privileged result.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U2', code: "isAdmin(viewer) ? {} : { [src.idField ?? 'id']: { in: [] } }",
+    reason: "Reports with any data (owner 2026-11-25): an Administrators' source (schools, learning, applications, administration); anyone else (or an unknown role) gets a where clause matching no row, even for a report shared with them.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: "definitionProblems(d, viewer.role)",
+    reason: "Reports with any data (owner 2026-11-25): the author's role only restricts — an Administrators' source, a Super-Admin-only source or a protected field is refused (400) for any role that is not ADMIN / SUPER_ADMIN or not SUPER_ADMIN; an unknown role is refused all three.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: "viewer.role === 'SUPER_ADMIN'",
+    reason: "Report templates (owner 2026-11-25): only the Super Admin marks, changes or deletes a template; any other or unknown role is refused (403 REPORT_TEMPLATE_SUPER_ADMIN_ONLY) when a template is involved.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: "superAdmin = viewer.role === 'SUPER_ADMIN'",
+    reason: "Report catalogue (owner 2026-11-25): only SUPER_ADMIN sees the Super-Admin-only sources and the protected (personal) fields; any other or unknown role does not — the least-privileged result.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: "s.scope === 'admin' ? isAdmin(viewer) : true",
+    reason: "Report catalogue (owner 2026-11-25): an Administrators' source is listed only for ADMIN / SUPER_ADMIN (isAdmin); the people sources are listed for every report builder (reports.build, enforced by the route), each viewer within their own scope of accounts.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U2', code: "f.protected && viewer.role !== 'SUPER_ADMIN' ? `${f.label} (hidden: personal data)` : f.label",
+    reason: "Report headers (owner 2026-11-25): a protected column is marked hidden for anyone but SUPER_ADMIN (its cells are blank for them too: cells(..., false)); an unknown role gets the hidden marking.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U1', code: "viewer.role !== 'SUPER_ADMIN' || !usesProtected(d)",
+    reason: "Audit of personal data in reports (owner 2026-11-25): only a SUPER_ADMIN run can show protected fields, so only those runs are recorded; for any other role the protected cells are blank, nothing personal is shown.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: "cells(d, r, viewer.role === 'SUPER_ADMIN')",
+    reason: "Report cells (owner 2026-11-25): protected (personal) values only for SUPER_ADMIN; any other or unknown role gets them blank — the least-privileged result.",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: "cells(d, x, viewer.role === 'SUPER_ADMIN')",
+    reason: "Report download (owner 2026-11-25): protected (personal) values only for SUPER_ADMIN; any other or unknown role gets them blank — the least-privileged result.",
+  },
   // ── Banking information (src/banking) ───────────────────────────────────────
   {
     file: 'src/banking/banking.service.ts', rule: 'U6', code: 'bankingRequiredFor(user.role)',
@@ -199,5 +240,37 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   {
     file: 'src/study-groups/study-groups.service.ts', rule: 'U3', code: "caller.role !== 'ADMIN'",
     reason: 'Same restrictive membership check as the U1 entry above (no else branch; the body refuses non-members).',
+  },
+  {
+    file: 'src/coach-access/coach-access.service.ts', rule: 'U6', code: "role: actor.role",
+    reason: 'Question-level marking (Rev 5.2): the actor role is only recorded in the task events of a MARKING restriction (who ended the claims); it grants nothing — the route already required its permission.',
+  },
+  {
+    file: 'src/test-management/test-markers.service.ts', rule: 'U6', code: "role: user.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever revoked a marker authorisation is only recorded in the task events of the claims it ended; it grants nothing.',
+  },
+  {
+    file: 'src/test-management/question/question-marker.service.ts', rule: 'U6', code: "role: user.role",
+    reason: 'Question-level marking (Rev 5.2): the coach actor (role recorded in task events) is built only after isCoach(user) refused every other role; it grants nothing.',
+  },
+  {
+    file: 'src/test-management/question/question-marking.service.ts', rule: 'U6', code: "role: user.role",
+    reason: 'Question-level marking (Rev 5.2): the staff actor role is only recorded in task events and decisions; every staff route already required its permission and scope (loadInScope).',
+  },
+  {
+    file: 'src/test-management/question/question-marking.service.ts', rule: 'U6', code: "allowedActions(task.status as TaskStatus, second?.status as TaskStatus | undefined, user.role)",
+    reason: 'Question-level marking (Rev 5.2): only hints which buttons to show; decide is offered to HEAD_COACH only (any other or unknown role: false), and the server checks tests.adjustMarks again on the action itself.',
+  },
+  {
+    file: 'src/users/account-status.service.ts', rule: 'U6', code: "role: caller.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever changed the account status is only recorded in the task events of the question claims it ended; it grants nothing.',
+  },
+  {
+    file: 'src/users/users.service.ts', rule: 'U6', code: "role: caller.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever changed a coach role is only recorded in the task events of the question claims it ended; it grants nothing.',
+  },
+  {
+    file: 'src/programmes/programmes.service.ts', rule: 'U6', code: "role: caller.role",
+    reason: 'Question-level marking (Rev 5.2): the role of whoever ended the programme membership is only recorded in the task events of the question claims it ended; it grants nothing.',
   },
 ];

@@ -384,7 +384,19 @@ const ACTIVATE_NOW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-activate-no
  * signed-in user lists all six roles in x-roles (it listed STUDENT, MENTOR, ADMIN). Additive only.
  */
 const BANKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-details.json';
-const CURRENT_SNAPSHOT = BANKING_SNAPSHOT;
+/** Banking editing (owner 2026-11-25): PUT /admin/users/:id/banking — an administrator edits a person's details. Additive only. */
+const BANKING_EDIT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-edit.json';
+/** Reports with any data (owner 2026-11-25): templates (isTemplate on create / save). Additive only. */
+const REPORT_TEMPLATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-report-templates.json';
+/** The coach queue's "To mark" filter (2026-11-26): state=TO_MARK on GET /api/v1/marking/queue. Additive only. */
+const QUEUE_TO_MARK_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-queue-to-mark.json';
+/**
+ * Question-level marking (design Rev 5.2, 2027-01), after the queue's "To mark" filter: /api/v1/marking/tasks (the
+ * shared pool), /api/v1/admin/tests/{id}/question-marking (mode, markers, tasks, review, cycles, decisions, progress,
+ * history, corrections) and the Super Admin's guide correctionReason. Additive only.
+ */
+const QUESTION_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-question-marking.json';
+const CURRENT_SNAPSHOT = QUESTION_MARKING_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2021,6 +2033,95 @@ describe('approved API contract history', () => {
     for (const key of corrected) assert.ok(anySignedIn.includes(key), `${key}: open to every signed-in role`);
     const banking = doc.paths['/api/v1/me/banking'];
     for (const m of ['get', 'put']) assert.deepEqual([...banking[m]['x-roles']].sort(), ['HEAD_COACH', 'MENTOR', 'TEACHER']);
+  });
+
+  test("banking information → banking editing (2026-11-25): additive only — an administrator's edit operation", () => {
+    for (const f of [BANKING_SNAPSHOT, BANKING_EDIT_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BANKING_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BANKING_EDIT_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['PUT /api/v1/admin/users/{id}/banking: operation added']);
+    const op = JSON.parse(readFileSync('docs/api/openapi.json', 'utf8')).paths['/api/v1/admin/users/{id}/banking'].put;
+    assert.equal(op['x-permission'], 'users.manage');
+  });
+
+  test("banking editing → report templates (2026-11-25): additive only — isTemplate on saving a report", () => {
+    for (const f of [BANKING_EDIT_SNAPSHOT, REPORT_TEMPLATES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BANKING_EDIT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REPORT_TEMPLATES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/reports › request application/json.isTemplate: new optional field',
+      'PUT /api/v1/reports/{id} › request application/json.isTemplate: new optional field',
+    ]);
+  });
+
+  test('report templates → the queue "To mark" filter (2026-11-26): additive only — state=TO_MARK', () => {
+    for (const f of [REPORT_TEMPLATES_SNAPSHOT, QUEUE_TO_MARK_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(REPORT_TEMPLATES_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(QUEUE_TO_MARK_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/marking/queue › query parameter state: enum values added: TO_MARK',
+    ]);
+  });
+
+  test('the queue "To mark" filter → question-level marking (Rev 5.2): additive only — the 31 routes, their request schemas, correctionReason', () => {
+    for (const f of [QUEUE_TO_MARK_SNAPSHOT, QUESTION_MARKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(QUEUE_TO_MARK_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(QUESTION_MARKING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      "GET /api/v1/admin/tests/{id}/question-marking/history: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/markers: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/papers/{submissionId}/pages/{page}: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/progress: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/tasks: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}/marking-guide: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}/pages/{page}: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}/paper: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}: operation added",
+      "GET /api/v1/marking/tasks: operation added",
+      "PATCH /api/v1/admin/tests/{id}/question-marking/mode: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/questions/{questionId}/wording-correction: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/structure-correction: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/generate: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/approve: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/assign: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/cancel-second: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/decide: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/release: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/reopen: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/return: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/review-hold: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/second-assessment: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/claim: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/heartbeat: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/release: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/submit: operation added",
+      "PUT /api/v1/admin/tests/{id}/files/{kind}: new optional query parameter \"correctionReason\"",
+      "PUT /api/v1/admin/tests/{id}/question-marking/questions/{questionId}/markers: operation added",
+      "PUT /api/v1/marking/tasks/{code}/{ref}/marks: operation added",
+      "schema AssignQuestionTaskDto: added",
+      "schema DecideQuestionDto: added",
+      "schema MarkingModeDto: added",
+      "schema QuestionMarkersDto: added",
+      "schema QuestionMarksDto: added",
+      "schema QuestionReviewDto: added",
+      "schema ReasonDto: added",
+      "schema ReopenQuestionDto: added",
+      "schema ReturnQuestionDto: added",
+      "schema SecondAssessmentDto: added",
+      "schema StructureCorrectionDto: added",
+      "schema StructureQuestionDto: added",
+      "schema WordingCorrectionDto: added"
+    ]);
   });
 
   test('activate now (2026-11-24): the documented 200 response is { user, stillBlockedBy, message } — the shape the frontend reads', () => {

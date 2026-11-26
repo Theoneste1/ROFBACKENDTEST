@@ -34,6 +34,8 @@ import {
 import { storedOtherInterest } from './olympiad-interests.rules.js';
 import { identityTakenForAdmin } from './identity-taken.js';
 import { BankingService } from '../banking/banking.service.js';
+import { lockCoaches } from '../test-management/question/question-store.js';
+import { endQuestionWorkIfUnauthorised } from '../test-management/question/question-withdraw.js';
 
 /** Fields that are safe to return to admins — passwordHash is never included. */
 const SAFE_SELECT = {
@@ -354,6 +356,8 @@ export class UsersService {
       // A role or password change ends the user's sessions below: take the session lock FIRST
       // (lock order sessions → User row, token.service.ts), or a refresh of this user — which holds
       // the session lock and needs a KEY SHARE lock on this row — would deadlock with this edit.
+      // Question-level marking lock order: L1 (coach) before the User row (a claim holds L1, then KEY SHARE on the row).
+      if (data.role && existing.role === 'MENTOR' && data.role !== 'MENTOR') await lockCoaches(tx, [id]);
       if (endsSessions) await this.tokens.lockSessions(tx, id);
       await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${id} FOR UPDATE`;
       const locked = await tx.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
@@ -406,6 +410,10 @@ export class UsersService {
       // (a former coach's assignments never become a Head Coach's, H4).
       if ((existing.role === 'MENTOR' || existing.role === 'HEAD_COACH') && role !== existing.role) {
         await endCoachAssignments(tx, this.audit, id, actor, { from: existing.role, to: role });
+      }
+      // A coach who is no longer a coach may not mark: their open question claims and reserved returns end now.
+      if (existing.role === 'MENTOR' && role !== 'MENTOR') {
+        await endQuestionWorkIfUnauthorised(tx, id, { id: caller.id, role: caller.role }, `Role changed to ${role}`);
       }
 
 

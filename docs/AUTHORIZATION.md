@@ -17,7 +17,7 @@ admits exactly the roles it names; a permission route admits the roles holding t
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 484 endpoints — 31 public, 230 administrator-only (Admin and / or Super Admin).
+Totals: 516 endpoints — 31 public, 231 administrator-only (Admin and / or Super Admin).
 
 ## Academic years
 
@@ -156,6 +156,32 @@ Totals: 484 endpoints — 31 public, 230 administrator-only (Admin and / or Supe
 | POST | `/api/v1/admin/programmes/{id}/members` |  |  |  |  | ✓ | ✓ | ✓ |
 | DELETE | `/api/v1/admin/programmes/{id}/members/{userId}` |  |  |  |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/admin/programmes/{id}/student-candidates` |  |  |  |  | ✓ | ✓ | ✓ |
+
+## Admin · Question marking
+
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/tests/{id}/question-marking` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/question-marking/history` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/question-marking/markers` |  |  |  |  | ✓ | ✓ | ✓ |
+| PATCH | `/api/v1/admin/tests/{id}/question-marking/mode` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/question-marking/papers/{submissionId}/pages/{page}` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/question-marking/progress` |  |  |  |  | ✓ | ✓ | ✓ |
+| PUT | `/api/v1/admin/tests/{id}/question-marking/questions/{questionId}/markers` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/questions/{questionId}/wording-correction` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/structure-correction` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/question-marking/tasks` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/approve` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/assign` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/cancel-second` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/decide` |  |  |  |  | ✓ |  |  |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/release` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/reopen` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/return` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/review-hold` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/second-assessment` |  |  |  |  | ✓ | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/question-marking/tasks/generate` |  |  |  |  | ✓ | ✓ | ✓ |
 
 ## Admin · Reports
 
@@ -363,6 +389,7 @@ Totals: 484 endpoints — 31 public, 230 administrator-only (Admin and / or Supe
 | PUT | `/api/v1/admin/users/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
 | DELETE | `/api/v1/admin/users/{id}/avatar` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/users/{id}/banking` |  |  |  |  |  | ✓ | ✓ |
+| PUT | `/api/v1/admin/users/{id}/banking` |  |  |  |  |  | ✓ | ✓ |
 | PUT | `/api/v1/admin/users/{id}/date-of-birth` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/users/{id}/date-of-birth-history` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/users/{id}/registration-timeline` |  |  |  |  |  | ✓ | ✓ |
@@ -774,6 +801,21 @@ Totals: 484 endpoints — 31 public, 230 administrator-only (Admin and / or Supe
 | POST | `/api/v1/marking/submissions/{code}/marking/submit` |  |  |  | ✓ |  |  |  |
 | GET | `/api/v1/marking/submissions/{code}/pages/{page}` |  |  |  | ✓ |  |  |  |
 | GET | `/api/v1/marking/submissions/{code}/paper` |  |  |  | ✓ |  |  |  |
+
+## Tests · Question marking
+
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/marking/tasks` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/tasks/{code}/{ref}` |  |  |  | ✓ |  |  |  |
+| POST | `/api/v1/marking/tasks/{code}/{ref}/claim` |  |  |  | ✓ |  |  |  |
+| POST | `/api/v1/marking/tasks/{code}/{ref}/heartbeat` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/tasks/{code}/{ref}/marking-guide` |  |  |  | ✓ |  |  |  |
+| PUT | `/api/v1/marking/tasks/{code}/{ref}/marks` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/tasks/{code}/{ref}/pages/{page}` |  |  |  | ✓ |  |  |  |
+| GET | `/api/v1/marking/tasks/{code}/{ref}/paper` |  |  |  | ✓ |  |  |  |
+| POST | `/api/v1/marking/tasks/{code}/{ref}/release` |  |  |  | ✓ |  |  |  |
+| POST | `/api/v1/marking/tasks/{code}/{ref}/submit` |  |  |  | ✓ |  |  |  |
 
 ## Tests · Students
 

@@ -64,6 +64,34 @@ export class BankingService {
     return this.mine(user);
   }
 
+  /**
+   * An administrator changes one person's banking information (users.manage; owner 2026-11-25): the same rules as the
+   * person's own form, for the person's role; only that role's fields are written (a coach's saved school details
+   * stay). Audited: which fields changed, never their values. Answers the masked view.
+   */
+  async saveForAdmin(userId: string, dto: SaveBankingDto, actor: AuthUser) {
+    const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+    if (!target) throw new AppError(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', 'User not found.');
+    if (!bankingRequiredFor(target.role)) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'BANKING_NOT_APPLICABLE', 'Banking information is kept only for Teachers, Coaches and Head Coaches.');
+    }
+    const before = await this.detailsOf(target.id);
+    const { confirmReplace = [], ...input } = dto;
+    const checked = checkSubmission(target.role, input, before, confirmReplace);
+    if (!checked.ok) {
+      throw new AppError(HttpStatus.BAD_REQUEST, 'BANKING_INVALID', 'Check the highlighted fields and try again.',
+        { fields: checked.errors, confirmationNeeded: checked.confirmationNeeded });
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userBankDetails.upsert({ where: { userId: target.id }, create: { userId: target.id, ...checked.values }, update: checked.values });
+      await this.audit.log({
+        actorId: actor.id, actorRole: actor.role, action: 'BANK_DETAILS_UPDATED_BY_ADMIN', entity: 'User', entityId: target.id,
+        metadata: { changed: BANKING_FIELDS.filter((f) => f in checked.values && (before?.[f] ?? null) !== checked.values[f]), first: before === null },
+      }, tx);
+    });
+    return this.forAdmin(target.id, false, actor);
+  }
+
   /** An administrator's view of one person's banking information: masked unless revealed (audited). */
   async forAdmin(userId: string, reveal: boolean, actor: AuthUser) {
     const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });

@@ -3,7 +3,7 @@
  * Migration rehearsal on a Neon BRANCH of production — never production itself.
  * Checklist: docs/operations/REHEARSAL-NEON-CHECKLIST.md (Phase 1) and docs/operations/RELEASE-POST-PHASE1.md.
  *
- * Every command takes --release <phase1|post-phase1|areas-2026|late-2026|dec-2026|levels-2026|launch-2026|banking-2026> (default phase1, the kit's original behaviour):
+ * Every command takes --release <phase1|post-phase1|areas-2026|late-2026|dec-2026|levels-2026|launch-2026|banking-2026|question-marking-2027> (default phase1, the kit's original behaviour):
  *   phase1       the 14 Phase 1 migrations (M1–M14); refuses a checkout or database with anything after M14.
  *   post-phase1  the 11 migrations after M14 (scripts/release/releases.mjs); the target must already hold Phase 1;
  *                refuses a checkout without exactly those eleven, or a checkout or database with anything after them.
@@ -21,6 +21,13 @@
  *                the target must already hold the six releases before it. Runbook: docs/releases/launch-2026.md.
  *   banking-2026 the banking information of Teachers, Coaches and Head Coaches (owner, 2026-11-25): one table; the
  *                target must already hold the seven releases before it. Runbook: docs/releases/banking-2026.md.
+ *   question-marking-2027  question-level marking (owner approval 2026-11-26, design Rev 5.2): two migrations; the
+ *                target must already hold banking-2026. Its rollback needs backup EVIDENCE, never an acknowledgement:
+ *                  dump --out <dir>; verify-backup --dump <file> (restores it into the EMPTY scratch database
+ *                  DRILL_SCRATCH_DATABASE_URL, compares per-table counts and md5 checksums with the target, writes
+ *                  <dump>.manifest.json only when equal); rollback --evidence <manifest> (the dump's sha256 is checked
+ *                  again; the rollback file recomputes the checksums in its own transaction and refuses on any change,
+ *                  and always while a COMPOSED final marking exists). Runbook: docs/releases/question-marking-2027.md.
  *   For every release but phase1, a NEWER checkout (later migrations after the release's) is accepted by the commands
  *   that run only the release's own files and checks: check-target, precheck, postcheck, rollback, rollback-history,
  *   dump, restore. deploy, diff and status act on every migration of the checkout and still refuse it (exit 5).
@@ -57,6 +64,10 @@
  *   node scripts/release/rehearsal.mjs dump --out <dir> --confirm <ep-id>
  *                                                                   pg_dump of the target into an EFS-encrypted
  *                                                                   folder outside the repository and OneDrive
+ *   node scripts/release/rehearsal.mjs code-rollback-check          (question-marking-2027) may the previous code run? (read only)
+ *   node scripts/release/rehearsal.mjs verify-backup --dump <file> --confirm <ep-id>
+ *                                                                   restore into the scratch database + checksums
+ *                                                                   + manifest (question-marking-2027)
  *   node scripts/release/rehearsal.mjs restore --dump <file> --confirm <ep-id>
  *                                                                   pg_restore into the target, which must be empty (WRITES)
  *
@@ -82,24 +93,25 @@
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { userInfo } from 'node:os';
 import { createRequire } from 'node:module';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { REPO_ROOT, VERIFIER, envValues, resolveDrillTarget, readTargetInputs } from '../db-drill-verify.mjs';
 import { PHASE1, PHASE1_COUNT, laterMigrations, migrationDirs } from './phase1.mjs';
-import { ACKNOWLEDGEMENTS, MIGRATION_OBJECTS, RELEASE_NAMES, afterRelease, checkoutProblem, releaseAcknowledgements, releaseFrom, releasePreSwitchFiles,
-  releaseRollbackFiles, resolveAcknowledgements } from './releases.mjs';
+import { ACKNOWLEDGEMENTS, MIGRATION_OBJECTS, RELEASE_NAMES, afterRelease, checkoutProblem, evidenceManifest, evidenceProblem, evidenceQueries,
+  releaseAcknowledgements, releaseFrom, releasePreSwitchFiles, releaseRollbackFiles, resolveAcknowledgements } from './releases.mjs';
 import { catalogLabels, historyLabels, markers } from './catalog.mjs';
 
 export { PHASE1 };
-const WRITES = new Set(['deploy', 'rollback', 'rollback-history', 'dump', 'restore']);
+const WRITES = new Set(['deploy', 'rollback', 'rollback-history', 'dump', 'restore', 'verify-backup']);
 /**
  * Commands that run only the release's own files and checks (or none): for post-phase1 and areas-2026 they accept a
  * checkout with later migrations. deploy, diff and status act on every migration of the checkout and keep the strict rule.
  */
-export const CHECKOUT_RELEASE_ONLY = new Set(['check-target', 'precheck', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore']);
+export const CHECKOUT_RELEASE_ONLY = new Set(['check-target', 'precheck', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore', 'verify-backup', 'code-rollback-check']);
 const DOCS_MIGRATIONS = join(REPO_ROOT, 'docs/migrations');
 const HISTORY_ONLY = ['20261121000800', '20261121000900', '20261121001000', '20261121001100', '20261121001200', '20261121001300'];
 /** Objects M9–M14 create. Their history rows may only be removed once every one of them is gone. */
@@ -133,7 +145,7 @@ export function endpointId(url) {
 }
 
 /** Commands that run as the migration role when DRILL_MIGRATION_DATABASE_URL is set (they change schema or history). */
-export const MIGRATION_ROLE_COMMANDS = new Set(['status', 'deploy', 'diff', 'rollback', 'rollback-history', 'dump', 'restore']);
+export const MIGRATION_ROLE_COMMANDS = new Set(['status', 'deploy', 'diff', 'rollback', 'rollback-history', 'dump', 'restore', 'verify-backup']);
 
 /**
  * The connection for schema changes (pure). Without DRILL_MIGRATION_DATABASE_URL: the application target, as before.
@@ -289,7 +301,7 @@ async function serverVersion(url) {
   try { return serverMajor((await client.query('SHOW server_version_num')).rows[0].server_version_num); } finally { await client.end(); }
 }
 
-const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
+export const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
 
 async function dump(target, out) {
   const problem = checkDumpDir(out, { attributesOf: windowsAttributes });
@@ -326,12 +338,126 @@ async function restore(target, file) {
   console.log('restore: complete. Next: node scripts/db-drill-verify.mjs --baseline pre-phase1 --trigger-test --json <file>');
 }
 
+// ── Backup evidence (question-marking-2027; design 5.1 point 6: evidence, not acknowledgement) ─────────────────────
+
+/** The release's evidence checksums on one database, in one snapshot (read only): { key: { count, md5 } }. */
+export async function evidenceChecksums(url, evidence) {
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    const out = {};
+    for (const { key, sql } of evidenceQueries(evidence)) {
+      const r = (await client.query(sql)).rows[0];
+      out[key] = { count: r.count, md5: r.md5 };
+    }
+    await client.query('COMMIT');
+    return out;
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * verify-backup: restores `dumpFile` into the EMPTY scratch database, computes the release's evidence checksums on the
+ * restored copy and on the target, and writes `<dump>.manifest.json` when they are equal (verified: true, with the dump's
+ * sha256). Any difference: no manifest, an error naming the checks. The scratch database is left as restored (drop it
+ * after review). `restoreFile(scratchUrl, file)` is injected (pg_restore in the CLI; the tests pass their own).
+ * @returns {Promise<{ manifestFile: string, manifest: object }>}
+ */
+export async function verifyBackup({ release, targetUrl, scratchUrl, dumpFile, restoreFile, log = console.log }) {
+  if (!release.evidence) throw new Error(`refused: ${release.name} has no backup evidence to verify`);
+  if (!dumpFile || !isAbsolute(dumpFile) || !existsSync(dumpFile)) throw new Error('give --dump as the absolute path of an existing dump');
+  const same = (a, b) => new URL(a).host === new URL(b).host && new URL(a).pathname === new URL(b).pathname;
+  if (same(scratchUrl, targetUrl)) throw new Error('refused: the scratch database is the target itself; the backup must be restored into a SEPARATE database');
+  const client = new pg.Client({ connectionString: scratchUrl });
+  await client.connect();
+  try {
+    const n = Number((await client.query("SELECT count(*) AS n FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')")).rows[0].n);
+    if (n !== 0) throw new Error(`refused: the scratch database is not empty (${n} tables); create an empty one for verify-backup`);
+  } finally { await client.end(); }
+  const digest = sha256(dumpFile);
+  await restoreFile(scratchUrl, dumpFile);
+  log(`verify-backup: restored ${basename(dumpFile)} (sha256 ${digest}) into the scratch database`);
+  const scratch = await evidenceChecksums(scratchUrl, release.evidence);
+  const target = await evidenceChecksums(targetUrl, release.evidence);
+  for (const k of Object.keys(target).sort()) log(`  ${k}: backup ${scratch[k]?.count ?? '-'} / target ${target[k].count} row(s), ${scratch[k]?.md5 === target[k].md5 ? 'equal' : 'DIFFERENT'}`);
+  const m = evidenceManifest({ release: release.name, scratch, target, dump: { file: dumpFile, sha256: digest, bytes: statSync(dumpFile).size } });
+  if (!m.ok) throw new Error(`refused: the restored backup differs from the target: ${m.differences.join('; ')}. No manifest was written; take a new backup.`);
+  // CSV copies of every evidence table and of the COMPOSED markings and scores, read from the RESTORED copy (next to the dump).
+  const csvDir = `${dumpFile}.csv`;
+  const csv = await exportEvidenceCsv(scratchUrl, release.evidence, csvDir);
+  const manifestFile = `${dumpFile}.manifest.json`;
+  const manifest = { ...m.manifest, operator: operatorName(), csv: { folder: basename(csvDir), files: csv } };
+  writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
+  log(`verify-backup: VERIFIED. Manifest ${basename(manifestFile)} (next to the dump). Next: rollback --release ${release.name} --evidence <that file>`);
+  return { manifestFile, manifest };
+}
+
+const operatorName = () => { try { return userInfo().username; } catch { return process.env.USERNAME ?? process.env.USER ?? 'unknown'; } };
+
+/** One CSV field (RFC 4180): quoted when it holds a comma, quote or line break; null is empty. */
+export const csvField = (v) => {
+  if (v === null || v === undefined) return '';
+  const t = v instanceof Date ? v.toISOString() : typeof v === 'object' ? JSON.stringify(v) : String(v);
+  return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+};
+
+/** Writes <dir>/<table>.csv for each evidence table, plus the COMPOSED markings and their scores (read only). */
+export async function exportEvidenceCsv(url, evidence, dir) {
+  mkdirSync(dir, { recursive: true });
+  const q = (x) => `"${x.replace(/"/g, '""')}"`;
+  const queries = [
+    ...evidence.tables.map((t) => [t, `SELECT * FROM ${q(t)} ORDER BY "id"`]),
+    ['TestMarking.COMPOSED', `SELECT * FROM "TestMarking" WHERE "kind" = 'COMPOSED' ORDER BY "id"`],
+    ['TestMarkingScore.COMPOSED', `SELECT s.* FROM "TestMarkingScore" s JOIN "TestMarking" m ON m."id" = s."markingId" WHERE m."kind" = 'COMPOSED' ORDER BY s."id"`],
+  ];
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  const files = {};
+  try {
+    await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    for (const [name, sql] of queries) {
+      const r = await client.query(sql);
+      const cols = r.fields.map((f) => f.name);
+      const lines = [cols.map(csvField).join(','), ...r.rows.map((row) => cols.map((c) => csvField(row[c])).join(','))];
+      writeFileSync(join(dir, `${name}.csv`), `${lines.join('\r\n')}\r\n`);
+      files[name] = r.rows.length;
+    }
+    await client.query('COMMIT');
+  } finally {
+    await client.end();
+  }
+  return files;
+}
+
+/**
+ * `rollback --evidence <manifest>`: reads and checks the manifest (its release, verified, the dump still present with the
+ * same sha256, every check) and returns the [setting, value] the rollback file reads. Throws a refusal otherwise.
+ */
+export function evidenceSetting(release, manifestFile) {
+  if (!manifestFile || !existsSync(manifestFile)) throw new Error('refused: --evidence must name an existing manifest file (from verify-backup)');
+  let manifest;
+  try { manifest = JSON.parse(readFileSync(manifestFile, 'utf8')); } catch { throw new Error('refused: the --evidence file is not valid JSON'); }
+  const dumpSha = manifest?.dumpFile && existsSync(manifest.dumpFile) ? sha256(manifest.dumpFile) : null;
+  const problem = evidenceProblem(manifest, release, dumpSha);
+  if (problem) throw new Error(`refused: ${problem}`);
+  return [release.evidence.setting, JSON.stringify(manifest)];
+}
+
+function pgRestoreInto(url, file) {
+  const tools = pgTools();
+  const r = spawnSync(tools.restore.bin, ['--no-owner', '--no-acl', '--exit-on-error', `--dbname=${conninfoFrom(url)}`, file],
+    { stdio: ['ignore', 'inherit', 'inherit'], env: pgToolEnv(process.env, url) });
+  if (r.status !== 0) throw new Error(`pg_restore into the scratch database failed (exit ${r.status}); drop and recreate it before retrying`);
+}
+
 /**
  * Runs a psql-style file on its own connection. `settings`: [name, value] session settings set first (the
  * acknowledgements). A failing statement throws; closing the connection then discards the file's open transaction, so a
  * rollback file (BEGIN … COMMIT) is applied entirely or not at all.
  */
-async function runSqlFile(url, file, { readOnly, settings = [], log = console.log, table = console.table }) {
+export async function runSqlFile(url, file, { readOnly, settings = [], log = console.log, table = console.table }) {
   const client = new pg.Client({ connectionString: url });
   client.on('notice', (n) => log(`NOTICE: ${n.message}`));
   await client.connect();
@@ -455,9 +581,14 @@ export function rollbackPlan(states, { preSwitch, rollback }) {
  *   log?: (line: string) => void, table?: (rows: object[]) => void, docsDir?: string }} [options]
  * @returns {Promise<{ ran: string[], skipped: string[], stopped: boolean }>}
  */
-export async function rollbackRelease(url, release, { acknowledgements = [], stopAfter, log = console.log, table = console.table, docsDir = DOCS_MIGRATIONS } = {}) {
+export async function rollbackRelease(url, release, { acknowledgements = [], evidence, stopAfter, log = console.log, table = console.table, docsDir = DOCS_MIGRATIONS } = {}) {
   const files = releaseFiles(release, readdirSync(docsDir));
   const settings = acknowledgements.map((a) => [a.setting, a.value]);
+  // Backup evidence ([setting, manifest JSON] from evidenceSetting): the rollback file recomputes the checksums and compares.
+  if (evidence) {
+    settings.push(evidence);
+    log(`evidence: verified backup manifest (dump sha256 ${JSON.parse(evidence[1]).dumpSha256}) set on the rollback connection`);
+  }
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   let plan;
@@ -613,7 +744,7 @@ export async function rollbackHistoryPhase1(url, release, { log = console.log, e
 
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
-  const known = ['check-target', 'precheck', 'status', 'deploy', 'diff', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore'];
+  const known = ['check-target', 'precheck', 'status', 'deploy', 'diff', 'postcheck', 'rollback', 'rollback-history', 'dump', 'restore', 'verify-backup', 'code-rollback-check'];
   if (!known.includes(command)) { console.error(`usage: node scripts/release/rehearsal.mjs <${known.join('|')}> [--release <${RELEASE_NAMES.join('|')}>] [--confirm <ep-id>]`); return 2; }
   const release = releaseFrom(rest);
   if (!release) { console.error(`✗ --release must be one of: ${RELEASE_NAMES.join(', ')}`); return 2; }
@@ -638,6 +769,14 @@ async function main() {
     return 2;
   }
   const stopAfter = stopValues.length ? Number(stopValues[0]) : undefined;
+  // --evidence (rollback only): verify-backup's manifest, checked before any connection.
+  const evidenceValues = optionValues(rest, '--evidence');
+  if (evidenceValues.length && command !== 'rollback') { console.error('✗ --evidence is an option of `rollback` only.'); return 2; }
+  if (evidenceValues.length > 1) { console.error('✗ give --evidence once.'); return 2; }
+  let evidence;
+  if (evidenceValues.length) {
+    try { evidence = evidenceSetting(release, evidenceValues[0]); } catch (e) { console.error(`✗ ${e.message}`); return 2; }
+  }
 
   if (release.name === 'phase1') {
     // Phase 1 only: a checkout with migrations after M14 would make `deploy` apply them too and leave them
@@ -658,7 +797,7 @@ async function main() {
     const later = afterRelease(release, migrationDirs(REPO_ROOT));
     if (later.length) console.log(`checkout: ${later.length} later migration(s) present (${later.join(', ')}); ${command} uses only ${release.label}'s files.`);
   }
-  if (['dump', 'restore'].includes(command)) {
+  if (['dump', 'restore', 'verify-backup'].includes(command)) {
     const tools = findPgTools();
     if (!tools.ok) { console.error(`✗ refused: ${tools.reason}`); return 2; }
     console.log(`pg tools: pg_dump / pg_restore ${tools.dump.major} (${tools.dir ? `PG_BIN ${tools.dir}` : 'from PATH'})`);
@@ -717,6 +856,10 @@ async function main() {
     case 'check-target': console.log('✔ guard passed. No connection made.'); break;
     case 'precheck': await runSqlFile(target.url, join(REPO_ROOT, release.precheck), { readOnly: true }); break;
     case 'postcheck': await runSqlFile(target.url, join(REPO_ROOT, release.postcheck), { readOnly: true }); break;
+    case 'code-rollback-check':
+      if (!release.codeRollbackCheck) { console.error(`✗ ${release.name} has no code-rollback check`); code = 2; break; }
+      await runSqlFile(target.url, join(REPO_ROOT, release.codeRollbackCheck), { readOnly: true });
+      break;
     case 'dump': await dump({ ...target, url: schemaUrl }, opt(rest, '--out')); break;
     case 'restore': await restore({ ...target, url: schemaUrl }, opt(rest, '--dump')); break;
     case 'status': code = prisma(schemaUrl, ['migrate', 'status']); break;
@@ -724,7 +867,7 @@ async function main() {
     case 'diff': code = prisma(schemaUrl, ['migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--exit-code']); break;
     case 'rollback': {
       // Pre-switch steps first (in production they run while the new release still serves; see the runbook §4).
-      const result = await rollbackRelease(schemaUrl, release, { acknowledgements: acks.acks, stopAfter });
+      const result = await rollbackRelease(schemaUrl, release, { acknowledgements: acks.acks, evidence, stopAfter });
       console.log(`rollback: ${result.ran.length} file(s) run, ${result.skipped.length} skipped (already rolled back)${result.stopped ? ', stopped by --stop-after' : ''}.`);
       if (result.stopped) break;
       console.log(release.name === 'phase1'
@@ -732,6 +875,17 @@ async function main() {
         : release.name === 'post-phase1'
           ? 'Next: rollback-history --release post-phase1 (the eleven rows), then `status --release post-phase1` (the eleven names not yet applied; exit 1).'
           : `Next: rollback-history --release ${release.name} (its ${release.count} rows), then \`status --release ${release.name}\` (those names not yet applied; exit 1).`);
+      break;
+    }
+    case 'verify-backup': {
+      // The scratch database: DRILL_SCRATCH_DATABASE_URL in .env.drill.local, through the same fail-closed guard, never the target.
+      const scratchUrls = existsSync('.env.drill.local') ? envValues(readFileSync('.env.drill.local', 'utf8'), 'DRILL_SCRATCH_DATABASE_URL') : [];
+      const scratch = resolveDrillTarget({ drillUrls: scratchUrls, productionUrls: inputs.productionUrls, appUrls: inputs.appUrls });
+      if (!scratch.ok) { console.error(`✗ ${scratch.reason.replace('DRILL_DATABASE_URL', 'DRILL_SCRATCH_DATABASE_URL')}`); code = scratch.code; break; }
+      const file = opt(rest, '--dump');
+      const problem = file && checkDumpDir(dirname(file), { attributesOf: windowsAttributes });
+      if (problem) { console.error(`✗ refused: the dump's folder: ${problem}`); code = 2; break; }
+      await verifyBackup({ release, targetUrl: schemaUrl, scratchUrl: scratch.url, dumpFile: file, restoreFile: pgRestoreInto });
       break;
     }
     case 'rollback-history':

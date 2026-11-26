@@ -35,6 +35,11 @@ What "complete" means (final requirements, owner 2026-11-25):
 - **Coaches and Head Coaches:** the three personal fields only — account name, bank (from the approved list), account
   number. School bank details are never asked of them and never block them. School details saved earlier are kept
   as they are (never deleted or overwritten) and still shown, masked, to administrators.
+- **Teachers:** both account numbers (personal and school, Umwalimu SACCO) are exactly 12 digits. **Everyone:** account
+  names contain no digit.
+- **Changing details later:** the owner, in their Settings ("Banking information": Edit), at any time; an administrator
+  with `users.manage`, on the person's page (`PUT /api/v1/admin/users/:id/banking`, the person's role rules, recorded in
+  the audit log as `BANK_DETAILS_UPDATED_BY_ADMIN`: which fields changed, never their values).
 
 ## 1. Prerequisites (go / no-go before the window)
 

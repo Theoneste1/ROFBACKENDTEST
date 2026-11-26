@@ -157,8 +157,9 @@ export class TestsController {
     @Param('kind', TestFileKindPipe) kind: TestFileKindParam,
     @UploadedFile() file: Express.Multer.File | undefined,
     @CurrentUser() user: AuthUser,
+    @Query('correctionReason') correctionReason?: string,
   ) {
-    return this.tests.putFile(id, kind, file, user);
+    return this.tests.putFile(id, kind, file, user, correctionReason);
   }
 
   /** Remove the paper or the marking guide. 404 TEST_FILE_NOT_FOUND. */

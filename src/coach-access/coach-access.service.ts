@@ -10,6 +10,8 @@
  * coach in that programme, with a reason, and gives it back (CoachProgrammeRestriction; audited; history kept).
  * Homework grading distribution keeps using the explicit course × level assignments.
  */
+import { lockCoaches } from '../test-management/question/question-store.js';
+import { endQuestionWorkForSubject } from '../test-management/question/question-withdraw.js';
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service.js';
@@ -129,6 +131,8 @@ export class CoachAccessService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', 'Give a reason (3 to 500 characters) for taking this away.');
     }
     await this.prisma.$transaction(async (tx) => {
+      // Question marking (Rev 5.2 addendum 5.2 §3): the coach's L1 lock BEFORE the authorisation rows change.
+      if (dto.capability === 'MARKING') await lockCoaches(tx, [coachId]);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`coach-access:${coachId}:${dto.programmeId}:${dto.capability}`}))`;
       const active = await tx.coachProgrammeRestriction.findFirst({
         where: { coachId, disciplineId: dto.programmeId, capability: dto.capability, liftedAt: null }, select: { id: true },
@@ -139,6 +143,7 @@ export class CoachAccessService {
           data: { coachId, disciplineId: dto.programmeId, capability: dto.capability, reason: reason!, createdById: actor.id }, select: { id: true },
         });
         await this.audit.log({ actorId: actor.id, actorRole: actor.role, action: 'COACH_PROGRAMME_ACCESS_REMOVED', entity: 'User', entityId: coachId, metadata: { ...meta, restrictionId: row.id } }, tx);
+        if (dto.capability === 'MARKING') await endQuestionWorkForSubject(tx, coachId, dto.programmeId, { id: actor.id, role: actor.role }, reason!);
       } else if (dto.allowed && active) {
         await tx.coachProgrammeRestriction.update({ where: { id: active.id }, data: { liftedAt: new Date(), liftedById: actor.id, liftReason: reason ?? null } });
         await this.audit.log({ actorId: actor.id, actorRole: actor.role, action: 'COACH_PROGRAMME_ACCESS_RESTORED', entity: 'User', entityId: coachId, metadata: { ...meta, restrictionId: active.id } }, tx);

@@ -48,11 +48,14 @@ describe('Custom reports, table layouts and sorting (e2e)', () => {
   describe('reports', () => {
     let reportId: string;
 
-    it('the catalogue: four sources; no sensitive field anywhere; builders only', async () => {
+    it('the catalogue: an Administrator sees the people and Administrators\' sources (no banking), no personal field; builders only', async () => {
       const cat = (await http().get(`${R}/sources`).set(bearer(admin)).expect(200)).body;
-      expect(cat.sources.map((s: any) => s.key)).toEqual(['STUDENTS', 'COACHES', 'TEACHERS', 'USERS']);
+      expect(cat.sources.map((s: any) => s.key).slice(0, 4)).toEqual(['STUDENTS', 'COACHES', 'TEACHERS', 'USERS']);
+      expect(cat.sources.map((s: any) => s.key)).toEqual(expect.arrayContaining(['SCHOOLS', 'TEST_RESULTS', 'ASSIGNMENT_GRADES', 'ENROLMENTS', 'TEACHER_APPLICATIONS', 'COACH_APPLICATIONS', 'SUBSCRIBERS']));
+      expect(cat.sources.map((s: any) => s.key)).not.toContain('BANKING');
       const keys = cat.sources.flatMap((s: any) => s.fields.map((f: any) => f.key));
-      for (const k of ['phone', 'guardianPhone', 'dateOfBirth', 'homeLocation', 'homeSector', 'passwordHash']) expect(keys).not.toContain(k);
+      for (const k of ['phone', 'guardianPhone', 'dateOfBirth', 'homeLocation', 'homeSector', 'passwordHash', 'personalAccount', 'schoolAccount']) expect(keys).not.toContain(k);
+      expect(cat.sources.flatMap((s: any) => s.fields).every((f: any) => f.protected === false)).toBe(true);
       for (const token of [coach, student, teacher, hc]) expect((await http().get(`${R}/sources`).set(bearer(token))).status).toBe(403);
     });
 

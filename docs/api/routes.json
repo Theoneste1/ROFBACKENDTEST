@@ -585,6 +585,214 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/question-marking",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/question-marking/history",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/question-marking/markers",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/admin/tests/{id}/question-marking/mode",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/question-marking/papers/{submissionId}/pages/{page}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/question-marking/progress",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/tests/{id}/question-marking/questions/{questionId}/markers",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/questions/{questionId}/wording-correction",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/structure-correction",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/approve",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/assign",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/cancel-second",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/decide",
+    "roles": [
+      "HEAD_COACH"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/release",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/reopen",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/return",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/review-hold",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/second-assessment",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/question-marking/tasks/generate",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Question marking"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/reports/assignments",
     "roles": [
       "ADMIN",
@@ -1991,6 +2199,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/users/{id}/banking",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Users"
+  },
+  {
+    "method": "PUT",
     "path": "/api/v1/admin/users/{id}/banking",
     "roles": [
       "ADMIN",
@@ -4458,6 +4675,86 @@
       "MENTOR"
     ],
     "tag": "Tests · Marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/tasks",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/tasks/{code}/{ref}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/claim",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/heartbeat",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/marking-guide",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/marks",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/pages/{page}",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/paper",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/release",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/marking/tasks/{code}/{ref}/submit",
+    "roles": [
+      "MENTOR"
+    ],
+    "tag": "Tests · Question marking"
   },
   {
     "method": "GET",

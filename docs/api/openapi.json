@@ -44349,6 +44349,54 @@
         ],
         "x-permission": "users.manage",
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "AdminBankingController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBankingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Change a Teacher's, Coach's or Head Coach's banking information (owner 2026-11-25): the person's role rules, per\nfield (400 BANKING_INVALID); audited (BANK_DETAILS_UPDATED_BY_ADMIN: which fields, never their values). Answers the\nmasked view.",
+        "tags": [
+          "Admin · Users"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "users.manage",
+        "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/courses/{courseId}/threads": {
@@ -53015,6 +53063,14 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "name": "correctionReason",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -55599,7 +55655,8 @@
               "enum": [
                 "NOT_STARTED",
                 "IN_PROGRESS",
-                "MARKED"
+                "MARKED",
+                "TO_MARK"
               ]
             }
           },
@@ -56892,6 +56949,1696 @@
         ],
         "x-permission": "tests.mark",
         "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks": {
+      "get": {
+        "operationId": "QuestionMarkingController_queue",
+        "parameters": [
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TO_MARK",
+                "MINE",
+                "RETURNED",
+                "SUBMITTED",
+                "ALL"
+              ]
+            }
+          },
+          {
+            "name": "testId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "question",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "My queue: ?view=TO_MARK|MINE|RETURNED|SUBMITTED|ALL, ?testId, ?question; counts per view; others' as \"TAKEN\".",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/claim": {
+      "post": {
+        "operationId": "QuestionMarkingController_claim",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Claim (atomic): 409 TASK_TAKEN, CLAIM_LIMIT, TASK_NOT_AVAILABLE, RESUBMISSION_PENDING; 403 QUESTION_NOT_ASSIGNED, MARKER_NOT_AUTHORIZED, FIRST_MARKER_EXCLUDED.",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}": {
+      "get": {
+        "operationId": "QuestionMarkingController_detail",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The task: question, maximum, MY assessment, return reason, the answer's pages (neutral names).",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/pages/{page}": {
+      "get": {
+        "operationId": "QuestionMarkingController_page",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One answer page (page-N.ext; identifying metadata removed). Logged once per claim and page.",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/paper": {
+      "get": {
+        "operationId": "QuestionMarkingController_paper",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test's question paper.",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/marking-guide": {
+      "get": {
+        "operationId": "QuestionMarkingController_guide",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The marking guide this assessment is made against (logged once per claim).",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/heartbeat": {
+      "post": {
+        "operationId": "QuestionMarkingController_heartbeat",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Keep my claim alive (every 2 minutes while the workspace is visible). 409 CLAIM_LOST.",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/marks": {
+      "put": {
+        "operationId": "QuestionMarkingController_marks",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionMarksDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Save my draft for this question: { marks, comment, expectedRevision }. 400 MARKS_INVALID; 409 MARKING_CHANGED, CLAIM_LOST.",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/submit": {
+      "post": {
+        "operationId": "QuestionMarkingController_submit",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionMarksDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit this question only (the given marks saved first). 400 MARKS_INCOMPLETE; 409 CLAIM_LOST.",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/marking/tasks/{code}/{ref}/release": {
+      "post": {
+        "operationId": "QuestionMarkingController_release",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Give the task back (the draft is kept in the history for staff; the next claim starts empty).",
+        "tags": [
+          "Tests · Question marking"
+        ],
+        "x-roles": [
+          "MENTOR"
+        ],
+        "x-permission": "tests.mark",
+        "description": "**Access:** permission `tests.mark` (MENTOR)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking": {
+      "get": {
+        "operationId": "AdminQuestionMarkingController_overview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The test's marking mode and whether it can still change.",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.view",
+        "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/mode": {
+      "patch": {
+        "operationId": "AdminQuestionMarkingController_mode",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkingModeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "PAPER ↔ QUESTION, only before any marking exists. 409 MARKING_STARTED, NO_QUESTIONS.",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/markers": {
+      "get": {
+        "operationId": "AdminQuestionMarkingController_markers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Coaches per question, and the coaches who may mark the subject.",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/questions/{questionId}/markers": {
+      "put": {
+        "operationId": "AdminQuestionMarkingController_setMarkers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionMarkersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Authorise or remove coaches for one question (removal: reason; their open claims end, reserved returns need reassignment).",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/generate": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_generate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create the missing tasks of eligible papers (idempotent); reports skipped papers and why.",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks": {
+      "get": {
+        "operationId": "AdminQuestionMarkingController_tasks",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "question",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_STARTED",
+                "IN_PROGRESS",
+                "SUBMITTED",
+                "UNDER_REVIEW",
+                "RETURNED",
+                "AWAITING_SECOND",
+                "APPROVED",
+                "CLOSED",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "round",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "FIRST",
+                "SECOND"
+              ]
+            }
+          },
+          {
+            "name": "coachId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}": {
+      "get": {
+        "operationId": "AdminQuestionMarkingController_task",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "One question of one paper: every round and cycle, assessments, versions, decisions, claims, events.",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/assign": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignQuestionTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Exceptional direct assignment (reason): the claim's checks and the same limit (409 CLAIM_LIMIT, no override).",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/release": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_release",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.distribute",
+        "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/review-hold": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_hold",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/approve": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/return": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_returnTask",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/second-assessment": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_second",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondAssessmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/cancel-second": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_cancelSecond",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/decide": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "FIRST, SECOND or ADJUSTED after a second assessment (reason): the subject's Head Coach only (G4).",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH"
+        ],
+        "x-permission": "tests.adjustMarks",
+        "description": "**Access:** permission `tests.adjustMarks` (HEAD_COACH)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/reopen": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "An approved question back to RETURNED (to its marker) or SUBMITTED (re-review); withdraws a published result first.",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/progress": {
+      "get": {
+        "operationId": "AdminQuestionMarkingController_progress",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.view",
+        "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/history": {
+      "get": {
+        "operationId": "AdminQuestionMarkingController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/papers/{submissionId}/pages/{page}": {
+      "get": {
+        "operationId": "AdminQuestionMarkingController_page",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "download",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "An answer page with identity (staff); logged once per person, paper, page and Kigali day.",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.review",
+        "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/questions/{questionId}/wording-correction": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_wording",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WordingCorrectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Super Admin: correct a question's wording after submissions (reason; the old wording is kept as history).",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/question-marking/structure-correction": {
+      "post": {
+        "operationId": "AdminQuestionMarkingController_structure",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructureCorrectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Super Admin: correct the question structure after submissions but before any marking (reason).",
+        "tags": [
+          "Admin · Question marking"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     }
   },
@@ -58397,6 +60144,10 @@
             "type": "string",
             "minLength": 0,
             "maxLength": 1000
+          },
+          "isTemplate": {
+            "type": "boolean",
+            "description": "Save as a template every Administrator may start from (the Super Admin only; 403 REPORT_TEMPLATE_SUPER_ADMIN_ONLY)."
           },
           "source": {
             "type": "string",
@@ -62410,6 +64161,322 @@
           }
         },
         "required": [
+          "reason"
+        ]
+      },
+      "QuestionMarksDto": {
+        "type": "object",
+        "properties": {
+          "marks": {
+            "type": "number",
+            "nullable": true,
+            "description": "Whole marks from 0 to the question's maximum; null = not marked yet.",
+            "minimum": 0
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "expectedRevision": {
+            "type": "number",
+            "description": "The revision the page last saw; another one now → 409 MARKING_CHANGED (another tab or device).",
+            "minimum": 1
+          }
+        }
+      },
+      "MarkingModeDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "PAPER",
+              "QUESTION"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "QuestionMarkersDto": {
+        "type": "object",
+        "properties": {
+          "add": {
+            "uniqueItems": true,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "remove": {
+            "uniqueItems": true,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required when removing anyone (3–500 characters).",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        }
+      },
+      "AssignQuestionTaskDto": {
+        "type": "object",
+        "properties": {
+          "coachId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "coachId",
+          "reason"
+        ]
+      },
+      "ReasonDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "QuestionReviewDto": {
+        "type": "object",
+        "properties": {
+          "expectedStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "SUBMITTED",
+              "UNDER_REVIEW",
+              "RETURNED",
+              "AWAITING_SECOND",
+              "APPROVED",
+              "CLOSED",
+              "CANCELLED"
+            ]
+          },
+          "cycleSeen": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "ReturnQuestionDto": {
+        "type": "object",
+        "properties": {
+          "expectedStatus": {
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "SUBMITTED",
+              "UNDER_REVIEW",
+              "RETURNED",
+              "AWAITING_SECOND",
+              "APPROVED",
+              "CLOSED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "cycleSeen": {
+            "type": "number",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "SecondAssessmentDto": {
+        "type": "object",
+        "properties": {
+          "expectedStatus": {
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "SUBMITTED",
+              "UNDER_REVIEW",
+              "RETURNED",
+              "AWAITING_SECOND",
+              "APPROVED",
+              "CLOSED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "cycleSeen": {
+            "type": "number",
+            "minimum": 0
+          },
+          "coachId": {
+            "type": "string",
+            "description": "Optional: a named coach (the same checks as an assignment); otherwise the second task goes to the pool.",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        }
+      },
+      "DecideQuestionDto": {
+        "type": "object",
+        "properties": {
+          "expectedStatus": {
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "SUBMITTED",
+              "UNDER_REVIEW",
+              "RETURNED",
+              "AWAITING_SECOND",
+              "APPROVED",
+              "CLOSED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "cycleSeen": {
+            "type": "number",
+            "minimum": 0
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "FIRST",
+              "SECOND",
+              "ADJUSTED"
+            ]
+          },
+          "marks": {
+            "type": "number",
+            "description": "ADJUSTED only: whole marks within the question's maximum.",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "source",
+          "reason"
+        ]
+      },
+      "ReopenQuestionDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "RETURNED",
+              "SUBMITTED"
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "to"
+        ]
+      },
+      "WordingCorrectionDto": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "prompt",
+          "reason"
+        ]
+      },
+      "StructureQuestionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "maxMarks": {
+            "type": "number",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "order",
+          "maxMarks"
+        ]
+      },
+      "StructureCorrectionDto": {
+        "type": "object",
+        "properties": {
+          "maxMarks": {
+            "type": "number",
+            "minimum": 1
+          },
+          "questions": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StructureQuestionDto"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "questions",
           "reason"
         ]
       },
