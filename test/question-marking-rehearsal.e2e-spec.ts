@@ -174,6 +174,13 @@ describe.skipIf(!PHASE)(`question-marking rehearsal driver (${PHASE || 'off'})`,
       const coach = await http().get(MT).set(bearer(cx));
       const staff = await http().get(QM(qTest)).set(bearer(head));
       expect([coach.status, coach.body.code, staff.status, staff.body.code]).toEqual([404, 'FEATURE_DISABLED', 404, 'FEATURE_DISABLED']);
+      // Every staff read and write answers the same while the switch is off (no question data leaks or changes).
+      for (const path of ['markers', 'tasks', 'progress', 'history']) {
+        const r = await http().get(`${QM(qTest)}/${path}`).set(bearer(head));
+        expect([path, r.status, r.body.code]).toEqual([path, 404, 'FEATURE_DISABLED']);
+      }
+      const gen = await http().post(`${QM(qTest)}/tasks/generate`).set(bearer(head)).send({});
+      expect([gen.status, gen.body.code]).toEqual([404, 'FEATURE_DISABLED']);
       const paper = await paperRound('Rehearsal paper test (flag off)', await maths());
       const overview = await http().get(`${T}/${paper.id}/marking`).set(bearer(head));
       expect(overview.status).toBe(200);

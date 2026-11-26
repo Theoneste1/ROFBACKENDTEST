@@ -50,6 +50,7 @@ export class QuestionMarkingService {
 
   /** The test in the caller's scope, and in QUESTION mode (or 409 WRONG_MARKING_MODE). */
   private async questionTest(testId: string, user: AuthUser) {
+    this.marker.assertEnabled();
     await this.tests.loadInScope(testId, user);
     const t = await this.prisma.test.findUniqueOrThrow({ where: { id: testId }, select: { id: true, title: true, markingMode: true, disciplineId: true, maxMarks: true, discipline: { select: { name: true } } } });
     if (t.markingMode !== 'QUESTION') throw qmErrors.wrongMode(t.markingMode);
@@ -481,6 +482,7 @@ export class QuestionMarkingService {
   // ── Progress and history ─────────────────────────────────────────────────────────────────────────────────────────
 
   async overview(testId: string, user: AuthUser) {
+    this.marker.assertEnabled();   // switch off: 404 FEATURE_DISABLED like every question route (rollback level 1)
     await this.tests.loadInScope(testId, user);
     const test = await this.prisma.test.findUniqueOrThrow({ where: { id: testId }, select: { id: true, title: true, markingMode: true, discipline: { select: { name: true } }, _count: { select: { questions: true, submissions: true } } } });
     const [started] = await this.prisma.$queryRaw<Array<{ started: boolean }>>`SELECT question_marking_started(${testId}) AS "started"`;
