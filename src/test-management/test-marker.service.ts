@@ -82,8 +82,9 @@ export class TestMarkerService {
       coachId: user.id, endedAt: null,
       submission: { test: { disciplineId: { in: subjects } }, ...(q.testId && { testId: q.testId }) },
     };
-    const stateWhere = (s: 'NOT_STARTED' | 'IN_PROGRESS' | 'MARKED'): Prisma.TestMarkerAssignmentWhereInput =>
-      s === 'NOT_STARTED' ? { marking: { is: null } }
+    const stateWhere = (s: 'NOT_STARTED' | 'IN_PROGRESS' | 'MARKED' | 'TO_MARK'): Prisma.TestMarkerAssignmentWhereInput =>
+      s === 'TO_MARK' ? { OR: [stateWhere('NOT_STARTED'), stateWhere('IN_PROGRESS')] }
+      : s === 'NOT_STARTED' ? { marking: { is: null } }
         : s === 'IN_PROGRESS' ? { marking: { is: { status: { in: ['DRAFT', 'RETURNED'] } } } }
           : { marking: { is: { status: { in: ['SUBMITTED', 'APPROVED'] } } } };
     const where: Prisma.TestMarkerAssignmentWhereInput = { AND: [base, ...(q.state ? [stateWhere(q.state)] : [])] };

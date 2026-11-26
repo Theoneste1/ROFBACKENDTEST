@@ -310,10 +310,19 @@ describe('Test Management Phase 3 — distribution, blind marking, review (e2e)'
       const mine = (await http().get(`${MK}/submissions/${codeS}`).set(bearer(c1)).expect(200)).body;
       expect(mine).toMatchObject({ state: 'IN_PROGRESS', canEdit: true, myMarking: { status: 'RETURNED', returnComment: 'Question 2 deserves more.' } });
       expect((await http().get(`${MK}/queue?state=IN_PROGRESS`).set(bearer(c1)).expect(200)).body.data.find((x: any) => x.code === codeS)).toMatchObject({ returned: true });
+      // "To mark" (the coach's saved filter): not started + in progress, the returned paper included.
+      const toMark = (await http().get(`${MK}/queue?state=TO_MARK&limit=100`).set(bearer(c1)).expect(200)).body;
+      expect(toMark.data.find((x: any) => x.code === codeS)).toMatchObject({ returned: true, state: 'IN_PROGRESS' });
+      expect(toMark.data.every((x: any) => x.state !== 'MARKED')).toBe(true);
+      expect(toMark.meta.total).toBe(toMark.counts.notStarted + toMark.counts.inProgress);
+      expect(await status(http().get(`${MK}/queue?state=DONE`).set(bearer(c1)))).toEqual([400, 'VALIDATION_FAILED']);
       await http().put(`${MK}/submissions/${codeS}/marking`).set(bearer(c1)).send(marks(q, 4, 13, 'Good start')).expect(200);
       expect((await subOf(id, stS)).status).toBe('MARKING_IN_PROGRESS');
       await http().post(`${MK}/submissions/${codeS}/marking/submit`).set(bearer(c1)).send(marks(q, 4, 13, 'Good start')).expect(200);
       expect((await subOf(id, stS)).status).toBe('MARKED');
+      // Submitted: it leaves "To mark" and is under "Marked".
+      expect((await http().get(`${MK}/queue?state=TO_MARK&limit=100`).set(bearer(c1)).expect(200)).body.data.some((x: any) => x.code === codeS)).toBe(false);
+      expect((await http().get(`${MK}/queue?state=MARKED&limit=100`).set(bearer(c1)).expect(200)).body.data.some((x: any) => x.code === codeS)).toBe(true);
     });
 
     it('second marking: another authorised coach only; independent and blind (no first marks); then a choice is required', async () => {

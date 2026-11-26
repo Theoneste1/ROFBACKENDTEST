@@ -10,7 +10,8 @@ import { MAX_QUESTIONS } from '../test-rules.js';
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 export const REVIEW_LIST_STATUSES = ['SUBMITTED', 'ASSIGNED', 'MARKING_IN_PROGRESS', 'MARKED', 'APPROVED', 'RETURNED', 'AWAITING_SECOND_MARKING', 'PUBLISHED'] as const;
-export const QUEUE_STATES = ['NOT_STARTED', 'IN_PROGRESS', 'MARKED'] as const;
+/** The coach queue's filter: one state, or TO_MARK (not started + in progress, returned included: everything still to do). */
+export const QUEUE_STATES = ['NOT_STARTED', 'IN_PROGRESS', 'MARKED', 'TO_MARK'] as const;
 export const MARKER_KINDS = ['FIRST', 'SECOND'] as const;
 export const CHOICES = ['FIRST', 'SECOND', 'ADJUSTMENT'] as const;
 export const HISTORY_TYPES = ['status', 'marks', 'reviews'] as const;

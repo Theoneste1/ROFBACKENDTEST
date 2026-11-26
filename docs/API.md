@@ -7268,7 +7268,7 @@ My marking queue: ?state=NOT_STARTED|IN_PROGRESS|MARKED, ?testId; counts and pro
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
-| `state` | query | NOT_STARTED \| IN_PROGRESS \| MARKED |  |  |
+| `state` | query | NOT_STARTED \| IN_PROGRESS \| MARKED \| TO_MARK |  |  |
 | `testId` | query | string |  |  |
 
 Returns `200` with no body.
