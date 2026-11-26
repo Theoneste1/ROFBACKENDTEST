@@ -171,6 +171,8 @@ export const PHASE1_MIGRATIONS = [
  *            Marker: the row exists.
  *   kept     what the migration creates and its rollback deliberately KEEPS, so it is not a marker: the FilePurpose value
  *            'AVATAR' (PostgreSQL cannot drop an enum value; the rollback file says so).
+ *   redefines objects it drops and re-creates under the same name with a new definition (present before and after:
+ *            not a marker); its rollback restores the old definition.
  *   checkOnly a migration with no marker at all (it only adds kept enum values: test_file_purposes): its rollback file
  *            changes nothing and only checks (its guard), so it runs every time `rollback` reaches it and is ignored by the
  *            order and completeness checks.
@@ -520,6 +522,9 @@ export const MIGRATION_OBJECTS = {
       triggers: [['Test', 'test_marking_mode_guard'], ['Test', 'test_max_marks_guard'], ['TestFile', 'test_guide_guard'],
         ['TestQuestion', 'test_question_structure_guard'], ['TestSubmission', 'question_paper_invariant_submission']],
     },
+    // Dropped and re-created under the same name (it also accepts COMPOSED): present before and after, so not a marker;
+    // its rollback restores the original definition (checked by test/release-question-marking.e2e-spec.ts).
+    redefines: { constraints: [['TestMarking', 'TestMarking_assignment_matches_kind']] },
   },
 };
 
