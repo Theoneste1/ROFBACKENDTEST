@@ -33,6 +33,8 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CURRENT_CLAIM_SELECT, withVerification } from '../schools/affiliations/school-verification.js';
 import { AddProgrammeMemberDto, ListProgrammeMembersDto, MEMBER_ROLES, SearchProgrammeStudentsDto, SetProgrammeHeadsDto } from './dto/programme.dto.js';
+import { lockCoaches } from '../test-management/question/question-store.js';
+import { endQuestionWorkForSubject } from '../test-management/question/question-withdraw.js';
 
 const PROGRAMME_SELECT = { id: true, code: true, name: true, description: true, isActive: true, sortOrder: true } as const;
 
@@ -239,6 +241,7 @@ export class ProgrammesService {
     this.assertMayChangeMembership(caller, target);
 
     return this.prisma.$transaction(async (tx) => {
+      await lockCoaches(tx, [userId]);   // question-level marking L1, before the membership row (the authorisation)
       const existing = await tx.programmeMembership.findUnique({
         where: { userId_disciplineId: { userId, disciplineId } }, select: { id: true },
       });
@@ -253,6 +256,8 @@ export class ProgrammesService {
         actorId: caller.id, actorRole: caller.role, action: 'PROGRAMME_MEMBER_END', entity: 'ProgrammeMembership', entityId: existing.id,
         metadata: { disciplineId, userId, role: target!.role },
       }, tx);
+      // A coach who marked this subject through the membership only: their question markers, claims and reserved returns end.
+      if (target!.role === 'MENTOR') await endQuestionWorkForSubject(tx, userId, disciplineId, { id: caller.id, role: caller.role }, 'Programme membership ended');
       return memberView(await tx.programmeMembership.findUniqueOrThrow({ where: { id: existing.id }, select: MEMBER_SELECT }));
     });
   }

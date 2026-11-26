@@ -2211,6 +2211,929 @@
       ]
     },
     {
+      "name": "Admin · Question marking",
+      "item": [
+        {
+          "name": "GET /admin/tests/{id}/question-marking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/question-marking/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "history"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "taskId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/question-marking/markers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/markers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "markers"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PATCH /admin/tests/{id}/question-marking/mode",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/mode",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "mode"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"PAPER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/question-marking/papers/{submissionId}/pages/{page}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/papers/:submissionId/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "papers",
+                ":submissionId",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/question-marking/progress",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "progress"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.view` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "PUT /admin/tests/{id}/question-marking/questions/{questionId}/markers",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/questions/:questionId/markers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "questions",
+                ":questionId",
+                "markers"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "questionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"add\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ],\n  \"remove\": [\n    \"00000000-0000-4000-8000-000000000000\"\n  ],\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/questions/{questionId}/wording-correction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/questions/:questionId/wording-correction",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "questions",
+                ":questionId",
+                "wording-correction"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "questionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"prompt\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/structure-correction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/structure-correction",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "structure-correction"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questions\": [\n    {\n      \"id\": \"00000000-0000-4000-8000-000000000000\",\n      \"order\": 1,\n      \"maxMarks\": 1\n    }\n  ],\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/question-marking/tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "question",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "status",
+                  "value": "NOT_STARTED",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "round",
+                  "value": "FIRST",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "coachId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "code",
+                  "value": "code",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/question-marking/tasks/{taskId}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/approve",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedStatus\": \"NOT_STARTED\",\n  \"cycleSeen\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "assign"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coachId\": \"00000000-0000-4000-8000-000000000000\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/cancel-second",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/cancel-second",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "cancel-second"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/decide",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/decide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "decide"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.adjustMarks` (HEAD_COACH)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"FIRST\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/release",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/release",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "release"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/reopen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/reopen",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "reopen"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\",\n  \"to\": \"RETURNED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/return",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "return"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/review-hold",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/review-hold",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "review-hold"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/{taskId}/second-assessment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/:taskId/second-assessment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                ":taskId",
+                "second-assessment"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "taskId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.review` (HEAD_COACH, ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedStatus\": \"NOT_STARTED\",\n  \"cycleSeen\": 0,\n  \"coachId\": \"00000000-0000-4000-8000-000000000000\",\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/question-marking/tasks/generate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/question-marking/tasks/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "question-marking",
+                "tasks",
+                "generate"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.distribute` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Reports",
       "item": [
         {
@@ -7533,7 +8456,14 @@
                   "description": ""
                 }
               ],
-              "query": []
+              "query": [
+                {
+                  "key": "correctionReason",
+                  "value": "correctionReason",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
             },
             "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
           }
@@ -17090,6 +18020,410 @@
               ]
             },
             "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tests · Question marking",
+      "item": [
+        {
+          "name": "GET /marking/tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "view",
+                  "value": "TO_MARK",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "testId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "question",
+                  "value": "1",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /marking/tasks/{code}/{ref}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "POST /marking/tasks/{code}/{ref}/claim",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/claim",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "claim"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "POST /marking/tasks/{code}/{ref}/heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/heartbeat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "heartbeat"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /marking/tasks/{code}/{ref}/marking-guide",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/marking-guide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "marking-guide"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "PUT /marking/tasks/{code}/{ref}/marks",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/marks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "marks"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marks\": 0,\n  \"comment\": \"comment\",\n  \"expectedRevision\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /marking/tasks/{code}/{ref}/pages/{page}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/pages/:page",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "pages",
+                ":page"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "GET /marking/tasks/{code}/{ref}/paper",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/paper",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "paper"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": [
+                {
+                  "key": "download",
+                  "value": "[object Object]",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "POST /marking/tasks/{code}/{ref}/release",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/release",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "release"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)"
+          }
+        },
+        {
+          "name": "POST /marking/tasks/{code}/{ref}/submit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/marking/tasks/:code/:ref/submit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "marking",
+                "tasks",
+                ":code",
+                ":ref",
+                "submit"
+              ],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "ref",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.mark` (MENTOR)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marks\": 0,\n  \"comment\": \"comment\",\n  \"expectedRevision\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]

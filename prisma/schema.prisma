@@ -605,6 +605,21 @@ model User {
   testMarkerAssignmentsMade         TestMarkerAssignment[]          @relation("TestMarkerAssignmentAssignedBy")
   testMarkerAssignmentsEnded        TestMarkerAssignment[]          @relation("TestMarkerAssignmentEndedBy")
   testMarkings                      TestMarking[]                   @relation("TestMarkingMarker")
+  qmMarkerOf                        TestQuestionMarker[]            @relation("QmMarkerCoach")
+  qmMarkerGranted                   TestQuestionMarker[]            @relation("QmMarkerGrantedBy")
+  qmMarkerEnded                     TestQuestionMarker[]            @relation("QmMarkerEndedBy")
+  qmTasksHeld                       TestQuestionTask[]              @relation("QmTaskHolder")
+  qmTasksReserved                   TestQuestionTask[]              @relation("QmTaskReservedFor")
+  qmTasksReviewHeld                 TestQuestionTask[]              @relation("QmTaskReviewHold")
+  qmClaims                          TestTaskClaim[]                 @relation("QmClaimCoach")
+  qmClaimsEnded                     TestTaskClaim[]                 @relation("QmClaimEndedBy")
+  qmAssessments                     TestQuestionAssessment[]        @relation("QmAssessmentMarker")
+  qmDraftChanges                    TestMarkDraftChange[]           @relation("QmDraftChangeActor")
+  qmDecisions                       TestQuestionDecision[]          @relation("QmDecisionBy")
+  qmDecisionsSuperseded             TestQuestionDecision[]          @relation("QmDecisionSupersededBy")
+  qmEvents                          TestTaskEvent[]                 @relation("QmEventActor")
+  qmStaffAccess                     TestStaffPaperAccess[]          @relation("QmStaffAccessActor")
+  qmPromptChanges                   TestQuestionPromptHistory[]     @relation("QmPromptChangedBy")
   testMarkChanges                   TestMarkChange[]                @relation("TestMarkChangeActor")
   testReviews                       TestReview[]                    @relation("TestReviewActor")
   testPublications                  TestPublication[]               @relation("TestPublicationActor")
@@ -1512,6 +1527,7 @@ model FileObject {
   mentorRequestAvatarOf      MentorRequest?         @relation("MentorRequestAvatar")
   /// A test's paper or marking guide (Test Management); keeps the file from orphan cleanup.
   testFiles                  TestFile[]
+  qmAssessmentGuides         TestQuestionAssessment[]
   /// A page of a student's test answer (Test Management Phase 2); keeps the file from orphan cleanup.
   testAnswerPage             TestAnswerPage?
 
@@ -2873,6 +2889,9 @@ model Test {
   /// the CHECK Test_student_rankings_design_only refuses true, and no route reads or changes it; enabling it later is a
   /// migration that drops the CHECK plus a reviewed change of the student results view (STUDENT_RANKINGS_ENABLED).
   studentRankingsVisible Boolean          @default(false)
+  /// Question-level marking (2027-01): PAPER (one coach marks the whole paper, as before) or QUESTION (shared pool of
+  /// question tasks). Frozen by trigger once any marking record exists.
+  markingMode            TestMarkingMode  @default(PAPER)
   createdById            String?
   createdBy              User?            @relation("TestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt              DateTime         @default(now())
@@ -2904,6 +2923,11 @@ model TestQuestion {
 
   markingScores TestMarkingScore[]
   markChanges   TestMarkChange[]
+  /// Question-level marking: the current wording's version (1, then +1 per Super Admin correction; history below).
+  promptVersion Int      @default(1)
+  qmMarkers     TestQuestionMarker[]
+  qmTasks       TestQuestionTask[]
+  qmPromptHistory TestQuestionPromptHistory[]
 
   @@unique([testId, order])
 }
@@ -3057,6 +3081,8 @@ model TestSubmission {
   withdrawals                TestResultWithdrawal[]
   /// Owner 2026-11-21: a submitted answer is locked; an Administrator may authorize one replacement at a time.
   resubmissionAuthorizations TestResubmissionAuthorization[]
+  qmTasks                    TestQuestionTask[]
+  qmStaffAccess              TestStaffPaperAccess[]
 
   @@unique([testId, studentId])
   @@index([studentId])
@@ -3093,6 +3119,7 @@ model TestSubmissionVersion {
   /// The Administrator's resubmission authorization this replacement used (owner 2026-11-21), if any.
   resubmissionAuthorization TestResubmissionAuthorization? @relation("ResubmissionUsedVersion")
   markings                  TestMarking[]
+  qmTasks                   TestQuestionTask[]
 
   @@unique([submissionId, number])
   @@unique([submissionId, clientKey])
@@ -3157,6 +3184,8 @@ enum TestMarkingKind {
   FIRST
   SECOND
   ADJUSTMENT
+  /// Question-level marking (2027-01): the read-only final marking composed from the approved question decisions.
+  COMPOSED
 }
 
 /// DRAFT (being marked) → SUBMITTED (for approval) → APPROVED (locked); RETURNED (for correction, editable again by its
@@ -3588,4 +3617,319 @@ model UserBankDetails {
   schoolAccountNumber   String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+// ── Question-level marking (2027-01, design Rev 5.2) ───────────────────────────────────────────────────────────────
+// A QUESTION-mode test is marked per (submission, question, round, cycle): coaches authorised for a question claim
+// tasks from a shared pool; one holder per task; the paper's status is a projection of its FIRST-round tasks and its
+// final mark a COMPOSED TestMarking. Rules (triggers, partial unique indexes, CHECKs) live in migration
+// 20270101000100_question_marking. PAPER-mode tests never use these tables.
+
+enum TestMarkingMode {
+  PAPER
+  QUESTION
+}
+
+enum QuestionTaskRound {
+  FIRST
+  SECOND
+}
+
+enum QuestionTaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  RETURNED
+  AWAITING_SECOND
+  APPROVED
+  CLOSED
+  CANCELLED
+}
+
+enum QuestionAssessmentStatus {
+  DRAFT
+  SUBMITTED
+  RETURNED
+  APPROVED
+  ABANDONED
+  SUPERSEDED
+}
+
+enum TaskClaimMethod {
+  CLAIM
+  RESUME
+  ASSIGN
+}
+
+enum TaskClaimEndReason {
+  SUBMITTED
+  RELEASED
+  RELEASED_BY_STAFF
+  EXPIRED
+  REASSIGNED
+  AUTHORISATION_LOST
+  CANCELLED
+}
+
+enum QuestionDecisionSource {
+  APPROVED_AS_MARKED
+  FIRST
+  SECOND
+  ADJUSTED
+}
+
+enum PaperAccessKind {
+  PAPER_OPENED
+  PAGE_VIEWED
+  GUIDE_VIEWED
+}
+
+/// Who may mark one question (Head Coach / Administrator). Ended, never deleted. One active per (question, coach).
+model TestQuestionMarker {
+  id          String       @id @default(uuid())
+  questionId  String
+  question    TestQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  coachId     String
+  coach       User         @relation("QmMarkerCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  grantedById String?
+  grantedBy   User?        @relation("QmMarkerGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  grantedAt   DateTime
+  reason      String?
+  endedAt     DateTime?
+  endedById   String?
+  endedBy     User?        @relation("QmMarkerEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+  endReason   String?
+
+  @@index([coachId, endedAt])
+  @@index([questionId, endedAt])
+  @@index([grantedById])
+  @@index([endedById])
+}
+
+/// One student's answer to one question, in one round (FIRST, or SECOND cycle n). The marking lock is this row.
+model TestQuestionTask {
+  id                String                @id @default(uuid())
+  submissionId      String
+  submission        TestSubmission        @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  questionId        String
+  question          TestQuestion          @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  round             QuestionTaskRound
+  /// FIRST: 0. SECOND: the cycle it belongs to (1, 2 …).
+  cycle             Int                   @default(0)
+  /// FIRST only: the latest second-assessment cycle opened on it (0 = none).
+  currentCycle      Int                   @default(0)
+  firstTaskId       String?
+  firstTask         TestQuestionTask?     @relation("QmSecondOf", fields: [firstTaskId], references: [id], onDelete: Restrict)
+  seconds           TestQuestionTask[]    @relation("QmSecondOf")
+  versionId         String
+  version           TestSubmissionVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  status            QuestionTaskStatus    @default(NOT_STARTED)
+  holderId          String?
+  holder            User?                 @relation("QmTaskHolder", fields: [holderId], references: [id], onDelete: Restrict)
+  claimId           String?
+  claim             TestTaskClaim?        @relation("QmTaskCurrentClaim", fields: [claimId], references: [id], onDelete: Restrict)
+  lockExpiresAt     DateTime?
+  reservedForId     String?
+  reservedFor       User?                 @relation("QmTaskReservedFor", fields: [reservedForId], references: [id], onDelete: Restrict)
+  needsReassignment Boolean               @default(false)
+  reviewHoldById    String?
+  reviewHoldBy      User?                 @relation("QmTaskReviewHold", fields: [reviewHoldById], references: [id], onDelete: SetNull)
+  reviewHoldUntil   DateTime?
+  createdAt         DateTime
+  updatedAt         DateTime
+
+  claims      TestTaskClaim[]          @relation("QmClaimTask")
+  assessments TestQuestionAssessment[]
+  decisions   TestQuestionDecision[]
+  events      TestTaskEvent[]
+
+  @@unique([submissionId, questionId, round, cycle])
+  @@unique([firstTaskId, cycle])
+  @@index([questionId, status])
+  @@index([holderId])
+  @@index([reservedForId])
+  @@index([claimId])
+  @@index([versionId])
+  @@index([reviewHoldById])
+}
+
+/// Ownership history: every claim, resume or assignment of a task, and how it ended. One open claim per task.
+model TestTaskClaim {
+  id           String              @id @default(uuid())
+  taskId       String
+  task         TestQuestionTask    @relation("QmClaimTask", fields: [taskId], references: [id], onDelete: Restrict)
+  coachId      String
+  coach        User                @relation("QmClaimCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  method       TaskClaimMethod
+  claimedAt    DateTime
+  lastActiveAt DateTime
+  endedAt      DateTime?
+  endReason    TaskClaimEndReason?
+  endedById    String?
+  endedBy      User?               @relation("QmClaimEndedBy", fields: [endedById], references: [id], onDelete: SetNull)
+
+  currentOf   TestQuestionTask[]       @relation("QmTaskCurrentClaim")
+  assessments TestQuestionAssessment[]
+  access      TestPaperAccess[]
+
+  @@index([taskId, endedAt])
+  @@index([coachId, endedAt])
+  @@index([endedById])
+}
+
+/// One coach's marks for one task. One open (DRAFT or RETURNED) per task; every new claim opens a new, empty one.
+model TestQuestionAssessment {
+  id              String                   @id @default(uuid())
+  taskId          String
+  task            TestQuestionTask         @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  markerId        String
+  marker          User                     @relation("QmAssessmentMarker", fields: [markerId], references: [id], onDelete: Restrict)
+  openedByClaimId String
+  openedByClaim   TestTaskClaim            @relation(fields: [openedByClaimId], references: [id], onDelete: Restrict)
+  marks           Int?
+  comment         String?
+  status          QuestionAssessmentStatus @default(DRAFT)
+  revision        Int                      @default(1)
+  lastVersion     Int                      @default(0)
+  /// The marking guide file and question wording version this assessment was made against (reconstruction).
+  guideFileId     String?
+  guideFile       FileObject?              @relation(fields: [guideFileId], references: [id], onDelete: Restrict)
+  promptVersion   Int
+  createdAt       DateTime
+  updatedAt       DateTime
+
+  versions     TestAssessmentVersion[]
+  draftChanges TestMarkDraftChange[]
+
+  @@index([taskId, status])
+  @@index([markerId])
+  @@index([openedByClaimId])
+  @@index([guideFileId])
+}
+
+/// Each submission of an assessment, frozen.
+model TestAssessmentVersion {
+  id           String                 @id @default(uuid())
+  assessmentId String
+  assessment   TestQuestionAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  version      Int
+  marks        Int
+  comment      String?
+  submittedAt  DateTime
+
+  decisions TestQuestionDecision[]
+
+  @@unique([assessmentId, version])
+}
+
+/// Every saved change of a draft (marks or comment).
+model TestMarkDraftChange {
+  id             String                 @id @default(uuid())
+  assessmentId   String
+  assessment     TestQuestionAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  oldMarks       Int?
+  newMarks       Int?
+  commentChanged Boolean                @default(false)
+  actorId        String?
+  actor          User?                  @relation("QmDraftChangeActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt      DateTime
+
+  @@index([assessmentId, createdAt])
+  @@index([actorId])
+}
+
+/// The final mark of a question (on its FIRST task). Exactly one current (not superseded) while the task is APPROVED.
+model TestQuestionDecision {
+  id              String                 @id @default(uuid())
+  taskId          String
+  task            TestQuestionTask       @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  cycle           Int?
+  source          QuestionDecisionSource
+  marks           Int
+  sourceVersionId String?
+  sourceVersion   TestAssessmentVersion? @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  reason          String?
+  decidedById     String?
+  decidedBy       User?                  @relation("QmDecisionBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt       DateTime
+  supersededAt    DateTime?
+  supersededById  String?
+  supersededBy    User?                  @relation("QmDecisionSupersededBy", fields: [supersededById], references: [id], onDelete: SetNull)
+  supersedeReason String?
+
+  @@index([taskId, decidedAt])
+  @@index([sourceVersionId])
+  @@index([decidedById])
+  @@index([supersededById])
+}
+
+/// The audit trail of question tasks (append-only).
+model TestTaskEvent {
+  id         String           @id @default(uuid())
+  taskId     String
+  task       TestQuestionTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  action     String
+  fromStatus String?
+  toStatus   String?
+  cycle      Int?
+  actorId    String?
+  actor      User?            @relation("QmEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole  String
+  reason     String?
+  meta       Json?
+  createdAt  DateTime
+
+  @@index([taskId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+/// A coach's access to the paper during one claim: one row per (claim, kind, page); repeats bump count.
+model TestPaperAccess {
+  id      String          @id @default(uuid())
+  claimId String
+  claim   TestTaskClaim   @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  kind    PaperAccessKind
+  /// 0 = the whole paper (PAPER_OPENED, GUIDE_VIEWED); n > 0 = page n (PAGE_VIEWED).
+  page    Int             @default(0)
+  firstAt DateTime
+  lastAt  DateTime
+  count   Int             @default(1)
+
+  @@unique([claimId, kind, page])
+}
+
+/// Staff access to a QUESTION-mode paper with identity: one row per (person, paper, kind, page, Kigali day).
+model TestStaffPaperAccess {
+  id           String          @id @default(uuid())
+  actorId      String
+  actor        User            @relation("QmStaffAccessActor", fields: [actorId], references: [id], onDelete: Restrict)
+  submissionId String
+  submission   TestSubmission  @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  kind         PaperAccessKind
+  page         Int             @default(0)
+  day          DateTime        @db.Date
+  firstAt      DateTime
+  lastAt       DateTime
+  count        Int             @default(1)
+
+  @@unique([actorId, submissionId, kind, page, day])
+  @@index([submissionId])
+}
+
+/// Earlier wordings of a question (Super Admin corrections in QUESTION mode). The current wording is TestQuestion.prompt.
+model TestQuestionPromptHistory {
+  id          String       @id @default(uuid())
+  questionId  String
+  question    TestQuestion @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  version     Int
+  prompt      String
+  validFrom   DateTime?
+  validTo     DateTime
+  changedById String?
+  changedBy   User?        @relation("QmPromptChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  reason      String
+
+  @@unique([questionId, version])
+  @@index([changedById])
 }

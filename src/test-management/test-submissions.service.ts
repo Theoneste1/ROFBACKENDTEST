@@ -462,6 +462,15 @@ export class TestSubmissionsService {
         where: { id: sub.id },
         data:  { currentVersionId: version.id, versionCount: number, lastSubmittedAt: now, ...(number === 1 && { firstSubmittedAt: now }) },
       });
+      // Question-level marking (Rev 5.2 §6): an authorised replacement moves the paper's not-yet-claimed question tasks to
+      // the new version (claims were refused while the authorisation was open; resubmission is refused once any was made).
+      if (authorizationId) {
+        const moved = await tx.testQuestionTask.findMany({ where: { submissionId: sub.id, round: 'FIRST', status: 'NOT_STARTED' }, select: { id: true } });
+        if (moved.length) {
+          await tx.testQuestionTask.updateMany({ where: { id: { in: moved.map((m) => m.id) } }, data: { versionId: version.id, updatedAt: now } });
+          await tx.testTaskEvent.createMany({ data: moved.map((m) => ({ id: randomUUID(), taskId: m.id, action: TASK_EVENT_VERSION_MOVED, fromStatus: 'NOT_STARTED', toStatus: 'NOT_STARTED', actorId: caller.user.id, actorRole: caller.user.role, meta: { versionId: version.id }, createdAt: now })) });
+        }
+      }
       if (number === 1) {
         await tx.testSubmissionStatusChange.create({
           data: { submissionId: sub.id, fromStatus: null, toStatus: 'SUBMITTED', actorId: caller.user.id, actorRole: caller.user.role, createdAt: now },
@@ -620,6 +629,10 @@ export class TestSubmissionsService {
       if (row.status !== 'SUBMITTED') {
         throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_IN_MARKING', 'Marking of this submission has begun; it can no longer be unlocked.', { status: row.status });
       }
+      // Question-level marking: refused once any task of the paper was ever claimed (even if given back since).
+      if ((await tx.testTaskClaim.count({ where: { task: { submissionId } } })) > 0) {
+        throw new AppError(HttpStatus.CONFLICT, 'SUBMISSION_IN_MARKING', 'Marking of this submission has begun; it can no longer be unlocked.', { status: row.status, claimed: true });
+      }
       const open = await tx.testResubmissionAuthorization.findFirst({ where: { submissionId, ...OPEN_AUTHORIZATION }, select: { id: true } });
       if (open) throw new AppError(HttpStatus.CONFLICT, 'RESUBMISSION_ALREADY_AUTHORIZED', 'A resubmission is already authorized for this submission.', { id: open.id });
       const created = await tx.testResubmissionAuthorization.create({
@@ -735,6 +748,8 @@ export class TestSubmissionsService {
 
 /** An authorization neither used nor cancelled. */
 const OPEN_AUTHORIZATION = { usedAt: null, cancelledAt: null } as const;
+/** A question-task event (TestTaskEvent), not an audit action. */
+const TASK_EVENT_VERSION_MOVED = 'VERSION_MOVED';
 
 /** 409 SUBMISSION_LOCKED: submitted, and no Administrator's authorization is open (owner 2026-11-21). */
 const submittedAndLocked = () => new AppError(HttpStatus.CONFLICT, 'SUBMISSION_LOCKED',

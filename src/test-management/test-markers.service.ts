@@ -9,6 +9,8 @@
  *   - a revocation needs a reason and keeps the row (history); both are audited in the same transaction;
  *   - a coach's olympiadInterests are shown as a hint only: an interest NEVER grants marking.
  */
+import { lockCoaches } from './question/question-store.js';
+import { endQuestionWorkForSubject } from './question/question-withdraw.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service.js';
@@ -147,10 +149,12 @@ export class TestMarkersService {
 
   async revoke(id: string, dto: RevokeMarkerDto, user: AuthUser) {
     const scope = await this.scope(user);
-    const found = await this.prisma.markerAuthorization.findUnique({ where: { id }, select: { disciplineId: true } });
+    const found = await this.prisma.markerAuthorization.findUnique({ where: { id }, select: { disciplineId: true, coachId: true } });
     if (!found) throw notFound();
     assertSubjectInScope(scope, found.disciplineId);
     await this.prisma.$transaction(async (tx) => {
+      // Question marking (Rev 5.2 addendum 5.2 §3): the coach's L1 lock BEFORE the authorisation row changes.
+      await lockCoaches(tx, [found.coachId]);
       const now = new Date();
       const done = await tx.markerAuthorization.updateMany({
         where: { id, revokedAt: null },
@@ -164,6 +168,7 @@ export class TestMarkersService {
       // so "revoked" means the coach no longer marks this subject (CoachProgrammeRestriction MARKING, same reason).
       const member = await tx.programmeMembership.count({ where: { userId: row.coachId, disciplineId: row.disciplineId, isActive: true } });
       const restricted = member ? await restrictMarking(tx, row.coachId, row.disciplineId, user, dto.reason) : null;
+      await endQuestionWorkForSubject(tx, row.coachId, row.disciplineId, { id: user.id, role: user.role }, dto.reason);
       await this.audit.log({
         actorId: user.id, actorRole: user.role, action: 'MARKER_AUTHORIZATION_REVOKED', entity: 'MarkerAuthorization', entityId: id,
         metadata: { coachId: row.coachId, subjectId: row.disciplineId, reason: dto.reason, ...(restricted && { restrictionId: restricted }) },

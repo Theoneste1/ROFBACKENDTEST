@@ -390,7 +390,13 @@ const BANKING_EDIT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-edi
 const REPORT_TEMPLATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-report-templates.json';
 /** The coach queue's "To mark" filter (2026-11-26): state=TO_MARK on GET /api/v1/marking/queue. Additive only. */
 const QUEUE_TO_MARK_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-queue-to-mark.json';
-const CURRENT_SNAPSHOT = QUEUE_TO_MARK_SNAPSHOT;
+/**
+ * Question-level marking (design Rev 5.2, 2027-01), after the queue's "To mark" filter: /api/v1/marking/tasks (the
+ * shared pool), /api/v1/admin/tests/{id}/question-marking (mode, markers, tasks, review, cycles, decisions, progress,
+ * history, corrections) and the Super Admin's guide correctionReason. Additive only.
+ */
+const QUESTION_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-question-marking.json';
+const CURRENT_SNAPSHOT = QUESTION_MARKING_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2060,6 +2066,61 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive.sort(), [
       'GET /api/v1/marking/queue › query parameter state: enum values added: TO_MARK',
+    ]);
+  });
+
+  test('the queue "To mark" filter → question-level marking (Rev 5.2): additive only — the 31 routes, their request schemas, correctionReason', () => {
+    for (const f of [QUEUE_TO_MARK_SNAPSHOT, QUESTION_MARKING_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(QUEUE_TO_MARK_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(QUESTION_MARKING_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      "GET /api/v1/admin/tests/{id}/question-marking/history: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/markers: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/papers/{submissionId}/pages/{page}: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/progress: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking/tasks: operation added",
+      "GET /api/v1/admin/tests/{id}/question-marking: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}/marking-guide: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}/pages/{page}: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}/paper: operation added",
+      "GET /api/v1/marking/tasks/{code}/{ref}: operation added",
+      "GET /api/v1/marking/tasks: operation added",
+      "PATCH /api/v1/admin/tests/{id}/question-marking/mode: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/questions/{questionId}/wording-correction: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/structure-correction: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/generate: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/approve: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/assign: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/cancel-second: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/decide: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/release: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/reopen: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/return: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/review-hold: operation added",
+      "POST /api/v1/admin/tests/{id}/question-marking/tasks/{taskId}/second-assessment: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/claim: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/heartbeat: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/release: operation added",
+      "POST /api/v1/marking/tasks/{code}/{ref}/submit: operation added",
+      "PUT /api/v1/admin/tests/{id}/files/{kind}: new optional query parameter \"correctionReason\"",
+      "PUT /api/v1/admin/tests/{id}/question-marking/questions/{questionId}/markers: operation added",
+      "PUT /api/v1/marking/tasks/{code}/{ref}/marks: operation added",
+      "schema AssignQuestionTaskDto: added",
+      "schema DecideQuestionDto: added",
+      "schema MarkingModeDto: added",
+      "schema QuestionMarkersDto: added",
+      "schema QuestionMarksDto: added",
+      "schema QuestionReviewDto: added",
+      "schema ReasonDto: added",
+      "schema ReopenQuestionDto: added",
+      "schema ReturnQuestionDto: added",
+      "schema SecondAssessmentDto: added",
+      "schema StructureCorrectionDto: added",
+      "schema StructureQuestionDto: added",
+      "schema WordingCorrectionDto: added"
     ]);
   });
 

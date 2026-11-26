@@ -258,7 +258,8 @@ describe('release kit: object lists, acknowledgements and PG_BIN (no database)',
       for (const [, t, body] of sql.matchAll(/ALTER TABLE (?:ONLY )?"(\w+)"([^;]*);/g)) {
         if (tables.has(t)) continue;
         for (const [, col] of body.matchAll(/ADD COLUMN (?:IF NOT EXISTS )?"(\w+)"/g)) if (!has(cr.columns, [t, col])) missing.push(`column ${t}.${col}`);
-        for (const [, con] of body.matchAll(/ADD CONSTRAINT "(\w+)"/g)) if (!has(cr.constraints, [t, con])) missing.push(`constraint ${t}.${con}`);
+        // A constraint dropped and re-created under its own name (a new definition) is declared in `redefines`.
+        for (const [, con] of body.matchAll(/ADD CONSTRAINT "(\w+)"/g)) if (!has(cr.constraints, [t, con]) && !has(o.redefines?.constraints, [t, con])) missing.push(`constraint ${t}.${con}`);
       }
       expect({ migration: m, missing }).toEqual({ migration: m, missing: [] });
     }
@@ -336,7 +337,7 @@ describe('release kit: object lists, acknowledgements and PG_BIN (no database)',
     expect(rel.checkoutProblem(post, dirs)).toMatch(/after post-Phase-1/);
     expect(rel.checkoutProblem(post, dirs, { allowLater: true })).toBeNull();
     expect(rel.checkoutProblem(post, dirs.filter((d) => d !== '20261204000000_registration_details'), { allowLater: true })).toMatch(/found 10/);
-    expect([...kit.CHECKOUT_RELEASE_ONLY].sort()).toEqual(['check-target', 'dump', 'postcheck', 'precheck', 'restore', 'rollback', 'rollback-history']);
+    expect([...kit.CHECKOUT_RELEASE_ONLY].sort()).toEqual(['check-target', 'code-rollback-check', 'dump', 'postcheck', 'precheck', 'restore', 'rollback', 'rollback-history', 'verify-backup']);
   });
 });
 

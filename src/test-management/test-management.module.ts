@@ -17,6 +17,10 @@ import {
 } from './test-results.controller.js';
 import { TestResultViewsService } from './test-result-views.service.js';
 import { TestResultsService } from './test-results.service.js';
+import { AdminQuestionMarkingController, QuestionMarkingController } from './question/question-marking.controller.js';
+import { QuestionMarkerService } from './question/question-marker.service.js';
+import { QuestionMarkingService } from './question/question-marking.service.js';
+import { QuestionSweepService } from './question/question-sweep.service.js';
 
 /**
  * Test Management (WS3). Phase 1: tests, questions, paper and marking guide, marker authorisations. Phase 2: the deadline
@@ -31,10 +35,12 @@ import { TestResultsService } from './test-results.service.js';
     AdminTestExtensionsController, AdminTestSubmissionsController, MyTestsController, TeacherTestsController,
     AdminTestMarkingController, MarkingController,
     AdminTestResultsController, AdminTestReportsController, MyTestResultsController, TeacherTestResultsController, CoachTestResultsController, MarkingDashboardController,
+    QuestionMarkingController, AdminQuestionMarkingController,
   ],
   providers: [
     TestsService, TestMarkersService, TestFileKindPipe, TestDeadlineService, TestExtensionsService, TestSubmissionsService,
     TestMarkingService, TestMarkerService, TestResultsService, TestResultViewsService,
+    QuestionMarkerService, QuestionMarkingService, QuestionSweepService,
   ],
 })
 export class TestManagementModule {}

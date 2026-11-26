@@ -33,6 +33,8 @@ import { roleFlagOn } from '../auth/role-assignment.policy.js';
 import type { AppRole } from '../auth/permissions.js';
 import { clearPrimaryOfAccount } from '../teachers/primary-teacher.js';
 import { activateNowRefusal, checkTransition, confirmationRequired, permissionFor, stillBlockedBy, type SignInBlock } from './account-status.js';
+import { lockCoaches } from '../test-management/question/question-store.js';
+import { endQuestionWorkIfUnauthorised } from '../test-management/question/question-withdraw.js';
 
 export interface StatusChangeContext {
   requestId?: string | null;
@@ -91,6 +93,8 @@ export class AccountStatusService {
     try {
       const inTx = <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) => (ctx.tx ? fn(ctx.tx) : this.prisma.$transaction(fn));
       return await inTx(async (tx) => {
+        // Question-level marking lock order (L1 coach → User row): a claim holds L1 and then a KEY SHARE on the coach's row.
+        await lockCoaches(tx, [targetId]);
         // Row lock: concurrent changes of the same account are serialised and re-checked against the current state.
         // FOR NO KEY UPDATE (not FOR UPDATE): it serialises every update of the row just the same, but does not conflict
         // with the KEY SHARE locks foreign-key inserts take (e.g. a bulk operation's creation referencing this account).
@@ -141,6 +145,10 @@ export class AccountStatusService {
         if (input.toStatus !== 'ACTIVE' && current.role === 'TEACHER') {
           await clearPrimaryOfAccount(tx, this.audit, targetId, { actorId: caller.id, actorRole: caller.role },
             { reason: 'ACCOUNT_STATUS', toStatus: input.toStatus, statusChangeId: change.id });
+        }
+        // A coach whose account is no longer ACTIVE may not mark: their open question claims and reserved returns end now.
+        if (input.toStatus !== 'ACTIVE' && current.role === 'MENTOR') {
+          await endQuestionWorkIfUnauthorised(tx, targetId, { id: caller.id, role: caller.role }, `Account ${input.toStatus.toLowerCase()}`);
         }
         if (ctx.inTransaction) await ctx.inTransaction(tx, { stillBlockedBy: blocks });
         return { user, change, stillBlockedBy: blocks };
