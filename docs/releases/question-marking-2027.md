@@ -50,3 +50,33 @@ Order: migrations → backend (switch off) → frontend → owner's approval →
         (data written after the backup: take and verify a new backup).
    - Then `rollback-history --release question-marking-2027` (both history rows), as its own approved step.
    - `COMPOSED` stays in the enum (PostgreSQL cannot drop a value); the original CHECK is restored.
+
+## 4. Recovery once combined (COMPOSED) results exist
+
+Once any question-marked paper is fully approved it has a COMPOSED final marking: a row of the shared results tables
+(`TestMarking`, `TestMarkingScore`), referenced by the paper (`TestSubmission.finalMarkingId`), and possibly published to
+the student. From then on the safeguards below hold and must not be bypassed:
+
+- **Level 3 (schema rollback) always refuses** (`QUESTION_MARKING_ROLLBACK_REFUSED: … COMPOSED final marking(s) exist`),
+  whatever backup evidence is given. Dropping the question tables would remove how those results were reached
+  (assessments, versions, decisions, events) and leave results nobody can explain or reopen.
+- **Level 2 (previous code) is unsafe** and the code-rollback check says so (`composed_markings` must be `0`): the previous
+  release's database client cannot read a marking of kind COMPOSED. Rehearsed 2026-11-26: every read of markings or final
+  results fails with `Value 'COMPOSED' not found in enum 'TestMarkingKind'` — results pages would break for everyone.
+- Never delete or edit COMPOSED markings, question rows or applied migrations by hand.
+
+**What to do instead, in this order:**
+
+1. **Switch off** (`QUESTION_MARKING_ENABLED=false`, restart the backend). Rehearsed 2026-11-26 with a COMPOSED result
+   present: every question route answers 404, no question data changes, and the COMPOSED result behaves like any final
+   marking — it is published (Head Coach: blocked while other papers are unapproved; Administrator: override with a
+   reason) and the student sees it (18 marks in the rehearsal). Paper-marked tests are unaffected. Question-marked papers
+   that are not yet fully approved simply wait: the test's mode cannot change once marking started, so they are finished
+   when the switch is on again.
+2. **Roll forward:** fix the defect in the code, release it (migrations untouched), switch on again after the owner's
+   approval. This is the normal recovery.
+3. **Restore from backup** — the last resort, only with the owner's explicit decision: restore the pre-release backup (or a
+   Neon point-in-time branch) into a NEW branch, compare, and switch the application to it. Everything written after the
+   backup (all activity, not only marking) is lost and must be reconciled by hand; the evidence-checked rollback files are
+   not a substitute for this.
+

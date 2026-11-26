@@ -28,7 +28,7 @@ export interface ClaimRequest {
 
 export interface ClaimResult {
   claimId: string; taskId: string; submissionId: string; lockExpiresAt: Date; method: 'CLAIM' | 'RESUME' | 'ASSIGN';
-  resumed: boolean; previousHolder: string | null; previousEnd: 'EXPIRED' | 'REASSIGNED' | null;
+  resumed: boolean; previousHolder: string | null; previousEnd: 'EXPIRED' | 'REASSIGNED' | 'AUTHORISATION_LOST' | null;
 }
 
 /** Run the claim, retrying (≤ 3) when the set of coaches to lock changed between discovery and locking. */
@@ -67,7 +67,7 @@ async function claimOnce(tx: Tx, req: ClaimRequest, extraCoaches: string[]): Pro
   const tasks = await lockTasks(tx, [req.taskId, ...ownExpired.map((x) => x.taskId)]);
   const t = await lockedNow(tx);
   const settings = await qmSettings(tx);
-  const task = tasks.get(req.taskId)!;
+  let task = tasks.get(req.taskId)!;
   const paper = papers.find((p) => p.id === task.submissionId)!;
 
   // Recheck: a claim we would end must belong to a coach we locked (5.2 §2).
@@ -83,7 +83,7 @@ async function claimOnce(tx: Tx, req: ClaimRequest, extraCoaches: string[]): Pro
     SELECT t."markingMode"::text AS "markingMode", t."disciplineId" FROM "TestSubmission" s JOIN "Test" t ON t."id" = s."testId" WHERE s."id" = ${task.submissionId}`;
   if (test[0]?.markingMode !== 'QUESTION') throw qmErrors.wrongMode(test[0]?.markingMode ?? 'PAPER');
 
-  const liveHeldBy = task.status === 'IN_PROGRESS' && task.lockExpiresAt !== null && task.lockExpiresAt >= t ? task.holderId : null;
+  let liveHeldBy = task.status === 'IN_PROGRESS' && task.lockExpiresAt !== null && task.lockExpiresAt >= t ? task.holderId : null;
   if (liveHeldBy === coachId) {
     // Already mine: the same claim (opening a task you hold never creates another claim).
     return { claimId: task.claimId!, taskId: task.id, submissionId: task.submissionId, lockExpiresAt: task.lockExpiresAt!, method: 'CLAIM', resumed: true, previousHolder: null, previousEnd: null };
@@ -95,6 +95,22 @@ async function claimOnce(tx: Tx, req: ClaimRequest, extraCoaches: string[]): Pro
   if (task.round === 'SECOND' && task.firstTaskId) {
     const first = await tx.testQuestionAssessment.count({ where: { taskId: task.firstTaskId, markerId: coachId } });
     if (first > 0) throw qmErrors.firstMarkerExcluded();
+  }
+  // A live hold of a coach who may no longer mark this question (revoked, suspended, removed from it) ends here, at once —
+  // never left to the sweep: the holder is locked (L1, above), the task too (L3). Their draft is kept for staff.
+  let previousHolder: string | null = null;
+  let previousEnd: ClaimResult['previousEnd'] = null;
+  if (liveHeldBy) {
+    const holder = await canMark(tx, liveHeldBy, task.questionId);
+    if (!holder.subject || !holder.marker) {
+      const ok = await endCurrentClaim(tx, task, t, null, 'AUTHORISATION_LOST', { expectCoach: liveHeldBy, unreserve: true, eventReason: 'The coach may no longer mark this question.' });
+      if (!ok) throw qmErrors.taskChanged({ reason: 'claim-changed' });
+      previousHolder = liveHeldBy;
+      previousEnd = 'AUTHORISATION_LOST';
+      touched.add(task.submissionId);
+      task = (await readTasks(tx, [task.id])).get(task.id)!;   // the locked row as it is now
+      liveHeldBy = null;
+    }
   }
   const assign = req.method === 'ASSIGN';
   if (liveHeldBy && !assign) throw qmErrors.taskTaken();
@@ -113,8 +129,6 @@ async function claimOnce(tx: Tx, req: ClaimRequest, extraCoaches: string[]): Pro
   if (active >= settings.maxActiveClaims) throw assign ? qmErrors.claimLimitFor(settings.maxActiveClaims) : qmErrors.claimLimit(settings.maxActiveClaims);
 
   // ── A previous claim on the target ends (expired, or reassigned by staff) ─────────────────────────────────────────
-  let previousHolder: string | null = null;
-  let previousEnd: ClaimResult['previousEnd'] = null;
   if (task.status === 'IN_PROGRESS' && task.claimId) {
     previousHolder = task.holderId;
     const expired = task.lockExpiresAt !== null && task.lockExpiresAt < t;

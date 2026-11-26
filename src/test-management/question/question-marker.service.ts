@@ -30,6 +30,7 @@ import {
   addMinutes, canMark, endCurrentClaim, lockCoaches, lockPapers, lockTasks, lockedNow, logCoachAccess, projectPapers, qmSettings,
   taskEvent, type Actor, type TaskRow, type Tx,
 } from './question-store.js';
+import { endQuestionWorkIfUnauthorised } from './question-withdraw.js';
 
 const WRITE_TX = { maxWait: 15_000, timeout: 30_000 } as const;
 const QM_FORBIDDEN = ['assessments', 'holder', 'holderId', 'reservedFor', 'reservedForId', 'claims', 'events', 'decisions', 'versions', 'history', 'coachId'];
@@ -167,8 +168,8 @@ export class QuestionMarkerService {
 
   /** What the caller may see of a task: holding it, reserved for it, or having submitted on it (read only). */
   private async access(db: Tx | PrismaService, userId: string, taskId: string) {
-    const [task] = await db.$queryRaw<Array<{ status: string; holderId: string | null; claimId: string | null; lockExpiresAt: Date | null; reservedForId: string | null; now: Date }>>`
-      SELECT "status"::text AS "status", "holderId", "claimId", "lockExpiresAt", "reservedForId", clock_timestamp() AS "now" FROM "TestQuestionTask" WHERE "id" = ${taskId}`;
+    const [task] = await db.$queryRaw<Array<{ status: string; holderId: string | null; claimId: string | null; lockExpiresAt: Date | null; reservedForId: string | null; questionId: string; now: Date }>>`
+      SELECT "status"::text AS "status", "holderId", "claimId", "lockExpiresAt", "reservedForId", "questionId", clock_timestamp() AS "now" FROM "TestQuestionTask" WHERE "id" = ${taskId}`;
     const live = task.status === 'IN_PROGRESS' && task.holderId === userId && task.lockExpiresAt !== null && task.lockExpiresAt >= task.now;
     const myLast = await db.testTaskClaim.findFirst({ where: { taskId, coachId: userId }, orderBy: { claimedAt: 'desc' }, select: { id: true, endedAt: true, endReason: true } });
     const submitted = await db.testQuestionAssessment.findFirst({ where: { taskId, markerId: userId, status: { in: ['SUBMITTED', 'APPROVED'] } }, select: { id: true } });
@@ -176,6 +177,14 @@ export class QuestionMarkerService {
     if (!live && !reserved && !submitted) {
       if (myLast) throw qmErrors.claimLost(lostReason(myLast));
       throw new AppError(HttpStatus.FORBIDDEN, 'TASK_NOT_HELD', 'Take this question from the list first.');
+    }
+    // Reads enforce the CURRENT authorisation too (the paper, its pages, the guide): a coach who may no longer mark
+    // this question sees none of it, and their open work ends now.
+    const can = await canMark(db, userId, task.questionId);
+    if (!can.subject || !can.marker) {
+      if (live || reserved) await this.endIfUnauthorised(userId);
+      if (live) throw qmErrors.claimLost('AUTHORISATION_LOST');
+      throw new AppError(HttpStatus.FORBIDDEN, 'MARKER_NOT_AUTHORIZED', 'You may no longer mark this question. Contact the Head Coach if this is a mistake.');
     }
     return { live, claimId: live ? task.claimId! : myLast?.id ?? null, lockExpiresAt: live ? task.lockExpiresAt : null };
   }
@@ -246,6 +255,31 @@ export class QuestionMarkerService {
 
   // ── Writes on my current claim ───────────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * A coach who may no longer mark (authorisation revoked, account suspended, removed from the question): their open
+   * claims and reserved returns end NOW, in their own transaction in lock order (L1 coach → L2 papers → L3 tasks) —
+   * the refused request never leaves the question held until the sweep.
+   */
+  private async endIfUnauthorised(userId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await lockCoaches(tx, [userId]);
+      await endQuestionWorkIfUnauthorised(tx, userId, null, 'The coach may no longer mark this question.');
+    }, WRITE_TX);
+  }
+
+  /** Runs a write on my claim; when my authorisation is gone, ends my work and answers CLAIM_LOST (AUTHORISATION_LOST). */
+  private async onMyClaim<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (e) {
+      if (e instanceof AuthorisationLost) {
+        await this.endIfUnauthorised(userId);
+        throw qmErrors.claimLost('AUTHORISATION_LOST');
+      }
+      throw e;
+    }
+  }
+
   /** The locked task, checked: held by me on a live claim and I may still mark it — else CLAIM_LOST with its reason. */
   private async held(tx: Tx, userId: string, task: TaskRow, t: Date) {
     if (!(task.status === 'IN_PROGRESS' && task.holderId === userId && task.lockExpiresAt && task.lockExpiresAt >= t && task.claimId)) {
@@ -253,14 +287,14 @@ export class QuestionMarkerService {
       throw qmErrors.claimLost(last ? lostReason(last) : 'RELEASED');
     }
     const can = await canMark(tx, userId, task.questionId);
-    if (!can.subject || !can.marker) throw qmErrors.claimLost('AUTHORISATION_LOST');
+    if (!can.subject || !can.marker) throw new AuthorisationLost();
     return task.claimId;
   }
 
   async heartbeat(user: AuthUser, code: string, ref: string) {
     this.coach(user);
     const ref0 = await this.resolve(this.prisma, code, ref);
-    const out = await this.prisma.$transaction(async (tx) => {
+    const out = await this.onMyClaim(user.id, () => this.prisma.$transaction(async (tx) => {
       const task = (await lockTasks(tx, [ref0.id])).get(ref0.id)!;
       const t = await lockedNow(tx);
       const claimId = await this.held(tx, user.id, task, t);
@@ -269,7 +303,7 @@ export class QuestionMarkerService {
       await tx.testQuestionTask.update({ where: { id: task.id }, data: { lockExpiresAt, updatedAt: t } });
       await tx.testTaskClaim.update({ where: { id: claimId }, data: { lastActiveAt: t } });
       return { lockExpiresAt };
-    }, WRITE_TX);
+    }, WRITE_TX));
     const wording = await this.prisma.testQuestionTask.findUniqueOrThrow({ where: { id: ref0.id }, select: { question: { select: { promptVersion: true } }, assessments: { where: { markerId: user.id, status: { in: ['DRAFT', 'RETURNED'] } }, select: { promptVersion: true } } } });
     return { ...out, heartbeatSeconds: HEARTBEAT_SECONDS, wordingChanged: wording.assessments.some((a) => a.promptVersion !== wording.question.promptVersion) };
   }
@@ -278,12 +312,12 @@ export class QuestionMarkerService {
   async saveMarks(user: AuthUser, code: string, ref: string, dto: { marks?: number | null; comment?: string | null; expectedRevision?: number }) {
     const actor = this.coach(user);
     const r = await this.resolve(this.prisma, code, ref);
-    await this.prisma.$transaction(async (tx) => {
+    await this.onMyClaim(user.id, () => this.prisma.$transaction(async (tx) => {
       const task = (await lockTasks(tx, [r.id])).get(r.id)!;
       const t = await lockedNow(tx);
       const claimId = await this.held(tx, user.id, task, t);
       await this.writeDraft(tx, task, claimId, actor, dto, t);
-    }, WRITE_TX);
+    }, WRITE_TX));
     return this.detail(user, code, ref);
   }
 
@@ -309,7 +343,7 @@ export class QuestionMarkerService {
   async submit(user: AuthUser, code: string, ref: string, dto: { marks?: number | null; comment?: string | null; expectedRevision?: number }) {
     const actor = this.coach(user);
     const r = await this.resolve(this.prisma, code, ref);
-    await this.prisma.$transaction(async (tx) => {
+    await this.onMyClaim(user.id, () => this.prisma.$transaction(async (tx) => {
       await lockCoaches(tx, [user.id]);
       await lockPapers(tx, [r.submissionId], 'NO KEY UPDATE');
       const task = (await lockTasks(tx, [r.id])).get(r.id)!;
@@ -325,7 +359,7 @@ export class QuestionMarkerService {
       await tx.testQuestionTask.update({ where: { id: task.id }, data: { status: 'SUBMITTED', holderId: null, claimId: null, lockExpiresAt: null, reservedForId: null, needsReassignment: false, updatedAt: t } });
       await taskEvent(tx, t, actor, task.id, 'SUBMITTED', { from: 'IN_PROGRESS', to: 'SUBMITTED', cycle: task.cycle, meta: { version, marks: a.marks, assessmentId } });
       await projectPapers(tx, [task.submissionId], actor, t);
-    }, WRITE_TX);
+    }, WRITE_TX));
     return this.detail(user, code, ref);
   }
 
@@ -345,6 +379,9 @@ export class QuestionMarkerService {
     return { released: true };
   }
 }
+
+/** Thrown inside a write transaction when the holder may no longer mark: caught outside it (onMyClaim). */
+class AuthorisationLost extends Error {}
 
 function lostReason(last: { endedAt: Date | null; endReason: string | null }): LostReason {
   if (!last.endedAt) return 'EXPIRED';                      // open but past its lock

@@ -57,7 +57,7 @@ describe.skipIf(!PHASE)(`question-marking rehearsal driver (${PHASE || 'off'})`,
   beforeAll(async () => {
     process.env.HEAD_COACHES_ENABLED = 'true';
     process.env.TEACHERS_ENABLED = 'true';
-    process.env.QUESTION_MARKING_ENABLED = PHASE === 'flag-off' ? 'false' : 'true';
+    process.env.QUESTION_MARKING_ENABLED = PHASE.startsWith('flag-off') ? 'false' : 'true';
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication<NestExpressApplication>({ logger: ['error'] });
     configureApp(app);
@@ -203,6 +203,27 @@ describe.skipIf(!PHASE)(`question-marking rehearsal driver (${PHASE || 'off'})`,
       const paper = await paperRound('Rehearsal paper test (after composed)', await maths());
       record('finish', { paper0, publish: [publish.status, publish.body?.publishedCount ?? publish.body?.code ?? null], paperTest: paper, counts: await counts() });
       expect((await counts()).composed).toBe(1);
+    } else if (PHASE === 'flag-off-composed') {
+      // Recovery after combined results exist (runbook §4): with the switch OFF, the COMPOSED result is an ordinary final
+      // marking for the results code — it publishes and the student sees it; nothing of question marking is reachable.
+      const before = await counts();
+      const qTest = (await prisma.test.findFirstOrThrow({ where: { title: 'Rehearsal question exam' } })).id;
+      const head = await login('reh.head');
+      const qm = await http().get(QM(qTest)).set(bearer(head));
+      expect([qm.status, qm.body.code]).toEqual([404, 'FEATURE_DISABLED']);
+      const blocked = await http().post(`${T}/${qTest}/results/publish`).set(bearer(head)).send({});
+      expect([blocked.status, blocked.body.code]).toEqual([409, 'PUBLICATION_BLOCKED']);   // two papers are not approved
+      const admin = await login('admin');
+      const pub = await http().post(`${T}/${qTest}/results/publish/override`).set(bearer(admin)).send({ reason: 'Rehearsal: publish the approved question-marked paper' });
+      expect(pub.status).toBe(200);
+      const paper0 = await prisma.testSubmission.findFirstOrThrow({ where: { testId: qTest, finalMarking: { kind: 'COMPOSED' } }, select: { status: true, student: { select: { username: true } } } });
+      expect(paper0.status).toBe('PUBLISHED');
+      const mine = await http().get(`/api/v1/me/test-results/${qTest}`).set(bearer(await login(paper0.student.username)));
+      expect(mine.status).toBe(200);
+      const after = await counts();
+      expect({ ...after, events: 0 }).toEqual({ ...before, events: 0 });
+      record('flag-off-composed', { questionRoutes: [qm.status, qm.body.code], headCoachPublish: [blocked.status, blocked.body.code], adminOverride: pub.status,
+        paperStatus: paper0.status, studentResult: { status: mine.status, total: mine.body?.totalMarks ?? mine.body?.result?.totalMarks ?? null }, counts: after });
     }
   }, 600_000);
 });

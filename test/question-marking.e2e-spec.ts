@@ -394,6 +394,98 @@ describe('Question-level marking (Rev 5.2) — e2e', () => {
     await release(cx, code, 'q3').expect(200);
   });
 
+  it('authorisation is enforced on EVERY request, without the sweep (workers off): reads and writes refuse, the claim ends at once, another coach can take it', async () => {
+    const id = await readyTest('Authorisation on every request');
+    const code = await codeOf(id, stJ);
+    const auth = await p().markerAuthorization.findFirstOrThrow({ where: { coachId: xId, disciplineId: maths, revokedAt: null } });
+    // An authorisation loss no hook saw (e.g. a direct data correction): only the API's own check can catch it.
+    const loseX = () => p().$executeRaw`UPDATE "MarkerAuthorization" SET "revokedAt" = now(), "revokedById" = ${ctx.ids.admin}, "revokeReason" = 'direct' WHERE "id" = ${auth.id}`;
+    const restoreX = () => p().$executeRaw`UPDATE "MarkerAuthorization" SET "revokedAt" = NULL, "revokedById" = NULL, "revokeReason" = NULL WHERE "id" = ${auth.id}`;
+    try {
+      await claim(cx, code, 'q3').expect(200);
+      await submitQ(cx, code, 'q3', { marks: 3 }).expect(200);
+      await claim(cx, code, 'q1').expect(200);
+      await save(cx, code, 'q1', { marks: 2 }).expect(200);
+      await loseX();
+      const t1 = await taskId(id, stJ, 1);
+      // 1. Reading the paper (the task, a page, the guide): refused, and the claim ends in that very request.
+      const detail = await http().get(`${MT}/${code}/q1`).set(bearer(cx));
+      expect([detail.status, detail.body.code, detail.body.details?.reason]).toEqual([409, 'CLAIM_LOST', 'AUTHORISATION_LOST']);
+      expect(await p().testQuestionTask.findUniqueOrThrow({ where: { id: t1 }, select: { status: true, holderId: true, claimId: true } })).toEqual({ status: 'NOT_STARTED', holderId: null, claimId: null });
+      const claims = await p().testTaskClaim.findMany({ where: { taskId: t1, coachId: xId }, select: { endReason: true } });
+      expect(claims).toEqual([{ endReason: 'AUTHORISATION_LOST' }]);
+      expect((await p().testQuestionAssessment.findFirstOrThrow({ where: { taskId: t1, markerId: xId } })).status).toBe('ABANDONED');   // the draft is kept for staff
+      for (const path of ['pages/1', 'marking-guide', 'paper']) {
+        const r = await http().get(`${MT}/${code}/q1/${path}`).set(bearer(cx));
+        expect([path, r.status, r.body.code]).toEqual([path, 409, 'CLAIM_LOST']);
+      }
+      // 2. Writes: refused with the reason.
+      for (const r of [await save(cx, code, 'q1', { marks: 3 }), await submitQ(cx, code, 'q1', { marks: 3 }), await http().post(`${MT}/${code}/q1/heartbeat`).set(bearer(cx)).send({})]) {
+        expect([r.status, r.body.code, r.body.details?.reason]).toEqual([409, 'CLAIM_LOST', 'AUTHORISATION_LOST']);
+      }
+      // 3. Even the coach's own submitted work is no longer shown to them.
+      expect(await status(http().get(`${MT}/${code}/q3`).set(bearer(cx)))).toEqual([403, 'MARKER_NOT_AUTHORIZED']);
+      expect(await status(claim(cx, code, 'q2'))).toEqual([403, 'MARKER_NOT_AUTHORIZED']);
+      // 4. A live hold of a coach who lost authorisation (no request of theirs since): another coach takes it over at once.
+      await restoreX();
+      await claim(cx, code, 'q2').expect(200);
+      await save(cx, code, 'q2', { marks: 7 }).expect(200);
+      await loseX();
+      const takeover = await claim(cy, code, 'q2');
+      expect(takeover.status).toBe(200);
+      const t2 = await taskId(id, stJ, 2);
+      expect((await p().testQuestionTask.findUniqueOrThrow({ where: { id: t2 } })).holderId).toBe(yId);
+      expect((await p().testTaskClaim.findFirstOrThrow({ where: { taskId: t2, coachId: xId } })).endReason).toBe('AUTHORISATION_LOST');
+      const ev = await p().testTaskEvent.findFirstOrThrow({ where: { taskId: t2, action: { equals: 'CLAIMED' } }, orderBy: { createdAt: 'desc' } });
+      expect(ev.meta).toMatchObject({ previousHolder: xId, previousEnd: 'AUTHORISATION_LOST' });
+      const y = await http().get(`${MT}/${code}/q2`).set(bearer(cy)).expect(200);
+      expect(y.body.myAssessment).toMatchObject({ status: 'DRAFT', marks: null });   // Y starts empty: X's draft is not passed on
+      const lost = await http().post(`${MT}/${code}/q2/heartbeat`).set(bearer(cx)).send({});
+      expect([lost.status, lost.body.code, lost.body.details?.reason]).toEqual([409, 'CLAIM_LOST', 'AUTHORISATION_LOST']);
+      await release(cy, code, 'q2').expect(200);
+    } finally {
+      await restoreX();
+    }
+  });
+
+  it('account suspended, programme membership ended, role changed: the coach\'s question work ends in the same transaction', async () => {
+    const id = await readyTest('Authorisation ends with the account');
+    const code = await codeOf(id, stJ2);
+    const [q1, q2] = await qids(id);
+    // Suspension (the status endpoint; bulk operations use the same service).
+    await claim(cz, code, 'q2').expect(200);
+    const t2 = await taskId(id, stJ2, 2);
+    try {
+      await http().post(`/api/v1/admin/users/${zId}/status-changes`).set(bearer(admin)).send({ toStatus: 'SUSPENDED', reason: 'Investigation' }).expect(200);
+      expect(await p().testQuestionTask.findUniqueOrThrow({ where: { id: t2 }, select: { status: true, holderId: true } })).toEqual({ status: 'NOT_STARTED', holderId: null });
+      expect((await p().testTaskClaim.findFirstOrThrow({ where: { taskId: t2, coachId: zId } })).endReason).toBe('AUTHORISATION_LOST');
+    } finally {
+      await http().post(`/api/v1/admin/users/${zId}/status-changes`).set(bearer(admin)).send({ toStatus: 'ACTIVE', reason: 'Cleared' }).expect(200);
+      cz = await login(ctx, 'qm.z');
+    }
+    // A coach marking through programme membership only: ending the membership ends the subject's question work.
+    const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const vId = (await p().user.create({ data: { username: 'qm.v', firstName: 'V', lastName: 'Test', email: 'qm.v@test.local', role: 'MENTOR', passwordHash: hash, activatedAt: new Date() } })).id;
+    await p().programmeMembership.create({ data: { userId: vId, disciplineId: maths, source: 'MANUAL' } });
+    await setMarkers(id, q1, [vId]).expect(200);
+    const cv = await login(ctx, 'qm.v');
+    await claim(cv, code, 'q1').expect(200);
+    const del = await http().delete(`/api/v1/admin/programmes/${maths}/members/${vId}`).set(bearer(admin));
+    expect([200, 204]).toContain(del.status);
+    const t1 = await taskId(id, stJ2, 1);
+    expect(await p().testQuestionTask.findUniqueOrThrow({ where: { id: t1 }, select: { status: true, holderId: true } })).toEqual({ status: 'NOT_STARTED', holderId: null });
+    expect(await p().testQuestionMarker.count({ where: { questionId: q1, coachId: vId, endedAt: null } })).toBe(0);
+    // A role change (Coach → Head Coach): no longer a coach, so the same.
+    await p().programmeMembership.updateMany({ where: { userId: vId, disciplineId: maths }, data: { isActive: true, endedAt: null } });
+    await setMarkers(id, q2, [vId]).expect(200);
+    const cv2 = await login(ctx, 'qm.v');
+    await claim(cv2, code, 'q2').expect(200);
+    const role = await http().patch(`/api/v1/admin/users/${vId}`).set(bearer(admin)).send({ role: 'HEAD_COACH' });
+    expect([role.status, role.body?.code ?? null]).toEqual([200, null]);
+    expect(await p().testQuestionTask.findUniqueOrThrow({ where: { id: t2 }, select: { status: true, holderId: true } })).toEqual({ status: 'NOT_STARTED', holderId: null });
+    expect((await p().testTaskClaim.findFirstOrThrow({ where: { taskId: t2, coachId: vId } })).endReason).toBe('AUTHORISATION_LOST');
+  });
+
   it('resubmission: an open authorisation stops claims; the replacement moves the tasks; refused once any task was claimed', async () => {
     const id = await readyTest('Resubmission');
     const sub = await paperOf(id, stJ2);

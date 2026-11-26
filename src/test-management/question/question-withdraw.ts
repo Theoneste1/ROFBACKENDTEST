@@ -66,3 +66,12 @@ export async function endQuestionWorkForSubject(tx: Tx, coachId: string, discipl
      WHERE m."questionId" = q."id" AND m."coachId" = ${coachId} AND m."endedAt" IS NULL AND te."disciplineId" = ${disciplineId}`;
   return withdrawQuestionWork(tx, [coachId], { disciplineId, onlyIfUnauthorised: true }, actor, reason);
 }
+
+/**
+ * Every open claim and reserved return of a coach who may no longer mark them ends now (any subject, any question):
+ * account suspended / archived, role changed, programme membership ended, or a refused request of that coach. The
+ * caller took lockCoaches([coachId]) first (L1) — before writing the change that removed the authorisation.
+ */
+export async function endQuestionWorkIfUnauthorised(tx: Tx, coachId: string, actor: Actor | null, reason: string): Promise<number> {
+  return withdrawQuestionWork(tx, [coachId], { onlyIfUnauthorised: true }, actor, reason);
+}
