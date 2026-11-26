@@ -4849,6 +4849,7 @@ Body (JSON):
 |---|---|:-:|---|
 | `name` | string | ✓ |  |
 | `description` | string |  |  |
+| `isTemplate` | boolean |  | Save as a template every Administrator may start from (the Super Admin only; 403 REPORT_TEMPLATE_SUPER_ADMIN_ONLY). |
 | `source` | string | ✓ |  |
 | `columns` | string[] | ✓ |  |
 | `filters` | object[] |  |  |
@@ -4882,6 +4883,7 @@ Body (JSON):
 |---|---|:-:|---|
 | `name` | string | ✓ |  |
 | `description` | string |  |  |
+| `isTemplate` | boolean |  | Save as a template every Administrator may start from (the Super Admin only; 403 REPORT_TEMPLATE_SUPER_ADMIN_ONLY). |
 | `source` | string | ✓ |  |
 | `columns` | string[] | ✓ |  |
 | `filters` | object[] |  |  |

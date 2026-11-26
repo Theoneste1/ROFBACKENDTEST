@@ -386,7 +386,9 @@ const ACTIVATE_NOW_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-24-activate-no
 const BANKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-details.json';
 /** Banking editing (owner 2026-11-25): PUT /admin/users/:id/banking — an administrator edits a person's details. Additive only. */
 const BANKING_EDIT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-banking-edit.json';
-const CURRENT_SNAPSHOT = BANKING_EDIT_SNAPSHOT;
+/** Reports with any data (owner 2026-11-25): templates (isTemplate on create / save). Additive only. */
+const REPORT_TEMPLATES_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-25-report-templates.json';
+const CURRENT_SNAPSHOT = REPORT_TEMPLATES_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2034,6 +2036,18 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.additive, ['PUT /api/v1/admin/users/{id}/banking: operation added']);
     const op = JSON.parse(readFileSync('docs/api/openapi.json', 'utf8')).paths['/api/v1/admin/users/{id}/banking'].put;
     assert.equal(op['x-permission'], 'users.manage');
+  });
+
+  test("banking editing → report templates (2026-11-25): additive only — isTemplate on saving a report", () => {
+    for (const f of [BANKING_EDIT_SNAPSHOT, REPORT_TEMPLATES_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BANKING_EDIT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(REPORT_TEMPLATES_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'POST /api/v1/reports › request application/json.isTemplate: new optional field',
+      'PUT /api/v1/reports/{id} › request application/json.isTemplate: new optional field',
+    ]);
   });
 
   test('activate now (2026-11-24): the documented 200 response is { user, stillBlockedBy, message } — the shape the frontend reads', () => {
