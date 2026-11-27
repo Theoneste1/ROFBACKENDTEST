@@ -42,11 +42,10 @@ describe('AvatarService', () => {
     const audit = { log: vi.fn() };
     const roles = { assertCanManage: vi.fn(async () => { if (opts.refuse) throw Object.assign(new Error('no'), { code: 'ROLE_NOT_ASSIGNABLE' }); }) };
     const users = { findOne: vi.fn().mockResolvedValue({ id: 'stu' }) };
-    const permissions = { has: vi.fn().mockReturnValue(false) };
+    const permissions = { has: vi.fn().mockReturnValue(opts.profile ?? false) };
     const overview = { mayView: vi.fn().mockResolvedValue(opts.profile ?? true) };
-    const coaches = { mayView: vi.fn().mockResolvedValue(opts.profile ?? true) };
-    const service = new AvatarService(prisma as never, storage as never, audit as never, roles as never, users as never, permissions as never, overview as never, coaches as never);
-    return { service, prisma, tx, storage, audit, roles, users, overview, coaches };
+    const service = new AvatarService(prisma as never, storage as never, audit as never, roles as never, users as never, permissions as never, overview as never);
+    return { service, prisma, tx, storage, audit, roles, users, overview, permissions };
   }
 
   it('no file → 400 FILE_REQUIRED; nothing stored or written', async () => {
@@ -103,44 +102,55 @@ describe('AvatarService', () => {
     expect(some.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, max-age=86400' });
   });
 
-  // Owner 2026-11-27: a picture is visible to everyone who may view that user's profile.
-  describe('serving follows the profile rule (students, Coaches, Head Coaches)', () => {
+  // Owner 2026-11-27: any signed-in user who may view a person's profile sees the picture — by exactly the profile's check.
+  describe("serving: the picture follows the profile's own check (students, Coaches, Head Coaches)", () => {
     const file = { storageKey: 'avatars/2026/11/u.png', mimeType: 'image/png', originalName: 'file.png', size: 3 };
     const viewer = { id: 'viewer', role: 'STUDENT', divisionId: 'd1' } as never;
+    const NO_PICTURE = 'This account has no profile picture.';
 
-    it.each([
-      ['STUDENT', 'overview'],
-      ['MENTOR', 'coaches'],
-      ['HEAD_COACH', 'coaches'],
-    ] as const)('a %s: allowed by its profile rule → the picture, never cached by the browser', async (role, rule) => {
-      const m = make({ user: { id: 'u', role, accountStatus: 'ACTIVE', divisionId: 'd1', avatarFile: file }, profile: true });
+    it('a student: StudentOverviewService.mayView (the check of GET /students/:id/overview) decides; allowed → never cached', async () => {
+      const m = make({ user: { id: 'u', role: 'STUDENT', accountStatus: 'ACTIVE', divisionId: 'd1', avatarFile: file }, profile: true });
       await m.service.send('u', viewer, {} as never);
-      expect(m[rule].mayView).toHaveBeenCalledTimes(1);
+      expect(m.overview.mayView).toHaveBeenCalledTimes(1);
+      expect(m.permissions.has).not.toHaveBeenCalled();
       expect(m.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, no-store' });
     });
 
-    it.each(['STUDENT', 'MENTOR', 'HEAD_COACH'])('a %s: refused by its profile rule → the same 404 with or without a picture; nothing sent', async (role) => {
+    it.each(['MENTOR', 'HEAD_COACH'])('a %s: users.manage (the permission of GET /admin/users/:id) decides; allowed → never cached', async (role) => {
+      const m = make({ user: { id: 'u', role, accountStatus: 'ACTIVE', divisionId: null, avatarFile: file }, profile: true });
+      await m.service.send('u', viewer, {} as never);
+      expect(m.permissions.has).toHaveBeenCalledWith(viewer, 'users.manage');
+      expect(m.overview.mayView).not.toHaveBeenCalled();
+      expect(m.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, no-store' });
+    });
+
+    it.each(['MENTOR', 'HEAD_COACH'])('a %s sees their own picture (their own profile, GET /me) without users.manage', async (role) => {
+      const m = make({ user: { id: 'viewer', role, accountStatus: 'ACTIVE', divisionId: null, avatarFile: file }, profile: false });
+      await m.service.send('viewer', { id: 'viewer', role } as never, {} as never);
+      expect(m.storage.send).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['STUDENT', 'MENTOR', 'HEAD_COACH'])('a %s: refused → the same 404 with or without a picture; nothing sent', async (role) => {
       const withPicture = make({ user: { id: 'u', role, accountStatus: 'ACTIVE', divisionId: 'd2', avatarFile: file }, profile: false });
       const without = make({ user: { id: 'u', role, accountStatus: 'ACTIVE', divisionId: 'd2', avatarFile: null }, profile: false });
       const a = await withPicture.service.send('u', viewer, {} as never).catch((e: Error) => e.message);
       const b = await without.service.send('u', viewer, {} as never).catch((e: Error) => e.message);
-      expect(a).toBe('This account has no profile picture.');
-      expect(b).toBe(a);
+      expect([a, b]).toEqual([NO_PICTURE, NO_PICTURE]);
       expect(withPicture.storage.send).not.toHaveBeenCalled();
     });
 
-    it('an unknown account: the same 404', async () => {
+    it('an unknown account: the same 404, no check asked', async () => {
       const m = make({ user: null });
-      await expect(m.service.send('nobody', viewer, {} as never)).rejects.toThrow('This account has no profile picture.');
+      await expect(m.service.send('nobody', viewer, {} as never)).rejects.toThrow(NO_PICTURE);
       expect(m.overview.mayView).not.toHaveBeenCalled();
-      expect(m.coaches.mayView).not.toHaveBeenCalled();
+      expect(m.permissions.has).not.toHaveBeenCalled();
     });
 
-    it.each(['TEACHER', 'ADMIN'])('another account (%s): every signed-in user, cached for a day; no profile rule is asked', async (role) => {
+    it.each(['TEACHER', 'ADMIN'])('another account (%s): every signed-in user, cached for a day; no check asked', async (role) => {
       const m = make({ user: { id: 't', role, accountStatus: 'ACTIVE', divisionId: null, avatarFile: file }, profile: false });
       await m.service.send('t', viewer, {} as never);
       expect(m.overview.mayView).not.toHaveBeenCalled();
-      expect(m.coaches.mayView).not.toHaveBeenCalled();
+      expect(m.permissions.has).not.toHaveBeenCalled();
       expect(m.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, max-age=86400' });
     });
   });

@@ -108,23 +108,6 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     file: 'src/teacher-applications/teacher-applications.service.ts', rule: 'U6', code: 'role: caller.role',
     reason: "approve(): passes the approving Administrator's role to approveInTx(), which only writes it to the audit entry (actorRole) — attribution data, not an access decision; the route is guarded by users.manageTeachers.",
   },
-  // ── Coach and Head Coach profile and picture (owner 2026-11-27: a picture is visible to everyone who may view the profile) ──
-  {
-    file: 'src/users/coach-profile.service.ts', rule: 'U6', code: '(APP_ROLES as readonly string[]).includes(viewer.role)',
-    reason: 'mayView(): the first check REFUSES (returns false → 404) any caller whose role is not one of the six known roles — even for their own account; it never grants anything.',
-  },
-  {
-    file: 'src/users/coach-profile.service.ts', rule: 'U4', code: 'viewer.id === coachId || isAdmin(viewer)',
-    reason: 'mayView(): grants only the coach themself and Administrators / Super Administrators (who manage every account); every other role falls through to the narrower checks below and finally `return false` (404).',
-  },
-  {
-    file: 'src/users/coach-profile.service.ts', rule: 'U3', code: "coach.role === 'MENTOR' && isHeadCoach(viewer)",
-    reason: "mayView(): a Head Coach viewing a COACH is granted only for a coach of a programme they head (AccessService.programmeScope); a Head Coach's own profile has no such branch (only Administrators manage Head Coaches). Otherwise, like every other role, they fall through to the discussion check and `return false`.",
-  },
-  {
-    file: 'src/users/coach-profile.service.ts', rule: 'U3', code: "viewer.role === 'STUDENT' && viewer.divisionId !== scope.divisionId",
-    reason: "mayView(): only SKIPS a (course, division) a student can never read (AccessService.assertCanView refuses another division anyway) — it never grants; the grant is decided by assertCanView, the discussions' own check.",
-  },
   {
     file: 'src/users/student-overview.service.ts', rule: 'U6', code: '(APP_ROLES as readonly string[]).includes(viewer.role)',
     reason: 'mayView(): the first check REFUSES (returns false → 404) any caller whose role is not one of the six known roles — even for their own account; it never grants anything.',

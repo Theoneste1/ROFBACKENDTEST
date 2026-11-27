@@ -5,10 +5,13 @@
  *  - An Administrator with users.manage does the same for an account whose current role they may
  *    manage (PUT / DELETE /api/v1/admin/users/:id/avatar; RoleAssignmentPolicy.assertCanManage, so an
  *    ADMIN never touches a SUPER_ADMIN).
- *  - Viewing (GET /api/v1/users/:id/avatar, owner 2026-11-27): a picture is visible to everyone who may view that
- *    user's PROFILE, decided by the same rule as the profile — a student's by StudentOverviewService.mayView (also used
- *    by GET /students/:id/overview), a Coach's or Head Coach's by CoachProfileService.mayView. Anyone else gets the
- *    same 404 as "no picture". Other accounts (Teachers, Administrators): any signed-in user. Never anonymous.
+ *  - Viewing (GET /api/v1/users/:id/avatar, owner 2026-11-27): any signed-in user who may view a person's PROFILE also
+ *    sees their picture — by exactly the check of that profile, never a rule of its own:
+ *      a student: StudentOverviewService.mayView, the check of GET /students/:id/overview (the student included);
+ *      a Coach or Head Coach: the person themself (GET /me) or a holder of users.manage, the permission of their
+ *      profile page GET /admin/users/:id;
+ *      anyone else (Teachers, Administrators): any signed-in user (unchanged).
+ *    Anyone not allowed gets the same 404 as "no picture". Never anonymous.
  *
  * Files go through the existing StorageService (FilePurpose AVATAR: JPEG, PNG or WebP by their bytes, at most
  * 2 MB). The account references its current picture (User.avatarFileId), which keeps it out of the nightly
@@ -17,10 +20,9 @@
  * picture. Every change is audited (AVATAR_SET / AVATAR_REMOVED: actor, account and file ids only).
  *
  * Protections for minors: pictures are never public (GET needs a signed-in user, and a student's follows who may view
- * the student); the link and the storage key
+ * the student's profile); the link and the storage key
  * carry only ids and a random UUID, never a name, username or e-mail; the uploaded file name is discarded.
  */
-import { CoachProfileService } from './coach-profile.service.js';
 import { StudentOverviewService } from './student-overview.service.js';
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
@@ -41,7 +43,7 @@ export { avatarUrlOf };
 
 /** Pictures are versioned by their link, so a day of private caching is safe. */
 export const AVATAR_CACHE_CONTROL = 'private, max-age=86400';
-/** A picture that follows a profile rule (students, coaches, Head Coaches) is never kept in a browser cache: losing access applies at once. */
+/** A picture that follows a profile's access (students, Coaches, Head Coaches) is never kept in a browser cache: losing access applies at once. */
 export const STUDENT_AVATAR_CACHE_CONTROL = 'private, no-store';
 
 @Injectable()
@@ -54,7 +56,6 @@ export class AvatarService {
     private readonly users: UsersService,
     private readonly permissions: PermissionService,
     private readonly overview: StudentOverviewService,
-    private readonly coaches: CoachProfileService,
   ) {}
 
   // ─── Own picture (/me) ──────────────────────────────────────────────────────
@@ -86,10 +87,9 @@ export class AvatarService {
   // ─── Serve ──────────────────────────────────────────────────────────────────
 
   /**
-   * GET /users/:id/avatar (owner 2026-11-27): the picture is visible to everyone who may view the user's profile.
-   *  - a STUDENT: StudentOverviewService.mayView — the rule of GET /students/:id/overview;
-   *  - a COACH or a HEAD COACH: CoachProfileService.mayView;
-   *  - any other account (Teachers, Administrators): every signed-in user (unchanged).
+   * GET /users/:id/avatar (owner 2026-11-27): the picture is visible to every signed-in user who may view the user's
+   * profile, by exactly the check of that profile (see mayViewProfile); any other account (Teachers, Administrators):
+   * every signed-in user (unchanged).
    * The permission is checked BEFORE the picture is looked up, and an unknown account, a refused viewer and an account
    * without a picture all get the same 404 — the answer never reveals whether a protected user has a picture.
    */
@@ -109,11 +109,15 @@ export class AvatarService {
     await this.storage.send(res, user.avatarFile, { cacheControl: followsProfile ? STUDENT_AVATAR_CACHE_CONTROL : AVATAR_CACHE_CONTROL });
   }
 
-  /** The profile rule of a student, a Coach or a Head Coach (see send); refuses any other role (never called for one). */
+  /**
+   * Whether `viewer` may view this student's, Coach's or Head Coach's profile — the very check of the profile endpoint:
+   *  - a student: StudentOverviewService.mayView, used by GET /students/:id/overview (and true for the student themself);
+   *  - a Coach or Head Coach: their own profile (GET /me), or users.manage — the permission (and only check) of their
+   *    profile page GET /admin/users/:id, decided by the same PermissionService as the route's guard.
+   */
   private async mayViewProfile(viewer: AuthUser, user: { id: string; role: string; accountStatus: string; divisionId: string | null }) {
     if (user.role === 'STUDENT') return this.overview.mayView(viewer, user);
-    if (user.role === 'MENTOR' || user.role === 'HEAD_COACH') return this.coaches.mayView(viewer, { id: user.id, role: user.role });
-    return false;
+    return viewer.id === user.id || this.permissions.has(viewer, 'users.manage');
   }
 
 
