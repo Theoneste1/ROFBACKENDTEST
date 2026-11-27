@@ -17,7 +17,7 @@ admits exactly the roles it names; a permission route admits the roles holding t
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 517 endpoints — 31 public, 231 administrator-only (Admin and / or Super Admin).
+Totals: 519 endpoints — 31 public, 233 administrator-only (Admin and / or Super Admin).
 
 ## Academic years
 
@@ -52,6 +52,13 @@ Totals: 517 endpoints — 31 public, 231 administrator-only (Admin and / or Supe
 | GET | `/api/v1/admin/audit-logs/{id}` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/audit-logs/actions` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/audit-logs/export.csv` |  |  |  |  |  | ✓ | ✓ |
+
+## Admin · Banking
+
+| Method | Path | Public | Student | Teacher | Coach (MENTOR) | Head Coach | Admin | Super Admin |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| GET | `/api/v1/admin/banking/banks` |  |  |  |  |  |  | ✓ |
+| PUT | `/api/v1/admin/banking/banks` |  |  |  |  |  |  | ✓ |
 
 ## Admin · Bulk operations
 

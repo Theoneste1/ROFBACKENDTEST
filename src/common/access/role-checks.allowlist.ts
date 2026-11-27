@@ -70,14 +70,14 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: "Banking information (owner 2026-11-25): the rules are applied only after bankingRequiredFor(user.role) let the caller through (one of TEACHER, MENTOR, HEAD_COACH); anything else is refused or answers 'not required' first. The caller's own row only.",
   },
   {
-    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'bankRules(user.role)',
+    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'bankRules(user.role, await this.banks())',
     reason: "Banking information (owner 2026-11-25): the rules are applied only after bankingRequiredFor(user.role) let the caller through (one of TEACHER, MENTOR, HEAD_COACH); anything else is refused or answers 'not required' first. The caller's own row only.",
   },  {
     file: 'src/banking/banking.service.ts', rule: 'U6', code: 'bankConflicts(user.role, details)',
     reason: "Banking information (owner 2026-11-25): the rules are applied only after bankingRequiredFor(user.role) let the caller through (one of TEACHER, MENTOR, HEAD_COACH); anything else is refused or answers 'not required' first. The caller's own row only.",
   },
   {
-    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'checkSubmission(user.role, input, before, confirmReplace)',
+    file: 'src/banking/banking.service.ts', rule: 'U6', code: 'checkSubmission(user.role, input, before, confirmReplace, await this.banks())',
     reason: "Banking information (owner 2026-11-25): the rules are applied only after bankingRequiredFor(user.role) let the caller through (one of TEACHER, MENTOR, HEAD_COACH); anything else is refused or answers 'not required' first. The caller's own row only.",
   },
   // ── Permission layer (/me/permissions) ─────────────────────────────────────

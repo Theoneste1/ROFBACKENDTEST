@@ -136,6 +136,22 @@
     "tag": "Admin · Audit"
   },
   {
+    "method": "GET",
+    "path": "/api/v1/admin/banking/banks",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Banking"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/admin/banking/banks",
+    "roles": [
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Banking"
+  },
+  {
     "method": "POST",
     "path": "/api/v1/admin/bulk/{entityType}",
     "roles": [

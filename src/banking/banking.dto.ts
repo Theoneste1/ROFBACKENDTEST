@@ -1,5 +1,7 @@
-import { Transform } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Max, MaxLength, Min, ValidateNested,
+} from 'class-validator';
 
 /**
  * PUT /me/banking: the role's fields — all six for Teachers, the three personal ones for Coaches and Head Coaches (school
@@ -20,6 +22,23 @@ export class SaveBankingDto {
    */
   @IsOptional() @IsArray() @ArrayMaxSize(2) @IsIn(['personalBankName', 'schoolBankName'], { each: true })
   confirmReplace?: Array<'personalBankName' | 'schoolBankName'>;
+}
+
+/** One bank of the list the Super Administrator manages: its name, whether it can be chosen, its digits rule (null: general). */
+export class BankOptionDto {
+  @IsString() @Length(2, 120) name!: string;
+  @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsInt() @Min(1) @Max(40) minDigits?: number | null;
+  @IsOptional() @IsInt() @Min(1) @Max(40) maxDigits?: number | null;
+}
+
+/** PUT /admin/banking/banks (Super Administrator): the whole list at once and the reason (audit log). */
+export class SetBanksDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => BankOptionDto)
+  banks!: BankOptionDto[];
+
+  @IsString() @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value)) @Length(3, 500)
+  reason!: string;
 }
 
 /** GET /admin/users/:id/banking?reveal=true: the account numbers in full (audited). */
