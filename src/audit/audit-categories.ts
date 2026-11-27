@@ -9,7 +9,7 @@ export const AUDIT_CATEGORIES = {
     'OLYMPIAD_LEVEL_CHANGED',   // a student's Olympiad level set by hand or returned to the grade's suggestion (owner 2026-11-21)
     'APPROVE_MENTOR_REQUEST', 'REJECT_MENTOR_REQUEST', 'SUBMIT_MENTOR_REQUEST',
     'AVATAR_SET', 'AVATAR_REMOVED', 'DATE_OF_BIRTH_ADDED', 'DATE_OF_BIRTH_CORRECTED', 'GENDER_ADDED',
-    'BANK_DETAILS_SAVED', 'BANK_DETAILS_VIEWED', 'BANK_DETAILS_UPDATED_BY_ADMIN',   // banking information: given by the person; full numbers shown to an Administrator (owner 2026-11-25)
+    'BANK_DETAILS_SAVED', 'BANK_DETAILS_VIEWED', 'BANKING_BANKS_UPDATED', 'BANK_DETAILS_UPDATED_BY_ADMIN',   // banking information: given by the person; full numbers shown to an Administrator (owner 2026-11-25)
     'USER_STATUS_CHANGED',
     'BULK_OPERATION_STARTED', 'BULK_OPERATION_FINISHED', 'BULK_OPERATION_CANCELLED', 'USERS_EXPORTED',
   ],

@@ -398,7 +398,9 @@ const QUEUE_TO_MARK_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-queue-to-m
 const QUESTION_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-question-marking.json';
 /** Super Administrators set a test's questions after submissions (2026-11-27): PUT /api/v1/admin/tests/{id}/questions. Additive only. */
 const SET_QUESTIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-27-set-questions.json';
-const CURRENT_SNAPSHOT = SET_QUESTIONS_SNAPSHOT;
+/** The bank list managed by the Super Administrator (2026-11-27): GET / PUT /api/v1/admin/banking/banks. Additive only. */
+const BANKS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-27-banks.json';
+const CURRENT_SNAPSHOT = BANKS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2133,6 +2135,18 @@ describe('approved API contract history', () => {
     assert.deepEqual(res.breaking, []);
     assert.deepEqual(res.review, []);
     assert.deepEqual(res.additive.sort(), ['PUT /api/v1/admin/tests/{id}/questions: operation added', 'schema SetTestQuestionsDto: added']);
+  });
+
+  test('setting every question at once → the bank list (2026-11-27): additive only', () => {
+    for (const f of [SET_QUESTIONS_SNAPSHOT, BANKS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SET_QUESTIONS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(BANKS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive.sort(), [
+      'GET /api/v1/admin/banking/banks: operation added', 'PUT /api/v1/admin/banking/banks: operation added',
+      'schema BankOptionDto: added', 'schema SetBanksDto: added',
+    ]);
   });
 
   test('activate now (2026-11-24): the documented 200 response is { user, stillBlockedBy, message } — the shape the frontend reads', () => {

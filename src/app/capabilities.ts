@@ -304,6 +304,13 @@ export const FEATURES = {
    */
   bankingDetails: 'always',
   /**
+   * The bank list (owner 2026-11-27): every bank is chosen from a list the Super Administrator manages (GET / PUT
+   * /admin/banking/banks, @Roles SUPER_ADMIN): add, rename, switch off, digits rule per bank. Teachers choose their banks
+   * too; the account number follows the chosen bank (Umwalimu SACCO always exactly 12 digits). GET /me/banking
+   * rules.bankOptions carries each bank's rule and instruction.
+   */
+  managedBanks: 'always',
+  /**
    * Administrator-managed divisions (owner 2026-11-22): POST /admin/divisions; PATCH with suggestedGrades and sortOrder
    * (grades given to a division are taken from the one that had them); deactivation guarded; GET / PUT
    * /admin/divisions/:id/courses (which courses a division offers; students see only those);

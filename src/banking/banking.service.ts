@@ -16,16 +16,85 @@ import type { AuthUser } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
-  BANK_DETAILS_SELECT, BANKING_FIELDS, bankConflicts, bankingRequiredFor, requiredFields, bankingSummary, bankRules, checkSubmission, FIELD_LABELS, maskAccountNumber,
-  type BankingDetails,
+  BANK_DETAILS_SELECT, BANKING_FIELDS, DEFAULT_BANKS, UMWALIMU_SACCO, bankConflicts, bankingRequiredFor, requiredFields, bankingSummary, bankRules,
+  checkSubmission, FIELD_LABELS, maskAccountNumber, normalizeBanks, numberProblem, numberInstruction,
+  type BankOption, type BankingDetails,
 } from './banking-rules.js';
-import type { SaveBankingDto } from './banking.dto.js';
+import type { SaveBankingDto, SetBanksDto } from './banking.dto.js';
+
+/** SystemSetting key of the bank list the Super Administrator manages (no table of its own). */
+export const BANKS_KEY = 'banking.banks';
 
 const DETAILS_SELECT = BANK_DETAILS_SELECT;
 
 @Injectable()
 export class BankingService {
   constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
+
+  /** The bank list: as the Super Administrator set it, else the agreed starting list (always with Umwalimu SACCO, 12 digits). */
+  async banks(): Promise<BankOption[]> {
+    const row = await this.prisma.systemSetting.findUnique({ where: { key: BANKS_KEY } });
+    return normalizeBanks(Array.isArray(row?.value) ? (row.value as Partial<BankOption>[]) : DEFAULT_BANKS);
+  }
+
+  /**
+   * The Super Administrator's view of the bank list: each bank with its instruction, how many people use it, and how many
+   * of their saved account numbers do not follow its rule (they are not locked out; they are asked when they next save).
+   */
+  async adminBanks() {
+    const banks = await this.banks();
+    return { banks: await this.withUsage(banks), fixedBank: UMWALIMU_SACCO };
+  }
+
+  private async withUsage(banks: BankOption[]) {
+    const rows = await this.prisma.userBankDetails.findMany({ select: { personalBankName: true, personalAccountNumber: true, schoolBankName: true, schoolAccountNumber: true } });
+    return banks.map((b) => {
+      const key = b.name.toLowerCase();
+      let people = 0;
+      let notFollowing = 0;
+      for (const r of rows) {
+        for (const [bank, number] of [[r.personalBankName, r.personalAccountNumber], [r.schoolBankName, r.schoolAccountNumber]] as const) {
+          if ((bank ?? '').trim().toLowerCase() !== key) continue;
+          people++;
+          if (number && numberProblem(b, number)) notFollowing++;
+        }
+      }
+      return { ...b, instruction: numberInstruction(b), accounts: people, accountsNotFollowingRule: notFollowing };
+    });
+  }
+
+  /**
+   * The Super Administrator sets the bank list (owner 2026-11-27). Umwalimu SACCO always stays, available, exactly 12
+   * digits. A bank someone uses cannot be removed (switch it off instead: it then can no longer be chosen, and whoever has
+   * it keeps it). Audited with the reason, before and after. Saved details are never changed.
+   */
+  async setBanks(dto: SetBanksDto, actor: AuthUser) {
+    if (actor.role !== 'SUPER_ADMIN') {
+      throw new AppError(HttpStatus.FORBIDDEN, 'SUPER_ADMIN_REQUIRED', 'Only a Super Administrator can change the bank list.');
+    }
+    const next = normalizeBanks(dto.banks);
+    const before = await this.banks();
+    const kept = new Set(next.map((b) => b.name.toLowerCase()));
+    const usage = await this.withUsage(before);
+    const removedInUse = usage.filter((b) => !kept.has(b.name.toLowerCase()) && b.accounts > 0);
+    if (removedInUse.length) {
+      throw new AppError(HttpStatus.CONFLICT, 'BANK_IN_USE',
+        `${removedInUse.map((b) => b.name).join(', ')} ${removedInUse.length === 1 ? 'is' : 'are'} used by saved bank details and cannot be removed. Switch ${removedInUse.length === 1 ? 'it' : 'them'} off instead.`,
+        { banks: removedInUse.map((b) => ({ name: b.name, accounts: b.accounts })) });
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.systemSetting.upsert({
+        where: { key: BANKS_KEY },
+        create: { key: BANKS_KEY, value: next as unknown as object, updatedById: actor.id },
+        update: { value: next as unknown as object, updatedById: actor.id },
+      });
+      await this.audit.log({
+        actorId: actor.id, actorRole: actor.role, action: 'BANKING_BANKS_UPDATED', entity: 'SystemSetting', entityId: BANKS_KEY,
+        metadata: { reason: dto.reason.trim(), before, after: next },
+      }, tx);
+    });
+    return this.adminBanks();
+  }
 
   private async detailsOf(userId: string): Promise<BankingDetails | null> {
     return this.prisma.userBankDetails.findUnique({ where: { userId }, select: { ...DETAILS_SELECT, updatedAt: true } });
@@ -38,7 +107,7 @@ export class BankingService {
     }
     const details = await this.detailsOf(user.id);
     // `conflicts`: saved banks this role may not use — shown, and replaced only when the user confirms it (confirmReplace).
-    return { ...bankingSummary(user.role, details), conflicts: bankConflicts(user.role, details), rules: bankRules(user.role), details, fieldLabels: FIELD_LABELS };
+    return { ...bankingSummary(user.role, details), conflicts: bankConflicts(user.role, details), rules: bankRules(user.role, await this.banks()), details, fieldLabels: FIELD_LABELS };
   }
 
   /** Save the role's fields (the caller's own row only). 400 BANKING_INVALID with the problem of each field. */
@@ -48,7 +117,7 @@ export class BankingService {
     }
     const before = await this.detailsOf(user.id);
     const { confirmReplace = [], ...input } = dto;
-    const checked = checkSubmission(user.role, input, before, confirmReplace);
+    const checked = checkSubmission(user.role, input, before, confirmReplace, await this.banks());
     if (!checked.ok) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'BANKING_INVALID', 'Check the highlighted fields and try again.',
         { fields: checked.errors, confirmationNeeded: checked.confirmationNeeded });
@@ -77,7 +146,7 @@ export class BankingService {
     }
     const before = await this.detailsOf(target.id);
     const { confirmReplace = [], ...input } = dto;
-    const checked = checkSubmission(target.role, input, before, confirmReplace);
+    const checked = checkSubmission(target.role, input, before, confirmReplace, await this.banks());
     if (!checked.ok) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'BANKING_INVALID', 'Check the highlighted fields and try again.',
         { fields: checked.errors, confirmationNeeded: checked.confirmationNeeded });
@@ -105,6 +174,8 @@ export class BankingService {
       ...summary,
       // The fields this person's role gives (six for a Teacher, three personal ones for a Coach or Head Coach).
       requiredFields: bankingRequiredFor(u.role) ? requiredFields(u.role) : [],
+      // How this person's banks are chosen (the administrator's edit form uses the same list and rules).
+      rules: bankingRequiredFor(u.role) ? bankRules(u.role, await this.banks()) : null,
       missingLabels: summary.missing.map((f) => FIELD_LABELS[f]),
       invalidLabels: summary.invalid.map((f) => FIELD_LABELS[f]),
       details: details && {
