@@ -159,8 +159,8 @@ export function decisionEmail(type: string, firstName: string, payload: unknown,
       return {
         subject, heading: subject, greeting,
         body:
-          `${approved}\n\nBefore you can log in, please confirm your e-mail address with the link in the separate ` +
-          `activation message we have sent you.\n\n${ORG}`,
+          `${approved}\n\nBefore you can log in, please confirm your e-mail address: open the separate e-mail ` +
+          `"Confirm your e-mail address" we have sent you and click its button.\n\n${ORG}`,
       };
     }
     case DecisionEvents.PermissionsGranted: {
