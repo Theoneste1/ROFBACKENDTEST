@@ -19,7 +19,6 @@ describe('A Coach edits no student profile data (e2e)', () => {
   const p = () => ctx.prisma;
   const http = () => ctx.http();
   const status = async (r: PromiseLike<{ status: number; body: { code?: string } }>) => { const x = await r; return [x.status, x.body.code]; };
-  const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082', 'hex');
 
   beforeAll(async () => {
     ctx = await createTestApp();
@@ -43,25 +42,32 @@ describe('A Coach edits no student profile data (e2e)', () => {
     select: { firstName: true, lastName: true, username: true, email: true, gradeLevel: true, dateOfBirth: true, avatarUrl: true, isActive: true, divisionId: true, divisionManual: true, phone: true },
   });
 
-  /** Every route that changes a student, as the Coach. Each must be refused, and nothing may change. */
+  /**
+   * Every route that changes a student, as the Coach, one after another. Each must be refused, and nothing may change.
+   * The picture route is called without a file: the permission guard refuses before any upload is read, and sending a
+   * file to a route that answers 403 at once can reset the connection mid-upload (read ECONNRESET on CI).
+   */
   async function everyStudentEdit(): Promise<(string | number | undefined)[][]> {
     const u = `/api/v1/admin/users/${student}`;
     const division = (await p().division.findFirstOrThrow({ where: { code: 'SENIOR' } })).id;
-    return Promise.all([
-      status(http().patch(u).set(bearer(coach)).send({ firstName: 'Changed', lastName: 'ByCoach' })),
-      status(http().put(`${u}/date-of-birth`).set(bearer(coach)).send({ dateOfBirth: '2010-01-01', reason: 'Coach correction' })),
-      status(http().put(`${u}/avatar`).set(bearer(coach)).attach('file', PNG, 'face.png')),
-      status(http().delete(`${u}/avatar`).set(bearer(coach))),
-      status(http().patch(`${u}/status`).set(bearer(coach)).send({ isActive: false })),
-      status(http().post(`${u}/status-changes`).set(bearer(coach)).send({ status: 'SUSPENDED', reason: 'Coach suspends' })),
-      status(http().delete(u).set(bearer(coach))),
-      status(http().post(`${u}/activate-now`).set(bearer(coach)).send({ reason: 'Coach activates' })),
-      status(http().post(`${u}/resend-invitation`).set(bearer(coach))),
-      status(http().post(`${u}/send-password-reset`).set(bearer(coach))),
-      status(http().patch(`/api/v1/admin/registration-data/users/${student}`).set(bearer(coach)).send({ phone: '+250788000111' })),
-      status(http().put(`/api/v1/admin/students/${student}/olympiad-level`).set(bearer(coach)).send({ divisionId: division, reason: 'Coach moves them' })),
-      status(http().put(`/api/v1/admin/students/${student}/olympiad-level`).set(bearer(coach)).send({ automatic: true, reason: 'Coach resets it' })),
-    ]);
+    const calls = [
+      () => http().patch(u).set(bearer(coach)).send({ firstName: 'Changed', lastName: 'ByCoach' }),
+      () => http().put(`${u}/date-of-birth`).set(bearer(coach)).send({ dateOfBirth: '2010-01-01', reason: 'Coach correction' }),
+      () => http().put(`${u}/avatar`).set(bearer(coach)),
+      () => http().delete(`${u}/avatar`).set(bearer(coach)),
+      () => http().patch(`${u}/status`).set(bearer(coach)).send({ isActive: false }),
+      () => http().post(`${u}/status-changes`).set(bearer(coach)).send({ status: 'SUSPENDED', reason: 'Coach suspends' }),
+      () => http().delete(u).set(bearer(coach)),
+      () => http().post(`${u}/activate-now`).set(bearer(coach)).send({ reason: 'Coach activates' }),
+      () => http().post(`${u}/resend-invitation`).set(bearer(coach)),
+      () => http().post(`${u}/send-password-reset`).set(bearer(coach)),
+      () => http().patch(`/api/v1/admin/registration-data/users/${student}`).set(bearer(coach)).send({ phone: '+250788000111' }),
+      () => http().put(`/api/v1/admin/students/${student}/olympiad-level`).set(bearer(coach)).send({ divisionId: division, reason: 'Coach moves them' }),
+      () => http().put(`/api/v1/admin/students/${student}/olympiad-level`).set(bearer(coach)).send({ automatic: true, reason: 'Coach resets it' }),
+    ];
+    const answers: (string | number | undefined)[][] = [];
+    for (const call of calls) answers.push(await status(call()));
+    return answers;
   }
 
   it('by default: every student-editing route refuses the Coach, and the student is unchanged', async () => {
