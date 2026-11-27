@@ -5,8 +5,10 @@
  *  - An Administrator with users.manage does the same for an account whose current role they may
  *    manage (PUT / DELETE /api/v1/admin/users/:id/avatar; RoleAssignmentPolicy.assertCanManage, so an
  *    ADMIN never touches a SUPER_ADMIN).
- *  - Any signed-in user may view a picture (GET /api/v1/users/:id/avatar): pictures already appear next to
- *    names in the leaderboard and discussions. No anonymous access.
+ *  - Viewing (GET /api/v1/users/:id/avatar, owner 2026-11-27): a picture is visible to everyone who may view that
+ *    user's PROFILE, decided by the same rule as the profile — a student's by StudentOverviewService.mayView (also used
+ *    by GET /students/:id/overview), a coach's by CoachProfileService.mayView. Anyone else gets the same 404 as "no
+ *    picture". Other accounts (Teachers, Head Coaches, Administrators): any signed-in user. Never anonymous.
  *
  * Files go through the existing StorageService (FilePurpose AVATAR: JPEG, PNG or WebP by their bytes, at most
  * 2 MB). The account references its current picture (User.avatarFileId), which keeps it out of the nightly
@@ -14,9 +16,11 @@
  * User.avatarUrl is the versioned link `/api/v1/users/{id}/avatar?v={fileId}`, so caches never show an old
  * picture. Every change is audited (AVATAR_SET / AVATAR_REMOVED: actor, account and file ids only).
  *
- * Protections for minors: pictures are never public (GET needs a signed-in user); the link and the storage key
+ * Protections for minors: pictures are never public (GET needs a signed-in user, and a student's follows who may view
+ * the student); the link and the storage key
  * carry only ids and a random UUID, never a name, username or e-mail; the uploaded file name is discarded.
  */
+import { CoachProfileService } from './coach-profile.service.js';
 import { StudentOverviewService } from './student-overview.service.js';
 import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
@@ -37,7 +41,7 @@ export { avatarUrlOf };
 
 /** Pictures are versioned by their link, so a day of private caching is safe. */
 export const AVATAR_CACHE_CONTROL = 'private, max-age=86400';
-/** A student's picture is never kept in a browser cache: losing access to the student applies at once. */
+/** A picture that follows a profile rule (students, coaches) is never kept in a browser cache: losing access applies at once. */
 export const STUDENT_AVATAR_CACHE_CONTROL = 'private, no-store';
 
 @Injectable()
@@ -50,6 +54,7 @@ export class AvatarService {
     private readonly users: UsersService,
     private readonly permissions: PermissionService,
     private readonly overview: StudentOverviewService,
+    private readonly coaches: CoachProfileService,
   ) {}
 
   // ─── Own picture (/me) ──────────────────────────────────────────────────────
@@ -80,34 +85,37 @@ export class AvatarService {
 
   // ─── Serve ──────────────────────────────────────────────────────────────────
 
-  /** Stream the account's current picture (404 when it has none). Callers are signed in (controller). */
   /**
-   * GET /users/:id/avatar. Staff pictures: every signed-in user (unchanged). A STUDENT's picture (owner 2026-11-22,
-   * replacing the 2026-11-18 rule): everyone who may view the student's profile overview — the student, Administrators,
-   * other students (active students), the Teachers of the student's school, the Coaches and Head Coaches of the student's
-   * programmes or divisions (StudentOverviewService.mayView). Anyone else gets the same 404 as "no picture", so the answer
-   * never reveals whether a student has one.
+   * GET /users/:id/avatar (owner 2026-11-27): the picture is visible to everyone who may view the user's profile.
+   *  - a STUDENT: StudentOverviewService.mayView — the rule of GET /students/:id/overview;
+   *  - a COACH: CoachProfileService.mayView;
+   *  - any other account: every signed-in user (unchanged).
+   * The permission is checked BEFORE the picture is looked up, and an unknown account, a refused viewer and an account
+   * without a picture all get the same 404 — the answer never reveals whether a protected user has a picture.
    */
   async send(userId: string, viewer: AuthUser, res: Response) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, avatarFile: { select: { storageKey: true, mimeType: true, originalName: true, size: true } } },
+      select: {
+        id: true, role: true, accountStatus: true, divisionId: true,
+        avatarFile: { select: { storageKey: true, mimeType: true, originalName: true, size: true } },
+      },
     });
     const notFound = () => new NotFoundException('This account has no profile picture.');
-    if (!user?.avatarFile) throw notFound();
-    if (user.role !== 'STUDENT') {
-      await this.storage.send(res, user.avatarFile, { cacheControl: AVATAR_CACHE_CONTROL });
-      return;
-    }
-    if (!(await this.maySeeStudentPicture(viewer, userId))) throw notFound();
-    await this.storage.send(res, user.avatarFile, { cacheControl: STUDENT_AVATAR_CACHE_CONTROL });
+    if (!user) throw notFound();
+    const followsProfile = user.role === 'STUDENT' || user.role === 'MENTOR';
+    if (followsProfile && !(await this.mayViewProfile(viewer, user))) throw notFound();
+    if (!user.avatarFile) throw notFound();
+    await this.storage.send(res, user.avatarFile, { cacheControl: followsProfile ? STUDENT_AVATAR_CACHE_CONTROL : AVATAR_CACHE_CONTROL });
   }
 
-  /** Whether this viewer may see this student's picture: whoever may view the student's profile overview (see send). */
-  async maySeeStudentPicture(viewer: AuthUser, studentId: string): Promise<boolean> {
-    const s = await this.prisma.user.findUnique({ where: { id: studentId }, select: { id: true, accountStatus: true, divisionId: true } });
-    return !!s && this.overview.mayView(viewer, s);
+  /** The profile rule of a student or a coach (see send); any other account is not protected by a profile rule here. */
+  private async mayViewProfile(viewer: AuthUser, user: { id: string; role: string; accountStatus: string; divisionId: string | null }) {
+    if (user.role === 'STUDENT') return this.overview.mayView(viewer, user);
+    if (user.role === 'MENTOR') return this.coaches.mayView(viewer, user.id);
+    return false;
   }
+
 
   // ─── Internals ──────────────────────────────────────────────────────────────
 

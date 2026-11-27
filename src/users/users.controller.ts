@@ -354,10 +354,14 @@ export class UserAvatarController {
   constructor(private readonly avatars: AvatarService) {}
 
   /**
-   * The account's current profile picture, inline, with X-Content-Type-Options: nosniff. A staff account's picture:
-   * any signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned). A student's
-   * picture: the student, Administrators, and a Teacher who may view that student's profile (Cache-Control: private,
-   * no-store) — anyone else gets 404, the same as an account without a picture.
+   * The account's current profile picture, inline, with X-Content-Type-Options: nosniff (owner 2026-11-27): visible to
+   * everyone who may view the user's PROFILE. A student's picture: the rule of GET /students/:id/overview (the student,
+   * Administrators, active students, the Teachers of the student's school or assigned to them, the Coaches and Head
+   * Coaches of the student's programmes or divisions). A coach's picture: the coach, Administrators, the Head Coaches of
+   * the coach's programmes, and the people of a course discussion the coach takes part in. Both: Cache-Control: private,
+   * no-store. Other accounts (Teachers, Head Coaches, Administrators): any signed-in user (Cache-Control: private,
+   * max-age=86400; the link in avatarUrl is versioned). Anyone not allowed gets 404 — the same answer as an unknown
+   * account or an account without a picture.
    */
   @Get(':id/avatar')
   @Authenticated()
