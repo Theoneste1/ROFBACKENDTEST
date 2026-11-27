@@ -104,13 +104,14 @@ describe('AvatarService', () => {
   });
 
   // Owner 2026-11-27: a picture is visible to everyone who may view that user's profile.
-  describe('serving follows the profile rule (students and coaches)', () => {
+  describe('serving follows the profile rule (students, Coaches, Head Coaches)', () => {
     const file = { storageKey: 'avatars/2026/11/u.png', mimeType: 'image/png', originalName: 'file.png', size: 3 };
     const viewer = { id: 'viewer', role: 'STUDENT', divisionId: 'd1' } as never;
 
     it.each([
       ['STUDENT', 'overview'],
       ['MENTOR', 'coaches'],
+      ['HEAD_COACH', 'coaches'],
     ] as const)('a %s: allowed by its profile rule → the picture, never cached by the browser', async (role, rule) => {
       const m = make({ user: { id: 'u', role, accountStatus: 'ACTIVE', divisionId: 'd1', avatarFile: file }, profile: true });
       await m.service.send('u', viewer, {} as never);
@@ -118,7 +119,7 @@ describe('AvatarService', () => {
       expect(m.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, no-store' });
     });
 
-    it.each(['STUDENT', 'MENTOR'])('a %s: refused by its profile rule → the same 404 with or without a picture; nothing sent', async (role) => {
+    it.each(['STUDENT', 'MENTOR', 'HEAD_COACH'])('a %s: refused by its profile rule → the same 404 with or without a picture; nothing sent', async (role) => {
       const withPicture = make({ user: { id: 'u', role, accountStatus: 'ACTIVE', divisionId: 'd2', avatarFile: file }, profile: false });
       const without = make({ user: { id: 'u', role, accountStatus: 'ACTIVE', divisionId: 'd2', avatarFile: null }, profile: false });
       const a = await withPicture.service.send('u', viewer, {} as never).catch((e: Error) => e.message);
@@ -135,8 +136,8 @@ describe('AvatarService', () => {
       expect(m.coaches.mayView).not.toHaveBeenCalled();
     });
 
-    it('another account (a Teacher): every signed-in user, cached for a day; no profile rule is asked', async () => {
-      const m = make({ user: { id: 't', role: 'TEACHER', accountStatus: 'ACTIVE', divisionId: null, avatarFile: file }, profile: false });
+    it.each(['TEACHER', 'ADMIN'])('another account (%s): every signed-in user, cached for a day; no profile rule is asked', async (role) => {
+      const m = make({ user: { id: 't', role, accountStatus: 'ACTIVE', divisionId: null, avatarFile: file }, profile: false });
       await m.service.send('t', viewer, {} as never);
       expect(m.overview.mayView).not.toHaveBeenCalled();
       expect(m.coaches.mayView).not.toHaveBeenCalled();

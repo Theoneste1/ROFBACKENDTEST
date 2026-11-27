@@ -571,11 +571,19 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
       expect(refused.body.message).toBe('This account has no profile picture.');
     });
 
-    it("other staff pictures are unchanged: a Head Coach's picture — any signed-in user, cacheable", async () => {
+    it("a Head Coach's picture follows who may view the Head Coach's profile: Administrators see it; a student and a Teacher with no shared course get 404", async () => {
       await http().put('/api/v1/me/avatar').set(bearer(headCoach)).attach('file', PNG, 'me.png').expect(200);
       const hcId = (await p().user.findUniqueOrThrow({ where: { username: 'pic.hc' } })).id;
-      for (const token of [classmate, teacherQ]) {
-        const r = await picture(hcId, token).expect(200);
+      const r = await picture(hcId, admin).expect(200);
+      expect(r.headers['cache-control']).toBe('private, no-store');
+      for (const token of [classmate, teacherQ]) await picture(hcId, token).expect(404);
+    });
+
+    it("other accounts are unchanged: a Teacher's picture — any signed-in user, cacheable", async () => {
+      await http().put('/api/v1/me/avatar').set(bearer(teacherQ)).attach('file', PNG, 'me.png').expect(200);
+      const tqId = (await p().user.findUniqueOrThrow({ where: { username: 'pic.tq' } })).id;
+      for (const token of [classmate, headCoach]) {
+        const r = await picture(tqId, token).expect(200);
         expect(r.headers['cache-control']).toBe('private, max-age=86400');
       }
     });
