@@ -212,6 +212,8 @@ describe('Admin dashboard and reports (e2e)', () => {
       const all = (await get('/admin/reports/students').expect(200)).body;
       expect(all.meta.total).toBe(5);
       const j = all.data.find((s: any) => s.username === 'student.j');
+      expect(j).toMatchObject({ firstName: expect.any(String), lastName: expect.any(String) });
+      expect('avatarUrl' in j).toBe(true);   // the profile picture link (owner 2026-11-27)
       expect(j).toMatchObject({
         status: 'ACTIVE', division: { code: 'JUNIOR' }, gradeLevel: 'S2', enrollmentStatus: 'ACTIVE',
         submissions: 1, resultsPublished: 1, school: { name: 'Test School' },
