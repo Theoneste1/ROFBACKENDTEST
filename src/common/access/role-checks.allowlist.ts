@@ -165,8 +165,8 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
   // ── Leaderboard ────────────────────────────────────────────────────────────
   {
     file: 'src/leaderboard/leaderboard.service.ts', rule: 'U2',
-    code: 'isStaff(user) ? `${r.firstName} ${r.lastName}` : `${r.firstName} ${r.lastName.charAt(0)}.`',
-    reason: 'Default (any non-staff role) is the anonymised name — the less-privileged view. Unsupported roles are refused earlier (resolveDivision).',
+    code: 'isStaff(user) ? `${r.firstName} ${r.lastName}` : r.username',
+    reason: 'Default (any non-staff role) is the username, never a name (owner 2026-11-27) — the less-privileged view. Unsupported roles are refused earlier (resolveDivision).',
   },
   // ── Submissions ────────────────────────────────────────────────────────────
   {

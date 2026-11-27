@@ -369,13 +369,15 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
       expect(ids(await c.courses.listResources(ctx.ids.algebra, {} as never, knownStudent))).not.toContain(f.resourceId);
     });
 
-    it('G4 leaderboard: staff see full names; students see the anonymised form', async () => {
+    it('G4 leaderboard: staff see full names; students see usernames, never names (owner 2026-11-27)', async () => {
       const names = (page: unknown) => (page as { data: Array<{ displayName: string }> }).data.map((e) => e.displayName);
       const staff = names(await c.leaderboard.findGeneral(knownAdmin, { divisionId: ctx.ids.junior, page: 1, limit: 50 } as never));
       const student = names(await c.leaderboard.findGeneral(knownStudent, { page: 1, limit: 50 } as never));
       expect(staff.length).toBeGreaterThan(0);
       expect(staff.every((n) => !/ [A-Za-z]\.$/.test(n))).toBe(true);
-      expect(student.every((n) => / [^ ]\.$/.test(n))).toBe(true);
+      const usernames = (await ctx.prisma.user.findMany({ where: { role: 'STUDENT' }, select: { username: true } })).map((u) => u.username);
+      expect(student.length).toBeGreaterThan(0);
+      expect(student.every((n) => usernames.includes(n) && !n.includes(' '))).toBe(true);
     });
 
     it('G5 assignment list: coach and admin get the staff view incl. the assignment; student gets the summary', async () => {
