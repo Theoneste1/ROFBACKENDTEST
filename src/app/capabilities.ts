@@ -424,6 +424,12 @@ export const FEATURES = {
    * Off until QUESTION_MARKING_ENABLED=true; the routes answer 404 FEATURE_DISABLED meanwhile.
    */
   questionMarking: 'env:QUESTION_MARKING_ENABLED',
+  /**
+   * Word and PowerPoint previews (owner 2026-11-27): ?preview=pdf on any file route answers the document's PDF preview
+   * (converted once on the server with LibreOffice, cached). Off until DOCUMENT_PREVIEW_ENABLED=true (needs ≥ 2 GB memory);
+   * meanwhile 409 PREVIEW_NOT_AVAILABLE. Every file route also answers HTTP Range requests (Accept-Ranges: bytes).
+   */
+  documentPreview: 'env:DOCUMENT_PREVIEW_ENABLED',
   /** As teacherAccounts, for the HEAD_COACH role (HEAD_COACHES_ENABLED; users.manageHeadCoaches). */
   headCoachAccounts: 'HEAD_COACH',
 } as const satisfies Record<string, 'always' | AppRole | `env:${string}`>;

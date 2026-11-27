@@ -32,6 +32,16 @@ FROM node:${NODE_VERSION} AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
+# Word and PowerPoint previews (owner 2026-11-27): LibreOffice's headless converters and common fonts. They use memory
+# only while converting, and only when DOCUMENT_PREVIEW_ENABLED=true (a plan with >= 2 GB memory). WITH_LIBREOFFICE=false
+# builds a smaller image without previews.
+ARG WITH_LIBREOFFICE=true
+RUN if [ "$WITH_LIBREOFFICE" = "true" ]; then \
+      apt-get update \
+      && apt-get install -y --no-install-recommends libreoffice-writer-nogui libreoffice-impress-nogui fonts-dejavu-core fonts-liberation2 \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 

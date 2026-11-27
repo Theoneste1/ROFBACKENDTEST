@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { createReadStream } from 'fs';
-import { access, mkdir, rm, writeFile } from 'fs/promises';
+import { access, mkdir, rm, writeFile, stat } from 'fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'path';
 import type { Readable } from 'stream';
 
@@ -24,14 +24,22 @@ export class LocalStorageDriver implements StorageDriver {
     await writeFile(path, data, { flag: 'wx' }); // never overwrite
   }
 
-  async getStream(key: string): Promise<Readable> {
+  async getStream(key: string, range?: { start: number; end: number }): Promise<Readable> {
     const path = this.pathFor(key);
     try {
       await access(path);
     } catch {
       throw new NotFoundException('File not found.');
     }
-    return createReadStream(path);
+    return createReadStream(path, range ? { start: range.start, end: range.end } : undefined);
+  }
+
+  async size(key: string): Promise<number | null> {
+    try {
+      return (await stat(this.pathFor(key))).size;
+    } catch {
+      return null;
+    }
   }
 
   async delete(key: string): Promise<void> {

@@ -181,6 +181,16 @@ export class EnvironmentVariables {
   @Matches(/^(true|false)$/, { message: 'TEACHERS_ENABLED must be "true" or "false".' })
   TEACHERS_ENABLED?: string;
 
+  /** "true" converts Word and PowerPoint files to PDF for in-LMS previews (needs LibreOffice and ≥ 2 GB memory); off by default. */
+  @IsOptional()
+  @Matches(/^(true|false)$/, { message: 'DOCUMENT_PREVIEW_ENABLED must be "true" or "false".' })
+  DOCUMENT_PREVIEW_ENABLED?: string;
+
+  /** The LibreOffice command for previews (default "soffice"). */
+  @IsOptional()
+  @IsString()
+  SOFFICE_PATH?: string;
+
   /** "true" turns on question-level marking (design Rev 5.2); off by default. */
   @IsOptional()
   @Matches(/^(true|false)$/, { message: 'QUESTION_MARKING_ENABLED must be "true" or "false".' })

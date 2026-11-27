@@ -18,8 +18,9 @@ const ALWAYS = ['academicYearActivation', 'accountStates', 'adminActivateNow', '
  * (what it means), is a breaking change for clients: it requires raising
  * CAPABILITIES_SCHEMA_VERSION and a new frozen list — never an edit of this one.
  */
-const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH' | 'env:QUESTION_MARKING_ENABLED'>> = {
+const V1_FEATURES: Readonly<Record<string, 'always' | 'TEACHER' | 'HEAD_COACH' | 'env:QUESTION_MARKING_ENABLED' | 'env:DOCUMENT_PREVIEW_ENABLED'>> = {
   questionMarking:         'env:QUESTION_MARKING_ENABLED', // appended 2027-01: question-level marking (design Rev 5.2), off until its flag
+  documentPreview:         'env:DOCUMENT_PREVIEW_ENABLED', // appended 2026-11-27: Word / PowerPoint previews on the server, off until its flag
   academicYearActivation:  'always',   // appended 2026-11-13: single-flight, retry-safe year start
   coachApplicationDetails: 'always',   // appended 2026-11-15: coach application country, occupation, education, interests
   applicationDetails:      'always',
@@ -189,7 +190,7 @@ describe('GET /api/v1 capabilities', () => {
       };
       const config = configOf(secrets);
       const json = JSON.stringify(new AppService(config as never).getInfo());
-      expect([...new Set(config.read)].sort()).toEqual(['HEAD_COACHES_ENABLED', 'QUESTION_MARKING_ENABLED', 'TEACHERS_ENABLED']);
+      expect([...new Set(config.read)].sort()).toEqual(['DOCUMENT_PREVIEW_ENABLED', 'HEAD_COACHES_ENABLED', 'QUESTION_MARKING_ENABLED', 'TEACHERS_ENABLED']);
       for (const s of [...Object.keys(secrets), ...Object.values(secrets), 'ENABLED', 'process', 'env']) {
         expect(json).not.toContain(s);
       }

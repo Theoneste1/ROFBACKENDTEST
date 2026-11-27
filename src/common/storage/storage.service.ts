@@ -35,6 +35,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { FilePurpose, type FileObject } from '../../generated/prisma/client.js';
 import { AppError } from '../errors/app-error.js';
 import { FILE_RULES, INLINE_TYPES, MIME } from './file-rules.js';
+import { OFFICE_TYPES, OneAtATime, libreOfficeConverter, parseRange, previewKey, type DocumentConverter } from './document-preview.js';
 import { STORAGE_DRIVER, type StorageDriver } from './storage-driver.js';
 
 /** Minimal shape needed to serve a file. */
@@ -45,6 +46,9 @@ const ORPHAN_GRACE_MS = 24 * 60 * 60 * 1000;
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
+  private readonly conversions = new OneAtATime();
+  /** The Word / PowerPoint → PDF converter (created when first needed; replaceable in tests). */
+  converter?: DocumentConverter;
 
   constructor(
     @Inject(STORAGE_DRIVER) private readonly driver: StorageDriver,
@@ -141,7 +145,20 @@ export class StorageService implements OnModuleInit {
     res: Response, file: ServableFile,
     opts: { download?: boolean; cacheControl?: string; transform?: (data: Buffer) => Buffer | Promise<Buffer> } = {},
   ) {
-    const stream = await this.driver.getStream(file.storageKey);
+    // ?preview=pdf on any file route (after its own authorization): a Word or PowerPoint file is answered as its PDF
+    // preview, converted once and cached (owner 2026-11-27). Other files are sent as they are.
+    if (res.req?.query?.preview === 'pdf' && OFFICE_TYPES.has(file.mimeType)) {
+      file = await this.previewOf(file);
+      opts = { ...opts, download: false };
+    }
+    // Range requests (a PDF viewer reading page by page): only for files sent as stored, never for transformed ones.
+    const range = opts.transform ? null : parseRange(res.req?.headers?.range as string | undefined, file.size);
+    if (range === 'UNSATISFIABLE') {
+      res.status(416).setHeader('Content-Range', `bytes */${file.size}`);
+      res.end();
+      return;
+    }
+    const stream = await this.driver.getStream(file.storageKey, range ?? undefined);
     // `transform` (e.g. removing identifying metadata for a blind marker): the file is read whole (uploads are bounded)
     // and the transformed bytes are sent with their own length.
     let body: Buffer | null = null;
@@ -153,7 +170,14 @@ export class StorageService implements OnModuleInit {
 
     const inline = !opts.download && INLINE_TYPES.has(file.mimeType);
     res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('Content-Length', String(body ? body.length : file.size));
+    if (!opts.transform) res.setHeader('Accept-Ranges', 'bytes');
+    if (range) {
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${range.start}-${range.end}/${file.size}`);
+      res.setHeader('Content-Length', String(range.end - range.start + 1));
+    } else {
+      res.setHeader('Content-Length', String(body ? body.length : file.size));
+    }
     res.setHeader('Content-Disposition', contentDisposition(file.originalName, inline));
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', opts.cacheControl ?? 'private, no-store');
@@ -174,6 +198,46 @@ export class StorageService implements OnModuleInit {
       if (!res.headersSent) res.status(500);
       res.destroy();
     }
+  }
+
+  /** Whether Word and PowerPoint previews are switched on (DOCUMENT_PREVIEW_ENABLED=true). */
+  previewsEnabled(): boolean {
+    return String(this.config.get('DOCUMENT_PREVIEW_ENABLED') ?? '').toLowerCase() === 'true';
+  }
+
+  /**
+   * The PDF preview of a Word or PowerPoint file: the cached one, else converted now (one conversion at a time) and
+   * cached. 409 PREVIEW_NOT_AVAILABLE while previews are switched off; 422 PREVIEW_FAILED when the file cannot be
+   * converted (it can still be downloaded).
+   */
+  private async previewOf(file: ServableFile): Promise<ServableFile> {
+    if (!this.previewsEnabled()) {
+      throw new AppError(HttpStatus.CONFLICT, 'PREVIEW_NOT_AVAILABLE', 'This file cannot be shown here yet. Download it to open it.');
+    }
+    const key = previewKey(file.storageKey);
+    const name = `${file.originalName.replace(/\.[^.]+$/, '')}.pdf`;
+    const cached = await this.driver.size(key);
+    if (cached !== null) return { storageKey: key, mimeType: MIME.PDF, originalName: name, size: cached };
+    return this.conversions.run(async () => {
+      const again = await this.driver.size(key);   // converted by an earlier caller while this one waited
+      if (again !== null) return { storageKey: key, mimeType: MIME.PDF, originalName: name, size: again };
+      const chunks: Buffer[] = [];
+      for await (const c of await this.driver.getStream(file.storageKey)) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c as Uint8Array));
+      let pdf: Buffer;
+      try {
+        this.converter ??= libreOfficeConverter(this.config.get<string>('SOFFICE_PATH') || 'soffice');
+        pdf = await this.converter(Buffer.concat(chunks), file.mimeType);
+      } catch (e) {
+        this.logger.warn(`Preview of ${file.storageKey} failed: ${(e as Error).message}`);
+        throw new AppError(HttpStatus.UNPROCESSABLE_ENTITY, 'PREVIEW_FAILED', 'This file could not be shown here. Download it to open it.');
+      }
+      try {
+        await this.driver.put(key, pdf, MIME.PDF);
+      } catch (e) {
+        if ((await this.driver.size(key)) === null) throw e;   // only "already there" is fine
+      }
+      return { storageKey: key, mimeType: MIME.PDF, originalName: name, size: pdf.length };
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -224,6 +288,7 @@ export class StorageService implements OnModuleInit {
     for (const f of orphans) {
       try {
         await this.driver.delete(f.storageKey);
+        await this.driver.delete(previewKey(f.storageKey)).catch(() => undefined);   // its cached preview, if any
         await this.prisma.fileObject.delete({ where: { id: f.id } });
       } catch (err) {
         this.logger.warn(`Could not remove orphan ${f.storageKey}: ${(err as Error).message}`);

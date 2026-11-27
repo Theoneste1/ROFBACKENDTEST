@@ -7,7 +7,10 @@ import type { Readable } from 'stream';
 export interface StorageDriver {
   readonly name: string;
   put(key: string, data: Buffer, contentType: string): Promise<void>;
-  getStream(key: string): Promise<Readable>;
+  /** The object's bytes; `range` (inclusive byte offsets) reads only that part (large PDFs load page by page). */
+  getStream(key: string, range?: { start: number; end: number }): Promise<Readable>;
+  /** The object's size in bytes, or null when it does not exist (cached previews). */
+  size(key: string): Promise<number | null>;
   delete(key: string): Promise<void>;
   /** Used by the health check. */
   ping(): Promise<void>;

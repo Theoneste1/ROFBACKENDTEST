@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
   S3Client,
@@ -51,15 +52,26 @@ export class S3StorageDriver implements StorageDriver {
     );
   }
 
-  async getStream(key: string): Promise<Readable> {
+  async getStream(key: string, range?: { start: number; end: number }): Promise<Readable> {
     try {
-      const out = await this.client.send(new GetObjectCommand({ Bucket: this.opts.bucket, Key: key }));
+      const out = await this.client.send(new GetObjectCommand({
+        Bucket: this.opts.bucket, Key: key, ...(range && { Range: `bytes=${range.start}-${range.end}` }),
+      }));
       return out.Body as Readable;
     } catch (err: any) {
       if (err?.name === 'NoSuchKey' || err?.$metadata?.httpStatusCode === 404) {
         throw new NotFoundException('File not found.');
       }
       throw err;
+    }
+  }
+
+  async size(key: string): Promise<number | null> {
+    try {
+      const out = await this.client.send(new HeadObjectCommand({ Bucket: this.opts.bucket, Key: key }));
+      return out.ContentLength ?? null;
+    } catch {
+      return null;
     }
   }
 

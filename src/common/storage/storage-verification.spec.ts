@@ -41,6 +41,7 @@ function fakeBucket(seed: Record<string, Buffer> = {}) {
       if (!o) throw new NotFoundException('File not found.');
       return Readable.from([o.data]);
     }),
+    size: vi.fn(async (key: string) => objects.get(key)?.data.length ?? null),
     delete: vi.fn(async (key: string) => { objects.delete(key); }),
   } satisfies StorageDriver & Record<string, unknown>;
   const store = {

@@ -140,7 +140,8 @@ describe('StorageService orphan clean-up', () => {
   it('deletes the stored object and its record for each orphan older than a day', async () => {
     const { service, driver, prisma } = makeCleanup('true', [{ id: 'f1', storageKey: 'a/1.pdf' }, { id: 'f2', storageKey: 'a/2.pdf' }]);
     await expect(service.cleanupOrphans()).resolves.toBe(2);
-    expect(driver.delete.mock.calls.map((c) => c[0])).toEqual(['a/1.pdf', 'a/2.pdf']);
+    // Each object, then its cached Word / PowerPoint preview, if any (never an error when there is none).
+    expect(driver.delete.mock.calls.map((c) => c[0])).toEqual(['a/1.pdf', 'previews/a/1.pdf.pdf', 'a/2.pdf', 'previews/a/2.pdf.pdf']);
     const where = prisma.fileObject.findMany.mock.calls[0][0].where;
     expect(where.createdAt.lt.getTime()).toBeLessThanOrEqual(Date.now() - 24 * 3600_000 + 1000);
     for (const rel of ['resourceAttachments', 'assignmentAttachments', 'submissionAttachments', 'reviewAttachments', 'testFiles']) {
