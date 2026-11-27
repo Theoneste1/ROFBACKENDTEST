@@ -1,7 +1,8 @@
 /**
  * A Coach edits no student profile data (owner 2026-11-27), end to end:
  *  - every route that changes a student — the account (name, username, e-mail, grade…), the date of birth, the picture,
- *    the account state, the registration data and the Olympiad level — refuses a Coach;
+ *    the account state (and activation, invitation, password reset), the registration data and the Olympiad level —
+ *    refuses a Coach;
  *  - the Super Administrator cannot give a Coach a permission that would allow it (OVERRIDE_NOT_ALLOWED);
  *  - even a GRANT written straight into the database (outside the policy) unlocks nothing;
  *  - the student's row is unchanged afterwards;
@@ -54,6 +55,9 @@ describe('A Coach edits no student profile data (e2e)', () => {
       status(http().patch(`${u}/status`).set(bearer(coach)).send({ isActive: false })),
       status(http().post(`${u}/status-changes`).set(bearer(coach)).send({ status: 'SUSPENDED', reason: 'Coach suspends' })),
       status(http().delete(u).set(bearer(coach))),
+      status(http().post(`${u}/activate-now`).set(bearer(coach)).send({ reason: 'Coach activates' })),
+      status(http().post(`${u}/resend-invitation`).set(bearer(coach))),
+      status(http().post(`${u}/send-password-reset`).set(bearer(coach))),
       status(http().patch(`/api/v1/admin/registration-data/users/${student}`).set(bearer(coach)).send({ phone: '+250788000111' })),
       status(http().put(`/api/v1/admin/students/${student}/olympiad-level`).set(bearer(coach)).send({ divisionId: division, reason: 'Coach moves them' })),
       status(http().put(`/api/v1/admin/students/${student}/olympiad-level`).set(bearer(coach)).send({ automatic: true, reason: 'Coach resets it' })),
