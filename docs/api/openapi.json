@@ -44399,6 +44399,72 @@
         "description": "**Access:** permission `users.manage` (ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/banking/banks": {
+      "get": {
+        "operationId": "AdminBanksController_banks",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every bank with its rule and instruction, how many saved accounts use it and how many do not follow its rule.",
+        "tags": [
+          "Admin · Banking"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "description": "**Access:** SUPER_ADMIN"
+      },
+      "put": {
+        "operationId": "AdminBanksController_setBanks",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBanksDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set the whole list at once { banks, reason } (409 BANK_IN_USE when removing a bank someone uses: switch it off).",
+        "tags": [
+          "Admin · Banking"
+        ],
+        "x-roles": [
+          "SUPER_ADMIN"
+        ],
+        "description": "**Access:** SUPER_ADMIN"
+      }
+    },
     "/api/v1/courses/{courseId}/threads": {
       "get": {
         "operationId": "DiscussionsController_listCourseThreads",
@@ -63374,6 +63440,56 @@
             }
           }
         }
+      },
+      "BankOptionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "minDigits": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 40
+          },
+          "maxDigits": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 40
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "SetBanksDto": {
+        "type": "object",
+        "properties": {
+          "banks": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankOptionDto"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "banks",
+          "reason"
+        ]
       },
       "CreateThreadDto": {
         "type": "object",

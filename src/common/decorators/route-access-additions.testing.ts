@@ -212,6 +212,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'POST /api/v1/admin/tests/:id/questions  TestsController.addQuestion':                                        ADMINISTRATORS,
   'PUT /api/v1/admin/tests/:id/questions/order  TestsController.reorderQuestions':                              ADMINISTRATORS,
   // Set every question at once (owner 2026-11-27; after submissions: Super Administrators only, checked in the service).
+  // The bank list (owner 2026-11-27): Super Administrators only (@Roles).
+  'GET /api/v1/admin/banking/banks  AdminBanksController.banks':                                                 SUPER_ADMIN_ONLY,
+  'PUT /api/v1/admin/banking/banks  AdminBanksController.setBanks':                                              SUPER_ADMIN_ONLY,
   'PUT /api/v1/admin/tests/:id/questions  TestsController.setQuestions':                                         ADMINISTRATORS,
   'PATCH /api/v1/admin/tests/:id/questions/:questionId  TestsController.updateQuestion':                        ADMINISTRATORS,
   'DELETE /api/v1/admin/tests/:id/questions/:questionId  TestsController.removeQuestion':                       ADMINISTRATORS,

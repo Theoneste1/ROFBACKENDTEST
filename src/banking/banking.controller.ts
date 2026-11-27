@@ -6,7 +6,7 @@ import type { AuthUser } from '../common/auth-user.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 import { AllowedBeforeBankingDetails } from '../common/decorators/banking-step.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
-import { AdminBankingQueryDto, SaveBankingDto } from './banking.dto.js';
+import { AdminBankingQueryDto, SaveBankingDto, SetBanksDto } from './banking.dto.js';
 import { BankingService } from './banking.service.js';
 
 /** The signed-in user's own banking information (owner 2026-11-25): Teachers, Coaches and Head Coaches only (@Roles). */
@@ -53,5 +53,29 @@ export class AdminBankingController {
   @RequirePermission('users.manage')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() body: SaveBankingDto, @CurrentUser() user: AuthUser) {
     return this.banking.saveForAdmin(id, body, user);
+  }
+}
+
+/**
+ * The bank list (owner 2026-11-27): the banks people choose and each bank's account-number rule, managed by the Super
+ * Administrator in the platform. Umwalimu SACCO always stays, exactly 12 digits.
+ */
+@ApiTags('Admin · Banking')
+@Controller('admin/banking')
+export class AdminBanksController {
+  constructor(private readonly banking: BankingService) {}
+
+  /** Every bank with its rule and instruction, how many saved accounts use it and how many do not follow its rule. */
+  @Get('banks')
+  @Roles('SUPER_ADMIN')
+  banks() {
+    return this.banking.adminBanks();
+  }
+
+  /** Set the whole list at once { banks, reason } (409 BANK_IN_USE when removing a bank someone uses: switch it off). */
+  @Put('banks')
+  @Roles('SUPER_ADMIN')
+  setBanks(@Body() body: SetBanksDto, @CurrentUser() user: AuthUser) {
+    return this.banking.setBanks(body, user);
   }
 }

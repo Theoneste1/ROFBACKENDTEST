@@ -509,6 +509,67 @@
       ]
     },
     {
+      "name": "Admin · Banking",
+      "item": [
+        {
+          "name": "GET /admin/banking/banks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/banking/banks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "banking",
+                "banks"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** SUPER_ADMIN"
+          }
+        },
+        {
+          "name": "PUT /admin/banking/banks",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/banking/banks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "banking",
+                "banks"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** SUPER_ADMIN",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"banks\": [\n    {\n      \"name\": \"name\"\n    }\n  ],\n  \"reason\": \"reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin · Bulk operations",
       "item": [
         {

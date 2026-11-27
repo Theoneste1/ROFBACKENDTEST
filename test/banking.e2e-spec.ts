@@ -3,9 +3,10 @@
  *  - a Teacher, Coach or Head Coach without complete bank details is held at the step: every route but the profile,
  *    permissions, the banking form, the gender step, password change and "sign out everywhere" answers 403
  *    BANKING_DETAILS_REQUIRED — whatever page, tab or direct API call; saving complete details ends it at once;
- *  - Teachers give all six fields: Umwalimu SACCO for both banks, personal and school numbers exactly 12 digits (the
- *    exact messages). Coaches and Head Coaches give the three personal fields only (bank from the list): school details are
- *    never asked, never block them, and any saved earlier are kept untouched; every field checked on the server;
+ *  - every bank is chosen from the list the Super Administrator manages (owner 2026-11-27); the account number follows the
+ *    chosen bank: Umwalimu SACCO exactly 12 digits ("Umwalimu SACCO account numbers must contain exactly 12 digits."),
+ *    another bank its own rule or the general check. Teachers give all six fields; Coaches and Head Coaches the three
+ *    personal ones (school details never asked, never block them, kept untouched); every field checked on the server;
  *  - details already saved are kept and shown; only the missing fields are reported;
  *  - Students, Administrators and Super Administrators are never asked;
  *  - administrators see the status, the missing fields and masked numbers (full only on request, audited); nobody
@@ -15,11 +16,11 @@
 import { createTestApp, login, bearer, type TestContext } from './helpers.js';
 
 const SACCO = 'Umwalimu SACCO';
-const TEACHER_MSG = 'Your Umwalimu SACCO account number must contain exactly 12 digits.';
-const SCHOOL_MSG = "The school's Umwalimu SACCO account number must contain exactly 12 digits.";
+const TEACHER_MSG = 'Umwalimu SACCO account numbers must contain exactly 12 digits.';
+const SCHOOL_MSG = TEACHER_MSG;
 const teacherDetails = {
-  personalAccountName: 'Bank Teacher', personalAccountNumber: '123456789012',
-  schoolAccountName: 'GS Kigali', schoolAccountNumber: '400100004567',
+  personalAccountName: 'Bank Teacher', personalBankName: SACCO, personalAccountNumber: '123456789012',
+  schoolAccountName: 'GS Kigali', schoolBankName: SACCO, schoolAccountNumber: '400100004567',
 };
 /** A coach's three personal fields: all a Coach or Head Coach gives. */
 const coachDetails = { personalAccountName: 'Bank Coach', personalBankName: 'Bank of Kigali Plc', personalAccountNumber: '00012345678' };
@@ -101,10 +102,12 @@ describe('Banking information (e2e)', () => {
     });
   });
 
-  describe('Teachers: Umwalimu SACCO, 12 digits', () => {
-    it('the form: nothing saved, both banks fixed', async () => {
+  describe('Teachers: banks chosen from the list; Umwalimu SACCO exactly 12 digits', () => {
+    it('the form: nothing saved; both banks chosen from the list, each with its instruction', async () => {
       const r = await get('/me/banking', t['bank.teacher']);
-      expect(r.body).toMatchObject({ required: true, status: 'NOT_STARTED', rules: { personalBank: 'FIXED', schoolBank: 'FIXED', fixedBank: SACCO, personalNumberDigits: 12, banks: [SACCO] }, details: null });
+      expect(r.body).toMatchObject({ required: true, status: 'NOT_STARTED', rules: { personalBank: 'LIST', schoolBank: 'LIST', fixedBank: SACCO, schoolRequired: true }, details: null });
+      expect(r.body.rules.banks).toHaveLength(12);
+      expect(r.body.rules.bankOptions.find((b: { name: string }) => b.name === SACCO)).toMatchObject({ minDigits: 12, maxDigits: 12, instruction: TEACHER_MSG });
       expect(r.body.missing).toHaveLength(6);
     });
 
@@ -125,10 +128,14 @@ describe('Banking information (e2e)', () => {
         expect(await ctx.prisma.userBankDetails.findUnique({ where: { userId: ids['bank.teacher'] } })).toBeNull();
       });
 
-    it('another bank (personal or school) refused; nothing replaced silently', async () => {
-      const r = await put(t['bank.teacher'], { ...teacherDetails, personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc' });
+    it('a bank not on the list refused; another listed bank is not held to the 12-digit rule (its own rule applies)', async () => {
+      const r = await put(t['bank.teacher'], { ...teacherDetails, personalBankName: 'My Own Bank', schoolBankName: 'Equity Bank Rwanda Plc', schoolAccountNumber: '12' });
       expect(r.status).toBe(400);
-      expect(Object.keys(r.body.details.fields).sort()).toEqual(['personalBankName', 'schoolBankName']);
+      expect(r.body.details.fields).toEqual({
+        personalBankName: 'Choose the bank from the list.',
+        schoolAccountNumber: 'An account number has 5 to 40 characters: digits, letters, spaces or hyphens, with at least one digit.',
+      });
+      expect(await ctx.prisma.userBankDetails.findUnique({ where: { userId: ids['bank.teacher'] } })).toBeNull();
     });
 
     it('an account name with a digit refused, each name named with the exact message; nothing saved', async () => {
@@ -144,7 +151,7 @@ describe('Banking information (e2e)', () => {
     it('missing fields refused, each named', async () => {
       const r = await put(t['bank.teacher'], { personalAccountName: 'Bank Teacher' });
       expect(r.status).toBe(400);
-      expect(Object.keys(r.body.details.fields).sort()).toEqual(['personalAccountNumber', 'schoolAccountName', 'schoolAccountNumber']);
+      expect(Object.keys(r.body.details.fields).sort()).toEqual(['personalAccountNumber', 'personalBankName', 'schoolAccountName', 'schoolAccountNumber', 'schoolBankName']);
     });
 
     it('a valid 12-digit submission completes it: both banks Umwalimu SACCO; the step ends at once; no number in the audit log', async () => {
@@ -165,7 +172,7 @@ describe('Banking information (e2e)', () => {
       expect(form.body.rules).toMatchObject({ personalBank: 'LIST', personalNumberDigits: null, schoolRequired: false, fields: ['personalAccountName', 'personalBankName', 'personalAccountNumber'] });
       expect(form.body.rules.banks).toHaveLength(12);
       expect(form.body.missing).toEqual(['personalAccountName', 'personalBankName', 'personalAccountNumber']);
-      expect((await put(t[u], { ...coachDetails, personalBankName: 'My Own Bank' })).body.details.fields).toEqual({ personalBankName: 'Choose your bank from the list.' });
+      expect((await put(t[u], { ...coachDetails, personalBankName: 'My Own Bank' })).body.details.fields).toEqual({ personalBankName: 'Choose the bank from the list.' });
       expect((await put(t[u], { ...coachDetails, personalAccountName: 'Bank Coach 3' })).body.details.fields)
         .toEqual({ personalAccountName: 'The bank account name must not contain numbers. Write the name exactly as on the account.' });
       for (const f of ['personalAccountName', 'personalBankName', 'personalAccountNumber']) {
@@ -174,7 +181,7 @@ describe('Banking information (e2e)', () => {
       }
       // Still held while a personal field is missing.
       expect((await get('/programmes', t[u])).body.code).toBe('BANKING_DETAILS_REQUIRED');
-      const ok = await put(t[u], { ...coachDetails, personalAccountNumber: '123456' });   // the 12-digit rule is the teachers' only
+      const ok = await put(t[u], { ...coachDetails, personalAccountNumber: '123456' });   // the 12-digit rule is Umwalimu SACCO's only
       expect([ok.status, ok.body.status, ok.body.missing]).toEqual([200, 'COMPLETE', []]);
       expect((await get('/me', t[u])).body.bankingRequired).toBe(false);
       expect((await get('/programmes', t[u])).status).toBe(200);
@@ -197,42 +204,18 @@ describe('Banking information (e2e)', () => {
     });
   });
 
-  describe('details saved earlier that conflict with the rules: shown, never replaced without the user\'s confirmation', () => {
-    it('teacher: both conflicting banks are reported with their saved values; the account is held at the step', async () => {
+  describe('details saved earlier with other banks: kept, complete, nothing to confirm (owner 2026-11-27)', () => {
+    it("teacher with other banks saved: complete, no conflict, never held; saving them again changes nothing else", async () => {
       const r = await get('/me/banking', t['bank.legacy.t']);
-      expect(r.body).toMatchObject({
-        status: 'NEEDS_CORRECTION', invalid: ['personalBankName', 'schoolBankName'],
-        conflicts: [{ field: 'personalBankName', saved: 'Bank of Kigali Plc' }, { field: 'schoolBankName', saved: 'Equity Bank Rwanda Plc' }],
-        details: { personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc', personalAccountName: 'Legacy Teacher' },
-      });
-      expect((await get('/notifications', t['bank.legacy.t'])).body.code).toBe('BANKING_DETAILS_REQUIRED');
-    });
-
-    it('teacher: without confirmation nothing is replaced — each field named with its saved bank; one confirmation is not enough', async () => {
-      const body = { personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '400100001111' };
-      const none = await put(t['bank.legacy.t'], body);
-      expect([none.status, none.body.code]).toEqual([400, 'BANKING_INVALID']);
-      expect(none.body.details.confirmationNeeded).toEqual(['personalBankName', 'schoolBankName']);
-      expect(none.body.details.fields.personalBankName).toContain('Bank of Kigali Plc');
-      expect(none.body.details.fields.schoolBankName).toContain('Equity Bank Rwanda Plc');
-      const one = await put(t['bank.legacy.t'], { ...body, confirmReplace: ['personalBankName'] });
-      expect([one.status, one.body.details.confirmationNeeded]).toEqual([400, ['schoolBankName']]);
-      const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.t'] } });
-      expect([row.personalBankName, row.schoolBankName]).toEqual(['Bank of Kigali Plc', 'Equity Bank Rwanda Plc']);
-    });
-
-    it('teacher: confirmed for both, Umwalimu SACCO replaces them; every other saved value is kept; the step ends', async () => {
-      const r = await put(t['bank.legacy.t'], {
-        personalAccountName: 'Legacy Teacher', personalAccountNumber: '123456789012', schoolAccountName: 'GS Legacy', schoolAccountNumber: '400100001111',
-        confirmReplace: ['personalBankName', 'schoolBankName'],
-      });
-      expect([r.status, r.body.status]).toEqual([200, 'COMPLETE']);
-      const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.t'] } });
-      expect(row).toMatchObject({
-        personalAccountName: 'Legacy Teacher', personalBankName: SACCO, personalAccountNumber: '123456789012',
-        schoolAccountName: 'GS Legacy', schoolBankName: SACCO, schoolAccountNumber: '400100001111',
-      });
+      expect(r.body).toMatchObject({ status: 'COMPLETE', invalid: [], conflicts: [], details: { personalBankName: 'Bank of Kigali Plc', schoolBankName: 'Equity Bank Rwanda Plc' } });
       expect((await get('/notifications', t['bank.legacy.t'])).status).toBe(200);
+      const body = {
+        personalAccountName: 'Legacy Teacher', personalBankName: 'Bank of Kigali Plc', personalAccountNumber: '123456789012',
+        schoolAccountName: 'GS Legacy', schoolBankName: 'Equity Bank Rwanda Plc', schoolAccountNumber: '400100001111',
+      };
+      const ok = await put(t['bank.legacy.t'], body);
+      expect([ok.status, ok.body.status]).toEqual([200, 'COMPLETE']);
+      expect(await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.legacy.t'] } })).toMatchObject(body);
     });
 
     it('coach with a saved school bank (any bank): complete, no conflict, no confirmation, never held at the step', async () => {
@@ -309,7 +292,7 @@ describe('Banking information (e2e)', () => {
       const bad = await http().put(url).set(bearer(t.admin)).send({ ...teacherDetails, schoolAccountNumber: '123', personalAccountName: 'Name 2' });
       expect([bad.status, bad.body.code, Object.keys(bad.body.details.fields).sort()]).toEqual([400, 'BANKING_INVALID', ['personalAccountName', 'schoolAccountNumber']]);
       expect(bad.body.details.fields.schoolAccountNumber).toBe(SCHOOL_MSG);
-      const ok = await http().put(url).set(bearer(t.admin)).send({ ...teacherDetails, personalAccountNumber: '999988887777', schoolAccountNumber: '400100009999' });
+      const ok = await http().put(url).set(bearer(t.admin)).send({ ...teacherDetails, personalAccountNumber: '999988887777', schoolAccountNumber: '400100009999' });   // banks unchanged (Umwalimu SACCO)
       expect(ok.status).toBe(200);
       expect(ok.body).toMatchObject({ status: 'COMPLETE', details: { personalAccountNumber: '•••• 7777', schoolAccountNumber: '•••• 9999', revealed: false } });
       const row = await ctx.prisma.userBankDetails.findUniqueOrThrow({ where: { userId: ids['bank.teacher'] } });
@@ -351,6 +334,60 @@ describe('Banking information (e2e)', () => {
       expect(r.status).toBe(400);
       expect(['VALIDATION_FAILED', 'BULK_BANKING_FILTER']).toContain(r.body.code);
       expect(JSON.stringify(r.body)).toMatch(/banking/i);
+    });
+  });
+
+  describe("the bank list: managed by the Super Administrator (owner 2026-11-27)", () => {
+    const B = '/api/v1/admin/banking/banks';
+    it('only the Super Administrator reads or changes it', async () => {
+      for (const who of ['admin', 'bank.teacher', 'mentor', 'student']) {
+        expect([who, (await http().get(B).set(bearer(t[who]))).status]).toEqual([who, 403]);
+        expect([who, (await http().put(B).set(bearer(t[who])).send({ banks: [{ name: 'X Bank' }], reason: 'test' })).status]).toEqual([who, 403]);
+      }
+      const r = await http().get(B).set(bearer(t['help.super'])).expect(200);
+      expect(r.body.banks).toHaveLength(12);
+      expect(r.body.banks.find((b: { name: string }) => b.name === 'Bank of Kigali Plc').accounts).toBeGreaterThan(0);
+      expect(r.body.banks.find((b: { name: string }) => b.name === SACCO)).toMatchObject({ minDigits: 12, maxDigits: 12, instruction: TEACHER_MSG });
+    });
+
+    it('add a bank with its rule, switch one off; Umwalimu SACCO always kept at 12 digits; audited with the reason', async () => {
+      const before = (await http().get(B).set(bearer(t['help.super']))).body.banks as Array<{ name: string; active: boolean; minDigits: number | null; maxDigits: number | null }>;
+      const next = before
+        .filter((b) => b.name !== SACCO)   // left out: always put back
+        .map((b) => (b.name === 'Zigama Credit and Savings Bank' ? { name: b.name, active: false } : { name: b.name, active: b.active, minDigits: b.minDigits, maxDigits: b.maxDigits }))
+        .concat([{ name: 'Ten Digit Bank', active: true, minDigits: 10, maxDigits: 10 }]);
+      expect((await http().put(B).set(bearer(t['help.super'])).send({ banks: next })).status).toBe(400);   // reason required
+      const r = await http().put(B).set(bearer(t['help.super'])).send({ banks: next, reason: 'New partner bank' }).expect(200);
+      const byName = new Map(r.body.banks.map((b: { name: string }) => [b.name, b]));
+      expect(byName.get(SACCO)).toMatchObject({ active: true, minDigits: 12, maxDigits: 12 });
+      expect(byName.get('Ten Digit Bank')).toMatchObject({ active: true, minDigits: 10, instruction: 'Ten Digit Bank account numbers must contain exactly 10 digits.' });
+      expect(byName.get('Zigama Credit and Savings Bank')).toMatchObject({ active: false });
+      const audit = await ctx.prisma.auditLog.findFirstOrThrow({ where: { action: 'BANKING_BANKS_UPDATED' }, orderBy: { createdAt: 'desc' } });
+      expect(audit.metadata).toMatchObject({ reason: 'New partner bank' });
+
+      // The forms follow at once: the new bank is offered with its rule; the switched-off bank is not.
+      const form = await get('/me/banking', t['bank.teacher2']);
+      expect(form.body.rules.banks).toContain('Ten Digit Bank');
+      expect(form.body.rules.banks).not.toContain('Zigama Credit and Savings Bank');
+      const bad = await put(t['bank.teacher2'], { ...teacherDetails, personalBankName: 'Ten Digit Bank', personalAccountNumber: '123456789012' });
+      expect(bad.body.details.fields).toEqual({ personalAccountNumber: 'Ten Digit Bank account numbers must contain exactly 10 digits.' });
+      const off = await put(t['bank.teacher2'], { ...teacherDetails, personalBankName: 'Zigama Credit and Savings Bank', personalAccountNumber: '55555' });
+      expect(off.body.details.fields.personalBankName).toBe('Zigama Credit and Savings Bank can no longer be chosen. Choose another bank from the list.');
+      const ok = await put(t['bank.teacher2'], { ...teacherDetails, personalBankName: 'Ten Digit Bank', personalAccountNumber: '1234567890' });
+      expect([ok.status, ok.body.status]).toEqual([200, 'COMPLETE']);
+    });
+
+    it('a bank someone uses cannot be removed (switch it off instead); nobody is locked out by a list change', async () => {
+      const list = ((await http().get(B).set(bearer(t['help.super']))).body.banks as Array<{ name: string; active: boolean; minDigits: number | null; maxDigits: number | null }>)
+        .map(({ name, active, minDigits, maxDigits }) => ({ name, active, minDigits, maxDigits }));
+      const r = await http().put(B).set(bearer(t['help.super'])).send({ banks: list.filter((b) => b.name !== 'Bank of Kigali Plc'), reason: 'Remove BK' });
+      expect([r.status, r.body.code]).toEqual([409, 'BANK_IN_USE']);
+      // A stricter rule for a bank people already use: they stay complete (asked only when they change the number).
+      const strict = list.map((b) => (b.name === 'Bank of Kigali Plc' ? { ...b, minDigits: 13, maxDigits: 13 } : b));
+      const s2 = await http().put(B).set(bearer(t['help.super'])).send({ banks: strict, reason: 'BK numbers have 13 digits' }).expect(200);
+      expect(s2.body.banks.find((b: { name: string }) => b.name === 'Bank of Kigali Plc').accountsNotFollowingRule).toBeGreaterThan(0);
+      expect((await get('/me', t['bank.legacy.t'])).body.bankingRequired).toBe(false);
+      expect((await get('/notifications', t['bank.legacy.c'])).status).toBe(200);
     });
   });
 });
