@@ -289,6 +289,49 @@ export class TestsService {
     return this.detail(id);
   }
 
+  /**
+   * The whole question list at once (owner 2026-11-27: a Super Administrator adds the questions of a test that already has
+   * papers, e.g. to mark it question by question). After submissions: SUPER_ADMIN only, a reason, and no marking started
+   * (no assignment, marking or question task) — the database guard allows it only then (rof.question_structure_correction).
+   * Submissions, answer pages and files are never touched.
+   */
+  async setQuestions(id: string, dto: { questions: Array<{ prompt: string; maxMarks: number }>; reason?: string }, user: AuthUser) {
+    await this.loadInScope(id, user);
+    await this.prisma.$transaction(async (tx) => {
+      const test = await lockTest(tx, id);
+      const submitted = await hasSubmissions(tx, id);
+      if (submitted) {
+        if (user.role !== 'SUPER_ADMIN') {
+          throw new AppError(HttpStatus.FORBIDDEN, 'SUPER_ADMIN_REQUIRED',
+            'Students have already submitted to this test: only a Super Administrator can change its questions.');
+        }
+        if (!dto.reason || dto.reason.trim().length < 3) {
+          throw new AppError(HttpStatus.BAD_REQUEST, 'REASON_REQUIRED', 'Give the reason for changing the questions (at least 3 characters).');
+        }
+        const [s] = await tx.$queryRaw<Array<{ started: boolean }>>`SELECT question_marking_started(${id}) AS "started"`;
+        if (s.started) {
+          throw new AppError(HttpStatus.CONFLICT, 'MARKING_STARTED',
+            'Marking has started on this test, so its questions can no longer change. Ask the technical team for a correction.');
+        }
+      }
+      assertQuestionMarks(test.status, test.maxMarks, dto.questions.map((q) => q.maxMarks));
+      const before = await tx.testQuestion.findMany({ where: { testId: id }, orderBy: { order: 'asc' }, select: { order: true, maxMarks: true } });
+      if (submitted) await tx.$executeRaw`SELECT set_config('rof.question_structure_correction', 'on', true)`;
+      await tx.testQuestion.deleteMany({ where: { testId: id } });
+      await tx.testQuestion.createMany({ data: dto.questions.map((q, i) => ({ testId: id, order: i + 1, prompt: q.prompt, maxMarks: q.maxMarks })) });
+      if (submitted) await tx.$executeRaw`SELECT set_config('rof.question_structure_correction', '', true)`;
+      await this.audit.log({
+        actorId: user.id, actorRole: user.role, action: 'TEST_QUESTIONS_SET', entity: 'Test', entityId: id,
+        metadata: {
+          subjectId: test.disciplineId, afterSubmissions: submitted, reason: dto.reason?.trim() ?? null,
+          before: before.map((q) => ({ order: q.order, maxMarks: q.maxMarks })),
+          after: dto.questions.map((q, i) => ({ order: i + 1, maxMarks: q.maxMarks })),
+        },
+      }, tx);
+    });
+    return this.detail(id);
+  }
+
   async updateQuestion(id: string, questionId: string, dto: UpdateTestQuestionDto, user: AuthUser) {
     if (dto.prompt === undefined && dto.maxMarks === undefined) throw new AppError(HttpStatus.BAD_REQUEST, 'NO_CHANGES', 'Nothing to change.');
     await this.loadInScope(id, user);

@@ -14,7 +14,7 @@ import { FILE_RULES } from '../common/storage/file-rules.js';
 import { uploadOptions } from '../common/storage/upload-options.js';
 import {
   CreateTestDto, GrantMarkerDto, ListMarkersQueryDto, ListTestsQueryDto, MarkerCandidatesQueryDto, ReorderTestQuestionsDto,
-  RevokeMarkerDto, TEST_FILE_KINDS, TestQuestionInputDto, UpdateTestDto, UpdateTestQuestionDto, type TestFileKindParam,
+  RevokeMarkerDto, SetTestQuestionsDto, TEST_FILE_KINDS, TestQuestionInputDto, UpdateTestDto, UpdateTestQuestionDto, type TestFileKindParam,
 } from './dto/test.dto.js';
 import { TestMarkersService } from './test-markers.service.js';
 import { TestsService } from './tests.service.js';
@@ -112,6 +112,17 @@ export class TestsController {
   @RequirePermission('tests.manage')
   addQuestion(@Param('id', ParseUUIDPipe) id: string, @Body() dto: TestQuestionInputDto, @CurrentUser() user: AuthUser) {
     return this.tests.addQuestion(id, dto, user);
+  }
+
+  /**
+   * Set the whole question list at once { questions: [{ prompt, maxMarks }], reason }. Before any submission: like adding
+   * the questions one by one. After submissions: Super Administrators only, with a reason, while no marking has started
+   * (409 MARKING_STARTED); students' answers are not touched. A published test's questions must total its maximum.
+   */
+  @Put(':id/questions')
+  @RequirePermission('tests.manage')
+  setQuestions(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SetTestQuestionsDto, @CurrentUser() user: AuthUser) {
+    return this.tests.setQuestions(id, dto, user);
   }
 
   /** Every question id once, in the new order. 400 QUESTION_ORDER_MISMATCH. */
