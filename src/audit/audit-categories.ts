@@ -72,7 +72,7 @@ export const AUDIT_CATEGORIES = {
   // marker authorisation (who acted — which Administrator or Head Coach — is the entry's actor).
   TESTS: [
     'TEST_CREATED', 'TEST_UPDATED', 'TEST_DELETED', 'TEST_PUBLISHED', 'TEST_UNPUBLISHED',
-    'TEST_QUESTION_ADDED', 'TEST_QUESTION_UPDATED', 'TEST_QUESTION_REMOVED', 'TEST_QUESTIONS_REORDERED',
+    'TEST_QUESTION_ADDED', 'TEST_QUESTION_UPDATED', 'TEST_QUESTION_REMOVED', 'TEST_QUESTIONS_REORDERED', 'TEST_QUESTIONS_SET',
     'TEST_FILE_UPLOADED', 'TEST_FILE_REPLACED', 'TEST_FILE_REMOVED',
     'MARKER_AUTHORIZED', 'MARKER_AUTHORIZATION_REVOKED',
     // Phase 2: extensions, answer pages and submissions (the actor: Administrator, Head Coach, student or teacher)

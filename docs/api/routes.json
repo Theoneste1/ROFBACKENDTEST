@@ -2028,6 +2028,16 @@
     "tag": "Admin · Tests"
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/admin/tests/{id}/questions",
+    "roles": [
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
     "method": "PATCH",
     "path": "/api/v1/admin/tests/{id}/questions/{questionId}",
     "roles": [

@@ -494,6 +494,58 @@ describe('Question-level marking (Rev 5.2) — e2e', () => {
     expect((await p().testTaskClaim.findFirstOrThrow({ where: { taskId: t2, coachId: vId } })).endReason).toBe('AUTHORISATION_LOST');
   });
 
+  it('Super Administrator sets the questions of a test that already has papers (owner 2026-11-27), then it is marked by question', async () => {
+    // A published PAPER test created without questions (marked as one total), the way Computing and Physics were set up.
+    const res = await http().post(T).set(bearer(admin)).send({
+      title: 'No questions yet', subjectId: maths, division: 'ALL', answerFormat: 'BOTH', opensAt: minutes(-60), closesAt: minutes(120), maxMarks: 20,
+    }).expect(201);
+    const id = res.body.id as string;
+    await http().put(`${T}/${id}/files/paper`).set(bearer(admin)).attach('file', PDF, 'paper.pdf').expect(200);
+    await http().post(`${T}/${id}/publish`).set(bearer(admin)).expect(200);
+    await submit(sj, id, true);
+    await submit(sj2, id);
+    const papersBefore = await p().testSubmission.findMany({ where: { testId: id }, orderBy: { id: 'asc' }, select: { id: true, status: true, currentVersionId: true, versionCount: true } });
+    const pagesBefore = await p().testAnswerPage.count({ where: { version: { submission: { testId: id } } } });
+    const body = { questions: [{ prompt: 'Question 1', maxMarks: 8 }, { prompt: 'Question 2', maxMarks: 12 }], reason: 'The test was created without its questions' };
+
+    // Refused: an Administrator once papers exist; a Super Administrator without a reason, or with marks that do not add up.
+    expect(await status(http().put(`${T}/${id}/questions`).set(bearer(admin)).send(body))).toEqual([403, 'SUPER_ADMIN_REQUIRED']);
+    expect(await status(http().put(`${T}/${id}/questions`).set(bearer(superAdmin)).send({ questions: body.questions }))).toEqual([400, 'REASON_REQUIRED']);
+    expect(await status(http().put(`${T}/${id}/questions`).set(bearer(superAdmin)).send({ ...body, questions: [{ prompt: 'Only one', maxMarks: 8 }] }))).toEqual([409, 'QUESTION_MARKS_MISMATCH']);
+    expect(await p().testQuestion.count({ where: { testId: id } })).toBe(0);
+
+    // Allowed: the Super Administrator, with a reason, before any marking. The papers are untouched.
+    const ok = await http().put(`${T}/${id}/questions`).set(bearer(superAdmin)).send(body).expect(200);
+    expect(ok.body.questions.map((q: { order: number; maxMarks: number }) => [q.order, q.maxMarks])).toEqual([[1, 8], [2, 12]]);
+    expect(await p().testSubmission.findMany({ where: { testId: id }, orderBy: { id: 'asc' }, select: { id: true, status: true, currentVersionId: true, versionCount: true } })).toEqual(papersBefore);
+    expect(await p().testAnswerPage.count({ where: { version: { submission: { testId: id } } } })).toBe(pagesBefore);
+    const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'TEST_QUESTIONS_SET', entityId: id } });
+    expect(audit.metadata).toMatchObject({ afterSubmissions: true, reason: body.reason, before: [], after: [{ order: 1, maxMarks: 8 }, { order: 2, maxMarks: 12 }] });
+
+    // Now it can be marked question by question: mode, markers, tasks for every paper.
+    await http().patch(`${QM(id)}/mode`).set(bearer(hm)).send({ mode: 'QUESTION' }).expect(200);
+    const [q1, q2] = await qids(id);
+    await setMarkers(id, q1, [xId]).expect(200);
+    await setMarkers(id, q2, [yId]).expect(200);
+    await closeNow(id);
+    const g = await http().post(`${QM(id)}/tasks/generate`).set(bearer(hm)).send({}).expect(200);
+    expect(g.body).toMatchObject({ created: 4, papers: 2, questions: 2 });
+
+    // Once marking has started, the questions are frozen, even for a Super Administrator.
+    expect(await status(http().put(`${T}/${id}/questions`).set(bearer(superAdmin)).send({ ...body, questions: [{ prompt: 'All', maxMarks: 20 }] }))).toEqual([409, 'MARKING_STARTED']);
+    expect(await p().testQuestion.count({ where: { testId: id } })).toBe(2);
+  });
+
+  it('before any submission an Administrator sets the questions at once, no reason needed', async () => {
+    const res = await http().post(T).set(bearer(admin)).send({
+      title: 'Draft questions', subjectId: maths, division: 'ALL', answerFormat: 'BOTH', opensAt: minutes(60), closesAt: minutes(120), maxMarks: 10,
+      questions: [{ prompt: 'Old', maxMarks: 10 }],
+    }).expect(201);
+    const r = await http().put(`${T}/${res.body.id}/questions`).set(bearer(admin)).send({ questions: [{ prompt: 'A', maxMarks: 4 }, { prompt: 'B', maxMarks: 6 }] }).expect(200);
+    expect(r.body.questions.map((q: { prompt: string }) => q.prompt)).toEqual(['A', 'B']);
+    expect(await status(http().put(`${T}/${res.body.id}/questions`).set(bearer(admin)).send({ questions: [{ prompt: 'Too many', maxMarks: 11 }] }))).toEqual([400, 'QUESTION_MARKS_EXCEED_TOTAL']);
+  });
+
   it('resubmission: an open authorisation stops claims; the replacement moves the tasks; refused once any task was claimed', async () => {
     const id = await readyTest('Resubmission');
     const sub = await paperOf(id, stJ2);

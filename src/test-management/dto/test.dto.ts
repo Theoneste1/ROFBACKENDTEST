@@ -28,6 +28,20 @@ export class TestQuestionInputDto {
   maxMarks: number;
 }
 
+/**
+ * PUT /admin/tests/:id/questions — the whole question list at once (owner 2026-11-27). After students have submitted, only a
+ * Super Administrator may do it, with a reason, and only while no marking of any kind has started on the test.
+ */
+export class SetTestQuestionsDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(MAX_QUESTIONS)
+  @ValidateNested({ each: true }) @Type(() => TestQuestionInputDto)
+  questions: TestQuestionInputDto[];
+
+  /** Why the questions are set (3–500 characters; kept in the audit log). Required once students have submitted. */
+  @IsOptional() @IsString() @Transform(trim) @Length(3, 500)
+  reason?: string;
+}
+
 /** POST /admin/tests */
 export class CreateTestDto {
   /** 3–200 characters. */

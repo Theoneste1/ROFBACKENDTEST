@@ -52881,6 +52881,55 @@
         ],
         "x-permission": "tests.manage",
         "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+      },
+      "put": {
+        "operationId": "TestsController_setQuestions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTestQuestionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Set the whole question list at once { questions: [{ prompt, maxMarks }], reason }. Before any submission: like adding\nthe questions one by one. After submissions: Super Administrators only, with a reason, while no marking has started\n(409 MARKING_STARTED); students' answers are not touched. A published test's questions must total its maximum.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.manage",
+        "description": "**Access:** permission `tests.manage` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/admin/tests/{id}/questions/order": {
@@ -63588,6 +63637,28 @@
             "maximum": 1000
           }
         }
+      },
+      "SetTestQuestionsDto": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestQuestionInputDto"
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why the questions are set (3–500 characters; kept in the audit log). Required once students have submitted.",
+            "minLength": 3,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "questions"
+        ]
       },
       "ReorderTestQuestionsDto": {
         "type": "object",
