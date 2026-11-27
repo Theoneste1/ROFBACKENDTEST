@@ -6,7 +6,7 @@ const STUDENT: AuthUser = { id: 's1', username: 'stu',   role: 'STUDENT', divisi
 const ADMIN:   AuthUser = { id: 'a1', username: 'admin', role: 'ADMIN',   divisionId: null, gradeLevel: null };
 
 const row = (overrides: Record<string, unknown> = {}) => ({
-  rank: 1n, id: 's2', firstName: 'Grace', lastName: 'Uwase', avatarUrl: null,
+  rank: 1n, id: 's2', username: 'grace.uwase', firstName: 'Grace', lastName: 'Uwase', avatarUrl: null,
   points: 100, problemsSolved: 4, schoolId: 'sch1', schoolName: 'GS Kigali', ...overrides,
 });
 
@@ -62,7 +62,7 @@ describe('LeaderboardService', () => {
   });
 
   describe('findGeneral', () => {
-    it('shows students first name + last initial and flags their own row', async () => {
+    it('shows students usernames, never names, and flags their own row', async () => {
       const { service, prisma } = makeMocks();
       prisma.$queryRaw
         .mockResolvedValueOnce([row(), row({ id: 's1', rank: 2n, firstName: 'Me', lastName: 'Self', schoolId: null })])
@@ -71,7 +71,7 @@ describe('LeaderboardService', () => {
       const result = await service.findGeneral(STUDENT, {});
 
       expect(result.data[0]).toEqual({
-        rank: 1, id: 's2', displayName: 'Grace U.', avatarUrl: null, points: 100, problemsSolved: 4,
+        rank: 1, id: 's2', displayName: 'grace.uwase', avatarUrl: null, points: 100, problemsSolved: 4,
         school: { id: 'sch1', name: 'GS Kigali' }, isMe: false,
       });
       expect(result.data[1]).toMatchObject({ rank: 2, isMe: true, school: null });

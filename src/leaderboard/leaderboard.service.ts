@@ -28,6 +28,7 @@ import { LeaderboardQueryDto } from './dto/leaderboard-query.dto.js';
 interface RankedRow {
   rank:           bigint;
   id:             string;
+  username:       string;
   firstName:      string;
   lastName:       string;
   avatarUrl:      string | null;
@@ -70,7 +71,7 @@ export class LeaderboardService {
     const [rows, countRows] = await Promise.all([
       this.prisma.$queryRaw<RankedRow[]>`
         SELECT RANK() OVER (ORDER BY u."points" DESC, u."problemsSolved" DESC) AS "rank",
-               u."id", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
+               u."id", u."username", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
                s."id" AS "schoolId", s."name" AS "schoolName", (${VERIFIED_AT_SCHOOL}) AS "schoolVerified",
                d."code" AS "levelCode", d."name" AS "levelName"
         FROM "User" u
@@ -94,7 +95,7 @@ export class LeaderboardService {
     const rows = await this.prisma.$queryRaw<RankedRow[]>`
       SELECT * FROM (
         SELECT RANK() OVER (ORDER BY u."points" DESC, u."problemsSolved" DESC) AS "rank",
-               u."id", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
+               u."id", u."username", u."firstName", u."lastName", u."avatarUrl", u."points", u."problemsSolved",
                u."schoolId", NULL AS "schoolName"
         FROM "User" u
         WHERE u."role" = 'STUDENT' AND u."isActive" = true AND u."divisionId" = ${divisionId}
@@ -176,12 +177,12 @@ export class LeaderboardService {
     return requested;
   }
 
-  /** Staff (admins, coaches) see full names; everyone else sees first name + last initial. */
+  /** Staff (admins, coaches) see full names; everyone else sees the student's username (owner 2026-11-27: never names). */
   private toEntry(r: RankedRow, user: AuthUser) {
     return {
       rank:           Number(r.rank),
       id:             r.id,
-      displayName:    isStaff(user) ? `${r.firstName} ${r.lastName}` : `${r.firstName} ${r.lastName.charAt(0)}.`,
+      displayName:    isStaff(user) ? `${r.firstName} ${r.lastName}` : r.username,
       avatarUrl:      r.avatarUrl,
       points:         r.points,
       problemsSolved: r.problemsSolved,

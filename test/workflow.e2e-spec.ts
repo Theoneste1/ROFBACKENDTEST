@@ -266,7 +266,7 @@ describe('Assignment workflow (e2e)', () => {
     const board = await ctx.http().get('/api/v1/leaderboard').set(bearer(studentJ)).expect(200);
     expect(board.body.data[0]).toMatchObject({ rank: 1, points: 36 }); // student.j2: 18/20 × 40
     expect(board.body.data[1]).toMatchObject({ rank: 2, points: 30, isMe: true });
-    expect(board.body.data[1].displayName).toBe('student.j T.');
+    expect(board.body.data[1].displayName).toBe('student.j');   // students see usernames, never names (owner 2026-11-27)
   });
 
   it('reopening a published result removes its points and returns it to the mentor', async () => {
