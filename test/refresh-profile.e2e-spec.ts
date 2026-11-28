@@ -1,7 +1,8 @@
 /**
  * A refresh returns the signed-in user's profile with the tokens (performance, 2026-11-28): a page load restores the
  * session and knows the user in ONE round trip instead of two (refresh, then GET /me). The profile is exactly GET /me's
- * — same fields, same steps (dateOfBirthRequired, genderRequired, bankingRequired), never the bank details or any secret.
+ * — same fields, same steps (dateOfBirthRequired, genderRequired, bankingRequired), never the bank details or any secret —
+ * and GET /me/permissions' summary, so the portal renders complete (menus included) without another round trip.
  */
 import { randomBytes } from 'crypto';
 import { PASSWORD, createTestApp, completeStaffBankDetails, type TestContext } from './helpers.js';
@@ -19,17 +20,37 @@ describe('Refresh returns the profile (e2e)', () => {
     it(`${username}: the refreshed profile equals GET /me; no secret, no bank detail`, async () => {
       const login = await http().post('/api/v1/auth/login').send({ username, password: PASSWORD }).expect(200);
       const r = await http().post('/api/v1/auth/refresh').set('Cookie', cookieOf(login)).send({}).expect(200);
-      expect(Object.keys(r.body).sort()).toEqual(['access_token', 'expires_in', 'refresh_expires_at', 'refresh_token', 'token_type', 'user']);
+      expect(Object.keys(r.body).sort()).toEqual(['access_token', 'expires_in', 'permissions', 'refresh_expires_at', 'refresh_token', 'token_type', 'user']);
       const me = await http().get('/api/v1/me').set('Authorization', `Bearer ${r.body.access_token}`).expect(200);
       expect(r.body.user).toEqual(me.body);
+      const permissions = await http().get('/api/v1/me/permissions').set('Authorization', `Bearer ${r.body.access_token}`).expect(200);
+      expect(r.body.permissions).toEqual(permissions.body);
+      expect(r.body.permissions.permissions.length).toBeGreaterThan(0);
       expect(r.body.user).toMatchObject({ username, dateOfBirthRequired: expect.any(Boolean), genderRequired: expect.any(Boolean), bankingRequired: expect.any(Boolean) });
       const text = JSON.stringify(r.body.user);
       for (const secret of ['passwordHash', 'bankDetails', 'personalAccountNumber', 'tokensValidAfter', 'failedLoginCount']) expect(text).not.toContain(secret);
     });
   }
 
+  it('an individual override is in the refreshed summary exactly as in GET /me/permissions', async () => {
+    const admin = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'admin' } });
+    const student = await ctx.prisma.user.findUniqueOrThrow({ where: { username: 'student.j' } });
+    const o = await ctx.prisma.userPermissionOverride.create({ data: { userId: admin.id, permission: 'audit.view', effect: 'DENY', reason: 'Test: refresh summary', createdById: student.id } });
+    try {
+      const login = await http().post('/api/v1/auth/login').send({ username: 'admin', password: PASSWORD }).expect(200);
+      const r = await http().post('/api/v1/auth/refresh').set('Cookie', cookieOf(login)).send({}).expect(200);
+      const permissions = await http().get('/api/v1/me/permissions').set('Authorization', `Bearer ${r.body.access_token}`).expect(200);
+      expect(r.body.permissions).toEqual(permissions.body);
+      expect(r.body.permissions.permissions).not.toContain('audit.view');
+      expect(r.body.permissions.overrides).toEqual([expect.objectContaining({ permission: 'audit.view', effect: 'DENY' })]);
+    } finally {
+      await ctx.prisma.userPermissionOverride.delete({ where: { id: o.id } });
+    }
+  });
+
   it('a refused refresh still answers 401 without any profile', async () => {
     const r = await http().post('/api/v1/auth/refresh').send({ refreshToken: randomBytes(48).toString('base64url') }).expect(401);
     expect(r.body.user).toBeUndefined();
+    expect(r.body.permissions).toBeUndefined();
   });
 });
