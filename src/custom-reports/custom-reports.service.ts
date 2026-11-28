@@ -51,7 +51,7 @@ import {
   cells, definitionOrder, definitionProblems, definitionWhere, FILTER_OPS, SOURCES, usesProtected, type ReportDefinition, type SourceDef,
 } from './report-sources.js';
 import type { ReportGrantDto, SaveReportDto } from './custom-reports.dto.js';
-import { cellText, renderPdf, renderXlsx, type Cell, type ReportDocument, type SummaryGroup } from './report-documents.js';
+import { cellText, documentCell, renderPdf, renderXlsx, type Cell, type ReportDocument, type SummaryGroup } from './report-documents.js';
 
 export const EXPORT_MAX_ROWS = 20_000;
 const PERSON = { select: { id: true, firstName: true, lastName: true, username: true } } as const;
@@ -380,7 +380,7 @@ export class CustomReportsService {
     return (src.summary ?? []).map((key) => {
       const f = src.fields.find((x) => x.key === key)!;
       const counts = new Map<string, number>();
-      for (const row of raw) { const v = cellText(f.value(row) as Cell); counts.set(v, (counts.get(v) ?? 0) + 1); }
+      for (const row of raw) { const v = cellText(documentCell(f.type, f.value(row) as Cell)); counts.set(v, (counts.get(v) ?? 0) + 1); }
       return { key, label: f.label, counts: [...counts].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)) };
     });
   }
@@ -422,7 +422,9 @@ export class CustomReportsService {
     const document: ReportDocument = {
       title: r.name, description: r.description, source: src.label, filters: this.filterTexts(d),
       generatedBy: me ? `${me.firstName} ${me.lastName}`.trim() || me.username : viewer.username, generatedAt: new Date(),
-      headers, rows: data as Cell[][], summary: this.summarize(src, raw),
+      // Dates as dates (Kigali time), codes as words: the documents are read by people.
+      headers, rows: data.map((row) => row.map((v, i) => documentCell(src.fields.find((f) => f.key === d.columns[i])?.type ?? 'text', v as Cell))),
+      summary: this.summarize(src, raw),
     };
     if (format === 'pdf') {
       const buffer = await renderPdf(document);

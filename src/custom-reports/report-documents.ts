@@ -39,6 +39,17 @@ export function kigali(d: Date, withTime = true): string {
   }).format(d);
 }
 
+/** A stored code as people read it: MARKING_IN_PROGRESS → Marking in progress. */
+export const codeLabel = (v: string) => (v ? v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ') : v);
+
+/** A report cell for a document, by its field type: dates as dates, codes (enum values) as words. */
+export function documentCell(type: string, v: Cell): Cell {
+  if (v === null || v === undefined) return null;
+  if (type === 'date' && typeof v === 'string') { const d = new Date(v); return Number.isNaN(d.getTime()) ? v : d; }
+  if (type === 'enum' && typeof v === 'string') return codeLabel(v);
+  return v;
+}
+
 /** A cell as text (Yes / No, dates in Kigali time, empty as an en dash). */
 export function cellText(v: Cell): string {
   if (v === null || v === undefined || v === '') return '–';
@@ -86,11 +97,11 @@ export function renderPdf(doc: ReportDocument): Promise<Buffer> {
         const x = left + i * (boxW + 12);
         let yy = y;
         pdf.rect(x, yy, boxW, 16).fill(BRAND);
-        pdf.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8.5).text(g.label, x + 5, yy + 4, { width: boxW - 10, lineBreak: false, ellipsis: true });
+        pdf.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(8.5).text(g.label, x + 5, yy + 4, { width: boxW - 10, height: 10, lineBreak: false, ellipsis: true });
         yy += 16;
         for (const [j, c] of g.counts.slice(0, 8).entries()) {
           if (j % 2) pdf.rect(x, yy, boxW, 13).fill(ZEBRA);
-          pdf.fillColor(INK).font('Helvetica').fontSize(8).text(c.value, x + 5, yy + 3, { width: boxW - 45, lineBreak: false, ellipsis: true });
+          pdf.fillColor(INK).font('Helvetica').fontSize(8).text(c.value, x + 5, yy + 3, { width: boxW - 45, height: 9, lineBreak: false, ellipsis: true });
           pdf.font('Helvetica-Bold').text(String(c.count), x + boxW - 40, yy + 3, { width: 35, align: 'right' });
           yy += 13;
         }
@@ -101,46 +112,68 @@ export function renderPdf(doc: ReportDocument): Promise<Buffer> {
     }
 
     // ── Rows ──
-    const n = doc.headers.length || 1;
     // Column widths: by the longest text (header or a sample of cells), within bounds, scaled to the page width.
     const sample = doc.rows.slice(0, 200);
     pdf.font('Helvetica').fontSize(8);
-    const natural = doc.headers.map((h, i) => Math.min(220, Math.max(40, pdf.widthOfString(h) + 12,
-      ...sample.map((r) => pdf.widthOfString(cellText(r[i])) + 10))));
-    const total = natural.reduce((a, b) => a + b, 0);
-    const widths = natural.map((w) => (w / total) * width);
-    const rowH = 15;
+    // Column widths: never narrower than the column's longest word (no word is split), then the rest of the page shared
+    // in proportion to how much more each column's text would like (headers in bold).
+    const words = (t: string) => t.split(/\s+/).filter(Boolean);
+    const minW = doc.headers.map((h, i) => {
+      pdf.font('Helvetica-Bold').fontSize(8);
+      const head = Math.max(0, ...words(h).map((w) => pdf.widthOfString(w)));
+      pdf.font('Helvetica').fontSize(8);
+      const body = Math.max(0, ...sample.flatMap((r) => words(cellText(r[i])).map((w) => pdf.widthOfString(w))));
+      return Math.min(110, Math.max(head, body)) + 10;
+    });
+    const want = doc.headers.map((h, i) => Math.max(minW[i], Math.min(170, Math.max(pdf.widthOfString(h), ...sample.map((r) => pdf.widthOfString(cellText(r[i])))) + 10)));
+    const base = minW.reduce((a, b) => a + b, 0);
+    const extra = want.reduce((a, w, i) => a + (w - minW[i]), 0);
+    const widths = base >= width
+      ? minW.map((w) => (w / base) * width)
+      : minW.map((w, i) => w + (extra ? ((want[i] - w) / extra) * Math.min(width - base, extra) : 0) + (extra < width - base ? (width - base - extra) / minW.length : 0));
+    const LINE_H = 9.6;   // 8 pt Helvetica
+    const cellH = (text: string, w: number, maxLines: number, bold = false) => {
+      pdf.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(8);
+      return Math.min(pdf.heightOfString(text, { width: w }), maxLines * LINE_H);
+    };
+    const headH = Math.max(...doc.headers.map((h, i) => cellH(h, widths[i] - 8, 2, true)), LINE_H) + 9;
     const header = () => {
-      pdf.rect(left, y, width, rowH + 2).fill(BRAND);
+      pdf.rect(left, y, width, headH).fill(BRAND);
       let x = left;
       pdf.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF');
-      doc.headers.forEach((h, i) => { pdf.text(h, x + 4, y + 5, { width: widths[i] - 8, lineBreak: false, ellipsis: true }); x += widths[i]; });
-      y += rowH + 2;
+      doc.headers.forEach((h, i) => { pdf.text(h, x + 4, y + 5, { width: widths[i] - 8, height: 2 * LINE_H, ellipsis: true }); x += widths[i]; });
+      y += headH;
     };
-    if (y + rowH * 3 > bottom()) { pdf.addPage(); y = pdf.page.margins.top; }
+    if (y + headH + 3 * LINE_H > bottom()) { pdf.addPage(); y = pdf.page.margins.top; }
     header();
     if (!doc.rows.length) {
       pdf.font('Helvetica').fontSize(9).fillColor(MUTED).text('No rows match this report.', left + 4, y + 6);
     }
     doc.rows.forEach((r, ri) => {
-      if (y + rowH > bottom()) { pdf.addPage(); y = pdf.page.margins.top; header(); }
-      if (ri % 2) pdf.rect(left, y, width, rowH).fill(ZEBRA);
+      // A row is as tall as its tallest cell (at most three lines; longer text ends with an ellipsis).
+      const texts = r.map((v) => cellText(v));
+      const rh = Math.max(...texts.map((t, i) => cellH(t, widths[i] - 8, 3)), LINE_H) + 7;
+      if (y + rh > bottom()) { pdf.addPage(); y = pdf.page.margins.top; header(); }
+      if (ri % 2) pdf.rect(left, y, width, rh).fill(ZEBRA);
       let x = left;
       pdf.font('Helvetica').fontSize(8).fillColor(INK);
-      r.forEach((v, i) => { pdf.text(cellText(v), x + 4, y + 4, { width: widths[i] - 8, lineBreak: false, ellipsis: true }); x += widths[i]; });
-      pdf.moveTo(left, y + rowH).lineTo(left + width, y + rowH).lineWidth(0.3).strokeColor(LINE).stroke();
-      y += rowH;
+      texts.forEach((t, i) => { pdf.text(t, x + 4, y + 4, { width: widths[i] - 8, height: 3 * LINE_H, ellipsis: true }); x += widths[i]; });
+      pdf.moveTo(left, y + rh).lineTo(left + width, y + rh).lineWidth(0.3).strokeColor(LINE).stroke();
+      y += rh;
     });
-    void n;
 
     // ── Footer on every page ──
     const range = pdf.bufferedPageRange();
     for (let i = 0; i < range.count; i++) {
       pdf.switchToPage(range.start + i);
-      const fy = pdf.page.height - pdf.page.margins.bottom - 8;
+      // Written inside the bottom margin: without this, pdfkit would start a new page for it.
+      const bottomMargin = pdf.page.margins.bottom;
+      pdf.page.margins.bottom = 0;
+      const fy = pdf.page.height - bottomMargin - 8;
       pdf.font('Helvetica').fontSize(7).fillColor(MUTED);
       pdf.text(CONFIDENTIAL, left, fy, { width: width - 90, lineBreak: false, ellipsis: true });
       pdf.text(`Page ${i + 1} of ${range.count}`, left + width - 80, fy, { width: 80, align: 'right', lineBreak: false });
+      pdf.page.margins.bottom = bottomMargin;
     }
     pdf.end();
   });
