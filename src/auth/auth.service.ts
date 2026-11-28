@@ -387,9 +387,15 @@ export class AuthService {
 
   // ─── Refresh / Logout ──────────────────────────────────────────────────────
 
+  /**
+   * A new token pair, and the signed-in user's profile (the same as GET /me), so a page load needs one round trip
+   * instead of two before it can show anything (performance, 2026-11-28: every request from Rwanda to the API costs
+   * ~0.45 s). Additive: clients that ignore `user` behave as before.
+   */
   async refresh(refreshToken: string, client: ClientInfo) {
-    const { tokens } = await this.tokens.rotate(refreshToken, client);
-    return tokens;
+    const { userId, tokens } = await this.tokens.rotate(refreshToken, client);
+    const profile = await this.prisma.user.findUnique({ where: { id: userId }, select: PROFILE_WITH_STEPS_SELECT });
+    return profile ? { ...tokens, user: withProfileSteps(profile) } : tokens;
   }
 
   /**
