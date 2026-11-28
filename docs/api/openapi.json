@@ -8313,7 +8313,7 @@
             }
           }
         },
-        "summary": "The account's current profile picture, inline, with X-Content-Type-Options: nosniff. A staff account's picture:\nany signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned). A student's\npicture: the student, Administrators, and a Teacher who may view that student's profile (Cache-Control: private,\nno-store) — anyone else gets 404, the same as an account without a picture.",
+        "summary": "The account's current profile picture, inline, with X-Content-Type-Options: nosniff (owner 2026-11-27): any\nsigned-in user who may view the person's PROFILE sees the picture, by exactly the check of that profile. A student:\nthe check of GET /students/:id/overview. A Coach or Head Coach: the person themself (GET /me) or a holder of\nusers.manage (GET /admin/users/:id). These three: Cache-Control: private, no-store. Other accounts (Teachers,\nAdministrators): any signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned).\nAnyone not allowed gets 404 — the same answer as an unknown account or an account without a picture.",
         "tags": [
           "Users"
         ],
