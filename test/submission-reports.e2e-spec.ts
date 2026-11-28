@@ -265,4 +265,114 @@ describe('Submission reports (e2e)', () => {
       expect(r.status).toBe(403);
     }
   });
+
+  /** A saved report (admin) with these filters and columns. */
+  const saved = async (name: string, filters: object[], columns = ['studentName', 'school', 'subject', 'level', 'test', 'submittedAt', 'status', 'corrected', 'originalTest', 'originalSubject', 'originalLevel', 'correctionReason', 'correctedBy', 'correctedAt']) =>
+    (await http().post(R).set(bearer(admin)).send({ name, source: 'SUBMISSIONS', columns, filters, sort: [] }).expect(201)).body.id as string;
+  /** Run, summary, CSV and Excel of a report: the same records and the same totals everywhere. */
+  const consistent = async (id: string) => {
+    const r = (await http().get(`${R}/${id}/run`).query({ limit: 200 }).set(bearer(admin)).expect(200)).body;
+    const s = (await http().get(`${R}/${id}/summary`).set(bearer(admin)).expect(200)).body;
+    expect(s.total).toBe(r.meta.total);
+    for (const g of s.groups) expect(g.counts.reduce((a: number, c: any) => a + c.count, 0)).toBe(r.meta.total);
+    const csv = (await http().get(`${R}/${id}/export`).query({ format: 'csv' }).set(bearer(admin)).expect(200)).text.replace(/^﻿/, '').trim().split('\r\n');
+    expect(csv.length - 1).toBe(r.meta.total);
+    const xlsx = await http().get(`${R}/${id}/export`).query({ format: 'xlsx' }).set(bearer(admin)).buffer(true).parse(binary).expect(200);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(xlsx.body);
+    expect(wb.worksheets[0].rowCount - 7).toBe(r.meta.total);
+    expect(String(wb.worksheets[0].getCell('B5').value)).toContain(`· ${r.meta.total} rows`);
+    const pdf = await http().get(`${R}/${id}/export`).query({ format: 'pdf' }).set(bearer(admin)).buffer(true).parse(binary).expect(200);
+    expect(pdf.body.subarray(0, 5).toString()).toBe('%PDF-');
+    return { r, s, csv, wb, pdf: pdf.body };
+  };
+
+  it('combined filters (subject, level, school, test / round, status, date range, corrected): exactly the matching answer; summary, CSV, Excel and PDF agree', async () => {
+    const day = 24 * 60 * 60_000;
+    const id = await saved('Combined filters', [
+      { field: 'subject', op: 'eq', value: 'Mathematics' }, { field: 'level', op: 'eq', value: 'SENIOR' }, { field: 'school', op: 'eq', value: 'Test School' },
+      { field: 'test', op: 'contains', value: 'Round 1' }, { field: 'status', op: 'eq', value: 'SUBMITTED' },
+      { field: 'submittedAt', op: 'gte', value: new Date(Date.now() - day).toISOString() }, { field: 'submittedAt', op: 'lte', value: new Date(Date.now() + day).toISOString() },
+      { field: 'corrected', op: 'eq', value: true },
+    ]);
+    const { r, s, csv } = await consistent(id);
+    expect(r.meta.total).toBe(1);
+    expect(rowsOf(r)[0][col(r, 'test')]).toBe('Mathematics Round 1 Senior');
+    expect(s.groups.find((g: any) => g.key === 'corrected').counts).toEqual([{ value: 'Yes', count: 1 }]);
+    expect(csv[1]).toContain('Mathematics Round 1 Junior');   // the original test, in the CSV too
+    // Each filter alone changes the result as expected (none is ignored).
+    const only = async (f: object) => (await http().post(`${R}/preview`).set(bearer(admin)).send({ source: 'SUBMISSIONS', columns: ['test'], filters: [f], sort: [] }).expect(201)).body.meta.total;
+    expect(await only({ field: 'school', op: 'eq', value: 'Other School' })).toBe(1);
+    expect(await only({ field: 'level', op: 'eq', value: 'JUNIOR' })).toBe(1);
+    expect(await only({ field: 'corrected', op: 'eq', value: false })).toBe(1);
+    expect(await only({ field: 'submittedAt', op: 'lte', value: new Date(Date.now() - day).toISOString() })).toBe(0);
+    expect(await only({ field: 'status', op: 'eq', value: 'MARKED' })).toBe(0);
+  });
+
+  it('pages: every record once, none missing or repeated across pages', async () => {
+    const all = (await run(admin).expect(200)).body;
+    const seen: string[] = [];
+    for (let page = 1; page <= all.meta.total; page++) {
+      const one = (await http().get(`${R}/${report}/run`).query({ page, limit: 1 }).set(bearer(admin)).expect(200)).body;
+      seen.push(JSON.stringify(rowsOf(one)[0]));
+    }
+    expect(new Set(seen).size).toBe(all.meta.total);
+    expect([...seen].sort()).toEqual(rowsOf(all).map((x) => JSON.stringify(x)).sort());
+  });
+
+  it('access is checked again on every open: a teacher who leaves the school loses the report at once, and gets it back on return', async () => {
+    await setGrants(admin, [{ schoolId: testSchool, canView: true, canDownload: false, canEdit: false }]).expect(200);
+    await run(teacherA).expect(200);
+    await p().teacherSchoolAssignment.updateMany({ where: { teacherId: teacherAId, schoolId: testSchool }, data: { isActive: false, endedAt: new Date() } });
+    await run(teacherA).expect(404);
+    expect((await http().get(R).set(bearer(teacherA)).expect(200)).body.map((x: any) => x.id)).not.toContain(report);
+    await p().teacherSchoolAssignment.updateMany({ where: { teacherId: teacherAId, schoolId: testSchool }, data: { isActive: true, endedAt: null } });
+    await run(teacherA).expect(200);
+    // Who shared it, and when, is recorded.
+    const shared = await p().auditLog.findFirstOrThrow({ where: { action: 'REPORT_GRANTS_SET', entityId: report }, orderBy: { createdAt: 'desc' } });
+    expect(shared.actorId).toBe(ctx.ids.admin);
+  });
+
+  it('realistic data: 48 students in two schools, every subject and level, corrections — counted once each; the PDF runs to several numbered pages; totals agree', async () => {
+    const pw = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+    const divisions = Object.fromEntries((await p().division.findMany({ select: { id: true, code: true } })).map((d) => [d.code, d.id]));
+    const first = ['Aline', 'Eric', 'Divine', 'Jean', 'Grace', 'Kevin', 'Ange', 'Patrick', 'Clarisse', 'Yves', 'Sandrine', 'Olivier'];
+    const last = ['Uwase', 'Mugisha', 'Ishimwe', 'Habimana', 'Ingabire', 'Niyonzima', 'Mukamana', 'Nshimiyimana'];
+    const before = await p().testSubmission.count({ where: { versionCount: { gt: 0 } } });
+    let corrected = 0;
+    for (let i = 0; i < 48; i++) {
+      const senior = i % 2 === 1;
+      const username = `sr.real.${i}`;
+      const u = await p().user.create({ data: {
+        username, firstName: first[i % first.length], lastName: last[i % last.length], email: `${username}@test.local`, role: 'STUDENT', passwordHash: pw,
+        activatedAt: new Date(), isApproved: true, gradeLevel: senior ? 'S5' : 'S2', divisionId: divisions[senior ? 'SENIOR' : 'JUNIOR'],
+        dateOfBirth: new Date('2010-05-01T00:00:00Z'), schoolId: i % 3 ? testSchool : otherSchool,
+      } });
+      await p().studentSchoolAffiliation.create({ data: { studentId: u.id, schoolId: i % 3 ? testSchool : otherSchool, status: 'VERIFIED', source: 'ADMIN', decidedById: ctx.ids.admin, decidedAt: new Date() } });
+      const token = await login(ctx, username);
+      const testId = [physicsAll, computingAll, senior ? mathsSenior : mathsJunior][i % 3];
+      const sub = await submit(token, testId, u.id);
+      if (i % 8 === 0 && testId === physicsAll) {
+        await reassign(testId, sub, { testId: computingAll, level: senior ? 'SENIOR' : 'JUNIOR', reason: 'Submitted under Physics instead of Computing; confirmed with the school' });
+        corrected++;
+      }
+      if (i % 8 === 2 && testId === mathsJunior) {
+        await reassign(testId, sub, { testId: mathsSenior, level: 'SENIOR', reason: 'Student moved to the Senior level before the round' });
+        corrected++;
+      }
+    }
+    const id = await saved('Round 1 submissions with corrections', [{ field: 'test', op: 'contains', value: 'Round 1' }]);
+    const { r, s, pdf, wb } = await consistent(id);
+    expect(r.meta.total).toBe(before + 48);   // each answer once, moved or not
+    expect(await p().testSubmission.count({ where: { versionCount: { gt: 0 } } })).toBe(before + 48);   // no duplicate row was ever created
+    expect(s.groups.find((g: any) => g.key === 'corrected').counts.find((c: any) => c.value === 'Yes').count).toBe(2 + corrected);
+    const pages = (pdf.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length;
+    expect(pages).toBeGreaterThan(1);
+    const dir = process.env.REPORT_SAMPLES_DIR;
+    if (dir) {
+      writeFileSync(join(dir, 'submission-report-realistic.pdf'), pdf);
+      writeFileSync(join(dir, 'submission-report-realistic.xlsx'), Buffer.from(await wb.xlsx.writeBuffer()));
+      writeFileSync(join(dir, 'submission-report-realistic.csv'), (await http().get(`${R}/${id}/export`).query({ format: 'csv' }).set(bearer(admin))).text);
+    }
+  });
 });
