@@ -543,10 +543,14 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       expect((await http().get(`${T}/${id}`).set(bearer(admin)).expect(200)).body).toMatchObject({ status: 'PUBLISHED', submissionCount: 1 });
     });
 
-    it('deadline, format, division, window, marks, questions and paper are locked; title, wording and marking guide are not', async () => {
+    it('format, division, window, marks, questions and paper are locked; the deadline too except for Administrators; title, wording and marking guide are not', async () => {
+      // An Administrator may move the deadline (owner 2026-11-28), but not the other locked fields asked with it.
       const locked = await http().patch(`${T}/${id}`).set(bearer(admin)).send({ closesAt: minutes(600), answerFormat: 'TYPED_ONLY' }).expect(409);
-      expect([locked.body.code, locked.body.details.fields]).toEqual(['TEST_LOCKED_BY_SUBMISSIONS', ['answerFormat', 'closesAt']]);
-      expect(locked.body.message).toMatch(/extension/);
+      expect([locked.body.code, locked.body.details.fields]).toEqual(['TEST_LOCKED_BY_SUBMISSIONS', ['answerFormat']]);
+      // A Head Coach may not move the deadline: extensions only.
+      const hc = await http().patch(`${T}/${id}`).set(bearer(hm)).send({ closesAt: minutes(600) }).expect(409);
+      expect([hc.body.code, hc.body.details.fields]).toEqual(['TEST_LOCKED_BY_SUBMISSIONS', ['closesAt']]);
+      expect(hc.body.message).toMatch(/extension/);
       for (const change of [{ division: 'ALL' }, { maxMarks: 25 }, { opensAt: minutes(-30) }]) {
         expect(await status(http().patch(`${T}/${id}`).set(bearer(admin)).send(change))).toEqual([409, 'TEST_LOCKED_BY_SUBMISSIONS']);
       }
@@ -561,6 +565,29 @@ describe('Test Management Phase 2 — deadlines, extensions, submissions (e2e)',
       await http().patch(`${T}/${id}/questions/${q}`).set(bearer(admin)).send({ prompt: 'Prove it (typo fixed)' }).expect(200);
       expect(await status(http().put(`${T}/${id}/files/paper`).set(bearer(admin)).attach('file', PDF, 'p.pdf'))).toEqual([409, 'TEST_LOCKED_BY_SUBMISSIONS']);
       await http().put(`${T}/${id}/files/marking-guide`).set(bearer(admin)).attach('file', PDF, 'g.pdf').expect(200);
+    });
+
+    it('Administrators move the deadline after students submitted (owner 2026-11-28): to now, so marking can start at once; later again; audited', async () => {
+      const round = await publishedTest({ title: 'Close it now' }, 180);
+      await commit(sj, `${ME}/${round}`, { clientKey: randomUUID(), typedAnswer: 'x = 3' }).expect(201);
+      const before = (await http().get(`${T}/${round}/marking`).set(bearer(admin)).expect(200)).body.distribution;
+      expect([before.readyToAssign, before.waitingForDeadline]).toEqual([0, 1]);
+      // Close it now (a moment ago): the answer is ready for marking at once; nobody can answer any more.
+      const original = (await http().get(`${T}/${round}`).set(bearer(admin)).expect(200)).body.closesAt;
+      const closed = (await http().patch(`${T}/${round}`).set(bearer(admin)).send({ closesAt: minutes(-1) }).expect(200)).body;
+      expect(new Date(closed.closesAt).getTime()).toBeLessThan(Date.now());
+      expect(closed.deadlineMoved).toBe(true);
+      expect(closed.originalClosesAt).toBe(original);
+      const after = (await http().get(`${T}/${round}/marking`).set(bearer(admin)).expect(200)).body.distribution;
+      expect([after.readyToAssign, after.waitingForDeadline]).toEqual([1, 0]);
+      expect(await status(commit(sj2, `${ME}/${round}`, { clientKey: randomUUID(), typedAnswer: 'too late' }))).toEqual([409, 'DEADLINE_PASSED']);
+      // Audited: who, before and after, flagged as a change after submissions.
+      const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'TEST_UPDATED', entityId: round }, orderBy: { createdAt: 'desc' } });
+      expect(audit.actorId).toBe(ctx.ids.admin);
+      expect(audit.metadata).toMatchObject({ deadlineChangedAfterSubmissions: true, before: { closesAt: original } });
+      // Later again (re-opened), still by an Administrator; the opening time must stay before it.
+      await http().patch(`${T}/${round}`).set(bearer(admin)).send({ closesAt: minutes(60) }).expect(200);
+      expect(await status(http().patch(`${T}/${round}`).set(bearer(admin)).send({ closesAt: minutes(-120) }))).toEqual([400, 'INVALID_TEST_WINDOW']);
     });
 
     it('the paper: students and teachers read it once the test is open (neutral name); the marking guide never', async () => {
