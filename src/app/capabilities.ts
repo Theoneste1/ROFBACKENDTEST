@@ -236,7 +236,10 @@ export const FEATURES = {
    * Profile pictures: PUT / DELETE /api/v1/me/avatar (multipart field `file`: JPEG, PNG or WebP, at most 2 MB;
    * 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED), PUT / DELETE
    * /api/v1/admin/users/:id/avatar (users.manage, accounts whose role the caller may manage), and
-   * GET /api/v1/users/:id/avatar (any signed-in user; 404 without a picture). avatarUrl in the profile is that
+   * GET /api/v1/users/:id/avatar (owner 2026-11-27: whoever may view the person's profile, by the profile's own check —
+   * a student's: GET /students/:id/overview; a Coach's or Head Coach's: themself or users.manage (GET /admin/users/:id);
+   * other accounts (Teachers, Administrators): any signed-in user; 404 without a picture or without access, the same
+   * answer). avatarUrl in the profile is that
    * versioned link (`?v=`), or null. Without this feature those routes do not exist (404).
    */
   profilePictures: 'always',
@@ -310,6 +313,12 @@ export const FEATURES = {
    * rules.bankOptions carries each bank's rule and instruction.
    */
   managedBanks: 'always',
+  /**
+   * Session inactivity (owner 2026-11-28): a session ends after 60 minutes without user activity. The browser reports
+   * activity with POST /auth/activity (at most once a minute; never for background requests); a refresh past the limit
+   * answers 401 SESSION_IDLE_EXPIRED and an access token never outlives the session's inactivity deadline.
+   */
+  sessionIdleTimeout: 'always',
   /**
    * Administrator-managed divisions (owner 2026-11-22): POST /admin/divisions; PATCH with suggestedGrades and sortOrder
    * (grades given to a division are taken from the one that had them); deactivation guarded; GET / PUT

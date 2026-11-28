@@ -505,6 +505,12 @@ export const MIGRATION_OBJECTS = {
     checkOnly: true,
     kept: { enumValues: [['TestMarkingKind', 'COMPOSED']] },
   },
+  // Session inactivity (owner 2026-11-28): one nullable column; its rollback drops it.
+  '20270102000000_session_activity': {
+    creates: {
+      columns: [['RefreshToken', 'lastActivityAt']],
+    },
+  },
   // Question-level marking (design Rev 5.2, owner approval 2026-11-26). TestMarking_assignment_matches_kind is dropped and
   // re-created under the same name (it also accepts COMPOSED); its rollback restores the original definition.
   '20270101000100_question_marking': {
@@ -690,6 +696,23 @@ export const QUESTION_MARKING_2027_OBJECTS = {
 };
 
 /**
+ * The session-2027 release (owner, 2026-11-28): sessions end after 60 minutes without user activity — one nullable
+ * column, RefreshToken.lastActivityAt. Additive; production must hold question-marking-2027 first.
+ */
+export const SESSION_2027_MIGRATIONS = [
+  '20270102000000_session_activity',
+];
+
+/** What the session-2027 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
+export const SESSION_2027_OBJECTS = {
+  tables: [],
+  enums: [],
+  columns: [['RefreshToken', 'lastActivityAt']],
+  triggers: [],
+  functions: [],
+};
+
+/**
  * Backup EVIDENCE for the question-marking rollback (design 5.1 point 6: evidence, not acknowledgement). `verify-backup`
  * restores a dump into a separate scratch database and computes these checksums there and on the target; when they are
  * equal it writes a manifest. `rollback --evidence <manifest>` puts the manifest in `setting` on the rollback connection;
@@ -853,6 +876,25 @@ export const RELEASES = {
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
         || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name)
         || LAUNCH_2026_MIGRATIONS.includes(name) || BANKING_2026_MIGRATIONS.includes(name),
+    },
+  },
+  'session-2027': {
+    label: `session inactivity (${SESSION_2027_MIGRATIONS.length} migration after question-level marking)`,
+    count: SESSION_2027_MIGRATIONS.length,
+    owns: (name) => SESSION_2027_MIGRATIONS.includes(name),
+    last: SESSION_2027_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/session-2027-precheck.sql',
+    postcheck: 'scripts/release/session-2027-postcheck.sql',
+    migrations: SESSION_2027_MIGRATIONS,
+    objects: SESSION_2027_OBJECTS,
+    // The target must already hold the nine releases before it, question-marking-2027 included.
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas, late 2026, dec 2026, levels 2026, the launch release, banking and question-level marking',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length
+        + LEVELS_2026_MIGRATIONS.length + LAUNCH_2026_MIGRATIONS.length + BANKING_2026_MIGRATIONS.length + QUESTION_MARKING_2027_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name)
+        || LAUNCH_2026_MIGRATIONS.includes(name) || BANKING_2026_MIGRATIONS.includes(name) || QUESTION_MARKING_2027_MIGRATIONS.includes(name),
     },
   },
 };

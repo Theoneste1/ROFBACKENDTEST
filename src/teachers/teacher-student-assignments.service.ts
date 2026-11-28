@@ -22,6 +22,7 @@ import { TEACHER_DELEGATIONS } from '../auth/override-policy.js';
 import { schoolStudentsWhere } from '../common/access/access.service.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -75,7 +76,7 @@ export class TeacherStudentAssignmentsService {
 
   /** Assign students to a teacher. The teacher is told once (TS-6) when at least one student is newly assigned. */
   async assign(dto: AssignTeacherStudentsDto, caller: CallerCtx) {
-    const teacher = await this.requireTeacher(dto.teacherId);
+    const teacher = await this.requireTeacher(dto.teacherId, caller);
     const actor = actorOf(caller);
     const ids = [...new Set(dto.studentIds)].sort();
     let notice: string | null = null;
@@ -110,7 +111,7 @@ export class TeacherStudentAssignmentsService {
     if (dto.fromTeacherId === dto.toTeacherId) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SAME_TEACHER', 'Choose a different teacher to move the students to.');
     }
-    const [, to] = await Promise.all([this.requireTeacher(dto.fromTeacherId, { anyRole: true }), this.requireTeacher(dto.toTeacherId)]);
+    const [, to] = await Promise.all([this.requireTeacher(dto.fromTeacherId, caller, { anyRole: true }), this.requireTeacher(dto.toTeacherId, caller)]);
     const actor = actorOf(caller);
     const ids = [...new Set(dto.studentIds)].sort();
     let notice: string | null = null;
@@ -271,9 +272,10 @@ export class TeacherStudentAssignmentsService {
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  private async requireTeacher(id: string, opts: { anyRole?: boolean } = {}) {
+  private async requireTeacher(id: string, caller: CallerCtx, opts: { anyRole?: boolean } = {}) {
     const teacher = await this.prisma.user.findUnique({ where: { id }, select: TEACHER_NOTICE_SELECT });
-    if (!teacher) throw new NotFoundException('Teacher not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): as for an unknown id.
+    if (!teacher || isHiddenAccount(caller, teacher)) throw new NotFoundException('Teacher not found.');
     if (!opts.anyRole && teacher.role !== 'TEACHER') {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_TEACHER', 'Only users with the TEACHER role can be given students.', { role: teacher.role });
     }

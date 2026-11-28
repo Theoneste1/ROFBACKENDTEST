@@ -20,6 +20,7 @@ import { endAssignmentsOfUser } from '../teachers/teacher-student-ops.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import { resolveSchoolReference } from '../schools/school-reference.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
+import { isHiddenAccount, visibleUsersWhere } from '../common/access/super-admin-privacy.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { AccountStatusService } from './account-status.service.js';
 import { ensureDefaultMembership } from '../programmes/programme-membership.js';
@@ -117,9 +118,13 @@ export class UsersService {
   ) {}
 
   // ─── List users with optional filters ──────────────────────────────────────
-  async findAll(q: ListUsersQueryDto) {
+  /**
+   * Super Administrator privacy (owner 2026-11-28): only a Super Administrator viewer lists Super Administrators; for
+   * anyone else they are not there (search, ?role=SUPER_ADMIN, totals).
+   */
+  async findAll(q: ListUsersQueryDto, viewer: CallerCtx) {
     const { page, limit, skip, take } = pageArgs(q);
-    let where = userListWhere(q);
+    let where: Prisma.UserWhereInput = { AND: [userListWhere(q), visibleUsersWhere(viewer)] };
     // Banking information (owner 2026-11-25): the status depends on the role, so it is computed, then matched by id.
     if (q.banking) {
       const statuses = q.banking === 'INCOMPLETE' ? ['PARTIAL', 'NOT_STARTED', 'NEEDS_CORRECTION'] : [q.banking];
@@ -243,9 +248,10 @@ export class UsersService {
    * One account for administrators. `hasPassword` (activate now, 2026-11-24) says whether the person chose a password —
    * an account awaiting setup can then be activated by an administrator; the password hash itself is never returned.
    */
-  async findOne(id: string) {
+  async findOne(id: string, viewer: CallerCtx) {
     const found = await this.prisma.user.findUnique({ where: { id }, select: { ...SAFE_SELECT, passwordHash: true } });
-    if (!found) throw new NotFoundException(`User ${id} not found.`);
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!found || isHiddenAccount(viewer, found)) throw new NotFoundException(`User ${id} not found.`);
     const { passwordHash, ...user } = found;
     return { ...user, hasPassword: passwordHash !== null };
   }
@@ -269,7 +275,7 @@ export class UsersService {
     } = {},
   ) {
     const existing = await this.prisma.user.findUnique({ where: { id }, select: EDIT_STATE_SELECT });
-    if (!existing) throw new NotFoundException(`User ${id} not found.`);
+    if (!existing || isHiddenAccount(caller, existing)) throw new NotFoundException(`User ${id} not found.`);
     await this.roles.assertCanManage(caller, existing.role);
 
     if (Object.keys(data).filter((k) => k !== 'currentPassword').length === 0) {
@@ -510,7 +516,7 @@ export class UsersService {
     if (id === caller.id && data.isActive === false) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_SUSPEND_SELF', 'You cannot suspend your own account.');
     }
-    const before = await this.findOne(id);
+    const before = await this.findOne(id, caller);
     await this.roles.assertCanManage(caller, before.role);
     if (before.role === 'SUPER_ADMIN' && before.isActive && data.isActive === false) await this.assertNotLastSuperAdmin(id);
 
@@ -560,7 +566,7 @@ export class UsersService {
     if (id === caller.id) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_DELETE_SELF', 'You cannot delete your own account.');
     }
-    const user = await this.findOne(id);
+    const user = await this.findOne(id, caller);
     await this.roles.assertCanManage(caller, user.role);
     // Account states (2026-11-16): accounts are never deleted through the API — archive them instead (their
     // submissions, results, discussions, enrolments, affiliations, notifications and audit history are kept).
@@ -586,7 +592,7 @@ export class UsersService {
    */
   async correctDateOfBirth(id: string, dto: { dateOfBirth: string; reason: string }, caller: AuthUser) {
     const target = await this.prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
-    if (!target) throw new NotFoundException('User not found.');
+    if (!target || isHiddenAccount(caller, target)) throw new NotFoundException('User not found.');
     await this.roles.assertCanManage(caller, target.role);
     if (target.role !== 'STUDENT') {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_STUDENT', 'Only a student\'s date of birth is recorded.');
@@ -613,7 +619,7 @@ export class UsersService {
    */
   async dateOfBirthHistory(id: string, caller: AuthUser) {
     const target = await this.prisma.user.findUnique({ where: { id }, select: { id: true, role: true } });
-    if (!target) throw new NotFoundException('User not found.');
+    if (!target || isHiddenAccount(caller, target)) throw new NotFoundException('User not found.');
     await this.roles.assertCanManage(caller, target.role);
     const rows = await this.prisma.auditLog.findMany({
       where: { entity: 'User', entityId: id, action: { in: ['DATE_OF_BIRTH_CORRECTED', 'DATE_OF_BIRTH_ADDED'] } },

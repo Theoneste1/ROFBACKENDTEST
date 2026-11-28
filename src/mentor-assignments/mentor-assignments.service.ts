@@ -5,6 +5,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { AccessService, scopeForbidden } from '../common/access/access.service.js';
 import { COURSE_WORK_ROLES, isAdmin, isHeadCoach, unsupportedRole } from '../common/access/roles.js';
 import { AppError } from '../common/errors/app-error.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
@@ -62,11 +63,13 @@ export class MentorAssignmentsService {
 
   /** Assign (or re-activate) a mentor for a course × division. Idempotent. */
   async assign(dto: CreateMentorAssignmentDto, caller: AuthUser) {
-    const [mentor, course, division] = await Promise.all([
+    const [found, course, division] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: dto.mentorId }, select: { id: true, role: true, isActive: true } }),
       this.prisma.course.findUnique({ where: { id: dto.courseId }, select: { id: true, disciplineId: true } }),
       this.prisma.division.findUnique({ where: { id: dto.divisionId }, select: { id: true } }),
     ]);
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): "Coach not found.", as for an unknown id.
+    const mentor = isHiddenAccount(caller, found) ? null : found;
     if (isHeadCoach(caller)) await this.assertHeadCoachMayAssign(caller, mentor, course);
     else if (!isAdmin(caller)) throw unsupportedRole();
     if (!mentor) throw new NotFoundException('Coach not found.');
@@ -147,7 +150,7 @@ export class MentorAssignmentsService {
   /**
    * Head Coach rules (plan §7.2, §11.2; H3, H4). Course outside the programmes
    * they head → 404. Assignee themselves, another Head Coach, an Administrator
-   * or a Super Admin → 403 SCOPE_FORBIDDEN (an Administrator action). A Coach
+   * → 403 SCOPE_FORBIDDEN (an Administrator action); a Super Admin does not exist for them (404, privacy). A Coach
    * who is not a member of the course's programme → 404 (not visible to them).
    */
   private async assertHeadCoachMayAssign(
@@ -157,7 +160,7 @@ export class MentorAssignmentsService {
   ) {
     const programmes = await this.access.headedProgrammes(caller);
     if (!course || !programmes.includes(course.disciplineId)) throw new NotFoundException('Course not found.');
-    if (mentor && (mentor.id === caller.id || ['HEAD_COACH', 'ADMIN', 'SUPER_ADMIN'].includes(mentor.role))) {
+    if (mentor && (mentor.id === caller.id || ['HEAD_COACH', 'ADMIN'].includes(mentor.role))) {
       throw scopeForbidden('Head Coaches assign Coaches only — never themselves, another Head Coach or an Administrator.', { role: mentor.role });
     }
     if (!mentor || mentor.role !== 'MENTOR' || !(await this.access.isProgrammeMember(mentor.id, course.disciplineId))) {
@@ -183,7 +186,7 @@ export class MentorAssignmentsService {
   async bulkAssign(dto: BulkMentorAssignmentDto, caller: AuthUser) {
     if (!isAdmin(caller) && !isHeadCoach(caller)) throw unsupportedRole();
     const mentor = await this.prisma.user.findUnique({ where: { id: dto.mentorId }, select: { id: true, role: true, isActive: true, firstName: true, lastName: true } });
-    if (!mentor) throw new NotFoundException('Coach not found.');
+    if (!mentor || isHiddenAccount(caller, mentor)) throw new NotFoundException('Coach not found.');
     if (isAdmin(caller) && mentor.role !== 'MENTOR' && mentor.role !== 'HEAD_COACH') {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Only Coaches, or Head Coaches (by an Administrator), can be assigned.');
     }

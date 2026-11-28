@@ -9,6 +9,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
 import { pageArgs, paginated, type PaginationQueryDto } from '../common/pagination.js';
 import type { CallerCtx } from '../common/auth-user.js';
+import { seesSuperAdmins, visibleUsersWhere } from '../common/access/super-admin-privacy.js';
 import { Prisma, type EmailDeliveryStatus } from '../generated/prisma/client.js';
 import { MailerService } from './mailer.service.js';
 import { EmailWorker } from './email.worker.js';
@@ -44,7 +45,7 @@ const JOB_SUMMARY = {
 } as const;
 
 /** Recipients are only ever active, approved accounts. */
-const REACHABLE: Prisma.UserWhereInput = { isActive: true, isApproved: true };
+const REACHABLE_ACCOUNTS: Prisma.UserWhereInput = { isActive: true, isApproved: true };
 
 const CHUNK = 1000;
 
@@ -68,10 +69,12 @@ export class EmailService {
   // User search / filter (admin view with email)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async listUsers(query: ListUsersDto) {
+  async listUsers(query: ListUsersDto, viewer: CallerCtx) {
     const { page, limit, skip, take } = pageArgs(query);
 
+    // Super Administrator privacy (owner 2026-11-28): only a Super Administrator sees Super Administrators here.
     const where: Prisma.UserWhereInput = {
+      AND: [visibleUsersWhere(viewer)],
       ...(query.role       && { role: query.role as Prisma.EnumRoleFilter['equals'] }),
       ...(query.schoolId   && { schoolId: query.schoolId }),
       ...(query.divisionId && { divisionId: query.divisionId }),
@@ -112,7 +115,7 @@ export class EmailService {
     const existing = await this.findByKey(dto.idempotencyKey);
     if (existing) return { ...existing, alreadyExisted: true };
 
-    const recipients = await this.resolveRecipients(dto);
+    const recipients = await this.resolveRecipients(dto, caller);
     if (recipients.length === 0) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NO_RECIPIENTS', 'Nobody matches the recipients you chose. Change the roles, levels or schools, then try again.');
     }
@@ -171,19 +174,19 @@ export class EmailService {
   // Job status & retry
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async getJob(jobId: string) {
-    const job = await this.prisma.emailJob.findUnique({
-      where:  { id: jobId },
+  async getJob(jobId: string, viewer: CallerCtx) {
+    const job = await this.prisma.emailJob.findFirst({
+      where:  { AND: [{ id: jobId }, await this.visibleJobsWhere(viewer)] },
       select: { ...JOB_SUMMARY, idempotencyKey: true },
     });
     if (!job) throw new NotFoundException('Email job not found.');
     return job;
   }
 
-  async listDeliveries(jobId: string, q: PaginationQueryDto & { status?: EmailDeliveryStatus }) {
-    await this.getJob(jobId);
+  async listDeliveries(jobId: string, q: PaginationQueryDto & { status?: EmailDeliveryStatus }, viewer: CallerCtx) {
+    await this.getJob(jobId, viewer);
     const { page, limit, skip, take } = pageArgs(q);
-    const where = { jobId, ...(q.status && { status: q.status }) };
+    const where: Prisma.EmailDeliveryWhereInput = { jobId, ...(q.status && { status: q.status }) };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.emailDelivery.findMany({
         where, skip, take,
@@ -199,9 +202,10 @@ export class EmailService {
   }
 
   /** All deliveries (transactional and bulk), newest first, without bodies. */
-  async listAllDeliveries(q: PaginationQueryDto & { status?: EmailDeliveryStatus; kind?: 'TRANSACTIONAL' | 'BULK' }) {
+  async listAllDeliveries(q: PaginationQueryDto & { status?: EmailDeliveryStatus; kind?: 'TRANSACTIONAL' | 'BULK' }, viewer: CallerCtx) {
     const { page, limit, skip, take } = pageArgs(q);
-    const where = {
+    const where: Prisma.EmailDeliveryWhereInput = {
+      AND: [await this.visibleDeliveriesWhere(viewer)],
       ...(q.status && { status: q.status }),
       ...(q.kind === 'TRANSACTIONAL' && { jobId: null }),
       ...(q.kind === 'BULK' && { jobId: { not: null } }),
@@ -222,7 +226,9 @@ export class EmailService {
 
   /** Re-queue one FAILED delivery; its job's counters are refreshed. Conditional, so a double click re-queues once. */
   async retryDelivery(id: string, caller: CallerCtx) {
-    const d = await this.prisma.emailDelivery.findUnique({ where: { id }, select: { id: true, jobId: true, status: true, body: true, html: true } });
+    const d = await this.prisma.emailDelivery.findFirst({
+      where: { AND: [{ id }, await this.visibleDeliveriesWhere(caller)] }, select: { id: true, jobId: true, status: true, body: true, html: true },
+    });
     if (!d) throw new NotFoundException('Delivery not found.');
     // One-time links (activation, password reset) are never kept: such an e-mail cannot be re-sent
     // as it was — the administrator sends a new link (resend invitation / password reset) instead.
@@ -243,11 +249,12 @@ export class EmailService {
     return { message: 'Retry enqueued.', deliveryId: id };
   }
 
-  async listJobs(q: PaginationQueryDto) {
+  async listJobs(q: PaginationQueryDto, viewer: CallerCtx) {
     const { page, limit, skip, take } = pageArgs(q);
+    const where = await this.visibleJobsWhere(viewer);
     const [rows, total] = await this.prisma.$transaction([
-      this.prisma.emailJob.findMany({ orderBy: { createdAt: 'desc' }, select: JOB_SUMMARY, skip, take }),
-      this.prisma.emailJob.count(),
+      this.prisma.emailJob.findMany({ where, orderBy: { createdAt: 'desc' }, select: JOB_SUMMARY, skip, take }),
+      this.prisma.emailJob.count({ where }),
     ]);
     return paginated(rows, total, page, limit);
   }
@@ -257,7 +264,7 @@ export class EmailService {
    * touched, so nobody receives the message twice.
    */
   async retryJob(jobId: string, caller: CallerCtx) {
-    const job = await this.getJob(jobId);
+    const job = await this.getJob(jobId, caller);
     if (job.status === 'PENDING' || job.status === 'IN_PROGRESS') {
       throw invalidState('This job is still being sent.');
     }
@@ -284,12 +291,51 @@ export class EmailService {
   // Private helpers
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // ─── Super Administrator privacy (owner 2026-11-28) ─────────────────────────
+  // Anyone but a Super Administrator never sees an e-mail addressed to a Super Administrator (by account or by address),
+  // nor a bulk job that has such a delivery; and never resolves a Super Administrator as a recipient.
+
+  /** The Super Administrators' ids and addresses, or null when the viewer sees them (read fresh: a handful of rows). */
+  private async hiddenRecipients(viewer: CallerCtx): Promise<{ ids: string[]; emails: string[] } | null> {
+    if (seesSuperAdmins(viewer)) return null;
+    const rows = await this.prisma.user.findMany({ where: { role: 'SUPER_ADMIN' }, select: { id: true, email: true } });
+    return { ids: rows.map((r) => r.id), emails: rows.map((r) => r.email).filter((e): e is string => !!e) };
+  }
+
+  private addressedTo(h: { ids: string[]; emails: string[] }): Prisma.EmailDeliveryWhereInput[] {
+    return [
+      ...(h.ids.length ? [{ recipientId: { in: h.ids } }] : []),
+      ...h.emails.map((e) => ({ recipientEmail: { equals: e, mode: 'insensitive' as const } })),
+    ];
+  }
+
+  private async visibleDeliveriesWhere(viewer: CallerCtx): Promise<Prisma.EmailDeliveryWhereInput> {
+    const h = await this.hiddenRecipients(viewer);
+    if (!h) return {};
+    // recipientId is nullable: written so that a transactional e-mail without an account id is kept.
+    return {
+      AND: [
+        ...(h.ids.length ? [{ OR: [{ recipientId: null }, { recipientId: { notIn: h.ids } }] }] : []),
+        ...h.emails.map((e) => ({ NOT: { recipientEmail: { equals: e, mode: 'insensitive' as const } } })),
+      ],
+    };
+  }
+
+  private async visibleJobsWhere(viewer: CallerCtx): Promise<Prisma.EmailJobWhereInput> {
+    const h = await this.hiddenRecipients(viewer);
+    if (!h) return {};
+    const to = this.addressedTo(h);
+    return to.length ? { deliveries: { none: { OR: to } } } : {};
+  }
+
   private findByKey(idempotencyKey: string) {
     return this.prisma.emailJob.findUnique({ where: { idempotencyKey }, select: JOB_SUMMARY });
   }
 
-  private async resolveRecipients(dto: SendEmailDto): Promise<Array<{ email: string; id: string }>> {
+  /** Recipients the caller may address: a Super Administrator never for anyone else (an id of one is "not found"). */
+  private async resolveRecipients(dto: SendEmailDto, caller: CallerCtx): Promise<Array<{ email: string; id: string }>> {
     const select = { id: true, email: true };
+    const REACHABLE: Prisma.UserWhereInput = { ...REACHABLE_ACCOUNTS, AND: [visibleUsersWhere(caller)] };
 
     switch (dto.recipientMode) {
       case RecipientMode.EXPLICIT: {

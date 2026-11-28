@@ -650,6 +650,11 @@ model RefreshToken {
   revokedAt DateTime?
   /// Set when this token was exchanged for a new one.
   rotatedAt DateTime?
+  /// The session's last USER activity (owner 2026-11-28: signed out after 60 minutes without activity). Set at sign-in
+  /// and by POST /auth/activity (the browser reports clicks, typing, scrolling, touch — never background requests);
+  /// copied unchanged to the next token by a refresh, so refreshes never extend the session. Null on tokens issued
+  /// before this column: their createdAt counts instead.
+  lastActivityAt DateTime?
   userAgent String?
   ip        String?
   createdAt DateTime  @default(now())

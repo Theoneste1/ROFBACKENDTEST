@@ -12,7 +12,8 @@
  *    ADMIN → users.manageAdmins);
  *  - acting on an account needs the same permission for its CURRENT role
  *    ("allowed to manage both the current and the new role");
- *  - SUPER_ADMIN accounts are managed by a SUPER_ADMIN only, and the role is
+ *  - SUPER_ADMIN accounts are managed by a SUPER_ADMIN only (to anyone else they do not exist: 404,
+ *    Super Administrator privacy, owner 2026-11-28), and the role is
  *    never given on creation — only by a Super Admin's role change (promotion,
  *    with step-up; UsersService) or the operator commands (bootstrap /
  *    break-glass, P1-08);
@@ -31,11 +32,12 @@
  * ProgrammesService, and coach invitations use assertCanInviteCoach below —
  * the account is created pending an Administrator's approval.
  */
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { isSuperAdmin } from '../common/access/roles.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { AppError } from '../common/errors/app-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PermissionService } from './permission.service.js';
@@ -127,8 +129,14 @@ export class RoleAssignmentPolicy {
     }
   }
 
-  /** The actor may act on an account that currently holds this role. */
+  /**
+   * The actor may act on an account that currently holds this role. A SUPER_ADMIN account, for anyone but a Super
+   * Administrator, does not exist (Super Administrator privacy, owner 2026-11-28): 404, never 403 — a refusal would
+   * reveal the account. The services hide it before this check (visibleUsersWhere / isHiddenAccount, with their own
+   * not-found error); this is the backstop.
+   */
   async assertCanManage(actor: CallerCtx, currentRole: string): Promise<void> {
+    if (isHiddenAccount(actor, { role: currentRole })) throw new NotFoundException('User not found.');
     if (!(await this.mayManage(actor, currentRole))) {
       throw new AppError(
         HttpStatus.FORBIDDEN, 'ROLE_NOT_ASSIGNABLE',

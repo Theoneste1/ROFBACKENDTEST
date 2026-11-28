@@ -24,6 +24,7 @@ import { PermissionService } from '../auth/permission.service.js';
 import type { Permission } from '../auth/permissions.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
+import { isHiddenAccount, seesSuperAdmins } from '../common/access/super-admin-privacy.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -68,7 +69,7 @@ export class BulkOperationsService {
   async preview(entityType: string, dto: PreviewInput, caller: AuthUser) {
     const handler = this.registry.get(entityType);
     const { action, params, selection } = await this.prepare(handler, dto, caller);
-    const ids = await this.matchingIds(handler, this.prisma, selection);
+    const ids = await this.matchingIds(handler, this.prisma, selection, caller);
     const pv = await handler.preview(ids, action, params, caller);
     const rule = handler.actions[action];
     const { token, expiresAt } = this.signToken({ actorId: caller.id, entityType: handler.entityType, action, params, selection, ids });
@@ -112,7 +113,7 @@ export class BulkOperationsService {
 
     // Step-up first (outside the transaction: bcrypt is slow and must not hold row locks). The records are checked
     // again under the guard below; a different set fails the token check anyway.
-    const stepUp = (await handler.stepUpRequired?.(action, params, selection)) ?? false;
+    const stepUp = (await handler.stepUpRequired?.(action, params, selection, caller)) ?? false;
     if (stepUp) await handler.assertStepUp!(caller, dto.currentPassword);   // checked once; the password is never stored
 
     for (let attempt = 1; ; attempt++) {
@@ -126,7 +127,7 @@ export class BulkOperationsService {
         //      409 SELECTION_CHANGED, nothing created; 4. insert; 5. scan again and verify (cannot differ under the guard).
         // So the items equal the exact filter membership at the moment the operation commits.
         await this.guardMembership(tx, handler);
-        const ids = await this.matchingIds(handler, tx, selection);
+        const ids = await this.matchingIds(handler, tx, selection, caller);
         if (!bindingMatches(claims, { actorId: caller.id, entityType: handler.entityType, action, params, selection, ids }) || ids.length !== dto.expectedTotal) {
           throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED',
             `The selected ${handler.noun} changed since the preview. Preview the action again and confirm the new selection.`,
@@ -162,7 +163,7 @@ export class BulkOperationsService {
           },
         }, tx);
         // The invariant, checked at the end of the transaction: the items equal a fresh scan of the filter.
-        const final = await handler.scanIds(tx, selection);
+        const final = await handler.scanIds(tx, selection, caller);
         if (final.length !== ids.length || final.some((id, i) => id !== ids[i])) {
           throw new AppError(HttpStatus.CONFLICT, 'SELECTION_CHANGED', `The selected ${handler.noun} changed. Preview the action again.`);
         }
@@ -195,7 +196,7 @@ export class BulkOperationsService {
   /** `entityType` restricts the lookup (the /admin/users/bulk routes see USER operations only). */
   async get(id: string, caller: AuthUser, entityType?: string) {
     const op = await this.prisma.bulkOperation.findUnique({ where: { id }, select: { ...OPERATION_SELECT, actorId: true } });
-    if (!op || !this.canSee(caller, op.actorId) || (entityType && op.entityType !== entityType)) throw new NotFoundException('Bulk operation not found.');
+    if (!op || !(await this.canSee(caller, op.actorId)) || (entityType && op.entityType !== entityType)) throw new NotFoundException('Bulk operation not found.');
     const [pending, processing] = await Promise.all([
       this.prisma.bulkOperationItem.count({ where: { operationId: id, outcome: 'PENDING' } }),
       this.prisma.bulkOperationItem.count({ where: { operationId: id, outcome: 'PROCESSING' } }),
@@ -216,15 +217,17 @@ export class BulkOperationsService {
       }),
       this.prisma.bulkOperationItem.count({ where }),
     ]);
-    const described = await handler.describe(this.prisma, rows.map((r) => r.entityId));
+    const described = await handler.describe(this.prisma, rows.map((r) => r.entityId), caller);
     return paginated(rows.map((r) => ({ ...r, [handler.itemKey]: described.get(r.entityId) ?? null })), total, page, limit);
   }
 
   async list(q: ListInput, caller: AuthUser) {
     const { page, limit, skip, take } = pageArgs(q);
     // Everyone sees their own operations; administrators who read the audit trail see all.
+    // A Super Administrator's operations are not shown to anyone else (Super Administrator privacy, like the audit log).
     const where: Prisma.BulkOperationWhereInput = {
       ...(!this.permissions.has(caller, 'audit.view') && { actorId: caller.id }),
+      ...(!seesSuperAdmins(caller) && { OR: [{ actorId: null }, { actor: { is: { role: { not: 'SUPER_ADMIN' } } } }] }),
       ...(q.status && { status: q.status as never }),
       ...(q.entityType && { entityType: q.entityType }),
     };
@@ -243,7 +246,7 @@ export class BulkOperationsService {
    */
   async cancel(id: string, caller: AuthUser, entityType?: string) {
     const op = await this.prisma.bulkOperation.findUnique({ where: { id }, select: { actorId: true, status: true, entityType: true } });
-    if (!op || !this.canSee(caller, op.actorId) || (entityType && op.entityType !== entityType)) throw new NotFoundException('Bulk operation not found.');
+    if (!op || !(await this.canSee(caller, op.actorId)) || (entityType && op.entityType !== entityType)) throw new NotFoundException('Bulk operation not found.');
     if (op.actorId !== caller.id && !this.permissions.has(caller, 'audit.view')) throw new NotFoundException('Bulk operation not found.');
     const now = new Date();
     const done = await this.prisma.$transaction(async (tx) => {
@@ -273,7 +276,7 @@ export class BulkOperationsService {
     if (!handler.export) throw new AppError(HttpStatus.NOT_FOUND, 'BULK_EXPORT_UNAVAILABLE', 'These records cannot be exported together. Export them one at a time.');
     this.assertPermissions(caller, [handler.export.permission]);
     const selection = handler.normaliseSelection(dto.selection as EngineSelection);
-    const ids = await this.matchingIds(handler, this.prisma, selection);
+    const ids = await this.matchingIds(handler, this.prisma, selection, caller);
     await handler.export.run(ids, selection, caller, res, requestId);
   }
 
@@ -373,17 +376,22 @@ export class BulkOperationsService {
   }
 
   /** The ids of every record the selection matches now, sorted, within the type's size limit. */
-  private async matchingIds(handler: BulkEntityHandler, db: Prisma.TransactionClient | PrismaService, selection: EngineSelection): Promise<string[]> {
-    const n = await handler.count(db, selection);
+  private async matchingIds(handler: BulkEntityHandler, db: Prisma.TransactionClient | PrismaService, selection: EngineSelection, caller: AuthUser): Promise<string[]> {
+    const n = await handler.count(db, selection, caller);
     if (n > handler.maxSelection) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SELECTION_TOO_LARGE',
         `The selection matches ${n} ${handler.noun}; at most ${handler.maxSelection} can be changed in one operation. Narrow the filters.`, { total: n });
     }
-    return handler.scanIds(db, selection);
+    return handler.scanIds(db, selection, caller);
   }
 
-  private canSee(caller: AuthUser, actorId: string | null) {
-    return actorId === caller.id || this.permissions.has(caller, 'audit.view');
+  /** Own operations; all of them with audit.view — except a Super Administrator's, for anyone else (privacy: 404). */
+  private async canSee(caller: AuthUser, actorId: string | null) {
+    if (actorId === caller.id) return true;
+    if (!this.permissions.has(caller, 'audit.view')) return false;
+    if (!actorId || seesSuperAdmins(caller)) return true;
+    const actor = await this.prisma.user.findUnique({ where: { id: actorId }, select: { role: true } });
+    return !isHiddenAccount(caller, actor);
   }
 }
 

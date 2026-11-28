@@ -23,6 +23,7 @@ import { APP_ROLES } from '../auth/permissions.js';
 import { schoolStudentsWhere } from '../common/access/access.service.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { isAdmin, isCoach, isHeadCoach, isTeacher } from '../common/access/roles.js';
+import { HIDDEN_ROLE, isHiddenAccount, seesSuperAdmins, visibleUsersWhere } from '../common/access/super-admin-privacy.js';
 import { AppError } from '../common/errors/app-error.js';
 import type { Prisma, Role } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -50,6 +51,15 @@ const NONE: Levels = { view: false, download: false, edit: false, manage: false 
 const ALL: Levels = { view: true, download: true, edit: true, manage: true };
 
 const notFound = () => new NotFoundException('Report not found.');
+
+/** Administrators' sources whose rows are about one person, and that person's relation (Super Administrator privacy). */
+const PERSON_RELATION: Readonly<Record<string, string>> = { ACTIVITY: 'user', PROGRAMME_MEMBERS: 'user' };
+
+/** A field's fixed values as offered to this viewer: the SUPER_ADMIN role only to a Super Administrator. */
+function visibleValues(values: readonly string[] | undefined, viewer: AuthUser): readonly string[] | null {
+  if (!values) return null;
+  return seesSuperAdmins(viewer) ? values : values.filter((v) => v !== HIDDEN_ROLE);
+}
 const forbidden = (level: string) => new AppError(HttpStatus.FORBIDDEN, 'REPORT_ACCESS_DENIED', `You may not ${level} this report.`);
 
 @Injectable()
@@ -76,13 +86,19 @@ export class CustomReportsService {
    */
   private async scopeFor(viewer: AuthUser, src: SourceDef): Promise<object> {
     if (src.superAdminOnly) return viewer.role === 'SUPER_ADMIN' ? {} : { [src.idField ?? 'id']: { in: [] } };
-    if (src.scope === 'admin') return isAdmin(viewer) ? {} : { [src.idField ?? 'id']: { in: [] } };
+    if (src.scope === 'admin') {
+      const rows = isAdmin(viewer) ? {} : { [src.idField ?? 'id']: { in: [] } };
+      // Super Administrator privacy (owner 2026-11-28): a source whose rows are about a person never shows a Super
+      // Administrator to anyone else.
+      const person = Object.hasOwn(PERSON_RELATION, src.key) ? PERSON_RELATION[src.key] : null;
+      return person ? { AND: [rows, { [person]: visibleUsersWhere(viewer) }] } : rows;
+    }
     return this.peopleScope(viewer);
   }
 
-  /** Which accounts the viewer may see in a people report. */
+  /** Which accounts the viewer may see in a people report (a Super Administrator: only for a Super Administrator). */
   private async peopleScope(viewer: AuthUser): Promise<Prisma.UserWhereInput> {
-    if (isAdmin(viewer)) return {};
+    if (isAdmin(viewer)) return visibleUsersWhere(viewer);
     if (isHeadCoach(viewer) || isCoach(viewer)) {
       const [programmes, taught] = await Promise.all([
         // A Coach: only programmes where seeing the students was not taken away (owner 2026-11-23).
@@ -170,7 +186,7 @@ export class CustomReportsService {
         .map((s) => ({
           key: s.key, label: s.label, group: s.group, superAdminOnly: !!s.superAdminOnly,
           fields: s.fields.filter((f) => superAdmin || !f.protected)
-            .map((f) => ({ key: f.key, label: f.label, type: f.type, values: f.values ?? null, filterable: !!f.where, sortable: !!f.orderBy, protected: !!f.protected })),
+            .map((f) => ({ key: f.key, label: f.label, type: f.type, values: visibleValues(f.values, viewer), filterable: !!f.where, sortable: !!f.orderBy, protected: !!f.protected })),
         })),
       operators: FILTER_OPS,
     };
@@ -351,7 +367,9 @@ export class CustomReportsService {
       where: { reportId: id }, orderBy: { createdAt: 'asc' },
       select: { id: true, role: true, canView: true, canDownload: true, canEdit: true, createdAt: true, user: { select: { id: true, firstName: true, lastName: true, username: true, role: true } } },
     });
-    return { report: { id: r.id, name: r.name, createdBy: r.createdBy }, grants: rows };
+    // A grant to a Super Administrator (account or role) is not shown to anyone else (Super Administrator privacy).
+    const shown = rows.filter((g) => !isHiddenAccount(viewer, g.user) && !(g.role === HIDDEN_ROLE && !seesSuperAdmins(viewer)));
+    return { report: { id: r.id, name: r.name, createdBy: r.createdBy }, grants: shown };
   }
 
   /**
@@ -366,7 +384,9 @@ export class CustomReportsService {
       if (g.role === 'STUDENT') throw new AppError(HttpStatus.BAD_REQUEST, 'GRANTEE_NOT_ALLOWED', 'Reports are never shared with students.');
     }
     const userIds = wanted.flatMap((g) => (g.userId ? [g.userId] : []));
-    const users = await this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, role: true } });
+    // A Super Administrator is, for anyone else, a user that does not exist (UNKNOWN_GRANTEE).
+    const users = await this.prisma.user.findMany({ where: { AND: [{ id: { in: userIds } }, visibleUsersWhere(viewer)] }, select: { id: true, role: true } });
+
     for (const id2 of userIds) {
       const u = users.find((x) => x.id === id2);
       if (!u) throw new AppError(HttpStatus.BAD_REQUEST, 'UNKNOWN_GRANTEE', 'A chosen user does not exist.', { userId: id2 });
@@ -375,8 +395,9 @@ export class CustomReportsService {
     const keyOf = (g: { userId?: string | null; role?: string | null }) => (g.userId ? `user:${g.userId}` : `role:${g.role}`);
     const next = new Map(wanted.filter((g) => g.canView || g.canDownload || g.canEdit).map((g) => [keyOf(g), g]));
     await this.prisma.$transaction(async (tx) => {
-      const current = await tx.customReportGrant.findMany({ where: { reportId: id } });
-      const removed = current.filter((c) => !next.has(c.grantee));
+      const current = await tx.customReportGrant.findMany({ where: { reportId: id }, include: { user: { select: { role: true } } } });
+      // Grants the viewer cannot see (a Super Administrator's) are kept as they are.
+      const removed = current.filter((c) => !next.has(c.grantee) && !isHiddenAccount(viewer, c.user) && !(c.role === HIDDEN_ROLE && !seesSuperAdmins(viewer)));
       if (removed.length) await tx.customReportGrant.deleteMany({ where: { id: { in: removed.map((c) => c.id) } } });
       const changes: Array<Record<string, unknown>> = [];
       for (const [grantee, g] of next) {

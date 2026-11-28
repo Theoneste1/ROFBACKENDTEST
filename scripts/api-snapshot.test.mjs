@@ -400,7 +400,9 @@ const QUESTION_MARKING_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-26-questio
 const SET_QUESTIONS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-27-set-questions.json';
 /** The bank list managed by the Super Administrator (2026-11-27): GET / PUT /api/v1/admin/banking/banks. Additive only. */
 const BANKS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-27-banks.json';
-const CURRENT_SNAPSHOT = BANKS_SNAPSHOT;
+/** Session inactivity (2026-11-28): POST /auth/activity (the browser reports user activity). Additive only. */
+const SESSION_ACTIVITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-28-session-activity.json';
+const CURRENT_SNAPSHOT = SESSION_ACTIVITY_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2147,6 +2149,15 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/banking/banks: operation added', 'PUT /api/v1/admin/banking/banks: operation added',
       'schema BankOptionDto: added', 'schema SetBanksDto: added',
     ]);
+  });
+
+  test('the bank list → session inactivity (2026-11-28): exactly POST /auth/activity; nothing breaking or for review', () => {
+    for (const f of [BANKS_SNAPSHOT, SESSION_ACTIVITY_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(BANKS_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SESSION_ACTIVITY_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, ['POST /api/v1/auth/activity: operation added']);
   });
 
   test('activate now (2026-11-24): the documented 200 response is { user, stillBlockedBy, message } — the shape the frontend reads', () => {
