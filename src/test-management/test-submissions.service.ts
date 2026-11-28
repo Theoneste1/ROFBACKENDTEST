@@ -151,10 +151,7 @@ export class TestSubmissionsService {
   private async answererTest(testId: string, student?: StudentRow): Promise<AnswererTest> {
     const t = await this.prisma.test.findUnique({ where: { id: testId }, include: TEST_FOR_ANSWERERS });
     if (!t || t.status !== 'PUBLISHED') throw testNotFound();
-    // A test of another level stays visible to a student who has an answer in it (an Administrator corrected the answer's
-    // level or test, or changed the student's level, owner 2026-11-28); submitting still requires the level (eligibility).
-    if (student && !divisionMatches(t.division, student)
-      && !(await this.prisma.testSubmission.count({ where: { testId, studentId: student.id, versionCount: { gt: 0 } } }))) throw testNotFound();
+    if (student && !divisionMatches(t.division, student)) throw testNotFound();
     return t;
   }
 
@@ -170,12 +167,8 @@ export class TestSubmissionsService {
     const mine: Prisma.TestExtensionWhereInput = { cancelledAt: null, OR: [{ kind: 'TEST' }, { kind: 'STUDENT', studentId: me.id }] };
     const where: Prisma.TestWhereInput = {
       status: 'PUBLISHED',
-      // My level's tests, and any test I have an answer in (an Administrator may have corrected its test or level).
-      // (AND: the window filter has an OR of its own.)
-      AND: [
-        { OR: [{ division: { in: division ? ['ALL', division] : ['ALL'] } }, { submissions: { some: { studentId: me.id, versionCount: { gt: 0 } } } }] },
-        windowWhere(q.window, now, mine),
-      ],
+      division: { in: division ? ['ALL', division] : ['ALL'] },
+      ...windowWhere(q.window, now, mine),
     };
     const { page, limit, skip, take } = pageArgs(q);
     const [rows, total] = await this.prisma.$transaction([

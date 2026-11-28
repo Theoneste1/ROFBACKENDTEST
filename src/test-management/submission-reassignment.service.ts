@@ -219,7 +219,7 @@ export class SubmissionReassignmentService {
       select: {
         id: true, testId: true, studentId: true, publicCode: true, status: true, level: true, versionCount: true, publicationId: true,
         firstSubmittedAt: true, lastSubmittedAt: true,
-        student: { select: { id: true, username: true, firstName: true, lastName: true } },
+        student: { select: { id: true, username: true, firstName: true, lastName: true, division: { select: { code: true, name: true } } } },
         currentVersion: { select: { pageCount: true, typedAnswer: true } },
         test: { select: { id: true, title: true, division: true, answerFormat: true, discipline: { select: { id: true, code: true, name: true } } } },
       },

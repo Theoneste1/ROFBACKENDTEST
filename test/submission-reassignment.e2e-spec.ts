@@ -128,6 +128,7 @@ describe('Reassign a submission (e2e)', () => {
     const opts = await http().get(`${SUB(mathsJunior, sub.id)}/reassignment`).set(bearer(admin)).expect(200);
     expect(opts.body.current).toMatchObject({ test: { id: mathsJunior }, subject: { id: maths }, level: sub.level });
     expect(opts.body.markingStarted).toBe(false);
+    expect(opts.body.submission.student.division).toMatchObject({ code: 'JUNIOR' });   // the profile level, for the screen's note
     expect(opts.body.destinations.find((d: any) => d.id === mathsSenior)).toMatchObject({ available: true, problem: null });
     expect(opts.body.destinations.find((d: any) => d.id === mathsJunior)).toMatchObject({ problem: 'SAME_TEST' });
 
@@ -149,14 +150,16 @@ describe('Reassign a submission (e2e)', () => {
     const junior = await http().get(`${T}/${mathsJunior}/submissions`).query({ status: 'SUBMITTED' }).set(bearer(admin)).expect(200);
     expect(JSON.stringify(junior.body)).not.toContain(sub.publicCode);
     // The student sees the answer under the right test.
-    // The student (whose profile level is still Junior) still sees the answer, under the corrected test, but cannot submit there.
-    const mine = await http().get(`/api/v1/me/tests/${mathsSenior}`).set(bearer(sj)).expect(200);
-    expect(mine.body.submission).toMatchObject({ versionCount: 1 });
-    expect(mine.body.canSubmit).toBe(false);
-    const list = await http().get('/api/v1/me/tests').set(bearer(sj)).expect(200);
-    expect(list.body.data.map((t: any) => t.id)).toEqual(expect.arrayContaining([mathsSenior]));
-    // A Senior-only test the student has no answer in stays hidden from a Junior student.
-    await http().get(`/api/v1/me/tests/${mathsSenior}`).set(bearer(sj2)).expect(404);
+    // "My tests" lists the tests of the student's CURRENT level (owner rule 2026-11-21, unchanged): a student whose profile is
+    // still Junior sees neither the Junior test (the answer left it) nor the Senior-only test, and cannot submit to it.
+    // Correcting the student's own level (Students → level) makes the Senior test theirs.
+    const listed = (await http().get('/api/v1/me/tests').query({ limit: 100 }).set(bearer(sj)).expect(200)).body.data;
+    expect(listed.map((t: any) => t.id)).not.toContain(mathsSenior);
+    expect(listed.find((t: any) => t.id === mathsJunior).submission).toBeNull();   // still their level's test, no answer there now
+    await http().get(`/api/v1/me/tests/${mathsSenior}`).set(bearer(sj)).expect(404);
+    const blocked = await http().post(`/api/v1/me/tests/${mathsSenior}/submission`).set(bearer(sj)).send({ clientKey: randomUUID(), typedAnswer: 'Second try' });
+    expect(blocked.status).toBeGreaterThanOrEqual(400);
+    expect(await p().testSubmission.count({ where: { studentId: ctx.ids.studentJunior } })).toBe(1);
     // Audited: who, when, before, after, reason — and the history route shows it.
     const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'TEST_SUBMISSION_REASSIGNED', entityId: sub.id } });
     expect(audit.actorId).toBe(ctx.ids.admin);
@@ -176,6 +179,10 @@ describe('Reassign a submission (e2e)', () => {
     expect(inComputing.body.data.map((r: any) => r.id)).toContain(sub.id);
     const inPhysics = await http().get('/api/v1/admin/test-submissions').query({ subjectId: physics }).set(bearer(admin)).expect(200);
     expect(inPhysics.body.data.map((r: any) => r.id)).not.toContain(sub.id);
+    // Tests for every level: the student sees the answer under Computing, no longer under Physics.
+    const mine = await http().get(`/api/v1/me/tests/${computingAll}`).set(bearer(ss)).expect(200);
+    expect(mine.body.submission).toMatchObject({ versionCount: 1 });
+    expect((await http().get(`/api/v1/me/tests/${physicsAll}`).set(bearer(ss)).expect(200)).body.submission ?? null).toBeNull();
     const audit = await p().auditLog.findFirstOrThrow({ where: { action: 'TEST_SUBMISSION_REASSIGNED', entityId: sub.id } });
     expect(audit.metadata).toMatchObject({ before: { subjectCode: 'RA_PHYSICS' }, after: { subjectCode: 'RA_COMPUTING' } });
   });
