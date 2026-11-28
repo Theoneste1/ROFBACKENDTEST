@@ -8,6 +8,8 @@
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { CallerCtx } from '../common/auth-user.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 
 const USER_ACTIONS = ['REGISTER', 'CREATE_USER', 'CREATE_ADMIN_ACCOUNT', 'INVITE_USER', 'RESEND_INVITATION', 'ACTIVATE_ACCOUNT', 'UPDATE_USER_STATUS', 'USER_STATUS_CHANGED', 'CHANGE_USER_ROLE', 'AVATAR_SET'];
 const TEACHER_APP_ACTIONS = ['SUBMIT_TEACHER_APPLICATION', 'APPLICATION_INFO_REQUESTED', 'APPLICATION_INFO_ANSWERED', 'APPLICATION_AVATAR_SET', 'VERIFY_TEACHER_APPLICATION_SCHOOL', 'APPROVE_TEACHER_APPLICATION', 'REJECT_TEACHER_APPLICATION', 'TEACHER_SELF_REGISTERED'];
@@ -72,7 +74,8 @@ function safeDetails(action: string, metadata: unknown): Record<string, unknown>
 export class RegistrationTimelineService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async timeline(userId: string) {
+  /** A Super Administrator's timeline only for a Super Administrator viewer (privacy): anyone else gets the same 404. */
+  async timeline(userId: string, viewer: CallerCtx) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -80,7 +83,7 @@ export class RegistrationTimelineService {
         schoolAffiliations: { select: { id: true, status: true, supersededAt: true }, orderBy: { createdAt: 'desc' } },
       },
     });
-    if (!user) throw new NotFoundException(`User ${userId} not found.`);
+    if (!user || isHiddenAccount(viewer, user)) throw new NotFoundException(`User ${userId} not found.`);
 
     const teacherApp = await this.prisma.teacherApplication.findFirst({ where: { userId }, select: { id: true } });
     // A coach application has no account link: the approved application with this username (usernames are unique

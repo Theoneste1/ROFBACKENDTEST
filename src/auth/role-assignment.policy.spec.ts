@@ -1,3 +1,5 @@
+import { NotFoundException } from '@nestjs/common';
+
 import { AppError } from '../common/errors/app-error.js';
 import { PermissionService } from './permission.service.js';
 import { APP_ROLES } from './permissions.js';
@@ -12,6 +14,8 @@ const actor = (role: string) => ({ id: 'actor', role });
 
 async function code(fn: () => Promise<void>): Promise<string | null> {
   try { await fn(); return null; } catch (e) {
+    // Super Administrator privacy (owner 2026-11-28): a SUPER_ADMIN account is not found (404) for anyone else.
+    if (e instanceof NotFoundException) return 'NOT_FOUND';
     expect(e).toBeInstanceOf(AppError);
     expect((e as AppError).getStatus()).toBe(403);
     return (e as AppError).code;
@@ -47,10 +51,11 @@ describe('RoleAssignmentPolicy (role allow-list, P1-05 / P1-08)', () => {
         expect(await code(() => p.assertCanManage(actor('ADMIN'), role))).toBeNull();
       },
     );
-    it('may not manage a SUPER_ADMIN account or an unknown current role', async () => {
-      for (const role of ['SUPER_ADMIN', 'UNKNOWN_ROLE', '__proto__']) {
+    it('may not manage an unknown current role (403); a SUPER_ADMIN account does not exist for it (404, privacy)', async () => {
+      for (const role of ['UNKNOWN_ROLE', '__proto__']) {
         expect(await code(() => p.assertCanManage(actor('ADMIN'), role))).toBe('ROLE_NOT_ASSIGNABLE');
       }
+      expect(await code(() => p.assertCanManage(actor('ADMIN'), 'SUPER_ADMIN'))).toBe('NOT_FOUND');
     });
   });
 
@@ -79,13 +84,13 @@ describe('RoleAssignmentPolicy (role allow-list, P1-05 / P1-08)', () => {
     it.each(['STUDENT', 'MENTOR', 'TEACHER', 'UNKNOWN_ROLE', ''])('%s may neither assign nor manage any role', async (who) => {
       for (const role of APP_ROLES) {
         expect(await code(() => p.assertCanAssign(actor(who), role, 'roleChange'))).toBe('ROLE_NOT_ASSIGNABLE');
-        expect(await code(() => p.assertCanManage(actor(who), role))).toBe('ROLE_NOT_ASSIGNABLE');
+        expect(await code(() => p.assertCanManage(actor(who), role))).toBe(role === 'SUPER_ADMIN' ? 'NOT_FOUND' : 'ROLE_NOT_ASSIGNABLE');
       }
     });
     it('HEAD_COACH (programme-scoped grants only) may not assign or manage through the user API yet (P1-10)', async () => {
       for (const role of APP_ROLES) {
         expect(await code(() => p.assertCanAssign(actor('HEAD_COACH'), role, 'roleChange'))).toBe('ROLE_NOT_ASSIGNABLE');
-        expect(await code(() => p.assertCanManage(actor('HEAD_COACH'), role))).toBe('ROLE_NOT_ASSIGNABLE');
+        expect(await code(() => p.assertCanManage(actor('HEAD_COACH'), role))).toBe(role === 'SUPER_ADMIN' ? 'NOT_FOUND' : 'ROLE_NOT_ASSIGNABLE');
       }
     });
   });
@@ -132,11 +137,11 @@ describe('RoleAssignmentPolicy (role allow-list, P1-05 / P1-08)', () => {
       const p = policy({ SUPER_ADMIN_BOUNDARY_ENABLED: value }, 1);
       expect(await code(() => p.assertCanManage(actor('ADMIN'), 'ADMIN'))).toBeNull();
     });
-    it('in no state can an ADMIN assign or manage SUPER_ADMIN', async () => {
+    it('in no state can an ADMIN assign or manage SUPER_ADMIN (managing one: 404, it does not exist for an ADMIN)', async () => {
       for (const [env, n] of [[{}, 0], [{ SUPER_ADMIN_BOUNDARY_ENABLED: 'true' }, 0], [{ SUPER_ADMIN_BOUNDARY_ENABLED: 'true' }, 1]] as const) {
         const p = policy(env, n);
         expect(await code(() => p.assertCanAssign(actor('ADMIN'), 'SUPER_ADMIN', 'roleChange'))).toBe('ROLE_NOT_ASSIGNABLE');
-        expect(await code(() => p.assertCanManage(actor('ADMIN'), 'SUPER_ADMIN'))).toBe('ROLE_NOT_ASSIGNABLE');
+        expect(await code(() => p.assertCanManage(actor('ADMIN'), 'SUPER_ADMIN'))).toBe('NOT_FOUND');
       }
     });
   });

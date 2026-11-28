@@ -14,6 +14,7 @@ import { pageArgs, paginated } from '../common/pagination.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import { Prisma, type SubmissionStatus } from '../generated/prisma/client.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { HIDDEN_ROLE, ROF_ADMINISTRATION, seesSuperAdmins } from '../common/access/super-admin-privacy.js';
 import { ReportScopeService, teachingIn, type ReportScope } from './report-scope.js';
 import { toCounts } from './dashboard.service.js';
 import { accountStatus, searchWhere } from './user-reports.service.js';
@@ -338,13 +339,18 @@ export class AcademicReportsService {
     const pages = keysetBatches((page) => this.prisma.assignment.findMany({
       where, orderBy: [{ deadline: 'desc' }, { id: 'asc' }], select: ASSIGNMENT_SELECT, ...page,
     }));
+    // A CSV is streamed (no response masking): a Super Administrator publisher is "ROF Administration" for anyone else.
+    const hidden = seesSuperAdmins(user) ? new Set<string>()
+      : new Set((await this.prisma.user.findMany({ where: { role: HIDDEN_ROLE }, select: { id: true } })).map((u) => u.id));
+    const publisher = (p: { id: string; firstName: string; lastName: string }) =>
+      (hidden.has(p.id) ? `${ROF_ADMINISTRATION.firstName} ${ROF_ADMINISTRATION.lastName}` : fullName(p));
     return {
       headers: ['Assignment', 'Course', 'Division', 'Academic year', 'Deadline', 'Submissions', 'Awaiting approval',
        'Approved, not published', 'Published', 'Releases', 'Last published', 'Last published by', 'Average score %'],
       batches: mapBatches(pages, async (rows) => (await this.resultRows(rows, s)).map((v) => [
         v.title, v.course.title, v.division.name, v.academicYear.name, v.deadline, v.submissions, v.awaitingApproval,
         v.awaitingPublication, v.published, v.releases, v.lastPublishedAt,
-        v.lastPublishedBy ? fullName(v.lastPublishedBy) : null, v.averageScore,
+        v.lastPublishedBy ? publisher(v.lastPublishedBy) : null, v.averageScore,
       ])),
     };
   }

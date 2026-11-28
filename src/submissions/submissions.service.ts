@@ -13,6 +13,7 @@ import { StorageService } from '../common/storage/storage.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { ActivityService } from '../activity/activity.service.js';
 import { AppError, invalidState } from '../common/errors/app-error.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { COURSE_WORK_ROLES, isAdmin, isCourseStaff, isCourseWorker, isStaff, isStudent } from '../common/access/roles.js';
@@ -487,7 +488,7 @@ export class SubmissionsService {
 
   async assign(submissionId: string, body: AssignSubmissionDto, user: AuthUser) {
     const sub = await this.requireSubmission(submissionId);
-    await this.requireEligibleMentor(body.mentorId, sub.assignment);
+    await this.requireEligibleMentor(body.mentorId, sub.assignment, user);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await this.moveSubmission(tx, submissionId, ['SUBMITTED'], 'ASSIGNED');
@@ -512,7 +513,7 @@ export class SubmissionsService {
     if (sub.currentReview?.mentorId === body.mentorId) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'SAME_MENTOR', 'The submission is already assigned to this coach.');
     }
-    await this.requireEligibleMentor(body.mentorId, sub.assignment);
+    await this.requireEligibleMentor(body.mentorId, sub.assignment, user);
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await this.moveSubmission(tx, submissionId, ['ASSIGNED', 'IN_REVIEW', 'MARKED', 'REJECTED'], 'ASSIGNED');
@@ -1300,12 +1301,13 @@ export class SubmissionsService {
   }
 
   /** The mentor must be active and assigned to the assignment's course × division. */
-  private async requireEligibleMentor(mentorId: string, scope: { courseId: string; divisionId: string }) {
+  private async requireEligibleMentor(mentorId: string, scope: { courseId: string; divisionId: string }, viewer?: { role: string }) {
     const user = await this.prisma.user.findUnique({
       where:  { id: mentorId },
       select: { role: true, isActive: true, isApproved: true },
     });
-    if (!user) throw new NotFoundException('Coach not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): as for an unknown id.
+    if (!user || (viewer && isHiddenAccount(viewer, user))) throw new NotFoundException('Coach not found.');
     // Coaches, and Head Coaches with an Administrator-created assignment in this scope (H4, checked below).
     if (!(COURSE_WORK_ROLES as readonly string[]).includes(user.role)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_MENTOR', 'Selected user is not a coach.');

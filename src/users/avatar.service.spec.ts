@@ -82,14 +82,45 @@ describe('AvatarService', () => {
     const ok = make();
     await ok.service.setFor('stu', ADMIN, png());
     expect(ok.roles.assertCanManage).toHaveBeenCalledWith(ADMIN, 'STUDENT');
-    expect(ok.users.findOne).toHaveBeenCalledWith('stu');
+    expect(ok.users.findOne).toHaveBeenCalledWith('stu', ADMIN);
 
-    const refused = make({ user: { id: 'sa', role: 'SUPER_ADMIN', avatarFileId: null, avatarUrl: null }, refuse: true });
-    await expect(refused.service.setFor('sa', ADMIN, png())).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
-    await expect(refused.service.removeFor('sa', ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
-    expect(refused.roles.assertCanManage).toHaveBeenCalledWith(ADMIN, 'SUPER_ADMIN');
+    const refused = make({ user: { id: 'adm2', role: 'ADMIN', avatarFileId: null, avatarUrl: null }, refuse: true });
+    await expect(refused.service.setFor('adm2', ADMIN, png())).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+    await expect(refused.service.removeFor('adm2', ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
+    expect(refused.roles.assertCanManage).toHaveBeenCalledWith(ADMIN, 'ADMIN');
     expect(refused.storage.store).not.toHaveBeenCalled();
     expect(refused.tx.user.update).not.toHaveBeenCalled();
+  });
+
+  // Super Administrator privacy (owner 2026-11-28; this replaces "an ADMIN gets 403 ROLE_NOT_ASSIGNABLE for a SUPER_ADMIN"):
+  // for anyone else a Super Administrator does not exist — the same 404 as an unknown id, before any other check.
+  it('a Super Administrator target: 404 "User … not found." for an ADMIN (as for an unknown id); nothing stored or written', async () => {
+    const sa = make({ user: { id: 'sa', role: 'SUPER_ADMIN', avatarFileId: 'f', avatarUrl: 'x' } });
+    const unknown = make({ user: null });
+    for (const m of [sa, unknown]) {
+      const id = m === sa ? 'sa' : 'nobody';
+      await expect(m.service.setFor(id, ADMIN, png())).rejects.toThrow(`User ${id} not found.`);
+      await expect(m.service.removeFor(id, ADMIN)).rejects.toThrow(`User ${id} not found.`);
+      expect(m.roles.assertCanManage).not.toHaveBeenCalled();
+      expect(m.storage.store).not.toHaveBeenCalled();
+      expect(m.tx.user.update).not.toHaveBeenCalled();
+    }
+    // A Super Administrator manages another one (the policy decides).
+    const bySa = make({ user: { id: 'sa', role: 'SUPER_ADMIN', avatarFileId: null, avatarUrl: null } });
+    await bySa.service.setFor('sa', { id: 'sa2', role: 'SUPER_ADMIN' }, png());
+    expect(bySa.roles.assertCanManage).toHaveBeenCalledWith({ id: 'sa2', role: 'SUPER_ADMIN' }, 'SUPER_ADMIN');
+  });
+
+  it('serving a Super Administrator\'s picture: Super Administrators only; anyone else gets the "no picture" 404', async () => {
+    const file = { storageKey: 'avatars/2026/11/s.png', mimeType: 'image/png', originalName: 'file.png', size: 3 };
+    for (const role of ['ADMIN', 'HEAD_COACH', 'MENTOR', 'TEACHER', 'STUDENT', 'UNKNOWN_ROLE']) {
+      const m = make({ user: { role: 'SUPER_ADMIN', avatarFile: file } });
+      await expect(m.service.send('sa', { id: 'v', role } as never, {} as never)).rejects.toThrow(/no profile picture/);
+      expect(m.storage.send).not.toHaveBeenCalled();
+    }
+    const m = make({ user: { role: 'SUPER_ADMIN', avatarFile: file } });
+    await m.service.send('sa', { id: 'sa2', role: 'SUPER_ADMIN' } as never, {} as never);
+    expect(m.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, max-age=86400' });
   });
 
   it('serving: 404 without a picture; otherwise the file with the versioned cache header', async () => {

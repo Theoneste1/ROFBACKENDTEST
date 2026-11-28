@@ -34,6 +34,7 @@ import { PermissionService } from '../auth/permission.service.js';
 import { NEVER_GRANTABLE, PERMISSIONS, ROLE_GRANTS, ROLE_LABELS, type AppRole } from '../auth/permissions.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateOverrideDto } from './dto/create-override.dto.js';
 import { DecisionNotificationsService } from '../decision-notifications/decision-notifications.service.js';
@@ -81,8 +82,8 @@ export class PermissionOverridesService {
     private readonly notices: DecisionNotificationsService,
   ) {}
 
-  async list(userId: string, opts: DelegationMode = {}) {
-    const target = await this.requireUser(userId);
+  async list(userId: string, viewer: CallerCtx, opts: DelegationMode = {}) {
+    const target = await this.requireUser(userId, viewer);
     if (opts.delegation) assertTeacherTarget(target);
     const rows = await this.prisma.userPermissionOverride.findMany({
       where: { userId, ...(opts.delegation && { permission: { in: [...TEACHER_DELEGATIONS] } }) }, select: SELECT, orderBy: { createdAt: 'desc' },
@@ -92,7 +93,7 @@ export class PermissionOverridesService {
   }
 
   async create(userId: string, dto: CreateOverrideDto & { studentScope?: StudentScope; studentIds?: string[] }, actor: CallerCtx, opts: DelegationMode = {}) {
-    const target = await this.requireUser(userId);
+    const target = await this.requireUser(userId, actor);
     if (target.id === actor.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'OVERRIDE_NOT_ALLOWED', 'You cannot set an override on your own account.', { reason: 'self' });
     }
@@ -200,7 +201,7 @@ export class PermissionOverridesService {
   }
 
   async revoke(userId: string, overrideId: string, actor: CallerCtx, opts: DelegationMode = {}) {
-    if (opts.delegation) assertTeacherTarget(await this.requireUser(userId));
+    if (opts.delegation) assertTeacherTarget(await this.requireUser(userId, actor));
     // Delegation mode: an Administrator only ever touches teacher delegations (others: not found).
     const only = opts.delegation ? { permission: { in: [...TEACHER_DELEGATIONS] } } : {};
     return this.prisma.$transaction(async (tx) => {
@@ -234,8 +235,8 @@ export class PermissionOverridesService {
   // right are untouched; students' own submissions never depend on it.
 
   /** Whether this teacher may submit tests for their students now, and the revocation if any. */
-  async teacherTestSubmission(userId: string) {
-    const target = await this.requireUser(userId);
+  async teacherTestSubmission(userId: string, viewer: CallerCtx) {
+    const target = await this.requireUser(userId, viewer);
     assertTeacherTarget(target);
     const deny = await this.prisma.userPermissionOverride.findFirst({
       where: { userId, permission: TEST_SUBMISSION, effect: 'DENY', revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
@@ -247,7 +248,7 @@ export class PermissionOverridesService {
 
   /** Revoke (allowed false, reason 3–500 required) or restore (allowed true) it. Idempotent; audited when it changes. */
   async setTeacherTestSubmission(userId: string, dto: { allowed: boolean; reason?: string }, actor: CallerCtx) {
-    const target = await this.requireUser(userId);
+    const target = await this.requireUser(userId, actor);
     assertTeacherTarget(target);
     if (target.id === actor.id) {
       throw new AppError(HttpStatus.FORBIDDEN, 'OVERRIDE_NOT_ALLOWED', 'You cannot change your own permissions.', { reason: 'self' });
@@ -283,7 +284,7 @@ export class PermissionOverridesService {
         }, tx);
       }
     });
-    return this.teacherTestSubmission(userId);
+    return this.teacherTestSubmission(userId, actor);
   }
 
   /** Of these Teacher ids, the ones whose test submission is revoked now (the Users list shows it). */
@@ -297,7 +298,7 @@ export class PermissionOverridesService {
   }
 
   /** GET /admin/users/:id/permissions — what the user can do now (role defaults ± active overrides). */
-  async effectiveFor(userId: string) {
+  async effectiveFor(userId: string, viewer: CallerCtx) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -308,7 +309,8 @@ export class PermissionOverridesService {
         },
       },
     });
-    if (!user) throw new NotFoundException('User not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!user || isHiddenAccount(viewer, user)) throw new NotFoundException('User not found.');
     const subject: AuthUser = { id: user.id, username: user.username, role: user.role, divisionId: user.divisionId, gradeLevel: user.gradeLevel, overrides: user.permissionOverrides };
     const effective = [...this.permissions.effective(subject)].map(([permission, scope]) => ({ permission, scope }));
     return {
@@ -353,11 +355,12 @@ export class PermissionOverridesService {
     return lapsed.length;
   }
 
-  private async requireUser(id: string) {
+  /** The target account; a Super Administrator for anyone else is not found (Super Administrator privacy). */
+  private async requireUser(id: string, viewer: CallerCtx) {
     const user = await this.prisma.user.findUnique({
       where: { id }, select: { id: true, role: true, email: true, firstName: true, isActive: true, activatedAt: true },
     });
-    if (!user) throw new NotFoundException('User not found.');
+    if (!user || isHiddenAccount(viewer, user)) throw new NotFoundException('User not found.');
     return user;
   }
 }

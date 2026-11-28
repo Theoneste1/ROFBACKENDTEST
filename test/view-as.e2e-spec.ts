@@ -149,7 +149,8 @@ describe('View as, read only (e2e)', () => {
     });
 
     it('nobody views a Super Administrator, an Administrator (unless Super Admin) or themselves', async () => {
-      expect(await start(admin, saId)).toEqual([403, 'VIEW_AS_NOT_ALLOWED']);
+      // Super Administrator privacy (owner 2026-11-28): for an Administrator a Super Administrator does not exist (404).
+      expect(await start(admin, saId)).toEqual([404, 'NOT_FOUND']);
       expect(await start(admin, admin2Id)).toEqual([403, 'VIEW_AS_NOT_ALLOWED']);
       expect(await start(admin, ctx.ids.admin)).toEqual([403, 'VIEW_AS_NOT_ALLOWED']);
       expect(await start(superAdmin, sa2Id)).toEqual([403, 'VIEW_AS_NOT_ALLOWED']);

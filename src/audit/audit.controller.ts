@@ -50,15 +50,15 @@ export class AuditController {
   /** Newest first; filter by category, action, actor, record and date range. */
   @Get()
   @RequirePermission('audit.view')
-  findAll(@Query() q: AuditQueryDto) {
-    return this.query.list(q);
+  findAll(@Query() q: AuditQueryDto, @CurrentUser() user: AuthUser) {
+    return this.query.list(q, user);
   }
 
   /** Every action with its category and how many times it was recorded (for filters). */
   @Get('actions')
   @RequirePermission('audit.view')
-  actions() {
-    return this.query.actions();
+  actions(@CurrentUser() user: AuthUser) {
+    return this.query.actions(user);
   }
 
   /** The filtered trail as CSV, streamed (no row limit; was 50 000). The export itself is audited. */
@@ -67,7 +67,7 @@ export class AuditController {
   @Header('Cache-Control', 'no-store')
   @RequirePermission('audit.view')
   async export(@Query() q: AuditQueryDto, @CurrentUser() user: AuthUser, @Res() res: Response) {
-    const csv = await this.query.csv(q);
+    const csv = await this.query.csv(q, user);
     await this.audit.log({
       actorId: user.id, actorRole: user.role, action: 'EXPORT_AUDIT_LOG', entity: 'AuditLog', metadata: { filters: { ...q } },
     });
@@ -77,7 +77,7 @@ export class AuditController {
 
   @Get(':id')
   @RequirePermission('audit.view')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.query.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.query.findOne(id, user);
   }
 }

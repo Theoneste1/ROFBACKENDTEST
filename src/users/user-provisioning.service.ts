@@ -26,6 +26,7 @@ import { divisionIdForGrade } from '../divisions/division-rules.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { AccessService } from '../common/access/access.service.js';
 import { isHeadCoach } from '../common/access/roles.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { SchoolAffiliationService } from '../schools/affiliations/school-affiliation.service.js';
 import { resolveSchoolReference } from '../schools/school-reference.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
@@ -121,7 +122,8 @@ export class UserProvisioningService {
       where:  { id: userId },
       select: { id: true, role: true, activatedAt: true, isActive: true, passwordHash: true },
     });
-    if (!user) throw new NotFoundException('User not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!user || isHiddenAccount(caller, user)) throw new NotFoundException('User not found.');
     await this.roles.assertCanManage(caller, user.role);
     if (user.activatedAt) throw invalidState('This account is already activated.');
     if (!user.isActive)   throw invalidState('Reactivate the account before re-sending the invitation.');
@@ -142,7 +144,8 @@ export class UserProvisioningService {
       where:  { id: userId },
       select: { id: true, role: true, activatedAt: true, isActive: true, provider: true },
     });
-    if (!user) throw new NotFoundException('User not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!user || isHiddenAccount(caller, user)) throw new NotFoundException('User not found.');
     await this.roles.assertCanManage(caller, user.role);
     if (!user.isActive)    throw invalidState('This account is suspended.');
     if (!user.activatedAt) throw invalidState('This account is not activated yet; re-send the invitation instead.');

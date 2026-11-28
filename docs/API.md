@@ -3748,7 +3748,8 @@ Returns `200` with no body.
 
 **Access:** ADMIN, SUPER_ADMIN
 
-List users with filters (role, division, grade, school, status, search).
+List users with filters (role, division, grade, school, status, search). Super Administrators are listed (and counted)
+only for a Super Administrator; for anyone else every /admin/users/:id route answers 404 for one, as for an unknown id.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -3878,7 +3879,7 @@ Returns `200` JSON with:
 **Access:** ADMIN, SUPER_ADMIN
 
 Set or replace an account's profile picture (multipart field `file`: JPEG, PNG or WebP, at most 2 MB).
-Only for an account whose current role the caller may manage (an ADMIN never a SUPER_ADMIN). Returns the
+Only for an account whose current role the caller may manage (a SUPER_ADMIN account is 404 for an ADMIN). Returns the
 account. 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED.
 
 | Parameter | In | Type | Required | Notes |
@@ -8182,7 +8183,8 @@ Returns `200` with no body.
 **Access:** STUDENT, TEACHER, MENTOR, HEAD_COACH, ADMIN, SUPER_ADMIN
 
 The account's current profile picture, inline, with X-Content-Type-Options: nosniff. A staff account's picture:
-any signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned). A student's
+any signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned) — a Super
+Administrator's: Super Administrators only (anyone else gets 404, as for an account without a picture). A student's
 picture: the student, Administrators, and a Teacher who may view that student's profile (Cache-Control: private,
 no-store) — anyone else gets 404, the same as an account without a picture.
 

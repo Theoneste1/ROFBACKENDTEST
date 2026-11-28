@@ -27,6 +27,7 @@ import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import type { AuthUser, CallerCtx } from '../common/auth-user.js';
 import { PermissionService } from '../auth/permission.service.js';
 import { AppError } from '../common/errors/app-error.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { StorageService } from '../common/storage/storage.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { UsersService } from './users.service.js';
@@ -69,13 +70,13 @@ export class AvatarService {
   async setFor(targetId: string, caller: CallerCtx, file: Express.Multer.File | undefined) {
     await this.assertCanManage(targetId, caller);
     await this.set(targetId, file, caller);
-    return this.users.findOne(targetId);
+    return this.users.findOne(targetId, caller);
   }
 
   async removeFor(targetId: string, caller: CallerCtx) {
     await this.assertCanManage(targetId, caller);
     await this.remove(targetId, caller);
-    return this.users.findOne(targetId);
+    return this.users.findOne(targetId, caller);
   }
 
   // ─── Serve ──────────────────────────────────────────────────────────────────
@@ -95,6 +96,8 @@ export class AvatarService {
     });
     const notFound = () => new NotFoundException('This account has no profile picture.');
     if (!user?.avatarFile) throw notFound();
+    // A Super Administrator's picture (Super Administrator privacy, owner 2026-11-28): Super Administrators only.
+    if (isHiddenAccount(viewer, user)) throw notFound();
     if (user.role !== 'STUDENT') {
       await this.storage.send(res, user.avatarFile, { cacheControl: AVATAR_CACHE_CONTROL });
       return;
@@ -155,7 +158,7 @@ export class AvatarService {
 
   private async assertCanManage(targetId: string, caller: CallerCtx) {
     const target = await this.prisma.user.findUnique({ where: { id: targetId }, select: { role: true } });
-    if (!target) throw new NotFoundException(`User ${targetId} not found.`);
+    if (!target || isHiddenAccount(caller, target)) throw new NotFoundException(`User ${targetId} not found.`);
     await this.roles.assertCanManage(caller, target.role);
   }
 

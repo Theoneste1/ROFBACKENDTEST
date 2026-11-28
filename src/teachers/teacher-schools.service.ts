@@ -14,6 +14,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { TEACHER_DELEGATIONS } from '../auth/override-policy.js';
 import type { CallerCtx } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -61,7 +62,8 @@ export class TeacherSchoolsService {
       this.prisma.user.findUnique({ where: { id: dto.teacherId }, select: { id: true, role: true } }),
       this.prisma.school.findUnique({ where: { id: dto.schoolId }, select: { id: true } }),
     ]);
-    if (!teacher) throw new NotFoundException('Teacher not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): as for an unknown id.
+    if (!teacher || isHiddenAccount(actor, teacher)) throw new NotFoundException('Teacher not found.');
     if (teacher.role !== 'TEACHER') {
       throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_TEACHER', 'Only users with the TEACHER role can be assigned to a school.', { role: teacher.role });
     }

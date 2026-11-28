@@ -14,6 +14,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   BANK_DETAILS_SELECT, BANKING_FIELDS, DEFAULT_BANKS, UMWALIMU_SACCO, bankConflicts, bankingRequiredFor, requiredFields, bankingSummary, bankRules,
@@ -140,7 +141,8 @@ export class BankingService {
    */
   async saveForAdmin(userId: string, dto: SaveBankingDto, actor: AuthUser) {
     const target = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
-    if (!target) throw new AppError(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', 'User not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!target || isHiddenAccount(actor, target)) throw new AppError(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', 'User not found.');
     if (!bankingRequiredFor(target.role)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'BANKING_NOT_APPLICABLE', 'Banking information is kept only for Teachers, Coaches and Head Coaches.');
     }
@@ -164,7 +166,7 @@ export class BankingService {
   /** An administrator's view of one person's banking information: masked unless revealed (audited). */
   async forAdmin(userId: string, reveal: boolean, actor: AuthUser) {
     const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
-    if (!u) throw new AppError(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', 'User not found.');
+    if (!u || isHiddenAccount(actor, u)) throw new AppError(HttpStatus.NOT_FOUND, 'USER_NOT_FOUND', 'User not found.');
     const details = bankingRequiredFor(u.role) ? await this.detailsOf(u.id) : null;
     const summary = bankingSummary(u.role, details);
     if (reveal && details) {

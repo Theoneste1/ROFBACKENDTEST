@@ -69,8 +69,8 @@ export class ReportsController {
   /** What is waiting for an administrator right now. */
   @Get('overview')
   @Roles('ADMIN', 'SUPER_ADMIN')
-  overview() {
-    return this.reports.overview();
+  overview(@CurrentUser() user: AuthUser) {
+    return this.reports.overview(user);
   }
 
   // ─── User reports ─────────────────────────────────────────────────────────
