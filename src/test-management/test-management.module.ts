@@ -5,9 +5,10 @@ import { TestDeadlineService } from './test-deadline.service.js';
 import { TestExtensionsService } from './test-extensions.service.js';
 import { TestMarkersService } from './test-markers.service.js';
 import {
-  AdminTestExtensionsController, AdminTestSubmissionsController, MyTestsController, TeacherTestsController,
+  AdminTestExtensionsController, AdminTestSubmissionsController, AdminSubmissionSearchController, MyTestsController, TeacherTestsController,
 } from './test-submissions.controller.js';
 import { TestSubmissionsService } from './test-submissions.service.js';
+import { SubmissionReassignmentService } from './submission-reassignment.service.js';
 import { AdminTestMarkingController, MarkingController } from './test-marking.controller.js';
 import { TestMarkerService } from './test-marker.service.js';
 import { TestMarkingService } from './test-marking.service.js';
@@ -32,13 +33,13 @@ import { QuestionSweepService } from './question/question-sweep.service.js';
 @Module({
   controllers: [
     TestsController, TestMarkersController,
-    AdminTestExtensionsController, AdminTestSubmissionsController, MyTestsController, TeacherTestsController,
+    AdminTestExtensionsController, AdminTestSubmissionsController, AdminSubmissionSearchController, MyTestsController, TeacherTestsController,
     AdminTestMarkingController, MarkingController,
     AdminTestResultsController, AdminTestReportsController, MyTestResultsController, TeacherTestResultsController, CoachTestResultsController, MarkingDashboardController,
     QuestionMarkingController, AdminQuestionMarkingController,
   ],
   providers: [
-    TestsService, TestMarkersService, TestFileKindPipe, TestDeadlineService, TestExtensionsService, TestSubmissionsService,
+    TestsService, TestMarkersService, TestFileKindPipe, TestDeadlineService, TestExtensionsService, TestSubmissionsService, SubmissionReassignmentService,
     TestMarkingService, TestMarkerService, TestResultsService, TestResultViewsService,
     QuestionMarkerService, QuestionMarkingService, QuestionSweepService,
   ],

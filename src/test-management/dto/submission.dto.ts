@@ -149,3 +149,48 @@ export class AuthorizeResubmissionDto {
   @IsString() @Length(3, 500)
   reason: string;
 }
+
+// ── Reassign a submission (owner 2026-11-28) ────────────────────────────────────────
+
+const SUBMISSION_STATUSES = ['SUBMITTED', 'ASSIGNED', 'MARKING_IN_PROGRESS', 'MARKED', 'APPROVED', 'PUBLISHED', 'RETURNED', 'AWAITING_SECOND_MARKING'] as const;
+
+/** GET /admin/test-submissions: submitted answers across every test, for a correction. */
+export class ListReassignableSubmissionsQueryDto extends PaginationQueryDto {
+  /** Part of the student's first name, last name or username; the student's id; the paper's public code; part of the test title. */
+  @IsOptional() @IsString() @Transform(trim) @Length(1, 100)
+  q?: string;
+
+  /** The test's subject (programme). */
+  @IsOptional() @IsUUID()
+  subjectId?: string;
+
+  /** The submission's level (its ranking group): JUNIOR, MIDDLE, SENIOR or another division code. */
+  @IsOptional() @Matches(DIVISION_CODE, { message: 'level must be a division code.' })
+  level?: string;
+
+  @IsOptional() @IsIn(SUBMISSION_STATUSES)
+  status?: (typeof SUBMISSION_STATUSES)[number];
+
+  @IsOptional() @IsUUID()
+  testId?: string;
+}
+
+/** POST /admin/tests/:id/submissions/:submissionId/reassignment: the correct test and level, and why. */
+export class ReassignSubmissionDto {
+  /** The correct test: the current one to correct only the level, or another published test. */
+  @IsUUID()
+  testId: string;
+
+  /** The correct level (division code); the destination test must be for every level or for this one. */
+  @Matches(DIVISION_CODE, { message: 'level must be a division code.' })
+  level: string;
+
+  /** 5–500 characters; recorded in the audit log with the values before and after. */
+  @Transform(trim)
+  @IsString() @Length(5, 500)
+  reason: string;
+
+  /** The test the reviewer saw the answer under (optional): refused with SUBMISSION_CHANGED if it moved meanwhile. */
+  @IsOptional() @IsUUID()
+  expectedTestId?: string;
+}
