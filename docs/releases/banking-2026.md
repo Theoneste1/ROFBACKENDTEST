@@ -86,5 +86,7 @@ Deploy the previous backend first (the new one reads the table on every Teacher,
 run `docs/migrations/20261231000000_user_bank_details.rollback.sql` (kit: `node scripts/release/rehearsal.mjs rollback
 --release banking-2026`). It **refuses** while any bank details exist (`BANK_DETAILS_ROLLBACK_REFUSED`), because they
 would be lost. To drop them knowingly, after a backup that contains them: `SET rof.bank_details_rollback =
-'discard-bank-details';` (kit: `--acknowledge bank-details`). Then mark the migration rolled back, as a separate
-approved step: `npx prisma migrate resolve --rolled-back 20261231000000_user_bank_details`.
+'discard-bank-details';` (kit: `--acknowledge bank-details`). Then, as a separate
+approved step, remove its history row once the table is gone: `DELETE FROM "_prisma_migrations" WHERE migration_name =
+'20261231000000_user_bank_details' AND to_regclass('public."UserBankDetails"') IS NULL;` (not `prisma migrate resolve
+--rolled-back`, which only applies to FAILED migrations and is refused for this one; corrected 2026-11-28).
