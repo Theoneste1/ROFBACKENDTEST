@@ -1895,6 +1895,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/test-submissions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/tests",
     "roles": [
       "HEAD_COACH",
@@ -2098,6 +2107,33 @@
     "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}",
     "roles": [
       "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment/history",
+    "roles": [
       "ADMIN",
       "SUPER_ADMIN"
     ],

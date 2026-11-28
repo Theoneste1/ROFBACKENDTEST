@@ -8053,6 +8053,57 @@
           }
         },
         {
+          "name": "GET /admin/test-submissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/test-submissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "test-submissions"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "q",
+                  "disabled": true,
+                  "description": "Part of the student's first name, last name or username; the student's id; the paper's public code; part of the test title."
+                },
+                {
+                  "key": "subjectId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": "The test's subject (programme)."
+                },
+                {
+                  "key": "level",
+                  "value": "level",
+                  "disabled": true,
+                  "description": "The submission's level (its ranking group): JUNIOR, MIDDLE, SENIOR or another division code."
+                },
+                {
+                  "key": "status",
+                  "value": "SUBMITTED",
+                  "disabled": true,
+                  "description": ""
+                },
+                {
+                  "key": "testId",
+                  "value": "00000000-0000-4000-8000-000000000000",
+                  "disabled": true,
+                  "description": ""
+                }
+              ]
+            },
+            "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
           "name": "GET /admin/tests",
           "request": {
             "method": "GET",
@@ -8885,6 +8936,126 @@
               "query": []
             },
             "description": "**Access:** permission `tests.viewSubmissions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/submissions/{submissionId}/reassignment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions/:submissionId/reassignment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions",
+                ":submissionId",
+                "reassignment"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)"
+          }
+        },
+        {
+          "name": "POST /admin/tests/{id}/submissions/{submissionId}/reassignment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions/:submissionId/reassignment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions",
+                ":submissionId",
+                "reassignment"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"testId\": \"00000000-0000-4000-8000-000000000000\",\n  \"level\": \"level\",\n  \"reason\": \"reason reason\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET /admin/tests/{id}/submissions/{submissionId}/reassignment/history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/tests/:id/submissions/:submissionId/reassignment/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "tests",
+                ":id",
+                "submissions",
+                ":submissionId",
+                "reassignment",
+                "history"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "submissionId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)"
           }
         },
         {

@@ -53872,6 +53872,158 @@
         "description": "**Access:** permission `tests.extensions` (HEAD_COACH, ADMIN, SUPER_ADMIN)"
       }
     },
+    "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment": {
+      "get": {
+        "operationId": "AdminTestSubmissionsController_reassignmentOptions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Reassign a submission (owner 2026-11-28; tests.reassignSubmission: Administrators and Super Administrators only,\nnever grantable): the current test, subject and level, the levels, and every published test as a destination with\nwhether it can take this answer (problem: MARKING_STARTED, DUPLICATE_SUBMISSION, FORMAT_MISMATCH).",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.reassignSubmission",
+        "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)"
+      },
+      "post": {
+        "operationId": "AdminTestSubmissionsController_reassign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReassignSubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Correct the answer's test and/or level { testId, level, reason, expectedTestId? }: the same submission moves (pages,\nanswers, timestamps, history kept; nothing copied or deleted). 400 NO_CHANGE, LEVEL_NOT_FOUND, LEVEL_NOT_IN_TEST,\nFORMAT_MISMATCH; 409 MARKING_STARTED (another test only), DUPLICATE_SUBMISSION, TEST_NOT_PUBLISHED, SUBMISSION_CHANGED,\nNOTHING_SUBMITTED. Audited (TEST_SUBMISSION_REASSIGNED, before / after / reason).",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.reassignSubmission",
+        "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment/history": {
+      "get": {
+        "operationId": "AdminTestSubmissionsController_reassignmentHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "submissionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "The corrections of this answer, newest first: who, when, before, after, reason.",
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.reassignSubmission",
+        "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)"
+      }
+    },
     "/api/v1/admin/tests/{id}/submissions": {
       "get": {
         "operationId": "AdminTestSubmissionsController_list",
@@ -54179,6 +54331,94 @@
         ],
         "x-permission": "tests.authorizeResubmission",
         "description": "**Access:** permission `tests.authorizeResubmission` (ADMIN, SUPER_ADMIN)"
+      }
+    },
+    "/api/v1/admin/test-submissions": {
+      "get": {
+        "operationId": "AdminSubmissionSearchController_search",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Part of the student's first name, last name or username; the student's id; the paper's public code; part of the test title.",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "subjectId",
+            "required": false,
+            "in": "query",
+            "description": "The test's subject (programme).",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "level",
+            "required": false,
+            "in": "query",
+            "description": "The submission's level (its ranking group): JUNIOR, MIDDLE, SENIOR or another division code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUBMITTED",
+                "ASSIGNED",
+                "MARKING_IN_PROGRESS",
+                "MARKED",
+                "APPROVED",
+                "PUBLISHED",
+                "RETURNED",
+                "AWAITING_SECOND_MARKING"
+              ]
+            }
+          },
+          {
+            "name": "testId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Admin · Tests"
+        ],
+        "x-roles": [
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "x-permission": "tests.reassignSubmission",
+        "description": "**Access:** permission `tests.reassignSubmission` (ADMIN, SUPER_ADMIN)"
       }
     },
     "/api/v1/me/tests": {
@@ -63962,6 +64202,36 @@
           }
         },
         "required": [
+          "reason"
+        ]
+      },
+      "ReassignSubmissionDto": {
+        "type": "object",
+        "properties": {
+          "testId": {
+            "type": "string",
+            "description": "The correct test: the current one to correct only the level, or another published test.",
+            "format": "uuid"
+          },
+          "level": {
+            "type": "string",
+            "description": "The correct level (division code); the destination test must be for every level or for this one."
+          },
+          "reason": {
+            "type": "string",
+            "description": "5–500 characters; recorded in the audit log with the values before and after.",
+            "minLength": 5,
+            "maxLength": 500
+          },
+          "expectedTestId": {
+            "type": "string",
+            "description": "The test the reviewer saw the answer under (optional): refused with SUBMISSION_CHANGED if it moved meanwhile.",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "testId",
+          "level",
           "reason"
         ]
       },

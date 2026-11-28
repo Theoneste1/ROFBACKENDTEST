@@ -437,4 +437,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/tests/:id/question-marking/papers/:submissionId/pages/:page  AdminQuestionMarkingController.page': ADMINISTRATORS,
   'POST /api/v1/admin/tests/:id/question-marking/questions/:questionId/wording-correction  AdminQuestionMarkingController.wording': ADMINISTRATORS,
   'POST /api/v1/admin/tests/:id/question-marking/structure-correction  AdminQuestionMarkingController.structure': ADMINISTRATORS,
+  // Reassign a submission (owner 2026-11-28): tests.reassignSubmission — ADMIN and SUPER_ADMIN only, never grantable.
+  'GET /api/v1/admin/test-submissions  AdminSubmissionSearchController.search':                                         ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId/reassignment  AdminTestSubmissionsController.reassignmentOptions': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/submissions/:submissionId/reassignment  AdminTestSubmissionsController.reassign':      ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId/reassignment/history  AdminTestSubmissionsController.reassignmentHistory': ADMINISTRATORS,
 };
