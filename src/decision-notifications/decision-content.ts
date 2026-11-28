@@ -152,7 +152,7 @@ export function decisionEmail(type: string, firstName: string, payload: unknown,
       if (p.activated) {
         return {
           subject, heading: subject, greeting,
-          body: `${approved}\n\nYour account is ready to use: log in with the username and password you chose when you applied.\n\n${ORG}`,
+          body: `${approved}\n\nYour account is ready to use: log in with the username and password you chose when you applied.`,
           action: loginAction(appUrl),
         };
       }
@@ -160,7 +160,7 @@ export function decisionEmail(type: string, firstName: string, payload: unknown,
         subject, heading: subject, greeting,
         body:
           `${approved}\n\nBefore you can log in, please confirm your e-mail address: open the separate e-mail ` +
-          `"Confirm your e-mail address" we have sent you and click its button.\n\n${ORG}`,
+          `"Confirm your e-mail address" we have sent you and click its button.`,
       };
     }
     case DecisionEvents.PermissionsGranted: {

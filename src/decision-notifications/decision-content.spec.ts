@@ -62,6 +62,9 @@ describe('decision notification content', () => {
       expect(waiting.body).not.toContain('ready to use');
       expect(waiting.action).toBeUndefined();
       expect(renderEmail({ greeting: waiting.greeting, body: waiting.body }, BRAND).text).not.toContain('/login');
+      // No sign-off line above the button (owner 2026-11-28): the footer already names the Foundation.
+      expect(active.body.endsWith('when you applied.')).toBe(true);
+      expect(waiting.body.endsWith('click its button.')).toBe(true);
     }
   });
 
