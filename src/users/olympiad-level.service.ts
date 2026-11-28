@@ -5,9 +5,11 @@
  *  - It follows the grade (the active division whose suggested grades hold it: database trigger
  *    student_division_from_grade, on every write path) unless it was set by hand (`divisionManual`).
  *  - Set by hand (MANUAL, with a reason) or returned to the grade's suggestion (AUTOMATIC, with a reason) here, by a
- *    holder of students.classifyLevel: User Managers (Administrators) for every student; Coaches and Head Coaches for
- *    the students of the programmes they belong to / head. Anyone else, or a student outside the caller's programmes:
- *    404 (not revealed). Only an ACTIVE division may be chosen.
+ *    holder of students.classifyLevel: User Managers (Administrators) for every student; Head Coaches for the students
+ *    of the programmes they head. Coaches SEE the level of their programmes' students but never change it (owner
+ *    2026-11-27: a coach edits no student profile data) — 403 COACH_CANNOT_EDIT_STUDENTS, even with an individual
+ *    override. Anyone else, or a student outside the caller's programmes: 404 (not revealed). Only an ACTIVE division
+ *    may be chosen.
  *  - The student's row is locked; the account and its active enrolment change together; every change is kept
  *    (DivisionChange: who, when, why, from and to, the grade then) and audited (OLYMPIAD_LEVEL_CHANGED).
  *  - Results already submitted keep the division they were made in (TestSubmission.level).
@@ -16,7 +18,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../common/auth-user.js';
-import { isAdmin, isCourseWorker, unsupportedRole } from '../common/access/roles.js';
+import { isAdmin, isCoach, isCourseWorker, unsupportedRole } from '../common/access/roles.js';
 import { AppError } from '../common/errors/app-error.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -29,6 +31,9 @@ const PERSON = { select: { id: true, username: true, firstName: true, lastName: 
 const DIVISION = { select: { id: true, code: true, name: true } } as const;
 
 const notFound = () => new AppError(HttpStatus.NOT_FOUND, 'STUDENT_NOT_FOUND', 'Student not found.');
+/** Owner 2026-11-27: a coach never edits a student's profile data (the level included); they only see it. */
+export const coachCannotEdit = () => new AppError(HttpStatus.FORBIDDEN, 'COACH_CANNOT_EDIT_STUDENTS',
+  "Coaches can see a student's profile but cannot change it. Ask a Head Coach or an administrator to change it.");
 
 export interface LevelChangeOutcome { changed: boolean; code?: 'ALREADY_SET' }
 
@@ -103,6 +108,7 @@ export class OlympiadLevelService {
    */
   async setInTx(tx: Tx, studentId: string, dto: SetOlympiadLevelDto & { divisionCode?: string }, actor: AuthUser,
     extra: { operationId?: string } = {}): Promise<LevelChangeOutcome> {
+    if (isCoach(actor)) throw coachCannotEdit();
     const automatic = dto.automatic === true;
     if (automatic && (dto.divisionId !== undefined || dto.divisionCode !== undefined)) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'LEVEL_WITH_AUTOMATIC', 'Give either a division or automatic: true, not both.');

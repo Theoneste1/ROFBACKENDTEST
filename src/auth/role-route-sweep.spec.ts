@@ -133,7 +133,8 @@ describe('role × route sweep (all seven callers)', () => {
  * programme management (P1-10, HC decisions) and, from 2026-11-19, Test Management Phase 1 (tests and marker
  * authorisations in the subjects they head; test/test-management.e2e-spec.ts) and Phase 3 (distribution, review,
  * choosing the mark; test/test-marking.e2e-spec.ts), and from 2026-11-21 a student's Olympiad level (Coaches and Head Coaches:
- * the students of their programmes; test/olympiad-levels.e2e-spec.ts). Each service limits them to the programmes the Head Coach heads (others
+ * the students of their programmes; test/olympiad-levels.e2e-spec.ts — from 2026-11-27 a Coach only SEES it: the PUT
+ * passes the guard but the service refuses every Coach, 403 COACH_CANNOT_EDIT_STUDENTS). Each service limits them to the programmes the Head Coach heads (others
  * are not revealed): test/head-coach-programme, head-coach-monitoring and head-coach-course-work e2e specs.
  */
 const COACH_ADMIN_ROUTES: string[] = [
