@@ -311,6 +311,12 @@ export const FEATURES = {
    */
   managedBanks: 'always',
   /**
+   * Session inactivity (owner 2026-11-28): a session ends after 60 minutes without user activity. The browser reports
+   * activity with POST /auth/activity (at most once a minute; never for background requests); a refresh past the limit
+   * answers 401 SESSION_IDLE_EXPIRED and an access token never outlives the session's inactivity deadline.
+   */
+  sessionIdleTimeout: 'always',
+  /**
    * Administrator-managed divisions (owner 2026-11-22): POST /admin/divisions; PATCH with suggestedGrades and sortOrder
    * (grades given to a division are taken from the one that had them); deactivation guarded; GET / PUT
    * /admin/divisions/:id/courses (which courses a division offers; students see only those);

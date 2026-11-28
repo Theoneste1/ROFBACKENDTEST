@@ -112,6 +112,24 @@ export class AuthController {
     return tokens;
   }
 
+  // ─── Activity (the 60-minute inactivity limit; owner 2026-11-28) ────────────
+  /**
+   * The browser reports that the person did something (click, typing, scrolling, touch) — at most once a minute, and
+   * never for background requests, polling or refreshes. Moves the session's inactivity deadline forward; a refresh
+   * never does. Needs both the access token (whose user must own the session) and the refresh cookie (which session).
+   * 401 SESSION_IDLE_EXPIRED once the session has ended: it cannot be revived.
+   */
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('activity')
+  @Authenticated()
+  @AllowedBeforeDateOfBirth()
+  @AllowedBeforeBankingDetails()
+  activity(@Body() body: RefreshTokenDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.authService.recordActivity(body.refreshToken ?? req.cookies?.[REFRESH_COOKIE], user);
+  }
+
   // ─── Logout (current session; public — authenticated by the refresh token) ─
   /**
    * Public so that signing out also works after the access token has expired
