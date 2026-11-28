@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Injectable, Optional, UnauthorizedException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
@@ -19,6 +19,8 @@ import { ActivationService } from './activation.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { SESSION_IDLE_MINUTES, TokenService, hashToken, type ClientInfo } from './token.service.js';
+import { PermissionService } from './permission.service.js';
+import { authUserSelect, toAuthUser } from './strategies/jwt.strategy.js';
 import { RegisterStudentDto } from './dto/register-student.dto.js';
 import { RegisterAdminDto } from './dto/register-admin.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -106,6 +108,8 @@ export class AuthService {
     private readonly forms:         FormAvailabilityService,
     private readonly limiter:       LoginLimiter,
     private readonly registrationAvatar: RegistrationAvatarService,
+    // Optional so hand-built test instances need not provide it; Nest always injects it (PermissionsModule is global).
+    @Optional() private readonly permissionSummary?: PermissionService,
   ) {}
 
   // ─── Student Registration ──────────────────────────────────────────────────
@@ -388,9 +392,22 @@ export class AuthService {
 
   // ─── Refresh / Logout ──────────────────────────────────────────────────────
 
+  /**
+   * A new token pair, and the signed-in user's profile (the same as GET /me), so a page load needs one round trip
+   * instead of two before it can show anything (performance, 2026-11-28: every request from Rwanda to the API costs
+   * ~0.45 s). With it the permission summary (GET /me/permissions), so the portal renders complete at once — its menus
+   * never fill in a round trip later. Additive: clients that ignore `user` and `permissions` behave as before.
+   */
   async refresh(refreshToken: string, client: ClientInfo) {
-    const { tokens } = await this.tokens.rotate(refreshToken, client);
-    return tokens;
+    const { userId, tokens } = await this.tokens.rotate(refreshToken, client);
+    const [profile, authRow] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: PROFILE_WITH_STEPS_SELECT }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: authUserSelect() }),
+    ]);
+    if (!profile || !authRow) return tokens;
+    // The same summary as GET /me/permissions, for the same user object a request with this access token would carry.
+    const permissions = this.permissionSummary ? await this.permissionSummary.describe(toAuthUser(authRow, {})) : undefined;
+    return { ...tokens, user: withProfileSteps(profile), ...(permissions && { permissions }) };
   }
 
   /**
