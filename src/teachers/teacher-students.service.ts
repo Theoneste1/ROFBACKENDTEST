@@ -37,9 +37,12 @@ import { activeGrantsOf, delegationCovers, teacherStudentsWhere, visibilityOf, v
 /** The three delegations, by the short names the list returns. */
 const DELEGATION_KEYS = { 'students.viewProfile': 'viewProfile', 'students.viewProgress': 'viewProgress', 'submissions.submitOnBehalf': 'submitOnBehalf' } as const;
 
-/** The default list (students.viewScoped): name, username, grade, division, school — nothing else. */
+/**
+ * The default list (students.viewScoped): name, username, profile picture, grade, division, school — nothing else. The
+ * picture (owner 2026-11-27) is served by GET /users/:id/avatar, which lets the Teachers of the student's school see it.
+ */
 const STUDENT_SELECT = {
-  id: true, username: true, firstName: true, lastName: true, gradeLevel: true,
+  id: true, username: true, firstName: true, lastName: true, avatarUrl: true, gradeLevel: true,
   division: { select: { id: true, code: true, name: true } },
   school:   { select: { id: true, name: true, location: true } },
 } as const;

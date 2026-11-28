@@ -78,6 +78,8 @@ describe('Teacher–student access (TS-1…TS-6)', () => {
     const ids = list.body.data.map((s: any) => s.id);
     expect(ids).toEqual(expect.arrayContaining([ctx.ids.studentJunior, ctx.ids.studentJunior2, ctx.ids.studentSenior, pendingId]));
     expect(ids).not.toContain(notMemberId);
+    // Each row carries the student's profile picture link (owner 2026-11-27); /users/:id/avatar decides who sees it.
+    expect(list.body.data.every((s: any) => 'avatarUrl' in s)).toBe(true);
     expect(ids).not.toContain(oId);
     expect(list.body.data[0]).toMatchObject({ access: { school: true, assigned: false }, can: { viewProfile: false, viewProgress: false, submitOnBehalf: false } });
     const sum = await http().get('/api/v1/teacher/students/summary').set(bearer(t1)).expect(200);
