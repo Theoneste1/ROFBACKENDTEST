@@ -333,6 +333,25 @@ describe('Submission reports (e2e)', () => {
     expect(shared.actorId).toBe(ctx.ids.admin);
   });
 
+  it('a school grant shows that school only: a teacher of two schools sees the granted school\'s students, not the other\'s; a role grant shows both', async () => {
+    const extra = await p().teacherSchoolAssignment.create({ data: { teacherId: teacherAId, schoolId: otherSchool, assignedById: ctx.ids.admin } });
+    try {
+      await setGrants(admin, [{ schoolId: testSchool, canView: true, canDownload: true, canEdit: false }]).expect(200);
+      const viaSchool = (await run(teacherA).expect(200)).body;
+      expect(new Set(rowsOf(viaSchool).map((row) => row[col(viaSchool, 'school')]))).toEqual(new Set(['Test School']));
+      const s = (await http().get(`${R}/${report}/summary`).set(bearer(teacherA)).expect(200)).body;
+      expect(s.total).toBe(viaSchool.meta.total);
+      const csv = (await http().get(`${R}/${report}/export`).query({ format: 'csv' }).set(bearer(teacherA)).expect(200)).text;
+      expect(csv).not.toContain('Other School');
+      await setGrants(admin, [{ role: 'TEACHER', canView: true, canDownload: false, canEdit: false }]).expect(200);
+      const viaRole = (await run(teacherA).expect(200)).body;
+      expect(new Set(rowsOf(viaRole).map((row) => row[col(viaRole, 'school')]))).toEqual(new Set(['Test School', 'Other School']));
+    } finally {
+      await p().teacherSchoolAssignment.update({ where: { id: extra.id }, data: { isActive: false, endedAt: new Date() } });
+      await setGrants(admin, [{ schoolId: testSchool, canView: true, canDownload: false, canEdit: false }]).expect(200);
+    }
+  });
+
   it('realistic data: 48 students in two schools, every subject and level, corrections — counted once each; the PDF runs to several numbered pages; totals agree', async () => {
     const pw = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
     const divisions = Object.fromEntries((await p().division.findMany({ select: { id: true, code: true } })).map((d) => [d.code, d.id]));

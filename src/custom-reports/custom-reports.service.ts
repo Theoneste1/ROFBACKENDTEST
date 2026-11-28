@@ -56,7 +56,14 @@ import { cellText, documentCell, renderPdf, renderXlsx, type Cell, type ReportDo
 export const EXPORT_MAX_ROWS = 20_000;
 const PERSON = { select: { id: true, firstName: true, lastName: true, username: true } } as const;
 
-export interface Levels { view: boolean; download: boolean; edit: boolean; manage: boolean }
+export interface Levels {
+  view: boolean; download: boolean; edit: boolean; manage: boolean;
+  /**
+   * Access through school grants only (owner 2026-11-28): the rows are further limited to the students of THOSE schools
+   * (a teacher of schools A and B with a report shared with school A sees A's students only). Absent: no such limit.
+   */
+  onlySchools?: string[];
+}
 const NONE: Levels = { view: false, download: false, edit: false, manage: false };
 const ALL: Levels = { view: true, download: true, edit: true, manage: true };
 
@@ -88,7 +95,10 @@ export class CustomReportsService {
       && (g.userId === viewer.id || g.role === viewer.role || (!!g.schoolId && viewer.role === 'TEACHER' && schools.has(g.schoolId))));
     if (!mine.length || viewer.role === 'STUDENT') return NONE;
     const edit = mine.some((g) => g.canEdit);
-    return { view: edit || mine.some((g) => g.canView || g.canDownload), download: mine.some((g) => g.canDownload), edit, manage: false };
+    const levels: Levels = { view: edit || mine.some((g) => g.canView || g.canDownload), download: mine.some((g) => g.canDownload), edit, manage: false };
+    // Only school grants apply: the rows are limited to those schools' students (never a widening; an intersection).
+    if (mine.every((g) => !!g.schoolId)) levels.onlySchools = [...new Set(mine.map((g) => g.schoolId!))];
+    return levels;
   }
 
   /**
@@ -321,9 +331,19 @@ export class CustomReportsService {
   }
 
   /** One page of rows for a definition, within the viewer's scope. */
-  private async page(d: ReportDefinition, viewer: AuthUser, page: number, limit: number, reportId: string | null = null) {
+  /** The viewer's scope, further limited to the granted schools when their access is through school grants only. */
+  private async rowScope(viewer: AuthUser, src: SourceDef, onlySchools?: string[]): Promise<object> {
+    const scope = await this.scopeFor(viewer, src);
+    if (!onlySchools) return scope;
+    const students = schoolStudentsWhere(onlySchools);
+    if (src.scope === 'submissions') return { AND: [scope, { student: students }] };
+    if (src.scope === 'people') return { AND: [scope, students] };
+    return { AND: [scope, { [src.idField ?? 'id']: { in: [] } }] };
+  }
+
+  private async page(d: ReportDefinition, viewer: AuthUser, page: number, limit: number, reportId: string | null = null, onlySchools?: string[]) {
     const src = SOURCES[d.source];
-    const where = definitionWhere(d, await this.scopeFor(viewer, src));
+    const where = definitionWhere(d, await this.rowScope(viewer, src, onlySchools));
     const t = this.table(src);
     const [rows, total] = await Promise.all([
       t.findMany({ where, select: src.select, orderBy: definitionOrder(d), skip: (page - 1) * limit, take: limit }),
@@ -353,19 +373,21 @@ export class CustomReportsService {
 
   /** Run a saved report (view level). */
   async run(id: string, viewer: AuthUser, page = 1, limit = 50) {
-    const { r } = await this.load(id, viewer);
-    const result = await this.page(this.definitionOf(r), viewer, page, limit, r.id);
+    const { r, levels } = await this.load(id, viewer);
+    const result = await this.page(this.definitionOf(r), viewer, page, limit, r.id, levels.onlySchools);
     // The access log (owner 2026-11-28): every view, by whom, which page and how many rows they could see.
     await this.audit.log({ actorId: viewer.id, actorRole: viewer.role, action: 'REPORT_VIEWED', entity: 'CustomReport', entityId: id, metadata: { name: r.name, page, total: result.meta.total } });
     return { report: { id: r.id, name: r.name }, ...result };
   }
 
   /** The rows of a saved report for a document (capped; within the viewer's scope). */
-  private async allRows(id: string, viewer: AuthUser) {
+  private async allRows(id: string, viewer: AuthUser, need: 'view' | 'download' = 'view') {
     const { r, levels } = await this.load(id, viewer);
+    // Checked before any row is read (a view-only user never makes the server read a whole export).
+    if (need === 'download' && !levels.download) throw forbidden('download');
     const d = this.definitionOf(r);
     const src = SOURCES[d.source];
-    const where = definitionWhere(d, await this.scopeFor(viewer, src));
+    const where = definitionWhere(d, await this.rowScope(viewer, src, levels.onlySchools));
     const t = this.table(src);
     const total = await t.count({ where });
     if (total > EXPORT_MAX_ROWS) {
@@ -404,8 +426,7 @@ export class CustomReportsService {
 
   /** Download a saved report as CSV, Excel or PDF (download level), with ROF formatting. Capped at EXPORT_MAX_ROWS; audited. */
   async export(id: string, format: 'csv' | 'xlsx' | 'pdf', viewer: AuthUser, res: Response) {
-    const { r, levels, d, src, raw } = await this.allRows(id, viewer);
-    if (!levels.download) throw forbidden('download');
+    const { r, d, src, raw } = await this.allRows(id, viewer, 'download');
     const headers = this.headers(d, viewer).map((h) => h.label);
     const data = raw.map((x) => cells(d, x, viewer.role === 'SUPER_ADMIN'));
     await this.auditPersonal(d, viewer, id, `export ${format}`);
