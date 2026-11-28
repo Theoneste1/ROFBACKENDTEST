@@ -120,7 +120,8 @@ describe('AvatarService', () => {
     }
     const m = make({ user: { role: 'SUPER_ADMIN', avatarFile: file } });
     await m.service.send('sa', { id: 'sa2', role: 'SUPER_ADMIN' } as never, {} as never);
-    expect(m.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, max-age=86400' });
+    // Never kept in a browser cache: a shared computer's next user must not see it without the server's check.
+    expect(m.storage.send).toHaveBeenCalledWith({}, file, { cacheControl: 'private, no-store' });
   });
 
   it('serving: 404 without a picture; otherwise the file with the versioned cache header', async () => {

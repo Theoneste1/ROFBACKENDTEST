@@ -96,8 +96,13 @@ export class AvatarService {
     });
     const notFound = () => new NotFoundException('This account has no profile picture.');
     if (!user?.avatarFile) throw notFound();
-    // A Super Administrator's picture (Super Administrator privacy, owner 2026-11-28): Super Administrators only.
+    // A Super Administrator's picture (Super Administrator privacy, owner 2026-11-28): Super Administrators only, and
+    // never kept in a browser cache (the next person on a shared computer must not see it without the server's check).
     if (isHiddenAccount(viewer, user)) throw notFound();
+    if (user.role === 'SUPER_ADMIN') {
+      await this.storage.send(res, user.avatarFile, { cacheControl: STUDENT_AVATAR_CACHE_CONTROL });
+      return;
+    }
     if (user.role !== 'STUDENT') {
       await this.storage.send(res, user.avatarFile, { cacheControl: AVATAR_CACHE_CONTROL });
       return;

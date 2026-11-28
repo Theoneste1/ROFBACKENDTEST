@@ -136,3 +136,52 @@ export function maskSuperAdmins<T>(body: T, hidden: ReadonlySet<string>): T {
   };
   return walk(body, 0) as T;
 }
+
+// ─── Masking actor fields (audit-style rows: { actorUsername, actorRole: 'SUPER_ADMIN' }) ────────────────────────────
+
+/**
+ * A key that names the role of whoever acted, with its prefix: "actorRole" → "actor", "byRole" → "by", and the
+ * registration timeline's plain "actor" (whose value is a role). The user's own `role` is not one (users are masked by id).
+ */
+function actorRolePrefix(key: string): string | null {
+  if (key === 'actor') return 'actor';
+  const m = /^([a-z][A-Za-z]*)Role$/.exec(key);
+  return m ? m[1] : null;
+}
+
+/**
+ * A copy of the body where every audit-style actor that was a Super Administrator is shown as "ROF Administration":
+ * `<prefix>Role` (or `actor`) 'SUPER_ADMIN' → 'ADMIN'; `<prefix>Username` → 'rof.administration'; `<prefix>Name`,
+ * `<prefix>FullName` → 'ROF Administration'; `<prefix>Email` → null; a plain-string `<prefix>` (e.g. `by: "Ada U."`) →
+ * 'ROF Administration'. Needs no lookup (the role is in the row). Objects keyed by id are handled by maskSuperAdmins.
+ */
+export function maskSuperAdminActors<T>(body: T): T {
+  const walk = (v: unknown, depth: number): unknown => {
+    if (depth > 64) return v;
+    if (Array.isArray(v)) {
+      let changed = false;
+      const out = v.map((x) => { const y = walk(x, depth + 1); if (y !== x) changed = true; return y; });
+      return changed ? out : v;
+    }
+    if (!isPlainObject(v)) return v;
+    let changed = false;
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(v)) {
+      const y = walk(v[k], depth + 1);
+      if (y !== v[k]) changed = true;
+      out[k] = y;
+    }
+    for (const k of Object.keys(out)) {
+      const prefix = actorRolePrefix(k);
+      if (prefix === null || out[k] !== HIDDEN_ROLE) continue;
+      changed = true;
+      out[k] = ROF_ADMINISTRATION.role;
+      if (k !== 'actor' && typeof out[prefix] === 'string') out[prefix] = 'ROF Administration';
+      for (const [suffix, value] of [['Username', ROF_ADMINISTRATION.username], ['Name', 'ROF Administration'], ['FullName', 'ROF Administration'], ['Email', null]] as const) {
+        if (Object.hasOwn(out, prefix + suffix)) out[prefix + suffix] = value;
+      }
+    }
+    return changed ? out : v;
+  };
+  return walk(body, 0) as T;
+}

@@ -1,7 +1,7 @@
 import { lastValueFrom, of } from 'rxjs';
 
 import {
-  containsUserShape, hiddenRoleFilter, isHiddenAccount, maskSuperAdmins, maskedUser, NOT_SUPER_ADMIN, seesSuperAdmins, visibleUsersWhere,
+  containsUserShape, hiddenRoleFilter, isHiddenAccount, maskSuperAdminActors, maskSuperAdmins, maskedUser, NOT_SUPER_ADMIN, seesSuperAdmins, visibleUsersWhere,
 } from './super-admin-privacy.js';
 import { isSignInRoute, SuperAdminPrivacyInterceptor } from './super-admin-privacy.interceptor.js';
 
@@ -143,5 +143,41 @@ describe('SuperAdminPrivacyInterceptor', () => {
     const { interceptor } = make([]);
     const out = await lastValueFrom(interceptor.intercept(ctx({ id: 'v', role: 'ADMIN' }), { handle: () => of(body()) }));
     expect(out).toEqual(body());
+  });
+});
+
+describe('Super Administrator privacy — audit-style actor rows (review 2026-11-28)', () => {
+  const make = () => ({ interceptor: new SuperAdminPrivacyInterceptor({ user: { findMany: vi.fn().mockResolvedValue([]) } } as never) });
+  const ctx = (user: unknown) => ({ getType: () => 'http', switchToHttp: () => ({ getRequest: () => ({ user, originalUrl: '/api/v1/admin/forms/X/history' }) }) }) as never;
+  it('registration timeline / forms / school history rows: the role and the username of a Super Administrator actor are neutral', () => {
+    const rows = [
+      { id: 'a1', action: 'CREATE_ADMIN_ACCOUNT', actor: 'SUPER_ADMIN', actorUsername: 'sa.one', at: '2026-11-28' },
+      { id: 'a2', action: 'FORM_OPENED', actorId: 'sa-id', actorUsername: 'sa.one', actorRole: 'SUPER_ADMIN' },
+      { id: 'a3', action: 'SCHOOL_EDITED', actorUsername: 'ad.min', actorRole: 'ADMIN' },
+      { id: 'a4', by: 'Gracious Owner', byRole: 'SUPER_ADMIN', byName: 'Gracious Owner', byEmail: 'sa@x' },
+    ];
+    expect(maskSuperAdminActors({ events: rows })).toEqual({ events: [
+      { id: 'a1', action: 'CREATE_ADMIN_ACCOUNT', actor: 'ADMIN', actorUsername: 'rof.administration', at: '2026-11-28' },
+      { id: 'a2', action: 'FORM_OPENED', actorId: 'sa-id', actorUsername: 'rof.administration', actorRole: 'ADMIN' },
+      { id: 'a3', action: 'SCHOOL_EDITED', actorUsername: 'ad.min', actorRole: 'ADMIN' },
+      { id: 'a4', by: 'ROF Administration', byRole: 'ADMIN', byName: 'ROF Administration', byEmail: null },
+    ] });
+  });
+
+  it('leaves everything else alone (the user role field, other values; nothing to mask gives the same object)', () => {
+    const body = { user: { id: 'u', role: 'ADMIN' }, roles: ['SUPER_ADMIN'], actorRole: 'ADMIN', note: 'SUPER_ADMIN' };
+    expect(maskSuperAdminActors(body)).toBe(body);
+  });
+
+  it('the interceptor applies it for every non-Super-Administrator viewer, never for a Super Administrator', async () => {
+    const row = () => ({ actorUsername: 'sa.one', actorRole: 'SUPER_ADMIN' });
+    for (const role of ['ADMIN', 'HEAD_COACH', 'MENTOR', 'TEACHER', 'STUDENT']) {
+      const { interceptor } = make();
+      const out = await lastValueFrom(interceptor.intercept(ctx({ id: 'v', role }), { handle: () => of(row()) }));
+      expect(out).toEqual({ actorUsername: 'rof.administration', actorRole: 'ADMIN' });
+    }
+    const { interceptor } = make();
+    const out = await lastValueFrom(interceptor.intercept(ctx({ id: 'sa', role: 'SUPER_ADMIN' }), { handle: () => of(row()) }));
+    expect(out).toEqual(row());
   });
 });

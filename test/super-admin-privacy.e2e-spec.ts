@@ -506,4 +506,76 @@ describe('Super Administrator privacy', () => {
       expect((await p().user.findUniqueOrThrow({ where: { id: saOne } })).role).toBe('SUPER_ADMIN');
     });
   });
+
+  // ─── Independent review 2026-11-28: audit-style rows, notifications, other references by id ───────────────────────
+
+  describe('review 2026-11-28: no Super Administrator name, username or role in histories, notifications or answers by id', () => {
+    // Two Super Administrators of these tests' own (earlier tests demote and suspend sa.one / sa.two, ending their sessions).
+    let rvId: string; let rvToken: string; let rv2Token: string; let adminToken: string;
+    beforeAll(async () => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      const mk = (username: string, firstName: string) => p().user.create({ data: {
+        username, firstName, lastName: 'Reviewowner', email: `${username}@test.local`, role: 'SUPER_ADMIN', passwordHash: hash, activatedAt: new Date(),
+      } });
+      rvId = (await mk('sa.review', 'Hiddenname')).id;
+      await mk('sa.review2', 'Second');
+      rvToken = await login(ctx, 'sa.review');
+      rv2Token = await login(ctx, 'sa.review2');
+      adminToken = await login(ctx, 'admin');
+    });
+    const leaks = (body: unknown) => {
+      const text = JSON.stringify(body);
+      return ['sa.review', 'Hiddenname', 'Reviewowner', 'SUPER_ADMIN'].filter((x) => text.includes(x));
+    };
+
+    it('a form’s history: a Super Administrator’s change shows as ROF Administration (ADMIN) to an Administrator; real to a Super Administrator', async () => {
+      await http().patch('/api/v1/admin/forms/CONTACT/availability').set(bearer(rvToken)).send({ mode: 'SCHEDULED', opensAt: '2030-01-01T06:00:00.000Z' }).expect(200);
+      await http().patch('/api/v1/admin/forms/CONTACT/availability').set(bearer(rvToken)).send({ mode: 'OPEN' }).expect(200);
+      const asAdmin = (await http().get('/api/v1/admin/forms/CONTACT/history').set(bearer(adminToken)).expect(200)).body;
+      expect(leaks(asAdmin)).toEqual([]);
+      expect(JSON.stringify(asAdmin)).toContain('rof.administration');
+      const asSa = (await http().get('/api/v1/admin/forms/CONTACT/history').set(bearer(rv2Token)).expect(200)).body;
+      expect(JSON.stringify(asSa)).toContain('sa.review');
+    });
+
+    it('a visible user’s registration timeline and status history: the Super Administrator actor is neutral for an Administrator', async () => {
+      const target = ctx.ids.studentJunior2;
+      for (const toStatus of ['SUSPENDED', 'ACTIVE']) {
+        await http().post(`/api/v1/admin/users/${target}/status-changes`).set(bearer(rvToken)).send({ toStatus, reason: 'Privacy review test' }).expect(200);
+      }
+      const timeline = (await http().get(`/api/v1/admin/users/${target}/registration-timeline`).set(bearer(adminToken)).expect(200)).body;
+      const history = (await http().get(`/api/v1/admin/users/${target}/status-history`).set(bearer(adminToken)).expect(200)).body;
+      expect(leaks(timeline)).toEqual([]);
+      expect(leaks(history)).toEqual([]);
+      // The Super Administrator still sees who did it.
+      const saTimeline = (await http().get(`/api/v1/admin/users/${target}/registration-timeline`).set(bearer(rv2Token)).expect(200)).body;
+      expect(JSON.stringify(saTimeline)).toContain('sa.review');
+    });
+
+    it('a discussion notification names "ROF Administration", never the Super Administrator', async () => {
+      const t = await http().post(`/api/v1/courses/${ctx.ids.algebra}/threads`).set(bearer(student))
+        .send({ title: 'Privacy review thread', content: 'A question' }).expect(201);
+      await http().post(`/api/v1/threads/${t.body.id}/comments`).set(bearer(rvToken)).send({ content: 'An answer' }).expect(201);
+      let notice: any;
+      for (let i = 0; i < 50 && !notice; i++) {
+        const list = (await http().get('/api/v1/notifications').set(bearer(student)).expect(200)).body;
+        notice = (list.data ?? list).find((n: any) => String(n.body ?? '').includes('Privacy review thread'));
+        if (!notice) await new Promise((r) => setTimeout(r, 100));
+      }
+      expect(notice?.body).toBe('ROF Administration posted in "Privacy review thread".');
+      expect(leaks(notice)).toEqual([]);
+    });
+
+    it('programme membership and teacher–student assignment answer for a Super Administrator id exactly as for an unknown id', async () => {
+      const maths = (await p().discipline.findUniqueOrThrow({ where: { code: 'MATHEMATICS' } })).id;
+      await sameAsUnknown((id) => http().post(`/api/v1/admin/programmes/${maths}/members`).set(bearer(adminToken)).send({ userId: id }), rvId);
+      await sameAsUnknown((id) => http().delete(`/api/v1/admin/programmes/${maths}/members/${id}`).set(bearer(adminToken)), rvId);
+      const teacherId = (await p().user.findUniqueOrThrow({ where: { username: 'priv.teacher' } })).id;
+      const assign = async (id: string) => (await http().post('/api/v1/admin/teacher-students').set(bearer(adminToken)).send({ teacherId, studentIds: [id] })).body;
+      const a = JSON.stringify(await assign(rvId)).split(rvId).join(':id');
+      const b = JSON.stringify(await assign(UNKNOWN)).split(UNKNOWN).join(':id');
+      expect(a).toEqual(b);
+      expect(a).toContain('NOT_FOUND');
+    });
+  });
 });
