@@ -232,4 +232,74 @@ describe('Reassign a submission (e2e)', () => {
     expect(await p().testQuestionTask.findMany({ where: { submissionId: sub.id }, select: { id: true, status: true, questionId: true } })).toEqual(tasksBefore);
     await http().post(`/api/v1/marking/tasks/${sub.publicCode}/q1/release`).set(bearer(coach)).send({});
   });
+
+  it('paper marking, approved and PUBLISHED: a level-only correction keeps the marker assignment, marking, marks and publication; rankings regroup with the same total; report unchanged; another test refused; the student still cannot submit elsewhere', async () => {
+    // A paper-marked test for every level (questions 5 + 15 = 20).
+    const created = await http().post(T).set(bearer(admin)).send({
+      title: 'RA Paper round', subjectId: maths, division: 'ALL', answerFormat: 'BOTH', opensAt: minutes(-60), closesAt: minutes(120),
+      maxMarks: 20, questions: [{ prompt: 'Q one', maxMarks: 5 }, { prompt: 'Q two', maxMarks: 15 }],
+    }).expect(201);
+    const id = created.body.id as string;
+    await http().post(`${T}/${id}/publish`).set(bearer(admin)).expect(200);
+    const q = (await p().testQuestion.findMany({ where: { testId: id }, orderBy: { order: 'asc' } })).map((x) => x.id);
+    for (const token of [sj, ss]) await http().post(`/api/v1/me/tests/${id}/submission`).set(bearer(token)).send({ clientKey: randomUUID(), typedAnswer: 'Paper answer' }).expect(201);
+    await p().$executeRaw`UPDATE "Test" SET "closesAt" = (clock_timestamp() AT TIME ZONE 'UTC') - interval '1 second', "opensAt" = (clock_timestamp() AT TIME ZONE 'UTC') - interval '2 hours' WHERE "id" = ${id}`;
+    const marker = await p().user.findUniqueOrThrow({ where: { username: 'mentor.j' } });
+    if (!(await p().markerAuthorization.count({ where: { coachId: marker.id, disciplineId: maths, revokedAt: null } }))) {
+      await http().post('/api/v1/admin/test-markers').set(bearer(admin)).send({ coachId: marker.id, subjectId: maths }).expect(201);
+    }
+    await http().post(`${T}/${id}/marking/distribute`).set(bearer(admin)).send({ coachIds: [marker.id] }).expect(200);
+    const markIt = async (studentId: string, a: number, b: number) => {
+      const code = (await p().testSubmission.findUniqueOrThrow({ where: { testId_studentId: { testId: id, studentId } } })).publicCode;
+      const body = { scores: [{ questionId: q[0], marks: a }, { questionId: q[1], marks: b }], comment: null };
+      await http().put(`/api/v1/marking/submissions/${code}/marking`).set(bearer(coach)).send(body).expect(200);
+      await http().post(`/api/v1/marking/submissions/${code}/marking/submit`).set(bearer(coach)).send(body).expect(200);
+    };
+    await markIt(ctx.ids.studentJunior, 4, 13);   // 17
+    await markIt(ctx.ids.studentSenior, 5, 10);   // 15
+    for (const st of [ctx.ids.studentJunior, ctx.ids.studentSenior]) {
+      const s = await p().testSubmission.findUniqueOrThrow({ where: { testId_studentId: { testId: id, studentId: st } } });
+      await http().post(`${T}/${id}/marking/submissions/${s.id}/approve`).set(bearer(admin)).send({}).expect(200);
+    }
+    await http().post(`${T}/${id}/results/publish`).set(bearer(admin)).send({}).expect(200);
+    const sub = await p().testSubmission.findUniqueOrThrow({ where: { testId_studentId: { testId: id, studentId: ctx.ids.studentJunior } } });
+    expect(sub.status).toBe('PUBLISHED');
+    expect(sub.level).toBe('JUNIOR');
+
+    const snapshot = async () => ({
+      row: await p().testSubmission.findUniqueOrThrow({ where: { id: sub.id }, select: { testId: true, status: true, finalMarkingId: true, publicationId: true, publishedAt: true, versionCount: true, currentVersionId: true, firstSubmittedAt: true } }),
+      assignments: await p().testMarkerAssignment.findMany({ where: { submissionId: sub.id }, orderBy: { id: 'asc' } }),
+      markings: await p().testMarking.findMany({ where: { submissionId: sub.id }, orderBy: { id: 'asc' } }),
+      scores: await p().testMarkingScore.findMany({ where: { marking: { submissionId: sub.id } }, orderBy: { id: 'asc' } }),
+      history: await p().testSubmissionStatusChange.findMany({ where: { submissionId: sub.id }, orderBy: { createdAt: 'asc' } }),
+    });
+    const ranks = async () => (await http().get(`${T}/${id}/results/rankings?by=division`).set(bearer(admin)).expect(200)).body.data
+      .map((r: any) => [r.group.division, r.student.id, r.rank, r.totalMarks]);
+    const report = async () => { const r = (await http().get(`${T}/${id}/results/report`).set(bearer(admin)).expect(200)).body; return { counts: r.counts, summary: r.summary }; };
+    const before = await snapshot();
+    expect(before.assignments.length).toBeGreaterThan(0);
+    expect(before.markings.length).toBeGreaterThan(0);
+    expect(await ranks()).toEqual([['JUNIOR', ctx.ids.studentJunior, 1, 17], ['SENIOR', ctx.ids.studentSenior, 1, 15]]);
+    const reportBefore = await report();
+    const resultBefore = (await http().get(`/api/v1/me/test-results/${id}`).set(bearer(sj)).expect(200)).body;
+
+    // Another test: refused, nothing changes.
+    const move = await reassign(admin, id, sub.id, { testId: mathsSenior, level: 'SENIOR', reason: 'Should be Senior Mathematics' });
+    expect([move.status, move.body.code]).toEqual([409, 'MARKING_STARTED']);
+    expect(move.body.details).toMatchObject({ published: true });
+    expect(await snapshot()).toEqual(before);
+
+    // The level only: allowed; everything marking-related identical; the ranking group follows; the totals are the same.
+    await reassign(admin, id, sub.id, { testId: id, level: 'SENIOR', reason: 'Student is in the Senior level' }).expect(200);
+    expect(await snapshot()).toEqual(before);
+    expect((await p().testSubmission.findUniqueOrThrow({ where: { id: sub.id } })).level).toBe('SENIOR');
+    expect(await ranks()).toEqual([['SENIOR', ctx.ids.studentJunior, 1, 17], ['SENIOR', ctx.ids.studentSenior, 2, 15]]);
+    expect(await report()).toEqual({ counts: reportBefore.counts, summary: reportBefore.summary });
+    // The student's published result is unchanged.
+    expect((await http().get(`/api/v1/me/test-results/${id}`).set(bearer(sj)).expect(200)).body).toEqual(resultBefore);
+    // Seeing a test of another level never allows submitting to it: the Junior student cannot answer the Senior-only test.
+    const other = await http().post(`/api/v1/me/tests/${mathsSenior}/submission`).set(bearer(sj2)).send({ clientKey: randomUUID(), typedAnswer: 'Not my level' });
+    expect(other.status).toBe(404);
+    expect(await p().testSubmission.count({ where: { testId: mathsSenior, studentId: ctx.ids.studentJunior2 } })).toBe(0);
+  });
 });

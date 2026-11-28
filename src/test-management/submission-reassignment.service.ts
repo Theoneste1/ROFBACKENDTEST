@@ -111,7 +111,8 @@ export class SubmissionReassignmentService {
     const [divisions, tests, taken] = await Promise.all([
       this.prisma.division.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }], select: { code: true, name: true } }),
       this.prisma.test.findMany({
-        where: { status: 'PUBLISHED' }, orderBy: [{ discipline: { name: 'asc' } }, { title: 'asc' }],
+        // Every published test, and always the current one (a level-only correction needs it).
+        where: { OR: [{ status: 'PUBLISHED' }, { id: sub.testId }] }, orderBy: [{ discipline: { name: 'asc' } }, { title: 'asc' }],
         select: { id: true, title: true, division: true, answerFormat: true, status: true, closesAt: true, discipline: { select: { id: true, code: true, name: true } } },
       }),
       this.prisma.testSubmission.findMany({ where: { studentId: sub.studentId }, select: { testId: true } }),
