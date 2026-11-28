@@ -210,7 +210,7 @@ export class QuestionMarkerService {
     // The latest return of this question: a review's return, or a reopen that sent it back (review 2026-11-28: a reopen
     // records REOPENED; without it the coach saw an older reason, or none).
     const returned = await this.prisma.testTaskEvent.findFirst({
-      where: { taskId: t.id, OR: [{ action: 'RETURNED' }, { action: 'REOPENED', toStatus: 'RETURNED' }] },
+      where: { taskId: t.id, OR: [{ action: { equals: 'RETURNED' } }, { action: { equals: 'REOPENED' }, toStatus: 'RETURNED' }] },
       orderBy: { createdAt: 'desc' }, select: { reason: true },
     });
     if (acc.live && acc.claimId) await logCoachAccess(this.prisma, acc.claimId, 'PAPER_OPENED', 0);
