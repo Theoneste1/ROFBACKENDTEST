@@ -82,7 +82,28 @@ export class CustomReportsController {
     return this.reports.run(id, user, q.page, q.limit);
   }
 
-  /** CSV or Excel (download level). */
+  /** Summary statistics: the row count and the counts by the source's summary fields (view level). */
+  @Get(':id/summary')
+  @Authenticated()
+  summary(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.reports.summary(id, user);
+  }
+
+  /** Every view, download and change of access, newest first (who may manage its access). */
+  @Get(':id/access-log')
+  @Authenticated()
+  accessLog(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.reports.accessLog(id, user);
+  }
+
+  /** Revoke one grant now (who may manage its access); kept for the history. Audited. */
+  @Post(':id/grants/:grantId/revoke')
+  @Authenticated()
+  revokeGrant(@Param('id', ParseUUIDPipe) id: string, @Param('grantId', ParseUUIDPipe) grantId: string, @CurrentUser() user: AuthUser) {
+    return this.reports.revokeGrant(id, grantId, user);
+  }
+
+  /** CSV, Excel or PDF, with ROF formatting (download level). */
   @Get(':id/export')
   @Authenticated()
   async export(@Param('id', ParseUUIDPipe) id: string, @Query() q: ReportExportQueryDto, @CurrentUser() user: AuthUser, @Res() res: Response) {

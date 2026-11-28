@@ -404,7 +404,9 @@ const BANKS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-27-banks.json';
 const SESSION_ACTIVITY_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-28-session-activity.json';
 /** Reassign a submission (2026-11-28): find answers across tests; a submission's correction options, correction and history. Additive only. */
 const SUBMISSION_REASSIGNMENT_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-28-submission-reassignment.json';
-const CURRENT_SNAPSHOT = SUBMISSION_REASSIGNMENT_SNAPSHOT;
+/** Submission reports and sharing (2026-11-28): summary, access log, revoke one grant, PDF export, school grants and expiry. Additive only. */
+const SUBMISSION_REPORTS_SNAPSHOT = 'docs/baseline/api-snapshot-2026-11-28-submission-reports.json';
+const CURRENT_SNAPSHOT = SUBMISSION_REPORTS_SNAPSHOT;
 /** Bulk user operations (2026-11-17): preview, execute, progress, items, list, cancel, export. Additive only; after account states. */
 const BULK_OPERATIONS_ADDITIONS = [
   'GET /api/v1/admin/users/bulk/{id}/items: operation added',
@@ -2174,6 +2176,22 @@ describe('approved API contract history', () => {
       'GET /api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment: operation added',
       'POST /api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment: operation added',
       'schema ReassignSubmissionDto: added',
+    ]);
+  });
+
+  test('reassign a submission → submission reports (2026-11-28): summary, access log, revoke, PDF, school grants and expiry; nothing breaking or for review', () => {
+    for (const f of [SUBMISSION_REASSIGNMENT_SNAPSHOT, SUBMISSION_REPORTS_SNAPSHOT]) assert.ok(existsSync(f), `${f} is missing`);
+    const res = compare(JSON.parse(readFileSync(SUBMISSION_REASSIGNMENT_SNAPSHOT, 'utf8')), JSON.parse(readFileSync(SUBMISSION_REPORTS_SNAPSHOT, 'utf8')));
+    assert.equal(res.versionMismatch, false);
+    assert.deepEqual(res.breaking, []);
+    assert.deepEqual(res.review, []);
+    assert.deepEqual(res.additive, [
+      'GET /api/v1/reports/{id}/access-log: operation added',
+      'GET /api/v1/reports/{id}/export › query parameter format: enum values added: pdf',
+      'GET /api/v1/reports/{id}/summary: operation added',
+      'POST /api/v1/reports/{id}/grants/{grantId}/revoke: operation added',
+      'PUT /api/v1/reports/{id}/grants › request application/json.grants[].expiresAt: new optional field',
+      'PUT /api/v1/reports/{id}/grants › request application/json.grants[].schoolId: new optional field',
     ]);
   });
 
