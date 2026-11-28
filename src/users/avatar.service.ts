@@ -5,8 +5,13 @@
  *  - An Administrator with users.manage does the same for an account whose current role they may
  *    manage (PUT / DELETE /api/v1/admin/users/:id/avatar; RoleAssignmentPolicy.assertCanManage, so an
  *    ADMIN never touches a SUPER_ADMIN).
- *  - Any signed-in user may view a picture (GET /api/v1/users/:id/avatar): pictures already appear next to
- *    names in the leaderboard and discussions. No anonymous access.
+ *  - Viewing (GET /api/v1/users/:id/avatar, owner 2026-11-27): any signed-in user who may view a person's PROFILE also
+ *    sees their picture — by exactly the check of that profile, never a rule of its own:
+ *      a student: StudentOverviewService.mayView, the check of GET /students/:id/overview (the student included);
+ *      a Coach or Head Coach: the person themself (GET /me) or a holder of users.manage, the permission of their
+ *      profile page GET /admin/users/:id;
+ *      anyone else (Teachers, Administrators): any signed-in user (unchanged).
+ *    Anyone not allowed gets the same 404 as "no picture". Never anonymous.
  *
  * Files go through the existing StorageService (FilePurpose AVATAR: JPEG, PNG or WebP by their bytes, at most
  * 2 MB). The account references its current picture (User.avatarFileId), which keeps it out of the nightly
@@ -14,7 +19,8 @@
  * User.avatarUrl is the versioned link `/api/v1/users/{id}/avatar?v={fileId}`, so caches never show an old
  * picture. Every change is audited (AVATAR_SET / AVATAR_REMOVED: actor, account and file ids only).
  *
- * Protections for minors: pictures are never public (GET needs a signed-in user); the link and the storage key
+ * Protections for minors: pictures are never public (GET needs a signed-in user, and a student's follows who may view
+ * the student's profile); the link and the storage key
  * carry only ids and a random UUID, never a name, username or e-mail; the uploaded file name is discarded.
  */
 import { StudentOverviewService } from './student-overview.service.js';
@@ -38,7 +44,7 @@ export { avatarUrlOf };
 
 /** Pictures are versioned by their link, so a day of private caching is safe. */
 export const AVATAR_CACHE_CONTROL = 'private, max-age=86400';
-/** A student's picture is never kept in a browser cache: losing access to the student applies at once. */
+/** A picture that follows a profile's access (students, Coaches, Head Coaches) is never kept in a browser cache: losing access applies at once. */
 export const STUDENT_AVATAR_CACHE_CONTROL = 'private, no-store';
 
 @Injectable()
@@ -81,41 +87,45 @@ export class AvatarService {
 
   // ─── Serve ──────────────────────────────────────────────────────────────────
 
-  /** Stream the account's current picture (404 when it has none). Callers are signed in (controller). */
   /**
-   * GET /users/:id/avatar. Staff pictures: every signed-in user (unchanged). A STUDENT's picture (owner 2026-11-22,
-   * replacing the 2026-11-18 rule): everyone who may view the student's profile overview — the student, Administrators,
-   * other students (active students), the Teachers of the student's school, the Coaches and Head Coaches of the student's
-   * programmes or divisions (StudentOverviewService.mayView). Anyone else gets the same 404 as "no picture", so the answer
-   * never reveals whether a student has one.
+   * GET /users/:id/avatar (owner 2026-11-27): the picture is visible to every signed-in user who may view the user's
+   * profile, by exactly the check of that profile (see mayViewProfile); any other account (Teachers, Administrators):
+   * every signed-in user (unchanged).
+   * The permission is checked BEFORE the picture is looked up, and an unknown account, a refused viewer and an account
+   * without a picture all get the same 404 — the answer never reveals whether a protected user has a picture.
    */
   async send(userId: string, viewer: AuthUser, res: Response) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true, avatarFile: { select: { storageKey: true, mimeType: true, originalName: true, size: true } } },
+      select: {
+        id: true, role: true, accountStatus: true, divisionId: true,
+        avatarFile: { select: { storageKey: true, mimeType: true, originalName: true, size: true } },
+      },
     });
     const notFound = () => new NotFoundException('This account has no profile picture.');
-    if (!user?.avatarFile) throw notFound();
-    // A Super Administrator's picture (Super Administrator privacy, owner 2026-11-28): Super Administrators only, and
-    // never kept in a browser cache (the next person on a shared computer must not see it without the server's check).
+    if (!user) throw notFound();
+    // A Super Administrator's picture (Super Administrator privacy, owner 2026-11-28): Super Administrators only — the
+    // same 404 as an unknown account, before anything else is looked at.
     if (isHiddenAccount(viewer, user)) throw notFound();
-    if (user.role === 'SUPER_ADMIN') {
-      await this.storage.send(res, user.avatarFile, { cacheControl: STUDENT_AVATAR_CACHE_CONTROL });
-      return;
-    }
-    if (user.role !== 'STUDENT') {
-      await this.storage.send(res, user.avatarFile, { cacheControl: AVATAR_CACHE_CONTROL });
-      return;
-    }
-    if (!(await this.maySeeStudentPicture(viewer, userId))) throw notFound();
-    await this.storage.send(res, user.avatarFile, { cacheControl: STUDENT_AVATAR_CACHE_CONTROL });
+    const followsProfile = user.role === 'STUDENT' || user.role === 'MENTOR' || user.role === 'HEAD_COACH';
+    if (followsProfile && !(await this.mayViewProfile(viewer, user))) throw notFound();
+    if (!user.avatarFile) throw notFound();
+    // Protected pictures are never kept in a browser cache (the next person on a shared computer must not see them).
+    const protectedPicture = followsProfile || user.role === 'SUPER_ADMIN';
+    await this.storage.send(res, user.avatarFile, { cacheControl: protectedPicture ? STUDENT_AVATAR_CACHE_CONTROL : AVATAR_CACHE_CONTROL });
   }
 
-  /** Whether this viewer may see this student's picture: whoever may view the student's profile overview (see send). */
-  async maySeeStudentPicture(viewer: AuthUser, studentId: string): Promise<boolean> {
-    const s = await this.prisma.user.findUnique({ where: { id: studentId }, select: { id: true, accountStatus: true, divisionId: true } });
-    return !!s && this.overview.mayView(viewer, s);
+  /**
+   * Whether `viewer` may view this student's, Coach's or Head Coach's profile — the very check of the profile endpoint:
+   *  - a student: StudentOverviewService.mayView, used by GET /students/:id/overview (and true for the student themself);
+   *  - a Coach or Head Coach: their own profile (GET /me), or users.manage — the permission (and only check) of their
+   *    profile page GET /admin/users/:id, decided by the same PermissionService as the route's guard.
+   */
+  private async mayViewProfile(viewer: AuthUser, user: { id: string; role: string; accountStatus: string; divisionId: string | null }) {
+    if (user.role === 'STUDENT') return this.overview.mayView(viewer, user);
+    return viewer.id === user.id || this.permissions.has(viewer, 'users.manage');
   }
+
 
   // ─── Internals ──────────────────────────────────────────────────────────────
 
