@@ -18,6 +18,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { OPEN_REVIEW_STATUSES } from '../submissions/submissions.constants.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { visibleUsersWhere } from '../common/access/super-admin-privacy.js';
 import { ReportScopeService, type ReportScope } from './report-scope.js';
 import { UserReportsService } from './user-reports.service.js';
 import type { ReportFiltersDto } from './dto/report-filters.dto.js';
@@ -45,7 +46,7 @@ export class DashboardService {
       this.results(s),
       // Head Coach: no moderation queue (H7) and no account-wide setup figures.
       restricted ? null : this.reportedContent(s),
-      restricted ? null : this.accountsAwaitingSetup(),
+      restricted ? null : this.accountsAwaitingSetup(user),
     ]);
     return {
       generatedAt: new Date(),
@@ -243,10 +244,13 @@ export class DashboardService {
     };
   }
 
-  /** Accounts that cannot be used yet. Not scoped: setup is account-wide. */
-  private async accountsAwaitingSetup() {
+  /**
+   * Accounts that cannot be used yet. Not scoped: setup is account-wide. Super Administrators are counted only for a Super
+   * Administrator (Super Administrator privacy).
+   */
+  private async accountsAwaitingSetup(viewer: AuthUser) {
     const [byRole, studentsAwaitingApproval, mentorApplications] = await Promise.all([
-      this.prisma.user.groupBy({ by: ['role'], where: this.scope.userStatusWhere('AWAITING_SETUP'), _count: { _all: true } }),
+      this.prisma.user.groupBy({ by: ['role'], where: { AND: [this.scope.userStatusWhere('AWAITING_SETUP'), visibleUsersWhere(viewer)] }, _count: { _all: true } }),
       this.prisma.user.count({ where: { role: 'STUDENT', isActive: true, isApproved: false } }),
       this.prisma.mentorRequest.count({ where: { status: 'PENDING' } }),
     ]);

@@ -22,6 +22,7 @@ import { auditSelection } from '../../bulk/bulk-operations.service.js';
 import { BulkRegistry } from '../../bulk/bulk-registry.js';
 import type { AuthUser } from '../../common/auth-user.js';
 import { AppError } from '../../common/errors/app-error.js';
+import { isHiddenAccount, visibleUsersWhere } from '../../common/access/super-admin-privacy.js';
 import { DecisionNotificationsService } from '../../decision-notifications/decision-notifications.service.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -85,34 +86,39 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     return normaliseParams(action as BulkAction, p as BulkParams) as Record<string, unknown>;
   }
 
-  private whereOf(s: EngineSelection): Prisma.UserWhereInput {
+  /**
+   * The selection as a where clause, for this viewer: a Super Administrator is never part of anyone else's selection
+   * (Super Administrator privacy) — its id behaves like an unknown id (not matched), in both modes.
+   */
+  private whereOf(s: EngineSelection, viewer: AuthUser): Prisma.UserWhereInput {
     // The banking status is computed, not a column: a bulk action never acts on "every account with this status" (it
     // would be re-evaluated later); the administrator ticks the accounts instead (owner 2026-11-25).
     if (s.mode !== 'ids' && (s.filter as { banking?: unknown } | undefined)?.banking) {
       throw new AppError(HttpStatus.BAD_REQUEST, 'BULK_BANKING_FILTER', 'Bulk actions cannot use the banking filter. Tick the accounts you want instead.');
     }
-    return s.mode === 'ids' ? { id: { in: s.ids } } : userListWhere(s.filter as never);
+    return { AND: [s.mode === 'ids' ? { id: { in: s.ids } } : userListWhere(s.filter as never), visibleUsersWhere(viewer)] };
   }
 
-  count(db: Db, s: EngineSelection) {
-    return db.user.count({ where: this.whereOf(s) });
+  count(db: Db, s: EngineSelection, viewer: AuthUser) {
+    return db.user.count({ where: this.whereOf(s, viewer) });
   }
 
-  async scanIds(db: Db, s: EngineSelection) {
-    return (await db.user.findMany({ where: this.whereOf(s), select: { id: true }, orderBy: { id: 'asc' } })).map((r) => r.id);
+  async scanIds(db: Db, s: EngineSelection, viewer: AuthUser) {
+    return (await db.user.findMany({ where: this.whereOf(s, viewer), select: { id: true }, orderBy: { id: 'asc' } })).map((r) => r.id);
   }
 
   isSelf(entityId: string, actor: AuthUser) {
     return entityId === actor.id;
   }
 
-  describe(db: Db, ids: string[]) {
-    return db.user.findMany({ where: { id: { in: ids } }, select: SAMPLE_SELECT }).then((rows) => new Map<string, unknown>(rows.map((u) => [u.id, u])));
+  describe(db: Db, ids: string[], viewer: AuthUser) {
+    return db.user.findMany({ where: { AND: [{ id: { in: ids } }, visibleUsersWhere(viewer)] }, select: SAMPLE_SELECT })
+      .then((rows) => new Map<string, unknown>(rows.map((u) => [u.id, u])));
   }
 
   // ─── Validation and preview ─────────────────────────────────────────────────
 
-  async validate(actionName: string, params: Record<string, unknown>) {
+  async validate(actionName: string, params: Record<string, unknown>, caller: AuthUser) {
     const action = actionName as BulkAction;
     const p = params as P;
     if (action === 'assignRole') {
@@ -140,7 +146,8 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
         throw new AppError(HttpStatus.BAD_REQUEST, 'VALIDATION_FAILED', 'Choose the permission to change for the selected accounts.');
       }
       const teacher = await this.prisma.user.findUnique({ where: { id: p.teacherId }, select: { role: true } });
-      if (!teacher) throw new AppError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Teacher not found.');
+      // A Super Administrator does not exist for anyone else (Super Administrator privacy): as for an unknown id.
+      if (!teacher || isHiddenAccount(caller, teacher)) throw new AppError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Teacher not found.');
       if (teacher.role !== 'TEACHER' && action !== 'unassignTeacher' && action !== 'revokeDelegation') {
         throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_TEACHER', 'Only users with the TEACHER role can be given students.', { role: teacher.role });
       }
@@ -153,7 +160,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
         this.prisma.user.findUnique({ where: { id: p.fromTeacherId }, select: { role: true } }),
         this.prisma.user.findUnique({ where: { id: p.toTeacherId }, select: { role: true } }),
       ]);
-      if (!from || !to) throw new AppError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Teacher not found.');
+      if (!from || !to || isHiddenAccount(caller, from) || isHiddenAccount(caller, to)) throw new AppError(HttpStatus.NOT_FOUND, 'NOT_FOUND', 'Teacher not found.');
       if (to.role !== 'TEACHER') {
         throw new AppError(HttpStatus.BAD_REQUEST, 'NOT_A_TEACHER', 'Only users with the TEACHER role can be given students.', { role: to.role });
       }
@@ -164,7 +171,7 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     const action = actionName as BulkAction;
     const p = params as P;
     const [sample, groups] = await Promise.all([
-      this.prisma.user.findMany({ where: { id: { in: ids.slice(0, 10) } }, select: SAMPLE_SELECT, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }),
+      this.prisma.user.findMany({ where: { AND: [{ id: { in: ids.slice(0, 10) } }, visibleUsersWhere(caller)] }, select: SAMPLE_SELECT, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }),
       ids.length ? this.groupByRoleAndStatus(ids) : Promise.resolve([]),
     ]);
     const count = (pred: (g: { role: string; accountStatus: string }) => boolean) => groups.filter(pred).reduce((n, g) => n + g.n, 0);
@@ -224,10 +231,10 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     return action === 'assignRole' && (p.role === 'ADMIN' || privilegedSelected > 0);
   }
 
-  async stepUpRequired(action: string, params: Record<string, unknown>, s: EngineSelection) {
+  async stepUpRequired(action: string, params: Record<string, unknown>, s: EngineSelection, viewer: AuthUser) {
     // The selected Administrators are counted again under the guard by the token check; a different set fails it.
     const privilegedNow = action === 'assignRole'
-      ? await this.prisma.user.count({ where: { AND: [this.whereOf(s), { role: { in: ['ADMIN', 'SUPER_ADMIN'] } }] } }) : 0;
+      ? await this.prisma.user.count({ where: { AND: [this.whereOf(s, viewer), { role: { in: ['ADMIN', 'SUPER_ADMIN'] } }] } }) : 0;
     return this.stepUp(action as BulkAction, params as P, privilegedNow);
   }
 
@@ -260,7 +267,8 @@ export class UserBulkHandler implements BulkEntityHandler, OnModuleInit {
     const user = await tx.user.findUnique({
       where: { id: ctx.entityId }, select: { id: true, role: true, accountStatus: true, gradeLevel: true, email: true },
     });
-    if (!user) return { outcome: 'SKIPPED', code: 'NOT_FOUND', message: 'The account no longer exists.' };
+    // A Super Administrator (e.g. promoted since the operation was created) is, for anyone else, an account that does not exist.
+    if (!user || isHiddenAccount(actor, user)) return { outcome: 'SKIPPED', code: 'NOT_FOUND', message: 'The account no longer exists.' };
     if (ACTION_RULES[action].toStatus) {
       const d = statusDecision(action, user.accountStatus);
       if ('skip' in d) return { outcome: 'SKIPPED', code: d.skip };

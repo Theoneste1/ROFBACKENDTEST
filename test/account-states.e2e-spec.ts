@@ -151,7 +151,8 @@ describe('Account states', () => {
 
   it('the role policy applies: an ADMIN cannot change a Super Admin; with the boundary on, not another ADMIN either', async () => {
     const sa = await makeUser('st.sa', 'SUPER_ADMIN');
-    expect(await code(status(sa.id, { toStatus: 'SUSPENDED', reason: 'admin on SA' }))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
+    // Super Administrator privacy (owner 2026-11-28): for an ADMIN a Super Admin does not exist — 404, not 403.
+    expect(await code(status(sa.id, { toStatus: 'SUSPENDED', reason: 'admin on SA' }))).toEqual([404, 'NOT_FOUND']);
     const other = await makeUser('st.otheradmin', 'ADMIN');
     process.env.SUPER_ADMIN_BOUNDARY_ENABLED = 'true';
     expect(await code(status(other.id, { toStatus: 'SUSPENDED', reason: 'boundary' }))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);

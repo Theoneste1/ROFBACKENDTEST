@@ -25,6 +25,7 @@ import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service.js';
 import { scopeForbidden, AccessService } from '../common/access/access.service.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { isAdmin, isHeadCoach, unsupportedRole } from '../common/access/roles.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
@@ -270,7 +271,8 @@ export class ProgrammesService {
    */
   private assertMayChangeMembership(caller: AuthUser, target: { id: string; role: string } | null) {
     if (isAdmin(caller)) {
-      if (!target) throw new NotFoundException('User not found.');
+      // A Super Administrator is unknown to everyone else (Super Administrator privacy, owner 2026-11-28).
+      if (!target || isHiddenAccount(caller, target)) throw new NotFoundException('User not found.');
       if (target.role === 'STUDENT' || target.role === 'MENTOR') return;
       throw new AppError(HttpStatus.BAD_REQUEST, 'ROLE_NOT_MEMBER', 'Only students and coaches are programme members; Head Coaches are set as heads.', { role: target.role });
     }

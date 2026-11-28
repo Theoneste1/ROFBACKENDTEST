@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -10,6 +10,7 @@ import { join } from 'path';
 import { validateEnv } from '../config/env.validation.js';
 import { RequestIdMiddleware } from '../common/middleware/request-id.middleware.js';
 import { AccessModule } from '../common/access/access.module.js';
+import { SuperAdminPrivacyInterceptor } from '../common/access/super-admin-privacy.interceptor.js';
 import { StorageModule } from '../common/storage/storage.module.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/guards/roles.guard.js';
@@ -166,6 +167,9 @@ import { BankingDetailsGuard } from '../auth/guards/banking-details.guard.js';
     { provide: APP_GUARD, useClass: RolesGuard },
     // No-op on routes without @RequirePermission (P1-04: none yet).
     { provide: APP_GUARD, useClass: PermissionGuard },
+    // Super Administrator privacy (owner 2026-11-28): a Super Administrator embedded in a JSON response is shown as
+    // "ROF Administration" to everyone else (the backstop; the services' queries hide them first).
+    { provide: APP_INTERCEPTOR, useClass: SuperAdminPrivacyInterceptor },
   ],
 })
 export class AppModule implements NestModule {

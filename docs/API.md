@@ -3748,7 +3748,8 @@ Returns `200` with no body.
 
 **Access:** ADMIN, SUPER_ADMIN
 
-List users with filters (role, division, grade, school, status, search).
+List users with filters (role, division, grade, school, status, search). Super Administrators are listed (and counted)
+only for a Super Administrator; for anyone else every /admin/users/:id route answers 404 for one, as for an unknown id.
 
 | Parameter | In | Type | Required | Notes |
 |---|---|---|:-:|---|
@@ -3878,7 +3879,7 @@ Returns `200` JSON with:
 **Access:** ADMIN, SUPER_ADMIN
 
 Set or replace an account's profile picture (multipart field `file`: JPEG, PNG or WebP, at most 2 MB).
-Only for an account whose current role the caller may manage (an ADMIN never a SUPER_ADMIN). Returns the
+Only for an account whose current role the caller may manage (a SUPER_ADMIN account is 404 for an ADMIN). Returns the
 account. 400 FILE_REQUIRED / EMPTY_FILE, 413 PAYLOAD_TOO_LARGE (over 2 MB), 415 FILE_TYPE_NOT_ALLOWED.
 
 | Parameter | In | Type | Required | Notes |
@@ -8196,8 +8197,9 @@ Returns `200` with no body.
 The account's current profile picture, inline, with X-Content-Type-Options: nosniff (owner 2026-11-27): any
 signed-in user who may view the person's PROFILE sees the picture, by exactly the check of that profile. A student:
 the check of GET /students/:id/overview. A Coach or Head Coach: the person themself (GET /me) or a holder of
-users.manage (GET /admin/users/:id). These three: Cache-Control: private, no-store. Other accounts (Teachers,
-Administrators): any signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned).
+users.manage (GET /admin/users/:id). A Super Administrator: Super Administrators only (Super Administrator privacy,
+owner 2026-11-28). These four: Cache-Control: private, no-store. Other accounts (Teachers, Administrators): any
+signed-in user (Cache-Control: private, max-age=86400; the link in avatarUrl is versioned).
 Anyone not allowed gets 404 — the same answer as an unknown account or an account without a picture.
 
 | Parameter | In | Type | Required | Notes |

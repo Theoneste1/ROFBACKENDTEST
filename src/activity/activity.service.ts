@@ -13,6 +13,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { AccessService } from '../common/access/access.service.js';
 import { isAdmin, isHeadCoach, unsupportedRole } from '../common/access/roles.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { visibleUsersWhere } from '../common/access/super-admin-privacy.js';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isViewing } from '../common/request-context.js';
@@ -37,13 +38,14 @@ export class ActivityService {
   ) {}
 
   /**
-   * Which activity a caller may read (activity.view). Administrators: all.
+   * Which activity a caller may read (activity.view). Administrators: all — except a Super Administrator's activity, which
+   * only a Super Administrator sees (Super Administrator privacy: not listed, not counted in activeUsers).
    * Head Coach (P1-10, plan §7.2): only Students and Coaches who are active
    * members of the programmes they head, and — for activity tied to a course —
    * only that programme's courses (a shared coach's other programmes stay hidden).
    */
   private async callerWhere(user: AuthUser, courseId?: string): Promise<Prisma.ActivityLogWhereInput> {
-    if (isAdmin(user)) return {};
+    if (isAdmin(user)) return { user: visibleUsersWhere(user) };
     if (isHeadCoach(user)) {
       const programmes = await this.access.headedProgrammes(user);
       const courses = (await this.prisma.course.findMany({ where: this.access.programmeCoursesFilter(programmes), select: { id: true } })).map((c) => c.id);

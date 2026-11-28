@@ -47,8 +47,8 @@ export class EmailController {
   /** Paginated, filterable user list with email addresses. */
   @Get('users')
   @RequirePermission('email.bulkSend')
-  listUsers(@Query() query: ListUsersDto) {
-    return this.emailService.listUsers(query);
+  listUsers(@Query() query: ListUsersDto, @CurrentUser() user: AuthUser) {
+    return this.emailService.listUsers(query, user);
   }
 
   /**
@@ -66,21 +66,21 @@ export class EmailController {
   /** Jobs with progress counters (no message bodies). */
   @Get('jobs')
   @RequirePermission('email.bulkSend')
-  listJobs(@Query() query: PaginationQueryDto) {
-    return this.emailService.listJobs(query);
+  listJobs(@Query() query: PaginationQueryDto, @CurrentUser() user: AuthUser) {
+    return this.emailService.listJobs(query, user);
   }
 
   @Get('jobs/:id')
   @RequirePermission('email.bulkSend')
-  getJob(@Param('id', ParseUUIDPipe) id: string) {
-    return this.emailService.getJob(id);
+  getJob(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.emailService.getJob(id, user);
   }
 
   /** Per-recipient delivery status (filter with ?status=FAILED). */
   @Get('jobs/:id/deliveries')
   @RequirePermission('email.bulkSend')
-  listDeliveries(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListDeliveriesDto) {
-    return this.emailService.listDeliveries(id, query);
+  listDeliveries(@Param('id', ParseUUIDPipe) id: string, @Query() query: ListDeliveriesDto, @CurrentUser() user: AuthUser) {
+    return this.emailService.listDeliveries(id, query, user);
   }
 
   /**
@@ -89,8 +89,8 @@ export class EmailController {
    */
   @Get('deliveries')
   @RequirePermission('email.bulkSend')
-  listAllDeliveries(@Query() query: ListAllDeliveriesDto) {
-    return this.emailService.listAllDeliveries(query);
+  listAllDeliveries(@Query() query: ListAllDeliveriesDto, @CurrentUser() user: AuthUser) {
+    return this.emailService.listAllDeliveries(query, user);
   }
 
   /** Re-queue one FAILED delivery (transactional or bulk). Anything else: 409. */
