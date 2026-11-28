@@ -3564,7 +3564,7 @@ model CustomReportGrant {
   id          String       @id @default(uuid())
   reportId    String
   report      CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  /// "user:<id>" or "role:<ROLE>": unique per report.
+  /// "user:<id>", "role:<ROLE>" or "school:<id>": unique per report.
   grantee     String
   userId      String?
   user        User?        @relation("CustomReportGrantee", fields: [userId], references: [id], onDelete: Cascade)

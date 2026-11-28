@@ -121,6 +121,9 @@ describe('Submission reports (e2e)', () => {
     const r = (await run(admin).expect(200)).body;
     expect(r.meta.total).toBe(3);
     expect(r.meta.total).toBe(await p().testSubmission.count({ where: { versionCount: { gt: 0 } } }));
+    // Each column says its type (a screen shows dates in Kigali time and codes as words).
+    expect(r.columns.find((c: any) => c.key === 'status')).toMatchObject({ type: 'enum', label: 'Status' });
+    expect(r.columns.find((c: any) => c.key === 'submittedAt').type).toBe('date');
     const byTest = (title: string) => rowsOf(r).find((row) => row[col(r, 'test')] === title)!;
     const moved = byTest('Mathematics Round 1 Senior');
     expect(moved[col(r, 'level')]).toBe('Senior');
@@ -225,6 +228,11 @@ describe('Submission reports (e2e)', () => {
     await run(teacherA).expect(404);
     let list = (await http().get(`${R}/${report}/grants`).set(bearer(admin)).expect(200)).body.grants;
     expect(list.find((g: any) => g.school?.id === testSchool).state).toBe('EXPIRED');
+    // Saving the access list (which cannot resend a past expiry) leaves it EXPIRED in the history, not revoked.
+    await setGrants(admin, [{ role: 'HEAD_COACH', canView: true, canDownload: false, canEdit: false }]).expect(200);
+    list = (await http().get(`${R}/${report}/grants`).set(bearer(admin)).expect(200)).body.grants;
+    expect(list.find((g: any) => g.school?.id === testSchool).state).toBe('EXPIRED');
+    await setGrants(admin, []).expect(200);
     // Renewed, then revoked (one grant): gone for the teacher, kept for the history.
     await setGrants(admin, [{ schoolId: testSchool, canView: true, canDownload: false, canEdit: false }]).expect(200);
     await run(teacherA).expect(200);

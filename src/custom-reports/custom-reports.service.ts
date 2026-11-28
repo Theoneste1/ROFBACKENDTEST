@@ -317,7 +317,8 @@ export class CustomReportsService {
     const src = SOURCES[d.source];
     return d.columns.map((c) => {
       const f = src.fields.find((x) => x.key === c)!;
-      return { key: c, label: f.protected && viewer.role !== 'SUPER_ADMIN' ? `${f.label} (hidden: personal data)` : f.label };
+      // type: so a screen can show values for people (dates in Kigali time, codes as words) as the documents do.
+      return { key: c, type: f.type, label: f.protected && viewer.role !== 'SUPER_ADMIN' ? `${f.label} (hidden: personal data)` : f.label };
     });
   }
 
@@ -534,7 +535,9 @@ export class CustomReportsService {
       const current = await tx.customReportGrant.findMany({ where: { reportId: id }, include: { user: { select: { role: true } } } });
       // Grants the viewer cannot see (a Super Administrator's) are kept as they are.
       // Removed = revoked (owner 2026-11-28): kept for the history, gives nothing.
-      const removed = current.filter((c) => !c.revokedAt && !next.has(c.grantee) && !isHiddenAccount(viewer, c.user) && !(c.role === HIDDEN_ROLE && !seesSuperAdmins(viewer)));
+      // An expired grant is left as it is (it ran out; it cannot be sent again with its past date): its history says expired.
+      const removed = current.filter((c) => !c.revokedAt && !(c.expiresAt && c.expiresAt.getTime() <= now) && !next.has(c.grantee)
+        && !isHiddenAccount(viewer, c.user) && !(c.role === HIDDEN_ROLE && !seesSuperAdmins(viewer)));
       if (removed.length) await tx.customReportGrant.updateMany({ where: { id: { in: removed.map((c) => c.id) } }, data: { revokedAt: new Date(), revokedById: viewer.id } });
       const changes: Array<Record<string, unknown>> = [];
       for (const [grantee, g] of next) {
