@@ -10284,6 +10284,143 @@
         "description": "**Access:** Any signed-in user"
       }
     },
+    "/api/v1/reports/{id}/summary": {
+      "get": {
+        "operationId": "CustomReportsController_summary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Summary statistics: the row count and the counts by the source's summary fields (view level).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "TEACHER",
+          "MENTOR",
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/reports/{id}/access-log": {
+      "get": {
+        "operationId": "CustomReportsController_accessLog",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Every view, download and change of access, newest first (who may manage its access).",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "TEACHER",
+          "MENTOR",
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
+    "/api/v1/reports/{id}/grants/{grantId}/revoke": {
+      "post": {
+        "operationId": "CustomReportsController_revokeGrant",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Revoke one grant now (who may manage its access); kept for the history. Audited.",
+        "tags": [
+          "custom-reports"
+        ],
+        "x-roles": [
+          "STUDENT",
+          "TEACHER",
+          "MENTOR",
+          "HEAD_COACH",
+          "ADMIN",
+          "SUPER_ADMIN"
+        ],
+        "description": "**Access:** Any signed-in user"
+      }
+    },
     "/api/v1/reports/{id}/export": {
       "get": {
         "operationId": "CustomReportsController_export",
@@ -10304,7 +10441,8 @@
               "type": "string",
               "enum": [
                 "csv",
-                "xlsx"
+                "xlsx",
+                "pdf"
               ]
             }
           }
@@ -10324,7 +10462,7 @@
             }
           }
         },
-        "summary": "CSV or Excel (download level).",
+        "summary": "CSV, Excel or PDF, with ROF formatting (download level).",
         "tags": [
           "custom-reports"
         ],
@@ -60639,6 +60777,16 @@
               "HEAD_COACH",
               "SUPER_ADMIN"
             ]
+          },
+          "schoolId": {
+            "type": "string",
+            "description": "A school: its teachers with an active assignment (owner 2026-11-28).",
+            "format": "uuid"
+          },
+          "expiresAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "After this moment the grant gives nothing (ISO 8601, in the future); absent or null: no expiry."
           },
           "canView": {
             "type": "boolean"

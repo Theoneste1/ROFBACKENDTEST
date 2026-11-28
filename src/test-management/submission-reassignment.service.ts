@@ -190,6 +190,14 @@ export class SubmissionReassignmentService {
       await tx.testSubmission.update({ where: { id: sub.id }, data: { testId: dest.id, level: dto.level } });
       const before = { testId: sub.test.id, testTitle: sub.test.title, subjectCode: sub.test.discipline.code, subjectName: sub.test.discipline.name, testDivision: sub.test.division, level: sub.level };
       const after = { testId: dest.id, testTitle: dest.title, subjectCode: dest.discipline.code, subjectName: dest.discipline.name, testDivision: dest.division, level: dto.level };
+      // The correction, for reports and history (append-only): the names as they are now, the reason, who.
+      await tx.testSubmissionCorrection.create({ data: {
+        submissionId: sub.id, actorId: user.id, actorRole: user.role, reason: dto.reason,
+        fromTestId: sub.test.id, fromTestTitle: sub.test.title, fromSubjectId: sub.test.discipline.id, fromSubjectName: sub.test.discipline.name,
+        fromTestDivision: sub.test.division, fromLevel: sub.level,
+        toTestId: dest.id, toTestTitle: dest.title, toSubjectId: dest.discipline.id, toSubjectName: dest.discipline.name,
+        toTestDivision: dest.division, toLevel: dto.level,
+      } });
       await this.audit.log({
         actorId: user.id, actorRole: user.role, action: 'TEST_SUBMISSION_REASSIGNED', entity: 'TestSubmission', entityId: sub.id,
         metadata: { studentId: sub.studentId, publicCode: sub.publicCode, status: sub.status, before, after, reason: dto.reason, movedTest: moving, markingStarted: markingStarted(marking) },

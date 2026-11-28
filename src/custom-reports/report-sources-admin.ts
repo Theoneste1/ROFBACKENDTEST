@@ -298,3 +298,6 @@ export const ADMIN_SOURCES: Readonly<Record<string, SourceDef>> = {
     ],
   }),
 };
+
+/** The field builders, for the other source files (submissions). */
+export { pathField, text as textField, date as dateField, num as numField, choice as choiceField, personFields, vals };

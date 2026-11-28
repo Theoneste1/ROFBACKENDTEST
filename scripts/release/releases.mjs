@@ -511,6 +511,20 @@ export const MIGRATION_OBJECTS = {
       columns: [['RefreshToken', 'lastActivityAt']],
     },
   },
+  // Submission reports (owner 2026-11-28): the corrections table (append-only trigger) and four nullable grant columns
+  // (a school, an expiry, a revocation); its rollback drops them (guarded: refuses while corrections or school grants exist).
+  '20270103000000_submission_reports': {
+    creates: {
+      tables: ['TestSubmissionCorrection'],
+      columns: [['CustomReportGrant', 'expiresAt'], ['CustomReportGrant', 'revokedAt'], ['CustomReportGrant', 'revokedById'], ['CustomReportGrant', 'schoolId']],
+      indexes: [['CustomReportGrant', 'CustomReportGrant_schoolId_idx']],
+      constraints: [['CustomReportGrant', 'CustomReportGrant_schoolId_fkey']],
+      // The table's own index, keys and trigger go with the table; its trigger function is listed.
+      functions: ['test_submission_correction_append_only'],
+    },
+    // Re-created to allow a school grant; its rollback restores the previous definition (user or role).
+    redefines: { constraints: [['CustomReportGrant', 'CustomReportGrant_one_grantee']] },
+  },
   // Question-level marking (design Rev 5.2, owner approval 2026-11-26). TestMarking_assignment_matches_kind is dropped and
   // re-created under the same name (it also accepts COMPOSED); its rollback restores the original definition.
   '20270101000100_question_marking': {
@@ -577,6 +591,7 @@ export const ACKNOWLEDGEMENTS = {
   'subscribers':                { migration: '20261229000000_subscribers', setting: 'rof.subscribers_rollback', value: 'discard-subscribers' },
   'view-as-sessions':           { migration: '20261230000000_view_as', setting: 'rof.view_as_rollback', value: 'discard-sessions' },
   'bank-details':               { migration: '20261231000000_user_bank_details', setting: 'rof.bank_details_rollback', value: 'discard-bank-details' },
+  'submission-corrections':     { migration: '20270103000000_submission_reports', setting: 'rof.submission_reports_rollback', value: 'discard-submission-corrections' },
 };
 
 /** The acknowledgement ids of a release (those of its own migrations), sorted. */
@@ -710,6 +725,24 @@ export const SESSION_2027_OBJECTS = {
   columns: [['RefreshToken', 'lastActivityAt']],
   triggers: [],
   functions: [],
+};
+
+/**
+ * The reports-2027 release (owner, 2026-11-28): submission reports — the corrections of a submission's test and/or level
+ * (a new append-only table) and report sharing with schools, with an expiry and a revocation (four nullable columns).
+ * Additive; production must hold session-2027 first.
+ */
+export const REPORTS_2027_MIGRATIONS = [
+  '20270103000000_submission_reports',
+];
+
+/** What the reports-2027 migration creates (checked against its SQL by the tests); `rollback-history` refuses while any is left. */
+export const REPORTS_2027_OBJECTS = {
+  tables: ['TestSubmissionCorrection'],
+  enums: [],
+  columns: [['CustomReportGrant', 'expiresAt'], ['CustomReportGrant', 'revokedAt'], ['CustomReportGrant', 'revokedById'], ['CustomReportGrant', 'schoolId']],
+  triggers: ['test_submission_correction_append_only'],
+  functions: ['test_submission_correction_append_only'],
 };
 
 /**
@@ -895,6 +928,27 @@ export const RELEASES = {
       owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
         || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name)
         || LAUNCH_2026_MIGRATIONS.includes(name) || BANKING_2026_MIGRATIONS.includes(name) || QUESTION_MARKING_2027_MIGRATIONS.includes(name),
+    },
+  },
+  'reports-2027': {
+    label: `submission reports (${REPORTS_2027_MIGRATIONS.length} migration after session inactivity)`,
+    count: REPORTS_2027_MIGRATIONS.length,
+    owns: (name) => REPORTS_2027_MIGRATIONS.includes(name),
+    last: REPORTS_2027_MIGRATIONS.at(-1).slice(0, 14),
+    precheck: 'scripts/release/reports-2027-precheck.sql',
+    postcheck: 'scripts/release/reports-2027-postcheck.sql',
+    migrations: REPORTS_2027_MIGRATIONS,
+    objects: REPORTS_2027_OBJECTS,
+    // The target must already hold the ten releases before it, session-2027 included.
+    requires: {
+      label: 'Phase 1, post-Phase-1, design areas, late 2026, dec 2026, levels 2026, the launch release, banking, question-level marking and session inactivity',
+      count: PHASE1_COUNT + POST_PHASE1_MIGRATIONS.length + AREAS_2026_MIGRATIONS.length + LATE_2026_MIGRATIONS.length + DEC_2026_MIGRATIONS.length
+        + LEVELS_2026_MIGRATIONS.length + LAUNCH_2026_MIGRATIONS.length + BANKING_2026_MIGRATIONS.length + QUESTION_MARKING_2027_MIGRATIONS.length
+        + SESSION_2027_MIGRATIONS.length,
+      owns: (name) => PHASE1.test(name) || POST_PHASE1_MIGRATIONS.includes(name) || AREAS_2026_MIGRATIONS.includes(name)
+        || LATE_2026_MIGRATIONS.includes(name) || DEC_2026_MIGRATIONS.includes(name) || LEVELS_2026_MIGRATIONS.includes(name)
+        || LAUNCH_2026_MIGRATIONS.includes(name) || BANKING_2026_MIGRATIONS.includes(name) || QUESTION_MARKING_2027_MIGRATIONS.includes(name)
+        || SESSION_2027_MIGRATIONS.includes(name),
     },
   },
 };

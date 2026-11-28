@@ -469,6 +469,7 @@ model User {
   /// Teachers, Coaches and Head Coaches: personal and school bank details (owner 2026-11-25), one row at most.
   bankDetails        UserBankDetails?
   customReportGrants CustomReportGrant[] @relation("CustomReportGrantee")
+  testSubmissionCorrections TestSubmissionCorrection[] @relation("TestSubmissionCorrectionActor")
   schoolId           String?
   school             School?             @relation(fields: [schoolId], references: [id])
   homeLocation       String?
@@ -1237,6 +1238,7 @@ model School {
   syncChanges                 SchoolSyncChange[]
   teacherApplications         TeacherApplication[]       @relation("TeacherApplicationSchool")
   teacherApplicationsAssigned TeacherApplication[]       @relation("TeacherApplicationAssignedSchool")
+  customReportGrants          CustomReportGrant[]
 
   @@index([name])
   @@index([nameKey])
@@ -3088,6 +3090,8 @@ model TestSubmission {
   resubmissionAuthorizations TestResubmissionAuthorization[]
   qmTasks                    TestQuestionTask[]
   qmStaffAccess              TestStaffPaperAccess[]
+  /// Reassign a submission (owner 2026-11-28): every correction of its test and/or level, append-only.
+  corrections                TestSubmissionCorrection[]
 
   @@unique([testId, studentId])
   @@index([studentId])
@@ -3560,20 +3564,57 @@ model CustomReportGrant {
   id          String       @id @default(uuid())
   reportId    String
   report      CustomReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  /// "user:<id>" or "role:<ROLE>": unique per report.
+  /// "user:<id>", "role:<ROLE>" or "school:<id>": unique per report.
   grantee     String
   userId      String?
   user        User?        @relation("CustomReportGrantee", fields: [userId], references: [id], onDelete: Cascade)
   role        Role?
+  /// Shared with a school (owner 2026-11-28): its teachers (active assignment); grantee "school:<id>".
+  schoolId    String?
+  school      School?      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   canView     Boolean      @default(true)
   canDownload Boolean      @default(false)
   canEdit     Boolean      @default(false)
   grantedById String?
+  /// After this time the grant gives nothing (owner 2026-11-28); null = no expiry.
+  expiresAt   DateTime?
+  /// Revoked (owner 2026-11-28): kept for the history, gives nothing; granting again clears it.
+  revokedAt   DateTime?
+  revokedById String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   @@unique([reportId, grantee])
   @@index([userId])
+  @@index([schoolId])
+}
+
+/// A correction of a submission's test and/or level (owner 2026-11-28, "Reassign submission"): who, when, why, and the
+/// values before and after (ids and the names at that time — a test may be renamed or, once empty, deleted later).
+/// Append-only (trigger). The submission itself keeps the current values; reports read the corrections from here.
+model TestSubmissionCorrection {
+  id               String         @id @default(uuid())
+  submissionId     String
+  submission       TestSubmission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  actorId          String?
+  actor            User?          @relation("TestSubmissionCorrectionActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole        String
+  reason           String
+  fromTestId       String
+  fromTestTitle    String
+  fromSubjectId    String
+  fromSubjectName  String
+  fromTestDivision String
+  fromLevel        String?
+  toTestId         String
+  toTestTitle      String
+  toSubjectId      String
+  toSubjectName    String
+  toTestDivision   String
+  toLevel          String
+  createdAt        DateTime       @default(now())
+
+  @@index([submissionId, createdAt])
 }
 
 /// "View as" (owner 2026-11-23): an administrator sees the platform exactly as a lower-ranked user does, READ ONLY.

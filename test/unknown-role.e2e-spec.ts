@@ -15,7 +15,7 @@
  *   former student — id of student.j, with a division on the caller.
  *   fresh          — an id that does not exist in the database.
  *
- * UR-01…UR-67 cover every REGISTERED @Authenticated route (the two dormant
+ * UR-01…UR-70 cover every REGISTERED @Authenticated route (the two dormant
  * Study Groups handlers are covered by the P1-02 declaration test only).
  * UR-37 (POST /auth/logout) is retired: logout became @Public in H1 (it is
  * authenticated by the refresh token; covered by test/auth.e2e-spec.ts). The
@@ -302,6 +302,10 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
     // Session inactivity (owner 2026-11-28): role-independent; a refresh token that is not the caller's session is refused
     // the same way for every role (401 INVALID_REFRESH_TOKEN), and nothing is moved.
     { id: 'UR-67', route: 'POST /api/v1/auth/activity', kind: 'same', run: (u) => c.auth.activity({ refreshToken: 'not-a-session-token' } as never, u, { cookies: {} } as never) },
+    // Submission reports (owner 2026-11-28): an unknown report is not found for every role; the grants decide otherwise.
+    { id: 'UR-68', route: 'GET /api/v1/reports/:id/summary', kind: '404', run: (u) => c.reports.summary(randomUUID(), u) },
+    { id: 'UR-69', route: 'GET /api/v1/reports/:id/access-log', kind: '404', run: (u) => c.reports.accessLog(randomUUID(), u) },
+    { id: 'UR-70', route: 'POST /api/v1/reports/:id/grants/:grantId/revoke', kind: '404', run: (u) => c.reports.revokeGrant(randomUUID(), randomUUID(), u) },
   ];
   /** Read-only role-independent cases: the unsupported caller must get exactly the same value. */
   const READ_ONLY = new Set(['UR-35', 'UR-36', 'UR-40', 'UR-41', 'UR-43', 'UR-46', 'UR-47', 'UR-52', 'UR-55', 'UR-58']);
@@ -309,11 +313,11 @@ describe('unknown / unsupported caller roles (P1-03)', () => {
   /** Ids of cases whose route is no longer @Authenticated; never reused. */
   const RETIRED = new Set(['UR-37']);   // POST /auth/logout → @Public (H1)
 
-  it('the UR cases cover exactly the registered @Authenticated routes (66), numbered UR-01…UR-67 without the retired UR-37', async () => {
+  it('the UR cases cover exactly the registered @Authenticated routes (69), numbered UR-01…UR-70 without the retired UR-37', async () => {
     expect(CASES.map((x) => x.id)).toEqual(
-      Array.from({ length: 67 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
+      Array.from({ length: 70 }, (_, i) => `UR-${String(i + 1).padStart(2, '0')}`).filter((id) => !RETIRED.has(id)),
     );
-    expect(CASES).toHaveLength(66);
+    expect(CASES).toHaveLength(69);
     expect(CASES.map((x) => x.route).sort()).toEqual(await registeredAuthenticatedRoutes());
   });
 

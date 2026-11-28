@@ -12731,6 +12731,33 @@
           }
         },
         {
+          "name": "GET /reports/{id}/access-log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/access-log",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "access-log"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
           "name": "GET /reports/{id}/export",
           "request": {
             "method": "GET",
@@ -12833,6 +12860,40 @@
           }
         },
         {
+          "name": "POST /reports/{id}/grants/{grantId}/revoke",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/grants/:grantId/revoke",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "grants",
+                ":grantId",
+                "revoke"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                },
+                {
+                  "key": "grantId",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
           "name": "POST /reports/{id}/preview",
           "request": {
             "method": "POST",
@@ -12922,6 +12983,33 @@
                   "description": ""
                 }
               ]
+            },
+            "description": "**Access:** Any signed-in user"
+          }
+        },
+        {
+          "name": "GET /reports/{id}/summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/:id/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                ":id",
+                "summary"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "",
+                  "description": ""
+                }
+              ],
+              "query": []
             },
             "description": "**Access:** Any signed-in user"
           }

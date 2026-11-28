@@ -249,7 +249,8 @@ describe('expected state — derived from this checkout only', () => {
       'ViewAsSession',   // + view as, read only (20261230000000, owner 2026-11-23)
       'UserBankDetails',   // + banking information (20261231000000, owner 2026-11-25)
       'TestQuestionMarker', 'TestQuestionTask', 'TestTaskClaim', 'TestQuestionAssessment', 'TestAssessmentVersion', 'TestMarkDraftChange',
-      'TestQuestionDecision', 'TestTaskEvent', 'TestPaperAccess', 'TestStaffPaperAccess', 'TestQuestionPromptHistory'];   // + question-level marking (20270101000100, owner 2026-11-26)
+      'TestQuestionDecision', 'TestTaskEvent', 'TestPaperAccess', 'TestStaffPaperAccess', 'TestQuestionPromptHistory',   // + question-level marking (20270101000100, owner 2026-11-26)
+      'TestSubmissionCorrection'];   // + submission reports (20270103000000, owner 2026-11-28)
     assert.deepEqual(full.models.filter((m) => !pp.models.includes(m)).sort(), [...postTables, ...areaTables].sort());
   });
   test('the two baselines are distinct: pre-phase1 ⊂ pre-post-phase1 ⊂ this checkout (migrations and models)', () => {

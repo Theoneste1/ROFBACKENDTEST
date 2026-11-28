@@ -17,7 +17,7 @@ admits exactly the roles it names; a permission route admits the roles holding t
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 524 endpoints — 31 public, 237 administrator-only (Admin and / or Super Admin).
+Totals: 527 endpoints — 31 public, 237 administrator-only (Admin and / or Super Admin).
 
 ## Academic years
 
@@ -527,11 +527,14 @@ Totals: 524 endpoints — 31 public, 237 administrator-only (Admin and / or Supe
 | GET | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | PUT | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | DELETE | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/access-log` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/reports/{id}/export` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | PUT | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/{id}/grants/{grantId}/revoke` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/reports/{id}/preview` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/reports/{id}/run` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/summary` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/reports/preview` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/reports/sources` |  |  |  |  |  | ✓ | ✓ |
 

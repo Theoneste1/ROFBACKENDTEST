@@ -351,6 +351,10 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/reports/:id/export  CustomReportsController.export':                                             SIGNED_IN,
   'GET /api/v1/reports/:id/grants  CustomReportsController.grants':                                             SIGNED_IN,
   'PUT /api/v1/reports/:id/grants  CustomReportsController.setGrants':                                          SIGNED_IN,
+  // Submission reports and sharing (owner 2026-11-28): signed in; the report's grants decide in the service (404 / 403).
+  'GET /api/v1/reports/:id/summary  CustomReportsController.summary':                                            SIGNED_IN,
+  'GET /api/v1/reports/:id/access-log  CustomReportsController.accessLog':                                       SIGNED_IN,
+  'POST /api/v1/reports/:id/grants/:grantId/revoke  CustomReportsController.revokeGrant':                        SIGNED_IN,
   // Registration data (owner 2026-11-23): registrationData.manage — Super Administrators only (never grantable).
   'GET /api/v1/admin/registration-data/fields  RegistrationDataController.fields':                               SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/registration-data/query  RegistrationDataController.query':                                SUPER_ADMIN_ONLY,
