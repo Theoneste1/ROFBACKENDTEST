@@ -29,6 +29,10 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: "Reports with any data (owner 2026-11-25): an Administrators' source (schools, learning, applications, administration); anyone else (or an unknown role) gets a where clause matching no row, even for a report shared with them.",
   },
   {
+    file: 'src/test-management/tests.service.ts', rule: 'U6', code: "adminDeadline = isAdmin(user) && asLocked.includes('closesAt')",
+    reason: "update(): only an Administrator or Super Administrator may move a test's deadline after students submitted (owner 2026-11-28); for any other role, an unknown one included, the deadline stays locked (409 TEST_LOCKED_BY_SUBMISSIONS) — the check only ever lifts that one lock for administrators.",
+  },
+  {
     file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: "definitionProblems(d, viewer.role)",
     reason: "Reports with any data (owner 2026-11-25): the author's role only restricts — an Administrators' source, a Super-Admin-only source or a protected field is refused (400) for any role that is not ADMIN / SUPER_ADMIN or not SUPER_ADMIN; an unknown role is refused all three.",
   },

@@ -8,8 +8,11 @@
 -- Like the other rollbacks, this file deliberately does NOT edit Prisma's migration history:
 --   1. Confirm the column is gone:
 --        SELECT count(*) FROM information_schema.columns WHERE table_name = 'RefreshToken' AND column_name = 'lastActivityAt';   -- expect 0
---   2. Then, and only then, mark the migration rolled back:
---        npx prisma migrate resolve --rolled-back 20270102000000_session_activity
+--   2. Then, and only then, remove its history row (guarded: nothing is deleted while the column exists):
+--        DELETE FROM "_prisma_migrations" WHERE migration_name = '20270102000000_session_activity'
+--          AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'RefreshToken' AND column_name = 'lastActivityAt');
+--      (`prisma migrate resolve --rolled-back` only applies to FAILED migrations: on this one it is refused with P3012,
+--      and a history row left behind makes the next `migrate deploy` skip the migration. Rehearsed 2026-11-28.)
 BEGIN;
 
 ALTER TABLE "RefreshToken" DROP COLUMN "lastActivityAt";
