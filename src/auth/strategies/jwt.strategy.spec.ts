@@ -56,3 +56,21 @@ describe('JwtStrategy.validate — revoked sessions', () => {
       .resolves.toMatchObject({ id: 'u1', role: 'ADMIN' });
   });
 });
+
+describe('authUserSelect (review 2026-11-28)', () => {
+  it('reads active overrides as of each call, never as of server start', async () => {
+    const { authUserSelect } = await import('./jwt.strategy.js');
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2027-01-01T00:00:00Z'));
+      const first = JSON.stringify(authUserSelect().permissionOverrides);
+      vi.setSystemTime(new Date('2027-01-02T00:00:00Z'));
+      const second = JSON.stringify(authUserSelect().permissionOverrides);
+      expect(first).toContain('2027-01-01T00:00:00.000Z');
+      expect(second).toContain('2027-01-02T00:00:00.000Z');
+      expect(second).not.toContain('2027-01-01T00:00:00.000Z');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

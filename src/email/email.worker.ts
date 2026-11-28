@@ -34,6 +34,7 @@ interface ClaimedDelivery {
   id:             string;
   jobId:          string | null;
   recipientEmail: string;
+  recipientId:    string | null;
   subject:        string | null;
   body:           string | null;
   html:           string | null;
@@ -101,7 +102,7 @@ export class EmailWorker {
         LIMIT ${this.mailer.batchSize}
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING d."id", d."jobId", d."recipientEmail", d."subject", d."body", d."html", d."attempts", d."subscriberId"`;
+      RETURNING d."id", d."jobId", d."recipientEmail", d."recipientId", d."subject", d."body", d."html", d."attempts", d."subscriberId"`;
 
     if (claimed.length === 0) return 0;
 
@@ -123,6 +124,13 @@ export class EmailWorker {
       })).map((s) => [s.id, s]),
     );
 
+    // Administrators' bulk e-mails to accounts greet each person by first name (owner 2026-11-27).
+    const accountIds = [...new Set(claimed.filter((c) => c.jobId && !c.subscriberId && c.recipientId).map((c) => c.recipientId!))];
+    const firstNames = new Map(
+      accountIds.length === 0 ? [] : (await this.prisma.user.findMany({ where: { id: { in: accountIds } }, select: { id: true, firstName: true } }))
+        .map((u) => [u.id, u.firstName]),
+    );
+
     // Bulk e-mails get the branded layout at send time.
     const brand = jobIds.length > 0 ? await loadEmailBrand(this.settings, this.config) : null;
 
@@ -130,7 +138,8 @@ export class EmailWorker {
     const CONCURRENCY = 5;
     for (let i = 0; i < claimed.length; i += CONCURRENCY) {
       await Promise.all(claimed.slice(i, i + CONCURRENCY).map((d) =>
-        this.deliver(d, d.jobId ? jobs.get(d.jobId) : undefined, brand, d.subscriberId ? subscribers.get(d.subscriberId) ?? null : undefined)));
+        this.deliver(d, d.jobId ? jobs.get(d.jobId) : undefined, brand, d.subscriberId ? subscribers.get(d.subscriberId) ?? null : undefined,
+          d.recipientId ? firstNames.get(d.recipientId) ?? null : null)));
     }
 
     for (const jobId of jobIds) await this.refreshJob(jobId);
@@ -142,9 +151,16 @@ export class EmailWorker {
    * (null when they no longer exist). A mailing is rendered for its subscriber (greeting, unsubscribe link in the
    * footer) and both carry the List-Unsubscribe headers.
    */
-  private async deliver(d: ClaimedDelivery, job: { subject: string; body: string } | undefined, brand: EmailBrand | null, subscriber?: SubscriberOfDelivery | null) {
+  private async deliver(
+    d: ClaimedDelivery, job: { subject: string; body: string } | undefined, brand: EmailBrand | null, subscriber?: SubscriberOfDelivery | null,
+    firstName: string | null = null,
+  ) {
     let headers: Record<string, string> | undefined;
     let personal: { text: string; html: string } | null = null;
+    // An administrator's e-mail to an account: "Hello <first name>," like every other e-mail (owner 2026-11-27).
+    if (subscriber === undefined && job && brand && d.body === null) {
+      personal = renderEmail({ heading: job.subject, body: job.body, greeting: greetingFor(firstName) }, brand);
+    }
     if (subscriber !== undefined) {
       if (d.jobId && subscriber?.status !== 'ACTIVE') {
         await this.prisma.emailDelivery.update({

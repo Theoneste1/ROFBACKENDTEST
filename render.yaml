@@ -1,9 +1,11 @@
-# Render Blueprint for the ROF LMS API (free plan). Render → New → Blueprint →
+# Render Blueprint for the ROF LMS API. Render → New → Blueprint →
 # pick this repository. Values marked `sync: false` are asked for once in the
 # Render dashboard; they never live in git. Step-by-step: deploy/render/README.md.
 #
-# The free plan sleeps after ~15 idle minutes and wakes on the next request
-# (about a minute). The database is Neon, files go to Cloudflare R2.
+# Instance type Starter, in a workspace on the Render Pro plan (owner, 2026-11-28):
+# a paid instance never sleeps (no cold starts). `plan:` below is the INSTANCE type;
+# keep it equal to the dashboard (Settings → Instance Type), or a Blueprint sync changes it.
+# The database is Neon, files go to Cloudflare R2.
 # Migrations and the first administrator are applied from a developer machine
 # (`npx prisma migrate deploy` / `npx prisma db seed`), not by this service.
 
@@ -11,7 +13,7 @@ services:
   - type: web
     name: rof-lms-api
     runtime: docker
-    plan: free
+    plan: starter
     # Same region as the Neon database (AWS us-east-2 = Render "ohio"): every request
     # makes several database queries, so the API must sit next to the database.
     # If the database is moved to Neon Frankfurt, change this to frankfurt.

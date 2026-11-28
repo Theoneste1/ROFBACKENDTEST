@@ -20,6 +20,7 @@ import { randomBytes, randomUUID } from 'crypto';
 import { AuditService } from '../../audit/audit.service.js';
 import type { AuthUser, ViewAsInfo } from '../../common/auth-user.js';
 import { allowWritesWhileViewing, markViewing } from '../../common/request-context.js';
+import { isHiddenAccount } from '../../common/access/super-admin-privacy.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { activeOverridesSelect } from '../active-overrides.js';
 import { PermissionService } from '../permission.service.js';
@@ -67,7 +68,8 @@ export class ViewAsService {
   async start(targetId: string, actor: AuthUser, reason: string | undefined, requestId: string | undefined) {
     if (actor.viewAs) throw viewAsNotAllowed('You cannot start viewing as someone while already viewing as someone.');
     const target = await this.prisma.user.findUnique({ where: { id: targetId }, select: PERSON });
-    if (!target) throw new NotFoundException('User not found.');
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!target || isHiddenAccount(actor, target)) throw new NotFoundException('User not found.');
     const refusal = viewAsRefusal(actor, target);
     if (refusal) throw viewAsNotAllowed(refusal);
 

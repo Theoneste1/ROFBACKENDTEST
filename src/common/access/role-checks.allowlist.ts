@@ -125,8 +125,12 @@ export const ROLE_CHECK_ALLOWLIST: readonly AllowlistEntry[] = [
     reason: 'overview(): decides only whether the account status is ADDED for staff viewers; any other role (students, an unsupported one) gets less data, never more. Access itself is decided by mayView().',
   },
   {
-    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: '(g) => g.userId === viewer.id || g.role === viewer.role',
-    reason: "levels(): selects the grants that name the caller or the caller's own role — the only grants that apply to them; an unknown role matches no role grant (grants name known roles only) and gets no level.",
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U6', code: "(g) => grantLive(g) && (g.userId === viewer.id || g.role === viewer.role || (!!g.schoolId && viewer.role === 'TEACHER' && schools.has(g.schoolId)))",
+    reason: "levels(): selects the LIVE grants (not revoked, not expired) that name the caller, the caller's own role, or (a Teacher only) one of the schools they are actively assigned to — the only grants that apply to them; an unknown role matches no role grant and is no Teacher, so it gets no level. Rows stay within the source's scope whatever the grant (owner 2026-11-28).",
+  },
+  {
+    file: 'src/custom-reports/custom-reports.service.ts', rule: 'U2', code: "viewer.role === 'TEACHER' ? await activeSchoolsOf(this.prisma, viewer.id) : []",
+    reason: "schoolsOf(): the schools whose report grants apply to the caller — a Teacher's active schools; any other role (an unknown one included) gets none, so a school grant gives them nothing (owner 2026-11-28).",
   },
   {
     file: 'src/custom-reports/custom-reports.service.ts', rule: 'U4', code: "!mine.length || viewer.role === 'STUDENT'",

@@ -86,8 +86,8 @@ export class AdminSchoolAffiliationsController {
   /** A student's claims, newest first. */
   @Get('users/:id/school-affiliations')
   @RequirePermission('schools.manage')
-  history(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.history(id);
+  history(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.service.history(id, user);
   }
 }
 

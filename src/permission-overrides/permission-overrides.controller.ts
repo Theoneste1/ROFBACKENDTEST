@@ -21,8 +21,8 @@ export class PermissionOverridesController {
   /** The user's overrides, newest first (active and past). */
   @Get('users/:id/permission-overrides')
   @RequirePermission('permissions.manageOverrides')
-  list(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.list(id);
+  list(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.service.list(id, user);
   }
 
   /** Add an override, validated against the approved list (400 OVERRIDE_NOT_ALLOWED otherwise). */
@@ -46,8 +46,8 @@ export class PermissionOverridesController {
   /** What the user can do now: role defaults with their active overrides applied. */
   @Get('users/:id/permissions')
   @RequirePermission('permissions.view')
-  effective(@Param('id', ParseUUIDPipe) id: string) {
-    return this.service.effectiveFor(id);
+  effective(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.service.effectiveFor(id, user);
   }
 
   /** The permission catalogue, role defaults and the override policy (defined in code). */

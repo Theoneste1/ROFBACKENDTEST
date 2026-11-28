@@ -25,6 +25,17 @@
  * Such a transaction calls `lockSessions` first (users.service.ts `update`).
  * Plain UPDATEs of non-key User columns (FOR NO KEY UPDATE) do not conflict with
  * KEY SHARE and need nothing.
+ *
+ * INACTIVITY (owner 2026-11-28: signed out after 60 minutes without activity). Each token row carries the session's
+ * last USER activity (`lastActivityAt`): set at sign-in, moved forward only by `recordActivity` (POST /auth/activity,
+ * which the browser sends for clicks, typing, scrolling and touch - never for background requests), and copied
+ * UNCHANGED by a refresh, so background refreshes never keep a session alive. The server refuses (and revokes):
+ *   - a refresh more than SESSION_IDLE_LIMIT_MS after the last activity (401 SESSION_IDLE_EXPIRED), and
+ *   - an activity report for a session already past that limit (it cannot be revived).
+ * An access token never outlives the session's inactivity deadline: its expiry is min(15 min, deadline - now), so no
+ * request is accepted after the deadline even without the browser's help. The browser signs out at exactly 60 minutes;
+ * the server's limit adds SESSION_IDLE_GRACE_MS for activity reports still in transit (the browser reports at most
+ * once a minute).
  */
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -50,6 +61,20 @@ export interface ClientInfo {
 
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
+/** A session ends after this long without user activity (owner 2026-11-28). */
+export const SESSION_IDLE_MINUTES = 60;
+/** Allowance for activity reports in transit (the browser sends at most one a minute) and clock differences. */
+export const SESSION_IDLE_GRACE_MS = 2 * 60_000;
+/** The server's limit: no refresh, activity report or access token beyond it. */
+export const SESSION_IDLE_LIMIT_MS = SESSION_IDLE_MINUTES * 60_000 + SESSION_IDLE_GRACE_MS;
+/** A rotated token still identifies its session for an activity report this long after it was replaced (tabs racing a refresh). */
+const ROTATED_ACTIVITY_GRACE_MS = 60_000;
+
+/** When the session's inactivity ends: its last activity (or, for a token issued before the column, its issue time) + the limit. */
+export function idleDeadline(token: { lastActivityAt: Date | null; createdAt: Date }): Date {
+  return new Date((token.lastActivityAt ?? token.createdAt).getTime() + SESSION_IDLE_LIMIT_MS);
+}
+
 /** Advisory-lock namespace for one user's sessions (other namespaces: 4209–4215). */
 export const SESSION_LOCK_NAMESPACE = 4216;
 
@@ -74,6 +99,7 @@ export interface AccessClaims {
 type RotateResult =
   | { kind: 'ok'; userId: string; tokens: IssuedTokens }
   | { kind: 'reused' }
+  | { kind: 'idle' }
   | { kind: 'invalid' };
 
 @Injectable()
@@ -94,7 +120,7 @@ export class TokenService {
 
   /** Start a new session (login). */
   async issue(userId: string, client: ClientInfo): Promise<IssuedTokens> {
-    return this.issueInFamily(this.prisma, userId, randomUUID(), client);
+    return this.issueInFamily(this.prisma, userId, randomUUID(), client, new Date());
   }
 
   /**
@@ -123,6 +149,11 @@ export class TokenService {
         return { kind: 'reused' };
       }
       if (existing.expiresAt < new Date()) return { kind: 'invalid' };
+      // 60 minutes without user activity: the session ends here, whatever refreshes happened meanwhile.
+      if (idleDeadline(existing) <= new Date()) {
+        await revokeFamily(tx, existing.familyId);
+        return { kind: 'idle' };
+      }
 
       const user = await tx.user.findUnique({
         where:  { id: existing.userId },
@@ -143,14 +174,53 @@ export class TokenService {
         return { kind: 'reused' };
       }
 
-      return { kind: 'ok', userId: existing.userId, tokens: await this.issueInFamily(tx, existing.userId, existing.familyId, client) };
+      // The new token carries the SAME last activity: a refresh is not activity.
+      const lastActivity = existing.lastActivityAt ?? existing.createdAt;
+      return { kind: 'ok', userId: existing.userId, tokens: await this.issueInFamily(tx, existing.userId, existing.familyId, client, lastActivity) };
     });
 
     if (result.kind === 'reused') {
       throw new AppError(HttpStatus.UNAUTHORIZED, 'REFRESH_TOKEN_REUSED', 'Session invalidated. Please log in again.');
     }
+    if (result.kind === 'idle') throw idleExpired();
     if (result.kind === 'invalid') throw invalidRefresh();
     return { userId: result.userId, tokens: result.tokens };
+  }
+
+  /**
+   * The user did something (click, typing, scrolling, touch - reported by the browser, at most once a minute): the
+   * session of this refresh token is active now. Only the session's current token is moved forward (the presented
+   * token may be the one it was just rotated from, for a tab that has not seen the new cookie yet), only for its own
+   * user, and never once the session is past its inactivity limit - an expired session cannot be revived. Returns the
+   * new inactivity deadline, or throws 401 SESSION_IDLE_EXPIRED (the session is revoked) / INVALID_REFRESH_TOKEN.
+   */
+  async recordActivity(rawRefreshToken: string, userId: string): Promise<{ idleDeadline: Date }> {
+    const found = await this.prisma.refreshToken.findUnique({
+      where:  { tokenHash: hashToken(rawRefreshToken) },
+      select: { userId: true },
+    });
+    if (!found || found.userId !== userId) throw invalidRefresh();
+    const outcome = await this.prisma.$transaction(async (tx): Promise<{ kind: 'ok'; deadline: Date } | { kind: 'idle' } | { kind: 'invalid' }> => {
+      await lockUserSessions(tx, userId);
+      const now = new Date();
+      const presented = await tx.refreshToken.findUnique({ where: { tokenHash: hashToken(rawRefreshToken) } });
+      if (!presented || presented.revokedAt || presented.expiresAt <= now) return { kind: 'invalid' };
+      if (presented.rotatedAt && now.getTime() - presented.rotatedAt.getTime() > ROTATED_ACTIVITY_GRACE_MS) return { kind: 'invalid' };
+      const current = await tx.refreshToken.findFirst({
+        where:  { familyId: presented.familyId, revokedAt: null, rotatedAt: null, expiresAt: { gt: now } },
+        select: { id: true, lastActivityAt: true, createdAt: true },
+      });
+      if (!current) return { kind: 'invalid' };
+      if (idleDeadline(current) <= now) {
+        await revokeFamily(tx, presented.familyId);
+        return { kind: 'idle' };
+      }
+      await tx.refreshToken.update({ where: { id: current.id }, data: { lastActivityAt: now } });
+      return { kind: 'ok', deadline: idleDeadline({ lastActivityAt: now, createdAt: now }) };
+    });
+    if (outcome.kind === 'idle') throw idleExpired();
+    if (outcome.kind === 'invalid') throw invalidRefresh();
+    return { idleDeadline: outcome.deadline };
   }
 
   /**
@@ -233,10 +303,13 @@ export class TokenService {
     });
   }
 
-  private async issueInFamily(db: Db | PrismaService, userId: string, familyId: string, client: ClientInfo): Promise<IssuedTokens> {
+  private async issueInFamily(db: Db | PrismaService, userId: string, familyId: string, client: ClientInfo, lastActivity: Date): Promise<IssuedTokens> {
+    // Never valid beyond the session's inactivity deadline (at least one second, so it is a well-formed token).
+    const untilIdle = Math.floor((lastActivity.getTime() + SESSION_IDLE_LIMIT_MS - Date.now()) / 1000);
+    const expiresIn = Math.max(1, Math.min(this.accessTtlSeconds, untilIdle));
     const accessToken = await this.jwt.signAsync(
       { sub: userId, jti: randomUUID(), iatMs: Date.now() },
-      { expiresIn: this.accessTtlSeconds },
+      { expiresIn },
     );
 
     const refreshToken = randomBytes(48).toString('base64url');
@@ -248,6 +321,7 @@ export class TokenService {
         familyId,
         tokenHash: hashToken(refreshToken),
         expiresAt,
+        lastActivityAt: lastActivity,
         userAgent: client.userAgent?.slice(0, 300),
         ip:        client.ip?.slice(0, 64),
       },
@@ -256,11 +330,16 @@ export class TokenService {
     return {
       access_token:       accessToken,
       token_type:         'Bearer',
-      expires_in:         this.accessTtlSeconds,
+      expires_in:         expiresIn,
       refresh_token:      refreshToken,
       refresh_expires_at: expiresAt,
     };
   }
+}
+
+function idleExpired() {
+  return new AppError(HttpStatus.UNAUTHORIZED, 'SESSION_IDLE_EXPIRED',
+    `You were signed out after ${SESSION_IDLE_MINUTES} minutes without activity. Please sign in again.`);
 }
 
 function invalidRefresh() {

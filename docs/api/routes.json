@@ -1895,6 +1895,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/admin/test-submissions",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/admin/tests",
     "roles": [
       "HEAD_COACH",
@@ -2098,6 +2107,33 @@
     "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}",
     "roles": [
       "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment",
+    "roles": [
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Admin · Tests"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment/history",
+    "roles": [
       "ADMIN",
       "SUPER_ADMIN"
     ],
@@ -2619,6 +2655,19 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/auth/activity",
+    "roles": [
+      "STUDENT",
+      "TEACHER",
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "Auth"
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/auth/forgot-password",
     "roles": [
       "PUBLIC"
@@ -3060,6 +3109,19 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/reports/{id}/access-log",
+    "roles": [
+      "STUDENT",
+      "TEACHER",
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/reports/{id}/export",
     "roles": [
       "STUDENT",
@@ -3099,6 +3161,19 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/reports/{id}/grants/{grantId}/revoke",
+    "roles": [
+      "STUDENT",
+      "TEACHER",
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/reports/{id}/preview",
     "roles": [
       "STUDENT",
@@ -3113,6 +3188,19 @@
   {
     "method": "GET",
     "path": "/api/v1/reports/{id}/run",
+    "roles": [
+      "STUDENT",
+      "TEACHER",
+      "MENTOR",
+      "HEAD_COACH",
+      "ADMIN",
+      "SUPER_ADMIN"
+    ],
+    "tag": "custom-reports"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/{id}/summary",
     "roles": [
       "STUDENT",
       "TEACHER",

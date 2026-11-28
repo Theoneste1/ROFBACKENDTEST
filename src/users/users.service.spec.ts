@@ -357,7 +357,8 @@ describe('UsersService', () => {
 
     it('an account whose current role the actor may not manage cannot be edited, suspended or deleted', async () => {
       const { service, prisma, roles } = makeMocks();
-      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'SUPER_ADMIN', gradeLevel: null, username: 'sa', email: 's@x.rw' });
+      // (An ADMIN account under the Super Admin boundary; a SUPER_ADMIN target is a 404 since 2026-11-28, below.)
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'ADMIN', gradeLevel: null, username: 'a2', email: 'a2@x.rw' });
       roles.assertCanManage.mockImplementation(() => { throw refusal(); });
       await expect(service.update('u2', { firstName: 'X' } as any, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
       await expect(service.updateStatus('u2', { isActive: false }, ADMIN)).rejects.toMatchObject({ code: 'ROLE_NOT_ASSIGNABLE' });
@@ -365,6 +366,20 @@ describe('UsersService', () => {
       expect(prisma.user.update).not.toHaveBeenCalled();
       expect(prisma.user.delete).not.toHaveBeenCalled();
       expect(roles.assertCanManage).toHaveBeenCalledTimes(3);
+    });
+
+    // Super Administrator privacy (owner 2026-11-28; replaces the 403 ROLE_NOT_ASSIGNABLE an ADMIN got for a SUPER_ADMIN).
+    it('a SUPER_ADMIN account does not exist for an ADMIN: edit, suspend, delete and view answer the unknown-id 404', async () => {
+      const { service, prisma, roles } = makeMocks();
+      prisma.user.findUnique.mockResolvedValue({ id: 'u2', role: 'SUPER_ADMIN', gradeLevel: null, username: 'sa', email: 's@x.rw', isActive: true, passwordHash: null });
+      await expect(service.update('u2', { firstName: 'X' } as any, ADMIN)).rejects.toThrow('User u2 not found.');
+      await expect(service.updateStatus('u2', { isActive: false }, ADMIN)).rejects.toThrow('User u2 not found.');
+      await expect(service.delete('u2', ADMIN)).rejects.toThrow('User u2 not found.');
+      await expect(service.findOne('u2', ADMIN)).rejects.toThrow('User u2 not found.');
+      expect(roles.assertCanManage).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      // A Super Administrator sees it.
+      await expect(service.findOne('u2', { id: 'sa2', role: 'SUPER_ADMIN' } as any)).resolves.toMatchObject({ id: 'u2', role: 'SUPER_ADMIN' });
     });
   });
 });

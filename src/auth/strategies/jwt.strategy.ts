@@ -35,6 +35,40 @@ export function issuedBeforeRevocation(payload: Pick<AccessTokenPayload, 'iat' |
   return true;   // no issue time at all: cannot prove it is newer — refuse
 }
 
+/**
+ * What every authenticated request reads about its user (also the refresh's permission summary). A function, not a
+ * constant: the active-overrides filter compares with the time of THIS read (review 2026-11-28 — as a constant it was
+ * evaluated once, at server start).
+ */
+export const authUserSelect = () => ({
+  id: true, username: true, role: true, isActive: true, isApproved: true, activatedAt: true,
+  divisionId: true, gradeLevel: true, tokensValidAfter: true, dateOfBirth: true,
+  // Active individual overrides (P1-09): read fresh on every request, so a
+  // revocation applies on the next request and nothing is cached.
+  permissionOverrides: activeOverridesSelect(),
+  // Banking information (owner 2026-11-25): one row by primary key, read with the user — no extra round trip.
+  bankDetails: { select: BANK_DETAILS_SELECT },
+}) as const;
+
+type AuthUserRow = { id: string; username: string; role: AuthUser['role']; divisionId: string | null; gradeLevel: AuthUser['gradeLevel'];
+  dateOfBirth: Date | null; permissionOverrides: AuthUser['overrides']; bankDetails: Parameters<typeof bankingIncomplete>[1] };
+
+/** The request's user from its row (the same object for a request and for the refresh's permission summary). */
+export function toAuthUser(user: AuthUserRow, claims: { jti?: string; exp?: number }): AuthUser {
+  return {
+    id:         user.id,
+    username:   user.username,
+    role:       user.role,
+    divisionId: user.divisionId,
+    gradeLevel: user.gradeLevel,
+    jti:        claims.jti,
+    exp:        claims.exp,
+    overrides:  user.permissionOverrides,
+    ...(user.role === 'STUDENT' && user.dateOfBirth === null && { dateOfBirthRequired: true as const }),
+    ...(bankingIncomplete(user.role, user.bankDetails) && { bankingRequired: true as const }),
+  };
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -70,18 +104,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // A "view as" token: the session, the viewer and the rank rule are checked again on every request.
     if (payload.va !== undefined) return this.viewAs.resolve(payload.sub, payload.va, payload);
 
-    const user = await this.prisma.user.findUnique({
-      where:  { id: payload.sub },
-      select: {
-        id: true, username: true, role: true, isActive: true, isApproved: true, activatedAt: true,
-        divisionId: true, gradeLevel: true, tokensValidAfter: true, dateOfBirth: true,
-        // Active individual overrides (P1-09): read fresh on every request, so a
-        // revocation applies on the next request and nothing is cached.
-        permissionOverrides: activeOverridesSelect(),
-        // Banking information (owner 2026-11-25): one row by primary key, read with the user — no extra round trip.
-        bankDetails: { select: BANK_DETAILS_SELECT },
-      },
-    });
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: authUserSelect() });
 
     if (!user || !user.isActive || !user.isApproved || !user.activatedAt) {
       throw new UnauthorizedException('Your session is no longer valid. Please log in again.');
@@ -93,17 +116,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Your session is no longer valid. Please log in again.');
     }
 
-    return {
-      id:         user.id,
-      username:   user.username,
-      role:       user.role,
-      divisionId: user.divisionId,
-      gradeLevel: user.gradeLevel,
-      jti:        payload.jti,
-      exp:        payload.exp,
-      overrides:  user.permissionOverrides,
-      ...(user.role === 'STUDENT' && user.dateOfBirth === null && { dateOfBirthRequired: true as const }),
-      ...(bankingIncomplete(user.role, user.bankDetails) && { bankingRequired: true as const }),
-    };
+    return toAuthUser(user, payload);
   }
 }

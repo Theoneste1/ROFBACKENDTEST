@@ -90,7 +90,8 @@ describe('Super Admin (P1-08)', () => {
       expect(await code(http().patch(`/api/v1/admin/users/${target.id}`).set(bearer(admin)).send({ role: 'SUPER_ADMIN', currentPassword: PASSWORD }))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
       expect(await code(http().post('/api/v1/admin/users').set(bearer(admin)).send({ firstName: 'X', lastName: 'Y', username: 'mk.sa', email: 'mk.sa@test.local', password: 'Str0ng!Passw0rd', role: 'SUPER_ADMIN' }))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
       const saId = (await p().user.findUniqueOrThrow({ where: { username: 'boot.target' } })).id;
-      expect(await code(http().patch(`/api/v1/admin/users/${saId}/status`).set(bearer(admin)).send({ isActive: false }))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
+      // Super Administrator privacy (owner 2026-11-28): acting on a Super Admin — the account does not exist for an ADMIN (404).
+      expect(await code(http().patch(`/api/v1/admin/users/${saId}/status`).set(bearer(admin)).send({ isActive: false }))).toEqual([404, 'NOT_FOUND']);
       expect(await roleOf(target.id)).toBe('ADMIN');
     });
 

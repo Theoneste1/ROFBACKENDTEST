@@ -1,9 +1,9 @@
 # Hosting ROF LMS (Render + Neon + Vercel)
 
-| Part | Service | Free plan |
+| Part | Service | Plan / limits |
 |---|---|---|
 | Frontend | Vercel (only; Netlify removed 2026-11-24), from the ROFFRONTENDTEST repository | Its `/api/*` requests are proxied to the API, so browsers only ever talk to the frontend's domain |
-| API | Render web service (Docker, Ohio), from [`render.yaml`](../../render.yaml) | sleeps after ~15 idle minutes, wakes on the next request (about a minute) |
+| API | Render web service (Docker, Ohio), from [`render.yaml`](../../render.yaml) | Starter instance (paid; workspace on the Render Pro plan): always on, no sleeping |
 | Database | Neon PostgreSQL (AWS us-east-2, Ohio) | 0.5 GB; sleeps when idle, wakes by itself |
 | Uploaded files | Cloudflare R2 | 10 GB |
 | E-mail | Resend | 3,000 e-mails/month, 100/day |

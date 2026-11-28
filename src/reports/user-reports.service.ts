@@ -85,7 +85,7 @@ export class UserReportsService {
 
   private studentSelect(s: ReportScope) {
     return {
-      ...PERSON, email: true, gradeLevel: true, isActive: true, activatedAt: true,
+      ...PERSON, avatarUrl: true, email: true, gradeLevel: true, isActive: true, activatedAt: true,
       createdAt: true, lastLoginAt: true, points: true, olympiadInterests: true,
       division: { select: { id: true, code: true, name: true } },
       school:   { select: { id: true, name: true } },
@@ -115,7 +115,9 @@ export class UserReportsService {
       const mine = countsOf.get(u.id) ?? [];
       const enrol = u.studentEnrollments[0];
       return {
-        id: u.id, name: fullName(u), username: u.username,
+        id: u.id, name: fullName(u), username: u.username, firstName: u.firstName, lastName: u.lastName,
+        // The profile picture (owner 2026-11-27): GET /users/:id/avatar decides who sees it.
+        avatarUrl:        u.avatarUrl,
         ...(!restricted && { email: u.email }),   // Head Coach: no contact details (D7)
         status:           accountStatus(u),
         // The selected year's enrolment when there is one; otherwise current placement.

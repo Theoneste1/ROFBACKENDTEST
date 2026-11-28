@@ -1,7 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import {
-  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min, ValidateNested,
-} from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsISO8601, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min, ValidateNested } from 'class-validator';
 
 import { Role } from '../generated/prisma/client.js';
 import { FILTER_OPS, type FilterOp } from './report-sources.js';
@@ -36,10 +34,14 @@ export class SaveReportDto extends ReportDefinitionDto {
   @IsOptional() @IsBoolean() isTemplate?: boolean;
 }
 
-/** One grant: a user OR a role, and its levels (view, download, edit; all three = full access). */
+/** One grant: a user, a role OR a school (its teachers), its levels (view, download, edit), and an optional expiry. */
 export class ReportGrantDto {
   @IsOptional() @IsUUID() userId?: string;
   @IsOptional() @IsEnum(Role) role?: Role;
+  /** A school: its teachers with an active assignment (owner 2026-11-28). */
+  @IsOptional() @IsUUID() schoolId?: string;
+  /** After this moment the grant gives nothing (ISO 8601, in the future); absent or null: no expiry. */
+  @IsOptional() @IsISO8601() expiresAt?: string | null;
   @IsBoolean() canView: boolean;
   @IsBoolean() canDownload: boolean;
   @IsBoolean() canEdit: boolean;
@@ -55,5 +57,5 @@ export class ReportPageQueryDto {
 }
 
 export class ReportExportQueryDto {
-  @IsIn(['csv', 'xlsx']) format: 'csv' | 'xlsx';
+  @IsIn(['csv', 'xlsx', 'pdf']) format: 'csv' | 'xlsx' | 'pdf';
 }

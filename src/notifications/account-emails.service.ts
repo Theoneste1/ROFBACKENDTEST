@@ -9,6 +9,26 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { NotificationsService } from './notifications.service.js';
 
+/**
+ * What a new account can do, by role (owner 2026-11-27: coaches must not be told they follow courses, submit assignments
+ * and see results — that is a student's work). Shown in the welcome e-mail when the account is ready.
+ */
+export function welcomeNextStep(role: string | null | undefined): string {
+  switch (role) {
+    case 'MENTOR':
+      return 'You can now log in to prepare assignments, review your students\' work and mark tests. Your Head Coach gives you access to your courses.';
+    case 'HEAD_COACH':
+      return 'You can now log in to manage your programme: its students, coaches, tests and results.';
+    case 'TEACHER':
+      return 'You can now log in to follow your students and submit test answers for them.';
+    case 'ADMIN':
+    case 'SUPER_ADMIN':
+      return 'You can now log in to manage the platform.';
+    default:
+      return 'You can now log in to follow your courses, submit assignments and see your results.';
+  }
+}
+
 @Injectable()
 export class AccountEmailsService {
   private readonly logger = new Logger(AccountEmailsService.name);
@@ -33,7 +53,7 @@ export class AccountEmailsService {
           `Your account has been created with the username "${user.username}".\n\n` +
           (pending
             ? 'An administrator will review your registration. We will e-mail you as soon as it is approved, and you can then log in.'
-            : 'You can now log in to follow your courses, submit assignments and see your results.'),
+            : welcomeNextStep(user.role)),
         {
           firstName: user.firstName, recipientId: user.id, heading: `Welcome, ${user.firstName}!`,
           ...(!pending && { link: '/login', actionLabel: 'Log in' }),
@@ -102,7 +122,7 @@ export class AccountEmailsService {
   private user(id: string) {
     return this.prisma.user.findUnique({
       where:  { id },
-      select: { id: true, email: true, firstName: true, username: true, isApproved: true, activatedAt: true, isActive: true },
+      select: { id: true, email: true, firstName: true, username: true, role: true, isApproved: true, activatedAt: true, isActive: true },
     }).then((u) => (u?.isActive ? u : null));
   }
 

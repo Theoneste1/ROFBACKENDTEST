@@ -12,6 +12,7 @@
  */
 import type { Prisma } from '../generated/prisma/client.js';
 import { ADMIN_SOURCES } from './report-sources-admin.js';
+import { SUBMISSION_SOURCES } from './report-sources-submissions.js';
 
 export type FieldType = 'text' | 'enum' | 'date' | 'boolean' | 'list' | 'number';
 export type FilterOp = 'eq' | 'neq' | 'in' | 'contains' | 'gte' | 'lte' | 'isEmpty' | 'isNotEmpty';
@@ -212,8 +213,14 @@ export interface SourceDef {
   select: object;
   /** Which rows of the table. */
   rows: object;
-  /** "people": each viewer within their own scope of accounts; "admin": Administrators only. */
-  scope: 'people' | 'admin';
+  /**
+   * "people": each viewer within their own scope of accounts; "admin": Administrators only; "submissions": test answers —
+   * Administrators all, a Head Coach the subjects of their programmes, a Teacher the students of their schools, nobody else
+   * (Coaches never: blind marking).
+   */
+  scope: 'people' | 'admin' | 'submissions';
+  /** Fields the summary counts by (keys of `fields`), in order. */
+  summary?: readonly string[];
   /** Only the Super Admin may use this source (e.g. banking information). */
   superAdminOnly?: boolean;
   /** The order when the report has none (then by the key column). */
@@ -238,6 +245,7 @@ export const SOURCES: Readonly<Record<string, SourceDef>> = {
   TEACHERS: people('TEACHERS', 'Teachers', { role: 'TEACHER' }, [...COMMON, F.teacherSchools, F.subjects, ...PERSONAL, P.personalAccount, P.schoolAccount]),
   USERS: people('USERS', 'All users', {}, [...COMMON, F.role, F.school, ...PERSONAL]),
   ...ADMIN_SOURCES,
+  ...SUBMISSION_SOURCES,
 };
 
 export const FILTER_OPS: readonly FilterOp[] = ['eq', 'neq', 'in', 'contains', 'gte', 'lte', 'isEmpty', 'isNotEmpty'];

@@ -10,8 +10,10 @@
 -- Like the other rollbacks, this file deliberately does NOT edit Prisma's migration history:
 --   1. Confirm the table is gone:
 --        SELECT count(*) FROM information_schema.tables WHERE table_name = 'UserBankDetails';   -- expect 0
---   2. Then, and only then, mark the migration rolled back:
---        npx prisma migrate resolve --rolled-back 20261231000000_user_bank_details
+--   2. Then, and only then, remove its history row (guarded: nothing is deleted while the table exists):
+--        DELETE FROM "_prisma_migrations" WHERE migration_name = '20261231000000_user_bank_details'
+--          AND to_regclass('public."UserBankDetails"') IS NULL;
+--      (`prisma migrate resolve --rolled-back` only applies to FAILED migrations; this one applied successfully.)
 BEGIN;
 
 DO $$

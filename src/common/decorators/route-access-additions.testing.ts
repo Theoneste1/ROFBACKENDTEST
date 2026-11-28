@@ -137,6 +137,8 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'PUT /api/v1/me/date-of-birth  MeController.setDateOfBirth':                                                  STUDENTS_ONLY,
   // Owner 2026-11-20: a user without a gender gives it once (any signed-in user; asked of students, teachers, coaches)
   'PUT /api/v1/me/gender  MeController.setGender':                                                              SIGNED_IN,
+  // Session inactivity (owner 2026-11-28): the browser reports user activity for its own session.
+  'POST /api/v1/auth/activity  AuthController.activity':                                                         SIGNED_IN,
   'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
   'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
   'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,
@@ -349,6 +351,10 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/reports/:id/export  CustomReportsController.export':                                             SIGNED_IN,
   'GET /api/v1/reports/:id/grants  CustomReportsController.grants':                                             SIGNED_IN,
   'PUT /api/v1/reports/:id/grants  CustomReportsController.setGrants':                                          SIGNED_IN,
+  // Submission reports and sharing (owner 2026-11-28): signed in; the report's grants decide in the service (404 / 403).
+  'GET /api/v1/reports/:id/summary  CustomReportsController.summary':                                            SIGNED_IN,
+  'GET /api/v1/reports/:id/access-log  CustomReportsController.accessLog':                                       SIGNED_IN,
+  'POST /api/v1/reports/:id/grants/:grantId/revoke  CustomReportsController.revokeGrant':                        SIGNED_IN,
   // Registration data (owner 2026-11-23): registrationData.manage — Super Administrators only (never grantable).
   'GET /api/v1/admin/registration-data/fields  RegistrationDataController.fields':                               SUPER_ADMIN_ONLY,
   'POST /api/v1/admin/registration-data/query  RegistrationDataController.query':                                SUPER_ADMIN_ONLY,
@@ -435,4 +441,9 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'GET /api/v1/admin/tests/:id/question-marking/papers/:submissionId/pages/:page  AdminQuestionMarkingController.page': ADMINISTRATORS,
   'POST /api/v1/admin/tests/:id/question-marking/questions/:questionId/wording-correction  AdminQuestionMarkingController.wording': ADMINISTRATORS,
   'POST /api/v1/admin/tests/:id/question-marking/structure-correction  AdminQuestionMarkingController.structure': ADMINISTRATORS,
+  // Reassign a submission (owner 2026-11-28): tests.reassignSubmission — ADMIN and SUPER_ADMIN only, never grantable.
+  'GET /api/v1/admin/test-submissions  AdminSubmissionSearchController.search':                                         ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId/reassignment  AdminTestSubmissionsController.reassignmentOptions': ADMINISTRATORS,
+  'POST /api/v1/admin/tests/:id/submissions/:submissionId/reassignment  AdminTestSubmissionsController.reassign':      ADMINISTRATORS,
+  'GET /api/v1/admin/tests/:id/submissions/:submissionId/reassignment/history  AdminTestSubmissionsController.reassignmentHistory': ADMINISTRATORS,
 };

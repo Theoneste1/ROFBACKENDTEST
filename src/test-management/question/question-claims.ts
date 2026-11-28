@@ -85,7 +85,10 @@ async function claimOnce(tx: Tx, req: ClaimRequest, extraCoaches: string[]): Pro
 
   let liveHeldBy = task.status === 'IN_PROGRESS' && task.lockExpiresAt !== null && task.lockExpiresAt >= t ? task.holderId : null;
   if (liveHeldBy === coachId) {
-    // Already mine: the same claim (opening a task you hold never creates another claim).
+    // Already mine: the same claim (opening a task you hold never creates another claim). Own expired claims ended
+    // above changed their tasks: their papers are projected before this transaction commits, or the commit-time paper
+    // invariant refuses it (develop CI 2026-11-28: "status MARKING_IN_PROGRESS is not its projection RETURNED").
+    await projectPapers(tx, touched, actor, t);
     return { claimId: task.claimId!, taskId: task.id, submissionId: task.submissionId, lockExpiresAt: task.lockExpiresAt!, method: 'CLAIM', resumed: true, previousHolder: null, previousEnd: null };
   }
   // Authorisation first: a coach who may not mark this question is told so, never whether someone holds it.

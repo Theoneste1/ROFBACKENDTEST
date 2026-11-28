@@ -13,7 +13,9 @@ import { uploadOptions } from '../common/storage/upload-options.js';
 import {
   AuthorizeResubmissionDto, CancelTestExtensionDto, CreateTestExtensionDto, ExtensionTargetsQueryDto, ListMyTestsQueryDto, ListTeacherTestStudentsQueryDto,
   ListTestExtensionsQueryDto, ListTestSubmissionsQueryDto, SubmitTestAnswerDto, UpdateTestExtensionDto,
+  ListReassignableSubmissionsQueryDto, ReassignSubmissionDto,
 } from './dto/submission.dto.js';
+import { SubmissionReassignmentService } from './submission-reassignment.service.js';
 import { TestExtensionsService } from './test-extensions.service.js';
 import { TestSubmissionsService } from './test-submissions.service.js';
 
@@ -231,7 +233,41 @@ export class TeacherTestsController {
 @ApiTags('Admin · Tests')
 @Controller('admin/tests/:id/submissions')
 export class AdminTestSubmissionsController {
-  constructor(private readonly submissions: TestSubmissionsService) {}
+  constructor(private readonly submissions: TestSubmissionsService, private readonly reassignment: SubmissionReassignmentService) {}
+
+  /**
+   * Reassign a submission (owner 2026-11-28; tests.reassignSubmission: Administrators and Super Administrators only,
+   * never grantable): the current test, subject and level, the levels, and every published test as a destination with
+   * whether it can take this answer (problem: MARKING_STARTED, DUPLICATE_SUBMISSION, FORMAT_MISMATCH).
+   */
+  @Get(':submissionId/reassignment')
+  @RequirePermission('tests.reassignSubmission')
+  reassignmentOptions(@Param('id', ParseUUIDPipe) id: string, @Param('submissionId', ParseUUIDPipe) submissionId: string, @CurrentUser() user: AuthUser) {
+    return this.reassignment.options(id, submissionId, user);
+  }
+
+  /**
+   * Correct the answer's test and/or level { testId, level, reason, expectedTestId? }: the same submission moves (pages,
+   * answers, timestamps, history kept; nothing copied or deleted). 400 NO_CHANGE, LEVEL_NOT_FOUND, LEVEL_NOT_IN_TEST,
+   * FORMAT_MISMATCH; 409 MARKING_STARTED (another test only), DUPLICATE_SUBMISSION, TEST_NOT_PUBLISHED, SUBMISSION_CHANGED,
+   * NOTHING_SUBMITTED. Audited (TEST_SUBMISSION_REASSIGNED, before / after / reason).
+   */
+  @Post(':submissionId/reassignment')
+  @HttpCode(200)
+  @RequirePermission('tests.reassignSubmission')
+  reassign(
+    @Param('id', ParseUUIDPipe) id: string, @Param('submissionId', ParseUUIDPipe) submissionId: string,
+    @Body() dto: ReassignSubmissionDto, @CurrentUser() user: AuthUser,
+  ) {
+    return this.reassignment.reassign(id, submissionId, dto, user);
+  }
+
+  /** The corrections of this answer, newest first: who, when, before, after, reason. */
+  @Get(':submissionId/reassignment/history')
+  @RequirePermission('tests.reassignSubmission')
+  reassignmentHistory(@Param('id', ParseUUIDPipe) id: string, @Param('submissionId', ParseUUIDPipe) submissionId: string, @CurrentUser() user: AuthUser) {
+    return this.reassignment.history(id, submissionId, user);
+  }
 
   /** Tracking: ?status=SUBMITTED|NOT_SUBMITTED|LATE_BLOCKED|UNDER_EXTENSION, ?schoolId, ?division, ?q; counts. Paginated. */
   @Get()
@@ -340,5 +376,22 @@ export class AdminTestExtensionsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.extensions.cancel(id, extensionId, dto, user);
+  }
+}
+
+/**
+ * Reassign a submission (owner 2026-11-28): find a submitted answer across every test — by student name, username or id,
+ * the paper's public code or the test title; by subject, level, status or test. tests.reassignSubmission (Administrators
+ * and Super Administrators only).
+ */
+@ApiTags('Admin · Tests')
+@Controller('admin/test-submissions')
+export class AdminSubmissionSearchController {
+  constructor(private readonly reassignment: SubmissionReassignmentService) {}
+
+  @Get()
+  @RequirePermission('tests.reassignSubmission')
+  search(@Query() q: ListReassignableSubmissionsQueryDto) {
+    return this.reassignment.search(q);
   }
 }

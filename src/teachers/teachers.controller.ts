@@ -74,8 +74,8 @@ export class TeacherDelegationsController {
 
   @Get(':id/delegations')
   @RequirePermission('users.manageTeachers')
-  list(@Param('id', ParseUUIDPipe) id: string) {
-    return this.overrides.list(id, { delegation: true });
+  list(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.overrides.list(id, user, { delegation: true });
   }
 
   /**
@@ -85,8 +85,8 @@ export class TeacherDelegationsController {
    */
   @Get(':id/test-submission')
   @RequirePermission('users.manageTeachers')
-  testSubmission(@Param('id', ParseUUIDPipe) id: string) {
-    return this.overrides.teacherTestSubmission(id);
+  testSubmission(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.overrides.teacherTestSubmission(id, user);
   }
 
   @Put(':id/test-submission')

@@ -322,6 +322,10 @@ describe('Question-level marking (Rev 5.2) — e2e', () => {
     expect(mine.body.result).toMatchObject({ totalMarks: 15, maxMarks: 20 });
     // Reopen Q2 of a PUBLISHED paper: withdrawn (G6), decision superseded, composed unset, Y has it back.
     await http().post(`${QM(id)}/tasks/${t2}/reopen`).set(bearer(hm)).send({ reason: 'Score sheet error.', to: 'RETURNED' }).expect(200);
+    // Review 2026-11-28: the coach is told the reopen's reason, not the older return's.
+    const reopened = await claim(cy, code, 'q2').expect(200);
+    expect(reopened.body).toMatchObject({ returnReason: 'Score sheet error.' });
+    await http().post(`${MT}/${code}/q2/release`).set(bearer(cy)).send({}).expect(200);
     const after = await paperOf(id, stJ);
     expect([after.status, after.finalMarkingId, after.publicationId]).toEqual(['RETURNED', null, null]);
     expect(await p().testResultWithdrawal.count({ where: { submissionId: paper.id } })).toBe(1);
@@ -363,6 +367,14 @@ describe('Question-level marking (Rev 5.2) — e2e', () => {
     expect(seconds).toEqual([{ cycle: 1, status: 'CLOSED' }, { cycle: 2, status: 'CANCELLED' }, { cycle: 3, status: 'CLOSED' }]);
     const decisions = await p().testQuestionDecision.findMany({ where: { taskId: t2 }, orderBy: { decidedAt: 'asc' }, select: { source: true, marks: true, cycle: true, supersededAt: true } });
     expect(decisions.map((d) => [d.source, d.marks, d.cycle, d.supersededAt === null])).toEqual([['ADJUSTED', 8, 1, false], ['SECOND', 7, 3, true]]);
+    // Review 2026-11-28: reopening a decided question for re-review, the Head Coach may approve it as marked (the decided
+    // cycle's CLOSED second assessment no longer blocks it).
+    await http().post(`${QM(id)}/tasks/${t2}/reopen`).set(bearer(hm)).send({ reason: 'Approve as first marked', to: 'SUBMITTED' }).expect(200);
+    const reopenedDetail = await http().get(`${QM(id)}/tasks/${t2}`).set(bearer(hm)).expect(200);
+    expect(reopenedDetail.body.allowed).toMatchObject({ approve: true, return: true });
+    await http().post(`${QM(id)}/tasks/${t2}/approve`).set(bearer(hm)).send({}).expect(200);
+    const current = await p().testQuestionDecision.findFirstOrThrow({ where: { taskId: t2, supersededAt: null }, select: { source: true, marks: true } });
+    expect(current).toEqual({ source: 'APPROVED_AS_MARKED', marks: 6 });
     // The database refuses a decision whose marks differ from its source version, and a second current decision.
     const v = await p().testAssessmentVersion.findFirstOrThrow({ where: { assessment: { taskId: s3 } } });
     await expect(p().testQuestionDecision.create({ data: { taskId: t2, cycle: 3, source: 'SECOND', marks: 1, sourceVersionId: v.id, reason: 'forged', decidedAt: new Date() } })).rejects.toThrow();

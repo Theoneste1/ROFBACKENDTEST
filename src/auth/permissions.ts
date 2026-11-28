@@ -104,6 +104,8 @@ export const PERMISSIONS = [
   'tests.authorizeResubmission', // Administrators only (owner 2026-11-21): unlock a submitted (locked) answer for ONE
                                  // replacement, with a reason (audited); never a Head Coach, teacher or student (never
                                  // grantable by an individual override)
+  'tests.reassignSubmission',    // Administrators and Super Administrators only (owner 2026-11-28): correct the test and/or
+                                 // level a submitted answer was made under, with a reason (audited); never grantable
   'tests.submit',                // Students: submit / replace their own answer to a test of their division (own)
   'tests.submitForStudents',     // Teachers (G2: any teacher of the school, primary or secondary): submit for VERIFIED
                                  // students of their own schools (school). Separate from submissions.submitOnBehalf.
@@ -201,7 +203,7 @@ const ADMIN_GRANTS: Grants = {
   // Test Management (WS3, 2026-11-19): every subject
   'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
   // Test Management, Phase 2: extensions and submission tracking, every subject
-  'tests.extensions': 'global', 'tests.viewSubmissions': 'global', 'tests.authorizeResubmission': 'global',
+  'tests.extensions': 'global', 'tests.viewSubmissions': 'global', 'tests.authorizeResubmission': 'global', 'tests.reassignSubmission': 'global',
   // Test Management, Phase 3: distribution and review, every subject. Never tests.mark or tests.adjustMarks (G4).
   'tests.distribute': 'global', 'tests.review': 'global',
   // Test Management, Phase 4: publication (and its override: Administrators only), results, rankings, reports.
@@ -306,7 +308,7 @@ export const ROLE_GRANTS: Readonly<Record<AppRole, Grants>> = {
     'forms.view': 'global', 'forms.manageAvailability': 'global', 'forms.editMessages': 'global',
     'reference.manage': 'global',
     'tests.view': 'global', 'tests.manage': 'global', 'tests.manageMarkers': 'global',
-    'tests.extensions': 'global', 'tests.viewSubmissions': 'global', 'tests.authorizeResubmission': 'global',
+    'tests.extensions': 'global', 'tests.viewSubmissions': 'global', 'tests.authorizeResubmission': 'global', 'tests.reassignSubmission': 'global',
     'tests.distribute': 'global', 'tests.review': 'global',
     'tests.publishResults': 'global', 'tests.overridePublication': 'global', 'tests.viewResults': 'global', 'tests.viewRankings': 'global',
     'students.classifyLevel': 'global',
@@ -336,6 +338,8 @@ export const NEVER_GRANTABLE: readonly Permission[] = [
   'tests.overridePublication',
   // Locked submissions (owner 2026-11-21): only Administrators unlock a submitted answer; nobody else may receive it.
   'tests.authorizeResubmission',
+  // Reassign a submission (owner 2026-11-28): Administrators and Super Administrators alone.
+  'tests.reassignSubmission',
   // Registration data (owner 2026-11-23): every account's personal registration data — Super Administrators alone.
   'registrationData.manage',
 ];
@@ -421,6 +425,8 @@ export const ROLE_PERMISSIONS: Record<LegacyRole, readonly Permission[]> = {
     'subscribers.manage',
     // appended 2026-11-23 (owner): view as another (lower-ranked) user, read only
     'users.impersonate',
+    // appended 2026-11-28 (owner): reassign a submitted answer to the correct test and/or level
+    'tests.reassignSubmission',
   ],
 };
 

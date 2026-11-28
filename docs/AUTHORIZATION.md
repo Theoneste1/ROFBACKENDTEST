@@ -17,7 +17,7 @@ admits exactly the roles it names; a permission route admits the roles holding t
 | Administrators manage the workflow but cannot grade or write academic feedback | mark / review endpoints are MENTOR-only |
 | Unpublished, hidden or other people's records answer 404 (not 403), so their existence is not revealed | everywhere |
 
-Totals: 519 endpoints — 31 public, 233 administrator-only (Admin and / or Super Admin).
+Totals: 527 endpoints — 31 public, 237 administrator-only (Admin and / or Super Admin).
 
 ## Academic years
 
@@ -357,6 +357,7 @@ Totals: 519 endpoints — 31 public, 233 administrator-only (Admin and / or Supe
 | POST | `/api/v1/admin/test-markers` |  |  |  |  | ✓ | ✓ | ✓ |
 | POST | `/api/v1/admin/test-markers/{id}/revoke` |  |  |  |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/admin/test-markers/candidates` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/test-submissions` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/tests` |  |  |  |  | ✓ | ✓ | ✓ |
 | POST | `/api/v1/admin/tests` |  |  |  |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/admin/tests/{id}` |  |  |  |  | ✓ | ✓ | ✓ |
@@ -378,6 +379,9 @@ Totals: 519 endpoints — 31 public, 233 administrator-only (Admin and / or Supe
 | PUT | `/api/v1/admin/tests/{id}/questions/order` |  |  |  |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions` |  |  |  |  | ✓ | ✓ | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}` |  |  |  |  | ✓ | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment` |  |  |  |  |  | ✓ | ✓ |
+| POST | `/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment` |  |  |  |  |  | ✓ | ✓ |
+| GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/reassignment/history` |  |  |  |  |  | ✓ | ✓ |
 | POST | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  |  |  | ✓ | ✓ |
 | DELETE | `/api/v1/admin/tests/{id}/submissions/{submissionId}/resubmission` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/admin/tests/{id}/submissions/{submissionId}/versions/{versionId}/pages/{page}` |  |  |  |  | ✓ | ✓ | ✓ |
@@ -453,6 +457,7 @@ Totals: 519 endpoints — 31 public, 233 administrator-only (Admin and / or Supe
 | POST | `/api/v1/applications/info-requests/view` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/activate` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/activation/inspect` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/auth/activity` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/forgot-password` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/login` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/auth/logout` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -522,11 +527,14 @@ Totals: 519 endpoints — 31 public, 233 administrator-only (Admin and / or Supe
 | GET | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | PUT | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | DELETE | `/api/v1/reports/{id}` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/access-log` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/reports/{id}/export` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | PUT | `/api/v1/reports/{id}/grants` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| POST | `/api/v1/reports/{id}/grants/{grantId}/revoke` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/reports/{id}/preview` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | GET | `/api/v1/reports/{id}/run` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GET | `/api/v1/reports/{id}/summary` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | POST | `/api/v1/reports/preview` |  |  |  |  |  | ✓ | ✓ |
 | GET | `/api/v1/reports/sources` |  |  |  |  |  | ✓ | ✓ |
 

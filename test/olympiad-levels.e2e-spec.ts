@@ -6,7 +6,8 @@
  *  - a student's division follows the grade (the active division whose suggested grades hold it), whatever writes it;
  *  - a Coach / Head Coach (their programmes' students) or a User Manager sets it by hand (reason, history, audit); set by
  *    hand it no longer follows the grade; "automatic" returns it to the suggestion; the active enrolment moves with it;
- *  - who may: User Managers (any student), Coaches and Head Coaches (their programmes' students only; others 404); never a
+ *  - who may: User Managers (any student), Head Coaches (their programmes' students only; others 404), Coaches see only
+ *    (403 COACH_CANNOT_EDIT_STUDENTS, owner 2026-11-27); never a
  *    student, a teacher or anyone signed out; refusals and edge cases; two classifiers at once;
  *  - tests: a test for any active division (MIDDLE or a new one); eligibility, the student's list, the teacher's list,
  *    tracking and extensions use the DIVISION, never the grade; a submission keeps the division it was made in; bulk.
@@ -179,16 +180,21 @@ describe('Divisions and Olympiad levels: managed by Administrators, set by Coach
       }
     });
 
-    it('who may: User Managers any student; Coaches and Head Coaches their programmes\' students only (others 404); never a student, a teacher or anyone signed out', async () => {
+    it('who may: User Managers any student; Head Coaches their programmes\' students only (others 404); Coaches see but never change; never a student, a teacher or anyone signed out', async () => {
       const member = await student('S3', { programme: maths });
       const other = await student('S3', { programme: physics });
       const own = await tokenOf(member);
       for (const token of [hc, coach]) {
         await http().get(L(member)).set(bearer(token)).expect(200);
         expect(await status(http().get(L(other)).set(bearer(token)))).toEqual([404, 'STUDENT_NOT_FOUND']);
-        expect(await status(http().put(L(other)).set(bearer(token)).send({ divisionId: div.SENIOR, reason: 'Not mine' }))).toEqual([404, 'STUDENT_NOT_FOUND']);
       }
-      expect((await http().put(L(member)).set(bearer(coach)).send({ divisionId: div.JUNIOR, reason: 'Needs the basics' }).expect(200)).body.history[0].changedBy.username).toBe('ol.coach');
+      expect(await status(http().put(L(other)).set(bearer(hc)).send({ divisionId: div.SENIOR, reason: 'Not mine' }))).toEqual([404, 'STUDENT_NOT_FOUND']);
+      // Owner 2026-11-27: a coach edits no student profile data — not their own programme's students, not anyone's.
+      for (const target of [member, other]) {
+        expect(await status(http().put(L(target)).set(bearer(coach)).send({ divisionId: div.JUNIOR, reason: 'Needs the basics' }))).toEqual([403, 'COACH_CANNOT_EDIT_STUDENTS']);
+        expect(await status(http().put(L(target)).set(bearer(coach)).send({ automatic: true, reason: 'Back to the grade' }))).toEqual([403, 'COACH_CANNOT_EDIT_STUDENTS']);
+      }
+      expect(await p().divisionChange.count({ where: { studentId: member, source: { not: 'GRADE' } } })).toBe(0);
       expect((await http().put(L(member)).set(bearer(hc)).send({ divisionId: div.SENIOR, reason: 'Strong results' }).expect(200)).body.level.code).toBe('SENIOR');
       expect(await status(http().get(L(member)).set(bearer(outsider)))).toEqual([404, 'STUDENT_NOT_FOUND']);
       for (const token of [own, teacher]) {
