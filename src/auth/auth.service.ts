@@ -19,7 +19,7 @@ import { ActivationService } from './activation.service.js';
 import { AppError } from '../common/errors/app-error.js';
 import { TokenService, hashToken, type ClientInfo } from './token.service.js';
 import { PermissionService } from './permission.service.js';
-import { AUTH_USER_SELECT, toAuthUser } from './strategies/jwt.strategy.js';
+import { authUserSelect, toAuthUser } from './strategies/jwt.strategy.js';
 import { RegisterStudentDto } from './dto/register-student.dto.js';
 import { RegisterAdminDto } from './dto/register-admin.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -401,7 +401,7 @@ export class AuthService {
     const { userId, tokens } = await this.tokens.rotate(refreshToken, client);
     const [profile, authRow] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId }, select: PROFILE_WITH_STEPS_SELECT }),
-      this.prisma.user.findUnique({ where: { id: userId }, select: AUTH_USER_SELECT }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: authUserSelect() }),
     ]);
     if (!profile || !authRow) return tokens;
     // The same summary as GET /me/permissions, for the same user object a request with this access token would carry.
