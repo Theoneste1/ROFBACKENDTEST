@@ -23,6 +23,7 @@ import type { Response } from 'express';
 
 import { AuditService } from '../audit/audit.service.js';
 import { AccessService } from '../common/access/access.service.js';
+import { isAdmin } from '../common/access/roles.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { AppError } from '../common/errors/app-error.js';
 import { pageArgs, paginated } from '../common/pagination.js';
@@ -170,8 +171,14 @@ export class TestsService {
       const asked: Record<string, unknown> = {
         ...dto, ...(dto.opensAt && { opensAt: new Date(dto.opensAt).toISOString() }), ...(dto.closesAt && { closesAt: new Date(dto.closesAt).toISOString() }),
       };
-      const locked = lockedFieldsIn(Object.fromEntries(Object.entries(asked).filter(([k, v]) => v !== undefined && v !== current[k])));
-      if (locked.length && (await hasSubmissions(tx, id))) throw lockedBySubmissions('its ' + locked.join(', '), locked);
+      const asLocked = lockedFieldsIn(Object.fromEntries(Object.entries(asked).filter(([k, v]) => v !== undefined && v !== current[k])));
+      // Administrators and Super Administrators may move the deadline (earlier or later) even after students submitted
+      // (owner 2026-11-28): e.g. to close a test now so marking can start. Everything else stays locked, and nobody else.
+      const adminDeadline = isAdmin(user) && asLocked.includes('closesAt');
+      const locked = adminDeadline ? asLocked.filter((f) => f !== 'closesAt') : asLocked;
+      const submitted = asLocked.length ? await hasSubmissions(tx, id) : false;
+      if (locked.length && submitted) throw lockedBySubmissions('its ' + locked.join(', '), locked);
+      const deadlineAfterSubmissions = adminDeadline && submitted;
       if (dto.subjectId && dto.subjectId !== test.disciplineId && test.status !== 'DRAFT') {
         throw new AppError(HttpStatus.CONFLICT, 'TEST_PUBLISHED', 'A published test keeps its subject. Unpublish it first.');
       }
@@ -204,7 +211,7 @@ export class TestsService {
       }
       await this.audit.log({
         actorId: user.id, actorRole: user.role, action: 'TEST_UPDATED', entity: 'Test', entityId: id,
-        metadata: { subjectId: dto.subjectId ?? test.disciplineId, before, after, status: test.status },
+        metadata: { subjectId: dto.subjectId ?? test.disciplineId, before, after, status: test.status, ...(deadlineAfterSubmissions && { deadlineChangedAfterSubmissions: true }) },
       }, tx);
     });
     return this.detail(id);
