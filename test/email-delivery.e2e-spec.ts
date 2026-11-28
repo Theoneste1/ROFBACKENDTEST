@@ -230,6 +230,13 @@ describe('E-mail delivery through Resend (e2e)', () => {
     expect(inbox.filter((m) => m.subject.endsWith('Bulk explicit')).flatMap((m) => m.to).sort())
       .toEqual(['mentor.s@test.local', 'student.j2@test.local']);
     expect(inbox.filter((m) => m.subject.endsWith('Bulk role')).length).toBe(3);
+    // Each person is greeted by first name (owner 2026-11-27), in the text and the HTML.
+    for (const [to, id] of [['mentor.s@test.local', ctx.ids.mentorSenior], ['student.j2@test.local', ctx.ids.studentJunior2]] as const) {
+      const first = (await ctx.prisma.user.findUniqueOrThrow({ where: { id } })).firstName;
+      const mail = inbox.find((m) => m.subject.endsWith('Bulk explicit') && m.to.includes(to))!;
+      expect(mail.text.startsWith(`Hello ${first},`)).toBe(true);
+      expect(mail.html).toContain(`Hello ${first},`);
+    }
     const job = await ctx.http().get(`/api/v1/admin/email/jobs/${all.body.id}`).set(bearer(admin)).expect(200);
     expect(job.body).toMatchObject({ status: 'COMPLETED', failedCount: 0, sentCount: all.body.totalRecipients });
 

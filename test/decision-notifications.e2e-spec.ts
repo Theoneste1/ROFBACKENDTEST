@@ -6,6 +6,7 @@
  *
  * Fixtures: official schools in Southern Province / Huye / Ngoma (220001) and Tumba (220002).
  */
+import { AccountEmailsService } from '../src/notifications/account-emails.service.js';
 import { randomUUID } from 'node:crypto';
 import type { MockInstance } from 'vitest';
 
@@ -327,6 +328,29 @@ describe('Decision notifications', () => {
       expect(await status(http().patch(`/api/v1/mentor-requests/${id}/approve`).set(bearer(admin)))).toEqual([409, 'INVALID_STATE_TRANSITION']);
       await settle();
       expect(await outbox({ entityId: id })).toHaveLength(1);
+    });
+
+    it('e-mail activation on (owner 2026-11-27): the approval names the "Confirm your e-mail address" e-mail; the welcome after activation speaks to a coach, never of submitting assignments', async () => {
+      await setting('registration.requireEmailVerification', true);
+      try {
+        const id = await apply('dn.coach.verify');
+        const res = await http().patch(`/api/v1/mentor-requests/${id}/approve`).set(bearer(admin)).expect(200);
+        await settle();
+        const [approval] = mailsTo('dn.coach.verify@test.local');
+        expect(approval.text).toContain('as a Coach has been approved');
+        expect(approval.text).toContain('open the separate e-mail "Confirm your e-mail address" we have sent you and click its button');
+        const confirm = await p().emailDelivery.findMany({ where: { recipientEmail: 'dn.coach.verify@test.local' } });
+        expect(confirm.map((m) => m.subject)).toEqual([expect.stringContaining('Confirm your e-mail address')]);
+        // Clicking the link sends the welcome e-mail (AccountEmailsService.welcome, as ActivationService does).
+        await ctx.app.get(AccountEmailsService).welcome(res.body.mentor.id);
+        const welcome = (await p().emailDelivery.findMany({ where: { recipientEmail: 'dn.coach.verify@test.local' }, orderBy: { createdAt: 'asc' } })).at(-1)!;
+        expect(welcome.subject).toContain('Welcome to');
+        expect(welcome.body).toContain("prepare assignments, review your students' work and mark tests");
+        expect(welcome.body).not.toContain('submit assignments');
+        expect(welcome.body).not.toContain('follow your courses');
+      } finally {
+        await setting('registration.requireEmailVerification', false);
+      }
     });
 
     it('rejection: the existing rejection e-mail only; no approval notice', async () => {
