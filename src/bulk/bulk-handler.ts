@@ -82,13 +82,17 @@ export interface BulkEntityHandler {
   normaliseParams(action: string, p: Record<string, unknown>): Record<string, unknown>;
   /** Parameter checks before anything is read (throws AppError). */
   validate(action: string, params: Record<string, unknown>, caller: AuthUser): Promise<void>;
-  count(db: Db, s: EngineSelection): Promise<number>;
+  /**
+   * `viewer`: the caller the selection is resolved for — records the caller may not see are not part of it (USER: Super
+   * Administrator privacy; an id the caller may not see behaves exactly like an unknown id).
+   */
+  count(db: Db, s: EngineSelection, viewer: AuthUser): Promise<number>;
   /** Every matching id, sorted ascending (the order the confirmation digest uses). */
-  scanIds(db: Db, s: EngineSelection): Promise<string[]>;
+  scanIds(db: Db, s: EngineSelection, viewer: AuthUser): Promise<string[]>;
   /** `willApply`: how many records the action will change, when the type can tell in advance (USER activateNow). */
   preview(ids: string[], action: string, params: Record<string, unknown>, caller: AuthUser): Promise<{ sample: unknown[]; warnings: PreviewWarning[]; requiresStepUp: boolean; willApply?: number }>;
   /** At execution, before the transaction: true when the caller's current password must be checked (assertStepUp). */
-  stepUpRequired?(action: string, params: Record<string, unknown>, s: EngineSelection): Promise<boolean>;
+  stepUpRequired?(action: string, params: Record<string, unknown>, s: EngineSelection, viewer: AuthUser): Promise<boolean>;
   assertStepUp?(caller: AuthUser, currentPassword: string | undefined): Promise<void>;
   /** In the creation transaction, after the operation row (e.g. the e-mail job of a message). */
   onCreate?(tx: Prisma.TransactionClient, operationId: string, action: string, params: Record<string, unknown>, caller: AuthUser): Promise<void>;
@@ -98,7 +102,7 @@ export interface BulkEntityHandler {
   isSelf?(entityId: string, actor: AuthUser): boolean;
   processItem(ctx: ItemContext, action: string): Promise<ItemResult>;
   /** Summaries of records for the items list. */
-  describe(db: Db, ids: string[]): Promise<Map<string, unknown>>;
+  describe(db: Db, ids: string[], viewer: AuthUser): Promise<Map<string, unknown>>;
   export?: { permission: Permission; run(ids: string[], selection: EngineSelection, caller: AuthUser, res: Response, requestId: string | null): Promise<void> };
 }
 

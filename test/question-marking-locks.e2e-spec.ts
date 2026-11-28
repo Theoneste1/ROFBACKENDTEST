@@ -318,4 +318,112 @@ describe('Question-level marking — locks and races (real PostgreSQL)', () => {
     console.log('QM_LOAD_REPORT', JSON.stringify({ seconds, operations: ops, errors5xx, deadlocks: dl1 - dl0, invariantViolations: bad[0].n })); qmReport('load', { seconds, operations: ops, errors5xx, transportErrors: transport.length, transportSamples: [...new Set(transport)].slice(0, 5), deadlocks: dl1 - dl0, invariantViolations: bad[0].n });
     expect({ errors5xx, deadlocks: dl1 - dl0, invariantViolations: bad[0].n }).toEqual({ errors5xx: 0, deadlocks: 0, invariantViolations: 0 });
   }, 600_000);
+
+  /**
+   * Regression (develop CI 2026-11-28, the mixed load above: "Paper …: status MARKING_IN_PROGRESS is not its projection
+   * RETURNED" → 500 on a claim). A claim first ends the coach's own expired claims (on any paper), then, when the coach
+   * already holds the requested question, answers "already mine". That early answer skipped the projection of the papers
+   * whose questions it had just changed, so the commit-time paper invariant refused the transaction. Each paper changed
+   * by a claim must be projected, whatever the claim answers.
+   */
+  describe('re-claiming a question I already hold while another of my claims has expired', () => {
+    let n = 0;
+    /** A coach of their own (marker of every question of tests made from now on), so no earlier claim counts. */
+    const freshCoach = async () => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      const username = `qml.reclaim${n++}`;
+      const id = (await p().user.create({ data: { username, firstName: 'R', lastName: `${n}`, email: `${username}@test.local`, role: 'MENTOR', passwordHash: hash, activatedAt: new Date() } })).id;
+      await p().markerAuthorization.create({ data: { coachId: id, disciplineId: maths, grantedById: ctx.ids.admin } });
+      const coach = { id, token: await login(ctx, username) };
+      coaches.push(coach);   // ready() makes every coach in the list a marker of the new test's questions
+      return coach;
+    };
+    const expire = (taskId: string) => p().$executeRaw`UPDATE "TestQuestionTask" SET "lockExpiresAt" = clock_timestamp() - interval '1 second' WHERE "id" = ${taskId}`;
+    const paperStatus = async (submissionId: string) => (await p().$queryRaw<Array<{ stored: string; projected: string }>>`
+      SELECT "status"::text AS "stored", question_paper_status("id") AS "projected" FROM "TestSubmission" WHERE "id" = ${submissionId}`)[0];
+
+    it('returned work (the CI case): the expired resumed claim goes back to RETURNED and its paper becomes RETURNED in the same transaction', async () => {
+      const coach = await freshCoach();
+      const held = await ready(1);       // paper 1: the question the coach holds and asks for again
+      const other = await ready(1);      // paper 2: returned work the coach resumed, whose claim then expired
+      const otherTask = await taskOf(other.id, 1);
+      expect((await claim(coach.token, other.code, 'q1')).status).toBe(200);
+      await http().post(`${MT}/${other.code}/q1/submit`).set(bearer(coach.token)).send({ marks: 1 }).expect(200);
+      await http().post(`${QM(other.id)}/tasks/${otherTask.id}/return`).set(bearer(hm)).send({ reason: 'Regression: check again' }).expect(200);
+      expect((await claim(coach.token, other.code, 'q1')).body.claim).toMatchObject({ method: 'RESUME', resumed: true });
+      expect((await claim(coach.token, held.code, 'q1')).status).toBe(200);
+      await expire(otherTask.id);
+      expect(await paperStatus(other.submissionId)).toEqual({ stored: 'MARKING_IN_PROGRESS', projected: 'MARKING_IN_PROGRESS' });
+
+      const again = await claim(coach.token, held.code, 'q1');
+      expect([again.status, again.body.claim?.resumed]).toEqual([200, true]);   // "already mine", never a 500
+      expect(await p().testQuestionTask.findUniqueOrThrow({ where: { id: otherTask.id }, select: { status: true, holderId: true, reservedForId: true } }))
+        .toEqual({ status: 'RETURNED', holderId: null, reservedForId: coach.id });
+      expect(await paperStatus(other.submissionId)).toEqual({ stored: 'RETURNED', projected: 'RETURNED' });
+      expect(await p().testSubmissionStatusChange.count({ where: { submissionId: other.submissionId, fromStatus: 'MARKING_IN_PROGRESS', toStatus: 'RETURNED' } })).toBe(1);
+      expect((await paperStatus(held.submissionId)).stored).toBe('MARKING_IN_PROGRESS');
+    });
+
+    it('pool work: the expired claim goes back to NOT_STARTED and its paper back to SUBMITTED', async () => {
+      const coach = await freshCoach();
+      const held = await ready(1);
+      const other = await ready(1);
+      const otherTask = await taskOf(other.id, 1);
+      expect((await claim(coach.token, held.code, 'q1')).status).toBe(200);
+      expect((await claim(coach.token, other.code, 'q1')).status).toBe(200);
+      await expire(otherTask.id);
+
+      const again = await claim(coach.token, held.code, 'q1');
+      expect([again.status, again.body.claim?.resumed]).toEqual([200, true]);
+      expect((await p().testQuestionTask.findUniqueOrThrow({ where: { id: otherTask.id } })).status).toBe('NOT_STARTED');
+      expect(await paperStatus(other.submissionId)).toEqual({ stored: 'SUBMITTED', projected: 'SUBMITTED' });
+      expect(await p().testTaskClaim.count({ where: { taskId: otherTask.id, coachId: coach.id, endReason: 'EXPIRED' } })).toBe(1);
+    });
+  });
+
+  /**
+   * Review 2026-11-28: heartbeat and save change no status, but their task update fires the commit-time paper invariant,
+   * which reads the paper status and its projection in two statements. Without the paper lock, a review committing
+   * between those reads made the heartbeat fail with a false "status … is not its projection …". They now hold the paper
+   * FOR SHARE: a status change of the paper (a review's FOR UPDATE, a claim's NO KEY UPDATE) is waited for; another
+   * coach's heartbeat or save (FOR SHARE) is not.
+   */
+  describe('heartbeat and save hold the paper FOR SHARE', () => {
+    it('they wait for a review holding the paper, then succeed; a shared hold (another heartbeat) does not block them', async () => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      const id = (await p().user.create({ data: { username: 'qml.share', firstName: 'S', lastName: 'H', email: 'qml.share@test.local', role: 'MENTOR', passwordHash: hash, activatedAt: new Date() } })).id;
+      await p().markerAuthorization.create({ data: { coachId: id, disciplineId: maths, grantedById: ctx.ids.admin } });
+      const coach = { id, token: await login(ctx, 'qml.share') };
+      coaches.push(coach);
+      const paper = await ready(2);
+      expect((await claim(coach.token, paper.code, 'q1')).status).toBe(200);
+      const heartbeat = () => http().post(`${MT}/${paper.code}/q1/heartbeat`).set(bearer(coach.token)).send({});
+      const save = () => http().put(`${MT}/${paper.code}/q1/marks`).set(bearer(coach.token)).send({ marks: 1 });
+
+      // A review holds the paper FOR UPDATE: both wait until it ends.
+      const review = await client();
+      await review.query('BEGIN');
+      await review.query('SELECT 1 FROM "TestSubmission" WHERE "id" = $1 FOR UPDATE', [paper.submissionId]);
+      const settled: string[] = [];
+      const hb = heartbeat().then((r) => { settled.push('heartbeat'); return r; });
+      const sv = save().then((r) => { settled.push('save'); return r; });
+      await sleep(800);
+      expect(settled).toEqual([]);
+      await review.query('COMMIT');
+      await review.end();
+      expect([(await hb).status, (await sv).status]).toEqual([200, 200]);
+
+      // Another coach's heartbeat holds it FOR SHARE: no wait.
+      const other = await client();
+      await other.query('BEGIN');
+      await other.query('SELECT 1 FROM "TestSubmission" WHERE "id" = $1 FOR SHARE', [paper.submissionId]);
+      const t0 = Date.now();
+      expect((await heartbeat()).status).toBe(200);
+      expect((await save()).status).toBe(200);
+      expect(Date.now() - t0).toBeLessThan(5_000);
+      await other.query('COMMIT');
+      await other.end();
+      await http().post(`${MT}/${paper.code}/q1/release`).set(bearer(coach.token)).send({}).expect(200);
+    });
+  });
 });

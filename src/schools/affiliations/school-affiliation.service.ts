@@ -46,6 +46,7 @@ import { AcademicYearsService } from '../../academic-years/academic-years.servic
 import { AuditService } from '../../audit/audit.service.js';
 import { dropStaleSelections } from '../../teachers/teacher-student-ops.js';
 import type { AuthUser } from '../../common/auth-user.js';
+import { isHiddenAccount } from '../../common/access/super-admin-privacy.js';
 import { AppError } from '../../common/errors/app-error.js';
 import { pageArgs, paginated } from '../../common/pagination.js';
 import { Prisma, type GradeLevel, type SchoolAffiliationSource, type SchoolAffiliationStatus } from '../../generated/prisma/client.js';
@@ -511,9 +512,10 @@ export class SchoolAffiliationService {
   }
 
   /** A student's claims, newest first. */
-  async history(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    if (!user) throw new NotFoundException('User not found.');
+  async history(userId: string, viewer: { role: string }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!user || isHiddenAccount(viewer, user)) throw new NotFoundException('User not found.');
     return this.prisma.studentSchoolAffiliation.findMany({ where: { studentId: userId }, select: ADMIN_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
   }
 

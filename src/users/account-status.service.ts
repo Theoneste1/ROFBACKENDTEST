@@ -23,7 +23,8 @@ import { AuditService } from '../audit/audit.service.js';
 import { PermissionService } from '../auth/permission.service.js';
 import { RoleAssignmentPolicy } from '../auth/role-assignment.policy.js';
 import { TokenService } from '../auth/token.service.js';
-import type { AuthUser } from '../common/auth-user.js';
+import type { AuthUser, CallerCtx } from '../common/auth-user.js';
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import { AppError } from '../common/errors/app-error.js';
 import { paginated } from '../common/pagination.js';
 import type { AccountStatus, Prisma } from '../generated/prisma/client.js';
@@ -85,7 +86,8 @@ export class AccountStatusService {
       throw new AppError(HttpStatus.BAD_REQUEST, 'CANNOT_CHANGE_OWN_STATUS', 'You cannot change the status of your own account.');
     }
     const target = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true, role: true, accountStatus: true } });
-    if (!target) throw new NotFoundException(`User ${targetId} not found.`);
+    // A Super Administrator does not exist for anyone else (Super Administrator privacy): the same 404.
+    if (!target || isHiddenAccount(caller, target)) throw new NotFoundException(`User ${targetId} not found.`);
     await this.roles.assertCanManage(caller, target.role);
     this.assertAllowed(target.accountStatus, input.toStatus, input.reason, caller, input.confirm);
     const reason = input.reason?.trim() || null;
@@ -178,7 +180,7 @@ export class AccountStatusService {
     }
     const db = ctx.tx ?? this.prisma;
     const target = await db.user.findUnique({ where: { id: targetId }, select: { id: true, role: true } });
-    if (!target) throw new NotFoundException(`User ${targetId} not found.`);
+    if (!target || isHiddenAccount(caller, target)) throw new NotFoundException(`User ${targetId} not found.`);
     await this.roles.assertCanManage(caller, target.role);
     if (!this.permissions.has(caller, 'users.changeStatus')) {
       throw new AppError(HttpStatus.FORBIDDEN, 'PERMISSION_REQUIRED', 'You do not have permission to do this.', { permission: 'users.changeStatus' });
@@ -218,10 +220,10 @@ export class AccountStatusService {
     });
   }
 
-  /** The account's state changes, newest first. */
-  async history(targetId: string, query: { page?: number; limit?: number }) {
-    const exists = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true, accountStatus: true } });
-    if (!exists) throw new NotFoundException(`User ${targetId} not found.`);
+  /** The account's state changes, newest first. A Super Administrator's only for a Super Administrator viewer (privacy). */
+  async history(targetId: string, query: { page?: number; limit?: number }, viewer: CallerCtx) {
+    const exists = await this.prisma.user.findUnique({ where: { id: targetId }, select: { id: true, role: true, accountStatus: true } });
+    if (!exists || isHiddenAccount(viewer, exists)) throw new NotFoundException(`User ${targetId} not found.`);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const where: Prisma.UserStatusChangeWhereInput = { userId: targetId };

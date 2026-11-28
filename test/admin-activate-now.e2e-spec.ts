@@ -140,7 +140,8 @@ describe('Activate now', () => {
     const otherAdmin = await awaiting('an.admin2', 'ADMIN');
     const superAdmin = await awaiting('an.super2', 'SUPER_ADMIN');
     const sa = await makeAdmin('an.super', 'SUPER_ADMIN');
-    expect(await code(activateNow(superAdmin.id))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
+    // Super Administrator privacy (owner 2026-11-28): for an Administrator a Super Administrator does not exist — 404.
+    expect(await code(activateNow(superAdmin.id))).toEqual([404, 'NOT_FOUND']);
     process.env.SUPER_ADMIN_BOUNDARY_ENABLED = 'true';
     try {
       expect(await code(activateNow(otherAdmin.id))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
@@ -193,34 +194,36 @@ describe('Activate now', () => {
     const noPw1 = await awaiting('bulk.nopw1', 'STUDENT', { passwordHash: null });
     const noPw2 = await awaiting('bulk.nopw2', 'MENTOR', { passwordHash: null });
     const susp = await awaiting('bulk.susp', 'STUDENT', { accountStatus: 'SUSPENDED', isActive: false });
-    const adm = await awaiting('bulk.super', 'SUPER_ADMIN');   // an Administrator never manages a Super Administrator
+    // Super Administrator privacy (owner 2026-11-28): for an Administrator a Super Administrator's id is like an unknown id —
+    // not part of the selection at all (it was SKIPPED ROLE_NOT_MANAGEABLE before).
+    const adm = await awaiting('bulk.super', 'SUPER_ADMIN');
     const ids = [ok1, ok2, ok3, done, noPw1, noPw2, susp, adm].map((u) => u.id).concat(ctx.ids.admin);
 
     const body = { action: 'activateNow', selection: { mode: 'ids', ids } };
     const pv = await http().post('/api/v1/admin/bulk/USER/preview').set(bearer(admin)).send(body).expect(200);
-    expect(pv.body).toMatchObject({ action: 'activateNow', total: 9, willApply: 3, requiresReason: false, requiresStepUp: false });
+    expect(pv.body).toMatchObject({ action: 'activateNow', total: 8, willApply: 3, requiresReason: false, requiresStepUp: false });
     expect(pv.body.consequences[0]).toMatch(/without confirming their e-mail/);
     const byCode = Object.fromEntries(pv.body.warnings.map((w: any) => [w.code, w.count]));
-    expect(byCode).toEqual({ INCLUDES_YOURSELF: 1, ROLE_NOT_MANAGEABLE: 1, ACCOUNT_NOT_ACTIVE: 1, ALREADY_ACTIVATED: 1, NO_PASSWORD_YET: 2 });
+    expect(byCode).toEqual({ INCLUDES_YOURSELF: 1, ACCOUNT_NOT_ACTIVE: 1, ALREADY_ACTIVATED: 1, NO_PASSWORD_YET: 2 });
     for (const w of pv.body.warnings) expect(w.message.length).toBeGreaterThan(20);
     // The /admin/users/bulk preview is the same engine.
     const old = await http().post('/api/v1/admin/users/bulk/preview').set(bearer(admin)).send(body).expect(200);
     expect(old.body.willApply).toBe(3);
 
     const ex = await http().post('/api/v1/admin/bulk/USER').set(bearer(admin)).send({
-      action: 'activateNow', selection: pv.body.selection, selectionToken: pv.body.selectionToken, expectedTotal: 9, confirm: true, idempotencyKey: key(),
+      action: 'activateNow', selection: pv.body.selection, selectionToken: pv.body.selectionToken, expectedTotal: 8, confirm: true, idempotencyKey: key(),
     }).expect(202);
     const opId = ex.body.operation.id;
     while ((await worker.processBatch()) > 0) { /* until nothing is pending */ }
     const op = await http().get(`/api/v1/admin/bulk/operations/${opId}`).set(bearer(admin)).expect(200);
-    expect(op.body).toMatchObject({ status: 'COMPLETED', total: 9, succeeded: 3, skipped: 6, failed: 0 });
+    expect(op.body).toMatchObject({ status: 'COMPLETED', total: 8, succeeded: 3, skipped: 5, failed: 0 });
 
     const items = await http().get(`/api/v1/admin/bulk/operations/${opId}/items`).query({ limit: 100 }).set(bearer(admin)).expect(200);
     const outcome = Object.fromEntries(items.body.data.map((i: any) => [i.entityId, [i.outcome, i.code ?? null]]));
     expect(outcome).toEqual({
       [ok1.id]: ['SUCCEEDED', null], [ok2.id]: ['SUCCEEDED', null], [ok3.id]: ['SUCCEEDED', null],
       [done.id]: ['SKIPPED', 'ALREADY_ACTIVATED'], [noPw1.id]: ['SKIPPED', 'NO_PASSWORD_YET'], [noPw2.id]: ['SKIPPED', 'NO_PASSWORD_YET'],
-      [susp.id]: ['SKIPPED', 'ACCOUNT_NOT_ACTIVE'], [adm.id]: ['SKIPPED', 'ROLE_NOT_MANAGEABLE'], [ctx.ids.admin]: ['SKIPPED', 'SELF'],
+      [susp.id]: ['SKIPPED', 'ACCOUNT_NOT_ACTIVE'], [ctx.ids.admin]: ['SKIPPED', 'SELF'],
     });
 
     for (const [u, name] of [[ok1, 'bulk.ok1'], [ok2, 'bulk.ok2'], [ok3, 'bulk.ok3']] as const) {

@@ -10931,6 +10931,40 @@
           }
         },
         {
+          "name": "POST /auth/activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/activity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "activity"
+              ],
+              "variable": [],
+              "query": []
+            },
+            "description": "**Access:** Any signed-in user",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"refreshToken refreshToken refreshToken\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "POST /auth/forgot-password",
           "request": {
             "method": "POST",

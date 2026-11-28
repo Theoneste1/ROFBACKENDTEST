@@ -170,19 +170,34 @@ describe('Bulk user operations', () => {
     expect((await p().bulkOperation.findUniqueOrThrow({ where: { id: opId } })).status).toMatch(/^COMPLETED/);
   });
 
-  it('partial failures are reported separately: a Super Admin (role policy), yourself (skipped), others succeed', async () => {
+  // Super Administrator privacy (owner 2026-11-28): for an ADMIN a Super Admin's id behaves like an unknown id — it is not
+  // part of the selection (before: a FAILED item ROLE_NOT_ASSIGNABLE naming the Super Admin). The role policy's per-item
+  // refusal is still shown, with another ADMIN account under the Super Admin boundary.
+  it('partial failures are reported separately: an account the role policy refuses, yourself (skipped), others succeed; a Super Admin is not selected', async () => {
     const ids = await makeUsers('mixed', 3);
     const sa = await p().user.create({ data: { username: 'mixed.sa', firstName: 'S', lastName: 'A', email: 'mixed.sa@test.local', role: 'SUPER_ADMIN', passwordHash: hash, activatedAt: new Date() } });
-    const { pv, res } = await run('suspend', { mode: 'ids', ids: [...ids, sa.id, ctx.ids.admin] }, { reason: 'Mixed test' });
-    expect(pv.body.warnings.map((w: any) => w.code)).toEqual(expect.arrayContaining(['INCLUDES_YOURSELF', 'INCLUDES_ADMINISTRATORS']));
-    await drain();
-    const op = (await http().get(`/api/v1/admin/users/bulk/${res.body.operation.id}`).set(bearer(admin)).expect(200)).body;
-    expect(op).toMatchObject({ status: 'COMPLETED_WITH_FAILURES', succeeded: 3, failed: 1, skipped: 1 });
-    const failed = await http().get(`/api/v1/admin/users/bulk/${res.body.operation.id}/items`).query({ outcome: 'FAILED' }).set(bearer(admin)).expect(200);
-    expect(failed.body.data).toEqual([expect.objectContaining({ userId: sa.id, code: 'ROLE_NOT_ASSIGNABLE', user: expect.objectContaining({ username: 'mixed.sa' }) })]);
-    const skipped = await http().get(`/api/v1/admin/users/bulk/${res.body.operation.id}/items`).query({ outcome: 'SKIPPED' }).set(bearer(admin)).expect(200);
+    const other = await p().user.create({ data: { username: 'mixed.admin', firstName: 'O', lastName: 'A', email: 'mixed.admin@test.local', role: 'ADMIN', passwordHash: hash, activatedAt: new Date() } });
+    process.env.SUPER_ADMIN_BOUNDARY_ENABLED = 'true';
+    let opId: string;
+    try {
+      const { pv, res } = await run('suspend', { mode: 'ids', ids: [...ids, sa.id, other.id, ctx.ids.admin] }, { reason: 'Mixed test' });
+      expect(pv.body.total).toBe(5);
+      expect(JSON.stringify(pv.body.sample)).not.toContain('mixed.sa');
+      expect(pv.body.warnings.map((w: any) => w.code)).toEqual(expect.arrayContaining(['INCLUDES_YOURSELF', 'INCLUDES_ADMINISTRATORS']));
+      opId = res.body.operation.id;
+      await drain();
+    } finally {
+      delete process.env.SUPER_ADMIN_BOUNDARY_ENABLED;
+    }
+    const op = (await http().get(`/api/v1/admin/users/bulk/${opId}`).set(bearer(admin)).expect(200)).body;
+    expect(op).toMatchObject({ status: 'COMPLETED_WITH_FAILURES', total: 5, succeeded: 3, failed: 1, skipped: 1 });
+    const failed = await http().get(`/api/v1/admin/users/bulk/${opId}/items`).query({ outcome: 'FAILED' }).set(bearer(admin)).expect(200);
+    expect(failed.body.data).toEqual([expect.objectContaining({ userId: other.id, code: 'ROLE_NOT_ASSIGNABLE', user: expect.objectContaining({ username: 'mixed.admin' }) })]);
+    const skipped = await http().get(`/api/v1/admin/users/bulk/${opId}/items`).query({ outcome: 'SKIPPED' }).set(bearer(admin)).expect(200);
     expect(skipped.body.data).toEqual([expect.objectContaining({ userId: ctx.ids.admin, code: 'SELF' })]);
+    expect(await p().bulkOperationItem.count({ where: { operationId: opId, userId: sa.id } })).toBe(0);
     expect((await p().user.findUniqueOrThrow({ where: { id: sa.id } })).accountStatus).toBe('ACTIVE');
+    expect((await p().user.findUniqueOrThrow({ where: { id: other.id } })).accountStatus).toBe('ACTIVE');
     expect((await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).accountStatus).toBe('ACTIVE');
   });
 

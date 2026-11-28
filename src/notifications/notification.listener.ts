@@ -310,13 +310,20 @@ export class NotificationListener {
         where:  { id: e.commentId },
         select: {
           id: true, threadId: true, authorId: true,
-          author: { select: { firstName: true, lastName: true } },
+          author: { select: { firstName: true, lastName: true, role: true } },
           parent: { select: { authorId: true } },
           thread: { select: { title: true, createdById: true } },
         },
       });
       if (!c) return;
-      const who = `${c.author.firstName ?? ''} ${c.author.lastName ?? ''}`.trim() || 'Someone';
+      const named = `${c.author.firstName ?? ''} ${c.author.lastName ?? ''}`.trim() || 'Someone';
+      // Super Administrator privacy (owner 2026-11-28): a Super Administrator's name reaches only other Super
+      // Administrators; anyone else reads "ROF Administration" (as the thread shows it).
+      const recipients = [c.parent?.authorId, c.thread.createdById].filter((x): x is string => !!x);
+      const superAdmins = c.author.role === 'SUPER_ADMIN'
+        ? new Set((await this.prisma.user.findMany({ where: { id: { in: recipients }, role: 'SUPER_ADMIN' }, select: { id: true } })).map((u) => u.id))
+        : new Set<string>();
+      const whoFor = (recipientId: string) => (c.author.role === 'SUPER_ADMIN' && !superAdmins.has(recipientId) ? 'ROF Administration' : named);
       const notice = (title: string, body: string) => ({
         category: 'DISCUSSIONS' as const,
         type:     Events.DiscussionCommentPosted,
@@ -328,12 +335,12 @@ export class NotificationListener {
       const parentAuthor = c.parent?.authorId;
       if (parentAuthor && parentAuthor !== c.authorId) {
         await this.notifications.notify([parentAuthor],
-          notice('New reply to your comment', `${who} replied to your comment in "${c.thread.title}".`), { email: false });
+          notice('New reply to your comment', `${whoFor(parentAuthor)} replied to your comment in "${c.thread.title}".`), { email: false });
       }
       const threadAuthor = c.thread.createdById;
       if (threadAuthor !== c.authorId && threadAuthor !== parentAuthor) {
         await this.notifications.notify([threadAuthor],
-          notice('New activity in your discussion', `${who} posted in "${c.thread.title}".`), { email: false });
+          notice('New activity in your discussion', `${whoFor(threadAuthor)} posted in "${c.thread.title}".`), { email: false });
       }
     });
   }

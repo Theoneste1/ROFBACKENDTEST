@@ -137,6 +137,8 @@ export const ADDED_SINCE_BASELINE: Readonly<Record<string, AddedRouteDecisions>>
   'PUT /api/v1/me/date-of-birth  MeController.setDateOfBirth':                                                  STUDENTS_ONLY,
   // Owner 2026-11-20: a user without a gender gives it once (any signed-in user; asked of students, teachers, coaches)
   'PUT /api/v1/me/gender  MeController.setGender':                                                              SIGNED_IN,
+  // Session inactivity (owner 2026-11-28): the browser reports user activity for its own session.
+  'POST /api/v1/auth/activity  AuthController.activity':                                                         SIGNED_IN,
   'GET /api/v1/users/:id/avatar  UserAvatarController.avatar':                                                 SIGNED_IN,
   'PUT /api/v1/admin/users/:id/avatar  UsersController.setAvatar':                                             ADMINISTRATORS,
   'DELETE /api/v1/admin/users/:id/avatar  UsersController.removeAvatar':                                       ADMINISTRATORS,

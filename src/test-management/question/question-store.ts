@@ -56,9 +56,19 @@ export async function tryLockCoach(tx: Tx, coachId: string): Promise<boolean> {
 export interface PaperRow { id: string; testId: string; studentId: string; publicCode: string; status: string; currentVersionId: string | null; finalMarkingId: string | null; publicationId: string | null }
 
 /** L2: papers in ascending id, one statement, in the transaction's final mode (never upgraded). */
-export async function lockPapers(tx: Tx, ids: Iterable<string>, mode: 'UPDATE' | 'NO KEY UPDATE', skipLocked = false): Promise<PaperRow[]> {
+export async function lockPapers(tx: Tx, ids: Iterable<string>, mode: 'UPDATE' | 'NO KEY UPDATE' | 'SHARE', skipLocked = false): Promise<PaperRow[]> {
   const list = [...new Set(ids)].sort();
   if (list.length === 0) return [];
+  // SHARE (heartbeat, saving a draft): they change no status, but their task update fires the commit-time paper
+  // invariant, which reads the paper's status and its projection in two statements; holding the paper FOR SHARE keeps
+  // every status-changing transaction (NO KEY UPDATE / UPDATE) from committing between those two reads (review
+  // 2026-11-28: a heartbeat racing a review's return failed with a false "status … is not its projection …"). Shared
+  // with other heartbeats and saves, so coaches on other questions of the paper never wait for each other.
+  if (mode === 'SHARE') {
+    return tx.$queryRaw<PaperRow[]>`
+      SELECT "id", "testId", "studentId", "publicCode", "status"::text AS "status", "currentVersionId", "finalMarkingId", "publicationId"
+        FROM "TestSubmission" WHERE "id" = ANY(${list}::text[]) ORDER BY "id" FOR SHARE`;
+  }
   if (mode === 'UPDATE') {
     return tx.$queryRaw<PaperRow[]>`
       SELECT "id", "testId", "studentId", "publicCode", "status"::text AS "status", "currentVersionId", "finalMarkingId", "publicationId"

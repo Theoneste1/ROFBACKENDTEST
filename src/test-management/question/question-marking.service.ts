@@ -352,7 +352,7 @@ export class QuestionMarkingService {
     await this.review(testId, taskId, user, { audit: 'TEST_QUESTION_APPROVED' }, async (tx, first, second, t, actor) => {
       if (first.status === 'AWAITING_SECOND') throw qmErrors.decisionRequired();
       this.expect(first, ['SUBMITTED', 'UNDER_REVIEW'], dto, t);
-      if (second && second.status !== 'CANCELLED') throw qmErrors.decisionRequired();
+      if (second && !secondFinished(second.status)) throw qmErrors.decisionRequired();
       const a = await this.latestSubmitted(tx, first.id);
       await tx.testQuestionDecision.create({ data: { id: randomUUID(), taskId: first.id, cycle: null, source: 'APPROVED_AS_MARKED', marks: a.version.marks, sourceVersionId: a.version.id, decidedById: actor.id, decidedAt: t } });
       await tx.testQuestionAssessment.update({ where: { id: a.id }, data: { status: 'APPROVED', updatedAt: t } });
@@ -374,7 +374,7 @@ export class QuestionMarkingService {
       if (target.round === 'FIRST' && first.status === 'AWAITING_SECOND') throw qmErrors.decisionRequired();
       if (target.round === 'FIRST') this.expect(first, ['SUBMITTED', 'UNDER_REVIEW'], dto, t);
       else if (effectiveStatus(target, t) !== 'SUBMITTED') throw qmErrors.taskChanged({ status: target.status });
-      if (target.round === 'FIRST' && second && second.status !== 'CANCELLED') throw qmErrors.decisionRequired();
+      if (target.round === 'FIRST' && second && !secondFinished(second.status)) throw qmErrors.decisionRequired();
       const a = await this.latestSubmitted(tx, target.id);
       await tx.testQuestionAssessment.update({ where: { id: a.id }, data: { status: 'RETURNED', updatedAt: t } });
       await tx.testQuestionTask.update({ where: { id: target.id }, data: { status: 'RETURNED', reservedForId: a.markerId, needsReassignment: false, reviewHoldById: null, reviewHoldUntil: null, updatedAt: t } });
@@ -606,11 +606,20 @@ function effectiveStatus(task: TaskRow, t: Date): TaskStatus {
   return task.status === 'UNDER_REVIEW' && task.reviewHoldUntil && task.reviewHoldUntil.getTime() < t.getTime() ? 'SUBMITTED' : task.status;
 }
 
+/**
+ * The current cycle's second assessment no longer stands in the way of approving or returning the FIRST assessment:
+ * cancelled, or CLOSED by a decision that a reopen has since superseded (review 2026-11-28: after reopening a decided
+ * question, Approve and Return answered DECISION_REQUIRED and Decide was refused too — nothing could move it).
+ */
+function secondFinished(status: string): boolean {
+  return status === 'CANCELLED' || status === 'CLOSED';
+}
+
 function allowedActions(first: TaskStatus, second: TaskStatus | undefined, role: string) {
   const reviewable = first === 'SUBMITTED' || first === 'UNDER_REVIEW';
   return {
-    approve: reviewable && (!second || second === 'CANCELLED'),
-    return: reviewable && (!second || second === 'CANCELLED'),
+    approve: reviewable && (!second || secondFinished(second)),
+    return: reviewable && (!second || secondFinished(second)),
     requestSecond: reviewable,
     cancelSecond: first === 'AWAITING_SECOND' && !!second && ['NOT_STARTED', 'IN_PROGRESS', 'RETURNED'].includes(second),
     returnSecond: first === 'AWAITING_SECOND' && second === 'SUBMITTED',

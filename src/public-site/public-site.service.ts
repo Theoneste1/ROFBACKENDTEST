@@ -10,7 +10,8 @@
  *   coaches  — active MENTOR accounts (coaches mentor ROF students)
  *   teachers — active TEACHER accounts (school teachers; owner 2026-11-22)
  *   schools  — schools with at least one active student or one active teacher linked to them
- *   members  — all active accounts (students, teachers, coaches, administrators)
+ *   members  — all active accounts (students, teachers, coaches, administrators) — never Super Administrators (Super
+ *              Administrator privacy, owner 2026-11-28)
  *
  * Contact: messages are validated, rate-limited (per IP in the controller,
  * per e-mail and duplicates here, plus a honeypot), stored, and an e-mail notice
@@ -27,6 +28,7 @@ import { SettingsService } from '../settings/settings.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AppError } from '../common/errors/app-error.js';
+import { NOT_SUPER_ADMIN } from '../common/access/super-admin-privacy.js';
 import { pageArgs, paginated } from '../common/pagination.js';
 import type { AuthUser } from '../common/auth-user.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -73,7 +75,7 @@ export class PublicSiteService {
       this.prisma.user.count({ where: { ...ACTIVE_MEMBER, role: 'STUDENT' } }),
       this.prisma.user.count({ where: { ...ACTIVE_MEMBER, role: 'MENTOR' } }),
       this.prisma.user.count({ where: { ...ACTIVE_MEMBER, role: 'TEACHER' } }),
-      this.prisma.user.count({ where: ACTIVE_MEMBER }),
+      this.prisma.user.count({ where: { AND: [ACTIVE_MEMBER, NOT_SUPER_ADMIN] } }),
       this.prisma.school.count({ where: { OR: [
         { students: { some: { ...ACTIVE_MEMBER, role: 'STUDENT' } } },
         { teachers: { some: { isActive: true, teacher: { ...ACTIVE_MEMBER, role: 'TEACHER' } } } },

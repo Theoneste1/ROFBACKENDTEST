@@ -8,6 +8,7 @@ import { csvBatchSize, idBatches, keysetBatches, mapBatches, type CsvExport } fr
 import { ReportScopeService } from './report-scope.js';
 import type { ReportFiltersDto } from './dto/report-filters.dto.js';
 import type { AuthUser } from '../common/auth-user.js';
+import { visibleUsersWhere } from '../common/access/super-admin-privacy.js';
 
 /** Coaches per batch for the workload export: each row loads that coach's reviews. */
 const WORKLOAD_BATCH = 200;
@@ -24,11 +25,11 @@ export class ReportsService {
     private readonly scope:  ReportScopeService,
   ) {}
 
-  /** Headline numbers for the admin dashboard. */
-  async overview() {
+  /** Headline numbers for the admin dashboard. Active Super Administrators are counted only for a Super Administrator (privacy). */
+  async overview(viewer: AuthUser) {
     const [usersByRole, studentsByDivision, pendingStudents, pendingMentors, assignmentsByStatus, submissionsByStatus, failedEmails, divisions] =
       await Promise.all([
-        this.prisma.user.groupBy({ by: ['role'], where: { isActive: true }, _count: { _all: true } }),
+        this.prisma.user.groupBy({ by: ['role'], where: { AND: [{ isActive: true }, visibleUsersWhere(viewer)] }, _count: { _all: true } }),
         this.prisma.user.groupBy({ by: ['divisionId'], where: { role: 'STUDENT', isActive: true }, _count: { _all: true } }),
         this.prisma.user.count({ where: { role: 'STUDENT', isApproved: false, isActive: true } }),
         this.prisma.mentorRequest.count({ where: { status: 'PENDING' } }),

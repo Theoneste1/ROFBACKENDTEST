@@ -154,8 +154,9 @@ describe('profile pictures', () => {
     it('an ADMIN cannot touch a SUPER_ADMIN\'s picture; a SUPER_ADMIN can', async () => {
       const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
       const sa = await p().user.create({ data: { username: 'pic.sa', firstName: 'S', lastName: 'A', email: 'pic.sa@test.local', role: 'SUPER_ADMIN', passwordHash: hash, activatedAt: new Date() } });
-      expect(await codeOf(put(`/api/v1/admin/users/${sa.id}/avatar`, admin, PNG))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
-      expect(await codeOf(http().delete(`/api/v1/admin/users/${sa.id}/avatar`).set(bearer(admin)))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
+      // Super Administrator privacy (owner 2026-11-28): for an ADMIN a Super Admin does not exist — 404, not 403.
+      expect(await codeOf(put(`/api/v1/admin/users/${sa.id}/avatar`, admin, PNG))).toEqual([404, 'NOT_FOUND']);
+      expect(await codeOf(http().delete(`/api/v1/admin/users/${sa.id}/avatar`).set(bearer(admin)))).toEqual([404, 'NOT_FOUND']);
       expect((await userRow(sa.id)).avatarFileId).toBeNull();
       const saToken = await login(ctx, 'pic.sa');
       await put(`/api/v1/admin/users/${ctx.ids.studentJunior2}/avatar`, saToken, PNG).expect(200);

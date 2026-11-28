@@ -7,6 +7,7 @@
  * assignment already active…), so one request can process many students and report each one; nothing here ever
  * aborts the surrounding transaction with a database error (duplicates use ON CONFLICT DO NOTHING).
  */
+import { isHiddenAccount } from '../common/access/super-admin-privacy.js';
 import type { AuditService } from '../audit/audit.service.js';
 import { TEACHER_DELEGATIONS } from '../auth/override-policy.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -44,7 +45,8 @@ export async function assignStudentInTx(
   // this one — or this one waits for it and sees the new role — so an assignment never outlives a role change.
   const roles = await tx.$queryRaw<{ id: string; role: string }[]>`SELECT id, role::text AS role FROM "User" WHERE id IN (${teacherId}, ${studentId}) ORDER BY id FOR SHARE`;
   const student = roles.find((u) => u.id === studentId);
-  if (!student) return failed(studentId, 'NOT_FOUND', 'The account does not exist.');
+  // A Super Administrator is unknown to everyone else (Super Administrator privacy, owner 2026-11-28).
+  if (!student || isHiddenAccount(a.actor.actorRole ? { role: a.actor.actorRole } : null, student)) return failed(studentId, 'NOT_FOUND', 'The account does not exist.');
   if (student.role !== 'STUDENT') return failed(studentId, 'NOT_A_STUDENT', 'Only Student accounts can be assigned to a teacher.');
   if (roles.find((u) => u.id === teacherId)?.role !== 'TEACHER') return failed(studentId, 'NOT_A_TEACHER', 'The account is no longer a Teacher.');
 

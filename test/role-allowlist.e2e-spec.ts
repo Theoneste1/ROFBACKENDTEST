@@ -106,9 +106,10 @@ describe('Role allow-list — flags off (default)', () => {
     });
     const before = await snapshot();
 
+    // Super Administrator privacy (owner 2026-11-28): for an ADMIN a Super Admin does not exist — 404 (was 403 ROLE_NOT_ASSIGNABLE).
     const refused = async (req: Promise<any>) => {
       const res = await req;
-      expect([res.status, res.body.code]).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
+      expect([res.status, res.body.code]).toEqual([404, 'NOT_FOUND']);
     };
     await refused(http().patch(`/api/v1/admin/users/${sa.id}`).set(bearer(admin)).send({ firstName: 'Hijack' }));
     await refused(http().patch(`/api/v1/admin/users/${sa.id}`).set(bearer(admin)).send({ role: 'ADMIN' }));

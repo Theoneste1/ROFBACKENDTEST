@@ -182,7 +182,8 @@ describe('Super Admin bootstrap hardening', () => {
       expect((await http().delete(`/api/v1/admin/users/${sa.id}`).set(bearer(token))).status).toBeGreaterThanOrEqual(400);
       // An ordinary Administrator cannot act on the Super Admin at all.
       const adminToken = await login(ctx, 'admin');
-      expect(await code(http().patch(`/api/v1/admin/users/${sa.id}/status`).set(bearer(adminToken)).send({ isActive: false }))).toEqual([403, 'ROLE_NOT_ASSIGNABLE']);
+      // (Super Administrator privacy, owner 2026-11-28: the account does not exist for an Administrator — 404.)
+      expect(await code(http().patch(`/api/v1/admin/users/${sa.id}/status`).set(bearer(adminToken)).send({ isActive: false }))).toEqual([404, 'NOT_FOUND']);
       for (const sql of [
         `UPDATE "User" SET "role" = 'ADMIN' WHERE "id" = '${sa.id}'`,
         `UPDATE "User" SET "isActive" = false WHERE "id" = '${sa.id}'`,
