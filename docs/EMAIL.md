@@ -281,4 +281,4 @@ e2e test `email-delivery` runs the real SDK against a fake Resend API.
 | Lands in spam | DKIM/SPF/DMARC not all PASS (§8); avoid link shorteners; set the support e-mail setting so the footer has a real contact |
 | Links point to the wrong site | `APP_URL` is wrong (it must be the frontend, not the API) |
 | Reset link "invalid or has expired" | Older than 30 minutes, already used, or a newer link was requested. Request a new one |
-| Nothing is sent at all, no errors | `WORKERS_ENABLED=false` on every instance, or the instance is asleep (Render free plan wakes on the next request) |
+| Nothing is sent at all, no errors | `WORKERS_ENABLED=false` on every instance (the paid Render instance never sleeps) |
