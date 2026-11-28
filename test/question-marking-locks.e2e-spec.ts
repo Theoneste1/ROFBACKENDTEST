@@ -380,4 +380,50 @@ describe('Question-level marking — locks and races (real PostgreSQL)', () => {
       expect(await p().testTaskClaim.count({ where: { taskId: otherTask.id, coachId: coach.id, endReason: 'EXPIRED' } })).toBe(1);
     });
   });
+
+  /**
+   * Review 2026-11-28: heartbeat and save change no status, but their task update fires the commit-time paper invariant,
+   * which reads the paper status and its projection in two statements. Without the paper lock, a review committing
+   * between those reads made the heartbeat fail with a false "status … is not its projection …". They now hold the paper
+   * FOR SHARE: a status change of the paper (a review's FOR UPDATE, a claim's NO KEY UPDATE) is waited for; another
+   * coach's heartbeat or save (FOR SHARE) is not.
+   */
+  describe('heartbeat and save hold the paper FOR SHARE', () => {
+    it('they wait for a review holding the paper, then succeed; a shared hold (another heartbeat) does not block them', async () => {
+      const hash = (await p().user.findUniqueOrThrow({ where: { id: ctx.ids.admin } })).passwordHash;
+      const id = (await p().user.create({ data: { username: 'qml.share', firstName: 'S', lastName: 'H', email: 'qml.share@test.local', role: 'MENTOR', passwordHash: hash, activatedAt: new Date() } })).id;
+      await p().markerAuthorization.create({ data: { coachId: id, disciplineId: maths, grantedById: ctx.ids.admin } });
+      const coach = { id, token: await login(ctx, 'qml.share') };
+      coaches.push(coach);
+      const paper = await ready(2);
+      expect((await claim(coach.token, paper.code, 'q1')).status).toBe(200);
+      const heartbeat = () => http().post(`${MT}/${paper.code}/q1/heartbeat`).set(bearer(coach.token)).send({});
+      const save = () => http().put(`${MT}/${paper.code}/q1/marks`).set(bearer(coach.token)).send({ marks: 1 });
+
+      // A review holds the paper FOR UPDATE: both wait until it ends.
+      const review = await client();
+      await review.query('BEGIN');
+      await review.query('SELECT 1 FROM "TestSubmission" WHERE "id" = $1 FOR UPDATE', [paper.submissionId]);
+      const settled: string[] = [];
+      const hb = heartbeat().then((r) => { settled.push('heartbeat'); return r; });
+      const sv = save().then((r) => { settled.push('save'); return r; });
+      await sleep(800);
+      expect(settled).toEqual([]);
+      await review.query('COMMIT');
+      await review.end();
+      expect([(await hb).status, (await sv).status]).toEqual([200, 200]);
+
+      // Another coach's heartbeat holds it FOR SHARE: no wait.
+      const other = await client();
+      await other.query('BEGIN');
+      await other.query('SELECT 1 FROM "TestSubmission" WHERE "id" = $1 FOR SHARE', [paper.submissionId]);
+      const t0 = Date.now();
+      expect((await heartbeat()).status).toBe(200);
+      expect((await save()).status).toBe(200);
+      expect(Date.now() - t0).toBeLessThan(5_000);
+      await other.query('COMMIT');
+      await other.end();
+      await http().post(`${MT}/${paper.code}/q1/release`).set(bearer(coach.token)).send({}).expect(200);
+    });
+  });
 });
